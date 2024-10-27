@@ -1,0 +1,280 @@
+/* color palette from <https://github.com/vuejs/theme> */
+:root {
+  --vt-c-white: #ffffff;
+  --vt-c-white-soft: #f8f8f8;
+  --vt-c-white-mute: #f2f2f2;
+
+  --vt-c-black: #181818;
+  --vt-c-black-soft: #222222;
+  --vt-c-black-mute: #282828;
+
+  --vt-c-indigo: #2c3e50;
+
+  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
+  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
+  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
+  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+
+  --vt-c-text-light-1: var(--vt-c-indigo);
+  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
+  --vt-c-text-dark-1: var(--vt-c-white);
+  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+}
+
+/* semantic color variables for this project */
+:root {
+  --color-background: var(--vt-c-white);
+  --color-background-soft: var(--vt-c-white-soft);
+  --color-background-mute: var(--vt-c-white-mute);
+
+  --color-border: var(--vt-c-divider-light-2);
+  --color-border-hover: var(--vt-c-divider-light-1);
+
+  --color-heading: var(--vt-c-text-light-1);
+  --color-text: var(--vt-c-text-light-1);
+
+  --section-gap: 160px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: var(--vt-c-black);
+    --color-background-soft: var(--vt-c-black-soft);
+    --color-background-mute: var(--vt-c-black-mute);
+
+    --color-border: var(--vt-c-divider-dark-2);
+    --color-border-hover: var(--vt-c-divider-dark-1);
+
+    --color-heading: var(--vt-c-text-dark-1);
+    --color-text: var(--vt-c-text-dark-2);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-weight: normal;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-background);
+  transition:
+    color 0.5s,
+    background-color 0.5s;
+  line-height: 1.6;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0;
+  font-weight: normal;
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+
+  #app {
+    padding: 0 2rem;
+  }
+}
+
+
+.btn {
+  width: auto;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  hyphens: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  color: #03DAC5;
+  border-radius: 21px;
+  border: 1px solid #03DAC5;
+}
+
+
+.page-wrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+.icon-btn-container {
+  position: fixed;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 80%;
+  max-width: 33em;
+  z-index: 10;
+  margin-bottom: 2em;
+}
+.icon-btn-container .action-buttons {
+  display: flex;
+  gap: 12px;
+}
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+}
+.chat-messages {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0 17px;
+}
+.message {
+  border-radius: 18px;
+  margin-bottom: 1.5rem;
+}
+.message .message-block {
+  padding: 0.5rem;
+  border-radius: 18px;
+  line-height: 1.4;
+  position: relative;
+  color: black;
+}
+.message.user {
+  align-self: flex-end;
+  background-color: #dcf8c6;
+}
+.message.assistant .message-block {
+  background-color: #fff;
+  display: inline-flex;
+  align-items: flex-start;
+  max-width: 80%;
+}
+.quick-action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-end;
+  width: 80%;
+  margin-left: auto;
+  gap: 0.5rem;
+}
+.assistant-avatar {
+  width: 30px;
+  height: 30px;
+  background-color: #8e44ad;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.assistant-avatar i {
+  color: white;
+}
+.assistant-avatar :deep(svg) { /* Add :deep() to target the svg inside the component */
+  fill: white;
+  width: 18px;
+  height: 18px;
+}
+.chat-input {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+}
+.chat-input input {
+  flex-grow: 1;
+  border: none;
+  outline: none;
+  padding: 0.5rem;
+  font-size: 1rem;
+  border: 1px solid #42566B;
+  border-radius: 6px;
+}
+.send-button {
+  background-color: #03DAC5;
+  color: #EBEBEB;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+.send-icon {
+  font-size: 1.2rem;
+}
+.message-content :deep(p) {
+  margin: 0;
+  padding: 0;
+}
+.message-content :deep(a) {
+  color: #03DAC5;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.single-line-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.single-line-message a {
+  display: inline;
+  white-space: nowrap;
+}
+.button-container {
+  display: flex;
+  justify-content: flex-end;
+}
+.align-items-center {
+  align-items: center;
+}
+strong {
+  font-weight: bold;
+}
+
