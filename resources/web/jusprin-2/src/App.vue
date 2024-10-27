@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watchEffect, onMounted } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import axios from 'axios'
 import markdownit from 'markdown-it'
 import QuickActionButton from './components/QuickActionButton.vue'
@@ -12,6 +12,8 @@ const emit = defineEmits(['change-presets', 'slice-model'])
 const userInput = ref('')
 const thinking = ref(false)
 const jusprintCurrentChatId = ref('')
+const chatMessageContainer = ref('')
+
 const messages = ref([
   {
     role: 'assistant',
@@ -37,10 +39,12 @@ const quickActions = ref([])
 // const filamentOverrideProfileName = computed(() => `${originalFilamentProfileName.value} - Obico AI Override`)
 // const printProcessOverrideProfileName = computed(() => `${originalPrintProcessProfileName.value} - Obico AI Override`)
 // const allPresetsSelected = computed(() => selectedMachine && selectedFilament && selectedPrintProcess)
+const allPresetsSelected = computed(() => true)
 
-// Watch messages to scroll to bottom
-watchEffect(() => {
-  scrollToBottom()
+watch(messages.value, () => {
+  nextTick(() => {
+    scrollToBottom()
+  })
 })
 
 // Methods
@@ -135,9 +139,8 @@ function changedParams(message) {
 }
 
 function scrollToBottom() {
-  const chatMessageContainer = document.getElementById('chatMessageContainer')
-  if (chatMessageContainer) {
-    chatMessageContainer.scrollTop = chatMessageContainer.scrollHeight
+  if (chatMessageContainer.value) {
+    chatMessageContainer.value.scrollTop = chatMessageContainer.value.scrollHeight
   }
 }
 
@@ -295,7 +298,7 @@ onMounted(() => {
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
   overflow-y: auto;
 }
 
@@ -377,11 +380,13 @@ onMounted(() => {
   outline: none;
   padding: 0.5rem;
   font-size: 1rem;
+  border: 1px solid #42566B;
+  border-radius: 6px;
 }
 
 .send-button {
-  background-color: var(--color-primary);
-  color: var(--color-text-primary);
+  background-color: #03DAC5;
+  color: #EBEBEB;
   border: none;
   border-radius: 50%;
   width: 40px;
@@ -403,7 +408,7 @@ onMounted(() => {
 }
 
 .message-content :deep(a) {
-  color: var(--color-primary);
+  color: #03DAC5;
   text-decoration: underline;
   cursor: pointer;
 }
