@@ -148,7 +148,7 @@ function initQuickActions() {
   const initQueryHints = [
     'Just do a standard print. Nothing special.',
     'I want to do a fast print. Draft quality.',
-    'Print a strong part.',
+    'Print a strong part. asdf as fasdf ',
     'My last print did not stick to the bed. Help me fix it.',
   ]
 
