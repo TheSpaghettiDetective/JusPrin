@@ -80,9 +80,13 @@
             });
         }
 
-        setTimeout(() => {
+        // setTimeout(() => {
+        //     window.wx.postMessage({ action: 'init_server_url_and_redirect' });
+        // }, 100);    // Ugly workaround for error "undefined is not an object (evaluating window.wx.postMessage)"
+
+        window.onload = function() {
             window.wx.postMessage({ action: 'init_server_url_and_redirect' });
-        }, 100);    // Ugly workaround for error "undefined is not an object (evaluating window.wx.postMessage)"
+        };
     </script>
 </body>
 </html>

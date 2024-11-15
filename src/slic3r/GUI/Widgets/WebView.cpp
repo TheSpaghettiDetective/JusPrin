@@ -293,6 +293,7 @@ wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
                 wxLogError("Could not add script message handler");
             Slic3r::GUI::wxGetApp().set_adding_script_handler(false);
             BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": finished add script message handler for wx.";
+            g_delay_webviews.erase(std::remove(g_delay_webviews.begin(), g_delay_webviews.end(), webView), g_delay_webviews.end());
         };
 #ifndef __WIN32__
         webView->CallAfter([webView, addScriptMessageHandler] {
