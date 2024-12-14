@@ -620,6 +620,10 @@ void PrintObject::detect_overhangs_for_lift()
                     ExPolygons overhangs = diff_ex(layer.lslices, offset_ex(lower_layer.lslices, scale_(min_overlap)));
                     layer.loverhangs = std::move(offset2_ex(overhangs, -0.1f * scale_(line_width), 0.1f * scale_(line_width)));
                     layer.loverhangs_bbox = get_extents(layer.loverhangs);
+
+                    if (layer.loverhangs.size() != 0) {  //这里可以判断是不是有悬垂
+                        layer.loverhangs_bbox = get_extents(layer.loverhangs); //有悬垂会走这个逻辑
+                    }
                 }
             });
 
