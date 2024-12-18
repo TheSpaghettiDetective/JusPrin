@@ -166,7 +166,7 @@ public:
     AutoOrienterDelegate(TriangleMesh* mesh_);
 
 private:
-    std::unique_ptr<AutoOrienter> auto_orienter_;
+    std::shared_ptr<AutoOrienter> auto_orienter_;
 };
 
 }} // namespace Slic3r::orientment

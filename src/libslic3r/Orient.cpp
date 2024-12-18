@@ -547,12 +547,12 @@ AutoOrienterDelegate::AutoOrienterDelegate(OrientMesh* orient_mesh_,
                                            std::function<void(unsigned)> progressind_,
                                            std::function<bool(void)> stopcond_)
 {
-    auto_orienter_ = std::make_unique<AutoOrienter>(orient_mesh_, params_, progressind_, stopcond_);
+    auto_orienter_ = std::make_shared<AutoOrienter>(orient_mesh_, params_, progressind_, stopcond_);
 }
 
 AutoOrienterDelegate::AutoOrienterDelegate(TriangleMesh* mesh_)
 {
-    auto_orienter_ = std::make_unique<AutoOrienter>(mesh_);
+    auto_orienter_ = std::make_shared<AutoOrienter>(mesh_);
 }
 
 } // namespace arr
