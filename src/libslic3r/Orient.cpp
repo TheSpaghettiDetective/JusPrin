@@ -100,6 +100,9 @@ public:
         preprocess();
     }
 
+    ~AutoOrienter() {
+    }
+
     struct VecHash {
         size_t operator()(const Vec3f& n1) const {
             return std::hash<coord_t>()(int(n1(0)*100+100)) + std::hash<coord_t>()(int(n1(1)*100+100)) * 101 + std::hash<coord_t>()(int(n1(2)*100+100)) * 10221;
@@ -161,9 +164,9 @@ public:
 
         for (int i = 1; i< results_vector.size()-1; i++) {
             if (abs(results_vector[i].second.unprintability - results_vector[0].second.unprintability) < EPSILON && abs(results_vector[0].first.dot(n1)-1) > EPSILON) {
-                if (abs(results_vector[i].first.dot(n1)-1) < EPSILON*EPSILON) { 
+                if (abs(results_vector[i].first.dot(n1)-1) < EPSILON*EPSILON) {
                     best_orientation = n1;
-                    break; 
+                    break;
                 }
             }
             else {
@@ -539,6 +542,18 @@ void orient(ModelInstance* instance)
     instance->rotate(rotation_matrix);
 }
 
+AutoOrienterDelegate::AutoOrienterDelegate(OrientMesh* orient_mesh_,
+                                           const OrientParams &params_,
+                                           std::function<void(unsigned)> progressind_,
+                                           std::function<bool(void)> stopcond_)
+{
+    auto_orienter_ = std::make_unique<AutoOrienter>(orient_mesh_, params_, progressind_, stopcond_);
+}
+
+AutoOrienterDelegate::AutoOrienterDelegate(TriangleMesh* mesh_)
+{
+    auto_orienter_ = std::make_unique<AutoOrienter>(mesh_);
+}
 
 } // namespace arr
 } // namespace Slic3r

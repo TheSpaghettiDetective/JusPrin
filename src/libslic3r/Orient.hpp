@@ -154,6 +154,21 @@ void orient(ModelObject* obj);
 
 void orient(ModelInstance* instance);
 
+class AutoOrienter;
+
+class AutoOrienterDelegate {
+public:
+    AutoOrienterDelegate(OrientMesh* orient_mesh_,
+                         const OrientParams &params_,
+                         std::function<void(unsigned)> progressind_,
+                         std::function<bool(void)> stopcond_);
+
+    AutoOrienterDelegate(TriangleMesh* mesh_);
+
+private:
+    std::unique_ptr<AutoOrienter> auto_orienter_;
+};
+
 }} // namespace Slic3r::orientment
 
 #endif // MODELORIENT_HPP
