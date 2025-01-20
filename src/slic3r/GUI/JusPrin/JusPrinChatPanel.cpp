@@ -405,7 +405,7 @@ void JusPrinChatPanel::SendModelObjectAddedEvent(ModelObject* obj) {
 
     // Create the AutoOrienter with the correct arguments
     Slic3r::orientation::AutoOrienterDelegate orienter(&om, params, progress_indicator, stop_condition);
-
+    Slic3r::orientation::CostItems features = orienter.get_features(om.orientation.cast<float>(), true);
     nlohmann::json j = nlohmann::json::object();
     j["type"] = "modelObjectAdded";
     j["data"] = nlohmann::json::object();
