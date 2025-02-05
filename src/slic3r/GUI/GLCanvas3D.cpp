@@ -9901,5 +9901,58 @@ ModelInstance *get_model_instance(const GLVolume &gl_volume, const ModelObject &
     return object.instances[instance_idx];
 }
 
+void GLCanvas3D::take_screenshot(const std::string& filename)
+{
+    if (!m_initialized || m_canvas == nullptr)
+        return;
+
+    const Size& cnv_size = get_canvas_size();
+    const int w = cnv_size.get_width();
+    const int h = cnv_size.get_height();
+
+    if (w <= 0 || h <= 0)
+        return;
+
+    // Get current viewport data
+    GLint viewport[4];
+    glsafe(::glGetIntegerv(GL_VIEWPORT, viewport));
+
+    // Allocate buffer for pixels
+    std::vector<unsigned char> pixels(w * h * 4);
+
+    // Read pixels from framebuffer
+    glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data()));
+
+    // Convert RGBA raw pixels to wxImage
+    wxImage image(w, h);
+    unsigned char* img_data = image.GetData();
+    unsigned char* alpha = image.GetAlpha();
+
+    if (alpha == nullptr) {
+        image.SetAlpha();
+        alpha = image.GetAlpha();
+    }
+
+    for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+            const int pixel_id = (i * w + j) * 4;
+            const int invert_id = ((h - i - 1) * w + j) * 3;
+            img_data[invert_id] = pixels[pixel_id];         // R
+            img_data[invert_id + 1] = pixels[pixel_id + 1]; // G
+            img_data[invert_id + 2] = pixels[pixel_id + 2]; // B
+            alpha[((h - i - 1) * w) + j] = pixels[pixel_id + 3]; // A
+        }
+    }
+
+    // Save image to file
+    wxString wx_filename = wxString::FromUTF8(filename.c_str());
+    const wxString ext = wx_filename.AfterLast('.');
+    const wxBitmapType type = (ext.Lower() == "png") ? wxBITMAP_TYPE_PNG :
+                             (ext.Lower() == "jpg" || ext.Lower() == "jpeg") ? wxBITMAP_TYPE_JPEG :
+                             wxBITMAP_TYPE_BMP;
+
+    image.SaveFile(wx_filename, type);
+}
+
 } // namespace GUI
 } // namespace Slic3r

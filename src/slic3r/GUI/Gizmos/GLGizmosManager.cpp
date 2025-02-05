@@ -291,7 +291,7 @@ void GLGizmosManager::refresh_on_off_state()
 
     // FS: Why update data after Undefined gizmo activation?
     if (!m_gizmos[m_current]->is_activable() && activate_gizmo(Undefined))
-        update_data(); 
+        update_data();
 }
 
 void GLGizmosManager::reset_all_states()
@@ -388,7 +388,7 @@ bool GLGizmosManager::handle_shortcut(int key)
         return false;
 
     auto is_key = [pressed_key = key](int gizmo_key) { return (gizmo_key == pressed_key - 64) || (gizmo_key == pressed_key - 96); };
-    // allowe open shortcut even when selection is empty    
+    // allowe open shortcut even when selection is empty
     if (GLGizmoBase* gizmo_emboss = m_gizmos[Emboss].get();
         is_key(gizmo_emboss->get_shortcut_key())) {
         dynamic_cast<GLGizmoEmboss *>(gizmo_emboss)->on_shortcut_key();
@@ -579,7 +579,7 @@ bool GLGizmosManager::gizmos_toolbar_on_mouse(const wxMouseEvent &mouse_event) {
             mc.exist_tooltip = true;
             update_hover_state(gizmo);
             // at this moment is enebled to process mouse move under gizmo
-            // tools bar e.g. Do not interupt dragging. 
+            // tools bar e.g. Do not interupt dragging.
             return false;
         } else if (mc.exist_tooltip) {
             // first move out of gizmo tool bar - unselect tooltip
@@ -635,7 +635,7 @@ bool GLGizmosManager::gizmos_toolbar_on_mouse(const wxMouseEvent &mouse_event) {
             mc.middle = false;
             return true;
         }
-    
+
         // event out of window is not porocessed
         // left down on gizmo -> keep down -> move out of window -> release left
         if (mouse_event.Leaving()) mc.reset();
@@ -656,12 +656,14 @@ bool GLGizmosManager::on_mouse(const wxMouseEvent &mouse_event)
         // &m_gizmos[m_current]->on_mouse != &GLGizmoBase::on_mouse &&
         m_gizmos[m_current]->on_mouse(mouse_event))
         return true;
-        
+
     return false;
 }
 
 bool GLGizmosManager::on_char(wxKeyEvent& evt)
 {
+    m_parent.take_screenshot("/Users/kenneth/Downloads/snapshot.png");
+
     // see include/wx/defs.h enum wxKeyCode
     int keyCode = evt.GetKeyCode();
     int ctrlMask = wxMOD_CONTROL;
@@ -776,7 +778,6 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
             }*/
 
             //break;
-        //}
         // BBS: Skip all keys when in gizmo. This is necessary for 3D text tool.
         default:
         {
@@ -839,7 +840,7 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
                 processed = true;
             }
         }*/
-		if (m_current == Measure) { 
+		if (m_current == Measure) {
             if (keyCode == WXK_CONTROL)
                 gizmo_event(SLAGizmoEventType::CtrlUp, Vec2d::Zero(), evt.ShiftDown(), evt.AltDown(), evt.CmdDown());
             else if (keyCode == WXK_SHIFT)
@@ -957,7 +958,7 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
     m_serializing = false;
     // if (m_current == SlaSupports
     //  && snapshot.snapshot_data.flags & UndoRedo::SnapshotData::RECALCULATE_SLA_SUPPORTS)
-    //     dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get())->reslice_SLA_supports(true);
+    //     dynamic_cast<GLGizmoSlaSupports*>(m_gizmos.at(SlaSupports).get())->reslice_SLA_supports(true);
 }
 
 void GLGizmosManager::render_background(float left, float top, float right, float bottom, float border_w, float border_h) const
@@ -1242,14 +1243,14 @@ bool GLGizmosManager::generate_icons_texture()
 void GLGizmosManager::update_hover_state(const EType &type)
 {
     assert(m_enabled);
-    if (type == Undefined) { 
+    if (type == Undefined) {
         m_hover = Undefined;
         m_tooltip.clear();
         return;
     }
 
     const GLGizmoBase &hovered_gizmo = *m_gizmos[type];
-    m_hover = hovered_gizmo.is_activable() ? type : Undefined;    
+    m_hover = hovered_gizmo.is_activable() ? type : Undefined;
     m_tooltip = hovered_gizmo.get_name();
 }
 
@@ -1276,7 +1277,7 @@ bool GLGizmosManager::activate_gizmo(EType type)
                          UndoRedo::SnapshotType::LeavingGizmoWithAction);
     }
 
-    if (type == Undefined) { 
+    if (type == Undefined) {
         // it is deactivation of gizmo
         m_current = Undefined;
         return true;

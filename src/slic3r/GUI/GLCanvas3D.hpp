@@ -216,7 +216,7 @@ class GLCanvas3D
         };
 
         static const float THICKNESS_BAR_WIDTH;
-        
+
         // Orca: Shrinkage compensation
         void set_shrinkage_compensation(const Vec3d &shrinkage_compensation) { m_shrinkage_compensation = shrinkage_compensation; };
 
@@ -232,7 +232,7 @@ class GLCanvas3D
         // Owned by LayersEditing.
         SlicingParameters* m_slicing_parameters{ nullptr };
         std::vector<double>         m_layer_height_profile;
-        
+
         // Orca: Shrinkage compensation to apply when we need to use object_max_z with Z compensation.
         Vec3d                       m_shrinkage_compensation{ Vec3d::Ones() };
 
@@ -1060,7 +1060,7 @@ public:
 
     bool is_overhang_shown() const { return m_slope.is_GlobalUsed(); }
     void show_overhang(bool show) { m_slope.globalUse(show); }
-    
+
     bool is_using_slope() const { return m_slope.is_used(); }
     void use_slope(bool use) { m_slope.use(use); }
     void set_slope_normal_angle(float angle_in_deg) { m_slope.set_normal_angle(angle_in_deg); }
@@ -1128,6 +1128,10 @@ public:
     Vec3d _mouse_to_3d(const Point& mouse_pos, float* z = nullptr);
 
     bool make_current_for_postinit();
+
+    // Takes a screenshot of the current canvas and saves it to the specified file
+    // Supported formats: PNG, JPEG, BMP (determined by filename extension)
+    void take_screenshot(const std::string& filename);
 
 private:
     bool _is_shown_on_screen() const;
