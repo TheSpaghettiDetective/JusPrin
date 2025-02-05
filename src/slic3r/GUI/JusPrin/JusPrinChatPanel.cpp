@@ -73,6 +73,7 @@ void JusPrinChatPanel::init_action_handlers() {
     json_action_handlers["get_presets"] = &JusPrinChatPanel::handle_get_presets;
     json_action_handlers["get_edited_presets"] = &JusPrinChatPanel::handle_get_edited_presets;
     json_action_handlers["get_plates"] = &JusPrinChatPanel::handle_get_plates;
+    json_action_handlers["get_plate_snapshots"] = &JusPrinChatPanel::handle_get_plate_snapshots;
     json_action_handlers["select_preset"] = &JusPrinChatPanel::handle_select_preset;
     json_action_handlers["apply_config"] = &JusPrinChatPanel::handle_apply_config;
     json_action_handlers["add_printers"] = &JusPrinChatPanel::handle_add_printers;
@@ -192,6 +193,19 @@ nlohmann::json JusPrinChatPanel::handle_get_plates(const nlohmann::json& params)
     }
 
     return j;
+}
+
+nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json& params) {
+    nlohmann::json payload = params.value("payload", nlohmann::json::object());
+    if (payload.is_null() || payload.value("plateIndex", -1) == -1 || payload.value("snapshotAngles", nlohmann::json::array()).is_null()) {
+        BOOST_LOG_TRIVIAL(error) << "handle_get_plate_snapshots: missing payload parameter";
+        throw std::runtime_error("Missing payload parameter");
+    }
+
+    int plate_index = payload.value("plateIndex", -1);
+    nlohmann::json snapshotAngles = payload.value("snapshotAngles", nlohmann::json::array());
+    // snapshotAngles is an array of [[angle_xy, angle_z], ...]
+    // Finish the implementation
 }
 
 nlohmann::json JusPrinChatPanel::handle_add_printers(const nlohmann::json& params) {
