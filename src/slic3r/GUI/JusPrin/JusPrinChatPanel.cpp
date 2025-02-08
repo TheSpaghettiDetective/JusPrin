@@ -10,6 +10,7 @@
 #include "slic3r/GUI/Jobs/OrientJob.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
 
 #include "JusPrinPresetConfigUtils.hpp"
 
@@ -206,6 +207,25 @@ nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json
     nlohmann::json snapshotAngles = payload.value("snapshotAngles", nlohmann::json::array());
     // snapshotAngles is an array of [[angle_xy, angle_z], ...]
     // Finish the implementation
+    
+    auto canvas3D = wxGetApp().plater()->canvas3D();
+    ThumbnailsParams thumbnail_params = { {}, false, true, true, true, 0};
+    ThumbnailData data;
+    data.set(512, 512);
+    //for test
+    for(float x = -1.0; x <= 1.0; x += 0.3){ 
+        for(float y = -1.0; y <= 1.0; y += 0.3){
+           for(float z = -1.0; z <= 1.0; z += 0.3){
+               canvas3D->render_thumbnail_zzh(data, 512, 512, thumbnail_params, Slic3r::GUI::Camera::EType::Perspective, x, y, z);
+            }
+        }  
+    }
+    //canvas3D->render_thumbnail_zzh(data, 512, 512, thumbnail_params, Slic3r::GUI::Camera::EType::Perspective, 1, 1, 0);
+    //
+    
+    //Slic3r::GUI::GLCanvas3D::Renderhumbnail(512, 512, {}, Slic3r::GUI::Camera::EType::Ortho, true, false, true);
+    return nlohmann::json();
+    
 }
 
 nlohmann::json JusPrinChatPanel::handle_add_printers(const nlohmann::json& params) {
@@ -433,6 +453,10 @@ void JusPrinChatPanel::OnActionCallReceived(wxWebViewEvent& event)
         auto void_it = void_action_handlers.find(action);
         if (void_it != void_action_handlers.end()) {
             (this->*(void_it->second))(jsonObject);
+        }
+        auto json_it = json_action_handlers.find(action);
+        if (json_it != json_action_handlers.end()) {
+            (this->*(json_it->second))(jsonObject);
         }
     }
 }
