@@ -2126,7 +2126,7 @@ void GLCanvas3D::render_thumbnail(ThumbnailData& thumbnail_data, unsigned int w,
 }
 
 void GLCanvas3D::render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
-                                 Camera::EType             camera_type, float x, float y, float z)
+                                 Camera::EType             camera_type,  camera_zzh_info&  info)
 {
     GLShaderProgram* shader = nullptr;
     shader = wxGetApp().get_shader("thumbnail");
@@ -2134,12 +2134,12 @@ void GLCanvas3D::render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsigned in
     std::vector<ColorRGBA> colors = ::get_extruders_colors();
     
     thumbnail_data.set(w, h);
-    render_thumbnail_internal_zzh(thumbnail_data, thumbnail_params, wxGetApp().plater()->get_partplate_list(), model_objects, m_volumes, colors, shader, camera_type, x, y, z);
+    render_thumbnail_internal_zzh(thumbnail_data, thumbnail_params, wxGetApp().plater()->get_partplate_list(), model_objects, m_volumes, colors, shader, camera_type, info);
     
     
     //render_thumbnail_internal(thumbnail_data, thumbnail_params, wxGetApp().plater()->get_partplate_list(), model_objects, m_volumes, colors, shader, camera_type, true, false, false);
     glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)thumbnail_data.pixels.data()));
-    std::string file_name = "zzh_" + std::to_string(int(x*100)) + "_" + std::to_string(int(x*100)) + "_" + std::to_string(int(z*100));
+    std::string file_name = "zzh_" + std::to_string(int(info.x*100)) + "_" + std::to_string(int(info.x*100)) + "_" + std::to_string(int(info.z*100));
     z_debug_output_thumbnail(thumbnail_data, file_name);
 }
 
@@ -5802,14 +5802,14 @@ static void debug_output_thumbnail(const ThumbnailData& thumbnail_data)
 
 void GLCanvas3D::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params,
         PartPlateList& partplate_list, ModelObjectPtrs& model_objects, const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
-                                               GLShaderProgram* shader, Camera::EType camera_type, float x, float y, float z)
+                                               GLShaderProgram* shader, Camera::EType camera_type, camera_zzh_info& info)
     {
         
         bool ban_light = false;
         //BBS modify visible calc function
         int plate_idx = thumbnail_params.plate_id;
         PartPlate* plate = partplate_list.get_plate(plate_idx);
-        BoundingBoxf3 plate_build_volume = plate->get_build_volume();
+        BoundingBoxf3 plate_build_volume = plate->get_plate_box();
         plate_build_volume.min(0) -= Slic3r::BuildVolume::SceneEpsilon;
         plate_build_volume.min(1) -= Slic3r::BuildVolume::SceneEpsilon;
         plate_build_volume.min(2) -= Slic3r::BuildVolume::SceneEpsilon;
@@ -5884,22 +5884,15 @@ void GLCanvas3D::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, co
 
         float distance_x = center_x * 2;
         float distance_y = center_y * 2;
-        float look_atX = distance_x * x;
-        float look_atY = distance_y * y;
-        float look_atZ = distance_z * z;
+        float x_scale = (float)distance_x / info.x_len;
+
+        float look_atX = x_scale * info.x;
+        float look_atY = x_scale * info.y;
+        float look_atZ = x_scale * info.z;
         
-        
-        scale_x = ((double)thumbnail_data.width)/(plate_build_volume.max(0) - plate_build_volume.min(0));
-        scale_y = ((double)thumbnail_data.height)/(plate_build_volume.max(1) - plate_build_volume.min(1));
-        zoom_ratio = (scale_x <= scale_y)?scale_x:scale_y;
-        
-//        float up_x = 0 - x;
-//        float up_y = 0 - y;
-//        float up_z = 1 - z;
-        float up_z = 1;
-        camera.look_at(center + look_atX * Vec3d::UnitX() + look_atY * Vec3d::UnitY() + look_atZ * Vec3d::UnitZ(), center, /* up_x * Vec3d::UnitX() +  up_y * Vec3d::UnitY() + */up_z * Vec3d::UnitZ());
-        camera.set_zoom(zoom_ratio);
-        
+        //camera.look_at(center + distance_z * Vec3d::UnitZ(), center, Vec3d::UnitY());
+        camera.look_at(center + look_atX * Vec3d::UnitX() + look_atY * Vec3d::UnitY() + look_atZ * Vec3d::UnitZ(), center, info.up_x * Vec3d::UnitX() +  info.up_y * Vec3d::UnitY() + info.up_z * Vec3d::UnitZ());
+        camera.set_zoom(1.4142);
         
         const Transform3d &view_matrix = camera.get_view_matrix();
         camera.apply_projection(plate_build_volume);
@@ -5920,7 +5913,23 @@ void GLCanvas3D::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, co
             glsafe(::glDisable(GL_BLEND));
         }
         const Transform3d &projection_matrix = camera.get_projection_matrix();
+        
+        bool bottom = true;
 
+        GLShaderProgram *flat_shader = wxGetApp().get_shader("flat");
+        if (flat_shader != nullptr) {
+            flat_shader->start_using();
+            glsafe(::glEnable(GL_BLEND));
+            glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+            flat_shader->set_uniform("view_model_matrix", view_matrix);
+            flat_shader->set_uniform("projection_matrix", projection_matrix);
+            plate->render_grid(bottom);
+            glsafe(::glDisable(GL_BLEND));
+            flat_shader->stop_using();
+        }
+        
+        //m_bed.set_axes_mode(false);
+        //m_bed.render(*this, view_matrix, projection_matrix, false, 1, true);
        
         shader->start_using();
         shader->set_uniform("emission_factor", 0.1f);

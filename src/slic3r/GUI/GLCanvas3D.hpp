@@ -890,11 +890,22 @@ public:
                                  bool                      use_top_view = false,
                                  bool                      for_picking  = false,
                                  bool                      ban_light    = false);
+
+    struct camera_zzh_info {
+        float x_len;
+        float x; 
+        float y;
+        float z; 
+        float up_x; 
+        float up_y;
+        float up_z;
+    };
+
     void render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
-                                 Camera::EType             camera_type, float x, float y, float z);
-    static void render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, PartPlateList& partplate_list, ModelObjectPtrs& model_objects,
+                                 Camera::EType             camera_type, camera_zzh_info&  info);
+    void render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, PartPlateList& partplate_list, ModelObjectPtrs& model_objects,
         const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
-        GLShaderProgram* shader, Camera::EType camera_type, float x, float y, float z);
+        GLShaderProgram* shader, Camera::EType camera_type, camera_zzh_info&  info);
     static void render_thumbnail_internal(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, PartPlateList& partplate_list, ModelObjectPtrs& model_objects,
         const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
         GLShaderProgram* shader, Camera::EType camera_type, bool use_top_view = false, bool for_picking = false, bool ban_light = false);
