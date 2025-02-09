@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <wx/sizer.h>
+#include <GL/glew.h>
 
 #include "libslic3r/Config.hpp"
 #include "libslic3r/Orient.hpp"
@@ -196,40 +197,222 @@ nlohmann::json JusPrinChatPanel::handle_get_plates(const nlohmann::json& params)
     return j;
 }
 
+
+void JusPrinChatPanel::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params,
+        PartPlate* plate, ModelObjectPtrs& model_objects, const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
+                                               GLShaderProgram* shader, Camera::EType camera_type, CameraInfo& info)
+{
+    bool ban_light = false;
+    //BBS modify visible calc function
+    int plate_idx = thumbnail_params.plate_id;
+    BoundingBoxf3 plate_build_volume = plate->get_plate_box();
+    plate_build_volume.min(0) -= Slic3r::BuildVolume::SceneEpsilon;
+    plate_build_volume.min(1) -= Slic3r::BuildVolume::SceneEpsilon;
+    plate_build_volume.min(2) -= Slic3r::BuildVolume::SceneEpsilon;
+    plate_build_volume.max(0) += Slic3r::BuildVolume::SceneEpsilon;
+    plate_build_volume.max(1) += Slic3r::BuildVolume::SceneEpsilon;
+    plate_build_volume.max(2) += Slic3r::BuildVolume::SceneEpsilon;
+
+    auto is_visible = [plate_idx, plate_build_volume](const GLVolume& v) {
+        bool ret = v.printable;
+        if (plate_idx >= 0) {
+            bool contained = false;
+            BoundingBoxf3 plate_bbox = plate_build_volume;
+            plate_bbox.min(2) = -1e10;
+            const BoundingBoxf3& volume_bbox = v.transformed_convex_hull_bounding_box();
+            if (plate_bbox.contains(volume_bbox) && (volume_bbox.max(2) > 0)) {
+                contained = true;
+            }
+            ret &= contained;
+        }
+        else {
+            ret &= (!v.shader_outside_printer_detection_enabled || !v.is_outside);
+        }
+        return ret;
+    };
+
+    static ColorRGBA curr_color;
+
+    GLVolumePtrs visible_volumes;
+
+    // Use const_cast only when accessing the volumes for reading
+    for (const GLVolume* vol : volumes.volumes) {
+        if (!vol->is_modifier && !vol->is_wipe_tower && (!thumbnail_params.parts_only || vol->composite_id.volume_id >= 0)) {
+            if (is_visible(*vol)) {
+                visible_volumes.emplace_back(const_cast<GLVolume*>(vol));
+            }
+        }
+    }
+
+    //BoundingBoxf3 volumes_box = plate_build_volume;
+    BoundingBoxf3 volumes_box;
+    volumes_box.min.z() = 0;
+    volumes_box.max.z() = 0;
+    if (!visible_volumes.empty()) {
+        for (const GLVolume* vol : visible_volumes) {
+            volumes_box.merge(vol->transformed_bounding_box());
+        }
+    }
+    volumes_box.min.z() = -Slic3r::BuildVolume::SceneEpsilon;
+    double width = volumes_box.max.x() - volumes_box.min.x();
+    double depth = volumes_box.max.y() - volumes_box.min.y();
+    double height = volumes_box.max.z() - volumes_box.min.z();
+    volumes_box.max.x() = volumes_box.max.x() + width * 0.01f;
+    volumes_box.min.x() = volumes_box.min.x() - width * 0.01f;
+    volumes_box.max.y() = volumes_box.max.y() + depth * 0.01f;
+    volumes_box.min.y() = volumes_box.min.y() - depth * 0.01f;
+    volumes_box.max.z() = volumes_box.max.z() + height * 0.01f;
+    volumes_box.min.z() = volumes_box.min.z() - height * 0.01f;
+
+    Camera camera;
+    camera.set_type(camera_type);
+    //BBS modify scene box to plate scene bounding box
+    //plate_build_volume.min(2) = - plate_build_volume.max(2);
+    camera.set_scene_box(plate_build_volume);
+    camera.set_viewport(0, 0, thumbnail_data.width, thumbnail_data.height);
+    camera.apply_viewport();
+
+    float center_x = (plate_build_volume.max(0) + plate_build_volume.min(0))/2;
+    float center_y = (plate_build_volume.max(1) + plate_build_volume.min(1))/2;
+    float distance_z = plate_build_volume.max(2) - plate_build_volume.min(2);
+    Vec3d center(center_x, center_y, 0.f);
+    double zoom_ratio, scale_x, scale_y;
+
+    float distance_x = center_x * 2;
+    float distance_y = center_y * 2;
+    float x_scale = (float)distance_x / info.x_len;
+
+    float look_atX = x_scale * info.x;
+    float look_atY = x_scale * info.y;
+    float look_atZ = x_scale * info.z;
+
+    //camera.look_at(center + distance_z * Vec3d::UnitZ(), center, Vec3d::UnitY());
+    camera.look_at(center + look_atX * Vec3d::UnitX() + look_atY * Vec3d::UnitY() + look_atZ * Vec3d::UnitZ(), center, camera.get_dir_up());
+    camera.set_zoom(1.4142);
+
+    const Transform3d &view_matrix = camera.get_view_matrix();
+    camera.apply_projection(plate_build_volume);
+
+    //GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
+    if ((shader == nullptr)) {
+        BOOST_LOG_TRIVIAL(info) <<  boost::format("render_thumbnail with no picking: shader is null, return directly");
+        return;
+    }
+
+    //if (thumbnail_params.transparent_background)
+    glsafe(::glClearColor(0.f, 0.f, 0.f, 0.f));
+
+
+    glsafe(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+    glsafe(::glEnable(GL_DEPTH_TEST));
+    if (ban_light) {
+        glsafe(::glDisable(GL_BLEND));
+    }
+    const Transform3d &projection_matrix = camera.get_projection_matrix();
+
+    bool bottom = true;
+
+    GLShaderProgram *flat_shader = wxGetApp().get_shader("flat");
+    if (flat_shader != nullptr) {
+        flat_shader->start_using();
+        glsafe(::glEnable(GL_BLEND));
+        glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        flat_shader->set_uniform("view_model_matrix", view_matrix);
+        flat_shader->set_uniform("projection_matrix", projection_matrix);
+        plate->render_grid(bottom);
+        glsafe(::glDisable(GL_BLEND));
+        flat_shader->stop_using();
+    }
+
+    //m_bed.set_axes_mode(false);
+    //m_bed.render(*this, view_matrix, projection_matrix, false, 1, true);
+
+    shader->start_using();
+    shader->set_uniform("emission_factor", 0.1f);
+    shader->set_uniform("ban_light", false);
+    for (GLVolume* vol : visible_volumes) {
+        //BBS set render color for thumbnails
+        curr_color = vol->color;
+
+        ColorRGBA new_color = adjust_color_for_rendering(curr_color);
+        if (false) {
+            new_color[3] = (255 - vol->extruder_id) / 255.0f;
+        }
+        vol->model.set_color(new_color);
+        shader->set_uniform("volume_world_matrix", vol->world_matrix());
+        //BBS set all volume to orange
+        //shader->set_uniform("uniform_color", orange);
+        /*if (plate_idx > 0) {
+            shader->set_uniform("uniform_color", orange);
+            }
+            else {
+                shader->set_uniform("uniform_color", (vol->printable && !vol->is_outside) ? orange : gray);
+            }*/
+            // the volume may have been deactivated by an active gizmo
+            const bool is_active = vol->is_active;
+            vol->is_active = true;
+            const Transform3d model_matrix = vol->world_matrix();
+            shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
+            shader->set_uniform("projection_matrix", projection_matrix);
+            const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
+            shader->set_uniform("view_normal_matrix", view_normal_matrix);
+            vol->simple_render(shader,  model_objects, extruder_colors, false);
+            vol->is_active = is_active;
+        }
+        shader->stop_using();
+
+    glsafe(::glDisable(GL_DEPTH_TEST));
+BOOST_LOG_TRIVIAL(info) << boost::format("render_thumbnail: finished");
+}
+
+void JusPrinChatPanel::render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
+                                 Camera::EType             camera_type,  CameraInfo&  info)
+{
+    GLShaderProgram* shader = nullptr;
+    shader = wxGetApp().get_shader("thumbnail");
+    ModelObjectPtrs& model_objects = GUI::wxGetApp().model().objects;
+    std::vector<ColorRGBA> colors = ::get_extruders_colors();
+
+    auto canvas3D = wxGetApp().plater()->canvas3D();
+    const GLVolumeCollection& volumes = canvas3D->get_volumes();
+
+    thumbnail_data.set(w, h);
+    PartPlate* plate = wxGetApp().plater()->get_partplate_list().get_plate(0);
+
+    render_thumbnail_internal_zzh(thumbnail_data, thumbnail_params, plate, model_objects, volumes, colors, shader, camera_type, info);
+
+
+    //render_thumbnail_internal(thumbnail_data, thumbnail_params, wxGetApp().plater()->get_partplate_list(), model_objects, m_volumes, colors, shader, camera_type, true, false, false);
+    glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)thumbnail_data.pixels.data()));
+    std::string file_name = "zzh_" + std::to_string(int(info.x*100)) + "_" + std::to_string(int(info.y*100)) + "_" + std::to_string(int(info.z*100));
+//    z_debug_output_thumbnail(thumbnail_data, file_name);
+}
+
 nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json& params) {
     nlohmann::json payload = params.value("payload", nlohmann::json::object());
-    if (payload.is_null() || payload.value("plateIndex", -1) == -1 || payload.value("snapshotAngles", nlohmann::json::array()).is_null()) {
+    if (payload.is_null() || payload.value("plateIndex", -1) == -1 ||
+        payload.value("snapshotAngles", nlohmann::json::array()).is_null()) {
         BOOST_LOG_TRIVIAL(error) << "handle_get_plate_snapshots: missing payload parameter";
         throw std::runtime_error("Missing payload parameter");
     }
 
     int plate_index = payload.value("plateIndex", -1);
     nlohmann::json infoInput = payload.value("info", nlohmann::json::array());
-    // snapshotAngles is an array of [[angle_xy, angle_z], ...]
-    // Finish the implementation
 
-    auto canvas3D = wxGetApp().plater()->canvas3D();
     ThumbnailsParams thumbnail_params = { {}, false, true, true, true, 0};
     ThumbnailData data;
     data.set(512, 512);
 
-    //camera_zzh_info 的所有值来自于webgl
-        // float x_len;   var renderer = new THREE.WebGLRenderer(); renderer.setSize(1000, 1000); 中的1000
-        // float x;   camera.position.set(printableDimension/2, -600, 300); xyz 分别对应camera.position的x y z
-        // float y;
-        // float z;
-        // float up_x; // 分别对应camera.up的x y z
-        // float up_y;
-        // float up_z;
-    // Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {1000, -261, 261, 559, 0, 1, 0};
-    //Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {1000, 0, -600, 300,  0, 1, 0};
-    Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {infoInput[0], infoInput[1], infoInput[2], infoInput[3]};
-    canvas3D->render_thumbnail_zzh(data, 512, 512, thumbnail_params, Slic3r::GUI::Camera::EType::Perspective, info);
-    //
+    CameraInfo info = {
+        infoInput[0], // x_len
+        infoInput[1], // x
+        infoInput[2], // y
+        infoInput[3]  // z
+    };
 
-    //Slic3r::GUI::GLCanvas3D::Renderhumbnail(512, 512, {}, Slic3r::GUI::Camera::EType::Ortho, true, false, true);
+    render_thumbnail_zzh(data, 512, 512, thumbnail_params, Camera::EType::Perspective, info);
+
     return nlohmann::json();
-
 }
 
 nlohmann::json JusPrinChatPanel::handle_add_printers(const nlohmann::json& params) {

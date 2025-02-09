@@ -16,6 +16,8 @@
 #include "JusPrinPresetConfigUtils.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/Orient.hpp"
+#include "slic3r/GUI/Camera.hpp"
+#include "slic3r/GUI/PartPlate.hpp"
 
 namespace Slic3r { namespace GUI {
 
@@ -96,6 +98,24 @@ private:
     void CallEmbeddedChatMethod(const wxString& method, const wxString& params);
 
     void RunScriptInBrowser(const wxString& script);
+
+    struct CameraInfo {
+        float x_len;
+        float x;
+        float y;
+        float z;
+    };
+
+    void render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data,
+        const ThumbnailsParams& thumbnail_params,
+        PartPlate* plate, ModelObjectPtrs& model_objects, const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
+        GLShaderProgram* shader, Camera::EType camera_type, CameraInfo& info);
+
+    void render_thumbnail_zzh(ThumbnailData& thumbnail_data,
+        unsigned int w, unsigned int h,
+        const ThumbnailsParams& thumbnail_params,
+        Camera::EType camera_type,
+        CameraInfo& info);
 };
 
 }} // namespace Slic3r::GUI
