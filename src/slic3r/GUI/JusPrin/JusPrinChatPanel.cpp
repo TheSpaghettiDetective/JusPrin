@@ -204,10 +204,10 @@ nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json
     }
 
     int plate_index = payload.value("plateIndex", -1);
-    nlohmann::json snapshotAngles = payload.value("snapshotAngles", nlohmann::json::array());
+    nlohmann::json infoInput = payload.value("info", nlohmann::json::array());
     // snapshotAngles is an array of [[angle_xy, angle_z], ...]
     // Finish the implementation
-    
+
     auto canvas3D = wxGetApp().plater()->canvas3D();
     ThumbnailsParams thumbnail_params = { {}, false, true, true, true, 0};
     ThumbnailData data;
@@ -217,18 +217,19 @@ nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json
         // float x_len;   var renderer = new THREE.WebGLRenderer(); renderer.setSize(1000, 1000); 中的1000
         // float x;   camera.position.set(printableDimension/2, -600, 300); xyz 分别对应camera.position的x y z
         // float y;
-        // float z; 
+        // float z;
         // float up_x; // 分别对应camera.up的x y z
         // float up_y;
         // float up_z;
-    Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {1000, -261, 261, 559, 0, 1, 0};
+    // Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {1000, -261, 261, 559, 0, 1, 0};
     //Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {1000, 0, -600, 300,  0, 1, 0};
+    Slic3r::GUI::GLCanvas3D::camera_zzh_info info = {infoInput[0], infoInput[1], infoInput[2], infoInput[3]};
     canvas3D->render_thumbnail_zzh(data, 512, 512, thumbnail_params, Slic3r::GUI::Camera::EType::Perspective, info);
     //
-    
+
     //Slic3r::GUI::GLCanvas3D::Renderhumbnail(512, 512, {}, Slic3r::GUI::Camera::EType::Ortho, true, false, true);
     return nlohmann::json();
-    
+
 }
 
 nlohmann::json JusPrinChatPanel::handle_add_printers(const nlohmann::json& params) {

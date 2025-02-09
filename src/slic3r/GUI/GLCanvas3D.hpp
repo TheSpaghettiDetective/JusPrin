@@ -893,12 +893,9 @@ public:
 
     struct camera_zzh_info {
         float x_len;
-        float x; 
+        float x;
         float y;
-        float z; 
-        float up_x; 
-        float up_y;
-        float up_z;
+        float z;
     };
 
     void render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
