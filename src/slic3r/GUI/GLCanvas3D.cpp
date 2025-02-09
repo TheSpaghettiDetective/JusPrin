@@ -2070,28 +2070,6 @@ void GLCanvas3D::render_thumbnail(ThumbnailData &         thumbnail_data,
 
 }
 
-static void z_debug_output_thumbnail(const ThumbnailData& thumbnail_data, std::string file_name)
-{
-    // debug export of generated image
-    wxImage image(thumbnail_data.width, thumbnail_data.height);
-    image.InitAlpha();
-
-    for (unsigned int r = 0; r < thumbnail_data.height; ++r)
-    {
-        unsigned int rr = (thumbnail_data.height - 1 - r) * thumbnail_data.width;
-        for (unsigned int c = 0; c < thumbnail_data.width; ++c)
-        {
-            unsigned char* px = (unsigned char*)thumbnail_data.pixels.data() + 4 * (rr + c);
-            image.SetRGB((int)c, (int)r, px[0], px[1], px[2]);
-            image.SetAlpha((int)c, (int)r, px[3]);
-        }
-    }
-
-    std::string file_name_path = "/Users/kenneth/Desktop/" + file_name + ".png";
-    image.SaveFile(file_name_path, wxBITMAP_TYPE_PNG);
-}
-
-
 void GLCanvas3D::render_thumbnail(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
                                   const GLVolumeCollection &volumes,
                                   Camera::EType             camera_type,

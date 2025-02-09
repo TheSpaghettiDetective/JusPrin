@@ -18,6 +18,28 @@
 
 namespace Slic3r { namespace GUI {
 
+static void z_debug_output_thumbnail(const ThumbnailData& thumbnail_data, std::string file_name)
+{
+    // debug export of generated image
+    wxImage image(thumbnail_data.width, thumbnail_data.height);
+    image.InitAlpha();
+
+    for (unsigned int r = 0; r < thumbnail_data.height; ++r)
+    {
+        unsigned int rr = (thumbnail_data.height - 1 - r) * thumbnail_data.width;
+        for (unsigned int c = 0; c < thumbnail_data.width; ++c)
+        {
+            unsigned char* px = (unsigned char*)thumbnail_data.pixels.data() + 4 * (rr + c);
+            image.SetRGB((int)c, (int)r, px[0], px[1], px[2]);
+            image.SetAlpha((int)c, (int)r, px[3]);
+        }
+    }
+
+    std::string file_name_path = "/Users/kenneth/Desktop/" + file_name + ".png";
+    image.SaveFile(file_name_path, wxBITMAP_TYPE_PNG);
+}
+
+
 JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize)
 {
     init_action_handlers();
@@ -385,7 +407,7 @@ void JusPrinChatPanel::render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsig
     //render_thumbnail_internal(thumbnail_data, thumbnail_params, wxGetApp().plater()->get_partplate_list(), model_objects, m_volumes, colors, shader, camera_type, true, false, false);
     glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)thumbnail_data.pixels.data()));
     std::string file_name = "zzh_" + std::to_string(int(info.x*100)) + "_" + std::to_string(int(info.y*100)) + "_" + std::to_string(int(info.z*100));
-//    z_debug_output_thumbnail(thumbnail_data, file_name);
+    z_debug_output_thumbnail(thumbnail_data, file_name);
 }
 
 nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json& params) {
