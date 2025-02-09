@@ -40,6 +40,8 @@ namespace GUI {
 View3D::View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)
     : m_canvas_widget(nullptr)
     , m_canvas(nullptr)
+    , m_overlay_image(nullptr)
+    , m_chat_panel(nullptr)
 {
     init(parent, bed, model, config, process);
 }
@@ -48,6 +50,8 @@ View3D::~View3D()
 {
     delete m_canvas;
     delete m_canvas_widget;
+    delete m_overlay_image;
+    delete m_chat_panel;
 }
 
 bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)
@@ -82,12 +86,44 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     m_canvas->enable_labels(true);
     m_canvas->enable_slope(true);
 
+    // Create sizer for canvas only
     wxBoxSizer* main_sizer = new wxBoxSizer(wxVERTICAL);
     main_sizer->Add(m_canvas_widget, 1, wxALL | wxEXPAND, 0);
 
     SetSizer(main_sizer);
     SetMinSize(GetSize());
     GetSizer()->SetSizeHints(this);
+
+    // Create chat panel overlay
+    m_chat_panel = new JusPrinChatPanel(this);
+
+    // Position the chat panel
+    wxSize client_size = GetClientSize();
+    int chat_height = client_size.GetHeight() * 0.7;  // 70% of window height
+    int chat_width = client_size.GetWidth() * 0.7;    // 70% of window width
+    m_chat_panel->SetSize(
+        (client_size.GetWidth() - chat_width) / 2,  // Center horizontally
+        10,  // 10px from top
+        chat_width,
+        chat_height
+    );
+
+    // Create image overlay
+    wxBitmap bitmap(wxT("/Users/kenneth/Desktop/abc.png"), wxBITMAP_TYPE_PNG);
+    m_overlay_image = new wxStaticBitmap(this, wxID_ANY, bitmap,
+        wxDefaultPosition, wxDefaultSize, wxSTAY_ON_TOP);
+
+    // Position image below chat panel
+    int image_height = 100;
+    int image_width = 200;
+    m_overlay_image->SetSize(
+        (client_size.GetWidth() - image_width) / 2,
+        chat_height + 20,  // 20px below chat panel
+        image_width,
+        image_height
+    );
+
+    Bind(wxEVT_SIZE, &View3D::OnSize, this);
 
     return true;
 }
@@ -220,6 +256,34 @@ void View3D::render()
     if (m_canvas != nullptr)
         //m_canvas->render();
         m_canvas->set_as_dirty();
+}
+
+void View3D::OnSize(wxSizeEvent& evt)
+{
+    evt.Skip();
+    if (m_chat_panel && m_overlay_image) {
+        wxSize size = GetClientSize();
+
+        // Resize chat panel
+        int chat_height = size.GetHeight() * 0.7;
+        int chat_width = size.GetWidth() * 0.7;
+        m_chat_panel->SetSize(
+            (size.GetWidth() - chat_width) / 2,
+            10,
+            chat_width,
+            chat_height
+        );
+
+        // Resize and reposition image
+        int image_height = 100;
+        int image_width = 200;
+        m_overlay_image->SetSize(
+            (size.GetWidth() - image_width) / 2,
+            chat_height + 20,
+            image_width,
+            image_height
+        );
+    }
 }
 
 Preview::Preview(
@@ -608,7 +672,7 @@ void Preview::update_layers_slider(const std::vector<double>& layers_z, bool kee
     auto curr_print_seq = curr_plate->get_real_print_seq();
     bool sequential_print = (curr_print_seq == PrintSequence::ByObject);
     m_layers_slider->SetDrawMode(sequential_print);
-    
+
     m_layers_slider->SetTicksValues(ticks_info_from_curr_plate);
 
     auto print_mode_stat = m_gcode_result->print_statistics.modes.front();

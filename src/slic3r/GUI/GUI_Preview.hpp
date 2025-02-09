@@ -2,6 +2,7 @@
 #define slic3r_GUI_Preview_hpp_
 
 #include <wx/panel.h>
+#include "JusPrin/JusPrinChatPanel.hpp"
 
 #include "libslic3r/Point.hpp"
 #include "libslic3r/CustomGCode.hpp"
@@ -19,6 +20,7 @@ class wxStaticText;
 class wxComboBox;
 class wxComboCtrl;
 class wxCheckBox;
+class wxStaticBitmap;
 
 namespace Slic3r {
 
@@ -42,11 +44,14 @@ class View3D : public wxPanel
 {
     wxGLCanvas* m_canvas_widget;
     GLCanvas3D* m_canvas;
+    wxStaticBitmap* m_overlay_image;
+    JusPrinChatPanel* m_chat_panel;
 
 public:
     View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
     virtual ~View3D();
-
+        void ShowOverlay(const wxPoint& position, const wxSize& size);
+        void HideOverlay();
     wxGLCanvas* get_wxglcanvas() { return m_canvas_widget; }
     GLCanvas3D* get_canvas3d() { return m_canvas; }
 
@@ -79,6 +84,8 @@ public:
 
     void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
     void render();
+
+    void OnSize(wxSizeEvent& evt);
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
@@ -128,7 +135,7 @@ public:
         Legend
     };
 
-    Preview(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process, 
+    Preview(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process,
         GCodeProcessorResult* gcode_result, std::function<void()> schedule_background_process = []() {});
     virtual ~Preview();
 
@@ -176,7 +183,7 @@ private:
     void check_layers_slider_values(std::vector<CustomGCode::Item>& ticks_from_model,
         const std::vector<double>& layers_z);
 
-    void update_layers_slider(const std::vector<double>& layers_z, bool keep_z_range = false);    
+    void update_layers_slider(const std::vector<double>& layers_z, bool keep_z_range = false);
     void update_layers_slider_mode();
     void update_layers_slider_from_canvas(wxKeyEvent &event);
     //BBS: add only gcode mode
