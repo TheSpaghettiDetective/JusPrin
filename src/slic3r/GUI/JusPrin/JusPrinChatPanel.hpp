@@ -104,7 +104,9 @@ private:
         float x;
         float y;
         float z;
-        std::string view;
+        float target_x;
+        float target_y;
+        float target_z;
     };
 
     void render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data,

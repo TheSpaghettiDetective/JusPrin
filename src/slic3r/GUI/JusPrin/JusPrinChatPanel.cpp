@@ -313,11 +313,7 @@ void JusPrinChatPanel::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_da
     plate_build_volume.max.z() = 0.0;
     camera.zoom_to_box(plate_build_volume, 1.0);
 
-    //camera.look_at(center + distance_z * Vec3d::UnitZ(), center, Vec3d::UnitY());
-    // camera.look_at(center + look_atX * Vec3d::UnitX() + look_atY * Vec3d::UnitY() + look_atZ * Vec3d::UnitZ(), center, camera.get_dir_up());
-    // camera.set_zoom(2.4142);
-
-    camera.select_view(info.view);
+    camera.look_at(Vec3d(info.x, info.y, info.z), Vec3d(info.target_x, info.target_y, info.target_z), Vec3d::UnitY() + Vec3d::UnitZ());
     const Transform3d &view_matrix = camera.get_view_matrix();
     camera.apply_projection(plate_build_volume);
 
@@ -436,7 +432,9 @@ nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json
         infoInput[1], // x
         infoInput[2], // y
         infoInput[3], // z
-        infoInput[4]  // view
+        infoInput[4], // target_x
+        infoInput[5], // target_y
+        infoInput[6], // target_z
     };
 
     render_thumbnail_zzh(data, 1024, 1024, thumbnail_params, Camera::EType::Perspective, info);
