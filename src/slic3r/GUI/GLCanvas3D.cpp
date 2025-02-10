@@ -2067,7 +2067,6 @@ void GLCanvas3D::render_thumbnail(ThumbnailData &         thumbnail_data,
                                   bool                    ban_light)
 {
     render_thumbnail(thumbnail_data, w, h, thumbnail_params, m_volumes, camera_type, use_top_view, for_picking, ban_light);
-
 }
 
 void GLCanvas3D::render_thumbnail(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
@@ -2102,7 +2101,6 @@ void GLCanvas3D::render_thumbnail(ThumbnailData& thumbnail_data, unsigned int w,
     }
     }
 }
-
 
 void GLCanvas3D::render_calibration_thumbnail(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params)
 {
@@ -5760,7 +5758,6 @@ static void debug_output_thumbnail(const ThumbnailData& thumbnail_data)
 }
 #endif // ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT
 
-
 void GLCanvas3D::render_thumbnail_internal(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params,
     PartPlateList& partplate_list, ModelObjectPtrs& model_objects, const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
     GLShaderProgram* shader, Camera::EType camera_type, bool use_top_view, bool for_picking, bool ban_light)
@@ -5856,7 +5853,6 @@ void GLCanvas3D::render_thumbnail_internal(ThumbnailData& thumbnail_data, const 
         zoom_ratio = (scale_x <= scale_y)?scale_x:scale_y;
         camera.look_at(center + distance_z * Vec3d::UnitZ(), center, Vec3d::UnitY());
         camera.set_zoom(zoom_ratio);
-
         //camera.select_view("top");
     }
     else {
@@ -9903,59 +9899,6 @@ ModelInstance *get_model_instance(const GLVolume &gl_volume, const ModelObject &
     if (instance_idx >= object.instances.size())
         return nullptr;
     return object.instances[instance_idx];
-}
-
-void GLCanvas3D::take_screenshot(const std::string& filename)
-{
-    if (!m_initialized || m_canvas == nullptr)
-        return;
-
-    const Size& cnv_size = get_canvas_size();
-    const int w = cnv_size.get_width();
-    const int h = cnv_size.get_height();
-
-    if (w <= 0 || h <= 0)
-        return;
-
-    // Get current viewport data
-    GLint viewport[4];
-    glsafe(::glGetIntegerv(GL_VIEWPORT, viewport));
-
-    // Allocate buffer for pixels
-    std::vector<unsigned char> pixels(w * h * 4);
-
-    // Read pixels from framebuffer
-    glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data()));
-
-    // Convert RGBA raw pixels to wxImage
-    wxImage image(w, h);
-    unsigned char* img_data = image.GetData();
-    unsigned char* alpha = image.GetAlpha();
-
-    if (alpha == nullptr) {
-        image.SetAlpha();
-        alpha = image.GetAlpha();
-    }
-
-    for (int i = 0; i < h; ++i) {
-        for (int j = 0; j < w; ++j) {
-            const int pixel_id = (i * w + j) * 4;
-            const int invert_id = ((h - i - 1) * w + j) * 3;
-            img_data[invert_id] = pixels[pixel_id];         // R
-            img_data[invert_id + 1] = pixels[pixel_id + 1]; // G
-            img_data[invert_id + 2] = pixels[pixel_id + 2]; // B
-            alpha[((h - i - 1) * w) + j] = pixels[pixel_id + 3]; // A
-        }
-    }
-
-    // Save image to file
-    wxString wx_filename = wxString::FromUTF8(filename.c_str());
-    const wxString ext = wx_filename.AfterLast('.');
-    const wxBitmapType type = (ext.Lower() == "png") ? wxBITMAP_TYPE_PNG :
-                             (ext.Lower() == "jpg" || ext.Lower() == "jpeg") ? wxBITMAP_TYPE_JPEG :
-                             wxBITMAP_TYPE_BMP;
-
-    image.SaveFile(wx_filename, type);
 }
 
 } // namespace GUI
