@@ -219,8 +219,8 @@ nlohmann::json JusPrinChatPanel::handle_get_plates(const nlohmann::json& params)
     return j;
 }
 
-
-void JusPrinChatPanel::render_thumbnail_zzh(ThumbnailData& thumbnail_data,
+// Adapted from GLCanvas3D::render_thumbnail_internal
+void JusPrinChatPanel::render_thumbnail(ThumbnailData& thumbnail_data,
     unsigned int w, unsigned int h,
     const ThumbnailsParams& thumbnail_params,
     Camera::EType camera_type,
@@ -394,8 +394,8 @@ nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json
     ThumbnailData data;
     data.set(1024, 1024);
 
-    render_thumbnail_zzh(data, 1024, 1024, thumbnail_params, Camera::EType::Perspective,
-                        camera_position, target);
+    render_thumbnail(data, 1024, 1024, thumbnail_params, Camera::EType::Perspective,
+                    camera_position, target);
 
     return nlohmann::json();
 }

@@ -99,7 +99,7 @@ private:
 
     void RunScriptInBrowser(const wxString& script);
 
-    void render_thumbnail_zzh(ThumbnailData& thumbnail_data,
+    void render_thumbnail(ThumbnailData& thumbnail_data,
         unsigned int w, unsigned int h,
         const ThumbnailsParams& thumbnail_params,
         Camera::EType camera_type,
