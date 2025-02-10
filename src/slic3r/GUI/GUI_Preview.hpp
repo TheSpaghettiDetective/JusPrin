@@ -89,6 +89,8 @@ public:
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
+    void OnCanvasClick(wxMouseEvent& evt);
+    void OnChatPanelLoseFocus(wxFocusEvent& evt);
 };
 
 class Preview : public wxPanel
