@@ -97,7 +97,7 @@ void JusPrinChatPanel::init_action_handlers() {
     json_action_handlers["get_presets"] = &JusPrinChatPanel::handle_get_presets;
     json_action_handlers["get_edited_presets"] = &JusPrinChatPanel::handle_get_edited_presets;
     json_action_handlers["get_plates"] = &JusPrinChatPanel::handle_get_plates;
-    json_action_handlers["get_plate_snapshots"] = &JusPrinChatPanel::handle_get_plate_snapshots;
+    json_action_handlers["get_plate_2d_images"] = &JusPrinChatPanel::handle_get_plate_2d_images;
     json_action_handlers["select_preset"] = &JusPrinChatPanel::handle_select_preset;
     json_action_handlers["apply_config"] = &JusPrinChatPanel::handle_apply_config;
     json_action_handlers["add_printers"] = &JusPrinChatPanel::handle_add_printers;
@@ -362,13 +362,13 @@ void JusPrinChatPanel::render_thumbnail(ThumbnailData& thumbnail_data,
     BOOST_LOG_TRIVIAL(info) << "render_thumbnail: finished";
 }
 
-nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json& params) {
+nlohmann::json JusPrinChatPanel::handle_get_plate_2d_images(const nlohmann::json& params) {
     nlohmann::json payload = params.value("payload", nlohmann::json::object());
     if (payload.is_null() ||
         payload.value("plateIndex", -1) == -1 ||
         !payload.contains("camera_position") ||
         !payload.contains("target")) {
-        BOOST_LOG_TRIVIAL(error) << "handle_get_plate_snapshots: missing required parameters";
+        BOOST_LOG_TRIVIAL(error) << "handle_get_plate_2d_images: missing required parameters";
         throw std::runtime_error("Missing required parameters");
     }
 
