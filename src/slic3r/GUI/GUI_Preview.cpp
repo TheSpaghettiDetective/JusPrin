@@ -109,8 +109,8 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     );
     m_chat_panel->Hide();
 
-    // Create image overlay
-    wxBitmap bitmap(wxT("/Users/kenneth/Desktop/abc.png"), wxBITMAP_TYPE_PNG);
+    // Create image overlay using resources directory
+    wxBitmap bitmap = create_scaled_bitmap("jusprin_input_button", this, 200); // 200 is example size, adjust as needed
     m_overlay_image = new wxStaticBitmap(this, wxID_ANY, bitmap,
         wxDefaultPosition, wxDefaultSize, wxSTAY_ON_TOP);
 
