@@ -99,26 +99,18 @@ private:
 
     void RunScriptInBrowser(const wxString& script);
 
-    struct CameraInfo {
-        float x_len;
-        float x;
-        float y;
-        float z;
-        float target_x;
-        float target_y;
-        float target_z;
-    };
-
     void render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data,
         const ThumbnailsParams& thumbnail_params,
-        PartPlate* plate, ModelObjectPtrs& model_objects, const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
-        GLShaderProgram* shader, Camera::EType camera_type, CameraInfo& info);
+        PartPlate* plate, ModelObjectPtrs& model_objects,
+        const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
+        GLShaderProgram* shader, Camera::EType camera_type,
+        const Vec3d& camera_position, const Vec3d& target);
 
     void render_thumbnail_zzh(ThumbnailData& thumbnail_data,
         unsigned int w, unsigned int h,
         const ThumbnailsParams& thumbnail_params,
         Camera::EType camera_type,
-        CameraInfo& info);
+        const Vec3d& camera_position, const Vec3d& target);
 };
 
 }} // namespace Slic3r::GUI

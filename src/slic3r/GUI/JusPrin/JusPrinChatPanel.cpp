@@ -220,9 +220,12 @@ nlohmann::json JusPrinChatPanel::handle_get_plates(const nlohmann::json& params)
 }
 
 
-void JusPrinChatPanel::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params,
-        PartPlate* plate, ModelObjectPtrs& model_objects, const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
-                                               GLShaderProgram* shader, Camera::EType camera_type, CameraInfo& info)
+void JusPrinChatPanel::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_data,
+    const ThumbnailsParams& thumbnail_params,
+    PartPlate* plate, ModelObjectPtrs& model_objects,
+    const GLVolumeCollection& volumes, std::vector<ColorRGBA>& extruder_colors,
+    GLShaderProgram* shader, Camera::EType camera_type,
+    const Vec3d& camera_position, const Vec3d& target)
 {
     bool ban_light = false;
     //BBS modify visible calc function
@@ -288,32 +291,16 @@ void JusPrinChatPanel::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_da
 
     Camera camera;
     camera.set_type(camera_type);
-    //BBS modify scene box to plate scene bounding box
-    //plate_build_volume.min(2) = - plate_build_volume.max(2);
     camera.set_scene_box(plate_build_volume);
     camera.set_viewport(0, 0, thumbnail_data.width, thumbnail_data.height);
     camera.apply_viewport();
 
-    float center_x = (plate_build_volume.max(0) + plate_build_volume.min(0))/2;
-    float center_y = (plate_build_volume.max(1) + plate_build_volume.min(1))/2;
-    float distance_z = plate_build_volume.max(2) - plate_build_volume.min(2);
-    Vec3d center(center_x, center_y, 0.f);
-    double zoom_ratio, scale_x, scale_y;
-
-    float distance_x = center_x * 2;
-    float distance_y = center_y * 2;
-    float x_scale = (float)distance_x / info.x_len;
-
-    float look_atX = x_scale * info.x;
-    float look_atY = x_scale * info.y;
-    float look_atZ = x_scale * info.z;
-
-    auto canvas3D = wxGetApp().plater()->canvas3D();
     plate_build_volume.min.z() = 0.0;
     plate_build_volume.max.z() = 0.0;
     camera.zoom_to_box(plate_build_volume, 1.0);
 
-    camera.look_at(Vec3d(info.x, info.y, info.z), Vec3d(info.target_x, info.target_y, info.target_z), Vec3d::UnitY() + Vec3d::UnitZ());
+    // Use the provided camera position and target directly
+    camera.look_at(camera_position, target, Vec3d::UnitY() + Vec3d::UnitZ());
     const Transform3d &view_matrix = camera.get_view_matrix();
     camera.apply_projection(plate_build_volume);
 
@@ -389,8 +376,11 @@ void JusPrinChatPanel::render_thumbnail_internal_zzh(ThumbnailData& thumbnail_da
 BOOST_LOG_TRIVIAL(info) << boost::format("render_thumbnail: finished");
 }
 
-void JusPrinChatPanel::render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params,
-                                 Camera::EType             camera_type,  CameraInfo&  info)
+void JusPrinChatPanel::render_thumbnail_zzh(ThumbnailData& thumbnail_data,
+    unsigned int w, unsigned int h,
+    const ThumbnailsParams& thumbnail_params,
+    Camera::EType camera_type,
+    const Vec3d& camera_position, const Vec3d& target)
 {
     GLShaderProgram* shader = nullptr;
     shader = wxGetApp().get_shader("thumbnail");
@@ -403,41 +393,54 @@ void JusPrinChatPanel::render_thumbnail_zzh(ThumbnailData& thumbnail_data, unsig
     thumbnail_data.set(w, h);
     PartPlate* plate = wxGetApp().plater()->get_partplate_list().get_plate(0);
 
-    render_thumbnail_internal_zzh(thumbnail_data, thumbnail_params, plate, model_objects, volumes, colors, shader, camera_type, info);
+    render_thumbnail_internal_zzh(thumbnail_data, thumbnail_params,
+        plate, model_objects, volumes, colors, shader, camera_type,
+        camera_position, target);
 
-
-    //render_thumbnail_internal(thumbnail_data, thumbnail_params, wxGetApp().plater()->get_partplate_list(), model_objects, m_volumes, colors, shader, camera_type, true, false, false);
     glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)thumbnail_data.pixels.data()));
-    std::string file_name = "zzh_" + std::to_string(int(info.x*100)) + "_" + std::to_string(int(info.y*100)) + "_" + std::to_string(int(info.z*100));
+
+    // Update debug output filename to use camera position coordinates
+    std::string file_name = "zzh_" +
+        std::to_string(int(camera_position.x()*100)) + "_" +
+        std::to_string(int(camera_position.y()*100)) + "_" +
+        std::to_string(int(camera_position.z()*100));
     z_debug_output_thumbnail(thumbnail_data, file_name);
 }
 
 nlohmann::json JusPrinChatPanel::handle_get_plate_snapshots(const nlohmann::json& params) {
     nlohmann::json payload = params.value("payload", nlohmann::json::object());
-    if (payload.is_null() || payload.value("plateIndex", -1) == -1 ||
-        payload.value("snapshotAngles", nlohmann::json::array()).is_null()) {
-        BOOST_LOG_TRIVIAL(error) << "handle_get_plate_snapshots: missing payload parameter";
-        throw std::runtime_error("Missing payload parameter");
+    if (payload.is_null() ||
+        payload.value("plateIndex", -1) == -1 ||
+        !payload.contains("camera_position") ||
+        !payload.contains("target")) {
+        BOOST_LOG_TRIVIAL(error) << "handle_get_plate_snapshots: missing required parameters";
+        throw std::runtime_error("Missing required parameters");
     }
 
     int plate_index = payload.value("plateIndex", -1);
-    nlohmann::json infoInput = payload.value("info", nlohmann::json::array());
+
+    // Parse camera position and target from the new payload structure
+    auto camera_pos_json = payload["camera_position"];
+    auto target_json = payload["target"];
+
+    Vec3d camera_position(
+        camera_pos_json.value("x", 0.0),
+        camera_pos_json.value("y", 0.0),
+        camera_pos_json.value("z", 0.0)
+    );
+
+    Vec3d target(
+        target_json.value("x", 0.0),
+        target_json.value("y", 0.0),
+        target_json.value("z", 0.0)
+    );
 
     ThumbnailsParams thumbnail_params = { {}, false, true, true, true, 0};
     ThumbnailData data;
     data.set(1024, 1024);
 
-    CameraInfo info = {
-        infoInput[0], // x_len
-        infoInput[1], // x
-        infoInput[2], // y
-        infoInput[3], // z
-        infoInput[4], // target_x
-        infoInput[5], // target_y
-        infoInput[6], // target_z
-    };
-
-    render_thumbnail_zzh(data, 1024, 1024, thumbnail_params, Camera::EType::Perspective, info);
+    render_thumbnail_zzh(data, 1024, 1024, thumbnail_params, Camera::EType::Perspective,
+                        camera_position, target);
 
     return nlohmann::json();
 }
