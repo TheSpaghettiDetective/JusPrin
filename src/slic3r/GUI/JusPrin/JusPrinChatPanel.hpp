@@ -98,9 +98,6 @@ private:
     void CallEmbeddedChatMethod(const wxString& method, const wxString& params);
 
     void RunScriptInBrowser(const wxString& script);
-
-    void render_thumbnail(ThumbnailData& thumbnail_data,
-        const Vec3d& camera_position, const Vec3d& target);
 };
 
 }} // namespace Slic3r::GUI
