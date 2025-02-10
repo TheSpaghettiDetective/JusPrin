@@ -221,11 +221,11 @@ nlohmann::json JusPrinChatPanel::handle_get_plates(const nlohmann::json& params)
 
 // Adapted from GLCanvas3D::render_thumbnail_internal
 void JusPrinChatPanel::render_thumbnail(ThumbnailData& thumbnail_data,
-    unsigned int w, unsigned int h,
-    const ThumbnailsParams& thumbnail_params,
-    Camera::EType camera_type,
     const Vec3d& camera_position, const Vec3d& target)
 {
+    const Camera::EType camera_type = Camera::EType::Perspective;  // Fixed camera type
+    const ThumbnailsParams thumbnail_params = { {}, false, true, true, true, 0};  // Fixed params
+
     GLShaderProgram* shader = wxGetApp().get_shader("thumbnail");
     if (shader == nullptr) {
         BOOST_LOG_TRIVIAL(info) << "render_thumbnail: shader is null, returning directly";
@@ -238,7 +238,6 @@ void JusPrinChatPanel::render_thumbnail(ThumbnailData& thumbnail_data,
     const GLVolumeCollection& volumes = canvas3D->get_volumes();
     PartPlate* plate = wxGetApp().plater()->get_partplate_list().get_plate(0);
 
-    thumbnail_data.set(w, h);
     bool ban_light = false;
     static ColorRGBA curr_color;
 
@@ -350,7 +349,7 @@ void JusPrinChatPanel::render_thumbnail(ThumbnailData& thumbnail_data,
     glsafe(::glDisable(GL_DEPTH_TEST));
 
     // Read pixels
-    glsafe(::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, (void*)thumbnail_data.pixels.data()));
+    glsafe(::glReadPixels(0, 0, thumbnail_data.width, thumbnail_data.height, GL_RGBA, GL_UNSIGNED_BYTE, (void*)thumbnail_data.pixels.data()));
 
     // Debug output
     std::string file_name = "zzh_" +
@@ -366,37 +365,50 @@ nlohmann::json JusPrinChatPanel::handle_get_plate_2d_images(const nlohmann::json
     nlohmann::json payload = params.value("payload", nlohmann::json::object());
     if (payload.is_null() ||
         payload.value("plateIndex", -1) == -1 ||
-        !payload.contains("camera_position") ||
-        !payload.contains("target")) {
+        !payload.contains("views")) {
         BOOST_LOG_TRIVIAL(error) << "handle_get_plate_2d_images: missing required parameters";
         throw std::runtime_error("Missing required parameters");
     }
 
     int plate_index = payload.value("plateIndex", -1);
+    auto views = payload["views"];
 
-    // Parse camera position and target from the new payload structure
-    auto camera_pos_json = payload["camera_position"];
-    auto target_json = payload["target"];
+    if (!views.is_array()) {
+        BOOST_LOG_TRIVIAL(error) << "handle_get_plate_2d_images: views must be an array";
+        throw std::runtime_error("Views must be an array");
+    }
 
-    Vec3d camera_position(
-        camera_pos_json.value("x", 0.0),
-        camera_pos_json.value("y", 0.0),
-        camera_pos_json.value("z", 0.0)
-    );
+    std::vector<ThumbnailData> thumbnails;
 
-    Vec3d target(
-        target_json.value("x", 0.0),
-        target_json.value("y", 0.0),
-        target_json.value("z", 0.0)
-    );
+    // Generate thumbnails for each view
+    for (const auto& view : views) {
+        if (!view.contains("camera_position") || !view.contains("target")) {
+            BOOST_LOG_TRIVIAL(error) << "handle_get_plate_2d_images: each view must contain camera_position and target";
+            throw std::runtime_error("Invalid view format");
+        }
 
-    ThumbnailsParams thumbnail_params = { {}, false, true, true, true, 0};
-    ThumbnailData data;
-    data.set(1024, 1024);
+        auto camera_pos_json = view["camera_position"];
+        auto target_json = view["target"];
 
-    render_thumbnail(data, 1024, 1024, thumbnail_params, Camera::EType::Perspective,
-                    camera_position, target);
+        Vec3d camera_position(
+            camera_pos_json.value("x", 0.0),
+            camera_pos_json.value("y", 0.0),
+            camera_pos_json.value("z", 0.0)
+        );
 
+        Vec3d target(
+            target_json.value("x", 0.0),
+            target_json.value("y", 0.0),
+            target_json.value("z", 0.0)
+        );
+
+        ThumbnailData data;
+        data.set(1024, 1024);
+        render_thumbnail(data, camera_position, target);
+        thumbnails.push_back(data);
+    }
+
+    // TODO: Process thumbnails as needed
     return nlohmann::json();
 }
 
