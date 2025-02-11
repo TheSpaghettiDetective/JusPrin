@@ -133,6 +133,10 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
         evt.Skip();
     });
 
+    m_canvas->setCancel([this](wxMouseEvent& evt){
+        this->OnCanvasClick(evt);
+    });
+    
     // Bind click event to hide chat panel when clicking outside
     m_canvas_widget->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
     this->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
@@ -289,7 +293,7 @@ void View3D::OnSize(wxSizeEvent& evt)
         );
 
         // Resize and reposition image
-        int image_height = 100;
+        int image_height = 100;	
         int image_width = 200;
         m_overlay_image->SetSize(
             (size.GetWidth() - image_width) / 2,
@@ -304,12 +308,12 @@ void View3D::OnCanvasClick(wxMouseEvent& evt)
 {
     if (m_chat_panel && m_chat_panel->IsShown()) {
         wxPoint click_pt = evt.GetPosition();
-        wxRect chat_rect = m_chat_panel->GetScreenRect();
-        wxRect local_rect(this->ScreenToClient(chat_rect.GetTopLeft()),
-                         this->ScreenToClient(chat_rect.GetBottomRight()));
 
-        // Hide chat panel if click is outside its bounds
-        if (!local_rect.Contains(click_pt)) {
+        wxRect btn_rect = m_overlay_image->GetScreenRect();
+        wxRect img_rect(this->ScreenToClient(btn_rect.GetTopLeft()),
+                         this->ScreenToClient(btn_rect.GetBottomRight()));
+        
+        if (!img_rect.Contains(click_pt)) {
             m_chat_panel->Hide();
         }
     }

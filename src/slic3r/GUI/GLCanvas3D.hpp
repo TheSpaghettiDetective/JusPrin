@@ -1129,6 +1129,10 @@ public:
 
     bool make_current_for_postinit();
 
+public:
+    void setCancel(std::function<void(wxMouseEvent& evt)> cancel_fun){ cancel_fun_ = cancel_fun;};
+    std::function<void(wxMouseEvent& evt)> cancel_fun_;
+    
 private:
     bool _is_shown_on_screen() const;
 

@@ -3927,6 +3927,10 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     evt.SetX(evt.GetX() * scale);
     evt.SetY(evt.GetY() * scale);
 #endif
+    
+    if(evt.LeftDown() && cancel_fun_){
+        cancel_fun_(evt);
+    }
 
     Point pos(evt.GetX(), evt.GetY());
 
