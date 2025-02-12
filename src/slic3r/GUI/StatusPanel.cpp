@@ -9,7 +9,7 @@
 
 #include "BitmapCache.hpp"
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 
 #include "MsgDialog.hpp"
 #include "slic3r/Utils/Http.hpp"

@@ -5,7 +5,7 @@
 #include <slic3r/GUI/I18N.hpp>
 #include "GUI.hpp"
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Monitor.hpp"
 
 namespace Slic3r {
@@ -17,7 +17,7 @@ namespace GUI {
 wxDEFINE_EVENT(EVT_ALREADY_READ_HMS, wxCommandEvent);
 
 HMSNotifyItem::HMSNotifyItem(wxWindow *parent, HMSItem& item)
-    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL) 
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL)
     , m_hms_item(item)
     , long_error_code(item.get_long_error_code())
     , m_url(get_hms_wiki_url(item.get_long_error_code()))
@@ -139,19 +139,19 @@ void HMSNotifyItem::init_bitmaps() {
 wxBitmap & HMSNotifyItem::get_notify_bitmap()
 {
     switch (m_hms_item.msg_level) {
-        case (HMS_FATAL): 
+        case (HMS_FATAL):
             return m_img_notify_lv1;
             break;
         case (HMS_SERIOUS):
             return m_img_notify_lv2;
             break;
-        case (HMS_COMMON): 
+        case (HMS_COMMON):
             return m_img_notify_lv3;
             break;
-        case (HMS_INFO): 
+        case (HMS_INFO):
             //return m_img_notify_lv4;
             break;
-        case (HMS_UNKNOWN): 
+        case (HMS_UNKNOWN):
         case (HMS_MSG_LEVEL_MAX):
         default: break;
     }
@@ -224,7 +224,7 @@ void HMSPanel::update(MachineObject *obj)
                 append_hms_panel(item);
             }
         }
-        
+
         for (auto it = temp_hms_list.begin(); it != temp_hms_list.end(); ) {
             auto key = it->second.get_long_error_code();
             bool inr = false;

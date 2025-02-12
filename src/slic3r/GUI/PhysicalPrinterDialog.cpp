@@ -21,7 +21,7 @@
 
 #include "GUI.hpp"
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "format.hpp"
 #include "Tab.hpp"
 #include "wxExtensions.hpp"
@@ -145,7 +145,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         return sizer;
     };
 
-    auto printhost_browse = [=](wxWindow* parent) 
+    auto printhost_browse = [=](wxWindow* parent)
     {
         auto sizer = create_sizer_with_btn(parent, &m_printhost_browse_btn, "printer_host_browser", _L("Browse") + " " + dots);
         m_printhost_browse_btn->Bind(wxEVT_BUTTON, [=](wxCommandEvent& e) {
@@ -192,7 +192,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
                     } else {
                         PrinterCloudAuthDialog dlg(this->GetParent(), host.get());
                         dlg.ShowModal();
-                        
+
                         const auto api_key = dlg.GetApiKey();
                         m_config->opt_string("printhost_apikey") = api_key;
                         result       = !api_key.empty();
@@ -315,7 +315,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         m_optgroup->append_line(cafile_hint);
     }
     else {
-        
+
         Line line{ "", "" };
         line.full_width = 1;
 
@@ -334,7 +334,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         m_optgroup->append_line(line);
     }
 
-    for (const std::string& opt_key : std::vector<std::string>{ "printhost_user", "printhost_password" }) {        
+    for (const std::string& opt_key : std::vector<std::string>{ "printhost_user", "printhost_password" }) {
         option = m_optgroup->get_option(opt_key);
         option.opt.width = Field::def_width_wider();
         m_optgroup->append_single_option_line(option);
@@ -567,7 +567,7 @@ void PhysicalPrinterDialog::update(bool printer_change)
             AuthorizationType auth_type = m_config->option<ConfigOptionEnum<AuthorizationType>>("printhost_authorization_type")->value;
             m_optgroup->show_field("printhost_apikey", auth_type == AuthorizationType::atKeyPassword);
             for (const char* opt_key : { "printhost_user", "printhost_password" })
-                m_optgroup->show_field(opt_key, auth_type == AuthorizationType::atUserPassword); 
+                m_optgroup->show_field(opt_key, auth_type == AuthorizationType::atUserPassword);
         } else {
             m_optgroup->hide_field("printhost_authorization_type");
             m_optgroup->show_field("printhost_apikey", true);
@@ -628,7 +628,7 @@ void PhysicalPrinterDialog::update(bool printer_change)
                     m_printhost_cafile_browse_btn->Disable();
             }
         }
-        
+
         if (opt->value == htFlashforge) {
                 m_optgroup->hide_field("printhost_apikey");
                 m_optgroup->hide_field("printhost_authorization_type");

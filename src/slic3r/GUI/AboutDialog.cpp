@@ -5,7 +5,7 @@
 #include "libslic3r/Color.hpp"
 #include "GUI.hpp"
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "format.hpp"
 #include "Widgets/Button.hpp"
 

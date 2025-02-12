@@ -2,7 +2,7 @@
 
 #include "libslic3r/Thread.hpp"
 #include "nlohmann/json.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "GUI_App.hpp"
 
 using namespace nlohmann;
@@ -237,7 +237,7 @@ int TaskManager::schedule(TaskStateInfo* task)
                     task->set_state(TaskState::TS_SEND_CANCELED);
                 }
             }
-     
+
             /* remove from sending task list */
             m_scedule_mutex.lock();
             auto it = std::find(m_scedule_list.begin(), m_scedule_list.end(), task);

@@ -26,7 +26,7 @@
 #include "wxExtensions.hpp"
 #include "GUI_App.hpp"
 #include "GUI_ObjectList.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include <slic3r/GUI/Widgets/WebView.hpp>
 
 namespace Slic3r { namespace GUI {
@@ -218,7 +218,7 @@ void ProjectPanel::on_reload(wxCommandEvent& evt)
     });
 }
 
-void ProjectPanel::msw_rescale() 
+void ProjectPanel::msw_rescale()
 {
     m_auxiliary->msw_rescale();
 }
@@ -289,7 +289,7 @@ void ProjectPanel::update_model_data()
     //basics info
     //if (model.model_info == nullptr)
     //    return;
-    
+
     auto event = wxCommandEvent(EVT_PROJECT_RELOAD);
     event.SetEventObject(this);
     wxPostEvent(this, event);
@@ -360,7 +360,7 @@ std::map<std::string, std::vector<json>> ProjectPanel::Reload(wxString aux_path)
             for (auto folder : s_default_folders) {
                 auto idx = file_path.find(folder.ToStdString());
                 if (idx != std::string::npos) {
-                    
+
                     wxStructStat strucStat;
                     wxString file_name = encode_path(file_path.c_str());
                     wxStat(file_name, &strucStat);
@@ -408,7 +408,7 @@ std::string ProjectPanel::formatBytes(unsigned long bytes)
     return wxString::Format("%.2fMB", dValidData).ToStdString();
 }
 
-wxString ProjectPanel::to_base64(std::string file_path) 
+wxString ProjectPanel::to_base64(std::string file_path)
 {
 
     std::ifstream imageFile(encode_path(file_path.c_str()), std::ios::binary);
@@ -423,7 +423,7 @@ wxString ProjectPanel::to_base64(std::string file_path)
 
     std::string extension;
     size_t last_dot = file_path.find_last_of(".");
-   
+
     if (last_dot != std::string::npos) {
         extension = file_path.substr(last_dot + 1);
     }
@@ -444,10 +444,10 @@ void ProjectPanel::RunScript(std::string content)
     WebView::RunScript(m_browser, content);
 }
 
-bool ProjectPanel::Show(bool show) 
+bool ProjectPanel::Show(bool show)
 {
     if (show) update_model_data();
-    return wxPanel::Show(show); 
+    return wxPanel::Show(show);
 }
 
 }} // namespace Slic3r::GUI

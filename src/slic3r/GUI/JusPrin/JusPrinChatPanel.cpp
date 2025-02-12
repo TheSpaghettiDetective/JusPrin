@@ -9,7 +9,7 @@
 #include "slic3r/GUI/PresetComboBoxes.hpp"
 #include "slic3r/GUI/Jobs/OrientJob.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 
 #include "JusPrinPresetConfigUtils.hpp"

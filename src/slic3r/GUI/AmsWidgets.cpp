@@ -6,7 +6,7 @@
 #include "GUI_App.hpp"
 #include "GUI_ObjectList.hpp"
 #include "Plater.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Widgets/Label.hpp"
 #include "format.hpp"
 
@@ -164,7 +164,7 @@ void TrayListModel::update(MachineObject* obj)
                     m_snColValues.push_back(sn_text);
                     wxString manufacturer_text = wxString::Format("%s", tray->sub_brands);
                     m_manufacturerColValues.push_back(manufacturer_text);
-                    // TODO: 
+                    // TODO:
                     //wxString saturability_text = wxString::Format("%s", tray->saturability);
                     //m_saturabilityColValues.push_back(saturability_text);
                     //wxString transmittance_text = wxString::Format("%s", tray->transmittance);

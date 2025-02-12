@@ -192,7 +192,7 @@ set(SLIC3R_GUI_SOURCES
     GUI/IconManager.cpp
     GUI/IconManager.hpp
     GUI/MainFrame.cpp
-    GUI/MainFrame.hpp
+    GUI/JusPrinMainFrame.hpp
     GUI/BBLTopbar.cpp
     GUI/BBLTopbar.hpp
     GUI/Plater.cpp
@@ -571,6 +571,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/JusPrin/JusPrinPresetConfigUtils.hpp
     GUI/JusPrin/JusPrinPlateUtils.cpp
     GUI/JusPrin/JusPrinPlateUtils.hpp
+    GUI/JusPrinMainFrame.hpp
+    GUI/JusPrinMainFrame.cpp
 )
 
 if (WIN32)

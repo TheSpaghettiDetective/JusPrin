@@ -8,7 +8,7 @@
 #include <wx/display.h>
 #include "GUI_App.hpp"
 #include "wxExtensions.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include <wx/notebook.h>
 
 namespace Slic3r {
@@ -201,7 +201,7 @@ void KBShortcutsDialog::fill_shortcuts()
 #else
             { ctrl + "M", L("Show/Hide 3Dconnexion devices settings dialog") },
 #endif // __APPLE
-            
+
             // Switch table page
             { ctrl + "Tab", L("Switch table page")},
             //DEL

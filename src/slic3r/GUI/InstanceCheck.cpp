@@ -4,7 +4,7 @@
 #include <boost/regex.hpp>
 
 #ifdef _WIN32
-  #include "MainFrame.hpp"
+  #include "JusPrinMainFrame.hpp"
 #endif
 
 #include "libslic3r/Utils.hpp"

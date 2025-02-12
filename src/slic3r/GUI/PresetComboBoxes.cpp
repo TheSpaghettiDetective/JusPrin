@@ -29,7 +29,7 @@
 #include "GUI.hpp"
 #include "GUI_App.hpp"
 #include "Plater.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "format.hpp"
 #include "Tab.hpp"
 #include "ConfigWizard.hpp"

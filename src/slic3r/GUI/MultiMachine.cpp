@@ -2,7 +2,7 @@
 #include "I18N.hpp"
 
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -154,7 +154,7 @@ wxString DeviceItem::get_state_printable()
 
 wxString DeviceItem::get_state_device()
 {
-    //0-idle 1-finish 2-running 3-pause 4-failed  5-prepare 
+    //0-idle 1-finish 2-running 3-pause 4-failed  5-prepare
     std::vector<wxString> str_state_device;
     str_state_device.push_back(_L("Idle"));
     str_state_device.push_back(_L("Printing Finish"));
@@ -181,7 +181,7 @@ wxString DeviceItem::get_local_state_task()
     str_state_task.push_back(_L("Print Success"));
     str_state_task.push_back(_L("Print Failed"));
     str_state_task.push_back(_L("Removed"));
-    str_state_task.push_back(_L("Idle"));   
+    str_state_task.push_back(_L("Idle"));
     return str_state_task[state_local_task];
 }
 

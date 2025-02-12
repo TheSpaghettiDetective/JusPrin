@@ -15,7 +15,7 @@
 #include "slic3r/GUI/NotificationManager.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoEmboss.hpp"
@@ -23,7 +23,7 @@
 #include "slic3r/GUI/CameraUtils.hpp"
 #include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/3DScene.hpp"
-#include "slic3r/GUI/Jobs/Worker.hpp" 
+#include "slic3r/GUI/Jobs/Worker.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "slic3r/Utils/RaycastManager.hpp"
 
@@ -212,7 +212,7 @@ void update_name_in_list(const ObjectList &object_list, const ModelVolume &volum
 /// <param name="trmat">Transformation of volume inside of object</param>
 /// <param name="data">Text configuration and New VolumeName</param>
 /// <param name="gizmo">Gizmo to open</param>
-void create_volume(TriangleMesh &&mesh, const ObjectID& object_id, const ModelVolumeType type, 
+void create_volume(TriangleMesh &&mesh, const ObjectID& object_id, const ModelVolumeType type,
     const std::optional<Transform3d>& trmat, const DataBase &data, GLGizmosManager::EType gizmo);
 
 /// <summary>
@@ -220,7 +220,7 @@ void create_volume(TriangleMesh &&mesh, const ObjectID& object_id, const ModelVo
 /// </summary>
 /// <param name="tr">Volume transformation in object</param>
 /// <param name="shape_scale">Convert shape to milimeters</param>
-/// <param name="z_range">Bounding box 3d of model volume for projection ranges</param> 
+/// <param name="z_range">Bounding box 3d of model volume for projection ranges</param>
 /// <returns>Orthogonal cut_projection</returns>
 OrthoProject create_projection_for_cut(Transform3d tr, double shape_scale, const std::pair<float, float> &z_range);
 
@@ -256,7 +256,7 @@ void create_message(const std::string &message); // only in finalize
 bool process(std::exception_ptr &eptr);
 bool finalize(bool canceled, std::exception_ptr &eptr, const DataBase &input);
 
-class JobException : public std::runtime_error { 
+class JobException : public std::runtime_error {
 public: using std::runtime_error::runtime_error;};
 auto was_canceled(const Job::Ctl &ctl, const DataBase &base){
     return [&ctl, &cancel = base.cancel]() {
@@ -279,14 +279,14 @@ void Slic3r::GUI::Emboss::DataBase::write(ModelVolume &volume) const{
 CreateVolumeJob::CreateVolumeJob(DataCreateVolume &&input): m_input(std::move(input)){ assert(check(m_input, true)); }
 
 void CreateVolumeJob::process(Ctl &ctl) {
-    if (!check(m_input)) 
+    if (!check(m_input))
         throw std::runtime_error("Bad input data for EmbossCreateVolumeJob.");
     m_result = create_mesh(*m_input.base, was_canceled(ctl, *m_input.base), ctl);
 }
 void CreateVolumeJob::finalize(bool canceled, std::exception_ptr &eptr) {
     if (!::finalize(canceled, eptr, *m_input.base))
         return;
-    if (m_result.its.empty()) 
+    if (m_result.its.empty())
         return create_message("Can't create empty volume.");
     create_volume(std::move(m_result), m_input.object_id, m_input.volume_type, m_input.trmat, *m_input.base, m_input.gizmo);
 }
@@ -296,7 +296,7 @@ void CreateVolumeJob::finalize(bool canceled, std::exception_ptr &eptr) {
 /// Create Object
 CreateObjectJob::CreateObjectJob(DataCreateObject &&input): m_input(std::move(input)){ assert(check(m_input)); }
 
-void CreateObjectJob::process(Ctl &ctl) 
+void CreateObjectJob::process(Ctl &ctl)
 {
     if (!check(m_input))
         throw JobException("Bad input data for EmbossCreateObjectJob.");
@@ -344,7 +344,7 @@ void CreateObjectJob::finalize(bool canceled, std::exception_ptr &eptr)
         return;
 
     // only for sure
-    if (m_result.empty()) 
+    if (m_result.empty())
         return create_message("Can't create empty object.");
 
     GUI_App &app    = wxGetApp();
@@ -452,21 +452,21 @@ void UpdateJob::update_volume(ModelVolume *volume, TriangleMesh &&mesh, const Da
 
 /////////////////
 /// Create Surface volume
-CreateSurfaceVolumeJob::CreateSurfaceVolumeJob(CreateSurfaceVolumeData &&input) 
+CreateSurfaceVolumeJob::CreateSurfaceVolumeJob(CreateSurfaceVolumeData &&input)
     : m_input(std::move(input))
 {
     assert(check(m_input, true));
 }
 
 void CreateSurfaceVolumeJob::process(Ctl &ctl) {
-    if (!check(m_input)) 
+    if (!check(m_input))
         throw JobException("Bad input data for CreateSurfaceVolumeJob.");
     m_result = cut_surface(*m_input.base, m_input, was_canceled(ctl, *m_input.base));
 }
 
 void CreateSurfaceVolumeJob::finalize(bool canceled, std::exception_ptr &eptr) {
     if (!::finalize(canceled, eptr, *m_input.base))
-        return; 
+        return;
     create_volume(std::move(m_result), m_input.object_id,
         m_input.volume_type, m_input.transform, *m_input.base, m_input.gizmo);
 }
@@ -481,7 +481,7 @@ UpdateSurfaceVolumeJob::UpdateSurfaceVolumeJob(UpdateSurfaceVolumeData &&input)
 
 void UpdateSurfaceVolumeJob::process(Ctl &ctl)
 {
-    if (!check(m_input)) 
+    if (!check(m_input))
         throw JobException("Bad input data for UseSurfaceJob.");
     m_result = cut_surface(*m_input.base, m_input, was_canceled(ctl, *m_input.base));
 }
@@ -597,8 +597,8 @@ bool start_create_volume_without_position(CreateVolumeParams &input, DataBasePtr
     const ModelObjectPtrs &objects = selection.get_model()->objects;
 
     // No selected object so create new object
-    if (selection.is_empty() || object_idx < 0 || 
-        static_cast<size_t>(object_idx) >= objects.size()) 
+    if (selection.is_empty() || object_idx < 0 ||
+        static_cast<size_t>(object_idx) >= objects.size())
         // create Object on center of screen
         // when ray throw center of screen not hit bed it create object on center of bed
         return ::start_create_object_job(input, std::move(data), screen_center);
@@ -609,7 +609,7 @@ bool start_create_volume_without_position(CreateVolumeParams &input, DataBasePtr
     input.gl_volume = ::find_closest(selection, screen_center, camera, objects, &coor);
     if (input.gl_volume == nullptr)
         return ::start_create_object_job(input, std::move(data), screen_center);
-    
+
     bool try_no_coor = false;
     return ::start_create_volume_on_surface_job(input, std::move(data), coor, try_no_coor);
 }
@@ -703,7 +703,7 @@ bool check(const DataBase &input, bool check_fontfile, bool use_surface)
     //    assert(get_count_lines(input.text_configuration.text) == input.text_lines.size());
     //    res &= get_count_lines(input.text_configuration.text) == input.text_lines.size();
     //}
-    return res; 
+    return res;
 }
 
 bool check(GLGizmosManager::EType gizmo)
@@ -791,7 +791,7 @@ bool check(const UpdateSurfaceVolumeData &input, bool is_main_thread)
     return res;
 }
 
-template<typename Fnc> 
+template<typename Fnc>
 ExPolygons create_shape(DataBase &input, Fnc was_canceled) {
     EmbossShape &es = input.create_shape();
     // TODO: improve to use real size of volume
@@ -837,16 +837,16 @@ template<typename Fnc> TriangleMesh create_mesh_per_glyph(DataBase &input, Fnc w
     const EmbossShape &shape = input.create_shape();
     if (shape.shapes_with_ids.empty())
         return {};
-    
+
     // Precalculate bounding boxes of glyphs
     // Separate lines of text to vector of Bounds
     assert(get_count_lines(shape.shapes_with_ids) == input.text_lines.size());
     size_t count_lines = input.text_lines.size();
     std::vector<BoundingBoxes> bbs = create_line_bounds(shape.shapes_with_ids, count_lines);
-        
+
     double depth = shape.projection.depth / shape.scale;
-    auto scale_tr = Eigen::Scaling(shape.scale); 
-    
+    auto scale_tr = Eigen::Scaling(shape.scale);
+
     // half of font em size for direction of letter emboss
     // double  em_2_mm      = prop.size_in_mm / 2.; // TODO: fix it
     double em_2_mm = 5.;
@@ -867,7 +867,7 @@ template<typename Fnc> TriangleMesh create_mesh_per_glyph(DataBase &input, Fnc w
 
             Vec2d to_zero_vec = letter_bb.center().cast<double>() * shape.scale; // [in mm]
             float surface_offset = input.is_outside ? -SAFE_SURFACE_OFFSET : (-shape.projection.depth + SAFE_SURFACE_OFFSET);
-            
+
             if (input.from_surface.has_value())
                 surface_offset += *input.from_surface;
 
@@ -902,7 +902,7 @@ template<typename Fnc> TriangleMesh create_mesh_per_glyph(DataBase &input, Fnc w
             std::string file_path = "C:/data/temp/line" + std::to_string(text_line_index) + "_letter_position.svg";
             SVG         svg(file_path, bbox);
             svg.draw(line.polygon);
-            int32_t radius = bbox.size().x() / 300; 
+            int32_t radius = bbox.size().x() / 300;
             for (size_t i = 0; i < samples.size(); i++) {
                 const PolygonPoint &pp = samples[i];
                 const Point& p = pp.point;
@@ -936,8 +936,8 @@ TriangleMesh try_create_mesh(DataBase &input, const Fnc& was_canceled)
 
     // NOTE: SHAPE_SCALE is applied in ProjectZ
     double scale = input.shape.scale;
-    double depth = input.shape.projection.depth / scale;    
-    auto projectZ = std::make_unique<ProjectZ>(depth);    
+    double depth = input.shape.projection.depth / scale;
+    auto projectZ = std::make_unique<ProjectZ>(depth);
     float offset = input.is_outside ? -SAFE_SURFACE_OFFSET : (SAFE_SURFACE_OFFSET - input.shape.projection.depth);
     if (input.from_surface.has_value())
         offset += *input.from_surface;
@@ -1037,7 +1037,7 @@ void update_volume(TriangleMesh &&mesh, const DataUpdate &data, const Transform3
         Plater::TakeSnapshot snapshot(plater, snap_name, UndoRedo::SnapshotType::GizmoAction);
     }
 
-    ModelVolume *volume = get_model_volume(data.volume_id, plater->model().objects);   
+    ModelVolume *volume = get_model_volume(data.volume_id, plater->model().objects);
 
     // could appear when user delete edited volume
     if (volume == nullptr)
@@ -1081,10 +1081,10 @@ void create_volume(TriangleMesh                    &&mesh,
 
     // Parent object for text volume was propably removed.
     // Assumption: User know what he does, so text volume is no more needed.
-    if (obj == nullptr) 
+    if (obj == nullptr)
         return create_message("Bad object to create volume.");
 
-    if (mesh.its.empty()) 
+    if (mesh.its.empty())
         return create_message("Can't create empty volume.");
 
     plater->take_snapshot(_u8L("Add Emboss text Volume"));
@@ -1184,10 +1184,10 @@ OrthoProject create_projection_for_cut(Transform3d tr, double shape_scale, const
 
 OrthoProject3d create_emboss_projection(bool is_outside, float emboss, Transform3d tr, SurfaceCut &cut)
 {
-    float 
+    float
         front_move = (is_outside) ? emboss : SAFE_SURFACE_OFFSET,
-        back_move  = -((is_outside) ? SAFE_SURFACE_OFFSET : emboss);    
-    its_transform(cut, tr.pretranslate(Vec3d(0., 0., front_move)));    
+        back_move  = -((is_outside) ? SAFE_SURFACE_OFFSET : emboss);
+    its_transform(cut, tr.pretranslate(Vec3d(0., 0., front_move)));
     Vec3d from_front_to_back(0., 0., back_move - front_move);
     return OrthoProject3d(from_front_to_back);
 }
@@ -1250,7 +1250,7 @@ indexed_triangle_set cut_surface_to_its(const ExPolygons &shapes, const Transfor
     BoundingBoxf3           mesh_bb_tr = mesh_bb.transformed(emboss_tr);
     std::pair<float, float> z_range{mesh_bb_tr.min.z(), mesh_bb_tr.max.z()};
     OrthoProject cut_projection = create_projection_for_cut(cut_projection_tr, shape_scale, z_range);
-    float projection_ratio = (-z_range.first + safe_extension) / 
+    float projection_ratio = (-z_range.first + safe_extension) /
                               (z_range.second - z_range.first + 2 * safe_extension);
 
     ExPolygons shapes_data; // is used only when text is reflected to reverse polygon points order
@@ -1286,7 +1286,7 @@ indexed_triangle_set cut_surface_to_its(const ExPolygons &shapes, const Transfor
     return cut2model(cut, projection);
 }
 
-TriangleMesh cut_per_glyph_surface(DataBase &input1, const SurfaceVolumeData &input2, std::function<bool()> was_canceled) 
+TriangleMesh cut_per_glyph_surface(DataBase &input1, const SurfaceVolumeData &input2, std::function<bool()> was_canceled)
 {
     // Precalculate bounding boxes of glyphs
     // Separate lines of text to vector of Bounds
@@ -1298,7 +1298,7 @@ TriangleMesh cut_per_glyph_surface(DataBase &input1, const SurfaceVolumeData &in
     assert(get_count_lines(es.shapes_with_ids) == input1.text_lines.size());
     size_t count_lines = input1.text_lines.size();
     std::vector<BoundingBoxes> bbs = create_line_bounds(es.shapes_with_ids, count_lines);
-        
+
     // half of font em size for direction of letter emboss
     double  em_2_mm      = 5.; // TODO: fix it
     int32_t em_2_polygon = static_cast<int32_t>(std::round(scale_(em_2_mm)));
@@ -1345,8 +1345,8 @@ TriangleMesh cut_per_glyph_surface(DataBase &input1, const SurfaceVolumeData &in
         s_i_offset += line_bbs.size();
     }
 
-    if (was_canceled()) return {};    
-    if (result.empty()) 
+    if (was_canceled()) return {};
+    if (result.empty())
         throw JobException(_u8L("There is no valid surface for text projection.").c_str());
     return TriangleMesh(std::move(result));
 }
@@ -1357,16 +1357,16 @@ TriangleMesh cut_surface(DataBase& input1, const SurfaceVolumeData& input2, cons
 {
     if (!input1.text_lines.empty())
         return cut_per_glyph_surface(input1, input2, was_canceled);
-    
+
     ExPolygons shapes = create_shape(input1, was_canceled);
     if (was_canceled()) return {};
     if (shapes.empty())
         throw JobException(_u8L("Font doesn't have any shape for given text.").c_str());
 
     indexed_triangle_set its = cut_surface_to_its(shapes, input2.transform, input2.sources, input1, was_canceled);
-    if (was_canceled()) return {};    
-    if (its.empty()) 
-        throw JobException(_u8L("There is no valid surface for text projection.").c_str());    
+    if (was_canceled()) return {};
+    if (its.empty())
+        throw JobException(_u8L("There is no valid surface for text projection.").c_str());
 
     return TriangleMesh(std::move(its));
 }
@@ -1417,10 +1417,10 @@ bool finalize(bool canceled, std::exception_ptr &eptr, const DataBase &input)
 bool is_valid(ModelVolumeType volume_type)
 {
     assert(volume_type != ModelVolumeType::INVALID);
-    assert(volume_type == ModelVolumeType::MODEL_PART || 
+    assert(volume_type == ModelVolumeType::MODEL_PART ||
            volume_type == ModelVolumeType::NEGATIVE_VOLUME ||
            volume_type == ModelVolumeType::PARAMETER_MODIFIER);
-    if (volume_type == ModelVolumeType::MODEL_PART || 
+    if (volume_type == ModelVolumeType::MODEL_PART ||
         volume_type == ModelVolumeType::NEGATIVE_VOLUME ||
         volume_type == ModelVolumeType::PARAMETER_MODIFIER)
         return true;
@@ -1469,7 +1469,7 @@ const GLVolume *find_closest(
 
     double center_sq_distance = std::numeric_limits<double>::max();
     for (unsigned int id : indices) {
-        const GLVolume    *gl_volume = selection.get_volume(id);        
+        const GLVolume    *gl_volume = selection.get_volume(id);
         if (const ModelVolume *volume = get_model_volume(*gl_volume, objects);
             volume == nullptr || !volume->is_model_part())
             continue;
@@ -1477,7 +1477,7 @@ const GLVolume *find_closest(
         Vec2d           c           = hull.centroid().cast<double>();
         Vec2d           d           = c - screen_center;
         bool            is_bigger_x = std::fabs(d.x()) > std::fabs(d.y());
-        if ((is_bigger_x && d.x() * d.x() > center_sq_distance) || 
+        if ((is_bigger_x && d.x() * d.x() > center_sq_distance) ||
            (!is_bigger_x && d.y() * d.y() > center_sq_distance))
             continue;
 
@@ -1499,7 +1499,7 @@ bool start_create_object_job(const CreateVolumeParams &input, DataBasePtr emboss
     DataCreateObject data{std::move(emboss_data), coor, input.camera, bed_shape, gizmo_type, input.angle};
 
     // Fix: adding text on print bed with style containing use_surface
-    if (data.base->shape.projection.use_surface) 
+    if (data.base->shape.projection.use_surface)
         // Til the print bed is flat using surface for Object is useless
         data.base->shape.projection.use_surface = false;
 

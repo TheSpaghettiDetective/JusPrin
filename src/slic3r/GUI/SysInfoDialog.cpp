@@ -12,7 +12,7 @@
 #include <wx/clipbrd.h>
 #include <wx/platinfo.h>
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "wxExtensions.hpp"
 #include "../libslic3r/BlacklistedLibraryCheck.hpp"
 #include "../libslic3r/Color.hpp"

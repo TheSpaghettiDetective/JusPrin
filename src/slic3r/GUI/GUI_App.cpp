@@ -67,7 +67,8 @@
 #include "GUI.hpp"
 #include "GUI_Utils.hpp"
 #include "3DScene.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Plater.hpp"
 #include "GLCanvas3D.hpp"
 
@@ -2517,7 +2518,7 @@ bool GUI_App::on_init_inner()
     Slic3r::I18N::set_translate_callback(libslic3r_translate_callback);
 
     BOOST_LOG_TRIVIAL(info) << "create the main window";
-    mainframe = new MainFrame();
+    mainframe = new JusPrinMainFrame();
     // hide settings tabs after first Layout
     if (is_editor()) {
         mainframe->select_tab(size_t(0));
@@ -3314,7 +3315,7 @@ void GUI_App::recreate_GUI(const wxString &msg_name)
     old_main_frame->SetClientObject(new ClientData);
 
     switch_window_pools();
-    mainframe = new MainFrame();
+    mainframe = new JusPrinMainFrame();
     if (is_editor())
         // hide settings tabs after first Layout
         mainframe->select_tab(size_t(MainFrame::tp3DEditor));

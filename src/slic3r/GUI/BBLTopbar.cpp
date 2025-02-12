@@ -7,7 +7,7 @@
 #include "GUI.hpp"
 #include "wxExtensions.hpp"
 #include "Plater.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "WebViewDialog.hpp"
 #include "PartPlate.hpp"
 

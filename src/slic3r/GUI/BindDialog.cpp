@@ -11,7 +11,7 @@
 #include <wx/richtext/richtextctrl.h>
 #include "libslic3r/Model.hpp"
 #include "libslic3r/Polygon.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "GUI_App.hpp"
 #include "Plater.hpp"
 #include "Jobs/BoostThreadWorker.hpp"

@@ -2,7 +2,7 @@
 #include "I18N.hpp"
 
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Widgets/RadioBox.hpp"
 #include <wx/listimpl.cpp>
 #include <boost/date_time/posix_time/posix_time.hpp>

@@ -1,5 +1,5 @@
 #include "CalibrationWizardCaliPage.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "I18N.hpp"
 #include "Widgets/Label.hpp"
 
@@ -251,7 +251,7 @@ void CalibrationCaliPage::update(MachineObject* obj)
                 assert(false);
             }
             m_action_panel->enable_button(CaliPageActionType::CALI_ACTION_CALI_NEXT, enable_cali);
-        } 
+        }
         else if (m_cali_mode == CalibMode::Calib_Vol_speed_Tower) {
             if (get_obj_calibration_mode(obj) == m_cali_mode && obj->is_printing_finished()) {
                 enable_cali = true;

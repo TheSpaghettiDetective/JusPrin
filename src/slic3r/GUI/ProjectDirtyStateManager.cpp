@@ -3,7 +3,7 @@
 #include "ProjectDirtyStateManager.hpp"
 #include "ImGuiWrapper.hpp"
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "I18N.hpp"
 #include "Plater.hpp"
 
@@ -28,8 +28,8 @@ void ProjectDirtyStateManager::update_from_presets()
     // check switching of the presets only for exist/loaded project, but not for new
     GUI_App &app = wxGetApp();
     if (!app.plater()->get_project_filename().IsEmpty()) {
-        for (const auto &[type, name] : app.get_selected_presets()) { 
-            if (type == Preset::Type::TYPE_FILAMENT) { 
+        for (const auto &[type, name] : app.get_selected_presets()) {
+            if (type == Preset::Type::TYPE_FILAMENT) {
                 m_presets_dirty |= m_initial_filament_presets_names != wxGetApp().preset_bundle->filament_presets;
                 if (ConfigOption *color_option = wxGetApp().preset_bundle->project_config.option("filament_colour")) {
                     auto colors = static_cast<ConfigOptionStrings *>(color_option->clone());
@@ -61,7 +61,7 @@ void ProjectDirtyStateManager::reset_initial_presets()
 {
     m_initial_presets.fill(std::string{});
     GUI_App &app = wxGetApp();
-    for (const auto &[type, name] : app.get_selected_presets()) { 
+    for (const auto &[type, name] : app.get_selected_presets()) {
         if (type == Preset::Type::TYPE_FILAMENT) {
             m_initial_filament_presets_names = wxGetApp().preset_bundle->filament_presets;
             if (ConfigOption *color_option = wxGetApp().preset_bundle->project_config.option("filament_colour")) {

@@ -1,7 +1,7 @@
 #include "SingleChoiceDialog.hpp"
 
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 
 namespace Slic3r { namespace GUI {
 

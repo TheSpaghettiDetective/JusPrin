@@ -18,7 +18,7 @@
 #include "ExtraRenderers.hpp"
 #include "wxExtensions.hpp"
 #include "SavePresetDialog.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "MsgDialog.hpp"
 
 #include "PresetComboBoxes.hpp"

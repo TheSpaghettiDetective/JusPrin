@@ -10,7 +10,7 @@
 #include "libslic3r/Color.hpp"
 #include "Widgets/Button.hpp"
 #include "slic3r/Utils/ColorSpaceConvert.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "libslic3r/Config.hpp"
 
 using namespace Slic3r;

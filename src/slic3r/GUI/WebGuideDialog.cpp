@@ -22,7 +22,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
 
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include <boost/dll.hpp>
 #include <slic3r/GUI/Widgets/WebView.hpp>
 #include <slic3r/Utils/Http.hpp>
@@ -44,7 +44,7 @@ static wxString update_custom_filaments()
     json                                               m_CustomFilaments           = json::array();
     PresetBundle *                                     preset_bundle               = wxGetApp().preset_bundle;
     std::map<std::string, std::vector<Preset const *>> temp_filament_id_to_presets = preset_bundle->filaments.get_filament_presets();
-    
+
     std::vector<std::pair<std::string, std::string>>   need_sort;
     bool                                             need_delete_some_filament = false;
     for (std::pair<std::string, std::vector<Preset const *>> filament_id_to_presets : temp_filament_id_to_presets) {
@@ -68,7 +68,7 @@ static wxString update_custom_filaments()
                 auto filament_vendor = dynamic_cast<ConfigOptionStrings *>(const_cast<Preset *>(preset)->config.option("filament_vendor", false));
                 if (filament_vendor && filament_vendor->values.size() && filament_vendor->values[0] == "Generic") not_need_show = true;
             }
-            
+
             if (filament_name.empty()) {
                 std::string preset_name = preset->name;
                 size_t      index_at    = preset_name.find(" @");
@@ -128,7 +128,7 @@ GuideFrame::GuideFrame(GUI_App *pGUI, long style)
     }
     m_browser->Hide();
     m_browser->SetSize(0, 0);
-    
+
     SetSizer(topsizer);
 
     topsizer->Add(m_browser, wxSizerFlags().Expand().Proportion(1));
@@ -295,7 +295,7 @@ void GuideFrame::OnNavigationComplete(wxWebViewEvent &evt)
     //wxLogMessage("%s", "Navigation complete; url='" + evt.GetURL() + "'");
     m_browser->Show();
     Layout();
-    
+
     wxString NewUrl = evt.GetURL();
 
     UpdateState();
@@ -1016,9 +1016,9 @@ int GuideFrame::GetFilamentInfo( std::string VendorDirectory, json & pFilaList, 
             if (jLocal.contains("inherits")) {
                 std::string FName = jLocal["inherits"];
 
-                if (!pFilaList.contains(FName)) { 
+                if (!pFilaList.contains(FName)) {
                     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "pFilaList - Not Contains inherits filaments: " << FName;
-                    return -1; 
+                    return -1;
                 }
 
                 std::string FPath = pFilaList[FName]["sub_path"];
@@ -1560,7 +1560,7 @@ int GuideFrame::LoadProfileFamily(std::string strVendor, std::string strFilePath
                 std::string             sub_file = sub_path.string();
                 LoadFile(sub_file, contents);
                 json pm = json::parse(contents);
-                
+
                 std::string strInstant = pm["instantiation"];
                 BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "Load Filament:" << s1 << ",Path:" << sub_file << ",instantiation?" << strInstant;
 
@@ -1569,9 +1569,9 @@ int GuideFrame::LoadProfileFamily(std::string strVendor, std::string strFilePath
                     std::string sT;
 
                     int nRet = GetFilamentInfo(vendor_dir.string(),tFilaList, sub_file, sV, sT);
-                    if (nRet != 0) { 
+                    if (nRet != 0) {
                         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "Load Filament:" << s1 << ",GetFilamentInfo Failed, Vendor:" << sV << ",Type:"<< sT;
-                        continue; 
+                        continue;
                     }
 
                     OneFF["vendor"] = sV;

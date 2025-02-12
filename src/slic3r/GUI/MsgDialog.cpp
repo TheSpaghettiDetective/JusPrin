@@ -19,7 +19,7 @@
 #include "I18N.hpp"
 //#include "ConfigWizard.hpp"
 #include "wxExtensions.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "GUI_App.hpp"
 
 #define DESIGN_INPUT_SIZE wxSize(FromDIP(100), -1)

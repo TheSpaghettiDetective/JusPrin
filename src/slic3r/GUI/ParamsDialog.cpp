@@ -2,7 +2,7 @@
 #include "I18N.hpp"
 #include "ParamsPanel.hpp"
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Tab.hpp"
 
 #include "libslic3r/Utils.hpp"
@@ -10,7 +10,7 @@
 namespace pt = boost::property_tree;
 typedef pt::ptree JSON;
 
-namespace Slic3r { 
+namespace Slic3r {
 namespace GUI {
 
 

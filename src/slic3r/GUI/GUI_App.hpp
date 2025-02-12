@@ -46,10 +46,8 @@ class wxMenuBar;
 class wxTopLevelWindow;
 class wxDataViewCtrl;
 class wxBookCtrlBase;
-// BBS
 class Notebook;
 struct wxLanguageInfo;
-
 
 namespace Slic3r {
 
@@ -67,7 +65,8 @@ namespace GUI{
 
 class RemovableDriveManager;
 class OtherInstanceMessageHandler;
-class MainFrame;
+class MainFrame;  // Keep only this one forward declaration
+class JusPrinMainFrame;
 class Sidebar;
 class ObjectSettings;
 class ObjectList;
@@ -605,7 +604,7 @@ private:
     AppConfig*      app_config{ nullptr };
     PresetBundle*   preset_bundle{ nullptr };
     PresetUpdater*  preset_updater{ nullptr };
-    MainFrame*      mainframe{ nullptr };
+    JusPrinMainFrame* mainframe{ nullptr };
     Plater*         plater_{ nullptr };
 
 	PresetUpdater*  get_preset_updater() { return preset_updater; }

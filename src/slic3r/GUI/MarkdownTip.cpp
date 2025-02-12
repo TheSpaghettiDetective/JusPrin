@@ -1,7 +1,7 @@
 #include "MarkdownTip.hpp"
 #include "GUI_App.hpp"
 #include "GUI.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Widgets/WebView.hpp"
 
 #include "libslic3r/Utils.hpp"
@@ -37,7 +37,7 @@ static std::string url_encode(const std::string& value) {
 }
 /*
  * Edge browser not support WebViewHandler
- * 
+ *
 class MyWebViewHandler : public wxWebViewArchiveHandler
 {
 public:
@@ -56,7 +56,7 @@ public:
         std::replace(url.begin(), url.end(), '\\', '/');
         auto uri2 = "file:///" + wxString(url) + ";protocol=zip" + uri.substr(n + 17);
         return wxWebViewArchiveHandler::GetFile(uri2);
-    } 
+    }
 };
 */
 
@@ -311,7 +311,7 @@ void MarkdownTip::ExitTip()
 
 void MarkdownTip::Reload()
 {
-    if (auto tip = markdownTip(false)) 
+    if (auto tip = markdownTip(false))
         tip->LoadStyle();
 }
 

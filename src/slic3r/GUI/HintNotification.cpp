@@ -4,7 +4,7 @@
 #include "I18N.hpp"
 #include "GUI_ObjectList.hpp"
 #include "GLCanvas3D.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Tab.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Utils.hpp"
@@ -146,21 +146,21 @@ namespace {
 			if (tag == "Windows")
 #ifdef WIN32
 				return TagCheckAffirmative;
-#else 
+#else
 				return TagCheckNegative;
 #endif // WIN32
 
 			if (tag == "Linux")
 #ifdef __linux__
 				return TagCheckAffirmative;
-#else 
+#else
 				return TagCheckNegative;
 #endif // __linux__
 
 			if (tag == "OSX")
 #ifdef __APPLE__
 				return TagCheckAffirmative;
-#else 
+#else
 				return TagCheckNegative;
 #endif // __apple__
 		}
@@ -334,7 +334,7 @@ void HintDatabase::load_hints_from_file(const boost::filesystem::path& path)
 
 	for (const auto& section : tree) {
 		if (boost::starts_with(section.first, "hint:")) {
-			// create std::map with tree data 
+			// create std::map with tree data
 			std::map<std::string, std::string> dict;
 			for (const auto& data : section.second) {
 				dict.emplace(data.first, data.second.data());
@@ -342,7 +342,7 @@ void HintDatabase::load_hints_from_file(const boost::filesystem::path& path)
 			// unique id string [hint:id] (trim "hint:")
 			std::string id_string = section.first.substr(5);
 			id_string = std::to_string(std::hash<std::string>{}(id_string));
-			// unescaping and translating all texts and saving all data common for all hint types 
+			// unescaping and translating all texts and saving all data common for all hint types
 			std::string fulltext;
 			std::string text1;
 			std::string hypertext_text;
@@ -598,7 +598,7 @@ void HintDatabase::clear_used()
 
 void NotificationManager::HintNotification::count_spaces()
 {
-	//determine line width 
+	//determine line width
 	m_line_height = ImGui::CalcTextSize("A").y;
 
 
@@ -818,7 +818,7 @@ void NotificationManager::HintNotification::count_lines()
 			}
 			if (size_of_last_line == 0) // if first line is continuation of previous text, do not add to line count.
 				m_lines_count++;
-			size_of_last_line = 0; // should countain value only for first line (with hypertext) 
+			size_of_last_line = 0; // should countain value only for first line (with hypertext)
 
 		}
 	}
@@ -1159,5 +1159,5 @@ void NotificationManager::HintNotification::retrieve_data(bool new_hint/* = true
 		update(nd);
 	}
 }
-} //namespace Slic3r 
-} //namespace GUI 
+} //namespace Slic3r
+} //namespace GUI

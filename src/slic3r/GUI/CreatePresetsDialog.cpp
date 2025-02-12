@@ -14,7 +14,7 @@
 #include "MsgDialog.hpp"
 #include "FileHelp.hpp"
 #include "Tab.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "libslic3r_version.h"
 
 #define NAME_OPTION_COMBOBOX_SIZE wxSize(FromDIP(200), FromDIP(24))

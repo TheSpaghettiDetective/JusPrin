@@ -3,7 +3,7 @@
 #include "I18N.hpp"
 #include "GUI_App.hpp"
 #include "GUI.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "ExtraRenderers.hpp"
 #include "format.hpp"
 #include <regex>

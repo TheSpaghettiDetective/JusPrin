@@ -14,7 +14,7 @@
 #include "libslic3r/Geometry.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Plater.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 
 #include <boost/algorithm/string.hpp>
 
@@ -94,7 +94,7 @@ void GizmoObjectManipulation::update_settings_value(const Selection& selection)
             m_new_rotation = volume->get_instance_rotation() * (180. / M_PI);
 			m_new_size     = selection.get_scaled_instance_bounding_box().size();
 			m_new_scale    = m_new_size.cwiseProduct(selection.get_unscaled_instance_bounding_box().size().cwiseInverse()) * 100.;
-		} 
+		}
         else {
 			m_new_rotation = volume->get_instance_rotation() * (180. / M_PI);
 			m_new_size     = volume->get_instance_transformation().get_scaling_factor().cwiseProduct(wxGetApp().model().objects[volume->object_idx()]->raw_mesh_bounding_box().size());
@@ -296,7 +296,7 @@ void GizmoObjectManipulation::change_rotation_value(int axis, double value)
 
     selection.setup_cache();
 	selection.rotate(
-		(M_PI / 180.0) * (transformation_type.absolute() ? rotation : rotation - m_cache.rotation), 
+		(M_PI / 180.0) * (transformation_type.absolute() ? rotation : rotation - m_cache.rotation),
 		transformation_type);
     m_glcanvas.do_rotate(L("Set Orientation"));
 
@@ -343,7 +343,7 @@ void GizmoObjectManipulation::change_size_value(int axis, double value)
         ref_size = Vec3d(instance_scale[0] * ref_size[0], instance_scale[1] * ref_size[1], instance_scale[2] * ref_size[2]);
     }
     else if (selection.is_single_full_instance())
-        ref_size = is_world_coordinates() ? 
+        ref_size = is_world_coordinates() ?
             selection.get_unscaled_instance_bounding_box().size() :
             wxGetApp().model().objects[selection.get_first_volume()->object_idx()]->raw_mesh_bounding_box().size();
 
@@ -394,7 +394,7 @@ void GizmoObjectManipulation::on_change(const std::string& opt_key, int axis, do
 }
 
 void GizmoObjectManipulation::set_uniform_scaling(const bool new_value)
-{ 
+{
     const Selection &selection = m_glcanvas.get_selection();
     if (selection.is_single_full_instance() && is_world_coordinates() && !new_value) {
         // Verify whether the instance rotation is multiples of 90 degrees, so that the scaling in world coordinates is possible.

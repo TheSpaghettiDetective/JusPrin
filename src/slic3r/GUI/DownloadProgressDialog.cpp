@@ -18,7 +18,7 @@
 #include "I18N.hpp"
 //#include "ConfigWizard.hpp"
 #include "wxExtensions.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "GUI_App.hpp"
 #include "Jobs/BoostThreadWorker.hpp"
 #include "Jobs/PlaterWorker.hpp"
@@ -64,7 +64,7 @@ DownloadProgressDialog::DownloadProgressDialog(wxString title)
 
     m_worker = std::make_unique<PlaterWorker<BoostThreadWorker>>(this, m_status_bar, "download_worker");
 
-    //mode Download Failed 
+    //mode Download Failed
     auto m_panel_download_failed = new wxPanel(m_simplebook_status, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
 
     wxBoxSizer* sizer_download_failed = new wxBoxSizer(wxVERTICAL);

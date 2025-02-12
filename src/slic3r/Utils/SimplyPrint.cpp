@@ -10,7 +10,7 @@
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 
 
 namespace Slic3r {
@@ -163,7 +163,7 @@ void SimplyPrint::save_oauth_credential(const GUI::OAuthResult& cred) const
     nlohmann::json j;
     j["access_token"]  = cred.access_token;
     j["refresh_token"] = cred.refresh_token;
-    
+
     boost::nowide::ofstream c;
     c.open(cred_file, std::ios::out | std::ios::trunc);
     c << std::setw(4) << j << std::endl;

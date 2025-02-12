@@ -26,7 +26,7 @@
 #include "wxExtensions.hpp"
 #include "GUI_App.hpp"
 #include "GUI_ObjectList.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Widgets/Label.hpp"
 
 namespace Slic3r { namespace GUI {

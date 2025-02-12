@@ -2,7 +2,7 @@
 #include "GUI_App.hpp"
 #include "NotificationManager.hpp"
 #include "format.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/log/trivial.hpp>
@@ -226,7 +226,7 @@ bool Downloader::user_action_callback(DownloaderUserAction action, int id)
 
 void Downloader::on_name_change(wxCommandEvent& event)
 {
-   
+
 }
 
 void Downloader::on_paused(wxCommandEvent& event)

@@ -7,7 +7,7 @@
 #include "I18N.hpp"
 #include "Plater.hpp"
 #include "BitmapComboBox.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include "OptionsGroup.hpp"
@@ -57,7 +57,7 @@ static const Selection& scene_selection()
     //BBS AssembleView canvas has its own selection
     if (wxGetApp().plater()->get_current_canvas3D()->get_canvas_type() == GLCanvas3D::ECanvasType::CanvasAssembleView)
         return wxGetApp().plater()->get_assmeble_canvas3D()->get_selection();
-    
+
     return wxGetApp().plater()->get_view3D_canvas3D()->get_selection();
 }
 
@@ -1352,7 +1352,7 @@ void ObjectList::show_context_menu(const bool evt_context_menu)
             if (type & itPlate) {
                 int            plate_idx = -1;
                 const ItemType type0      = m_objects_model->GetItemType(item, plate_idx);
-                if (plate_idx >= 0) { 
+                if (plate_idx >= 0) {
                     plater->SetPlateIndexByRightMenuInLeftUI(plate_idx);
                 }
             }
@@ -2427,7 +2427,7 @@ bool ObjectList::del_from_cut_object(bool is_cut_connector, bool is_model_part/*
     const wxString title     = is_cut_connector   ? _L("Delete connector from object which is a part of cut") :
                                is_model_part      ? _L("Delete solid part from object which is a part of cut") :
                                is_negative_volume ? _L("Delete negative volume from object which is a part of cut") : "";
-                             
+
     const wxString msg_end   = is_cut_connector   ? ("\n" + _L("To save cut correspondence you can delete all connectors from all related objects.")) : "";
 
     InfoDialog dialog(wxGetApp().plater(), title,
@@ -5479,7 +5479,7 @@ void ObjectList::msw_rescale()
 void ObjectList::sys_color_changed()
 {
     wxGetApp().UpdateDVCDarkUI(this, true);
-    
+
     msw_rescale();
 
     if (m_objects_model) { m_objects_model->sys_color_changed(); }

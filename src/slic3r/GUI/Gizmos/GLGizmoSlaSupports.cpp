@@ -3,7 +3,7 @@
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/Camera.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmosCommon.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include <GL/glew.h>
@@ -1115,8 +1115,8 @@ void GLGizmoSlaSupports::get_data_from_backend()
 
 void GLGizmoSlaSupports::auto_generate()
 {
-    //wxMessageDialog dlg(GUI::wxGetApp().plater(), 
-    MessageDialog dlg(GUI::wxGetApp().plater(), 
+    //wxMessageDialog dlg(GUI::wxGetApp().plater(),
+    MessageDialog dlg(GUI::wxGetApp().plater(),
                         _L("Autogeneration will erase all manually edited points.") + "\n\n" +
                         _L("Are you sure you want to do it?") + "\n",
                         _L("Warning"), wxICON_WARNING | wxYES | wxNO);

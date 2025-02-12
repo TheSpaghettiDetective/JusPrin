@@ -73,7 +73,7 @@
 #include "GUI_Utils.hpp"
 #include "GUI_Factories.hpp"
 #include "wxExtensions.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "format.hpp"
 #include "3DScene.hpp"
 #include "GLCanvas3D.hpp"

@@ -21,7 +21,7 @@
 #include "MKS.hpp"
 #include "ESP3D.hpp"
 #include "../GUI/PrintHostDialogs.hpp"
-#include "../GUI/MainFrame.hpp"
+#include "../GUI/JusPrinMainFrame.hpp"
 #include "Obico.hpp"
 #include "Flashforge.hpp"
 #include "SimplyPrint.hpp"

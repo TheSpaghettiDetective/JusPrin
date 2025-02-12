@@ -12,7 +12,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include <nlohmann/json.hpp>
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include <boost/dll.hpp>
 
 #include <sstream>

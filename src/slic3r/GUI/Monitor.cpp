@@ -21,7 +21,7 @@
 #include "GUI_App.hpp"
 #include "GUI_ObjectList.hpp"
 #include "Plater.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Widgets/Label.hpp"
 #include "format.hpp"
 #include "MediaPlayCtrl.h"
@@ -372,7 +372,7 @@ void MonitorPanel::update_all()
     m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
     m_media_file_panel->SetMachineObject(obj);
     m_side_tools->update_status(obj);
-    
+
     if (!obj) {
         show_status((int)MONITOR_NO_PRINTER);
         m_hms_panel->clear_hms_tag();
@@ -450,7 +450,7 @@ bool MonitorPanel::Show(bool show)
             if (obj == nullptr) {
                 dev->load_last_machine();
                 obj = dev->get_selected_machine();
-                if (obj) 
+                if (obj)
                     GUI::wxGetApp().sidebar().load_ams_list(obj->dev_id, obj);
             } else {
                 obj->reset_update_time();
@@ -499,7 +499,7 @@ void MonitorPanel::show_status(int status)
 
     BOOST_LOG_TRIVIAL(info) << "monitor: show_status = " << status;
 
-   
+
 #if !BBL_RELEASE_TO_PUBLIC
     m_upgrade_panel->update(nullptr);
 #endif
@@ -514,15 +514,15 @@ Freeze();
     if ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0) {
         set_default();
         m_tabpanel->Layout();
-    } else if (((status & (int)MonitorStatus::MONITOR_NORMAL) != 0) 
-        || ((status & (int)MonitorStatus::MONITOR_DISCONNECTED) != 0) 
-        || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0) 
-        || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0) ) 
+    } else if (((status & (int)MonitorStatus::MONITOR_NORMAL) != 0)
+        || ((status & (int)MonitorStatus::MONITOR_DISCONNECTED) != 0)
+        || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0)
+        || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0) )
     {
 
-        if (((status & (int) MonitorStatus::MONITOR_DISCONNECTED) != 0) 
-            || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0) 
-            || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0)) 
+        if (((status & (int) MonitorStatus::MONITOR_DISCONNECTED) != 0)
+            || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0)
+            || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0))
         {
             set_default();
         }

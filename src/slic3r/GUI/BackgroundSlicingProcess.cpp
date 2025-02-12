@@ -1,7 +1,7 @@
 #include "BackgroundSlicingProcess.hpp"
 #include "GUI_App.hpp"
 #include "GUI.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "format.hpp"
 
 #include <wx/app.h>
@@ -202,7 +202,7 @@ void BackgroundSlicingProcess::process_fff()
 		m_fff_print->set_status(80, _utf8(L("Processing G-Code from Previous file...")));
 		wxCommandEvent evt(m_event_slicing_completed_id);
 		// Post the Slicing Finished message for the G-code viewer to update.
-		// Passing the timestamp 
+		// Passing the timestamp
 		evt.SetInt((int)(m_fff_print->step_state_with_timestamp(PrintStep::psSlicingFinished).timestamp));
 		wxQueueEvent(GUI::wxGetApp().mainframe->m_plater, evt.Clone());
 
@@ -785,7 +785,7 @@ void BackgroundSlicingProcess::finalize_gcode()
 	std::string output_path = m_temp_output_path;
 	// Both output_path and export_path ar in-out parameters.
 	// If post processed, output_path will differ from m_temp_output_path as run_post_process_scripts() will make a copy of the G-code to not
-	// collide with the G-code viewer memory mapping of the unprocessed G-code. G-code viewer maps unprocessed G-code, because m_gcode_result 
+	// collide with the G-code viewer memory mapping of the unprocessed G-code. G-code viewer maps unprocessed G-code, because m_gcode_result
 	// is calculated for the unprocessed G-code and it references lines in the memory mapped G-code file by line numbers.
 	// export_path may be changed by the post-processing script as well if the post processing script decides so, see GH #6042.
 	bool post_processed = run_post_process_scripts(output_path, true, "File", export_path, m_fff_print->full_print_config());
@@ -911,9 +911,9 @@ void BackgroundSlicingProcess::prepare_upload()
             m_upload_job.upload_data.upload_path = m_fff_print->print_statistics().finalize_output_path(m_upload_job.upload_data.upload_path.string());
 		    // Orca: skip post-processing scripts for BBL printers as we have run them already in finalize_gcode()
 		    // todo: do we need to copy the file?
-		
+
             // Make a copy of the source path, as run_post_process_scripts() is allowed to change it when making a copy of the source file
-            // (not here, but when the final target is a file). 
+            // (not here, but when the final target is a file).
             if (!m_fff_print->is_BBL_printer()) {
                 std::string source_path_str = source_path.string();
                 std::string output_name_str = m_upload_job.upload_data.upload_path.string();
@@ -924,7 +924,7 @@ void BackgroundSlicingProcess::prepare_upload()
 		}
     } else {
         m_upload_job.upload_data.upload_path = m_sla_print->print_statistics().finalize_output_path(m_upload_job.upload_data.upload_path.string());
-        
+
         ThumbnailsList thumbnails = this->render_thumbnails(
         	ThumbnailsParams{current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->values, true, true, true, true});
 																												 // true, false, true, true); // renders also supports and pad

@@ -3,7 +3,7 @@
 #include "MsgDialog.hpp"
 #include "I18N.hpp"
 #include <wx/dcgraph.h>
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include <string>
 namespace Slic3r { namespace GUI {
 

@@ -9,7 +9,7 @@
 #include "MsgDialog.hpp"
 #include "Widgets/Button.hpp"
 #include "slic3r/Utils/ColorSpaceConvert.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "libslic3r/Config.hpp"
 #include "BitmapComboBox.hpp"
 #include "Widgets/ComboBox.hpp"

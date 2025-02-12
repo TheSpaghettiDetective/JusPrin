@@ -22,7 +22,7 @@ StyleManager::StyleManager(const ImWchar *language_glyph_range, const std::funct
     , m_imgui_init_glyph_range(language_glyph_range)
 {}
 
-StyleManager::~StyleManager() { 
+StyleManager::~StyleManager() {
     clear_imgui_font();
     free_style_images();
 }
@@ -40,7 +40,7 @@ void make_unique_name(const StyleManager::Styles &styles, std::string &name);
 
 // Enum map to string and vice versa
 using HorizontalAlignToName = boost::bimap<FontProp::HorizontalAlign, std::string_view>;
-const HorizontalAlignToName horizontal_align_to_name = 
+const HorizontalAlignToName horizontal_align_to_name =
 boost::assign::list_of<HorizontalAlignToName::relation>
     (FontProp::HorizontalAlign::left, "left")
     (FontProp::HorizontalAlign::center, "center")
@@ -68,14 +68,14 @@ void StyleManager::init(AppConfig *app_config)
         }
     }
 
-    std::optional<size_t> active_index_opt = (app_config != nullptr) ? 
-        ::load_style_index(*app_config) : 
+    std::optional<size_t> active_index_opt = (app_config != nullptr) ?
+        ::load_style_index(*app_config) :
         std::optional<size_t>{};
 
     size_t active_index = 0;
-    if (active_index_opt.has_value()) active_index = *active_index_opt;    
+    if (active_index_opt.has_value()) active_index = *active_index_opt;
     if (active_index >= m_styles.size()) active_index = 0;
-    
+
     // find valid font item
     if (load_style(active_index))
         return; // style is loaded
@@ -128,7 +128,7 @@ void StyleManager::add_style(const std::string &name) {
 }
 
 void StyleManager::swap(size_t i1, size_t i2) {
-    if (i1 >= m_styles.size() || 
+    if (i1 >= m_styles.size() ||
         i2 >= m_styles.size()) return;
     std::swap(m_styles[i1], m_styles[i2]);
     // fix selected index
@@ -169,7 +169,7 @@ void StyleManager::erase(size_t index) {
 void StyleManager::rename(const std::string& name) {
     m_style_cache.style.name = name;
     m_style_cache.truncated_name.clear();
-    if (exist_stored_style()) { 
+    if (exist_stored_style()) {
         Style &it = m_styles[m_style_cache.style_index];
         it.name = name;
         it.truncated_name.clear();
@@ -224,7 +224,7 @@ bool StyleManager::load_style(const Style &style) {
             create_font_file(style.path.c_str());
         if (font_ptr == nullptr) return false;
         m_style_cache.wx_font = {};
-        m_style_cache.font_file = 
+        m_style_cache.font_file =
             FontFileWithCache(std::move(font_ptr));
         m_style_cache.style          = style; // copy
         m_style_cache.style_index    = std::numeric_limits<size_t>::max();
@@ -315,7 +315,7 @@ void StyleManager::clear_imgui_font() { m_style_cache.atlas.Clear(); }
 ImFont *StyleManager::get_imgui_font()
 {
     if (!is_active_font()) return nullptr;
-    
+
     ImVector<ImFont *> &fonts = m_style_cache.atlas.Fonts;
     if (fonts.empty()) return nullptr;
 
@@ -329,7 +329,7 @@ ImFont *StyleManager::get_imgui_font()
 }
 
 const StyleManager::Styles &StyleManager::get_styles() const{ return m_styles; }
-void StyleManager::init_trunc_names(float max_width) { 
+void StyleManager::init_trunc_names(float max_width) {
     for (auto &s : m_styles)
         if (s.truncated_name.empty()) {
             std::string name = s.name;
@@ -340,11 +340,11 @@ void StyleManager::init_trunc_names(float max_width) {
 
 // for access to worker
 #include "slic3r/GUI/GUI_App.hpp"
-#include "slic3r/GUI/Plater.hpp" 
+#include "slic3r/GUI/Plater.hpp"
 
 // for get DPI
 #include "slic3r/GUI/GUI_App.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "slic3r/GUI/Gizmos/GizmoObjectManipulation.hpp"
 
 void StyleManager::init_style_images(const Vec2i32 &max_size,
@@ -356,7 +356,7 @@ void StyleManager::init_style_images(const Vec2i32 &max_size,
     // check is initializing
     if (m_temp_style_images != nullptr) {
         // is initialization finished
-        if (!m_temp_style_images->styles.empty()) { 
+        if (!m_temp_style_images->styles.empty()) {
             assert(m_temp_style_images->images.size() ==
                    m_temp_style_images->styles.size());
             // copy images into styles
@@ -392,7 +392,7 @@ void StyleManager::init_style_images(const Vec2i32 &max_size,
             WxFontUtils::create_font_file(*wx_font_opt);
         if (font_file == nullptr) continue;
         styles.push_back({
-            FontFileWithCache(std::move(font_file)), 
+            FontFileWithCache(std::move(font_file)),
             style.name,
             style.prop
         });
@@ -451,7 +451,7 @@ ImFont *StyleManager::create_imgui_font(const std::string &text, double scale)
     ImVector<ImWchar> &ranges = m_style_cache.ranges;
     ranges.clear();
     builder.BuildRanges(&ranges);
-        
+
     m_style_cache.atlas.Flags |= ImFontAtlasFlags_NoMouseCursors |
                                 ImFontAtlasFlags_NoPowerOfTwoHeight;
 
@@ -468,9 +468,9 @@ ImFont *StyleManager::create_imgui_font(const std::string &text, double scale)
     int unit_per_em = get_font_info(font_file, font_prop).unit_per_em;
     float coef = font_size / (double) unit_per_em;
     if (font_prop.char_gap.has_value())
-        font_config.GlyphExtraSpacing.x = coef * (*font_prop.char_gap);    
+        font_config.GlyphExtraSpacing.x = coef * (*font_prop.char_gap);
     if (font_prop.line_gap.has_value())
-        font_config.GlyphExtraSpacing.y = coef * (*font_prop.line_gap);    
+        font_config.GlyphExtraSpacing.y = coef * (*font_prop.line_gap);
 
     font_config.FontDataOwnedByAtlas = false;
 
@@ -511,7 +511,7 @@ ImFont *StyleManager::create_imgui_font(const std::string &text, double scale)
 }
 
 bool StyleManager::set_wx_font(const wxFont &wx_font) {
-    std::unique_ptr<FontFile> font_file = 
+    std::unique_ptr<FontFile> font_file =
         WxFontUtils::create_font_file(wx_font);
     return set_wx_font(wx_font, std::move(font_file));
 }
@@ -520,7 +520,7 @@ bool StyleManager::set_wx_font(const wxFont &wx_font, std::unique_ptr<FontFile> 
 {
     if (font_file == nullptr) return false;
     m_style_cache.wx_font = wx_font; // copy
-    m_style_cache.font_file = 
+    m_style_cache.font_file =
         FontFileWithCache(std::move(font_file));
 
     EmbossStyle &style = m_style_cache.style;
@@ -586,7 +586,7 @@ bool read(const Section &section, const std::string &key, Slic3r::FontProp::Hori
     if (data.empty())
         return false;
 
-    const auto& map = horizontal_align_to_name.right; 
+    const auto& map = horizontal_align_to_name.right;
     auto it = map.find(data);
     value = (it != map.end()) ? it->second : Slic3r::FontProp::HorizontalAlign::center;
     return true;
@@ -680,11 +680,11 @@ std::optional<StyleManager::Style> load_style(const Section &app_cfg_section)
     auto path_it = app_cfg_section.find(APP_CONFIG_FONT_DESCRIPTOR);
     if (path_it == app_cfg_section.end())
         return {};
-        
+
     StyleManager::Style s;
     EmbossProjection& ep = s.projection;
     FontProp& fp = s.prop;
-    
+
     s.path = path_it->second;
     s.type = WxFontUtils::get_current_type();
     auto name_it = app_cfg_section.find(APP_CONFIG_FONT_NAME);
@@ -826,7 +826,7 @@ void make_unique_name(const StyleManager::Styles& styles, std::string &name)
     const char *prefix = " (";
     const char  suffix  = ')';
     auto pos = name.find_last_of(prefix);
-    if (name.c_str()[name.size() - 1] == suffix && 
+    if (name.c_str()[name.size() - 1] == suffix &&
         pos != std::string::npos) {
         // short name by ord number
         name = name.substr(0, pos);

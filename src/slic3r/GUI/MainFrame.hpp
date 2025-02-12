@@ -105,7 +105,6 @@ class MainFrame : public DPIFrame
     wxMenuItem* m_menu_item_repeat { nullptr }; // doesn't used now
 #endif
     wxMenuItem* m_menu_item_reslice_now { nullptr };
-    wxSizer*    m_main_sizer{ nullptr };
 
     size_t      m_last_selected_tab;
 
@@ -195,6 +194,7 @@ class MainFrame : public DPIFrame
     bool preview_only_to_editor = false;
 
 protected:
+    wxSizer*    m_main_sizer{ nullptr };
     virtual void on_dpi_changed(const wxRect &suggested_rect) override;
     virtual void on_sys_color_changed() override;
 
@@ -248,7 +248,7 @@ public:
         ePrintMultiMachine   = 9
     };
 
-    void update_layout();
+    virtual void update_layout();
 
 	// Called when closing the application and when switching the application language.
 	void 		shutdown();

@@ -1,4 +1,4 @@
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 
 #include <wx/panel.h>
 #include <wx/notebook.h>

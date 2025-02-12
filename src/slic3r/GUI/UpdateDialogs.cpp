@@ -19,7 +19,7 @@
 #include "I18N.hpp"
 #include "ConfigWizard.hpp"
 #include "wxExtensions.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -149,7 +149,7 @@ MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, bool force_
                             std::pair<wxColour, int>(wxColour(238, 238, 238), StateColor::Hovered),
                             std::pair<wxColour, int>(*wxWHITE, StateColor::Normal));
 
-  
+
 	auto m_butto_ok = new Button(this, _L("OK"));
     m_butto_ok->SetBackgroundColor(btn_bg_green);
     m_butto_ok->SetBorderColor(*wxWHITE);
@@ -173,13 +173,13 @@ MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, bool force_
 	m_sizer_right->Add(m_scrollwindw_release_note, 0, wxEXPAND | wxRIGHT, FromDIP(20));
     m_sizer_right->Add(sizer_button, 0, wxEXPAND | wxRIGHT, FromDIP(20));
 
-    
+
     m_sizer_body->Add(m_sizer_right, 1, wxBOTTOM | wxEXPAND, FromDIP(30));
     m_sizer_main->Add(m_sizer_body, 0, wxEXPAND, 0);
 
 	wxBoxSizer *content_sizer             = new wxBoxSizer(wxVERTICAL);
 
-   
+
 
 
 
@@ -211,20 +211,20 @@ MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, bool force_
 
         versions->Add(flex);
 
-		
+
 
         // BBS: use changelog string instead of url
 
-			//auto change_log = new wxStaticText(m_scrollwindw_release_note, wxID_ANY, from_u8(update.change_log), wxDefaultPosition, wxDefaultSize); 
+			//auto change_log = new wxStaticText(m_scrollwindw_release_note, wxID_ANY, from_u8(update.change_log), wxDefaultPosition, wxDefaultSize);
 			changelog_textctrl->SetLabel(changelog_textctrl->GetLabel() + wxString::Format("%s\n", from_u8(update.change_log)));
     }
 
 	content_sizer->Add(versions);
 
-	
+
 
     ////BBS: use changelog string instead of url
-    if (changelog_textctrl) 
+    if (changelog_textctrl)
 		content_sizer->Add(changelog_textctrl, 1, wxEXPAND | wxTOP, FromDIP(30));
 
 
@@ -258,7 +258,7 @@ MsgUpdateForced::MsgUpdateForced(const std::vector<Update>& updates) :
 		"The configuration package is incompatible with current application.\n"
 		"%s will update the configuration package, Otherwise it won't be able to start"
 	)), SLIC3R_APP_FULL_NAME));
-	
+
 
 	text->Wrap(CONTENT_WIDTH * wxGetApp().em_unit());
 	content_sizer->Add(text);
@@ -325,7 +325,7 @@ MsgDataIncompatible::MsgDataIncompatible(const std::unordered_map<std::string, w
 	//	"This probably happened as a result of running an older %s after using a newer one.\n\n"
 
 	//	"You may either exit %s and try again with a newer version, or you may re-run the initial configuration. "
-	//	"Doing so will create a backup snapshot of the existing configuration before installing files compatible with this %s.")) + "\n", 
+	//	"Doing so will create a backup snapshot of the existing configuration before installing files compatible with this %s.")) + "\n",
 	//	SLIC3R_APP_NAME, SLIC3R_APP_NAME, SLIC3R_APP_NAME, SLIC3R_APP_NAME));
 	//text->Wrap(CONTENT_WIDTH * wxGetApp().em_unit());
 	//content_sizer->Add(text);

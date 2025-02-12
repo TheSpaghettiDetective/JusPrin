@@ -13,7 +13,7 @@
 #include "libslic3r/Geometry/ConvexHull.hpp"
 
 #include "GUI_App.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "Plater.hpp"
 #include "Camera.hpp"
 #include "I18N.hpp"
@@ -265,7 +265,7 @@ float GCodeViewer::Extrusions::Range::get_value_at_step(int step) const {
         return min + static_cast<float>(step) * step_size();
     else
     return std::exp(std::log(min) + static_cast<float>(step) * step_size());
-    
+
 }
 GCodeViewer::SequentialRangeCap::~SequentialRangeCap() {
     if (ibo > 0)
@@ -1407,7 +1407,7 @@ void GCodeViewer::_render_calibration_thumbnail_internal(ThumbnailData& thumbnai
             }
 
             glsafe(::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-            
+
             if (normal_id != -1)
                 glsafe(::glDisableVertexAttribArray(normal_id));
             if (position_id != -1)
@@ -1483,7 +1483,7 @@ void GCodeViewer::_render_calibration_thumbnail_internal(ThumbnailData& thumbnai
                     }
 
                     glsafe(::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-                    
+
                     if (normal_id != -1)
                         glsafe(::glDisableVertexAttribArray(normal_id));
                     if (position_id != -1)
@@ -4074,7 +4074,7 @@ void GCodeViewer::render_all_plates_stats(const std::vector<const GCodeProcessor
     std::vector<ColorRGBA> filament_colors;
     decode_colors(wxGetApp().plater()->get_extruder_colors_from_plater_config(gcode_result_list.back()), filament_colors);
 
-    for (int i = 0; i < filament_colors.size(); i++) { 
+    for (int i = 0; i < filament_colors.size(); i++) {
         filament_colors[i] = adjust_color_for_rendering(filament_colors[i]);
     }
 
@@ -4211,12 +4211,12 @@ void GCodeViewer::render_all_plates_stats(const std::vector<const GCodeProcessor
             }
             const PrintEstimatedStatistics::Mode& plate_time_mode = plate_print_statistics.modes[static_cast<size_t>(m_time_estimate_mode)];
             total_time_all_plates += plate_time_mode.time;
-            
+
             Print     *print;
             plate->get_print((PrintBase **) &print, nullptr, nullptr);
             total_cost_all_plates += print->print_statistics().total_cost;
         }
-       
+
         for (auto it = model_volume_of_extruders_all_plates.begin(); it != model_volume_of_extruders_all_plates.end(); it++) {
             auto [model_used_filament_m, model_used_filament_g] = get_used_filament_from_volume(it->second, it->first);
             if (model_used_filament_m != 0.0 || model_used_filament_g != 0.0)
@@ -5094,7 +5094,7 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
             }
             i++;
         }
-        
+
         if (need_scrollable)
             ImGui::EndChild();
 
@@ -5130,7 +5130,7 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
                 columns_offsets.push_back({ buf, color_print_offsets[_u8L("Tower")] });
             }
             if ((displayed_columns & ~ColumnData::Model) > 0) {
-                ::sprintf(buf, imperial_units ? "%.2f in\n%.2f oz" : "%.2f m\n%.2f g", total_model_used_filament_m + total_support_used_filament_m + total_flushed_filament_m + total_wipe_tower_used_filament_m, 
+                ::sprintf(buf, imperial_units ? "%.2f in\n%.2f oz" : "%.2f m\n%.2f g", total_model_used_filament_m + total_support_used_filament_m + total_flushed_filament_m + total_wipe_tower_used_filament_m,
                     (total_model_used_filament_g + total_support_used_filament_g + total_flushed_filament_g + total_wipe_tower_used_filament_g) / unit_conver);
                 columns_offsets.push_back({ buf, color_print_offsets[_u8L("Total")] });
             }
@@ -5503,7 +5503,7 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
                                                                                   ImGui::CalcTextSize(cgcode_unknown_str.c_str()).x))))
 
         );
-       
+
         ImGui::Dummy(ImVec2(0.0f, ImGui::GetFontSize() * 0.1));
         ImGui::Dummy({window_padding, window_padding});
         ImGui::SameLine();
@@ -5530,7 +5530,7 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
             ::sprintf(buf, "%d",layer );
             imgui.text(buf);
             ImGui::SameLine(max_len * 1.5);
-            
+
             std::vector<float> layer_times = m_print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].layers_times;
             float custom_gcode_time = 0;
             if (layer > 0)

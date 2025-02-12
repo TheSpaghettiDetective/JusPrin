@@ -4,7 +4,7 @@
 #include "slic3r/GUI/PrinterWebView.hpp"
 #include "slic3r/GUI/wxExtensions.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
-#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrinMainFrame.hpp"
 #include "libslic3r_version.h"
 
 #include <wx/sizer.h>
@@ -77,7 +77,7 @@ void PrinterWebView::load_url(wxString& url, wxString apikey)
         return;
     m_apikey = apikey;
     m_apikey_sent = false;
-    
+
     m_browser->LoadURL(url);
     //m_browser->SetFocus();
     UpdateState();

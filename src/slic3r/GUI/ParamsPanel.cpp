@@ -9,7 +9,7 @@
 #include "ParamsPanel.hpp"
 #include "Tab.hpp"
 #include "format.hpp"
-#include "MainFrame.hpp"
+#include "JusPrinMainFrame.hpp"
 #include "GUI_App.hpp"
 #include "Plater.hpp"
 
