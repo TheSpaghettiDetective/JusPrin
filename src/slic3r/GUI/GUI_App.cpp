@@ -894,7 +894,7 @@ void GUI_App::post_init()
         if (app_config->get("default_page") == "1")
             mainframe->select_tab(size_t(1));
         mainframe->Thaw();
-        plater_->trigger_restore_project(1);
+        //plater_->trigger_restore_project(1);
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", end load_gl_resources";
     }
 //#endif
@@ -2518,7 +2518,10 @@ bool GUI_App::on_init_inner()
     Slic3r::I18N::set_translate_callback(libslic3r_translate_callback);
 
     BOOST_LOG_TRIVIAL(info) << "create the main window";
-    mainframe = new JusPrinMainFrame();
+    auto temp = new JusPrinMainFrame();
+
+    temp->Init();
+    mainframe = temp;
     // hide settings tabs after first Layout
     if (is_editor()) {
         mainframe->select_tab(size_t(0));
@@ -3315,7 +3318,10 @@ void GUI_App::recreate_GUI(const wxString &msg_name)
     old_main_frame->SetClientObject(new ClientData);
 
     switch_window_pools();
-    mainframe = new JusPrinMainFrame();
+
+    auto temp =  new JusPrinMainFrame();
+    temp->Init();
+    mainframe = temp;
     if (is_editor())
         // hide settings tabs after first Layout
         mainframe->select_tab(size_t(MainFrame::tp3DEditor));
@@ -3344,7 +3350,7 @@ void GUI_App::recreate_GUI(const wxString &msg_name)
         hms_query->check_hms_info();
 
     //BBS: trigger restore project logic here, and skip confirm
-    plater_->trigger_restore_project(1);
+    //plater_->trigger_restore_project(1);
 
     // #ys_FIXME_delete_after_testing  Do we still need this  ?
 //     CallAfter([]() {

@@ -171,14 +171,16 @@ static const wxString ctrl = ("Ctrl+");
 static const wxString ctrl = _L("Ctrl+");
 #endif
 
-MainFrame::MainFrame() :
+MainFrame
+::MainFrame() :
 DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_STYLE, "mainframe")
     , m_printhost_queue_dlg(new PrintHostQueueDialog(this))
     // BBS
     , m_recent_projects(18)
     , m_settings_dialog(this)
-    , diff_dialog(this)
-{
+    , diff_dialog(this){}
+ 
+void MainFrame::Init(){
 #ifdef __WXOSX__
     set_miniaturizable(GetHandle());
 #endif
@@ -260,6 +262,9 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
     // Load the icon either from the exe, or from the ico file.
     SetIcon(main_frame_icon(wxGetApp().get_app_mode()));
 
+    
+    // initialize layout
+    m_main_sizer = new wxBoxSizer(wxVERTICAL);
     // initialize tabpanel and menubar
     init_tabpanel();
     if (wxGetApp().is_gcode_viewer())
@@ -334,7 +339,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
             if (this->IsMaximized()) {
                 m_topbar->SetWindowSize();
             } else {
-                m_topbar->SetMaximizedSize();
+                m_topbar->SetMaximized();
             }
 #endif
         Refresh();
@@ -370,8 +375,6 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
 
     m_loaded = true;
 
-    // initialize layout
-    m_main_sizer = new wxBoxSizer(wxVERTICAL);
     wxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 #ifndef __APPLE__
      sizer->Add(m_topbar, 0, wxEXPAND);

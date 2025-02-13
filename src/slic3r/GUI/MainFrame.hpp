@@ -205,6 +205,7 @@ protected:
 public:
     MainFrame();
     ~MainFrame() = default;
+    void Init();
 
     wxMenu* m_menu_switch{nullptr};
     wxWindowID m_mode_id_base;

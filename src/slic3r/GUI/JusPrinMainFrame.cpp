@@ -8,53 +8,91 @@ namespace Slic3r {
 namespace GUI {
 
 JusPrinMainFrame::JusPrinMainFrame()
-    : MainFrame()
-{
-    // Initialize only the essential components
-    wxGetApp().update_fonts(this);
-    this->SetFont(this->normal_font());
-
-    // Create main sizer
-    m_main_sizer = new wxBoxSizer(wxVERTICAL);
-    SetSizer(m_main_sizer);
-
-    // Initialize tabpanel
-    init_tabpanel();
-
-    // Set minimum size and default size
-    const wxSize min_size = wxGetApp().get_min_size();
-    SetMinSize(min_size);
-    SetSize(wxSize(FromDIP(1200), FromDIP(800)));
-
-    Layout();
-    Fit();
-
-    // Set the icon - using platform specific code
-#ifdef _WIN32
-    std::wstring path(size_t(MAX_PATH), wchar_t(0));
-    int len = int(::GetModuleFileName(nullptr, path.data(), MAX_PATH));
-    if (len > 0 && len < MAX_PATH) {
-        path.erase(path.begin() + len, path.end());
-        SetIcon(wxIcon(path, wxBITMAP_TYPE_ICO));
-    }
-#else
-    SetIcon(wxIcon(Slic3r::var("OrcaSlicer_128px.png"), wxBITMAP_TYPE_PNG));
-#endif
-}
+    : MainFrame(){}
 
 void JusPrinMainFrame::init_tabpanel()
 {
-    // Create a minimal tabpanel with just the essential functionality
-    m_tabpanel = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, nullptr,
-                             wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
+    auto createTabItem = [this](wxSize& size, std::string image, std::string text){
+        wxPanel* panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, size);
+        panel->SetBackgroundColour(*wxRED);
+        wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
-    m_tabpanel->SetBackgroundColour(*wxBLUE);
-    m_tabpanel->SetFont(Slic3r::GUI::wxGetApp().normal_font());
+        wxBitmap bitmap(image);
+        wxStaticBitmap* imageCtrl = new wxStaticBitmap(panel, wxID_ANY, bitmap);
+        sizer->Add(imageCtrl, 0, wxALIGN_CENTER | wxALL, 5);
 
-    // Add tabpanel to main sizer
-    m_main_sizer->Add(m_tabpanel, 1, wxEXPAND);
+        wxStaticText* textCtrl = new wxStaticText(panel, wxID_ANY, text);
+        sizer->Add(textCtrl, 0, wxALIGN_CENTER | wxALL, 5);
 
-    m_settings_dialog.set_tabpanel(m_tabpanel);
+        panel->SetSizer(sizer);
+        return panel;
+    };
+
+    
+    auto createTab = [this, createTabItem](wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>> image_texts){
+        wxPanel* panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, size);
+        panel->SetBackgroundColour(*wxBLUE);
+        wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+
+        for(auto& [image, text] : image_texts) {
+            wxPanel* tabItem = createTabItem(item, image, text);
+            sizer->Add(tabItem, 0, wxALIGN_CENTER | wxALL, 5);
+        }
+
+        panel->SetSizer(sizer);
+        return panel;
+
+    };
+
+    std::string icon_path = (boost::format("%1%/images/OrcaSlicer_32px.png") % resources_dir()).str();
+    std::vector<std::tuple<std::string, std::string>> image_texts = {
+        { icon_path, "Text" },
+        { icon_path, "Text" },
+        { icon_path, "Text" },
+        { icon_path, "Text" },
+        { icon_path, "Text" },
+        { icon_path, "Text" },
+        { icon_path, "Text" },
+        { icon_path, "Text" }
+    };
+
+    wxSize size(50, 300);
+    wxSize itemSize(50, 50);
+    wxPanel* tabPanel = createTab(size, itemSize, image_texts);
+    
+    auto sizer = new wxBoxSizer(wxVERTICAL);
+
+    sizer->Add(tabPanel, 0, wxALIGN_LEFT, 5);
+    sizer->Add(m_tabpanel,0, wxEXPAND, 1);
+    
+    //auto node = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, sizer,
+     //                             wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
+    //node->SetBackgroundColour(*wxRED);
+    m_main_sizer->Add(sizer, 0, wxEXPAND | wxTOP | wxLeft, 0);
+    MainFrame::init_tabpanel();
+    
+//    m_tabpanel = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, nullptr,
+//                              wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
+//    m_tabpanel->SetBackgroundColour(*wxBLUE);
+//    m_tabpanel->Hide();
+//
+//
+//    m_plater = new Plater(this, this);
+//    m_plater->SetBackgroundColour(*wxWHITE);
+//    m_plater->Hide();
+//
+//    wxGetApp().plater_ = m_plater;
+//
+//    create_preset_tabs();
+
+}
+
+void JusPrinMainFrame::update_layout(){
+    MainFrame::update_layout();
+//    m_plater->Hide();
+//    m_tabpanel->Hide(); 
+    m_plater->Hide();
+    m_tabpanel->Hide();
 }
 
 } // namespace GUI

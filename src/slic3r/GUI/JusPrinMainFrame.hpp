@@ -12,8 +12,8 @@ public:
     JusPrinMainFrame();
     ~JusPrinMainFrame() = default;
 
-protected:
     void init_tabpanel() override;
+    void update_layout() override;
 };
 
 } // namespace GUI
