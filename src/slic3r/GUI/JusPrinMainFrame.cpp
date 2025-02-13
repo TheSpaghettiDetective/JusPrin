@@ -12,38 +12,6 @@ JusPrinMainFrame::JusPrinMainFrame()
 
 void JusPrinMainFrame::init_tabpanel()
 {
-    auto createTabItem = [this](wxSize& size, std::string image, std::string text){
-        wxPanel* panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, size);
-        panel->SetBackgroundColour(*wxRED);
-        wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
-
-        wxBitmap bitmap(image);
-        wxStaticBitmap* imageCtrl = new wxStaticBitmap(panel, wxID_ANY, bitmap);
-        sizer->Add(imageCtrl, 0, wxALIGN_CENTER | wxALL, 5);
-
-        wxStaticText* textCtrl = new wxStaticText(panel, wxID_ANY, text);
-        sizer->Add(textCtrl, 0, wxALIGN_CENTER | wxALL, 5);
-
-        panel->SetSizer(sizer);
-        return panel;
-    };
-
-    
-    auto createTab = [this, createTabItem](wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>> image_texts){
-        wxPanel* panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, size);
-        panel->SetBackgroundColour(*wxBLUE);
-        wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
-
-        for(auto& [image, text] : image_texts) {
-            wxPanel* tabItem = createTabItem(item, image, text);
-            sizer->Add(tabItem, 0, wxALIGN_CENTER | wxALL, 5);
-        }
-
-        panel->SetSizer(sizer);
-        return panel;
-
-    };
-
     std::string icon_path = (boost::format("%1%/images/OrcaSlicer_32px.png") % resources_dir()).str();
     std::vector<std::tuple<std::string, std::string>> image_texts = {
         { icon_path, "Text" },
@@ -58,19 +26,19 @@ void JusPrinMainFrame::init_tabpanel()
 
     wxSize size(50, 300);
     wxSize itemSize(50, 50);
-    wxPanel* tabPanel = createTab(size, itemSize, image_texts);
-    
+    wxPanel* tabPanel = createTab(this, size, itemSize, image_texts);
+
     auto sizer = new wxBoxSizer(wxVERTICAL);
 
     sizer->Add(tabPanel, 0, wxALIGN_LEFT, 5);
     sizer->Add(m_tabpanel,0, wxEXPAND, 1);
-    
+
     //auto node = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, sizer,
      //                             wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
     //node->SetBackgroundColour(*wxRED);
     m_main_sizer->Add(sizer, 0, wxEXPAND | wxTOP | wxLeft, 0);
     MainFrame::init_tabpanel();
-    
+
 //    m_tabpanel = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, nullptr,
 //                              wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
 //    m_tabpanel->SetBackgroundColour(*wxBLUE);
@@ -90,9 +58,39 @@ void JusPrinMainFrame::init_tabpanel()
 void JusPrinMainFrame::update_layout(){
     MainFrame::update_layout();
 //    m_plater->Hide();
-//    m_tabpanel->Hide(); 
+//    m_tabpanel->Hide();
     m_plater->Hide();
     m_tabpanel->Hide();
+}
+
+wxPanel* JusPrinMainFrame::createTabItem(wxWindow* parent, wxSize& size, std::string image, std::string text) {
+    wxPanel* panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, size);
+    panel->SetBackgroundColour(*wxRED);
+    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+
+    wxBitmap bitmap(image);
+    wxStaticBitmap* imageCtrl = new wxStaticBitmap(panel, wxID_ANY, bitmap);
+    sizer->Add(imageCtrl, 0, wxALIGN_CENTER | wxALL, 5);
+
+    wxStaticText* textCtrl = new wxStaticText(panel, wxID_ANY, text);
+    sizer->Add(textCtrl, 0, wxALIGN_CENTER | wxALL, 5);
+
+    panel->SetSizer(sizer);
+    return panel;
+}
+
+wxPanel* JusPrinMainFrame::createTab(wxWindow* parent, wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>>& image_texts) {
+    wxPanel* panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, size);
+    panel->SetBackgroundColour(*wxBLUE);
+    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+
+    for(auto& [image, text] : image_texts) {
+        wxPanel* tabItem = createTabItem(panel, item, image, text);
+        sizer->Add(tabItem, 0, wxALIGN_CENTER | wxALL, 5);
+    }
+
+    panel->SetSizer(sizer);
+    return panel;
 }
 
 } // namespace GUI
