@@ -339,7 +339,7 @@ void MainFrame::Init(){
             if (this->IsMaximized()) {
                 m_topbar->SetWindowSize();
             } else {
-                m_topbar->SetMaximized();
+                m_topbar->SetMaximizedSize();
             }
 #endif
         Refresh();
