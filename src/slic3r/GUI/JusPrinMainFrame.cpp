@@ -54,19 +54,83 @@ void JusPrinMainFrame::update_layout(){
 }
 
 wxPanel* JusPrinMainFrame::createTabItem(wxWindow* parent, wxSize& size, std::string image, std::string text) {
-    wxPanel* panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, size);
-    panel->SetBackgroundColour(*wxRED);
-    wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
+    // Create a custom panel that will act like a button
+    class TabButton : public wxPanel {
+    public:
+        TabButton(wxWindow* parent, wxSize& size, const std::string& image, const std::string& text)
+            : wxPanel(parent, wxID_ANY, wxDefaultPosition, size)
+        {
+            SetBackgroundColour(wxColour(240, 240, 240)); // Default color
 
-    wxBitmap bitmap(image);
-    wxStaticBitmap* imageCtrl = new wxStaticBitmap(panel, wxID_ANY, bitmap);
-    sizer->Add(imageCtrl, 0, wxALIGN_CENTER | wxALL, 5);
+            wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
-    wxStaticText* textCtrl = new wxStaticText(panel, wxID_ANY, text);
-    sizer->Add(textCtrl, 0, wxALIGN_CENTER | wxALL, 5);
+            wxBitmap bitmap(image);
+            m_image = new wxStaticBitmap(this, wxID_ANY, bitmap);
+            sizer->Add(m_image, 0, wxALIGN_CENTER | wxALL, 5);
 
-    panel->SetSizer(sizer);
-    return panel;
+            m_text = new wxStaticText(this, wxID_ANY, text);
+            sizer->Add(m_text, 0, wxALIGN_CENTER | wxALL, 5);
+
+            SetSizer(sizer);
+
+            // Bind mouse events
+            Bind(wxEVT_ENTER_WINDOW, &TabButton::OnMouseEnter, this);
+            Bind(wxEVT_LEAVE_WINDOW, &TabButton::OnMouseLeave, this);
+            Bind(wxEVT_LEFT_DOWN, &TabButton::OnMouseClick, this);
+        }
+
+        void SetSelected(bool selected) {
+            if (selected) {
+                SetBackgroundColour(wxColour(200, 200, 255)); // Selected color
+                // Draw a colored bar on the left using a panel
+                if (!m_indicator) {
+                    m_indicator = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(3, -1));
+                    m_indicator->SetBackgroundColour(wxColour(0, 0, 255)); // Indicator color
+                }
+                m_indicator->Show();
+            } else {
+                SetBackgroundColour(wxColour(240, 240, 240)); // Default color
+                if (m_indicator) {
+                    m_indicator->Hide();
+                }
+            }
+            Refresh();
+        }
+
+    private:
+        void OnMouseEnter(wxMouseEvent& event) {
+            if (!IsSelected()) {
+                SetBackgroundColour(wxColour(220, 220, 220)); // Hover color
+                Refresh();
+            }
+            event.Skip();
+        }
+
+        void OnMouseLeave(wxMouseEvent& event) {
+            if (!IsSelected()) {
+                SetBackgroundColour(wxColour(240, 240, 240)); // Default color
+                Refresh();
+            }
+            event.Skip();
+        }
+
+        void OnMouseClick(wxMouseEvent& event) {
+            // Notify parent about selection
+            wxCommandEvent selEvent(wxEVT_BUTTON, GetId());
+            ProcessEvent(selEvent);
+            event.Skip();
+        }
+
+        bool IsSelected() const {
+            return GetBackgroundColour() == wxColour(200, 200, 255);
+        }
+
+        wxStaticBitmap* m_image;
+        wxStaticText* m_text;
+        wxPanel* m_indicator = nullptr;
+    };
+
+    return new TabButton(parent, size, image, text);
 }
 
 wxPanel* JusPrinMainFrame::createTab(wxWindow* parent, wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>>& image_texts) {
