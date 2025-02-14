@@ -12,28 +12,37 @@ JusPrinMainFrame::JusPrinMainFrame()
 
 void JusPrinMainFrame::init_tabpanel()
 {
+    // First call parent's init_tabpanel
+    MainFrame::init_tabpanel();
+
+    // Create our custom tab panel
     std::string icon_path = (boost::format("%1%/images/OrcaSlicer_32px.png") % resources_dir()).str();
     std::vector<std::tuple<std::string, std::string>> image_texts = {
-        { icon_path, "Text" },
-        { icon_path, "Text" },
-        { icon_path, "Text" },
-        { icon_path, "Text" },
-        { icon_path, "Text" },
-        { icon_path, "Text" },
-        { icon_path, "Text" },
-        { icon_path, "Text" }
+        { icon_path, "Text1" },
+        { icon_path, "Text2" },
+        { icon_path, "Text3" },
+        { icon_path, "Text4" },
+        { icon_path, "Text5" },
     };
 
     wxSize size(50, 300);
     wxSize itemSize(50, 50);
     wxPanel* tabPanel = createTab(this, size, itemSize, image_texts);
 
-    auto sizer = new wxBoxSizer(wxVERTICAL);
+    // Create a test panel with green background
+    wxPanel* testPanel = new wxPanel(this, wxID_ANY);
+    testPanel->SetBackgroundColour(wxColour(0, 255, 0)); // Green
 
-    sizer->Add(tabPanel, 0, wxALIGN_LEFT, 5);
-    m_main_sizer->Add(sizer, 0, wxEXPAND | wxTOP | wxLeft, 0);
-    MainFrame::init_tabpanel();
+    // Create horizontal sizer
+    auto horizontalSizer = new wxBoxSizer(wxHORIZONTAL);
+    horizontalSizer->Add(tabPanel, 0, wxEXPAND);
+    horizontalSizer->Add(testPanel, 1, wxEXPAND);
 
+    // Clear and set the main sizer
+    m_main_sizer->Clear();
+    m_main_sizer->Add(horizontalSizer, 1, wxEXPAND);
+
+    Layout();
 }
 
 void JusPrinMainFrame::update_layout(){
