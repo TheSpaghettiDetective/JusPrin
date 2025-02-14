@@ -31,27 +31,8 @@ void JusPrinMainFrame::init_tabpanel()
     auto sizer = new wxBoxSizer(wxVERTICAL);
 
     sizer->Add(tabPanel, 0, wxALIGN_LEFT, 5);
-    sizer->Add(m_tabpanel,0, wxEXPAND, 1);
-
-    //auto node = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, sizer,
-     //                             wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
-    //node->SetBackgroundColour(*wxRED);
     m_main_sizer->Add(sizer, 0, wxEXPAND | wxTOP | wxLeft, 0);
     MainFrame::init_tabpanel();
-
-//    m_tabpanel = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, nullptr,
-//                              wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
-//    m_tabpanel->SetBackgroundColour(*wxBLUE);
-//    m_tabpanel->Hide();
-//
-//
-//    m_plater = new Plater(this, this);
-//    m_plater->SetBackgroundColour(*wxWHITE);
-//    m_plater->Hide();
-//
-//    wxGetApp().plater_ = m_plater;
-//
-//    create_preset_tabs();
 
 }
 
