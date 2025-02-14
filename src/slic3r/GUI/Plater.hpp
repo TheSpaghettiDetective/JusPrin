@@ -30,6 +30,8 @@
 #include "libslic3r/FlushVolCalc.hpp"
 #include "slic3r/GUI/JusPrin/JusPrinChatPanel.hpp"
 
+#include "GUI_Preview.hpp"
+
 #define FILAMENT_SYSTEM_COLORS_NUM      16
 
 class wxButton;
@@ -785,6 +787,10 @@ public:
     std::atomic<bool> m_arrange_running{false};
 
     bool is_loading_project() const { return m_loading_project; }
+
+    View3D* get_view3D() const;
+    Bed3D& get_bed() const;
+    BackgroundSlicingProcess* get_background_process() const;
 
 private:
     struct priv;

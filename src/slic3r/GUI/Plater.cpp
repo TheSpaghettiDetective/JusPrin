@@ -8928,7 +8928,20 @@ int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_
     return wxID_YES;
 }
 
+BackgroundSlicingProcess* Plater::get_background_process() const
+{
+    return &p->background_process;
+}
 
+View3D* Plater::get_view3D() const
+{
+    return p->view3D;  // p is the unique_ptr to priv
+}
+
+Bed3D& Plater::get_bed() const
+{
+    return p->bed;
+}
 
 // BBS: FIXME, missing resotre logic
 void Plater::load_project(wxString const& filename2,

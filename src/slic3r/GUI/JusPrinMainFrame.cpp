@@ -3,6 +3,7 @@
 #include "I18N.hpp"
 #include "Notebook.hpp"
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/GUI_Preview.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -14,6 +15,12 @@ void JusPrinMainFrame::init_tabpanel()
 {
     // First call parent's init_tabpanel
     MainFrame::init_tabpanel();
+
+    Plater* plater = this->plater();
+    if (!plater) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to initialize JusPrinMainFrame: plater is null";
+        return;
+    }
 
     // Create our custom tab panel
     std::string icon_path = (boost::format("%1%/images/OrcaSlicer_32px.png") % resources_dir()).str();
@@ -33,10 +40,26 @@ void JusPrinMainFrame::init_tabpanel()
     // Create webview panel instead of test panel
     m_jusprinwebview = new WebViewPanel(this);
 
+    Bed3D& bed = plater->get_bed();
+    Model& model_ref = plater->model();  // Get reference
+    Model* model = &model_ref;           // Get pointer from reference
+    const DynamicPrintConfig* const_config = plater->config();
+    DynamicPrintConfig* config = const_cast<DynamicPrintConfig*>(const_config);
+    BackgroundSlicingProcess* process = plater->get_background_process();
+
+    // Create new View3D with exact types
+    View3D* view3D = new View3D(
+        this,     // wxWindow* parent
+        bed,      // Bed3D& bed
+        model,    // Model* model
+        config,   // DynamicPrintConfig* config
+        process   // BackgroundSlicingProcess* process
+    );
+
     // Create horizontal sizer
     auto horizontalSizer = new wxBoxSizer(wxHORIZONTAL);
     horizontalSizer->Add(m_left_nav_bar, 0, wxEXPAND);
-    horizontalSizer->Add(m_jusprinwebview, 1, wxEXPAND);
+    horizontalSizer->Add(view3D, 1, wxEXPAND);
 
     // Clear and set the main sizer
     m_main_sizer->Clear();
@@ -47,10 +70,8 @@ void JusPrinMainFrame::init_tabpanel()
 
 void JusPrinMainFrame::update_layout(){
     MainFrame::update_layout();
-//    m_plater->Hide();
-//    m_tabpanel->Hide();
-    m_plater->Hide();
     m_tabpanel->Hide();
+    m_plater->Hide();
 }
 
 wxPanel* JusPrinMainFrame::create_nav_item(wxWindow* parent, wxSize& size, std::string image, std::string text) {
