@@ -28,14 +28,14 @@ void JusPrinMainFrame::init_tabpanel()
 
     wxSize size(50, 300);
     wxSize itemSize(50, 50);
-    wxPanel* tabPanel = createTab(this, size, itemSize, image_texts);
+    wxPanel* m_left_nav_bar = create_left_nav_bar(this, size, itemSize, image_texts);
 
     // Create webview panel instead of test panel
     m_jusprinwebview = new WebViewPanel(this);
 
     // Create horizontal sizer
     auto horizontalSizer = new wxBoxSizer(wxHORIZONTAL);
-    horizontalSizer->Add(tabPanel, 0, wxEXPAND);
+    horizontalSizer->Add(m_left_nav_bar, 0, wxEXPAND);
     horizontalSizer->Add(m_jusprinwebview, 1, wxEXPAND);
 
     // Clear and set the main sizer
@@ -53,7 +53,7 @@ void JusPrinMainFrame::update_layout(){
     m_tabpanel->Hide();
 }
 
-wxPanel* JusPrinMainFrame::createTabItem(wxWindow* parent, wxSize& size, std::string image, std::string text) {
+wxPanel* JusPrinMainFrame::create_nav_item(wxWindow* parent, wxSize& size, std::string image, std::string text) {
     // Create a custom panel that will act like a button
     class TabButton : public wxPanel {
     public:
@@ -133,13 +133,13 @@ wxPanel* JusPrinMainFrame::createTabItem(wxWindow* parent, wxSize& size, std::st
     return new TabButton(parent, size, image, text);
 }
 
-wxPanel* JusPrinMainFrame::createTab(wxWindow* parent, wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>>& image_texts) {
+wxPanel* JusPrinMainFrame::create_left_nav_bar(wxWindow* parent, wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>>& image_texts) {
     wxPanel* panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, size);
     panel->SetBackgroundColour(*wxBLUE);
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
     for(auto& [image, text] : image_texts) {
-        wxPanel* tabItem = createTabItem(panel, item, image, text);
+        wxPanel* tabItem = create_nav_item(panel, item, image, text);
         sizer->Add(tabItem, 0, wxALIGN_CENTER | wxALL, 5);
     }
 
