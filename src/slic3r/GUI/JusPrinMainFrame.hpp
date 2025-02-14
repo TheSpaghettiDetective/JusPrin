@@ -18,6 +18,8 @@ public:
 private:
     wxPanel* createTabItem(wxWindow* parent, wxSize& size, std::string image, std::string text);
     wxPanel* createTab(wxWindow* parent, wxSize& size, wxSize& item, std::vector<std::tuple<std::string, std::string>>& image_texts);
+
+    WebViewPanel* m_jusprinwebview{nullptr};
 };
 
 } // namespace GUI
