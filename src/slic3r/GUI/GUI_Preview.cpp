@@ -99,7 +99,7 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
 
     // Position the chat panel
     wxSize client_size = GetClientSize();
-    int chat_height = client_size.GetHeight() * 0.7;  // 70% of window height
+    int chat_height = client_size.GetHeight() * 0.95;  // 70% of window height
     int chat_width = client_size.GetWidth() * 0.7;    // 70% of window width
 
     m_chat_panel->SetSize(
@@ -113,7 +113,7 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     // Create image overlay using resources directory
     wxBitmap bitmap = create_scaled_bitmap("jusprin_input_button", this, 200); // 200 is example size, adjust as needed
     m_overlay_image = new wxStaticBitmap(this, wxID_ANY, bitmap,
-    wxPoint((client_size.GetWidth() - 200) / 2, chat_height + 20), wxSize(200, 100), wxSTAY_ON_TOP);
+    wxPoint((client_size.GetWidth() - 200) / 2, chat_height - 40), wxSize(200, 100), wxSTAY_ON_TOP);
 
     // Bind click event to show chat panel
     m_overlay_image->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent& evt) {
@@ -127,7 +127,7 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     m_canvas->setCancel([this](wxMouseEvent& evt){
         this->OnCanvasClick(evt);
     });
-    
+
     // Bind click event to hide chat panel when clicking outside
     m_canvas_widget->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
     this->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
@@ -274,7 +274,7 @@ void View3D::OnSize(wxSizeEvent& evt)
         wxSize size = GetClientSize();
 
         // Resize chat panel
-        int chat_height = size.GetHeight() * 0.7;
+        int chat_height = size.GetHeight() * 0.95;
         int chat_width = size.GetWidth() * 0.7;
         m_chat_panel->SetSize(
             (size.GetWidth() - chat_width) / 2,
@@ -285,11 +285,11 @@ void View3D::OnSize(wxSizeEvent& evt)
         m_chat_panel->Raise();
 
         // Resize and reposition image
-        int image_height = 100;	
+        int image_height = 100;
         int image_width = 200;
         m_overlay_image->SetSize(
             (size.GetWidth() - image_width) / 2,
-            chat_height + 20,
+            chat_height - 50,
             image_width,
             image_height
         );
@@ -305,7 +305,7 @@ void View3D::OnCanvasClick(wxMouseEvent& evt)
         wxRect btn_rect = m_overlay_image->GetScreenRect();
         wxRect img_rect(this->ScreenToClient(btn_rect.GetTopLeft()),
                          this->ScreenToClient(btn_rect.GetBottomRight()));
-        
+
         if (!img_rect.Contains(click_pt)) {
             m_chat_panel->Hide();
         }
