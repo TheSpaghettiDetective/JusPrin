@@ -10,8 +10,10 @@
 #include "slic3r/GUI/Jobs/OrientJob.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
 
 #include "JusPrinPresetConfigUtils.hpp"
+#include "JusPrinPlateUtils.hpp"
 
 
 namespace Slic3r { namespace GUI {
@@ -73,6 +75,7 @@ void JusPrinChatPanel::init_action_handlers() {
     json_action_handlers["get_presets"] = &JusPrinChatPanel::handle_get_presets;
     json_action_handlers["get_edited_presets"] = &JusPrinChatPanel::handle_get_edited_presets;
     json_action_handlers["get_plates"] = &JusPrinChatPanel::handle_get_plates;
+    json_action_handlers["render_plate"] = &JusPrinChatPanel::handle_render_plate;
     json_action_handlers["select_preset"] = &JusPrinChatPanel::handle_select_preset;
     json_action_handlers["apply_config"] = &JusPrinChatPanel::handle_apply_config;
     json_action_handlers["add_printers"] = &JusPrinChatPanel::handle_add_printers;
@@ -129,9 +132,11 @@ void JusPrinChatPanel::SendNativeErrorOccurredEvent(const std::string& error_mes
 
 // Actions for preload.html only
 void JusPrinChatPanel::handle_init_server_url_and_redirect(const nlohmann::json& params) {
+    bool isDeveloperMode = wxGetApp().app_config->get_bool("developer_mode");
     wxString strJS = wxString::Format(
-        "var CHAT_SERVER_URL = '%s'; checkAndRedirectToChatServer();",
-        wxGetApp().app_config->get_with_default("jusprin_server", "server_url", "https://app.obico.io/jusprin"));
+        "var CHAT_SERVER_URL = '%s'; checkAndRedirectToChatServer(developerMode =%s);",
+        wxGetApp().app_config->get_with_default("jusprin_server", "server_url", "https://app.obico.io/jusprin"),
+        isDeveloperMode ? "true" : "false");
     WebView::RunScript(m_browser, strJS);
 }
 
@@ -161,37 +166,11 @@ nlohmann::json JusPrinChatPanel::handle_get_edited_presets(const nlohmann::json&
 }
 
 nlohmann::json JusPrinChatPanel::handle_get_plates(const nlohmann::json& params) {
-    nlohmann::json j = nlohmann::json::array();
+    return JusPrinPlateUtils::GetPlates(params);
+}
 
-    for (const auto& plate : wxGetApp().plater()->get_partplate_list().get_plate_list()) {
-        nlohmann::json plate_info;
-        plate_info["name"] = plate->get_plate_name();
-        plate_info["index"] = plate->get_index();
-
-        // Loop through each ModelObject
-        nlohmann::json objects_info = nlohmann::json::array();
-        for (const auto& obj : plate->get_objects_on_this_plate()) {
-            nlohmann::json object_info;
-            object_info["id"] = std::to_string(obj->id().id);
-            object_info["name"] = obj->name;
-
-            auto object_grid_config = &(obj->config);
-            int extruder_id = -1;  // Default extruder ID
-            auto extruder_id_ptr = static_cast<const ConfigOptionInt*>(object_grid_config->option("extruder"));
-            if (extruder_id_ptr) {
-                extruder_id = *extruder_id_ptr;
-            }
-            object_info["extruderId"] = extruder_id;
-
-
-            objects_info.push_back(object_info);
-        }
-        plate_info["modelObjects"] = objects_info;
-
-        j.push_back(plate_info);
-    }
-
-    return j;
+nlohmann::json JusPrinChatPanel::handle_render_plate(const nlohmann::json& params) {
+    return JusPrinPlateUtils::RenderPlateView(params);
 }
 
 nlohmann::json JusPrinChatPanel::handle_add_printers(const nlohmann::json& params) {
@@ -211,27 +190,11 @@ nlohmann::json JusPrinChatPanel::handle_select_preset(const nlohmann::json& para
         BOOST_LOG_TRIVIAL(error) << "handle_select_preset: missing payload parameter";
         throw std::runtime_error("Missing payload parameter");
     }
-    Preset::Type preset_type;
-    std::string  type = payload.value("type", "");
-    if (type == "print") {
-        preset_type = Preset::Type::TYPE_PRINT;
-    } else if (type == "filament") {
-        preset_type = Preset::Type::TYPE_FILAMENT;
-    } else if (type == "printer") {
-        preset_type = Preset::Type::TYPE_PRINTER;
-    } else {
-        BOOST_LOG_TRIVIAL(error) << "handle_select_preset: invalid type parameter";
-        throw std::runtime_error("Invalid type parameter");
-    }
 
-    JusPrinPresetConfigUtils::DiscardCurrentPresetChanges(); // Selecting a printer will result in selecting a filament or print preset. So we need to discard changes for all presets in order not to have the "transfer or discard" dialog pop up
+    std::string type = payload.value("type", "");
+    std::string name = payload.value("name", "");
 
-    std::string  name = payload.value("name", "");
-    Tab* tab = Slic3r::GUI::wxGetApp().get_tab(preset_type);
-    if (tab != nullptr) {
-        tab->select_preset(name, false, std::string(), false);
-    }
-
+    JusPrinPresetConfigUtils::SelectPreset(type, name);
     return nlohmann::json::object();
 }
 
@@ -258,18 +221,6 @@ nlohmann::json JusPrinChatPanel::handle_apply_config(const nlohmann::json& param
     JusPrinPresetConfigUtils::UpdatePresetTabs();
 
     return nlohmann::json::object();
-}
-
-void JusPrinChatPanel::UpdatePresetTabs() {
-    std::array<Preset::Type, 2> preset_types = {Preset::Type::TYPE_PRINT, Preset::Type::TYPE_FILAMENT};
-
-    for (const auto& preset_type : preset_types) {
-        if (Tab* tab = Slic3r::GUI::wxGetApp().get_tab(preset_type)) {
-            tab->reload_config();
-            tab->update();
-            tab->update_dirty();
-        }
-    }
 }
 
 void JusPrinChatPanel::handle_start_slicer_all(const nlohmann::json& params) {
@@ -419,6 +370,10 @@ void JusPrinChatPanel::OnActionCallReceived(wxWebViewEvent& event)
         auto void_it = void_action_handlers.find(action);
         if (void_it != void_action_handlers.end()) {
             (this->*(void_it->second))(jsonObject);
+        }
+        auto json_it = json_action_handlers.find(action);
+        if (json_it != json_action_handlers.end()) {
+            (this->*(json_it->second))(jsonObject);
         }
     }
 }
