@@ -79,8 +79,7 @@ void JusPrinView3D::init_jusprin_elements()
 
     this->get_canvas3d()->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &JusPrinView3D::OnCanvasClick, this);
 
-    Bind(wxEVT_SIZE, &View3D::OnSize, this);
-
+    Bind(wxEVT_SIZE, &JusPrinView3D::OnSize, this);
 }
 
 void JusPrinView3D::OnSize(wxSizeEvent& evt)

@@ -47,6 +47,7 @@ class View3D : public wxPanel
 public:
     View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
     virtual ~View3D();
+
     wxGLCanvas* get_wxglcanvas() { return m_canvas_widget; }
     GLCanvas3D* get_canvas3d() { return m_canvas; }
 
@@ -79,8 +80,6 @@ public:
 
     void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
     void render();
-
-    virtual void OnSize(wxSizeEvent& evt);
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);

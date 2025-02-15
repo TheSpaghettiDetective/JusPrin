@@ -18,7 +18,7 @@ public:
     virtual ~JusPrinView3D();
 
 protected:
-    virtual void OnSize(wxSizeEvent& evt) override;
+    void OnSize(wxSizeEvent& evt);
     void OnCanvasClick(SimpleEvent& evt);
 
 private:

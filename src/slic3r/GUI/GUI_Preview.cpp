@@ -224,11 +224,6 @@ void View3D::render()
         m_canvas->set_as_dirty();
 }
 
-void View3D::OnSize(wxSizeEvent& evt)
-{
-    evt.Skip();
-}
-
 Preview::Preview(
     wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config,
     BackgroundSlicingProcess* process, GCodeProcessorResult* gcode_result, std::function<void()> schedule_background_process_func)
