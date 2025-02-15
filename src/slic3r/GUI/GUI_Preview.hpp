@@ -2,7 +2,6 @@
 #define slic3r_GUI_Preview_hpp_
 
 #include <wx/panel.h>
-#include "JusPrin/JusPrinChatPanel.hpp"
 
 #include "libslic3r/Point.hpp"
 #include "libslic3r/CustomGCode.hpp"
@@ -20,7 +19,6 @@ class wxStaticText;
 class wxComboBox;
 class wxComboCtrl;
 class wxCheckBox;
-class wxStaticBitmap;
 
 namespace Slic3r {
 
@@ -48,8 +46,6 @@ class View3D : public wxPanel
 public:
     View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
     virtual ~View3D();
-        void ShowOverlay(const wxPoint& position, const wxSize& size);
-        void HideOverlay();
     wxGLCanvas* get_wxglcanvas() { return m_canvas_widget; }
     GLCanvas3D* get_canvas3d() { return m_canvas; }
 
@@ -88,7 +84,6 @@ public:
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
-    void OnChatPanelLoseFocus(wxFocusEvent& evt);
 };
 
 class Preview : public wxPanel

@@ -24,7 +24,6 @@
 #include <wx/combo.h>
 #include <wx/combobox.h>
 #include <wx/checkbox.h>
-#include <wx/animate.h>
 
 // this include must follow the wxWidgets ones or it won't compile on Windows -> see http://trac.wxwidgets.org/ticket/2421
 #include "libslic3r/Print.hpp"
@@ -94,7 +93,6 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
         this->OnCanvasClick(evt);
     });
 
-    // Bind click event to hide chat panel when clicking outside
     m_canvas_widget->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
     this->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
 
@@ -235,7 +233,7 @@ void View3D::render()
 
 void View3D::OnSize(wxSizeEvent& evt)
 {
-    evt.Skip(); 
+    evt.Skip();
 }
 
 void View3D::OnCanvasClick(wxMouseEvent& evt)
