@@ -85,11 +85,11 @@ public:
     void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
     void render();
 
-    void OnSize(wxSizeEvent& evt);
+    virtual void OnSize(wxSizeEvent& evt);
+    virtual void OnCanvasClick(wxMouseEvent& evt);
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
-    void OnCanvasClick(wxMouseEvent& evt);
     void OnChatPanelLoseFocus(wxFocusEvent& evt);
 };
 
