@@ -46,6 +46,7 @@ class View3D : public wxPanel
     GLCanvas3D* m_canvas;
     wxStaticBitmap* m_overlay_image;
     JusPrinChatPanel* m_chat_panel;
+    wxAnimationCtrlBase* m_animationCtrl{nullptr};
 
 public:
     View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);

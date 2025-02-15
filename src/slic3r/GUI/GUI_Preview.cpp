@@ -24,6 +24,7 @@
 #include <wx/combo.h>
 #include <wx/combobox.h>
 #include <wx/checkbox.h>
+#include <wx/animate.h>
 
 // this include must follow the wxWidgets ones or it won't compile on Windows -> see http://trac.wxwidgets.org/ticket/2421
 #include "libslic3r/Print.hpp"
@@ -114,6 +115,14 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     wxBitmap bitmap = create_scaled_bitmap("jusprin_input_button", this, 200); // 200 is example size, adjust as needed
     m_overlay_image = new wxStaticBitmap(this, wxID_ANY, bitmap,
     wxPoint((client_size.GetWidth() - 200) / 2, chat_height - 40), wxSize(200, 100), wxSTAY_ON_TOP);
+
+    m_animationCtrl = new wxAnimationCtrl(this, wxID_ANY);
+    wxAnimation animation;
+    wxString gif_url  = from_u8((boost::filesystem::path(resources_dir()) / "images/throbber.gif").make_preferred().string());
+    if(animation.LoadFile(gif_url, wxANIMATION_TYPE_GIF)) {
+        m_animationCtrl->SetAnimation(animation);
+        m_animationCtrl->Play();
+    }
 
     // Bind click event to show chat panel
     m_overlay_image->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent& evt) {
@@ -294,6 +303,14 @@ void View3D::OnSize(wxSizeEvent& evt)
             image_height
         );
         m_overlay_image->Raise();
+        m_animationCtrl->SetSize(
+            (size.GetWidth() - image_width) / 2,
+            chat_height - 50,
+            32,
+            32
+        );
+
+        m_animationCtrl->Raise();
     }
 }
 
