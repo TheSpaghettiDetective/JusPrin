@@ -110,18 +110,18 @@ void JusPrinView3D::OnSize(wxSizeEvent& evt)
     }
 }
 
-void JusPrinView3D::OnCanvasClick(wxMouseEvent& evt)
+void JusPrinView3D::OnCanvasClick(SimpleEvent& evt)
 {
     if (m_chat_panel && m_chat_panel->IsShown()) {
-        wxPoint click_pt = evt.GetPosition();
+        // wxPoint click_pt = evt.GetPosition();
 
-        wxRect btn_rect = m_overlay_image->GetScreenRect();
-        wxRect img_rect(this->ScreenToClient(btn_rect.GetTopLeft()),
-                       this->ScreenToClient(btn_rect.GetBottomRight()));
+        // wxRect btn_rect = m_overlay_image->GetScreenRect();
+        // wxRect img_rect(this->ScreenToClient(btn_rect.GetTopLeft()),
+        //                this->ScreenToClient(btn_rect.GetBottomRight()));
 
-        if (!img_rect.Contains(click_pt)) {
+        // if (!img_rect.Contains(click_pt)) {
             m_chat_panel->Hide();
-        }
+        // }
     }
     evt.Skip();
 }

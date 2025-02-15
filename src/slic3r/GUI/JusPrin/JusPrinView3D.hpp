@@ -8,7 +8,6 @@
 class wxStaticBitmap;
 class wxWindow;
 class wxSizeEvent;
-class wxMouseEvent;
 
 namespace Slic3r {
 namespace GUI {
@@ -20,7 +19,7 @@ public:
 
 protected:
     virtual void OnSize(wxSizeEvent& evt) override;
-    virtual void OnCanvasClick(wxMouseEvent& evt) override;
+    virtual void OnCanvasClick(SimpleEvent& evt) override;
 
 private:
     JusPrinChatPanel* m_chat_panel;

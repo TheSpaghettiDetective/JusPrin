@@ -89,12 +89,13 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     SetSizer(main_sizer);
     SetMinSize(GetSize());
     GetSizer()->SetSizeHints(this);
-    m_canvas->setCancel([this](wxMouseEvent& evt){
-        this->OnCanvasClick(evt);
-    });
+    // m_canvas->setCancel([this](wxMouseEvent& evt){
+    //     this->OnCanvasClick(evt);
+    // });
 
-    m_canvas_widget->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
-    this->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
+    m_canvas->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &View3D::OnCanvasClick, this);
+    // m_canvas_widget->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
+    // this->Bind(wxEVT_LEFT_DOWN, &View3D::OnCanvasClick, this);
 
     Bind(wxEVT_SIZE, &View3D::OnSize, this);
 
@@ -236,7 +237,7 @@ void View3D::OnSize(wxSizeEvent& evt)
     evt.Skip();
 }
 
-void View3D::OnCanvasClick(wxMouseEvent& evt)
+void View3D::OnCanvasClick(SimpleEvent& evt)
 {
     evt.Skip(); // Allow event to propagate for other handlers
 }

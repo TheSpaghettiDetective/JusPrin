@@ -12,6 +12,7 @@
 #include <string>
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include <slic3r/GUI/GCodeViewer.hpp>
+#include "Event.hpp"  // This defines SimpleEvent
 
 class wxGLCanvas;
 class wxBoxSizer;
@@ -80,7 +81,7 @@ public:
     void render();
 
     virtual void OnSize(wxSizeEvent& evt);
-    virtual void OnCanvasClick(wxMouseEvent& evt);
+    virtual void OnCanvasClick(SimpleEvent& evt);
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
