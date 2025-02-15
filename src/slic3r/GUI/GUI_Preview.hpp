@@ -44,9 +44,6 @@ class View3D : public wxPanel
 {
     wxGLCanvas* m_canvas_widget;
     GLCanvas3D* m_canvas;
-    wxStaticBitmap* m_overlay_image;
-    JusPrinChatPanel* m_chat_panel;
-    wxAnimationCtrlBase* m_animationCtrl{nullptr};
 
 public:
     View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
@@ -86,11 +83,11 @@ public:
     void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
     void render();
 
-    void OnSize(wxSizeEvent& evt);
+    virtual void OnSize(wxSizeEvent& evt);
+    virtual void OnCanvasClick(wxMouseEvent& evt);
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
-    void OnCanvasClick(wxMouseEvent& evt);
     void OnChatPanelLoseFocus(wxFocusEvent& evt);
 };
 
