@@ -18,7 +18,7 @@ JusPrinView3D::JusPrinView3D(wxWindow* parent, Bed3D& bed, Model* model, Dynamic
     , m_chat_panel(nullptr)
     , m_overlay_image(nullptr)
 {
-    init_jusprin_elements();
+    init_overlay();
 }
 
 JusPrinView3D::~JusPrinView3D()
@@ -27,7 +27,7 @@ JusPrinView3D::~JusPrinView3D()
     delete m_overlay_image;
 }
 
-void JusPrinView3D::init_jusprin_elements()
+void JusPrinView3D::init_overlay()
 {
     // Create chat panel overlay
     m_chat_panel = new JusPrinChatPanel(this);
@@ -77,7 +77,7 @@ void JusPrinView3D::init_jusprin_elements()
         evt.Skip();
     });
 
-    this->get_canvas3d()->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &JusPrinView3D::OnCanvasClick, this);
+    this->get_canvas3d()->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &JusPrinView3D::OnCanvasMouseDown, this);
 
     Bind(wxEVT_SIZE, &JusPrinView3D::OnSize, this);
 }
@@ -120,7 +120,7 @@ void JusPrinView3D::OnSize(wxSizeEvent& evt)
     }
 }
 
-void JusPrinView3D::OnCanvasClick(SimpleEvent& evt)
+void JusPrinView3D::OnCanvasMouseDown(SimpleEvent& evt)
 {
     if (m_chat_panel && m_chat_panel->IsShown()) {
         // wxPoint click_pt = evt.GetPosition();

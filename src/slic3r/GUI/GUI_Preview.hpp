@@ -12,7 +12,6 @@
 #include <string>
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include <slic3r/GUI/GCodeViewer.hpp>
-#include "Event.hpp"  // This defines SimpleEvent
 
 class wxGLCanvas;
 class wxBoxSizer;

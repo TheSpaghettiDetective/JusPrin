@@ -89,8 +89,6 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     SetMinSize(GetSize());
     GetSizer()->SetSizeHints(this);
 
-    Bind(wxEVT_SIZE, &View3D::OnSize, this);
-
     return true;
 }
 

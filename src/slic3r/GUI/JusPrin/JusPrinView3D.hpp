@@ -19,14 +19,14 @@ public:
 
 protected:
     void OnSize(wxSizeEvent& evt);
-    void OnCanvasClick(SimpleEvent& evt);
+    void OnCanvasMouseDown(SimpleEvent& evt);
 
 private:
     JusPrinChatPanel* m_chat_panel;
     wxStaticBitmap* m_overlay_image;
     wxAnimationCtrlBase* m_animationCtrl{nullptr};
 
-    void init_jusprin_elements();
+    void init_overlay();
 };
 
 } // namespace GUI
