@@ -19,7 +19,7 @@ public:
 
 protected:
     virtual void OnSize(wxSizeEvent& evt) override;
-    virtual void OnCanvasClick(SimpleEvent& evt) override;
+    void OnCanvasClick(SimpleEvent& evt);
 
 private:
     JusPrinChatPanel* m_chat_panel;

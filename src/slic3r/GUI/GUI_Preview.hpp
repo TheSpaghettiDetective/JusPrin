@@ -81,7 +81,6 @@ public:
     void render();
 
     virtual void OnSize(wxSizeEvent& evt);
-    virtual void OnCanvasClick(SimpleEvent& evt);
 
 private:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);

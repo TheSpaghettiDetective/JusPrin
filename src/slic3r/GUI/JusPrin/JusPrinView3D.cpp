@@ -1,8 +1,14 @@
 #include "JusPrinView3D.hpp"
-#include "../../GUI/GUI_App.hpp"
+
 #include <wx/statbmp.h>
 #include <wx/bitmap.h>
 #include <wx/animate.h>
+#include <wx/glcanvas.h>
+
+#include "../GLCanvas3D.hpp"
+#include "../GUI_Preview.hpp"
+#include "../Event.hpp"
+#include "../GUI_App.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -70,6 +76,11 @@ void JusPrinView3D::init_jusprin_elements()
         }
         evt.Skip();
     });
+
+    this->get_canvas3d()->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &JusPrinView3D::OnCanvasClick, this);
+
+    Bind(wxEVT_SIZE, &View3D::OnSize, this);
+
 }
 
 void JusPrinView3D::OnSize(wxSizeEvent& evt)
