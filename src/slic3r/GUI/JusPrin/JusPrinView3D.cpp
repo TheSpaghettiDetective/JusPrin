@@ -339,9 +339,14 @@ void JusPrinView3D::updateJusPrinButtonAndBadges() {
 
 void JusPrinView3D::initOverlay()
 {
-    m_chat_panel = new JusPrinChatPanel(this);
-    updateChatPanelSize();
-    m_chat_panel->Hide();
+
+    m_chat_panel = new JusPrinChatPanel(rightPanel);
+    wxBoxSizer* right_sizer = new wxBoxSizer(wxVERTICAL);
+    right_sizer->Add(m_chat_panel, 1, wxALL | wxEXPAND, 0);
+    rightPanel->SetSizer(right_sizer);
+
+    //updateChatPanelSize();
+    //m_chat_panel->Hide();
 
     // Create image overlay using resources directory
     m_overlay_btn = new JustPrinButton(this, wxID_ANY,

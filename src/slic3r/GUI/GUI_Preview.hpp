@@ -12,6 +12,7 @@
 #include <string>
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include <slic3r/GUI/GCodeViewer.hpp>
+#include <wx/splitter.h>
 
 class wxGLCanvas;
 class wxBoxSizer;
@@ -80,8 +81,11 @@ public:
     void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
     void render();
 
-private:
+protected:
     bool init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
+    wxSplitterWindow* splitter;
+    wxPanel* leftPanel;
+    wxPanel* rightPanel;
 };
 
 class Preview : public wxPanel

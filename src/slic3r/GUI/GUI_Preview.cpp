@@ -55,7 +55,16 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     if (!Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 /* disable wxTAB_TRAVERSAL */))
         return false;
 
-    m_canvas_widget = OpenGLManager::create_wxglcanvas(*this);
+    splitter = new wxSplitterWindow(this, wxID_ANY);
+    leftPanel = new wxPanel(splitter, wxID_ANY);
+    leftPanel->SetBackgroundColour(wxColour(200, 200, 255)); // 设置左边面板的背景颜色
+
+    rightPanel = new wxPanel(splitter, wxID_ANY);
+    rightPanel->SetBackgroundColour(wxColour(255, 200, 200)); // 设置右边面板的背景颜色
+    splitter->SplitVertically(leftPanel, rightPanel, 400); // 初始左边宽度为400
+    splitter->SetMinimumPaneSize(100);
+
+    m_canvas_widget = OpenGLManager::create_wxglcanvas(*leftPanel);
     if (m_canvas_widget == nullptr)
         return false;
 
@@ -82,8 +91,13 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig
     m_canvas->enable_labels(true);
     m_canvas->enable_slope(true);
 
+
+    wxBoxSizer* left_sizer = new wxBoxSizer(wxVERTICAL);
+    left_sizer->Add(m_canvas_widget, 1, wxALL | wxEXPAND, 0);
+    leftPanel->SetSizer(left_sizer);
+
     wxBoxSizer* main_sizer = new wxBoxSizer(wxVERTICAL);
-    main_sizer->Add(m_canvas_widget, 1, wxALL | wxEXPAND, 0);
+    main_sizer->Add(splitter, 1, wxALL | wxEXPAND, 0);
 
     SetSizer(main_sizer);
     SetMinSize(GetSize());
