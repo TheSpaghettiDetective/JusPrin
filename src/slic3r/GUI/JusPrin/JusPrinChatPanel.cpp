@@ -34,8 +34,19 @@ JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY,
 
     m_browser->Bind(wxEVT_WEBVIEW_LOADED, &JusPrinChatPanel::OnLoaded, this);
     m_browser->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &JusPrinChatPanel::OnActionCallReceived, this);
+    m_browser->Bind(wxEVT_CONTEXT_MENU, [this](wxContextMenuEvent& event) { 
+        wxMenu menu;
+        menu.Append(wxID_OPEN, "&Open");
+        menu.Append(wxID_SAVE, "&Save");
+        menu.AppendSeparator();
+        menu.Append(wxID_EXIT, "&Exit");
+
+       m_browser->PopupMenu(&menu, event.GetPosition());
+        event.Skip();
+    });
 
     topsizer->Add(m_browser, 1, wxEXPAND);
+    m_browser->EnableContextMenu(true);
     SetSizer(topsizer);
 
     update_mode();
