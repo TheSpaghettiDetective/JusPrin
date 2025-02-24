@@ -348,21 +348,6 @@ void JusPrinView3D::initOverlay()
 {
     m_chat_panel = new JusPrinChatPanel(this);
 
-    // Ensure proper event routing
-    Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent& evt) {
-        BOOST_LOG_TRIVIAL(debug) << "JusPrinView3D received mouse down";
-        wxPoint pos = evt.GetPosition();
-        wxWindow* child = wxFindWindowAtPoint(ClientToScreen(pos));
-        if (child == m_chat_panel || m_chat_panel->IsDescendant(child)) {
-            BOOST_LOG_TRIVIAL(debug) << "Event should go to chat panel";
-            // Let the event propagate to the chat panel
-            evt.Skip();
-        } else {
-            // Handle normally
-            // OnCanvasMouseDown(SimpleEvent(evt));
-        }
-    });
-
     m_chat_panel->Hide();
 
     // Create image overlay using resources directory
