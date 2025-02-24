@@ -4451,16 +4451,20 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
 #endif // ENABLE_RETINA_GL
 
             if (!m_mouse.ignore_right_up) {
-                //BBS post right click event
-                if (!m_hover_plate_idxs.empty()) {
-                    post_event(RBtnPlateEvent(EVT_GLCANVAS_PLATE_RIGHT_CLICK, { logical_pos, m_hover_plate_idxs.front() }));
-                }
-                else {
-                    // do not post the event if the user is panning the scene
-                    // or if right click was done over the wipe tower
-                    bool post_right_click_event = m_hover_volume_idxs.empty() || !m_volumes.volumes[get_first_hover_volume_idx()]->is_wipe_tower;
-                    if (post_right_click_event)
-                        post_event(RBtnEvent(EVT_GLCANVAS_RIGHT_CLICK, { logical_pos, m_hover_volume_idxs.empty() }));
+
+                bool ignore = click_chat_panel_ && click_chat_panel_(evt);
+                if (!ignore) {
+                    //BBS post right click event
+                    if (!m_hover_plate_idxs.empty()) {
+                        post_event(RBtnPlateEvent(EVT_GLCANVAS_PLATE_RIGHT_CLICK, { logical_pos, m_hover_plate_idxs.front() }));
+                    }
+                    else {
+                        // do not post the event if the user is panning the scene
+                        // or if right click was done over the wipe tower
+                        bool post_right_click_event = m_hover_volume_idxs.empty() || !m_volumes.volumes[get_first_hover_volume_idx()]->is_wipe_tower;
+                        if (post_right_click_event)
+                            post_event(RBtnEvent(EVT_GLCANVAS_RIGHT_CLICK, { logical_pos, m_hover_volume_idxs.empty() }));
+                    }
                 }
             }
         }

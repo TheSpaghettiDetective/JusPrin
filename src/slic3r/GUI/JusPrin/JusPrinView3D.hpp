@@ -84,6 +84,7 @@ public:
 protected:
     void OnSize(wxSizeEvent& evt);
     void OnCanvasMouseDown(SimpleEvent& evt);
+    bool isClickChatPanel(wxMouseEvent& evt);
 
 private:
     void initOverlay();

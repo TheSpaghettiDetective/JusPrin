@@ -383,6 +383,7 @@ void JusPrinView3D::initOverlay()
     if (wxGetApp().app_config->get_bool("developer_mode")) {    // Make sure chat can display in dev mode so that we can bring out javascript console
         changeChatPanelView("large");
         showChatPanel();
+        this->get_canvas3d()->click_chat_panel_ = [this](wxMouseEvent& evt) { return isClickChatPanel(evt); };
     }
 
     this->get_canvas3d()->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &JusPrinView3D::OnCanvasMouseDown, this);
@@ -445,6 +446,19 @@ void JusPrinView3D::OnCanvasMouseDown(SimpleEvent& evt) {
         wxGetApp().plater()->jusprinChatPanel()->SendChatPanelFocusEvent("out_of_focus");
     }
     evt.Skip();
+}
+
+ bool JusPrinView3D::isClickChatPanel(wxMouseEvent& evt)
+{
+    // Check if the mouse click is inside the chat panel
+    wxPoint  mousePos       = evt.GetPosition();
+    wxRect  clientRect = m_chat_panel->GetScreenRect();
+    wxPoint  mouseScreenPos = this->get_wxglcanvas()->ClientToScreen(mousePos);
+    if (clientRect.Contains(mouseScreenPos)) {
+        m_chat_panel->ProcessWindowEvent(evt);
+        return true;
+    }
+    return false;
 }
 
 } // namespace GUI

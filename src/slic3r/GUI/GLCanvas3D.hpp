@@ -621,8 +621,9 @@ private:
     int split_to_part_count = 0;
     int custom_height_count = 0;
     int assembly_view_count = 0;
-
+  
 public:
+    std::function<bool(wxMouseEvent& evt)> click_chat_panel_;
     OrientSettings& get_orient_settings()
     {
         PrinterTechnology ptech = this->current_printer_technology();
