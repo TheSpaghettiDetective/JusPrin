@@ -477,19 +477,6 @@ void JusPrinChatPanel::bind_event_handlers()
 
     BOOST_LOG_TRIVIAL(debug) << "Binding event handlers for JusPrinChatPanel";
 
-    // Try binding to both the panel and the browser
-    Bind(wxEVT_LEFT_DOWN, &JusPrinChatPanel::OnMouseDown, this);
-    Bind(wxEVT_LEFT_UP, &JusPrinChatPanel::OnMouseUp, this);
-    Bind(wxEVT_MOTION, &JusPrinChatPanel::OnMouseMove, this);
-    Bind(wxEVT_CHAR, &JusPrinChatPanel::OnChar, this);
-    Bind(wxEVT_KEY_DOWN, &JusPrinChatPanel::OnKeyDown, this);
-
-    m_browser->Bind(wxEVT_LEFT_DOWN, &JusPrinChatPanel::OnMouseDown, this);
-    m_browser->Bind(wxEVT_LEFT_UP, &JusPrinChatPanel::OnMouseUp, this);
-    m_browser->Bind(wxEVT_MOTION, &JusPrinChatPanel::OnMouseMove, this);
-    m_browser->Bind(wxEVT_CHAR, &JusPrinChatPanel::OnChar, this);
-    m_browser->Bind(wxEVT_KEY_DOWN, &JusPrinChatPanel::OnKeyDown, this);
-
     // Focus events
     m_browser->Bind(wxEVT_SET_FOCUS, &JusPrinChatPanel::OnSetFocus, this);
     m_browser->Bind(wxEVT_KILL_FOCUS, &JusPrinChatPanel::OnKillFocus, this);
@@ -499,62 +486,11 @@ void JusPrinChatPanel::unbind_event_handlers()
 {
     if (!m_browser) return;
 
-    // Mouse events
-    m_browser->Unbind(wxEVT_LEFT_DOWN, &JusPrinChatPanel::OnMouseDown, this);
-    m_browser->Unbind(wxEVT_LEFT_UP, &JusPrinChatPanel::OnMouseUp, this);
-    m_browser->Unbind(wxEVT_MOTION, &JusPrinChatPanel::OnMouseMove, this);
-    m_browser->Unbind(wxEVT_CHAR, &JusPrinChatPanel::OnChar, this);
-    m_browser->Unbind(wxEVT_KEY_DOWN, &JusPrinChatPanel::OnKeyDown, this);
-
     // Focus events
     m_browser->Unbind(wxEVT_SET_FOCUS, &JusPrinChatPanel::OnSetFocus, this);
     m_browser->Unbind(wxEVT_KILL_FOCUS, &JusPrinChatPanel::OnKillFocus, this);
 }
 
-void JusPrinChatPanel::OnChar(wxKeyEvent& evt)
-{
-    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel: OnChar";
-    evt.Skip();
-}
-
-void JusPrinChatPanel::OnKeyDown(wxKeyEvent& evt)
-{
-    evt.Skip(); // Allow the WebView to handle the event
-}
-
-void JusPrinChatPanel::OnMouseDown(wxMouseEvent& evt)
-{
-    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel: OnMouseDown";
-    SetFocus();
-    evt.Skip();
-}
-
-void JusPrinChatPanel::OnMouseUp(wxMouseEvent& evt)
-{
-    evt.Skip(); // Allow the WebView to handle the event
-}
-
-void JusPrinChatPanel::OnMouseMove(wxMouseEvent& evt)
-{
-    evt.Skip(); // Allow the WebView to handle the event
-}
-
-void JusPrinChatPanel::OnMouseWheel(wxMouseEvent& evt)
-{
-    evt.Skip(); // Allow the WebView to handle the event
-}
-
-void JusPrinChatPanel::OnMouseEnter(wxMouseEvent& evt)
-{
-    // Optional: Change cursor or perform other actions when mouse enters
-    evt.Skip();
-}
-
-void JusPrinChatPanel::OnMouseLeave(wxMouseEvent& evt)
-{
-    // Optional: Reset cursor or perform other actions when mouse leaves
-    evt.Skip();
-}
 
 void JusPrinChatPanel::OnSetFocus(wxFocusEvent& evt)
 {
@@ -568,6 +504,8 @@ void JusPrinChatPanel::OnSetFocus(wxFocusEvent& evt)
 
 void JusPrinChatPanel::OnKillFocus(wxFocusEvent& evt)
 {
+    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel lost focus";
+
     // Notify that the chat panel has lost focus
     SendChatPanelFocusEvent("out_of_focus");
     evt.Skip();
