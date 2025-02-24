@@ -96,6 +96,22 @@ private:
     void CallEmbeddedChatMethod(const wxString& method, const wxString& params);
 
     void RunScriptInBrowser(const wxString& script);
+
+    // Add these method declarations
+    void bind_event_handlers();
+    void unbind_event_handlers();
+
+    // Event handlers
+    void OnChar(wxKeyEvent& evt);
+    void OnKeyDown(wxKeyEvent& evt);
+    void OnMouseDown(wxMouseEvent& evt);
+    void OnMouseMove(wxMouseEvent& evt);
+    void OnMouseUp(wxMouseEvent& evt);
+    void OnMouseWheel(wxMouseEvent& evt);
+    void OnMouseEnter(wxMouseEvent& evt);
+    void OnMouseLeave(wxMouseEvent& evt);
+    void OnSetFocus(wxFocusEvent& evt);
+    void OnKillFocus(wxFocusEvent& evt);
 };
 
 }} // namespace Slic3r::GUI

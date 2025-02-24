@@ -19,8 +19,12 @@
 
 namespace Slic3r { namespace GUI {
 
-JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize)
+JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent)
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+              wxTAB_TRAVERSAL | wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE | wxCLIP_CHILDREN)
 {
+    BOOST_LOG_TRIVIAL(debug) << "Creating JusPrinChatPanel";
+
     init_action_handlers();
 
     wxBoxSizer* topsizer = new wxBoxSizer(wxVERTICAL);
@@ -28,15 +32,34 @@ JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent) : wxPanel(parent, wxID_ANY,
     // Create the webview
     m_browser = WebView::CreateWebView(this, "");
     if (m_browser == nullptr) {
-        wxLogError("Could not init m_browser");
+        BOOST_LOG_TRIVIAL(error) << "Could not init m_browser";
         return;
     }
 
-    m_browser->Bind(wxEVT_WEBVIEW_LOADED, &JusPrinChatPanel::OnLoaded, this);
-    m_browser->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &JusPrinChatPanel::OnActionCallReceived, this);
+    // Ensure the browser window has proper styles
+    m_browser->SetWindowStyle(m_browser->GetWindowStyle() | wxWANTS_CHARS);
 
-    topsizer->Add(m_browser, 1, wxEXPAND);
+    // Make sure the browser takes up the full panel space
+    topsizer->Add(m_browser, 1, wxEXPAND | wxALL, 0);
     SetSizer(topsizer);
+
+    // Explicitly set size hints
+    GetSizer()->SetSizeHints(this);
+
+    // Ensure the panel is visible and can receive events
+    Show();
+    Enable();
+
+    // Bind events after everything is set up
+    bind_event_handlers();
+
+    // Make sure we're above GLCanvas3D in z-order
+    Raise();
+    if (m_browser) {
+        m_browser->Raise();
+    }
+
+    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel creation complete";
 
     update_mode();
 
@@ -54,6 +77,8 @@ JusPrinChatPanel::~JusPrinChatPanel()
 {
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " Start";
     SetEvtHandlerEnabled(false);
+
+    unbind_event_handlers();
 
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " End";
 }
@@ -441,6 +466,111 @@ void JusPrinChatPanel::OnActionCallReceived(wxWebViewEvent& event)
 void JusPrinChatPanel::RunScriptInBrowser(const wxString& script) {
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << " " << script;
     WebView::RunScript(m_browser, script);
+}
+
+void JusPrinChatPanel::bind_event_handlers()
+{
+    if (!m_browser) {
+        BOOST_LOG_TRIVIAL(error) << "bind_event_handlers: m_browser is null";
+        return;
+    }
+
+    BOOST_LOG_TRIVIAL(debug) << "Binding event handlers for JusPrinChatPanel";
+
+    // Try binding to both the panel and the browser
+    Bind(wxEVT_LEFT_DOWN, &JusPrinChatPanel::OnMouseDown, this);
+    Bind(wxEVT_LEFT_UP, &JusPrinChatPanel::OnMouseUp, this);
+    Bind(wxEVT_MOTION, &JusPrinChatPanel::OnMouseMove, this);
+    Bind(wxEVT_CHAR, &JusPrinChatPanel::OnChar, this);
+    Bind(wxEVT_KEY_DOWN, &JusPrinChatPanel::OnKeyDown, this);
+
+    m_browser->Bind(wxEVT_LEFT_DOWN, &JusPrinChatPanel::OnMouseDown, this);
+    m_browser->Bind(wxEVT_LEFT_UP, &JusPrinChatPanel::OnMouseUp, this);
+    m_browser->Bind(wxEVT_MOTION, &JusPrinChatPanel::OnMouseMove, this);
+    m_browser->Bind(wxEVT_CHAR, &JusPrinChatPanel::OnChar, this);
+    m_browser->Bind(wxEVT_KEY_DOWN, &JusPrinChatPanel::OnKeyDown, this);
+
+    // Focus events
+    m_browser->Bind(wxEVT_SET_FOCUS, &JusPrinChatPanel::OnSetFocus, this);
+    m_browser->Bind(wxEVT_KILL_FOCUS, &JusPrinChatPanel::OnKillFocus, this);
+}
+
+void JusPrinChatPanel::unbind_event_handlers()
+{
+    if (!m_browser) return;
+
+    // Mouse events
+    m_browser->Unbind(wxEVT_LEFT_DOWN, &JusPrinChatPanel::OnMouseDown, this);
+    m_browser->Unbind(wxEVT_LEFT_UP, &JusPrinChatPanel::OnMouseUp, this);
+    m_browser->Unbind(wxEVT_MOTION, &JusPrinChatPanel::OnMouseMove, this);
+    m_browser->Unbind(wxEVT_CHAR, &JusPrinChatPanel::OnChar, this);
+    m_browser->Unbind(wxEVT_KEY_DOWN, &JusPrinChatPanel::OnKeyDown, this);
+
+    // Focus events
+    m_browser->Unbind(wxEVT_SET_FOCUS, &JusPrinChatPanel::OnSetFocus, this);
+    m_browser->Unbind(wxEVT_KILL_FOCUS, &JusPrinChatPanel::OnKillFocus, this);
+}
+
+void JusPrinChatPanel::OnChar(wxKeyEvent& evt)
+{
+    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel: OnChar";
+    evt.Skip();
+}
+
+void JusPrinChatPanel::OnKeyDown(wxKeyEvent& evt)
+{
+    evt.Skip(); // Allow the WebView to handle the event
+}
+
+void JusPrinChatPanel::OnMouseDown(wxMouseEvent& evt)
+{
+    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel: OnMouseDown";
+    SetFocus();
+    evt.Skip();
+}
+
+void JusPrinChatPanel::OnMouseUp(wxMouseEvent& evt)
+{
+    evt.Skip(); // Allow the WebView to handle the event
+}
+
+void JusPrinChatPanel::OnMouseMove(wxMouseEvent& evt)
+{
+    evt.Skip(); // Allow the WebView to handle the event
+}
+
+void JusPrinChatPanel::OnMouseWheel(wxMouseEvent& evt)
+{
+    evt.Skip(); // Allow the WebView to handle the event
+}
+
+void JusPrinChatPanel::OnMouseEnter(wxMouseEvent& evt)
+{
+    // Optional: Change cursor or perform other actions when mouse enters
+    evt.Skip();
+}
+
+void JusPrinChatPanel::OnMouseLeave(wxMouseEvent& evt)
+{
+    // Optional: Reset cursor or perform other actions when mouse leaves
+    evt.Skip();
+}
+
+void JusPrinChatPanel::OnSetFocus(wxFocusEvent& evt)
+{
+    BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel received focus";
+    SendChatPanelFocusEvent("in_focus");
+    if (m_browser) {
+        m_browser->SetFocus();
+    }
+    evt.Skip();
+}
+
+void JusPrinChatPanel::OnKillFocus(wxFocusEvent& evt)
+{
+    // Notify that the chat panel has lost focus
+    SendChatPanelFocusEvent("out_of_focus");
+    evt.Skip();
 }
 
 }} // namespace Slic3r::GUI
