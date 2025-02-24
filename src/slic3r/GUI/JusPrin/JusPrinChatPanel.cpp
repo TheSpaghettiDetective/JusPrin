@@ -46,10 +46,6 @@ JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent)
     // Explicitly set size hints
     GetSizer()->SetSizeHints(this);
 
-    // Ensure the panel is visible and can receive events
-    Show();
-    Enable();
-
     // Bind events after everything is set up
     bind_event_handlers();
 
