@@ -82,6 +82,7 @@ void JusPrinChatPanel::init_action_handlers() {
     json_action_handlers["add_printers"] = &JusPrinChatPanel::handle_add_printers;
     json_action_handlers["add_filaments"] = &JusPrinChatPanel::handle_add_filaments;
     json_action_handlers["get_current_project"] = &JusPrinChatPanel::handle_get_current_project;
+    json_action_handlers["change_chatpanel_display"] = &JusPrinChatPanel::handle_change_chatpanel_display;
 
     // Actions for the chat page (void return)
     void_action_handlers["show_login"] = &JusPrinChatPanel::handle_show_login;
@@ -89,8 +90,8 @@ void JusPrinChatPanel::init_action_handlers() {
     void_action_handlers["export_gcode"] = &JusPrinChatPanel::handle_export_gcode;
     void_action_handlers["auto_orient_object"] = &JusPrinChatPanel::handle_auto_orient_object;
     void_action_handlers["plater_undo"] = &JusPrinChatPanel::handle_plater_undo;
-    void_action_handlers["show_chatpanel"] = &JusPrinChatPanel::handle_show_chatpanel;
     void_action_handlers["refresh_oauth_token"] = &JusPrinChatPanel::handle_refresh_oauth_token;
+    void_action_handlers["set_btn_notification_badges"] = &JusPrinChatPanel::handle_set_btn_notification_badges;
 }
 
 
@@ -143,8 +144,15 @@ void JusPrinChatPanel::SendNotificationPushedEvent(
     CallEmbeddedChatMethod("processAgentEvent", params.dump());
 }
 
-// End of Agent events that are processed by the chat panel
+void JusPrinChatPanel::SendChatPanelFocusEvent(const std::string& focus_event_type) {
+    nlohmann::json j = nlohmann::json::object();
+    j["type"] = "chatPanelFocus";
+    j["data"] = nlohmann::json::object();
+    j["data"]["focusEventType"] = focus_event_type;
+    CallEmbeddedChatMethod("processAgentEvent", j.dump());
+}
 
+// End of Agent events that are processed by the chat panel
 
 // Actions for preload.html only
 void JusPrinChatPanel::handle_init_server_url_and_redirect(const nlohmann::json& params) {
@@ -236,6 +244,32 @@ nlohmann::json JusPrinChatPanel::handle_apply_config(const nlohmann::json& param
     return nlohmann::json::object();
 }
 
+nlohmann::json JusPrinChatPanel::handle_change_chatpanel_display(const nlohmann::json& params) {
+    nlohmann::json payload = params.value("payload", nlohmann::json::object());
+
+    auto* view3d = dynamic_cast<JusPrinView3D*>(GetParent());
+    if (!view3d) {
+        return nlohmann::json::object({
+            {"view_mode", ""},
+            {"visible", false}
+        });
+    }
+
+    std::string view_mode = payload.value("view_mode", "");
+    if (!view_mode.empty()) {
+        view3d->changeChatPanelView(view_mode);
+    }
+
+    if (payload.contains("visible")) {
+        view3d->setChatPanelVisibility(payload.value("visible", false));
+    }
+
+    return nlohmann::json::object({
+        {"view_mode", view3d->getChatPanelViewMode()},
+        {"visible", view3d->getChatPanelVisibility()}
+    });
+}
+
 void JusPrinChatPanel::handle_start_slicer_all(const nlohmann::json& params) {
     GUI::wxGetApp().CallAfter([this] {
         wxGetApp().mainframe->start_slicer_all();
@@ -264,10 +298,17 @@ void JusPrinChatPanel::handle_plater_undo(const nlohmann::json& params) {
     });
 }
 
-void JusPrinChatPanel::handle_show_chatpanel(const nlohmann::json& params) {
-    if (auto* view3d = dynamic_cast<JusPrinView3D*>(GetParent())) {
-        view3d->showChatPanel();
-    }
+void JusPrinChatPanel::handle_set_btn_notification_badges(const nlohmann::json& params) {
+    nlohmann::json payload = params.value("payload", nlohmann::json::object());
+    int red_badge = payload.value("red_badge", 0);
+    int orange_badge = payload.value("orange_badge", 0);
+    int green_badge = payload.value("green_badge", 0);
+
+    wxGetApp().CallAfter([this, red_badge, orange_badge, green_badge] {
+        if (auto* view3d = dynamic_cast<JusPrinView3D*>(GetParent())) {
+            view3d->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
+        }
+    });
 }
 
 void JusPrinChatPanel::load_url()

@@ -12,10 +12,16 @@ class wxSizeEvent;
 namespace Slic3r {
 namespace GUI {
 
-// Move CircularBadge class definition to header
-class CircularBadge : public wxPanel {
+// Add near the top of the file, inside the Slic3r::GUI namespace
+struct ChatPanelConfig {
+    double height_ratio;
+    double width_ratio;
+};
+
+// Move ActivationButtonNotificationBadge class definition to header
+class ActivationButtonNotificationBadge : public wxPanel {
 public:
-    CircularBadge(wxWindow* parent, const wxString& text, const wxColour& bgColor)
+    ActivationButtonNotificationBadge(wxWindow* parent, const wxString& text, const wxColour& bgColor)
         : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(16, 16))
     {
         m_text = text;
@@ -28,7 +34,7 @@ public:
         SetBackgroundColour(*wxWHITE);
 #endif
 
-        Bind(wxEVT_PAINT, &CircularBadge::OnPaint, this);
+        Bind(wxEVT_PAINT, &ActivationButtonNotificationBadge::OnPaint, this);
     }
 
     // Add method to update text
@@ -43,10 +49,10 @@ private:
     wxColour m_bgColor;
 };
 
-class JustPrinButton : public wxPanel
+class ChatActivationButton : public wxPanel
 {
 public:
-    JustPrinButton(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize);
+    ChatActivationButton(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize);
     void DoSetSize(int x, int y, int width, int height, int sizeFlags = wxSIZE_AUTO) override;
     void AddJoin(std::function<void(wxMouseEvent&)> do_some) { m_do = do_some; }
 
@@ -67,8 +73,11 @@ public:
     JusPrinView3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
     virtual ~JusPrinView3D();
 
-    void showChatPanel();
-    void hideChatPanel();
+    void changeChatPanelView(const std::string& viewMode);
+    void setChatPanelVisibility(bool is_visible);
+    void setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge);
+    std::string getChatPanelViewMode() const { return m_chatpanel_view_mode; }
+    bool getChatPanelVisibility() const { return m_chat_panel->IsShown(); }
 
     JusPrinChatPanel* jusprinChatPanel() const { return m_chat_panel; }
 
@@ -77,12 +86,26 @@ protected:
     void OnCanvasMouseDown(SimpleEvent& evt);
 
 private:
-    void init_overlay();
+    void initOverlay();
+    void showChatPanel();
+    void hideChatPanel();
+    void updateChatPanelRect();
+    void updateActivationButtonRect();
+    void showBadgesIfNecessary(); // This method depends on the bounds of the activation button. Needs to be called after updateActivationButtonRect()
 
     JusPrinChatPanel* m_chat_panel{nullptr};
-    JustPrinButton*   m_overlay_btn{nullptr};
-    CircularBadge*    m_icon_text_left{nullptr};
-    CircularBadge*    m_icon_text_right{nullptr};
+    ChatActivationButton*   m_overlay_btn{nullptr};
+
+    std::string m_chatpanel_view_mode{"large"}; // Default to large view
+
+    // Badges
+    int m_red_badge_count{0};
+    int m_orange_badge_count{0};
+    int m_green_badge_count{0};
+    ActivationButtonNotificationBadge*    m_red_badge{nullptr};
+    ActivationButtonNotificationBadge*    m_orange_badge{nullptr};
+    ActivationButtonNotificationBadge*    m_green_badge{nullptr};
+
 };
 
 } // namespace GUI

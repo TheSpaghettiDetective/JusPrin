@@ -36,6 +36,7 @@ public:
         const std::string& notification_text,
         const std::string& notification_type = "",
         const std::string& notification_level = "");
+    void SendChatPanelFocusEvent(const std::string& focus_event_type);
 
     // End of Agent events that are processed by the chat panel
 
@@ -72,6 +73,7 @@ private:
     nlohmann::json handle_add_printers(const nlohmann::json& params);
     nlohmann::json handle_add_filaments(const nlohmann::json& params);
     nlohmann::json handle_get_current_project(const nlohmann::json& params);
+    nlohmann::json handle_change_chatpanel_display(const nlohmann::json& params);
 
     // Actions to trigger events in JusPrin
     void handle_show_login(const nlohmann::json& params);
@@ -79,7 +81,7 @@ private:
     void handle_export_gcode(const nlohmann::json& params);
     void handle_auto_orient_object(const nlohmann::json& params);
     void handle_plater_undo(const nlohmann::json& params);
-    void handle_show_chatpanel(const nlohmann::json& params);
+    void handle_set_btn_notification_badges(const nlohmann::json& params);
 
     // Actions to fetch info to be sent to the web page
     void handle_refresh_oauth_token(const nlohmann::json& params);
