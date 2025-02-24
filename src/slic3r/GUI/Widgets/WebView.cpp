@@ -257,6 +257,8 @@ wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
 
 #ifdef __WIN32__
     wxWebView* webView = new WebViewEdge;
+    webView->SetWindowStyle(webView->GetWindowStyle() | wxWANTS_CHARS);
+
 #elif defined(__WXOSX__)
     wxWebView *webView = new WebViewWebKit;
 #else
