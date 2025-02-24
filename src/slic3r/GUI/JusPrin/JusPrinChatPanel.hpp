@@ -45,6 +45,8 @@ public:
 
     void AdvertiseSupportedAction();
 
+    wxWebView* GetWebview() { return m_browser; };
+
 private:
     void load_url();
     void update_mode();

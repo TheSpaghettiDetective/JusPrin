@@ -455,7 +455,11 @@ void JusPrinView3D::OnCanvasMouseDown(SimpleEvent& evt) {
     wxRect  clientRect = m_chat_panel->GetScreenRect();
     wxPoint  mouseScreenPos = this->get_wxglcanvas()->ClientToScreen(mousePos);
     if (clientRect.Contains(mouseScreenPos)) {
+        wxPoint click = m_chat_panel->GetWebview()->ScreenToClient(mouseScreenPos);
         m_chat_panel->ProcessWindowEvent(evt);
+        wxContextMenuEvent evt(wxEVT_CONTEXT_MENU, m_chat_panel->GetWebview()->GetId());
+        evt.SetPosition(click);
+        m_chat_panel->GetWebview()->ProcessWindowEvent(evt);
         return true;
     }
     return false;

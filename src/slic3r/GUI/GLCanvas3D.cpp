@@ -4465,7 +4465,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                         if (post_right_click_event)
                             post_event(RBtnEvent(EVT_GLCANVAS_RIGHT_CLICK, { logical_pos, m_hover_volume_idxs.empty() }));
                     }
-                }
+                } 
             }
         }
 
