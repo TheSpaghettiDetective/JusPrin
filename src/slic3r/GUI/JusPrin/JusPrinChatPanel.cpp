@@ -49,12 +49,6 @@ JusPrinChatPanel::JusPrinChatPanel(wxWindow* parent)
     // Bind events after everything is set up
     bind_event_handlers();
 
-    // Make sure we're above GLCanvas3D in z-order
-    Raise();
-    if (m_browser) {
-        m_browser->Raise();
-    }
-
     BOOST_LOG_TRIVIAL(debug) << "JusPrinChatPanel creation complete";
 
     update_mode();
