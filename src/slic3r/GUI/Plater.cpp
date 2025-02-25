@@ -660,7 +660,17 @@ Sidebar::Sidebar(Plater *parent)
     Choice::register_dynamic_list("solid_infill_filament", &dynamic_filament_list_1_based);
     Choice::register_dynamic_list("wipe_tower_filament", &dynamic_filament_list);
 
-    p->scrolled = new wxPanel(this);
+    wxNotebook* notebook = new wxNotebook(this, wxID_ANY);
+
+    p->scrolled = new wxPanel(notebook);
+
+    // 创建另一个面板作为第二个标签页的内容
+    auto* panel2 =  new JusPrinChatPanel(notebook);
+    
+    notebook->AddPage(p->scrolled , wxT("标签 1"));
+    notebook->AddPage(panel2, wxT("标签 2"));
+    
+
     //    p->scrolled->SetScrollbars(0, 100, 1, 2); // ys_DELETE_after_testing. pixelsPerUnitY = 100
     // but this cause the bad layout of the sidebar, when all infoboxes appear.
     // As a result we can see the empty block at the bottom of the sidebar
@@ -1133,7 +1143,7 @@ Sidebar::Sidebar(Plater *parent)
 
     // byzzh
     p->config_sizer = new wxBoxSizer(wxVERTICAL);
-    p->config_sizer->Add(p->scrolled, 1, wxEXPAND);
+    p->config_sizer->Add(notebook, 1, wxEXPAND);
 
     p->size_top = new wxBoxSizer(wxVERTICAL);
     p->size_top->Add(p->config_sizer, 1, wxEXPAND);
