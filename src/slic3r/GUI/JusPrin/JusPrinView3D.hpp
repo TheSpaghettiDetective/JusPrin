@@ -5,67 +5,15 @@
 #include "JusPrinChatPanel.hpp"
 
 // Forward declarations
-class wxStaticBitmap;
 class wxWindow;
-class wxSizeEvent;
 
 namespace Slic3r {
 namespace GUI {
 
-// Add near the top of the file, inside the Slic3r::GUI namespace
+// Chat panel size configuration
 struct ChatPanelConfig {
     double height_ratio;
     double width_ratio;
-};
-
-// Move ActivationButtonNotificationBadge class definition to header
-class ActivationButtonNotificationBadge : public wxPanel {
-public:
-    ActivationButtonNotificationBadge(wxWindow* parent, const wxString& text, const wxColour& bgColor)
-        : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(16, 16))
-    {
-        m_text = text;
-        m_bgColor = bgColor;
-#ifdef __APPLE__
-        // Set transparent background
-        SetBackgroundStyle(wxBG_STYLE_TRANSPARENT);
-        SetBackgroundColour(wxTransparentColour);
-#else
-        SetBackgroundColour(*wxWHITE);
-#endif
-
-        Bind(wxEVT_PAINT, &ActivationButtonNotificationBadge::OnPaint, this);
-    }
-
-    // Add method to update text
-    void SetText(const wxString& text) {
-        m_text = text;
-        Refresh();
-    }
-
-private:
-    void OnPaint(wxPaintEvent&);
-    wxString m_text;
-    wxColour m_bgColor;
-};
-
-class ChatActivationButton : public wxPanel
-{
-public:
-    ChatActivationButton(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize);
-    void DoSetSize(int x, int y, int width, int height, int sizeFlags = wxSIZE_AUTO) override;
-    void AddJoin(std::function<void(wxMouseEvent&)> do_some) { m_do = do_some; }
-
-private:
-    void OnPaint(wxPaintEvent& event);
-    void OnMouseEnter(wxMouseEvent& event);
-    void OnMouseLeave(wxMouseEvent& event);
-    void OnMouseMove(wxMouseEvent& event);
-
-private:
-    bool                 m_isHovered{false};
-    wxAnimationCtrlBase* m_animationCtrl{nullptr};
-    std::function<void(wxMouseEvent&)> m_do{nullptr};
 };
 
 class JusPrinView3D : public View3D {

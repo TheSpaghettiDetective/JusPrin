@@ -1,16 +1,199 @@
 #include "JusPrinPlaterOverlay.hpp"
 #include "JusPrinChatPanel.hpp"
-#include "JusPrinView3D.hpp" // Include for UI components like ChatActivationButton
+#include "boost/filesystem/path.hpp"
 
 #include <wx/window.h>
 #include <wx/animate.h>
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
+#include <wx/statbmp.h>
+#include <wx/bitmap.h>
 
 #include "../GUI_App.hpp"
 
 namespace Slic3r {
 namespace GUI {
+
+// Implementation of ActivationButtonNotificationBadge
+ActivationButtonNotificationBadge::ActivationButtonNotificationBadge(wxWindow* parent, const wxString& text, const wxColour& bgColor)
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(16, 16))
+{
+    m_text = text;
+    m_bgColor = bgColor;
+#ifdef __APPLE__
+    // Set transparent background
+    SetBackgroundStyle(wxBG_STYLE_TRANSPARENT);
+    SetBackgroundColour(wxTransparentColour);
+#else
+    SetBackgroundColour(*wxWHITE);
+#endif
+
+    Bind(wxEVT_PAINT, &ActivationButtonNotificationBadge::OnPaint, this);
+}
+
+void ActivationButtonNotificationBadge::OnPaint(wxPaintEvent&) {
+    wxPaintDC dc(this);
+    dc.SetBackgroundMode(wxTRANSPARENT);
+
+    wxSize size = GetClientSize();
+
+    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
+    if (gc) {
+#ifdef __APPLE__
+        // Draw with solid color, no border
+        gc->SetBrush(wxBrush(m_bgColor));
+        gc->SetPen(wxPen(m_bgColor)); // Changed to use background color for no visible border
+
+        // Draw slightly smaller than the full size to ensure margins
+        double margin = 1.0;
+        gc->DrawEllipse(margin, margin,
+                       size.GetWidth() - 2*margin,
+                       size.GetHeight() - 2*margin);
+
+        // Draw text in black for maximum contrast
+        auto font = GetFont().Scale(0.8);
+        gc->SetFont(font, *wxBLACK);
+        double textWidth, textHeight;
+        gc->GetTextExtent(m_text, &textWidth, &textHeight);
+
+        double x = (size.GetWidth() - textWidth) / 2;
+        double y = (size.GetHeight() - textHeight) / 2;
+        gc->DrawText(m_text, x, y);
+ #else
+        int width  = size.GetWidth();
+        int height = size.GetHeight();
+        gc->SetPen(wxPen(m_bgColor, 1));
+        gc->SetBrush(wxBrush(wxColour(*wxWHITE)));
+        gc->DrawRectangle(0, 0, width-1, height-1);
+        auto font = GetFont().Scale(0.8);
+        gc->SetFont(font, m_bgColor);
+        double textWidth, textHeight;
+        gc->GetTextExtent(m_text, &textWidth, &textHeight);
+
+        double x = (size.GetWidth() - textWidth) / 2;
+        double y = (size.GetHeight() - textHeight) / 2;
+        gc->DrawText(m_text, x, y);
+ #endif
+
+        delete gc;
+    }
+}
+
+// Implementation of ChatActivationButton
+ChatActivationButton::ChatActivationButton(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size)
+    : wxPanel(parent, id, pos, size, wxTAB_TRAVERSAL | wxBORDER_NONE)
+{
+#ifdef __APPLE__
+    SetBackgroundStyle(wxBG_STYLE_TRANSPARENT);
+    SetBackgroundColour(wxColour(0, 0, 0, 0));
+#endif
+
+    Bind(wxEVT_PAINT, &ChatActivationButton::OnPaint, this);
+    m_animationCtrl = new wxAnimationCtrl(this, wxID_ANY);
+    wxAnimation animation;
+    wxString    gif_url = from_u8((boost::filesystem::path(resources_dir()) /"images/prin_login.gif").make_preferred().string());
+    if (animation.LoadFile(gif_url, wxANIMATION_TYPE_GIF)) {
+        m_animationCtrl->SetAnimation(animation);
+        m_animationCtrl->Play();
+    }
+    Bind(wxEVT_ENTER_WINDOW, &ChatActivationButton::OnMouseEnter, this);
+    Bind(wxEVT_LEAVE_WINDOW, &ChatActivationButton::OnMouseLeave, this);
+    Bind(wxEVT_MOTION, &ChatActivationButton::OnMouseMove, this);
+    m_animationCtrl->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent& event) {
+        if (m_do) {
+            m_do(event);
+        }
+        event.Skip();
+    });
+}
+
+void ChatActivationButton::OnPaint(wxPaintEvent& event) {
+    wxAutoBufferedPaintDC dc(this);
+    dc.Clear();
+
+    wxSize size = GetClientSize();
+    int width = size.GetWidth();
+    int height = size.GetHeight();
+    int radius = 12;
+
+    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
+    if (gc) {
+        // Clear background
+        wxColour transparentColour(255, 255, 255, 0);
+        gc->SetBrush(wxBrush(transparentColour));
+        gc->DrawRectangle(0, 0, width, height);
+
+#ifdef __APPLE__
+        // Draw drop shadows with offset
+        // First shadow (larger, more diffuse)
+        gc->SetBrush(wxBrush(wxColour(10, 10, 10, 8)));
+        gc->DrawRoundedRectangle(4, 6, width - 4, height - 4, radius);
+
+        // Second shadow (smaller, more intense)
+        gc->SetBrush(wxBrush(wxColour(33, 33, 33, 15)));
+        gc->DrawRoundedRectangle(4, 5, width - 6, height - 5, radius);
+
+        // Main button
+        gc->SetBrush(wxBrush(*wxWHITE));
+        wxColour borderColor = !m_isHovered ? wxColour(0, 0, 0, 0) : *wxBLUE;
+        gc->SetPen(wxPen(borderColor, 1));
+        gc->DrawRoundedRectangle(3, 3, width-6, height-6, radius);
+
+#else
+        // Main button
+        gc->SetBrush(wxBrush(*wxWHITE));
+        wxColour borderColor = !m_isHovered ? wxColour(0, 0, 0, 0) : *wxBLUE;
+        gc->SetPen(wxPen(borderColor, 1));
+        gc->DrawRectangle(0, 0, width-2, height-2);
+#endif
+        delete gc;
+    }
+}
+
+void ChatActivationButton::OnMouseEnter(wxMouseEvent& event){
+    m_isHovered = true;
+    Refresh();
+}
+
+void ChatActivationButton::OnMouseLeave(wxMouseEvent& event)  {
+    wxPoint mousePos   = ScreenToClient(wxGetMousePosition());
+    wxRect  clientRect = GetClientRect();
+    if (!clientRect.Contains(mousePos)) {
+        m_isHovered = false;
+        Refresh();
+    }
+}
+
+void ChatActivationButton::OnMouseMove(wxMouseEvent& event) {
+    wxPoint mousePos   = event.GetPosition();
+    wxRect  clientRect = GetClientRect();
+    if (!clientRect.Contains(mousePos)) {
+        if (m_isHovered) {
+            m_isHovered = false;
+            Refresh();
+        }
+    } else {
+        if (!m_isHovered) {
+            m_isHovered = true;
+            Refresh();
+        }
+    }
+}
+
+// Animation/Image constants
+constexpr int ANIMATION_WIDTH = 227;
+constexpr int ANIMATION_HEIGHT = 28;
+
+void ChatActivationButton::DoSetSize(int x, int y, int width, int height, int sizeFlags) {
+    m_animationCtrl->SetSize(
+        (width - ANIMATION_WIDTH) / 2,
+        (height - ANIMATION_HEIGHT) / 2,
+        ANIMATION_WIDTH,
+        ANIMATION_HEIGHT,
+        sizeFlags
+    );
+    wxPanel::DoSetSize(x, y, width, height, sizeFlags);
+}
 
 // Constants
 namespace {

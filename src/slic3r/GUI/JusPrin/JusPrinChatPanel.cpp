@@ -14,7 +14,6 @@
 
 #include "JusPrinPresetConfigUtils.hpp"
 #include "JusPrinPlateUtils.hpp"
-#include "JusPrinView3D.hpp"
 #include "JusPrinPlaterOverlay.hpp"
 
 
