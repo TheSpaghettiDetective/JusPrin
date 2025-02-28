@@ -5134,6 +5134,7 @@ void Plater::initChatPanel()
 
     // Bind click event to show chat panel
     auto open_chat = [this](wxMouseEvent& evt) {
+        showChatPanel();  // Show the chat panel
         jusprinChatPanel()->SendChatPanelFocusEvent("in_focus");
         evt.Skip();
     };
