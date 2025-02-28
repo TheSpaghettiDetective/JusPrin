@@ -29,10 +29,10 @@
 #include "libslic3r/CutUtils.hpp"
 #include "libslic3r/FlushVolCalc.hpp"
 #include "slic3r/GUI/JusPrin/JusPrinChatPanel.hpp"
-// Forward declare JusPrin UI classes we need
+
+// Forward declaration
 namespace Slic3r { namespace GUI {
-    class ChatActivationButton;
-    class ActivationButtonNotificationBadge;
+    class JusPrinPlaterOverlay;
 }}
 
 #define FILAMENT_SYSTEM_COLORS_NUM      16
@@ -791,38 +791,26 @@ public:
 
     bool is_loading_project() const { return m_loading_project; }
 
+    // JusPrin overlay/chat panel access
     GUI::JusPrinChatPanel* jusprinChatPanel() const;
     
-    // Chat panel related methods
+    // Chat panel related methods (forwarded to JusPrinPlaterOverlay)
     void initChatPanel();
     void showChatPanel();
     void hideChatPanel();
-    void updateChatPanelRect();
-    void updateActivationButtonRect();
     void changeChatPanelView(const std::string& viewMode);
     void setChatPanelVisibility(bool is_visible);
     void setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge);
-    void showChatPanelBadgesIfNecessary();
-    void onCanvasResize();
     bool getChatPanelVisibility() const;
     std::string getChatPanelViewMode() const;
+    void onCanvasResize();
 
 private:
     struct priv;
     std::unique_ptr<priv> p;
     
-    // Chat panel components owned by Plater
-    JusPrinChatPanel* m_chat_panel{nullptr};
-    ChatActivationButton* m_overlay_btn{nullptr};
-    ActivationButtonNotificationBadge* m_red_badge{nullptr};
-    ActivationButtonNotificationBadge* m_orange_badge{nullptr};
-    ActivationButtonNotificationBadge* m_green_badge{nullptr};
-    
-    // Chat panel state
-    std::string m_chatpanel_view_mode{"large"}; // Default to large view
-    int m_red_badge_count{0};
-    int m_orange_badge_count{0};
-    int m_green_badge_count{0};
+    // JusPrin overlay manager that handles chat panel
+    std::unique_ptr<JusPrinPlaterOverlay> m_jusprin_overlay{nullptr};
 
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.
     // The error messages are collected to m_tracking_popup_menu_error_message instead and these error messages
