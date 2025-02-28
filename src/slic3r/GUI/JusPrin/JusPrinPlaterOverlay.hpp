@@ -3,10 +3,17 @@
 
 #include <wx/panel.h>
 #include <string>
-#include "JusPrinView3D.hpp" // Include this to use the UI classes defined there
+
+// Forward declarations
+class wxWindow;
 
 namespace Slic3r {
 namespace GUI {
+
+// Forward declarations
+class JusPrinChatPanel;
+class ChatActivationButton;
+class ActivationButtonNotificationBadge;
 
 // Class to manage the chat panel and related UI components that display 
 // on top of the Plater in both Prepare and Preview tabs

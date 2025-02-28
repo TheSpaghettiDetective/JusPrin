@@ -1,5 +1,6 @@
 #include "JusPrinView3D.hpp"
-#include "JusPrinPlaterOverlay.hpp" // Include this for direct overlay access
+#include "JusPrinPlaterOverlay.hpp" // Include for direct overlay access
+#include "../GUI_App.hpp" // For wxGetApp()
 
 #include <wx/statbmp.h>
 #include <wx/bitmap.h>
@@ -238,32 +239,6 @@ JusPrinView3D::JusPrinView3D(wxWindow* parent, Bed3D& bed, Model* model, Dynamic
 JusPrinView3D::~JusPrinView3D()
 {
     // Chat panel and related components are now owned by Plater
-}
-
-// Forward methods to JusPrinPlaterOverlay in Plater
-void JusPrinView3D::changeChatPanelView(const std::string& viewMode) {
-    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
-    if (overlay) overlay->changeChatPanelView(viewMode);
-}
-
-void JusPrinView3D::setChatPanelVisibility(bool is_visible) {
-    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
-    if (overlay) overlay->setChatPanelVisibility(is_visible);
-}
-
-void JusPrinView3D::setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge) {
-    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
-    if (overlay) overlay->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
-}
-
-std::string JusPrinView3D::getChatPanelViewMode() const {
-    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
-    return overlay ? overlay->getChatPanelViewMode() : "large";
-}
-
-bool JusPrinView3D::getChatPanelVisibility() const {
-    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
-    return overlay ? overlay->getChatPanelVisibility() : false;
 }
 
 JusPrinChatPanel* JusPrinView3D::jusprinChatPanel() const {

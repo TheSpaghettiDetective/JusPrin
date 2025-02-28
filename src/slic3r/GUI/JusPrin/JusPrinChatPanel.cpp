@@ -15,6 +15,7 @@
 #include "JusPrinPresetConfigUtils.hpp"
 #include "JusPrinPlateUtils.hpp"
 #include "JusPrinView3D.hpp"
+#include "JusPrinPlaterOverlay.hpp"
 
 
 namespace Slic3r { namespace GUI {
@@ -256,8 +257,8 @@ nlohmann::json JusPrinChatPanel::handle_apply_config(const nlohmann::json& param
 nlohmann::json JusPrinChatPanel::handle_change_chatpanel_display(const nlohmann::json& params) {
     nlohmann::json payload = params.value("payload", nlohmann::json::object());
 
-    auto* view3d = dynamic_cast<JusPrinView3D*>(GetParent());
-    if (!view3d) {
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    if (!overlay) {
         return nlohmann::json::object({
             {"view_mode", ""},
             {"visible", false}
@@ -266,16 +267,16 @@ nlohmann::json JusPrinChatPanel::handle_change_chatpanel_display(const nlohmann:
 
     std::string view_mode = payload.value("view_mode", "");
     if (!view_mode.empty()) {
-        view3d->changeChatPanelView(view_mode);
+        overlay->changeChatPanelView(view_mode);
     }
 
     if (payload.contains("visible")) {
-        view3d->setChatPanelVisibility(payload.value("visible", false));
+        overlay->setChatPanelVisibility(payload.value("visible", false));
     }
 
     return nlohmann::json::object({
-        {"view_mode", view3d->getChatPanelViewMode()},
-        {"visible", view3d->getChatPanelVisibility()}
+        {"view_mode", overlay->getChatPanelViewMode()},
+        {"visible", overlay->getChatPanelVisibility()}
     });
 }
 
@@ -313,9 +314,10 @@ void JusPrinChatPanel::handle_set_btn_notification_badges(const nlohmann::json& 
     int orange_badge = payload.value("orange_badge", 0);
     int green_badge = payload.value("green_badge", 0);
 
-    wxGetApp().CallAfter([this, red_badge, orange_badge, green_badge] {
-        if (auto* view3d = dynamic_cast<JusPrinView3D*>(GetParent())) {
-            view3d->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
+    wxGetApp().CallAfter([red_badge, orange_badge, green_badge] {
+        auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+        if (overlay) {
+            overlay->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
         }
     });
 }

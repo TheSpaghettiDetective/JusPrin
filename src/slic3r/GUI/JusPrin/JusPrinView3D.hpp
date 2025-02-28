@@ -73,13 +73,7 @@ public:
     JusPrinView3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
     virtual ~JusPrinView3D();
 
-    // Forward chat panel operations to the Plater
-    void changeChatPanelView(const std::string& viewMode);
-    void setChatPanelVisibility(bool is_visible);
-    void setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge);
-    std::string getChatPanelViewMode() const;
-    bool getChatPanelVisibility() const;
-
+    // Access the chat panel from the plater
     JusPrinChatPanel* jusprinChatPanel() const;
 
 protected:

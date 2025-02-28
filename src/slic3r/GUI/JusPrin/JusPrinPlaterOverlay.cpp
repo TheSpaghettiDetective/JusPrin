@@ -1,6 +1,6 @@
 #include "JusPrinPlaterOverlay.hpp"
 #include "JusPrinChatPanel.hpp"
-#include "JusPrinView3D.hpp" // We need the original implementations for the UI classes
+#include "JusPrinView3D.hpp" // Include for UI components like ChatActivationButton
 
 #include <wx/window.h>
 #include <wx/animate.h>
@@ -11,9 +11,6 @@
 
 namespace Slic3r {
 namespace GUI {
-
-// Implementation moved to JusPrinView3D.cpp
-// We don't need to redefine it here as we're just reusing the class
 
 // Constants
 namespace {
