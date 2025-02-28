@@ -5137,45 +5137,9 @@ void Plater::initChatPanel()
     }
 }
 
-// Forward methods to JusPrinPlaterOverlay
-void Plater::showChatPanel()
-{
-    if (m_jusprin_overlay) m_jusprin_overlay->showChatPanel();
-}
-
-void Plater::hideChatPanel()
-{
-    if (m_jusprin_overlay) m_jusprin_overlay->hideChatPanel();
-}
-
-void Plater::changeChatPanelView(const std::string& viewMode)
-{
-    if (m_jusprin_overlay) m_jusprin_overlay->changeChatPanelView(viewMode);
-}
-
-void Plater::setChatPanelVisibility(bool is_visible)
-{
-    if (m_jusprin_overlay) m_jusprin_overlay->setChatPanelVisibility(is_visible);
-}
-
-void Plater::setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge)
-{
-    if (m_jusprin_overlay) m_jusprin_overlay->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
-}
-
 void Plater::onCanvasResize()
 {
     if (m_jusprin_overlay) m_jusprin_overlay->onParentResize();
-}
-
-bool Plater::getChatPanelVisibility() const
-{
-    return m_jusprin_overlay ? m_jusprin_overlay->getChatPanelVisibility() : false;
-}
-
-std::string Plater::getChatPanelViewMode() const
-{
-    return m_jusprin_overlay ? m_jusprin_overlay->getChatPanelViewMode() : "large";
 }
 
 void Plater::priv::split_object()

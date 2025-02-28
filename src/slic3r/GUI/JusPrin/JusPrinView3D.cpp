@@ -1,4 +1,5 @@
 #include "JusPrinView3D.hpp"
+#include "JusPrinPlaterOverlay.hpp" // Include this for direct overlay access
 
 #include <wx/statbmp.h>
 #include <wx/bitmap.h>
@@ -239,25 +240,30 @@ JusPrinView3D::~JusPrinView3D()
     // Chat panel and related components are now owned by Plater
 }
 
-// Forward methods to Plater for chat panel
+// Forward methods to JusPrinPlaterOverlay in Plater
 void JusPrinView3D::changeChatPanelView(const std::string& viewMode) {
-    wxGetApp().plater()->changeChatPanelView(viewMode);
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    if (overlay) overlay->changeChatPanelView(viewMode);
 }
 
 void JusPrinView3D::setChatPanelVisibility(bool is_visible) {
-    wxGetApp().plater()->setChatPanelVisibility(is_visible);
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    if (overlay) overlay->setChatPanelVisibility(is_visible);
 }
 
 void JusPrinView3D::setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge) {
-    wxGetApp().plater()->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    if (overlay) overlay->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
 }
 
 std::string JusPrinView3D::getChatPanelViewMode() const {
-    return wxGetApp().plater()->getChatPanelViewMode();
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    return overlay ? overlay->getChatPanelViewMode() : "large";
 }
 
 bool JusPrinView3D::getChatPanelVisibility() const {
-    return wxGetApp().plater()->getChatPanelVisibility();
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    return overlay ? overlay->getChatPanelVisibility() : false;
 }
 
 JusPrinChatPanel* JusPrinView3D::jusprinChatPanel() const {
@@ -266,8 +272,10 @@ JusPrinChatPanel* JusPrinView3D::jusprinChatPanel() const {
 
 void JusPrinView3D::OnCanvasMouseDown(SimpleEvent& evt) {
     // Still send out of focus event when canvas is clicked
-    if (wxGetApp().plater()->getChatPanelVisibility()) {
-        wxGetApp().plater()->jusprinChatPanel()->SendChatPanelFocusEvent("out_of_focus");
+    auto* overlay = wxGetApp().plater()->getJusPrinOverlay();
+    if (overlay && overlay->getChatPanelVisibility()) {
+        auto* chat_panel = overlay->getChatPanel();
+        if (chat_panel) chat_panel->SendChatPanelFocusEvent("out_of_focus");
     }
     evt.Skip();
 }

@@ -13,7 +13,11 @@ void JusPrinNotificationManager::render_notifications(GLCanvas3D& canvas, float 
         if (!slicing_progress) continue;
         float percentage = slicing_progress->get_percentage();
         if (percentage <= 0) continue;
-        wxGetApp().plater()->jusprinChatPanel()->SendSlicingProgressEvent(percentage, slicing_progress->get_text1());
+        
+        auto* chat_panel = wxGetApp().plater()->jusprinChatPanel();
+        if (chat_panel) {
+            chat_panel->SendSlicingProgressEvent(percentage, slicing_progress->get_text1());
+        }
         break; // Only need to find the first one
     }
 
@@ -97,8 +101,9 @@ void JusPrinNotificationManager::push_import_finished_notification(const std::st
 }
 
 void JusPrinNotificationManager::push_notification_to_chat(const std::string& text, const std::string& type, const std::string& level) {
-    if (wxGetApp().plater() && wxGetApp().plater()->jusprinChatPanel()) {
-        wxGetApp().plater()->jusprinChatPanel()->SendNotificationPushedEvent(text, type, level);
+    auto* chat_panel = wxGetApp().plater()->jusprinChatPanel();
+    if (chat_panel) {
+        chat_panel->SendNotificationPushedEvent(text, type, level);
     }
 }
 

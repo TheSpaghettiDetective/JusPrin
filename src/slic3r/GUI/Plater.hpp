@@ -791,18 +791,12 @@ public:
 
     bool is_loading_project() const { return m_loading_project; }
 
-    // JusPrin overlay/chat panel access
-    GUI::JusPrinChatPanel* jusprinChatPanel() const;
-    
-    // Chat panel related methods (forwarded to JusPrinPlaterOverlay)
+    // JusPrin overlay access - provides access to chat panel functionality
     void initChatPanel();
-    void showChatPanel();
-    void hideChatPanel();
-    void changeChatPanelView(const std::string& viewMode);
-    void setChatPanelVisibility(bool is_visible);
-    void setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge);
-    bool getChatPanelVisibility() const;
-    std::string getChatPanelViewMode() const;
+    GUI::JusPrinChatPanel* jusprinChatPanel() const;
+    GUI::JusPrinPlaterOverlay* getJusPrinOverlay() const { return m_jusprin_overlay.get(); }
+    
+    // Handle canvas resize events
     void onCanvasResize();
 
 private:
