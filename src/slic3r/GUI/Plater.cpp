@@ -5157,16 +5157,21 @@ void Plater::initChatPanel()
     m_red_badge->Raise();
     m_chat_panel->Raise();
 
-    // Initially hide all elements
-    m_overlay_btn->Hide();
+    // Initially hide badge elements
     m_red_badge->Hide();
     m_orange_badge->Hide();
     m_green_badge->Hide();
 
-    // If in developer mode, show the chat panel
+    // Initialize position of overlay button
+    updateActivationButtonRect();
+    
+    // If in developer mode, show the chat panel, otherwise show the button
     if (wxGetApp().app_config->get_bool("developer_mode")) {
         changeChatPanelView("large");
         showChatPanel();
+    } else {
+        m_chat_panel->Hide();
+        m_overlay_btn->Show();
     }
 
     // Bind resize event to ensure proper positioning
