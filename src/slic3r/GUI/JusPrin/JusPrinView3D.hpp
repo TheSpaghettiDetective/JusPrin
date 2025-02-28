@@ -73,40 +73,22 @@ public:
     JusPrinView3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process);
     virtual ~JusPrinView3D();
 
+    // Forward chat panel operations to the Plater
     void changeChatPanelView(const std::string& viewMode);
     void setChatPanelVisibility(bool is_visible);
     void setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge);
-    std::string getChatPanelViewMode() const { return m_chatpanel_view_mode; }
-    bool getChatPanelVisibility() const { return m_chat_panel->IsShown(); }
+    std::string getChatPanelViewMode() const;
+    bool getChatPanelVisibility() const;
 
-    JusPrinChatPanel* jusprinChatPanel() const { return m_chat_panel; }
+    JusPrinChatPanel* jusprinChatPanel() const;
 
 protected:
-    void OnSize(wxSizeEvent& evt);
     void OnCanvasMouseDown(SimpleEvent& evt);
 
 private:
-    void initOverlay();
-    void showChatPanel();
-    void hideChatPanel();
-    void updateChatPanelRect();
-    void updateActivationButtonRect();
-    void showBadgesIfNecessary(); // This method depends on the bounds of the activation button. Needs to be called after updateActivationButtonRect()
-
-    JusPrinChatPanel* m_chat_panel{nullptr};
-    ChatActivationButton*   m_overlay_btn{nullptr};
-
-    std::string m_chatpanel_view_mode{"large"}; // Default to large view
-
-    // Badges
-    int m_red_badge_count{0};
-    int m_orange_badge_count{0};
-    int m_green_badge_count{0};
-    ActivationButtonNotificationBadge*    m_red_badge{nullptr};
-    ActivationButtonNotificationBadge*    m_orange_badge{nullptr};
-    ActivationButtonNotificationBadge*    m_green_badge{nullptr};
-
+    // Chat panel and related components are now managed by Plater
 };
+
 
 } // namespace GUI
 } // namespace Slic3r

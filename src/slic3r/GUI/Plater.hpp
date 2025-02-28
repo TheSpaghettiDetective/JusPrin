@@ -29,6 +29,11 @@
 #include "libslic3r/CutUtils.hpp"
 #include "libslic3r/FlushVolCalc.hpp"
 #include "slic3r/GUI/JusPrin/JusPrinChatPanel.hpp"
+// Forward declare JusPrin UI classes we need
+namespace Slic3r { namespace GUI {
+    class ChatActivationButton;
+    class ActivationButtonNotificationBadge;
+}}
 
 #define FILAMENT_SYSTEM_COLORS_NUM      16
 
@@ -787,10 +792,37 @@ public:
     bool is_loading_project() const { return m_loading_project; }
 
     GUI::JusPrinChatPanel* jusprinChatPanel() const;
+    
+    // Chat panel related methods
+    void initChatPanel();
+    void showChatPanel();
+    void hideChatPanel();
+    void updateChatPanelRect();
+    void updateActivationButtonRect();
+    void changeChatPanelView(const std::string& viewMode);
+    void setChatPanelVisibility(bool is_visible);
+    void setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge);
+    void showChatPanelBadgesIfNecessary();
+    void onCanvasResize();
+    bool getChatPanelVisibility() const;
+    std::string getChatPanelViewMode() const;
 
 private:
     struct priv;
     std::unique_ptr<priv> p;
+    
+    // Chat panel components owned by Plater
+    JusPrinChatPanel* m_chat_panel{nullptr};
+    ChatActivationButton* m_overlay_btn{nullptr};
+    ActivationButtonNotificationBadge* m_red_badge{nullptr};
+    ActivationButtonNotificationBadge* m_orange_badge{nullptr};
+    ActivationButtonNotificationBadge* m_green_badge{nullptr};
+    
+    // Chat panel state
+    std::string m_chatpanel_view_mode{"large"}; // Default to large view
+    int m_red_badge_count{0};
+    int m_orange_badge_count{0};
+    int m_green_badge_count{0};
 
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.
     // The error messages are collected to m_tracking_popup_menu_error_message instead and these error messages

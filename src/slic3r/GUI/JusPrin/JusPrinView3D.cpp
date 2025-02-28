@@ -230,220 +230,43 @@ static const ChatPanelConfig LARGE_CONFIG = {
 
 JusPrinView3D::JusPrinView3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)
     : View3D(parent, bed, model, config, process)
-    , m_chatpanel_view_mode("large") // Initialize with large view
 {
-    initOverlay();
+    // Chat panel now managed by Plater, no initialization needed here
 }
 
 JusPrinView3D::~JusPrinView3D()
 {
-    delete m_chat_panel;
-    delete m_overlay_btn;
-    delete m_red_badge;
-    delete m_orange_badge;
-    delete m_green_badge;
+    // Chat panel and related components are now owned by Plater
 }
 
-void JusPrinView3D::updateChatPanelRect() {
-    if (!m_chat_panel) return;
-
-    const auto& config = m_chatpanel_view_mode == "large" ? LARGE_CONFIG : SMALL_CONFIG;
-
-    wxSize size = GetClientSize();
-    int chat_width = std::max(MIN_CHAT_WIDTH, (int)(size.GetWidth() * config.width_ratio));
-    int chat_height = std::max(MIN_CHAT_HEIGHT, (int)(size.GetHeight() * config.height_ratio));
-
-    m_chat_panel->SetSize(
-        (size.GetWidth() - chat_width) / 2,
-        size.GetHeight() - chat_height - CHAT_BOTTOM_MARGIN,
-        chat_width,
-        chat_height
-    );
-}
-
-void JusPrinView3D::updateActivationButtonRect() {
-    // Resize and reposition overlay button
-    int image_height = OVERLAY_IMAGE_HEIGHT + OVERLAY_PADDING;
-    int image_width = OVERLAY_IMAGE_WIDTH + OVERLAY_PADDING;
-    int button_y = GetClientSize().GetHeight() - image_height - CHAT_BOTTOM_MARGIN;
-
-    m_overlay_btn->SetSize(
-        (GetClientSize().GetWidth() - image_width) / 2,
-        button_y,
-        image_width,
-        image_height
-    );
-}
-
-void JusPrinView3D::showBadgesIfNecessary() {
-    if (!m_red_badge || !m_orange_badge || !m_green_badge) return;
-
-    auto formatBadgeText = [](int count) {
-        return count > 9 ? "9+" : std::to_string(count);
-    };
-
-    m_red_badge->SetText(formatBadgeText(m_red_badge_count));
-    m_orange_badge->SetText(formatBadgeText(m_orange_badge_count));
-    m_green_badge->SetText(formatBadgeText(m_green_badge_count));
-
-    int image_width = OVERLAY_IMAGE_WIDTH + OVERLAY_PADDING;
-    wxRect btn_rect = m_overlay_btn->GetRect();
-    int button_y = btn_rect.GetY();
-
-    const int num_visible_badges = (m_red_badge_count > 0) +
-           (m_orange_badge_count > 0) +
-           (m_green_badge_count > 0);
-
-#ifdef __APPLE__
-    constexpr int BADGE_OFFSET_Y = 8;
-    constexpr int RIGHT_MARGIN = 10;
-    constexpr double BADGE_OVERLAP = 0.75;
-#else
-    constexpr int BADGE_OFFSET_Y = BADGE_SIZE;
-    constexpr int RIGHT_MARGIN = 0;
-    constexpr double BADGE_OVERLAP = 1.0;
-#endif
-
-    int icon_x = (GetClientSize().GetWidth() + image_width) / 2;
-    if (num_visible_badges == 1) {
-        icon_x -= BADGE_SIZE + RIGHT_MARGIN;
-    } else if (num_visible_badges > 1) {
-        icon_x -= BADGE_SIZE + BADGE_SIZE * (num_visible_badges - 1) * BADGE_OVERLAP + RIGHT_MARGIN;
-    }
-
-    if (m_green_badge_count > 0) {
-        m_green_badge->SetPosition({icon_x, button_y - BADGE_OFFSET_Y});
-        icon_x += BADGE_SIZE*BADGE_OVERLAP;
-    }
-
-    if (m_orange_badge_count > 0) {
-        m_orange_badge->SetPosition({icon_x, button_y - BADGE_OFFSET_Y});
-        icon_x += BADGE_SIZE*BADGE_OVERLAP;
-    }
-
-    if (m_red_badge_count > 0) {
-        m_red_badge->SetPosition({icon_x, button_y - BADGE_OFFSET_Y});
-    }
-
-    m_red_badge->Refresh();
-    m_orange_badge->Refresh();
-    m_green_badge->Refresh();
-
-    bool show_badges = m_overlay_btn->IsShown();
-    // Handle all badge visibility
-    if (show_badges) {
-        // Show badges with positive counts
-        if (m_green_badge_count > 0) m_green_badge->Show();
-        if (m_orange_badge_count > 0) m_orange_badge->Show();
-        if (m_red_badge_count > 0) m_red_badge->Show();
-    }
-    // Hide badges with zero counts
-    if (m_green_badge_count <= 0) m_green_badge->Hide();
-    if (m_orange_badge_count <= 0) m_orange_badge->Hide();
-    if (m_red_badge_count <= 0) m_red_badge->Hide();
-
-}
-
-void JusPrinView3D::initOverlay()
-{
-    m_chat_panel = new JusPrinChatPanel(this);
-    m_chat_panel->Hide();
-
-    // Create image overlay using resources directory
-    m_overlay_btn = new ChatActivationButton(this, wxID_ANY,
-        wxPoint((GetClientSize().GetWidth() - 200) / 2, GetClientSize().GetHeight() - 40),
-        wxSize(200, 100));
-
-    // Bind click event to show chat panel
-    auto open_chat = [this](wxMouseEvent& evt) {
-        wxGetApp().plater()->jusprinChatPanel()->SendChatPanelFocusEvent("in_focus");
-        evt.Skip();
-    };
-    m_overlay_btn->Bind(wxEVT_LEFT_DOWN, open_chat);
-    m_overlay_btn->AddJoin(open_chat);
-
-    m_red_badge = new ActivationButtonNotificationBadge(this, "", wxColour("#E65C5C"));
-    m_orange_badge = new ActivationButtonNotificationBadge(this, "", wxColour("#FDB074"));
-    m_green_badge = new ActivationButtonNotificationBadge(this, "", wxColour("#009685"));
-    m_red_badge->SetSize(BADGE_SIZE, BADGE_SIZE);
-    m_orange_badge->SetSize(BADGE_SIZE, BADGE_SIZE);
-    m_green_badge->SetSize(BADGE_SIZE, BADGE_SIZE);
-
-    // Important: Ensure proper z-order. Wrong order can cause the chat panel to not receive events on Windows
-    m_overlay_btn->Raise();
-    m_green_badge->Raise();
-    m_orange_badge->Raise();
-    m_red_badge->Raise();
-    m_chat_panel->Raise();
-
-    m_overlay_btn->Hide();
-    m_red_badge->Hide();
-    m_orange_badge->Hide();
-    m_green_badge->Hide();
-
-    if (wxGetApp().app_config->get_bool("developer_mode")) {    // Make sure chat can display in dev mode so that we can bring out javascript console
-        changeChatPanelView("large");
-        showChatPanel();
-    }
-
-    this->get_canvas3d()->get_wxglcanvas()->Bind(EVT_GLCANVAS_MOUSE_DOWN, &JusPrinView3D::OnCanvasMouseDown, this);
-    Bind(wxEVT_SIZE, &JusPrinView3D::OnSize, this);
-
-
-}
-
-void JusPrinView3D::OnSize(wxSizeEvent& evt)
-{
-    evt.Skip();
-    if (!m_chat_panel || !m_overlay_btn) return;
-
-    updateChatPanelRect();
-    updateActivationButtonRect();
-    showBadgesIfNecessary();
-}
-
-void JusPrinView3D::showChatPanel() {
-    if (!m_chat_panel) return;
-
-    m_chat_panel->Show();
-    m_chat_panel->SetFocus();
-    m_overlay_btn->Hide();
-    showBadgesIfNecessary();
-}
-
-void JusPrinView3D::hideChatPanel() {
-    if (!m_chat_panel) return;
-
-    m_chat_panel->Hide();
-    m_overlay_btn->Show();
-    showBadgesIfNecessary();
-}
-
-
+// Forward methods to Plater for chat panel
 void JusPrinView3D::changeChatPanelView(const std::string& viewMode) {
-    if (!m_chat_panel) return;
-
-    m_chatpanel_view_mode = viewMode;
-    updateChatPanelRect();
+    wxGetApp().plater()->changeChatPanelView(viewMode);
 }
 
 void JusPrinView3D::setChatPanelVisibility(bool is_visible) {
-    if (is_visible) {
-        showChatPanel();
-    } else {
-        hideChatPanel();
-    }
+    wxGetApp().plater()->setChatPanelVisibility(is_visible);
 }
 
 void JusPrinView3D::setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge) {
-    m_red_badge_count = red_badge;
-    m_orange_badge_count = orange_badge;
-    m_green_badge_count = green_badge;
-    showBadgesIfNecessary();
+    wxGetApp().plater()->setChatPanelNotificationBadges(red_badge, orange_badge, green_badge);
+}
+
+std::string JusPrinView3D::getChatPanelViewMode() const {
+    return wxGetApp().plater()->getChatPanelViewMode();
+}
+
+bool JusPrinView3D::getChatPanelVisibility() const {
+    return wxGetApp().plater()->getChatPanelVisibility();
+}
+
+JusPrinChatPanel* JusPrinView3D::jusprinChatPanel() const {
+    return wxGetApp().plater()->jusprinChatPanel();
 }
 
 void JusPrinView3D::OnCanvasMouseDown(SimpleEvent& evt) {
-    if (m_chat_panel && m_chat_panel->IsShown()) {
+    // Still send out of focus event when canvas is clicked
+    if (wxGetApp().plater()->getChatPanelVisibility()) {
         wxGetApp().plater()->jusprinChatPanel()->SendChatPanelFocusEvent("out_of_focus");
     }
     evt.Skip();

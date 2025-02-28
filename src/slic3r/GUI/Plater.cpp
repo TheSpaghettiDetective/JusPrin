@@ -153,6 +153,7 @@
 #include "FileArchiveDialog.hpp"
 #include "JusPrin/JusPrinView3D.hpp"
 #include "JusPrin/JusPrinNotificationManager.hpp"
+#include "JusPrin/JusPrinChatPanel.hpp" // Required for Chat UI components
 
 using boost::optional;
 namespace fs = boost::filesystem;
@@ -5117,10 +5118,246 @@ void Plater::find_new_position(const ModelInstancePtrs &instances)
 
 GUI::JusPrinChatPanel* Plater::jusprinChatPanel() const
 {
-    if (auto jusprin_view = dynamic_cast<GUI::JusPrinView3D*>(p->view3D)) {
-        return jusprin_view->jusprinChatPanel();
+    return m_chat_panel;
+}
+
+void Plater::initChatPanel()
+{
+    // Create the chat panel as a child of the plater
+    m_chat_panel = new JusPrinChatPanel(this);
+    m_chat_panel->Hide();
+
+    // Create overlay button for activating the chat panel
+    m_overlay_btn = new ChatActivationButton(this, wxID_ANY,
+        wxPoint((GetClientSize().GetWidth() - 200) / 2, GetClientSize().GetHeight() - 40),
+        wxSize(200, 100));
+
+    // Bind click event to show chat panel
+    auto open_chat = [this](wxMouseEvent& evt) {
+        jusprinChatPanel()->SendChatPanelFocusEvent("in_focus");
+        evt.Skip();
+    };
+    m_overlay_btn->Bind(wxEVT_LEFT_DOWN, open_chat);
+    m_overlay_btn->AddJoin(open_chat);
+
+    // Create notification badges
+    m_red_badge = new ActivationButtonNotificationBadge(this, "", wxColour("#E65C5C"));
+    m_orange_badge = new ActivationButtonNotificationBadge(this, "", wxColour("#FDB074"));
+    m_green_badge = new ActivationButtonNotificationBadge(this, "", wxColour("#009685"));
+    
+    constexpr int BADGE_SIZE = 22;
+    m_red_badge->SetSize(BADGE_SIZE, BADGE_SIZE);
+    m_orange_badge->SetSize(BADGE_SIZE, BADGE_SIZE);
+    m_green_badge->SetSize(BADGE_SIZE, BADGE_SIZE);
+
+    // Set proper z-order
+    m_overlay_btn->Raise();
+    m_green_badge->Raise();
+    m_orange_badge->Raise();
+    m_red_badge->Raise();
+    m_chat_panel->Raise();
+
+    // Initially hide all elements
+    m_overlay_btn->Hide();
+    m_red_badge->Hide();
+    m_orange_badge->Hide();
+    m_green_badge->Hide();
+
+    // If in developer mode, show the chat panel
+    if (wxGetApp().app_config->get_bool("developer_mode")) {
+        changeChatPanelView("large");
+        showChatPanel();
     }
-    return nullptr;
+
+    // Bind resize event to ensure proper positioning
+    Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
+        onCanvasResize();
+        evt.Skip();
+    });
+}
+
+void Plater::showChatPanel()
+{
+    if (!m_chat_panel) return;
+
+    m_chat_panel->Show();
+    m_chat_panel->SetFocus();
+    m_overlay_btn->Hide();
+    showChatPanelBadgesIfNecessary();
+}
+
+void Plater::hideChatPanel()
+{
+    if (!m_chat_panel) return;
+
+    m_chat_panel->Hide();
+    m_overlay_btn->Show();
+    showChatPanelBadgesIfNecessary();
+}
+
+void Plater::updateChatPanelRect()
+{
+    if (!m_chat_panel) return;
+
+    // Chat panel size constants
+    constexpr int MIN_CHAT_HEIGHT = 340;
+    constexpr int MIN_CHAT_WIDTH = 420;
+    constexpr double CHAT_HEIGHT_RATIO_SMALL = 0.25;
+    constexpr double CHAT_WIDTH_RATIO_SMALL = 0.5;
+    constexpr double CHAT_HEIGHT_RATIO_LARGE = 0.75;
+    constexpr double CHAT_WIDTH_RATIO_LARGE = 0.85;
+    constexpr int CHAT_BOTTOM_MARGIN = 10;
+
+    // Get the appropriate ratio based on view mode
+    double height_ratio = (m_chatpanel_view_mode == "large") ? CHAT_HEIGHT_RATIO_LARGE : CHAT_HEIGHT_RATIO_SMALL;
+    double width_ratio = (m_chatpanel_view_mode == "large") ? CHAT_WIDTH_RATIO_LARGE : CHAT_WIDTH_RATIO_SMALL;
+
+    wxSize size = GetClientSize();
+    int chat_width = std::max(MIN_CHAT_WIDTH, (int)(size.GetWidth() * width_ratio));
+    int chat_height = std::max(MIN_CHAT_HEIGHT, (int)(size.GetHeight() * height_ratio));
+
+    m_chat_panel->SetSize(
+        (size.GetWidth() - chat_width) / 2,
+        size.GetHeight() - chat_height - CHAT_BOTTOM_MARGIN,
+        chat_width,
+        chat_height
+    );
+}
+
+void Plater::updateActivationButtonRect()
+{
+    // Button constants
+    constexpr int OVERLAY_IMAGE_HEIGHT = 38;
+    constexpr int OVERLAY_IMAGE_WIDTH = 238;
+    constexpr int OVERLAY_PADDING = 8;
+    constexpr int CHAT_BOTTOM_MARGIN = 10;
+
+    int image_height = OVERLAY_IMAGE_HEIGHT + OVERLAY_PADDING;
+    int image_width = OVERLAY_IMAGE_WIDTH + OVERLAY_PADDING;
+    int button_y = GetClientSize().GetHeight() - image_height - CHAT_BOTTOM_MARGIN;
+
+    m_overlay_btn->SetSize(
+        (GetClientSize().GetWidth() - image_width) / 2,
+        button_y,
+        image_width,
+        image_height
+    );
+}
+
+void Plater::showChatPanelBadgesIfNecessary() 
+{
+    constexpr int BADGE_SIZE = 22;
+    
+    if (!m_red_badge || !m_orange_badge || !m_green_badge) return;
+
+    auto formatBadgeText = [](int count) {
+        return count > 9 ? "9+" : std::to_string(count);
+    };
+
+    m_red_badge->SetText(formatBadgeText(m_red_badge_count));
+    m_orange_badge->SetText(formatBadgeText(m_orange_badge_count));
+    m_green_badge->SetText(formatBadgeText(m_green_badge_count));
+
+    int image_width = 238 + 8; // OVERLAY_IMAGE_WIDTH + OVERLAY_PADDING
+    wxRect btn_rect = m_overlay_btn->GetRect();
+    int button_y = btn_rect.GetY();
+
+    const int num_visible_badges = (m_red_badge_count > 0) +
+           (m_orange_badge_count > 0) +
+           (m_green_badge_count > 0);
+
+#ifdef __APPLE__
+    constexpr int BADGE_OFFSET_Y = 8;
+    constexpr int RIGHT_MARGIN = 10;
+    constexpr double BADGE_OVERLAP = 0.75;
+#else
+    constexpr int BADGE_OFFSET_Y = BADGE_SIZE;
+    constexpr int RIGHT_MARGIN = 0;
+    constexpr double BADGE_OVERLAP = 1.0;
+#endif
+
+    int icon_x = (GetClientSize().GetWidth() + image_width) / 2;
+    if (num_visible_badges == 1) {
+        icon_x -= BADGE_SIZE + RIGHT_MARGIN;
+    } else if (num_visible_badges > 1) {
+        icon_x -= BADGE_SIZE + BADGE_SIZE * (num_visible_badges - 1) * BADGE_OVERLAP + RIGHT_MARGIN;
+    }
+
+    // Position badges
+    if (m_green_badge_count > 0) {
+        m_green_badge->SetPosition({icon_x, button_y - BADGE_OFFSET_Y});
+        icon_x += BADGE_SIZE*BADGE_OVERLAP;
+    }
+
+    if (m_orange_badge_count > 0) {
+        m_orange_badge->SetPosition({icon_x, button_y - BADGE_OFFSET_Y});
+        icon_x += BADGE_SIZE*BADGE_OVERLAP;
+    }
+
+    if (m_red_badge_count > 0) {
+        m_red_badge->SetPosition({icon_x, button_y - BADGE_OFFSET_Y});
+    }
+
+    m_red_badge->Refresh();
+    m_orange_badge->Refresh();
+    m_green_badge->Refresh();
+
+    bool show_badges = m_overlay_btn->IsShown();
+    
+    // Handle badge visibility
+    if (show_badges) {
+        // Show badges with positive counts
+        if (m_green_badge_count > 0) m_green_badge->Show();
+        if (m_orange_badge_count > 0) m_orange_badge->Show();
+        if (m_red_badge_count > 0) m_red_badge->Show();
+    }
+    
+    // Hide badges with zero counts
+    if (m_green_badge_count <= 0) m_green_badge->Hide();
+    if (m_orange_badge_count <= 0) m_orange_badge->Hide();
+    if (m_red_badge_count <= 0) m_red_badge->Hide();
+}
+
+void Plater::changeChatPanelView(const std::string& viewMode)
+{
+    if (!m_chat_panel) return;
+
+    m_chatpanel_view_mode = viewMode;
+    updateChatPanelRect();
+}
+
+void Plater::setChatPanelVisibility(bool is_visible)
+{
+    if (is_visible) {
+        showChatPanel();
+    } else {
+        hideChatPanel();
+    }
+}
+
+void Plater::setChatPanelNotificationBadges(int red_badge, int orange_badge, int green_badge)
+{
+    m_red_badge_count = red_badge;
+    m_orange_badge_count = orange_badge;
+    m_green_badge_count = green_badge;
+    showChatPanelBadgesIfNecessary();
+}
+
+void Plater::onCanvasResize()
+{
+    updateChatPanelRect();
+    updateActivationButtonRect();
+    showChatPanelBadgesIfNecessary();
+}
+
+bool Plater::getChatPanelVisibility() const
+{
+    return m_chat_panel && m_chat_panel->IsShown();
+}
+
+std::string Plater::getChatPanelViewMode() const
+{
+    return m_chatpanel_view_mode;
 }
 
 void Plater::priv::split_object()
@@ -8833,6 +9070,9 @@ Plater::Plater(wxWindow *parent, MainFrame *main_frame)
     // Initialization performed in the private c-tor
     enable_wireframe(true);
     m_only_gcode = false;
+    
+    // Initialize the chat panel at the Plater level
+    initChatPanel();
 }
 
 bool Plater::Show(bool show)
