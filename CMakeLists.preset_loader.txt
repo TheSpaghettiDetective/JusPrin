@@ -1,0 +1,36 @@
+cmake_minimum_required(VERSION 3.13)
+project(PresetLoader)
+
+set(CMAKE_CXX_STANDARD 14)
+
+# Find required packages
+find_package(Boost REQUIRED COMPONENTS system filesystem thread)
+
+# Include JusPrin sources
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+# Add the JusPrin source directories to include path
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/libslic3r
+)
+
+# Source files
+set(SOURCES
+    main.cpp
+)
+
+# Add executable target
+add_executable(preset_loader ${SOURCES})
+
+# Get all JusPrin libraries
+set(JUSPRINSLICER_LIBS "")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/build/src/libslic3r/liblibslic3r.a")
+    set(JUSPRINSLICER_LIBS ${JUSPRINSLICER_LIBS} "${CMAKE_CURRENT_SOURCE_DIR}/build/src/libslic3r/liblibslic3r.a")
+endif()
+
+# Link with libraries
+target_link_libraries(preset_loader
+    ${JUSPRINSLICER_LIBS}
+    ${Boost_LIBRARIES}
+)
