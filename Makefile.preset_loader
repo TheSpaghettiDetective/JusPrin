@@ -1,0 +1,32 @@
+##############################################################
+# Makefile for JusPrin preset_loader
+##############################################################
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -arch arm64
+
+# Find Boost
+BOOST_INCLUDE = $(shell brew --prefix boost)/include
+BOOST_LIB = $(shell brew --prefix boost)/lib
+CXXFLAGS += -I$(BOOST_INCLUDE)
+LDFLAGS += -L$(BOOST_LIB) -lboost_system -lboost_filesystem -lboost_thread-mt
+
+# Include directories
+INCLUDES = -I. -Isrc -Isrc/libslic3r -Isrc/eigen -Ibuild_arm64/src -Ibuild_arm64/src/libslic3r
+
+# JusPrin library paths
+JUSPRINSLICER_LIB = build_arm64/src/libslic3r/Release/liblibslic3r.a
+
+# Build the preset loader
+preset_loader: main.cpp
+	@echo "Building the preset loader with JusPrin libraries."
+	@echo "Make sure you've already built JusPrin with ./build_release_macos.sh"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o preset_loader main.cpp $(JUSPRINSLICER_LIB) $(LDFLAGS)
+
+# Default target
+all: preset_loader
+
+clean:
+	rm -f preset_loader
+
+.PHONY: all clean

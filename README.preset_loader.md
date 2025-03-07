@@ -1,63 +1,55 @@
-# Preset Loader
+# JusPrin Preset Loader Utility
 
-This is a simple command-line utility for loading JusPrin/OrcaSlicer preset files and displaying their key-value pairs to the console.
+A command-line utility for loading and examining JusPrin/OrcaSlicer preset files using the actual JusPrin libraries.
 
-## Building and Running the Utility
+## Purpose
 
-The preset loader is a standalone application that only depends on the nlohmann/json library. It does not require the full JusPrin/OrcaSlicer build environment.
+This utility exercises the actual JusPrin/OrcaSlicer code to load preset files (Print, Filament, and Printer presets) exactly as the main application would. This ensures that:
+
+1. We're using the real `PresetBundle`, `DynamicPrintConfig`, and other JusPrin classes
+2. Any preset compatibility or loading issues will be caught exactly as they would in the application
+3. The same code paths are exercised as in the full application
+
+## Building the Preset Loader
+
+The preset loader requires all the dependencies of JusPrin itself, since it uses the actual JusPrin libraries.
 
 ### Prerequisites
 
-You need:
 - A C++ compiler (g++ or clang++)
-- The nlohmann/json library
+- Boost libraries
+- All other JusPrin dependencies
+- JusPrin/OrcaSlicer source code with a properly built `liblibslic3r.a` library
 
-### Step 1: Install the nlohmann/json library
-
-```bash
-# On macOS with Homebrew
-brew install nlohmann-json
-
-# On Ubuntu/Debian
-sudo apt-get install nlohmann-json3-dev
-```
-
-### Step 2: Compile the source code
-
-Navigate to the directory containing the `preset_loader_standalone.cpp` file and compile it:
+### Building on macOS
 
 ```bash
-# Navigate to your JusPrin directory
 cd ~/Projects/JusPrin
 
-# Compile the standalone version
-g++ -std=c++14 -o preset_loader preset_loader_standalone.cpp -I/opt/homebrew/include
+# First ensure JusPrin libraries are built
+./build_release_macos.sh
+
+# Then build the preset loader
+make -f Makefile.preset_loader
 ```
 
-This creates an executable file called `preset_loader` in your current directory.
+### Building on Linux
 
-### Step 3: Run the preset loader
+Similar to macOS, but you'll need to adjust paths in the Makefile to point to your built JusPrin libraries.
+
+## Usage
 
 ```bash
-# Basic usage
 ./preset_loader path/to/your/preset_file.json
 ```
 
 ## Output Format
 
-The preset loader organizes its output into two sections:
+The loader displays:
 
-1. **Preset Metadata**: Important information about the preset, including:
-   - name
-   - version
-   - inherits (parent preset)
-   - setting_id
-   - base_id
-   - and other metadata fields
-
-2. **Configuration Values**: All the actual settings in the preset, organized alphabetically.
-
-Nested JSON structures (objects and arrays) are properly formatted for readability.
+1. **Preset Information**: Metadata like name, version, and inherits
+2. **Additional Metadata**: Setting ID, base ID, etc.
+3. **Configuration Values**: All settings in alphabetical order
 
 ## Examples
 
@@ -74,14 +66,13 @@ Nested JSON structures (objects and arrays) are properly formatted for readabili
 
 ## Troubleshooting
 
-If you get compilation errors related to missing headers:
+### Compilation Issues
 
-- Check if the nlohmann/json library is properly installed
-- Verify the include path in your compilation command:
-  - For macOS with Homebrew: `-I/opt/homebrew/include`
-  - For Linux/Ubuntu: `-I/usr/include`
+- Make sure you have built JusPrin first with `./build_release_macos.sh`
+- Check that the library paths in the Makefile point to your actual built libraries
+- You may need to adjust include paths in the Makefile based on your system setup
 
-If you get runtime errors:
+### Runtime Issues
 
-- Make sure the preset file exists and is a valid JSON file
-- Check if you have read permissions for the file
+- Ensure the preset file exists and is a valid JSON file
+- Runtime errors may indicate issues with the preset structure that would also cause problems in JusPrin
