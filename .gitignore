@@ -36,3 +36,4 @@ src/OrcaSlicer-doc/
 resources/profiles/user/default
 *.code-workspace
 preset_loader
+preset_loader.dSYM

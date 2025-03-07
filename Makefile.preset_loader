@@ -5,7 +5,7 @@
 ######################################################################
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wno-deprecated-declarations -Wno-reorder-ctor -Wno-delete-non-abstract-non-virtual-dtor -DBOOST_LOG_DYN_LINK
+CXXFLAGS = -std=c++17 -Wall -Wno-deprecated-declarations -Wno-reorder-ctor -Wno-delete-non-abstract-non-virtual-dtor -DBOOST_LOG_DYN_LINK -g
 
 # Homebrew installations
 BOOST_DIR = /opt/homebrew/opt/boost
