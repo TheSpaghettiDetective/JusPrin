@@ -1,0 +1,31 @@
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wno-deprecated-declarations
+
+# Include directories
+INCLUDES = -I/opt/homebrew/opt/boost/include -I/opt/homebrew/opt/nlohmann-json/include
+
+# Libraries
+LIBS = -L/opt/homebrew/opt/boost/lib -lboost_system -lboost_filesystem
+
+# Source files
+SRCS = simple_preset_loader.cpp
+
+# Object files
+OBJS = $(SRCS:.cpp=.o)
+
+# Target
+TARGET = simple_preset_loader
+
+# Rules
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean

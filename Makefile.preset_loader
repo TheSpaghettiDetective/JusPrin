@@ -1,30 +1,62 @@
-##############################################################
-# Makefile for JusPrin preset_loader
-##############################################################
+######################################################################
+# Makefile for JusPrin preset_loader utility                         #
+# This utility loads preset files using the JusPrin/OrcaSlicer        #
+# libslic3r library.                                                 #
+######################################################################
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -arch arm64
+CXXFLAGS = -std=c++17 -Wall -Wno-deprecated-declarations -Wno-reorder-ctor -Wno-delete-non-abstract-non-virtual-dtor -DBOOST_LOG_DYN_LINK
 
-# Find Boost
-BOOST_INCLUDE = $(shell brew --prefix boost)/include
-BOOST_LIB = $(shell brew --prefix boost)/lib
-CXXFLAGS += -I$(BOOST_INCLUDE)
-LDFLAGS += -L$(BOOST_LIB) -lboost_system -lboost_filesystem -lboost_thread-mt
+# Homebrew installations
+BOOST_DIR = /opt/homebrew/opt/boost
+BOOST_INCLUDE = $(BOOST_DIR)/include
+BOOST_LIB_DIR = $(BOOST_DIR)/lib
 
 # Include directories
-INCLUDES = -I. -Isrc -Isrc/libslic3r -Isrc/eigen -Ibuild_arm64/src -Ibuild_arm64/src/libslic3r
+INCLUDES = -I. -Isrc -Isrc/libslic3r -Isrc/eigen -Ibuild_arm64/src -Ibuild_arm64/src/libslic3r \
+           -Ideps/build_arm64/dep_Cereal-prefix/src/dep_Cereal/include \
+           -Ideps/build_arm64/OrcaSlicer_dep_arm64/usr/local/include \
+           -Isrc/libigl -I/usr/local/include \
+           -I$(BOOST_INCLUDE)
 
-# JusPrin library paths
-JUSPRINSLICER_LIB = build_arm64/src/libslic3r/Release/liblibslic3r.a
+# Libraries
+SLIC3R_LIB = build_arm64/src/libslic3r/Release/liblibslic3r.a
+MINIZ_LIB = build_arm64/src/miniz/Release/libminiz_static.a
+SEMVER_LIB = build_arm64/src/semver/Release/libsemver.a
+QOI_LIB = build_arm64/src/qoi/Release/libqoi.a
 
-# Build the preset loader
-preset_loader: main.cpp
+# System libraries
+SYS_LIBS = -lpthread -lssl -lcrypto -ljpeg -ltbb -lz -liconv
+
+# Boost libraries (in the order they need to be linked)
+# The order is important - dependencies must come after the libraries that depend on them
+BOOST_LIBS = -L$(BOOST_LIB_DIR) \
+             -lboost_system \
+             -lboost_filesystem \
+             -lboost_thread \
+             -lboost_log \
+             -lboost_log_setup \
+             -lboost_locale \
+             -lboost_regex \
+             -lboost_chrono \
+             -lboost_atomic \
+             -lboost_date_time \
+             -lboost_iostreams \
+             -lboost_program_options
+
+# Additional lib directories
+ADDITIONAL_LIB_DIRS = -L/usr/local/lib -Ldeps/build_arm64/OrcaSlicer_dep_arm64/usr/local/lib
+
+# Flags to pass to the linker
+LDFLAGS = $(ADDITIONAL_LIB_DIRS) $(BOOST_LIBS) $(SYS_LIBS)
+
+all: preset_loader
+
+# Main target
+preset_loader: main.cpp $(SLIC3R_LIB) $(MINIZ_LIB) $(SEMVER_LIB) $(QOI_LIB)
 	@echo "Building the preset loader with JusPrin libraries."
 	@echo "Make sure you've already built JusPrin with ./build_release_macos.sh"
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o preset_loader main.cpp $(JUSPRINSLICER_LIB) $(LDFLAGS)
-
-# Default target
-all: preset_loader
+	$(CXX) -o $@ $< $(CXXFLAGS) $(INCLUDES) $(SLIC3R_LIB) $(MINIZ_LIB) $(SEMVER_LIB) $(QOI_LIB) $(LDFLAGS)
 
 clean:
 	rm -f preset_loader
