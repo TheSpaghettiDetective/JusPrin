@@ -16,16 +16,21 @@ tests/unit/
 
 ### Quick Start
 
-First, build the project dependencies:
+Navigate to the project root directory first:
+```bash
+cd /path/to/project/root  # Replace with actual path to project root
+```
+
+Then build the project dependencies:
 ```bash
 ./build_release_macos.sh -d  # This generates required dependencies without building the main project
 ```
 
-Then from the project root:
+Next, create a build directory and run the tests:
 ```bash
-mkdir -p build_unit_tests
-cd build_unit_tests
-cmake ../tests/unit
+mkdir -p tests/unit/build  # Create build directory inside tests/unit
+cd tests/unit/build
+cmake ..
 cmake --build . --target build_all_tests  # Build all tests
 cmake --build . --target run_all_tests    # Run all tests
 ```
