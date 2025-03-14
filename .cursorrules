@@ -9,6 +9,7 @@ If you are working on files in the tests/unit/ folder, you are working making un
 
 - Find how the main project's dependencies are established by analyzing @file/build_release_macos.sh. Remember, the source code in the `src` folder should already have all dependencies resolved by @file/build_release_macos.sh
 - Use the dependencies established by running `./build_release_macos.sh -d`
+- If there is a compile error about a missing dependency, ALWAYS look in @file/src/CMakeLists.txt and @file/src/libslic3r/CMakeLists.txt to see if one of them already has a way to resolve that dependency.
 - Do NOT try to install and use system dependencies
 
 ## Compile errors
