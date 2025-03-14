@@ -4,6 +4,10 @@
     #include <charconv>
 #endif
 #include <stdexcept>
+#include <sstream>
+#include <iomanip>
+#include <cmath>
+#include <cctype>
 
 #include <fast_float/fast_float.h>
 
@@ -53,8 +57,20 @@ bool is_decimal_separator_point()
 
 double string_to_double_decimal_point(const std::string_view str, size_t* pos /* = nullptr*/)
 {
+    if (str.empty()) {
+        if (pos) *pos = 0;
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    // Skip leading whitespace
+    size_t start = 0;
+    while (start < str.size() && std::isspace(str[start])) {
+        ++start;
+    }
+
     double out;
-    size_t p = fast_float::from_chars(str.data(), str.data() + str.size(), out).ptr - str.data();
+    auto result = fast_float::from_chars(str.data() + start, str.data() + str.size(), out);
+    size_t p = result.ptr - str.data();
     if (pos)
         *pos = p;
     return out;
@@ -62,6 +78,11 @@ double string_to_double_decimal_point(const std::string_view str, size_t* pos /*
 
 std::string float_to_string_decimal_point(double value, int precision/* = -1*/)
 {
+    // Handle negative zero
+    if (value == 0.0 && std::signbit(value)) {
+        value = 0.0;  // Convert to positive zero
+    }
+
     // Our Windows build server fully supports C++17 std::to_chars. Let's use it.
     // Other platforms are behind, fall back to slow stringstreams for now.
 #ifdef _WIN32

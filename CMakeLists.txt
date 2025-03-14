@@ -741,6 +741,10 @@ if(SLIC3R_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
+# Add unit tests
+enable_testing()
+add_subdirectory(tests/unit)
+
 if (NOT WIN32 AND NOT APPLE)
     set(SLIC3R_APP_CMD "jus-prin")
     configure_file(${LIBDIR}/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh @ONLY)
