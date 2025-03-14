@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find Boost
 find_package(Boost 1.65.0 REQUIRED)
 
+# Find Catch2
+find_package(Catch2 3 REQUIRED)
+
 # Enable testing
 enable_testing()
 
@@ -22,7 +25,7 @@ target_include_directories(fast_float INTERFACE
 
 # Create library for LocalesUtils
 add_library(locales_utils
-    ${CMAKE_SOURCE_DIR}/../../src/libslic3r/LocalesUtils.cpp
+    ${CMAKE_SOURCE_DIR}/src/libslic3r/LocalesUtils.cpp
 )
 
 target_include_directories(locales_utils
@@ -43,6 +46,12 @@ add_executable(format_test test_format.cpp)
 target_link_libraries(locales_utils_test
     PRIVATE
     locales_utils
+    Catch2::Catch2
+)
+
+target_link_libraries(format_test
+    PRIVATE
+    Catch2::Catch2
 )
 
 target_include_directories(format_test
