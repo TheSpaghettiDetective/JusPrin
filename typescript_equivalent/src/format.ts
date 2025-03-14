@@ -1,0 +1,58 @@
+// TypeScript equivalent of format.hpp
+// A functional wrapper around string formatting
+// This implementation provides a similar interface to the C++ boost::format
+
+export namespace Slic3r {
+    // Internal namespace for format implementation
+    namespace internal {
+        export namespace format {
+            // Default "cook" function - just forward
+            export function cook<T>(arg: T): T {
+                return arg;
+            }
+
+            // Function overloads for formatRecursive
+            export function formatRecursive(message: string): string;
+            export function formatRecursive(message: string, arg: unknown, ...args: unknown[]): string;
+            export function formatRecursive(message: string, ...args: unknown[]): string {
+                if (args.length === 0) {
+                    return message;
+                }
+
+                const [firstArg, ...remainingArgs] = args;
+                // Replace the first occurrence of %s with the cooked argument
+                const cookedArg = cook(firstArg);
+                message = message.replace(/%[sdfg]/, String(cookedArg));
+
+                if (remainingArgs.length === 0) {
+                    return message;
+                }
+
+                return formatRecursive(message, ...remainingArgs as [unknown, ...unknown[]]);
+            }
+        }
+    }
+
+    // Main format function for string literal
+    export function format(fmt: string, ...args: unknown[]): string {
+        if (!fmt) return '';
+
+        // Validate format string
+        const invalidFormatRegex = /%(?![sdfg])/;
+        if (invalidFormatRegex.test(fmt)) {
+            throw new Error('Invalid format string');
+        }
+
+        if (args.length === 0) return fmt;
+
+        const placeholders = fmt.match(/%[sdfg]/g)?.length ?? 0;
+        if (placeholders < args.length) {
+            throw new Error('Too many arguments provided');
+        }
+        if (placeholders > args.length) {
+            throw new Error('Too few arguments provided');
+        }
+
+        return internal.format.formatRecursive(fmt, ...args as [unknown, ...unknown[]]);
+    }
+}
