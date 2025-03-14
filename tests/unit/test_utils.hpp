@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <clocale>
 
 namespace TestUtils {
 
@@ -25,7 +26,7 @@ std::string vec_to_string(const std::vector<T>& vec) {
         oss << vec[i];
     }
     oss << "]";
-    return oss;
+    return oss.str();
 }
 
 // Helper function for approximate floating point comparisons

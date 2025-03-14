@@ -6,7 +6,6 @@
 #include <vector>
 #include <memory>
 #include <thread>
-#include <sstream>
 
 using namespace Slic3r;
 using namespace TestUtils;
@@ -21,39 +20,6 @@ public:
         return os;
     }
 };
-
-// Helper function to convert formatted string to double
-double str_to_double(const std::string& str) {
-    std::istringstream iss(str);
-    double value;
-    iss >> value;
-    return value;
-}
-
-// Helper function to convert vector to string
-template<typename T>
-std::string vec_to_string(const std::vector<T>& vec) {
-    std::ostringstream oss;
-    oss << "[";
-    for (size_t i = 0; i < vec.size(); ++i) {
-        if (i > 0) oss << ", ";
-        oss << vec[i];
-    }
-    oss << "]";
-    return oss.str();
-}
-
-// Stream operator for vectors
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-    os << "[";
-    for (size_t i = 0; i < vec.size(); ++i) {
-        if (i > 0) os << ", ";
-        os << vec[i];
-    }
-    os << "]";
-    return os;
-}
 
 // Test basic formatting with different argument types
 TEST_CASE("Basic Format Tests", "[format]") {
@@ -149,7 +115,7 @@ TEST_CASE("Container Format Tests", "[format]") {
 
     SECTION("Empty container formatting") {
         std::vector<int> empty_vec;
-        REQUIRE_NOTHROW(format("%1%", vec_to_string(empty_vec)));
+        REQUIRE(format("%1%", vec_to_string(empty_vec)) == "[]");
     }
 }
 
