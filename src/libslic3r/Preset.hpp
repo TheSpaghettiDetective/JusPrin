@@ -241,7 +241,7 @@ public:
     std::string         base_id;         // base id of preset
     std::string         sync_info;       // enum: "delete", "create", "update", ""
     std::string         custom_defined;  // enum: "1", "0", ""
-    std::string         description;     // 
+    std::string         description;     //
     long long           updated_time{0};    //last updated time
     std::map<std::string, std::string> key_values;
 
@@ -322,12 +322,12 @@ public:
 
     static double convert_pellet_flow_to_filament_diameter(double pellet_flow_coefficient)
     {
-        return sqrt(4 / (PI * pellet_flow_coefficient)); 
+        return sqrt(4 / (PI * pellet_flow_coefficient));
     }
 
     static double convert_filament_diameter_to_pellet_flow(double filament_diameter)
     {
-        return 4 / (pow(filament_diameter, 2) * PI); 
+        return 4 / (pow(filament_diameter, 2) * PI);
     }
 
     static const std::vector<std::string>&  print_options();
@@ -401,8 +401,9 @@ using PresetsConfigSubstitutions = std::vector<PresetConfigSubstitutions>;
 class PresetCollection
 {
 public:
-    // Initialize the PresetCollection with the "- default -" preset.
     PresetCollection(Preset::Type type, const std::vector<std::string> &keys, const Slic3r::StaticPrintConfig &defaults, const std::string &default_name = "Default Setting");
+    PresetCollection(const PresetCollection &other) = delete;
+    PresetCollection& operator=(const PresetCollection &other) = delete;
 
     typedef std::deque<Preset>::iterator Iterator;
     typedef std::deque<Preset>::const_iterator ConstIterator;
@@ -696,11 +697,6 @@ public:
 
 protected:
     PresetCollection() = default;
-    // Copy constructor and copy operators are not to be used from outside PresetBundle,
-    // as the Profile::vendor points to an instance of VendorProfile stored at parent PresetBundle!
-    PresetCollection(const PresetCollection &other) = default;
-    //BBS: add operator= logic insteadof default
-    PresetCollection& operator=(const PresetCollection &other);
     // After copying a collection with the default operators above, call this function
     // to adjust Profile::vendor pointers.
     void            update_vendor_ptrs_after_copy(const VendorMap &vendors);
@@ -798,6 +794,8 @@ class PrinterPresetCollection : public PresetCollection
 public:
     PrinterPresetCollection(Preset::Type type, const std::vector<std::string> &keys, const Slic3r::StaticPrintConfig &defaults, const std::string &default_name = "Default Printer") :
 		PresetCollection(type, keys, defaults, default_name) {}
+    PrinterPresetCollection(const PrinterPresetCollection &other) = delete;
+    PrinterPresetCollection& operator=(const PrinterPresetCollection &other) = delete;
 
     const Preset&   default_preset_for(const DynamicPrintConfig &config) const override;
 
@@ -807,10 +805,6 @@ public:
     bool            only_default_printers() const;
 private:
     PrinterPresetCollection() = default;
-    PrinterPresetCollection(const PrinterPresetCollection &other) = default;
-    PrinterPresetCollection& operator=(const PrinterPresetCollection &other) = default;
-
-    friend class PresetBundle;
 };
 
 namespace PresetUtils {

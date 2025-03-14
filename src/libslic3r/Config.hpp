@@ -17,6 +17,7 @@
 #include "Point.hpp"
 #include "nlohmann/json.hpp"
 
+#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/format/format_fwd.hpp>
@@ -579,7 +580,7 @@ public:
     std::string serialize() const override
     {
         std::ostringstream ss;
-        ss << this->value;
+        ss << std::scientific << std::setprecision(std::numeric_limits<double>::digits10 + 1) << this->value;
         return ss.str();
     }
 
@@ -587,9 +588,12 @@ public:
     {
         if (append)
             return false;
-        std::istringstream iss(str);
-        iss >> this->value;
-        return !iss.fail();
+        try {
+            this->value = std::stod(str);
+            return true;
+        } catch (...) {
+            return false;
+        }
     }
 
     ConfigOptionFloat& operator=(const ConfigOption *opt)
@@ -752,10 +756,14 @@ public:
 
     bool deserialize(const std::string &str, bool append = false) override
     {
-        UNUSED(append);
-        std::istringstream iss(str);
-        iss >> this->value;
-        return !iss.fail();
+        if (append)
+            return false;
+        try {
+            this->value = std::stoi(str);
+            return true;
+        } catch (...) {
+            return false;
+        }
     }
 
     ConfigOptionInt& operator=(const ConfigOption *opt)
@@ -765,8 +773,8 @@ public:
     }
 
 private:
-	friend class cereal::access;
-	template<class Archive> void serialize(Archive &ar) { ar(cereal::base_class<ConfigOptionSingle<int>>(this)); }
+    friend class cereal::access;
+    template<class Archive> void serialize(Archive &ar) { ar(cereal::base_class<ConfigOptionSingle<int>>(this)); }
 };
 
 template<bool NULLABLE>
@@ -1383,35 +1391,44 @@ public:
     explicit ConfigOptionBool(bool _value) : ConfigOptionSingle<bool>(_value) {}
 
     static ConfigOptionType static_type() { return coBool; }
-    ConfigOptionType        type()      const override { return static_type(); }
-    bool                    getBool()   const override { return this->value; }
-    ConfigOption*           clone()     const override { return new ConfigOptionBool(*this); }
-    ConfigOptionBool&       operator=(const ConfigOption *opt) { this->set(opt); return *this; }
+    ConfigOptionType        type()    const override { return static_type(); }
+    bool                    getBool() const override { return this->value; }
+    ConfigOption*           clone()   const override { return new ConfigOptionBool(*this); }
     bool                    operator==(const ConfigOptionBool &rhs) const throw() { return this->value == rhs.value; }
-    bool                    operator< (const ConfigOptionBool &rhs) const throw() { return int(this->value) < int(rhs.value); }
 
     std::string serialize() const override
     {
-        return std::string(this->value ? "1" : "0");
+        return this->value ? "true" : "false";
     }
 
     bool deserialize(const std::string &str, bool append = false) override
     {
-        UNUSED(append);
-        if (str == "1") {
+        if (append)
+            return false;
+
+        std::string lower = str;
+        boost::algorithm::to_lower(lower);
+        boost::algorithm::trim(lower);
+
+        if (lower == "1" || lower == "true" || lower == "yes" || lower == "on")
             this->value = true;
-            return true;
-        }
-        if (str == "0") {
+        else if (lower == "0" || lower == "false" || lower == "no" || lower == "off")
             this->value = false;
-            return true;
-        }
-        return false;
+        else
+            return false;
+
+        return true;
+    }
+
+    ConfigOptionBool& operator=(const ConfigOption *opt)
+    {
+        this->set(opt);
+        return *this;
     }
 
 private:
-	friend class cereal::access;
-	template<class Archive> void serialize(Archive &ar) { ar(cereal::base_class<ConfigOptionSingle<bool>>(this)); }
+    friend class cereal::access;
+    template<class Archive> void serialize(Archive &ar) { ar(cereal::base_class<ConfigOptionSingle<bool>>(this)); }
 };
 
 template<bool NULLABLE>
@@ -2198,9 +2215,38 @@ public:
     DynamicConfig() = default;
     DynamicConfig(const DynamicConfig &rhs) { *this = rhs; }
     DynamicConfig(DynamicConfig &&rhs) noexcept : options(std::move(rhs.options)) { rhs.options.clear(); }
-	explicit DynamicConfig(const ConfigBase &rhs, const t_config_option_keys &keys);
-	explicit DynamicConfig(const ConfigBase& rhs) : DynamicConfig(rhs, rhs.keys()) {}
-	virtual ~DynamicConfig() override = default;
+    explicit DynamicConfig(const ConfigBase &rhs, const t_config_option_keys &keys);
+    explicit DynamicConfig(const ConfigBase& rhs) : DynamicConfig(rhs, rhs.keys()) {}
+    virtual ~DynamicConfig() override = default;
+
+    // Virtual overridables:
+    const ConfigDef*        def() const override { return nullptr; }
+    const ConfigOption*     optptr(const t_config_option_key &opt_key) const override {
+        auto it = options.find(opt_key);
+        return (it == options.end()) ? nullptr : it->second.get();
+    }
+    ConfigOption*           optptr(const t_config_option_key &opt_key, bool create = false) override {
+        auto it = options.find(opt_key);
+        if (it == options.end()) {
+            if (! create)
+                return nullptr;
+            ConfigOption* opt = nullptr;
+            switch (opt_key[0]) {
+                case 's': opt = new ConfigOptionString(); break;
+                case 'i': opt = new ConfigOptionInt(); break;
+                case 'f': opt = new ConfigOptionFloat(); break;
+                case 'b': opt = new ConfigOptionBool(); break;
+                default: return nullptr;
+            }
+            it = options.insert(std::make_pair(opt_key, std::unique_ptr<ConfigOption>(opt))).first;
+        }
+        return it->second.get();
+    }
+
+    void clear() { options.clear(); }
+    bool empty() const { return options.empty(); }
+    bool has(const t_config_option_key &opt_key) const { return options.find(opt_key) != options.end(); }
+    bool erase(const t_config_option_key &opt_key) { return options.erase(opt_key) > 0; }
 
     // Copy a content of one DynamicConfig to another DynamicConfig.
     // If rhs.def() is not null, then it has to be equal to this->def().
@@ -2270,37 +2316,8 @@ public:
         std::swap(this->options, other.options);
     }
 
-    void clear()
-    {
-        this->options.clear();
-    }
-
-    bool erase(const t_config_option_key &opt_key)
-    {
-        auto it = this->options.find(opt_key);
-        if (it == this->options.end())
-            return false;
-        this->options.erase(it);
-        return true;
-    }
-
     // Remove options with all nil values, those are optional and it does not help to hold them.
     size_t remove_nil_options();
-
-    // Allow DynamicConfig to be instantiated on ints own without a definition.
-    // If the definition is not defined, the method requiring the definition will throw NoDefinitionException.
-    const ConfigDef*        def() const override { return nullptr; }
-    template<class T> T*    opt(const t_config_option_key &opt_key, bool create = false)
-        { return dynamic_cast<T*>(this->option(opt_key, create)); }
-    template<class T> const T* opt(const t_config_option_key &opt_key) const
-        { return dynamic_cast<const T*>(this->option(opt_key)); }
-    // Overrides ConfigResolver::optptr().
-    const ConfigOption*     optptr(const t_config_option_key &opt_key) const override;
-    // Overrides ConfigBase::optptr(). Find ando/or create a ConfigOption instance for a given name.
-    ConfigOption*           optptr(const t_config_option_key &opt_key, bool create = false) override;
-    // Overrides ConfigBase::keys(). Collect names of all configuration values maintained by this configuration store.
-    t_config_option_keys    keys() const override;
-    bool                    empty() const { return options.empty(); }
 
     // Set a value for an opt_key. Returns true if the value did not exist yet.
     // This DynamicConfig will take ownership of opt.
