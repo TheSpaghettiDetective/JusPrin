@@ -1,3 +1,4 @@
+#define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 #include <sstream>
 #include <string>
@@ -7,27 +8,6 @@
 #include "../../src/libslic3r/Config.hpp"
 
 using namespace Slic3r;
-
-class DynamicConfig;
-class StaticConfig;
-
-class ConfigBase {
-public:
-    virtual ~ConfigBase() = default;
-    virtual t_config_option_keys keys() const = 0;
-    void apply(const ConfigBase &other, bool ignore_nonexistent = false) {
-        this->apply_only(other, other.keys(), ignore_nonexistent);
-    }
-    virtual void apply_only(const ConfigBase &other, const t_config_option_keys &keys, bool ignore_nonexistent = false) = 0;
-};
-
-class DynamicConfig : public ConfigBase {
-public:
-    DynamicConfig() = default;
-    virtual ~DynamicConfig() = default;
-    t_config_option_keys keys() const { return t_config_option_keys(); }
-    void apply_only(const ConfigBase &other, const t_config_option_keys &keys, bool ignore_nonexistent = false) override {}
-};
 
 TEST_CASE("ConfigOption Basic Tests", "[Config]") {
     SECTION("ConfigOptionFloat") {
@@ -67,9 +47,19 @@ TEST_CASE("ConfigOption Basic Tests", "[Config]") {
         REQUIRE(opt2.deserialize("0"));
         REQUIRE(opt2.value == false);
     }
+
+    SECTION("DynamicConfig apply") {
+        DynamicConfig config;
+        DynamicConfig other;
+        t_config_option_keys keys;
+
+        config.apply(other, true);
+        config.apply(other);
+        config.apply_only(other, keys);
+    }
 }
 
-TEST_CASE("ConfigOptionDef Tests", "[Config]") {
+TEST_CASE("ConfigOption Def Tests", "[Config]") {
     SECTION("create_empty_option") {
         ConfigOptionDef def;
 
@@ -134,23 +124,6 @@ TEST_CASE("ConfigOptionDef Tests", "[Config]") {
         auto args2 = def.cli_args("test_option");
         REQUIRE(args2.size() == 1);
         REQUIRE(args2[0] == "custom-arg");
-    }
-}
-
-TEST_CASE("DynamicConfig Tests", "[Config]") {
-    SECTION("Basic Operations") {
-        DynamicConfig config;
-        DynamicConfig other;
-
-        // Test apply with ignore_nonexistent
-        config.apply(other, true);
-
-        // Test apply without ignore_nonexistent
-        config.apply(other);
-
-        // Test apply_only
-        t_config_option_keys keys;
-        config.apply_only(other, keys);
     }
 }
 
