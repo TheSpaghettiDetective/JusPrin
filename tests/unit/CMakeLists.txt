@@ -41,6 +41,14 @@ configure_file(${CMAKE_SOURCE_DIR}/../../src/libslic3r/libslic3r_version.h.in ${
 add_library(fast_float INTERFACE)
 target_include_directories(fast_float INTERFACE ${CMAKE_SOURCE_DIR}/../../src)
 
+# Add semver library
+add_library(semver STATIC
+    ${CMAKE_SOURCE_DIR}/../../src/semver/semver.c
+)
+target_include_directories(semver PUBLIC
+    ${CMAKE_SOURCE_DIR}/../../src
+)
+
 add_library(locales_utils STATIC ${CMAKE_SOURCE_DIR}/../../src/libslic3r/LocalesUtils.cpp)
 target_include_directories(locales_utils PUBLIC
     ${CMAKE_SOURCE_DIR}/../../src/libslic3r
@@ -71,6 +79,7 @@ target_include_directories(config PUBLIC
 target_link_libraries(config PUBLIC
     locales_utils
     fast_float
+    semver
     ${Boost_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     TBB::tbb

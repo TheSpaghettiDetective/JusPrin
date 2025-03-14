@@ -585,7 +585,8 @@ public:
 
     bool deserialize(const std::string &str, bool append = false) override
     {
-        UNUSED(append);
+        if (append)
+            return false;
         std::istringstream iss(str);
         iss >> this->value;
         return !iss.fail();
@@ -877,8 +878,14 @@ public:
 
     bool deserialize(const std::string &str, bool append = false) override
     {
-        UNUSED(append);
-        return unescape_string_cstyle(str, this->value);
+        std::string new_value;
+        if (!unescape_string_cstyle(str, new_value))
+            return false;
+        if (append)
+            this->value += new_value;
+        else
+            this->value = new_value;
+        return true;
     }
 
 private:

@@ -1,11 +1,12 @@
 #define CATCH_CONFIG_MAIN
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_all.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <map>
 #include <algorithm>
-#include "../../src/libslic3r/Config.hpp"
+#include "libslic3r/Config.hpp"
 
 using namespace Slic3r;
 
