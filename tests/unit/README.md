@@ -16,7 +16,12 @@ tests/unit/
 
 ### Quick Start
 
-From the project root:
+First, build the project dependencies:
+```bash
+./build_release_macos.sh -d  # This generates required dependencies without building the main project
+```
+
+Then from the project root:
 ```bash
 mkdir -p build_unit_tests
 cd build_unit_tests

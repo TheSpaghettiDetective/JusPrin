@@ -5,7 +5,15 @@ project(Slic3r_tests)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Boost
+# Set the path to the main project's dependencies
+if(NOT DEFINED DEPS_DIR)
+    set(DEPS_DIR "${CMAKE_SOURCE_DIR}/../../deps/build_${CMAKE_SYSTEM_PROCESSOR}/OrcaSlicer_dep_${CMAKE_SYSTEM_PROCESSOR}/usr/local")
+endif()
+
+# Add the deps directory to CMAKE_PREFIX_PATH
+list(APPEND CMAKE_PREFIX_PATH ${DEPS_DIR})
+
+# Find Boost from the main project's deps
 find_package(Boost 1.65.0 REQUIRED)
 
 # Find Catch2
@@ -25,7 +33,7 @@ target_include_directories(fast_float INTERFACE
 
 # Create library for LocalesUtils
 add_library(locales_utils
-    ${CMAKE_SOURCE_DIR}/src/libslic3r/LocalesUtils.cpp
+    ${CMAKE_SOURCE_DIR}/../../src/libslic3r/LocalesUtils.cpp
 )
 
 target_include_directories(locales_utils
