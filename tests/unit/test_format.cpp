@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
-#include "../../src/libslic3r/format.hpp"
+#include "libslic3r/format.hpp"
+#include "test_utils.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -8,6 +9,7 @@
 #include <sstream>
 
 using namespace Slic3r;
+using namespace TestUtils;
 
 // Custom type to test format with user-defined types
 class CustomType {

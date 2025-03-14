@@ -59,3 +59,21 @@ target_link_libraries(format_test
 # Add tests to CTest
 add_test(NAME locales_utils_test COMMAND locales_utils_test)
 add_test(NAME format_test COMMAND format_test)
+
+# Add convenience targets
+add_custom_target(build_all_tests
+    DEPENDS locales_utils_test format_test
+    COMMENT "Building all unit tests"
+)
+
+add_custom_target(run_all_tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS build_all_tests
+    COMMENT "Running all unit tests"
+)
+
+# Set working directory for tests
+set_tests_properties(locales_utils_test format_test
+    PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)

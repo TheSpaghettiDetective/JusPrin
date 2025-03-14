@@ -1,11 +1,13 @@
 #define CATCH_CONFIG_MAIN
-#include <catch2/catch.hpp>  // Use the standard include path
+#include <catch2/catch.hpp>
 #include "libslic3r/LocalesUtils.hpp"
+#include "test_utils.hpp"
 #include <clocale>
 #include <thread>
 #include <vector>
 
 using namespace Slic3r;
+using namespace TestUtils;
 
 TEST_CASE("CNumericLocalesSetter Tests", "[LocalesUtils]") {
     SECTION("Basic Functionality") {
@@ -135,8 +137,7 @@ TEST_CASE("is_decimal_separator_point Tests", "[LocalesUtils]") {
 
     SECTION("Locale Change") {
         {
-            // Set locale to something that uses comma
-            setlocale(LC_NUMERIC, "de_DE.UTF-8");
+            ScopedLocale de_locale("de_DE.UTF-8");
             REQUIRE_FALSE(is_decimal_separator_point());
         }
 
