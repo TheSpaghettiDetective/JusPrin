@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.12)
-project(LocalesUtils_test)
+project(Slic3r_tests)
 
 # Enable C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find Boost
+find_package(Boost 1.65.0 REQUIRED)
 
 # Enable testing
 enable_testing()
@@ -32,14 +35,27 @@ target_link_libraries(locales_utils
     fast_float
 )
 
-# Add test executable
+# Add test executables
 add_executable(locales_utils_test test_locales_utils.cpp)
+add_executable(format_test test_format.cpp)
 
-# Link against our library
+# Link against our libraries
 target_link_libraries(locales_utils_test
     PRIVATE
     locales_utils
 )
 
-# Add test to CTest
+target_include_directories(format_test
+    PRIVATE
+    ${Boost_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/../../src
+)
+
+target_link_libraries(format_test
+    PRIVATE
+    ${Boost_LIBRARIES}
+)
+
+# Add tests to CTest
 add_test(NAME locales_utils_test COMMAND locales_utils_test)
+add_test(NAME format_test COMMAND format_test)
