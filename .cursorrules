@@ -1,9 +1,17 @@
 # Glob Pattern for Unit Tests Folder
 tests/unit/*
 
-# Dependencies for tests/unit/*
+# Rules for tests/unit/*
 
-- Find how the main project's dependencies are established by analyzing @file/build_release_macos.sh
+If you are working on files in the tests/unit/ folder, you are working making unit tests pass. Follow these rules:
+
+## Resolving dependencies
+
+- Find how the main project's dependencies are established by analyzing @file/build_release_macos.sh. Remember, the source code in the `src` folder should already have all dependencies resolved by @file/build_release_macos.sh
 - Use the dependencies established by running `./build_release_macos.sh -d`
 - Do NOT try to install and use system dependencies
 
+## Compile errors
+
+- The source code in the `src` folder should already compile. So if there are compile errors for the source file in the `src` folder, ALWAYS ask for confirmation before you change them.
+- If the compile errors are for the tests/unit/* unit test files, you should change them without asking for confirmation
