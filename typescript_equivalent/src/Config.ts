@@ -130,9 +130,13 @@ export class ConfigOptionFloat implements ConfigOption {
     }
 
     set(other: ConfigOption): void {
-        if (other instanceof ConfigOptionFloat) {
-            this.value = other.value;
+        if (other.type !== this.type) {
+            throw new Error('ConfigOptionSingle: Assigning an incompatible type');
         }
+        if (!(other instanceof ConfigOptionFloat)) {
+            throw new Error('ConfigOptionSingle: Assigning an incompatible type');
+        }
+        this.value = other.value;
     }
 
     nullable(): boolean {
@@ -162,9 +166,13 @@ export class ConfigOptionInt implements ConfigOption {
     }
 
     set(other: ConfigOption): void {
-        if (other instanceof ConfigOptionInt) {
-            this.value = other.value;
+        if (other.type !== this.type) {
+            throw new Error('ConfigOptionSingle: Assigning an incompatible type');
         }
+        if (!(other instanceof ConfigOptionInt)) {
+            throw new Error('ConfigOptionSingle: Assigning an incompatible type');
+        }
+        this.value = other.value;
     }
 
     nullable(): boolean {
@@ -200,9 +208,13 @@ export class ConfigOptionBool implements ConfigOption {
     }
 
     set(other: ConfigOption): void {
-        if (other instanceof ConfigOptionBool) {
-            this.value = other.value;
+        if (other.type !== this.type) {
+            throw new Error('ConfigOptionSingle: Assigning an incompatible type');
         }
+        if (!(other instanceof ConfigOptionBool)) {
+            throw new Error('ConfigOptionSingle: Assigning an incompatible type');
+        }
+        this.value = other.value;
     }
 
     nullable(): boolean {
@@ -1063,16 +1075,31 @@ export class StaticConfig extends ConfigBase {
     }
 
     keys(): string[] {
-        const keys: string[] = [];
-        const defs = this.def();
-        if (defs) {
-            for (const [key, optDef] of defs.options) {
-                if (this.option(key)) {
-                    keys.push(key);
-                }
-            }
+        return Array.from(this.definition.options.keys());
+    }
+
+    option(optKey: string, create: boolean = false): ConfigOption | null {
+        const opt = this.options.get(optKey);
+        if (opt) {
+            return opt;
         }
-        return keys;
+        if (!create) {
+            return null;
+        }
+
+        const def = this.def();
+        if (!def) {
+            throw new Error(`No definition for option ${optKey}`);
+        }
+
+        const optDef = def.get(optKey);
+        if (!optDef) {
+            throw new UnknownOptionException(optKey);
+        }
+
+        const newOpt = optDef.createDefaultOption();
+        this.options.set(optKey, newOpt);
+        return newOpt;
     }
 
     handleLegacy(key: string, value: string): [string, string] {
