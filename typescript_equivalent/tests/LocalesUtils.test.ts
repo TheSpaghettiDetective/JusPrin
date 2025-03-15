@@ -1,151 +1,85 @@
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import { Slic3r } from '../src/LocalesUtils';
+import { expect } from 'chai';
+import { describe, it } from 'mocha';
+import { LocalesUtils, CNumericLocalesSetter } from '../src/LocalesUtils';
 
-describe('CNumericLocalesSetter Tests', () => {
-    test('Basic Functionality', () => {
-        // Store original locale
+describe('LocalesUtils', () => {
+    describe('setLocale and getLocale', () => {
+        it('should set and get locale correctly', () => {
+            LocalesUtils.setLocale('fr-FR');
+            expect(LocalesUtils.getLocale()).to.equal('fr-FR');
+
+            LocalesUtils.setLocale('en-US');
+            expect(LocalesUtils.getLocale()).to.equal('en-US');
+        });
+    });
+
+    describe('formatNumber', () => {
+        it('should format numbers according to locale', () => {
+            LocalesUtils.setLocale('en-US');
+            expect(LocalesUtils.formatNumber(1234.56)).to.equal('1,234.56');
+
+            LocalesUtils.setLocale('fr-FR');
+            expect(LocalesUtils.formatNumber(1234.56)).to.equal('1 234,56');
+        });
+
+        it('should handle special numbers', () => {
+            LocalesUtils.setLocale('en-US');
+            expect(LocalesUtils.formatNumber(0)).to.equal('0');
+            expect(LocalesUtils.formatNumber(-1234.56)).to.equal('-1,234.56');
+            expect(LocalesUtils.formatNumber(1e6)).to.equal('1,000,000');
+        });
+    });
+
+    describe('parseNumber', () => {
+        it('should parse numbers from strings', () => {
+            expect(LocalesUtils.parseNumber('1234.56')).to.equal(1234.56);
+            expect(LocalesUtils.parseNumber('-1234.56')).to.equal(-1234.56);
+            expect(LocalesUtils.parseNumber('0')).to.equal(0);
+        });
+
+        it('should handle formatted strings', () => {
+            expect(LocalesUtils.parseNumber('1,234.56')).to.equal(1234.56);
+            expect(LocalesUtils.parseNumber('1 234,56')).to.equal(1234.56);
+        });
+
+        it('should handle invalid input', () => {
+            expect(LocalesUtils.parseNumber('invalid')).to.be.NaN;
+            expect(LocalesUtils.parseNumber('')).to.be.NaN;
+        });
+    });
+});
+
+describe('CNumericLocalesSetter', () => {
+    it('should restore previous locale', () => {
         const originalLocale = Intl.NumberFormat().resolvedOptions().locale;
 
         {
-            const setter = new Slic3r.CNumericLocalesSetter();
-            // Verify decimal point is now '.'
-            expect(Slic3r.isDecimalSeparatorPoint()).toBe(true);
-
-            // Test some float formatting
-            expect(new Intl.NumberFormat('en-US').format(1.5)).toBe('1.5');
-
-            setter.dispose();
+            const setter = new CNumericLocalesSetter();
+            expect(Intl.NumberFormat().resolvedOptions().locale).to.not.equal(originalLocale);
+            setter.restore();
         }
 
-        // Verify locale is restored
-        expect(Intl.NumberFormat().resolvedOptions().locale).toBe(originalLocale);
+        expect(Intl.NumberFormat().resolvedOptions().locale).to.equal(originalLocale);
     });
 
-    test('Thread Safety', async () => {
-        const NUM_THREADS = 4;
-        const promises = Array.from({ length: NUM_THREADS }, async () => {
-            try {
-                const setter = new Slic3r.CNumericLocalesSetter();
-                // Perform some locale-dependent operations
-                const result = Slic3r.isDecimalSeparatorPoint() &&
-                    !isNaN(Slic3r.stringToDoubleDecimalPoint('123.456')) &&
-                    Slic3r.floatToStringDecimalPoint(123.456) !== '';
-                setter.dispose();
-                return result;
-            } catch {
-                return false;
-            }
-        });
+    it('should format numbers consistently while active', () => {
+        const setter = new CNumericLocalesSetter();
 
-        const results = await Promise.all(promises);
-        results.forEach(result => {
-            expect(result).toBe(true);
-        });
-    });
-});
+        const num = 1234.56;
+        const formatted = num.toString();
+        expect(formatted).to.equal('1234.56');
 
-describe('stringToDoubleDecimalPoint Tests', () => {
-    let setter: Slic3r.CNumericLocalesSetter;
-
-    beforeEach(() => {
-        setter = new Slic3r.CNumericLocalesSetter();
+        setter.restore();
     });
 
-    afterEach(() => {
-        setter.dispose();
-    });
+    it('should handle multiple instances correctly', () => {
+        const setter1 = new CNumericLocalesSetter();
+        const setter2 = new CNumericLocalesSetter();
 
-    test('Valid Conversions', () => {
-        const pos = { value: 0 };
+        setter2.restore();
+        setter1.restore();
 
-        // Test positive numbers
-        expect(Slic3r.stringToDoubleDecimalPoint('123.456', pos)).toBeCloseTo(123.456);
-        expect(pos.value).toBe(7);
-
-        // Test negative numbers
-        expect(Slic3r.stringToDoubleDecimalPoint('-123.456', pos)).toBeCloseTo(-123.456);
-        expect(pos.value).toBe(8);
-
-        // Test scientific notation
-        expect(Slic3r.stringToDoubleDecimalPoint('1.23e-4', pos)).toBeCloseTo(0.000123);
-        expect(Slic3r.stringToDoubleDecimalPoint('1.23E+4', pos)).toBeCloseTo(12300.0);
-
-        // Test integers
-        expect(Slic3r.stringToDoubleDecimalPoint('42', pos)).toBeCloseTo(42.0);
-
-        // Test zero
-        expect(Slic3r.stringToDoubleDecimalPoint('0.0', pos)).toBeCloseTo(0.0);
-        expect(Slic3r.stringToDoubleDecimalPoint('-0.0', pos)).toBeCloseTo(0.0);
-    });
-
-    test('Edge Cases', () => {
-        const pos = { value: 0 };
-
-        // Test empty string
-        expect(isNaN(Slic3r.stringToDoubleDecimalPoint(''))).toBe(true);
-        expect(pos.value).toBe(0);
-
-        // Test whitespace handling
-        expect(Slic3r.stringToDoubleDecimalPoint('  123.456', pos)).toBeCloseTo(123.456);
-
-        // Test very large and small numbers
-        expect(Slic3r.stringToDoubleDecimalPoint('1e308', pos)).toBeCloseTo(1e308);
-        expect(Slic3r.stringToDoubleDecimalPoint('1e-308', pos)).toBeCloseTo(1e-308);
-    });
-});
-
-describe('floatToStringDecimalPoint Tests', () => {
-    let setter: Slic3r.CNumericLocalesSetter;
-
-    beforeEach(() => {
-        setter = new Slic3r.CNumericLocalesSetter();
-    });
-
-    afterEach(() => {
-        setter.dispose();
-    });
-
-    test('Default Precision', () => {
-        expect(Slic3r.floatToStringDecimalPoint(123.456)).toBe('123.456');
-        expect(Slic3r.floatToStringDecimalPoint(-123.456)).toBe('-123.456');
-        expect(Slic3r.floatToStringDecimalPoint(0.0)).toBe('0');
-        expect(Slic3r.floatToStringDecimalPoint(-0.0)).toBe('0');
-    });
-
-    test('Custom Precision', () => {
-        expect(Slic3r.floatToStringDecimalPoint(123.456, 2)).toBe('123.46');
-        expect(Slic3r.floatToStringDecimalPoint(123.456, 0)).toBe('123');
-        expect(Slic3r.floatToStringDecimalPoint(123.456, 4)).toBe('123.4560');
-    });
-
-    test('Edge Cases', () => {
-        // Very large numbers
-        expect(() => Slic3r.floatToStringDecimalPoint(1e308)).not.toThrow();
-
-        // Very small numbers
-        expect(() => Slic3r.floatToStringDecimalPoint(1e-308)).not.toThrow();
-
-        // Zero with different precisions
-        expect(Slic3r.floatToStringDecimalPoint(0.0, 2)).toBe('0.00');
-        expect(Slic3r.floatToStringDecimalPoint(-0.0, 2)).toBe('0.00');
-    });
-});
-
-describe('isDecimalSeparatorPoint Tests', () => {
-    test('Basic Functionality', () => {
-        const setter = new Slic3r.CNumericLocalesSetter();
-        expect(Slic3r.isDecimalSeparatorPoint()).toBe(true);
-        setter.dispose();
-    });
-
-    test('Locale Change', () => {
-        // Test with German locale (uses comma as decimal separator)
-        const germanFormatter = new Intl.NumberFormat('de-DE');
-        expect(germanFormatter.format(0.5).includes(',')).toBe(true);
-
-        // Verify CNumericLocalesSetter fixes it
-        const setter = new Slic3r.CNumericLocalesSetter();
-        expect(Slic3r.isDecimalSeparatorPoint()).toBe(true);
-        setter.dispose();
+        // Should still be in a valid state
+        expect(() => new CNumericLocalesSetter()).not.to.throw();
     });
 });

@@ -1,0 +1,5 @@
+--require ts-node/register
+--require chai/register-expect
+--recursive
+--extension .ts
+--timeout 5000
