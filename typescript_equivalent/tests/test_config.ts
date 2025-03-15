@@ -19,11 +19,12 @@ import {
     UnknownOptionException,
     ConfigHelpers,
     ConfigOptionStrings,
-    ConfigOption
-} from '../src/types';
-import { DynamicConfig } from '../src/Config';
+    ConfigOption,
+    DynamicConfig,
+    escapeStringCStyle,
+    unescapeStringCStyle
+} from '../src/Config';
 import { Vec2d, Vec3d } from '../src/geometry';
-import { escapeStringCStyle, unescapeStringCStyle } from '../src/Config';
 import { createVec2d, createVec3d } from './test_helpers';
 
 // Helper function to test serialization/deserialization
