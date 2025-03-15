@@ -10,6 +10,39 @@
 
 using namespace Slic3r;
 
+enum class TestEnum {
+    First,
+    Second,
+    Third
+};
+
+namespace Slic3r {
+    template<>
+    const t_config_enum_names& ConfigOptionEnum<TestEnum>::get_enum_names() {
+        static t_config_enum_names names = {"first", "second", "third"};
+        return names;
+    }
+
+    template<>
+    const t_config_enum_values& ConfigOptionEnum<TestEnum>::get_enum_values() {
+        static t_config_enum_values values = {
+            {"first", static_cast<int>(TestEnum::First)},
+            {"second", static_cast<int>(TestEnum::Second)},
+            {"third", static_cast<int>(TestEnum::Third)}
+        };
+        return values;
+    }
+}
+
+// Helper function to test serialization/deserialization
+template<typename T>
+void test_serialize_deserialize(const T& original, const std::string& expected_str) {
+    REQUIRE(original.serialize() == expected_str);
+    T deserialized;
+    REQUIRE(deserialized.deserialize(expected_str));
+    REQUIRE(deserialized.serialize() == expected_str);
+}
+
 TEST_CASE("ConfigOption Basic Tests", "[Config]") {
     SECTION("ConfigOptionFloat") {
         ConfigOptionFloat opt(1.5);
@@ -190,279 +223,6 @@ TEST_CASE("ConfigOption Edge Cases", "[Config]") {
     }
 }
 
-TEST_CASE("ConfigOption Append Tests", "[Config]") {
-    SECTION("String Append") {
-        ConfigOptionString opt("Hello");
-        REQUIRE(opt.deserialize(" World", true));
-        REQUIRE(opt.value == "Hello World");
-
-        REQUIRE(opt.deserialize("!", true));
-        REQUIRE(opt.value == "Hello World!");
-    }
-
-    SECTION("Scalar Types Don't Support Append") {
-        ConfigOptionFloat float_opt(1.5);
-        REQUIRE_FALSE(float_opt.deserialize("2.5", true));
-        REQUIRE(float_opt.value == 1.5);
-    }
-}
-
-TEST_CASE("ConfigOptionString operations", "[Config]") {
-    SECTION("Basic string operations") {
-        ConfigOptionString opt;
-        REQUIRE(opt.value.empty());
-
-        opt.value = "test";
-        REQUIRE(opt.value == "test");
-
-        std::string serialized = opt.serialize();
-        REQUIRE(serialized == "test");
-    }
-
-    SECTION("String deserialization") {
-        ConfigOptionString opt;
-        REQUIRE(opt.deserialize("simple"));
-        REQUIRE(opt.value == "simple");
-
-        REQUIRE(opt.deserialize("with spaces"));
-        REQUIRE(opt.value == "with spaces");
-
-        REQUIRE(opt.deserialize("with\"quote"));
-        REQUIRE(opt.value == "with\"quote");
-
-        REQUIRE(opt.deserialize("with\\escape"));
-        REQUIRE(opt.value == "with\\escape");
-    }
-
-    SECTION("String append operations") {
-        ConfigOptionString opt;
-        opt.value = "Hello";
-
-        REQUIRE(opt.deserialize(" World", true));
-        REQUIRE(opt.value == "Hello World");
-
-        REQUIRE(opt.deserialize("!", true));
-        REQUIRE(opt.value == "Hello World!");
-    }
-}
-
-TEST_CASE("ConfigOptionInt operations", "[Config]") {
-    SECTION("Basic integer operations") {
-        ConfigOptionInt opt;
-        REQUIRE(opt.value == 0);
-
-        opt.value = 42;
-        REQUIRE(opt.value == 42);
-
-        std::string serialized = opt.serialize();
-        REQUIRE(serialized == "42");
-    }
-
-    SECTION("Integer deserialization") {
-        ConfigOptionInt opt;
-        REQUIRE(opt.deserialize("42"));
-        REQUIRE(opt.value == 42);
-
-        REQUIRE(opt.deserialize("-123"));
-        REQUIRE(opt.value == -123);
-
-        REQUIRE_FALSE(opt.deserialize("not_a_number"));
-        REQUIRE(opt.value == -123);  // Value should remain unchanged
-    }
-
-    SECTION("Integer append operations") {
-        ConfigOptionInt opt;
-        opt.value = 42;
-
-        // Append should not be supported for integers
-        REQUIRE_FALSE(opt.deserialize("1", true));
-        REQUIRE(opt.value == 42);  // Value should remain unchanged
-    }
-}
-
-TEST_CASE("ConfigOptionFloat operations", "[Config]") {
-    SECTION("Basic float operations") {
-        ConfigOptionFloat opt;
-        REQUIRE(opt.value == Catch::Approx(0.0));
-
-        opt.value = 3.14159;
-        REQUIRE(opt.value == Catch::Approx(3.14159));
-
-        std::string serialized = opt.serialize();
-        REQUIRE(serialized == "3.14159");
-    }
-
-    SECTION("Float deserialization") {
-        ConfigOptionFloat opt;
-        REQUIRE(opt.deserialize("3.14159"));
-        REQUIRE(opt.value == Catch::Approx(3.14159));
-
-        REQUIRE(opt.deserialize("-2.718"));
-        REQUIRE(opt.value == Catch::Approx(-2.718));
-
-        REQUIRE_FALSE(opt.deserialize("not_a_number"));
-        REQUIRE(opt.value == Catch::Approx(-2.718));  // Value should remain unchanged
-    }
-
-    SECTION("Float append operations") {
-        ConfigOptionFloat opt;
-        opt.value = 3.14;
-
-        // Append should not be supported for floats
-        REQUIRE_FALSE(opt.deserialize("1.0", true));
-        REQUIRE(opt.value == Catch::Approx(3.14));  // Value should remain unchanged
-    }
-}
-
-TEST_CASE("ConfigOptionBool operations", "[Config]") {
-    SECTION("Basic boolean operations") {
-        ConfigOptionBool opt;
-        REQUIRE_FALSE(opt.value);
-
-        opt.value = true;
-        REQUIRE(opt.value);
-
-        std::string serialized = opt.serialize();
-        REQUIRE(serialized == "1");
-    }
-
-    SECTION("Boolean deserialization") {
-        ConfigOptionBool opt;
-
-        REQUIRE(opt.deserialize("1"));
-        REQUIRE(opt.value);
-
-        REQUIRE(opt.deserialize("true"));
-        REQUIRE(opt.value);
-
-        REQUIRE(opt.deserialize("yes"));
-        REQUIRE(opt.value);
-
-        REQUIRE(opt.deserialize("0"));
-        REQUIRE_FALSE(opt.value);
-
-        REQUIRE(opt.deserialize("false"));
-        REQUIRE_FALSE(opt.value);
-
-        REQUIRE(opt.deserialize("no"));
-        REQUIRE_FALSE(opt.value);
-
-        REQUIRE_FALSE(opt.deserialize("invalid"));
-        REQUIRE_FALSE(opt.value);  // Value should remain unchanged
-    }
-
-    SECTION("Boolean append operations") {
-        ConfigOptionBool opt;
-        opt.value = true;
-
-        // Append should not be supported for booleans
-        REQUIRE_FALSE(opt.deserialize("1", true));
-        REQUIRE(opt.value);  // Value should remain unchanged
-    }
-}
-
-TEST_CASE("ConfigOptionPoint operations", "[Config]") {
-    SECTION("Basic point operations") {
-        ConfigOptionPoint opt;
-        REQUIRE(opt.value.x() == Catch::Approx(0.0));
-        REQUIRE(opt.value.y() == Catch::Approx(0.0));
-
-        opt.value = Vec2d(3.0, 4.0);
-        REQUIRE(opt.value.x() == Catch::Approx(3.0));
-        REQUIRE(opt.value.y() == Catch::Approx(4.0));
-
-        std::string serialized = opt.serialize();
-        REQUIRE(serialized == "3,4");
-    }
-
-    SECTION("Point deserialization") {
-        ConfigOptionPoint opt;
-
-        REQUIRE(opt.deserialize("3,4"));
-        REQUIRE(opt.value.x() == Catch::Approx(3.0));
-        REQUIRE(opt.value.y() == Catch::Approx(4.0));
-
-        REQUIRE(opt.deserialize("-2.5,1.5"));
-        REQUIRE(opt.value.x() == Catch::Approx(-2.5));
-        REQUIRE(opt.value.y() == Catch::Approx(1.5));
-
-        REQUIRE_FALSE(opt.deserialize("invalid"));
-        REQUIRE(opt.value.x() == Catch::Approx(-2.5));  // Values should remain unchanged
-        REQUIRE(opt.value.y() == Catch::Approx(1.5));
-    }
-}
-
-TEST_CASE("ConfigOptionPoint3 operations", "[Config]") {
-    SECTION("Basic point3 operations") {
-        ConfigOptionPoint3 opt;
-        REQUIRE(opt.value.x() == Catch::Approx(0.0));
-        REQUIRE(opt.value.y() == Catch::Approx(0.0));
-        REQUIRE(opt.value.z() == Catch::Approx(0.0));
-
-        opt.value = Vec3d(1.0, 2.0, 3.0);
-        REQUIRE(opt.value.x() == Catch::Approx(1.0));
-        REQUIRE(opt.value.y() == Catch::Approx(2.0));
-        REQUIRE(opt.value.z() == Catch::Approx(3.0));
-
-        std::string serialized = opt.serialize();
-        REQUIRE(serialized == "1,2,3");
-    }
-
-    SECTION("Point3 deserialization") {
-        ConfigOptionPoint3 opt;
-
-        REQUIRE(opt.deserialize("1,2,3"));
-        REQUIRE(opt.value.x() == Catch::Approx(1.0));
-        REQUIRE(opt.value.y() == Catch::Approx(2.0));
-        REQUIRE(opt.value.z() == Catch::Approx(3.0));
-
-        REQUIRE(opt.deserialize("-1.5,2.5,-3.5"));
-        REQUIRE(opt.value.x() == Catch::Approx(-1.5));
-        REQUIRE(opt.value.y() == Catch::Approx(2.5));
-        REQUIRE(opt.value.z() == Catch::Approx(-3.5));
-
-        REQUIRE_FALSE(opt.deserialize("invalid"));
-        REQUIRE(opt.value.x() == Catch::Approx(-1.5));  // Values should remain unchanged
-        REQUIRE(opt.value.y() == Catch::Approx(2.5));
-        REQUIRE(opt.value.z() == Catch::Approx(-3.5));
-    }
-}
-
-TEST_CASE("DynamicConfig operations", "[Config]") {
-    SECTION("Basic dynamic config operations") {
-        DynamicConfig config;
-
-        // Add and retrieve a string option
-        config.set("string_option", "test_value");
-        REQUIRE(config.opt<ConfigOptionString>("string_option")->value == "test_value");
-
-        // Add and retrieve an int option
-        config.set("int_option", 42);
-        REQUIRE(config.opt<ConfigOptionInt>("int_option")->value == 42);
-
-        // Add and retrieve a float option
-        config.set("float_option", 3.14159);
-        REQUIRE(config.opt<ConfigOptionFloat>("float_option")->value == Catch::Approx(3.14159));
-    }
-
-    SECTION("Option existence checks") {
-        DynamicConfig config;
-        config.set("existing_option", "value");
-
-        REQUIRE(config.has("existing_option"));
-        REQUIRE_FALSE(config.has("non_existing_option"));
-    }
-
-    SECTION("Option removal") {
-        DynamicConfig config;
-        config.set("option_to_remove", "value");
-
-        REQUIRE(config.has("option_to_remove"));
-        config.erase("option_to_remove");
-        REQUIRE_FALSE(config.has("option_to_remove"));
-    }
-}
-
 TEST_CASE("String escaping and unescaping", "[Config]") {
     SECTION("String escaping") {
         REQUIRE(escape_string_cstyle("simple") == "simple");
@@ -499,82 +259,409 @@ TEST_CASE("String escaping and unescaping", "[Config]") {
     }
 }
 
-TEST_CASE("Multiple string escaping and unescaping", "[Config]") {
-    SECTION("Multiple string escaping") {
-        std::vector<std::string> input = {"first", "second", "third"};
-        std::string escaped = escape_strings_cstyle(input);
-        REQUIRE(escaped == "first;second;third");
+TEST_CASE("ConfigOptionFloat", "[Config]") {
+    SECTION("Basic operations") {
+        ConfigOptionFloat opt;
+        REQUIRE(opt.value == 0.0);
 
-        input = {"with space", "with\"quote", "with\\backslash"};
-        escaped = escape_strings_cstyle(input);
-        REQUIRE(escaped == "\"with space\";\"with\\\"quote\";\"with\\\\backslash\"");
+        opt.value = 3.14;
+        REQUIRE(opt.value == Catch::Approx(3.14));
+        REQUIRE(opt.getFloat() == Catch::Approx(3.14));
+
+        test_serialize_deserialize(opt, "3.14");
     }
 
-    SECTION("Multiple string unescaping") {
-        std::vector<std::string> result;
+    SECTION("Negative values") {
+        ConfigOptionFloat opt(-2.718);
+        REQUIRE(opt.value == Catch::Approx(-2.718));
+        test_serialize_deserialize(opt, "-2.718");
+    }
 
-        REQUIRE(unescape_strings_cstyle("first;second;third", result));
-        REQUIRE(result.size() == 3);
-        REQUIRE(result[0] == "first");
-        REQUIRE(result[1] == "second");
-        REQUIRE(result[2] == "third");
-
-        REQUIRE(unescape_strings_cstyle("\"with space\";\"with\\\"quote\";\"with\\\\backslash\"", result));
-        REQUIRE(result.size() == 3);
-        REQUIRE(result[0] == "with space");
-        REQUIRE(result[1] == "with\"quote");
-        REQUIRE(result[2] == "with\\backslash");
-
-        // Invalid format
-        REQUIRE_FALSE(unescape_strings_cstyle("invalid\"", result));
+    SECTION("Zero value") {
+        ConfigOptionFloat opt(0.0);
+        test_serialize_deserialize(opt, "0");
     }
 }
 
-TEST_CASE("Config file operations", "[Config]") {
-    SECTION("Save and load JSON config") {
-        DynamicConfig config;
-        config.set("string_option", "test_value");
-        config.set("int_option", 42);
-        config.set("float_option", 3.14159);
+TEST_CASE("ConfigOptionFloats", "[Config]") {
+    SECTION("Empty vector") {
+        ConfigOptionFloats opt;
+        REQUIRE(opt.values.empty());
+        test_serialize_deserialize(opt, "");
+    }
 
-        // Save to temporary file
-        std::string temp_file = "temp_config.json";
-        config.save_to_json(temp_file, "test_config", "test", "1.0", "1");
+    SECTION("Single value") {
+        ConfigOptionFloats opt;
+        opt.values.push_back(3.14);
+        test_serialize_deserialize(opt, "3.14");
+    }
 
-        // Load from file
-        DynamicConfig loaded_config;
-        std::map<std::string, std::string> key_values;
-        std::string reason;
-        auto substitutions = loaded_config.load_from_json(temp_file,
-            ForwardCompatibilitySubstitutionRule::Enable, key_values, reason);
+    SECTION("Multiple values") {
+        ConfigOptionFloats opt;
+        opt.values = {1.1, 2.2, 3.3};
+        test_serialize_deserialize(opt, "1.1,2.2,3.3");
+    }
 
-        // Verify loaded values
-        REQUIRE(loaded_config.opt<ConfigOptionString>("string_option")->value == "test_value");
-        REQUIRE(loaded_config.opt<ConfigOptionInt>("int_option")->value == 42);
-        REQUIRE(loaded_config.opt<ConfigOptionFloat>("float_option")->value == Catch::Approx(3.14159));
-
-        // Cleanup
-        std::remove(temp_file.c_str());
+    SECTION("Negative values") {
+        ConfigOptionFloats opt;
+        opt.values = {-1.1, 2.2, -3.3};
+        test_serialize_deserialize(opt, "-1.1,2.2,-3.3");
     }
 }
 
-TEST_CASE("Config substitution context", "[Config]") {
-    SECTION("Substitution rules") {
-        ConfigSubstitutionContext ctx(ForwardCompatibilitySubstitutionRule::Enable);
+TEST_CASE("ConfigOptionInt", "[Config]") {
+    SECTION("Basic operations") {
+        ConfigOptionInt opt;
+        REQUIRE(opt.value == 0);
 
+        opt.value = 42;
+        REQUIRE(opt.value == 42);
+        REQUIRE(opt.getInt() == 42);
+
+        test_serialize_deserialize(opt, "42");
+    }
+
+    SECTION("Negative values") {
+        ConfigOptionInt opt(-42);
+        REQUIRE(opt.value == -42);
+        test_serialize_deserialize(opt, "-42");
+    }
+
+    SECTION("Zero value") {
+        ConfigOptionInt opt(0);
+        test_serialize_deserialize(opt, "0");
+    }
+}
+
+TEST_CASE("ConfigOptionInts", "[Config]") {
+    SECTION("Empty vector") {
+        ConfigOptionInts opt;
+        REQUIRE(opt.values.empty());
+        test_serialize_deserialize(opt, "");
+    }
+
+    SECTION("Single value") {
+        ConfigOptionInts opt;
+        opt.values.push_back(42);
+        test_serialize_deserialize(opt, "42");
+    }
+
+    SECTION("Multiple values") {
+        ConfigOptionInts opt;
+        opt.values = {1, 2, 3};
+        test_serialize_deserialize(opt, "1,2,3");
+    }
+
+    SECTION("Negative values") {
+        ConfigOptionInts opt;
+        opt.values = {-1, 2, -3};
+        test_serialize_deserialize(opt, "-1,2,-3");
+    }
+}
+
+TEST_CASE("ConfigOptionString", "[Config]") {
+    SECTION("Empty string") {
+        ConfigOptionString opt;
+        REQUIRE(opt.value.empty());
+        test_serialize_deserialize(opt, "");
+    }
+
+    SECTION("Simple string") {
+        ConfigOptionString opt("test");
+        REQUIRE(opt.value == "test");
+        test_serialize_deserialize(opt, "test");
+    }
+
+    SECTION("String with spaces") {
+        ConfigOptionString opt("hello world");
+        test_serialize_deserialize(opt, "hello world");
+    }
+
+    SECTION("String with special characters") {
+        ConfigOptionString opt("test;test,test");
+        test_serialize_deserialize(opt, "test;test,test");
+    }
+}
+
+TEST_CASE("ConfigOptionStrings", "[Config]") {
+    SECTION("Empty vector") {
+        ConfigOptionStrings opt;
+        REQUIRE(opt.values.empty());
+        test_serialize_deserialize(opt, "");
+    }
+
+    SECTION("Single string") {
+        ConfigOptionStrings opt;
+        opt.values.push_back("test");
+        test_serialize_deserialize(opt, "test");
+    }
+
+    SECTION("Multiple strings") {
+        ConfigOptionStrings opt;
+        opt.values = {"test1", "test2", "test3"};
+        test_serialize_deserialize(opt, "test1;test2;test3");
+    }
+
+    SECTION("Strings with spaces") {
+        ConfigOptionStrings opt;
+        opt.values = {"hello world", "test string"};
+        test_serialize_deserialize(opt, "\"hello world\";\"test string\"");
+    }
+}
+
+TEST_CASE("ConfigOptionBool", "[Config]") {
+    SECTION("Default value") {
+        ConfigOptionBool opt;
+        REQUIRE_FALSE(opt.value);
+        test_serialize_deserialize(opt, "0");
+    }
+
+    SECTION("True value") {
+        ConfigOptionBool opt(true);
+        REQUIRE(opt.value);
+        test_serialize_deserialize(opt, "1");
+    }
+
+    SECTION("False value") {
+        ConfigOptionBool opt(false);
+        REQUIRE_FALSE(opt.value);
+        test_serialize_deserialize(opt, "0");
+    }
+}
+
+TEST_CASE("ConfigOptionBools", "[Config]") {
+    SECTION("Empty vector") {
+        ConfigOptionBools opt;
+        REQUIRE(opt.values.empty());
+        test_serialize_deserialize(opt, "");
+    }
+
+    SECTION("Single value") {
+        ConfigOptionBools opt;
+        opt.values.push_back(true);
+        test_serialize_deserialize(opt, "1");
+    }
+
+    SECTION("Multiple values") {
+        ConfigOptionBools opt;
+        opt.values = {true, false, true};
+        test_serialize_deserialize(opt, "1,0,1");
+    }
+}
+
+TEST_CASE("ConfigOptionPoint", "[Config]") {
+    SECTION("Default value") {
+        ConfigOptionPoint opt;
+        REQUIRE(opt.value.x() == 0);
+        REQUIRE(opt.value.y() == 0);
+        test_serialize_deserialize(opt, "0,0");
+    }
+
+    SECTION("Custom point") {
+        ConfigOptionPoint opt(Vec2d(1.1, 2.2));
+        REQUIRE(opt.value.x() == Catch::Approx(1.1));
+        REQUIRE(opt.value.y() == Catch::Approx(2.2));
+        test_serialize_deserialize(opt, "1.1,2.2");
+    }
+
+    SECTION("Negative coordinates") {
+        ConfigOptionPoint opt(Vec2d(-1.1, -2.2));
+        REQUIRE(opt.value.x() == Catch::Approx(-1.1));
+        REQUIRE(opt.value.y() == Catch::Approx(-2.2));
+        test_serialize_deserialize(opt, "-1.1,-2.2");
+    }
+}
+
+TEST_CASE("ConfigOptionPoints", "[Config]") {
+    SECTION("Empty vector") {
+        ConfigOptionPoints opt;
+        REQUIRE(opt.values.empty());
+        test_serialize_deserialize(opt, "");
+    }
+
+    SECTION("Single point") {
+        ConfigOptionPoints opt;
+        opt.values.push_back(Vec2d(1.1, 2.2));
+        test_serialize_deserialize(opt, "1.1x2.2");
+    }
+
+    SECTION("Multiple points") {
+        ConfigOptionPoints opt;
+        opt.values = {Vec2d(1.1, 2.2), Vec2d(3.3, 4.4)};
+        test_serialize_deserialize(opt, "1.1x2.2,3.3x4.4");
+    }
+}
+
+TEST_CASE("ConfigOptionPercent", "[Config]") {
+    SECTION("Default value") {
+        ConfigOptionPercent opt;
+        REQUIRE(opt.value == 0);
+        test_serialize_deserialize(opt, "0%");
+    }
+
+    SECTION("Custom value") {
+        ConfigOptionPercent opt(50.5);
+        REQUIRE(opt.value == Catch::Approx(50.5));
+        test_serialize_deserialize(opt, "50.5%");
+    }
+
+    SECTION("Get absolute value") {
+        ConfigOptionPercent opt(50);
+        REQUIRE(opt.get_abs_value(200) == Catch::Approx(100));
+    }
+}
+
+TEST_CASE("ConfigOptionFloatOrPercent", "[Config]") {
+    SECTION("Float value") {
+        ConfigOptionFloatOrPercent opt(1.5, false);
+        REQUIRE(opt.value == Catch::Approx(1.5));
+        REQUIRE_FALSE(opt.percent);
+        test_serialize_deserialize(opt, "1.5");
+    }
+
+    SECTION("Percent value") {
+        ConfigOptionFloatOrPercent opt(50, true);
+        REQUIRE(opt.value == Catch::Approx(50));
+        REQUIRE(opt.percent);
+        test_serialize_deserialize(opt, "50%");
+    }
+
+    SECTION("Get absolute value") {
+        ConfigOptionFloatOrPercent opt1(1.5, false);
+        REQUIRE(opt1.get_abs_value(100) == Catch::Approx(1.5));
+
+        ConfigOptionFloatOrPercent opt2(50, true);
+        REQUIRE(opt2.get_abs_value(100) == Catch::Approx(50));
+    }
+}
+
+TEST_CASE("DynamicConfig", "[Config]") {
+    SECTION("Basic operations") {
         DynamicConfig config;
-        config.set("string_option", "old_value");
+        REQUIRE(config.empty());
 
-        // Test substitution
-        ConfigOption* new_opt = new ConfigOptionString("new_value");
-        ctx.substitutions.push_back(ConfigSubstitution{
-            nullptr,  // opt_def
-            "old_value",  // old_value
-            ConfigOptionUniquePtr(new_opt)  // new_value
-        });
+        // Add options
+        config.set_key_value("test_int", new ConfigOptionInt(42));
+        config.set_key_value("test_float", new ConfigOptionFloat(3.14));
+        config.set_key_value("test_string", new ConfigOptionString("test"));
 
-        REQUIRE(ctx.substitutions.size() == 1);
-        REQUIRE(ctx.substitutions[0].old_value == "old_value");
-        REQUIRE(static_cast<ConfigOptionString*>(ctx.substitutions[0].new_value.get())->value == "new_value");
+        REQUIRE(config.has("test_int"));
+        REQUIRE(config.has("test_float"));
+        REQUIRE(config.has("test_string"));
+
+        // Get values
+        REQUIRE(config.opt_int("test_int") == 42);
+        REQUIRE(config.opt_float("test_float") == Catch::Approx(3.14));
+        REQUIRE(config.opt_string("test_string") == "test");
+
+        // Erase option
+        REQUIRE(config.erase("test_int"));
+        REQUIRE_FALSE(config.has("test_int"));
+    }
+
+    SECTION("Copy and move operations") {
+        DynamicConfig config1;
+        config1.set_key_value("test", new ConfigOptionInt(42));
+
+        // Copy
+        DynamicConfig config2(config1);
+        REQUIRE(config2.opt_int("test") == 42);
+
+        // Move
+        DynamicConfig config3(std::move(config2));
+        REQUIRE(config3.opt_int("test") == 42);
+        REQUIRE(config2.empty());
+    }
+
+    SECTION("Equality comparison") {
+        DynamicConfig config1, config2;
+        config1.set_key_value("test", new ConfigOptionInt(42));
+        config2.set_key_value("test", new ConfigOptionInt(42));
+
+        REQUIRE(config1.equals(config2));
+
+        config2.set_key_value("test", new ConfigOptionInt(43));
+        REQUIRE_FALSE(config1.equals(config2));
+    }
+}
+
+TEST_CASE("Config error handling", "[Config]") {
+    SECTION("Unknown option") {
+        DynamicConfig config;
+        REQUIRE_THROWS_AS(config.option_throw<ConfigOptionInt>("nonexistent"), UnknownOptionException);
+    }
+
+    SECTION("Bad option type") {
+        DynamicConfig config;
+        config.set_key_value("test", new ConfigOptionInt(42));
+        REQUIRE_THROWS_AS(config.option_throw<ConfigOptionFloat>("test"), BadOptionTypeException);
+    }
+
+    SECTION("Bad option value") {
+        ConfigOptionFloat opt;
+        REQUIRE_FALSE(opt.deserialize("not_a_number"));
+    }
+}
+
+TEST_CASE("Config serialization", "[Config]") {
+    SECTION("DynamicConfig serialization") {
+        DynamicConfig config;
+        config.set_key_value("int_option", new ConfigOptionInt(42));
+        config.set_key_value("float_option", new ConfigOptionFloat(3.14));
+        config.set_key_value("string_option", new ConfigOptionString("test"));
+
+        std::string serialized = config.opt_serialize("int_option");
+        REQUIRE(serialized == "42");
+
+        serialized = config.opt_serialize("float_option");
+        REQUIRE(serialized == "3.14");
+
+        serialized = config.opt_serialize("string_option");
+        REQUIRE(serialized == "test");
+    }
+}
+
+TEST_CASE("ConfigOptionPoint3", "[Config]") {
+    SECTION("Default value") {
+        ConfigOptionPoint3 opt;
+        REQUIRE(opt.value.x() == 0);
+        REQUIRE(opt.value.y() == 0);
+        REQUIRE(opt.value.z() == 0);
+        test_serialize_deserialize(opt, "0,0,0");
+    }
+
+    SECTION("Custom point") {
+        ConfigOptionPoint3 opt(Vec3d(1.1, 2.2, 3.3));
+        REQUIRE(opt.value.x() == Catch::Approx(1.1));
+        REQUIRE(opt.value.y() == Catch::Approx(2.2));
+        REQUIRE(opt.value.z() == Catch::Approx(3.3));
+        test_serialize_deserialize(opt, "1.1,2.2,3.3");
+    }
+
+    SECTION("Negative coordinates") {
+        ConfigOptionPoint3 opt(Vec3d(-1.1, -2.2, -3.3));
+        REQUIRE(opt.value.x() == Catch::Approx(-1.1));
+        REQUIRE(opt.value.y() == Catch::Approx(-2.2));
+        REQUIRE(opt.value.z() == Catch::Approx(-3.3));
+        test_serialize_deserialize(opt, "-1.1,-2.2,-3.3");
+    }
+}
+
+TEST_CASE("ConfigOptionEnum", "[Config]") {
+    SECTION("Basic operations") {
+        ConfigOptionEnum<TestEnum> opt;
+        REQUIRE(opt.value == TestEnum::First);
+
+        opt.value = TestEnum::Second;
+        REQUIRE(opt.value == TestEnum::Second);
+        REQUIRE(opt.getInt() == 1);
+
+        test_serialize_deserialize(opt, "second");
+    }
+
+    SECTION("Conversion") {
+        ConfigOptionEnum<TestEnum> opt(TestEnum::Third);
+        REQUIRE(opt.getInt() == 2);
+        test_serialize_deserialize(opt, "third");
     }
 }
