@@ -58,12 +58,9 @@ std::string escape_string_cstyle(const std::string &str)
         } else if (c == '\n') {
             (*outptr ++) = '\\';
             (*outptr ++) = 'n';
-        } else if (c == '\\') {
-            (*outptr ++) = '\\';
-            (*outptr ++) = '\\';
-        } else if (c == '"') {
-            (*outptr ++) = '\\';
-            (*outptr ++) = '"';
+        } else if (c == '\\' || c == '"') {
+            (*outptr++) = '\\';
+            (*outptr++) = c;
         } else
             (*outptr ++) = c;
     }
@@ -135,10 +132,6 @@ bool unescape_string_cstyle(const std::string &str, std::string &str_out)
                 (*outptr ++) = '\r';
             else if (c == 'n')
                 (*outptr ++) = '\n';
-            else if (c == '\\')
-                (*outptr ++) = '\\';
-            else if (c == '"')
-                (*outptr ++) = '"';
             else
                 (*outptr ++) = c;
         } else
@@ -1495,6 +1488,35 @@ size_t DynamicConfig::remove_nil_options()
 		} else
 			++ it;
 	return cnt_removed;
+}
+
+ConfigOption* DynamicConfig::optptr(const t_config_option_key &opt_key, bool create)
+{
+    auto it = options.find(opt_key);
+    if (it != options.end())
+        // Option was found.
+        return it->second.get();
+    if (! create)
+        // Option was not found and a new option shall not be created.
+        return nullptr;
+    // Try to create a new ConfigOption.
+    const ConfigDef       *def    = this->def();
+    if (def == nullptr)
+        throw NoDefinitionException(opt_key);
+    const ConfigOptionDef *optdef = def->get(opt_key);
+    if (optdef == nullptr)
+//        throw ConfigurationError(std::string("Invalid option name: ") + opt_key);
+        // Let the parent decide what to do if the opt_key is not defined by this->def().
+        return nullptr;
+    ConfigOption *opt = optdef->create_default_option();
+    this->options.emplace_hint(it, opt_key, std::unique_ptr<ConfigOption>(opt));
+    return opt;
+}
+
+const ConfigOption* DynamicConfig::optptr(const t_config_option_key &opt_key) const
+{
+    auto it = options.find(opt_key);
+    return (it == options.end()) ? nullptr : it->second.get();
 }
 
 bool DynamicConfig::read_cli(int argc, const char* const argv[], t_config_option_keys* extra, t_config_option_keys* keys)
