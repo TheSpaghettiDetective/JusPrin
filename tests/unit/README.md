@@ -1,15 +1,13 @@
 # Unit Tests
 
-This directory contains the unit tests for the project using the Catch2 testing framework.
+This directory contains the unit tests for the project using Google Test framework.
 
 ## Directory Structure
 
 ```
 tests/unit/
-├── CMakeLists.txt          # CMake configuration for unit tests
-├── test_format.cpp         # Tests for format functionality
-├── test_locales_utils.cpp  # Tests for locale utilities
-└── test_utils.hpp         # Shared test utilities
+├── CMakeLists.txt                         # CMake configuration for unit tests
+└── ConfigBase_load_from_json_test.cpp     # Tests for JSON config loading functionality
 ```
 
 ## Building and Running Tests
@@ -39,50 +37,36 @@ cmake --build . --target run_all_tests    # Run all tests
 
 After building, you can run individual test executables:
 ```bash
-./format_test
-./locales_utils_test
-```
-
-## Test Utilities
-
-The `test_utils.hpp` header provides several utilities to make testing easier:
-
-### String to Double Conversion
-```cpp
-double result = TestUtils::str_to_double("3.14159");
-```
-
-### Vector Formatting
-```cpp
-std::vector<int> vec{1, 2, 3};
-std::string result = TestUtils::vec_to_string(vec); // "[1, 2, 3]"
-```
-
-### Floating Point Comparisons
-```cpp
-bool equal = TestUtils::approx_equal(3.14159, 3.14160, 0.0001);
-```
-
-### Locale Management
-```cpp
-{
-    TestUtils::ScopedLocale locale("en_US.UTF-8");
-    // Code that needs specific locale
-} // Locale automatically restored
+./config_base_load_from_json_test
 ```
 
 ## Writing Tests
 
-Tests use the Catch2 framework. Here's a basic example:
+Tests use the Google Test framework. Here's a basic example:
 
 ```cpp
-#include <catch2/catch.hpp>
-#include "test_utils.hpp"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-TEST_CASE("My Test Case", "[tag]") {
-    SECTION("Test section") {
-        REQUIRE(some_function() == expected_value);
+TEST(TestSuiteName, TestName) {
+    EXPECT_EQ(some_function(), expected_value);
+    ASSERT_TRUE(some_condition);
+}
+
+// For fixture-based tests
+class MyTestFixture : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Setup code
     }
+
+    void TearDown() override {
+        // Cleanup code
+    }
+};
+
+TEST_F(MyTestFixture, TestName) {
+    EXPECT_THAT(some_value, testing::Eq(expected));
 }
 ```
 
@@ -90,21 +74,21 @@ TEST_CASE("My Test Case", "[tag]") {
 
 - `build_all_tests`: Builds all test executables
 - `run_all_tests`: Builds and runs all tests with output on failure
-- Individual test targets: `format_test`, `locales_utils_test`
+- Individual test targets: `config_base_load_from_json_test`
 
 ## Best Practices
 
-1. Use the provided test utilities for common operations
-2. Group related tests in sections
-3. Use meaningful tags for test cases
-4. Add descriptive test names and failure messages
-5. Keep test files focused and organized
-6. Use the ScopedLocale when testing locale-dependent functionality
+1. Use test fixtures for common setup/teardown
+2. Use descriptive test names
+3. Follow the AAA pattern (Arrange, Act, Assert)
+4. Use appropriate assertions (EXPECT_* for non-fatal, ASSERT_* for fatal)
+5. Use Google Mock for mocking when needed
+6. Keep tests focused and organized
 
 ## Adding New Tests
 
 1. Create a new test file in this directory
 2. Add the file to `CMakeLists.txt`
-3. Include necessary headers and test utilities
+3. Include necessary headers (gtest/gtest.h and gmock/gmock.h)
 4. Follow the existing test structure and naming conventions
 5. Build and run tests to verify everything works

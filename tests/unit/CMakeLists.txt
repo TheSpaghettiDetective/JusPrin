@@ -17,12 +17,12 @@ list(APPEND CMAKE_PREFIX_PATH ${DEPS_DIR})
 find_package(OpenSSL REQUIRED)
 find_package(TBB REQUIRED)
 find_package(Boost REQUIRED COMPONENTS locale log log_setup thread filesystem system regex)
-find_package(Catch2 3 REQUIRED)
+find_package(GTest REQUIRED)
 
 # Enable testing
 enable_testing()
 include(CTest)
-include(Catch)
+include(GoogleTest)
 
 # Configure version header
 set(SLIC3R_APP_NAME "OrcaSlicer")
@@ -97,53 +97,31 @@ set_source_files_properties(${CMAKE_SOURCE_DIR}/../../src/libslic3r/MacUtils.mm 
 )
 
 # Add test executables
-add_executable(locales_utils_test test_locales_utils.cpp)
-target_include_directories(locales_utils_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/..
-)
-target_link_libraries(locales_utils_test PRIVATE
-    locales_utils
-    Catch2::Catch2WithMain
-)
-
-add_executable(format_test test_format.cpp)
-target_include_directories(format_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/..
-)
-target_link_libraries(format_test PRIVATE
-    fast_float
-    Catch2::Catch2WithMain
-)
-
-add_executable(config_test test_config.cpp)
-target_include_directories(config_test PUBLIC
+add_executable(config_base_load_from_json_test ConfigBase_load_from_json_test.cpp)
+target_include_directories(config_base_load_from_json_test PUBLIC
     ${CMAKE_SOURCE_DIR}/../../src
     ${CMAKE_SOURCE_DIR}/../../src/eigen
     ${Boost_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
+    ${GTEST_INCLUDE_DIRS}
 )
-target_link_libraries(config_test PRIVATE
+target_link_libraries(config_base_load_from_json_test PRIVATE
     config
-    Catch2::Catch2WithMain
+    GTest::GTest
+    GTest::Main
 )
 
 # Add tests to CTest
-add_test(NAME locales_utils_test COMMAND locales_utils_test)
-add_test(NAME format_test COMMAND format_test)
-add_test(NAME config_test COMMAND config_test)
+gtest_discover_tests(config_base_load_from_json_test
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 # Add convenience targets for building and running all tests
 add_custom_target(build_all_tests
-    DEPENDS locales_utils_test format_test config_test
+    DEPENDS config_base_load_from_json_test
 )
 
 add_custom_target(run_all_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
     DEPENDS build_all_tests
-)
-
-# Set working directory for tests
-set_tests_properties(locales_utils_test format_test config_test
-    PROPERTIES
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
