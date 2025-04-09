@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Connecting to Server...</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .message {
+            text-align: center;
+            padding: 20px;
+        }
+        .error {
+            color: #dc3545;
+            display: none;
+        }
+        .loading {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="message">
+        <div class="loading">
+            <h2>Connecting to JusPrin server...</h2>
+        </div>
+        <div class="error">
+            <h2>Connection Error</h2>
+            <p>Unable to connect to JusPrin server. Please try again later.</p>
+            <button onclick="checkAndRedirectToServer()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        function showError() {
+            document.querySelector('.loading').style.display = 'none';
+            document.querySelector('.error').style.display = 'block';
+        }
+
+        function showLoading() {
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.error').style.display = 'none';
+        }
+
+        function checkAndRedirectToServer(developerMode = false) {
+            showLoading();
+
+            if (typeof SERVER_URL === 'undefined') {
+                setTimeout(checkAndRedirectToServer, 1000);
+                return;
+            }
+
+            // Set a timeout to handle no response
+            const timeoutId = setTimeout(() => {
+                console.error("Server connection timeout");
+                showError();
+            }, 5000); // 5 second timeout
+
+            let pageUrl = SERVER_URL + '/api/homepage/';
+            if (developerMode) {
+                pageUrl += '?devmode=true';
+            }
+
+            fetch(pageUrl, {
+                method: 'HEAD',
+                mode: 'no-cors'
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                // Don't check response.ok when using no-cors
+                // Just redirect if we get any response
+                window.location.href = pageUrl;
+            })
+            .catch((e) => {
+                console.error(e);
+                clearTimeout(timeoutId);
+                showError();
+            });
+        }
+
+        setTimeout(() => {
+            window.wx.postMessage({ action: 'init_server_url_and_redirect' });
+        }, 100);    // Workaround for potential timing issues
+    </script>
+</body>
+</html>

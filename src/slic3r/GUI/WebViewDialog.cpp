@@ -36,10 +36,11 @@ namespace GUI {
 WebViewPanel::WebViewPanel(wxWindow *parent)
         : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize)
  {
-    wxString url = wxString::Format("file://%s/web/homepage/index.html", from_u8(resources_dir()));
+    // Load the built Next.js application
+    wxString url = wxString::Format("file://%s/web/homepage3/index.html", from_u8(resources_dir()));
     wxString strlang = wxGetApp().current_language_code_safe();
     if (strlang != "")
-        url = wxString::Format("file://%s/web/homepage/index.html?lang=%s", from_u8(resources_dir()), strlang);
+        url = wxString::Format("file://%s/web/homepage3/index.html?lang=%s", from_u8(resources_dir()), strlang);
 
     wxBoxSizer* topsizer = new wxBoxSizer(wxVERTICAL);
 
@@ -88,10 +89,28 @@ WebViewPanel::WebViewPanel(wxWindow *parent)
         wxLogError("Could not init m_browser");
         return;
     }
-    m_browser->Hide();
+    // m_browser->Hide();
     SetSizer(topsizer);
 
     topsizer->Add(m_browser, wxSizerFlags().Expand().Proportion(1));
+
+    // Set up base URL for resources
+    wxString baseUrl = wxString::Format("file://%s/web/homepage3/", from_u8(resources_dir()));
+    // Ensure the base URL ends with a slash
+    if (!baseUrl.EndsWith("/")) {
+        baseUrl += "/";
+    }
+    // Set the base URL as a JavaScript variable
+    wxString strJS = wxString::Format("window.RESOURCE_BASE_URL = '%s';", baseUrl);
+    m_browser->RunScript(strJS);
+    // Log the base URL for debugging
+    wxLogMessage("Setting RESOURCE_BASE_URL to: %s", baseUrl);
+
+    // Set up server URL
+    wxString serverUrl = wxString::Format("http://%s", from_u8(Slic3r::GUI::wxGetApp().app_config->get("server_url")));
+    strJS = wxString::Format("window.SERVER_URL = '%s';", serverUrl);
+    m_browser->RunScript(strJS);
+    wxLogMessage("Setting SERVER_URL to: %s", serverUrl);
 
     // Log backend information
     /* m_browser->GetUserAgent() may lead crash
@@ -551,7 +570,7 @@ void WebViewPanel::OnNavigationRequest(wxWebViewEvent& evt)
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__ << ": " << evt.GetTarget().ToUTF8().data();
     const wxString &url = evt.GetURL();
     if (url.StartsWith("File://") || url.StartsWith("file://")) {
-        if (!url.Contains("/web/homepage/index.html")) {
+        if (!url.Contains("/web/homepage3/index.html")) {
             auto file = wxURL::Unescape(wxURL(url).GetPath());
 #ifdef _WIN32
             if (file.StartsWith('/'))
@@ -610,6 +629,11 @@ void WebViewPanel::OnDocumentLoaded(wxWebViewEvent& evt)
     {
         if (wxGetApp().get_mode() == comDevelop)
             wxLogMessage("%s", "Document loaded; url='" + evt.GetURL() + "'");
+
+        // Set the server URL after the page is loaded
+        wxString serverUrl = wxGetApp().app_config->get_with_default("jusprin_server", "server_url", "https://app.obico.io/jusprin");
+        wxString strJS = wxString::Format("window.SERVER_URL = '%s';", serverUrl);
+        m_browser->RunScript(strJS);
     }
     UpdateState();
 }
@@ -656,6 +680,15 @@ void WebViewPanel::OnScriptMessage(wxWebViewEvent& evt)
 
     if (wxGetApp().get_mode() == comDevelop)
         wxLogMessage("Script message received; value = %s, handler = %s", evt.GetString(), evt.GetMessageHandler());
+
+    // Handle server URL requests from iframe
+    if (evt.GetString().Contains("request_server_url")) {
+        wxString serverUrl = wxGetApp().app_config->get_with_default("jusprin_server", "server_url", "https://app.obico.io/jusprin");
+        wxString strJS = wxString::Format("window.postMessage({action: 'set_server_url', url: '%s'}, '*');", serverUrl);
+        m_browser->RunScript(strJS);
+        return;
+    }
+
     std::string response = wxGetApp().handle_web_request(evt.GetString().ToUTF8().data());
     if (response.empty()) return;
 
