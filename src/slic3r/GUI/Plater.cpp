@@ -9170,7 +9170,7 @@ void Plater::import_model_id(wxString download_info)
 
 
             //check file suffix
-            if (!extension.Contains(".3mf")) {
+            if (!extension.Contains(".3mf") && !extension.Contains(".stl")) {
                 msg = _L("Download failed, unknown file format.");
                 return;
             }
@@ -9299,8 +9299,8 @@ void Plater::import_model_id(wxString download_info)
     if (download_ok) {
         BOOST_LOG_TRIVIAL(trace) << "import_model_id: target_path = " << target_path.string();
         /* load project */
-        // Orca: If download is a zip file, treat it as if file has been drag and dropped on the plater
-        if (target_path.extension() == ".zip")
+        // Orca: If download is a zip file or stl file, treat it as if file has been drag and dropped on the plater
+        if (target_path.extension() == ".zip" || target_path.extension() == ".stl" || target_path.extension() == ".STL")
             this->load_files(wxArrayString(1, target_path.string()));
         else
             this->load_project(target_path.wstring());
