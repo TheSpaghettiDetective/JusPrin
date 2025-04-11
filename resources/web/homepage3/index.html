@@ -49,6 +49,13 @@
 <div id="ContentBoard" class="ZScrol" board="recent">
     <div style="height: 14px;"></div>
 	<div id="MenuArea">
+		<div class="MenuItem" onClick="fetchServerContent()">
+			<div class="MenuIcon"><img src="img/i6.png"></div>
+			<div>
+				<div class="trans TextS1">Online Models</div>
+				<div class="MenuDesc trans">Import and slice online models</div>
+			</div>
+		</div>
 		<div class="MenuItem" onClick="OnClickNewProject()">
 			<div class="MenuIcon"><img src="img/i4.png"></div>
 			<div>
@@ -56,13 +63,7 @@
 				<div class="MenuDesc trans"  tid="t32">create new project</div>
 			</div>
 		</div>
-		<div class="MenuItem" onClick="fetchServerContent()">
-			<div class="MenuIcon"><img src="img/i6.png"></div>
-			<div>
-				<div class="trans TextS1">browse online models</div>
-				<div class="MenuDesc trans">find 3D models online</div>
-			</div>
-		</div>
+
 		<div class="MenuItem" onClick="OnClickOpenProject()">
 			<div class="MenuIcon"><img src="img/i5.png"></div>
 			<div>
@@ -225,6 +226,15 @@
 
 	// Function to fetch and display server content
 	function fetchServerContent() {
+		// First check for unsaved changes
+		if (window.wx && window.wx.postMessage) {
+			window.wx.postMessage({
+				command: "check_unsaved_changes",
+				action: "browse_online_models"
+			});
+			return;
+		}
+
 		// Make sure we have a server URL
 		if (typeof window.SERVER_URL === 'undefined') {
 			console.log("SERVER_URL not available");
