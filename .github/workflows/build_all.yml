@@ -40,7 +40,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-  
+
 
 jobs:
   build_all:
@@ -88,6 +88,40 @@ jobs:
       run:
         rm -rf /usr/local/lib/android/* /usr/share/dotnet/* /opt/ghc1/* "/usr/local/share/boost1/*"
     - uses: actions/checkout@v4
+
+    - name: Debug Flatpak Environment
+      run: |
+        echo "=== Flatpak Environment Diagnostics ==="
+        echo "System info:"
+        uname -a
+        cat /etc/os-release
+        echo "Current user: $(whoami)"
+        echo "Working directory: $PWD"
+
+        echo "Available tools:"
+        which flatpak flatpak-builder xvfb-run || echo "Tools not found"
+
+        if [ -e /app/bin/xvfb-run ]; then
+          echo "xvfb-run exists at /app/bin/xvfb-run"
+          ls -la /app/bin/xvfb-run
+          file /app/bin/xvfb-run
+        else
+          echo "xvfb-run does not exist at /app/bin/xvfb-run"
+        fi
+
+        echo "X11 related packages:"
+        dpkg -l | grep -E 'x11|xvfb'
+
+        echo "Checking for Xvfb:"
+        which Xvfb || echo "Xvfb not found"
+
+        echo "Directory structure:"
+        find /app -type f -name "xvfb-run" 2>/dev/null || echo "No xvfb-run found in /app"
+
+        echo "Trying to install missing packages:"
+        apt-get update -y
+        apt-get install -y xvfb x11-xserver-utils
+
     - name: Get the version and date
       run: |
         ver_pure=$(grep 'set(SoftFever_VERSION' version.inc | cut -d '"' -f2)
@@ -107,6 +141,35 @@ jobs:
         cache: true
         arch: ${{ matrix.variant.arch }}
         upload-artifact: false
+    - name: Debug Flatpak Build Failure
+      if: failure()
+      run: |
+        echo "=== Flatpak Build Failure Diagnostics ==="
+
+        echo "Checking build logs:"
+        if [ -d ".flatpak-builder" ]; then
+          find .flatpak-builder -name "*.log" -type f -exec echo "=== {} ===" \; -exec cat {} \;
+        else
+          echo "No .flatpak-builder directory found"
+        fi
+
+        echo "Checking for manifest issues:"
+        cat flatpak/io.github.softfever.OrcaSlicer.yml
+
+        echo "Trying with different xvfb setup:"
+        if [ -e /usr/bin/xvfb-run ]; then
+          echo "Found xvfb-run at /usr/bin/xvfb-run"
+          ls -la /usr/bin/xvfb-run
+
+          # Create a symlink if /app/bin exists
+          if [ -d "/app/bin" ]; then
+            ln -sf /usr/bin/xvfb-run /app/bin/xvfb-run
+            echo "Created symlink from /usr/bin/xvfb-run to /app/bin/xvfb-run"
+          fi
+        fi
+
+        echo "System diagnostic information:"
+        dmesg | tail -50
     - name: Upload artifacts Flatpak
       uses: actions/upload-artifact@v4
       with:

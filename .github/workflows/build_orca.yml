@@ -156,19 +156,114 @@ jobs:
         if: inputs.os == 'windows-latest'
         uses: microsoft/setup-msbuild@v2
 
+      - name: Debug Windows Build Environment
+        if: inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Host "Windows SDK Info:"
+          Write-Host "WindowsSdkDir: $env:WindowsSdkDir"
+          Write-Host "WindowsSDKVersion: $env:WindowsSDKVersion"
+
+          Write-Host "Visual Studio Setup:"
+          & vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+
+          Write-Host "MSBuild Info:"
+          & where msbuild
+          & msbuild -version
+
+          Write-Host "CMake Info:"
+          & cmake --version
+
+          Write-Host "Dependencies Path Check:"
+          $depsPath = "${{ github.workspace }}\deps\build\OrcaSlicer_dep"
+          if (Test-Path $depsPath) {
+            Write-Host "Dependencies exist at: $depsPath"
+            Get-ChildItem "$depsPath\usr\local" -Directory | ForEach-Object { Write-Host "- $_" }
+          } else {
+            Write-Host "Dependencies NOT found at: $depsPath"
+          }
+
+          Write-Host "System PATH:"
+          $env:PATH -split ';' | ForEach-Object { Write-Host "- $_" }
+
       - name: Install nsis
         if: inputs.os == 'windows-latest'
         run: |
           dir "C:/Program Files (x86)/Windows Kits/10/Include"
           choco install nsis
 
-      - name: Build slicer Win
+      - name: Set Windows SDK env vars explicitly
+        if: inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Set SDK vars explicitly if not already set
+          if (-not $env:WindowsSdkDir) {
+            echo "WindowsSdkDir=C:\Program Files (x86)\Windows Kits\10\" >> $env:GITHUB_ENV
+          }
+          if (-not $env:WindowsSDKVersion) {
+            # Find the latest SDK version
+            $sdkVersions = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory |
+                          Sort-Object -Property Name -Descending
+            if ($sdkVersions.Count -gt 0) {
+              $latestSDK = $sdkVersions[0].Name
+              echo "WindowsSDKVersion=$latestSDK\" >> $env:GITHUB_ENV
+              Write-Host "Setting WindowsSDKVersion to $latestSDK\"
+            } else {
+              Write-Host "No Windows SDK versions found"
+            }
+          }
+
+      - name: Build slicer Win with verbose output
         if: inputs.os == 'windows-latest'
         working-directory: ${{ github.workspace }}
         env:
-          WindowsSdkDir: 'C:\Program Files (x86)\Windows Kits\10\'
-          WindowsSDKVersion: '10.0.22000.0\'
-        run: .\build_release_vs2022.bat slicer
+          WindowsSdkDir: ${{ env.WindowsSdkDir || 'C:\Program Files (x86)\Windows Kits\10\' }}
+          WindowsSDKVersion: ${{ env.WindowsSDKVersion || '10.0.22000.0\' }}
+          CMAKE_VERBOSE_MAKEFILE: ON
+          VERBOSE: 1
+        run: |
+          # Clean build directory
+          Remove-Item -Path .\build -Recurse -Force -ErrorAction SilentlyContinue
+          mkdir build
+          cd build
+
+          # Step 1: Generate project files with detailed output
+          echo "Generating CMake project files..."
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DBBL_RELEASE_TO_PUBLIC=1 ^
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}\deps\build\OrcaSlicer_dep\usr\local" ^
+            -DCMAKE_INSTALL_PREFIX=".\JusPrin" ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DWIN10SDK_PATH="$env:WindowsSdkDir\Include\$env:WindowsSDKVersion"
+
+          # Check if CMake generation succeeded
+          if ($LASTEXITCODE -ne 0) {
+            echo "CMake generation failed with exit code $LASTEXITCODE"
+            if (Test-Path .\CMakeFiles\CMakeError.log) {
+              echo "CMake Error Log:"
+              Get-Content .\CMakeFiles\CMakeError.log
+            }
+            exit $LASTEXITCODE
+          }
+
+          # List generated files to verify project files exist
+          echo "Generated CMake files:"
+          Get-ChildItem -File | Select-Object Name, Length
+
+          if (-not (Test-Path .\ALL_BUILD.vcxproj)) {
+            echo "ERROR: ALL_BUILD.vcxproj not generated"
+            exit 1
+          }
+
+          # Step 2: Build the project
+          echo "Building JusPrin..."
+          cmake --build . --config Release --verbose
+
+          cd ..
+          echo "Running gettext..."
+          .\run_gettext.bat
+          cd build
+          echo "Installing..."
+          cmake --build . --target install --config Release
 
       - name: Create installer Win
         if: inputs.os == 'windows-latest'
@@ -316,3 +411,36 @@ jobs:
           asset_name: orca_custom_preset_tests.zip
           asset_content_type: application/octet-stream
           max_releases: 1
+
+      - name: Debug Windows Build Failure
+        if: failure() && inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Collect information about the failure
+          Write-Host "==== BUILD FAILURE DIAGNOSTICS ===="
+
+          $buildDir = "${{ github.workspace }}\build"
+          if (Test-Path $buildDir) {
+            Write-Host "Build directory contents:"
+            Get-ChildItem $buildDir -File | Select-Object Name, Length
+
+            # Check for CMake logs
+            if (Test-Path "$buildDir\CMakeFiles\CMakeError.log") {
+              Write-Host "CMakeError.log contents:"
+              Get-Content "$buildDir\CMakeFiles\CMakeError.log"
+            }
+
+            if (Test-Path "$buildDir\CMakeFiles\CMakeOutput.log") {
+              Write-Host "CMakeOutput.log (last 50 lines):"
+              Get-Content "$buildDir\CMakeFiles\CMakeOutput.log" -Tail 50
+            }
+
+            # Check for Visual Studio logs
+            $msbuildLogs = Get-ChildItem -Path $buildDir -Filter "*.log" -Recurse | Where-Object { $_.FullName -like "*msbuild*" }
+            foreach ($log in $msbuildLogs) {
+              Write-Host "MSBuild log ($($log.Name)) last 50 lines:"
+              Get-Content $log.FullName -Tail 50
+            }
+          } else {
+            Write-Host "Build directory does not exist"
+          }

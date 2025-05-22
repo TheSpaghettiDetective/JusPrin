@@ -59,6 +59,40 @@ jobs:
         run: echo "date=$(Get-Date -Format 'yyyyMMdd')" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
         shell: pwsh
 
+      - name: Check CMake and environment
+        run: |
+          cmake --version
+          echo "--- Environment Variables ---"
+          if [ "${{ inputs.os }}" == "windows-latest" ]; then
+            set | sort
+            echo "--- Directory Structure ---"
+            dir %GITHUB_WORKSPACE%
+            if exist "%DEPS%" dir "%DEPS%"
+          else
+            env | sort
+            echo "--- Directory Structure ---"
+            ls -la $GITHUB_WORKSPACE
+            if [ -d "$DEPS" ]; then ls -la $DEPS; fi
+          fi
+
+      - name: Debug information for Windows
+        if: inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Host "Windows SDK Info:"
+          if ($env:WindowsSdkDir) {
+            Write-Host "WindowsSdkDir: $env:WindowsSdkDir"
+            Write-Host "WindowsSDKVersion: $env:WindowsSDKVersion"
+            $sdkPath = "$env:WindowsSdkDir\Include\$env:WindowsSDKVersion"
+            if (Test-Path $sdkPath) {
+              Write-Host "SDK Path exists: $sdkPath"
+              Get-ChildItem $sdkPath -Directory | ForEach-Object { Write-Host "- $_" }
+            } else {
+              Write-Host "SDK Path does not exist: $sdkPath"
+            }
+          } else {
+            Write-Host "WindowsSdkDir environment variable not set"
+          }
 
       # Build Dependencies
       - name: Build on Windows
@@ -66,9 +100,17 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
             choco install strawberryperl
+            mkdir ${{ github.workspace }}\deps\build
+            mkdir ${{ github.workspace }}\deps\build\OrcaSlicer_dep
+            echo "Running build_release_vs2022.bat deps with detailed output"
+            set CMAKE_VERBOSE_MAKEFILE=ON
+            set VERBOSE=1
             .\build_release_vs2022.bat deps
+            echo "Checking build artifacts"
+            dir ${{ github.workspace }}\deps\build
+            echo "Running pack command"
             .\build_release_vs2022.bat pack
-            cd ${{ github.workspace }}/deps/build
+            cd ${{ github.workspace }}\deps\build
 
       - name: Build on Mac ${{ inputs.arch }}
         if: inputs.os == 'macos-14'
@@ -84,6 +126,19 @@ jobs:
             done
             brew install zstd
 
+      - name: Debug macOS Build Environment
+        if: inputs.os == 'macos-14'
+        run: |
+          echo "macOS Version:"
+          sw_vers
+          echo "Xcode Version:"
+          xcodebuild -version
+          echo "Available compilers:"
+          ls -la /usr/bin/clang*
+          echo "Homebrew packages:"
+          brew list
+          echo "Current directory structure:"
+          find ${{ github.workspace }} -type d -maxdepth 2 -ls
 
       - name: Install Ubuntu Build Dependencies
         if: inputs.os == 'ubuntu-20.04' || inputs.os == 'ubuntu-24.04'
@@ -111,6 +166,22 @@ jobs:
             cd deps/build
             tar -czvf OrcaSlicer_dep_ubuntu_$(date +"%Y%m%d").tar.gz destdir
 
+      - name: Debug Ubuntu Build Environment
+        if: inputs.os == 'ubuntu-20.04' || inputs.os == 'ubuntu-24.04'
+        run: |
+          echo "Linux distribution info:"
+          cat /etc/os-release
+          echo "Available compilers:"
+          which gcc g++ clang
+          gcc --version
+          g++ --version
+          echo "CMake version:"
+          cmake --version
+          echo "Current directory structure:"
+          find ${{ github.workspace }} -type d -maxdepth 2 -ls
+          echo "System resources:"
+          free -h
+          df -h
 
       # Upload Artifacts
       # - name: Upload Mac ${{ inputs.arch }} artifacts
