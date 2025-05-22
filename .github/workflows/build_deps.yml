@@ -59,17 +59,24 @@ jobs:
         run: echo "date=$(Get-Date -Format 'yyyyMMdd')" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
         shell: pwsh
 
-      - name: Check CMake and environment
-        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
+      - name: Check CMake version
+        run: cmake --version
+
+      - name: Check Environment (Unix)
+        if: inputs.os != 'windows-latest'
+        shell: bash
         run: |
-          cmake --version
           echo "--- Environment Variables ---"
-          ${{ inputs.os != 'windows-latest' && '
           env | sort
           echo "--- Directory Structure ---"
           ls -la $GITHUB_WORKSPACE
           if [ -d "$DEPS" ]; then ls -la $DEPS; fi
-          ' || '
+
+      - name: Check Environment (Windows)
+        if: inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          echo "--- Environment Variables ---"
           Get-ChildItem -Path Env: | Sort-Object Name
           echo "--- Directory Structure ---"
           Get-ChildItem -Path $env:GITHUB_WORKSPACE
@@ -77,7 +84,6 @@ jobs:
           if (Test-Path $depsPath) {
             Get-ChildItem -Path $depsPath
           }
-          ' }}
 
       - name: Debug information for Windows
         if: inputs.os == 'windows-latest'

@@ -57,19 +57,28 @@ jobs:
           key: ${{ steps.set_outputs.outputs.cache-key }}
           lookup-only: true
 
-      - name: Check cache result
-        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
+      - name: Cache Check Results Header
         run: |
           echo "===== Cache Check Results ====="
           echo "Cache hit: ${{ steps.cache_deps.outputs.cache-hit }}"
           echo "Cache path: ${{ steps.set_outputs.outputs.cache-path }}"
 
-          ${{ inputs.os != 'windows-latest' && 'if [ "${{ steps.cache_deps.outputs.cache-hit }}" == "true" ]; then
+      - name: Check Cache Directory (Unix)
+        if: inputs.os != 'windows-latest'
+        shell: bash
+        run: |
+          if [ "${{ steps.cache_deps.outputs.cache-hit }}" == "true" ]; then
             echo "Checking Unix cache directory..."
             ls -la "${{ steps.set_outputs.outputs.cache-path }}" || echo "Directory not found"
           else
             echo "Cache miss - directory will be created during build"
-          fi' || 'if ("${{ steps.cache_deps.outputs.cache-hit }}" -eq "true") {
+          fi
+
+      - name: Check Cache Directory (Windows)
+        if: inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          if ("${{ steps.cache_deps.outputs.cache-hit }}" -eq "true") {
             Write-Host "Checking Windows cache directory..."
             if (Test-Path "${{ steps.set_outputs.outputs.cache-path }}") {
               Get-ChildItem "${{ steps.set_outputs.outputs.cache-path }}"
@@ -78,8 +87,10 @@ jobs:
             }
           } else {
             Write-Host "Cache miss - directory will be created during build"
-          }' }}
-          echo "================================="
+          }
+
+      - name: Cache Check Results Footer
+        run: echo "================================="
 
   build_deps: # call next step
     name: Build Deps
