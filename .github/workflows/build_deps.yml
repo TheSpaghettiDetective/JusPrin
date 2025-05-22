@@ -60,20 +60,24 @@ jobs:
         shell: pwsh
 
       - name: Check CMake and environment
+        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
         run: |
           cmake --version
           echo "--- Environment Variables ---"
-          if [ "${{ inputs.os }}" == "windows-latest" ]; then
-            set | sort
-            echo "--- Directory Structure ---"
-            dir %GITHUB_WORKSPACE%
-            if exist "%DEPS%" dir "%DEPS%"
-          else
-            env | sort
-            echo "--- Directory Structure ---"
-            ls -la $GITHUB_WORKSPACE
-            if [ -d "$DEPS" ]; then ls -la $DEPS; fi
-          fi
+          ${{ inputs.os != 'windows-latest' && '
+          env | sort
+          echo "--- Directory Structure ---"
+          ls -la $GITHUB_WORKSPACE
+          if [ -d "$DEPS" ]; then ls -la $DEPS; fi
+          ' || '
+          Get-ChildItem -Path Env: | Sort-Object Name
+          echo "--- Directory Structure ---"
+          Get-ChildItem -Path $env:GITHUB_WORKSPACE
+          $depsPath = "${{ inputs.cache-path }}"
+          if (Test-Path $depsPath) {
+            Get-ChildItem -Path $depsPath
+          }
+          ' }}
 
       - name: Debug information for Windows
         if: inputs.os == 'windows-latest'

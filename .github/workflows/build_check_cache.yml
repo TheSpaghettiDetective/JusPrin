@@ -58,26 +58,27 @@ jobs:
           lookup-only: true
 
       - name: Check cache result
+        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
         run: |
           echo "===== Cache Check Results ====="
           echo "Cache hit: ${{ steps.cache_deps.outputs.cache-hit }}"
           echo "Cache path: ${{ steps.set_outputs.outputs.cache-path }}"
 
-          if [ "${{ inputs.os }}" == "windows-latest" ]; then
-            if [ "${{ steps.cache_deps.outputs.cache-hit }}" == "true" ]; then
-              echo "Checking Windows cache directory..."
-              dir "${{ steps.set_outputs.outputs.cache-path }}" || echo "Directory not found"
-            else
-              echo "Cache miss - directory will be created during build"
-            fi
+          ${{ inputs.os != 'windows-latest' && 'if [ "${{ steps.cache_deps.outputs.cache-hit }}" == "true" ]; then
+            echo "Checking Unix cache directory..."
+            ls -la "${{ steps.set_outputs.outputs.cache-path }}" || echo "Directory not found"
           else
-            if [ "${{ steps.cache_deps.outputs.cache-hit }}" == "true" ]; then
-              echo "Checking Unix cache directory..."
-              ls -la "${{ steps.set_outputs.outputs.cache-path }}" || echo "Directory not found"
-            else
-              echo "Cache miss - directory will be created during build"
-            fi
-          fi
+            echo "Cache miss - directory will be created during build"
+          fi' || 'if ("${{ steps.cache_deps.outputs.cache-hit }}" -eq "true") {
+            Write-Host "Checking Windows cache directory..."
+            if (Test-Path "${{ steps.set_outputs.outputs.cache-path }}") {
+              Get-ChildItem "${{ steps.set_outputs.outputs.cache-path }}"
+            } else {
+              Write-Host "Directory not found"
+            }
+          } else {
+            Write-Host "Cache miss - directory will be created during build"
+          }' }}
           echo "================================="
 
   build_deps: # call next step
