@@ -57,27 +57,15 @@ jobs:
           key: ${{ steps.set_outputs.outputs.cache-key }}
           lookup-only: true
 
-      - name: Cache Check Results Header
+      - name: Check cache result
+        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
         run: |
           echo "===== Cache Check Results ====="
           echo "Cache hit: ${{ steps.cache_deps.outputs.cache-hit }}"
           echo "Cache path: ${{ steps.set_outputs.outputs.cache-path }}"
 
-      - name: Check Cache Directory (Unix)
-        if: inputs.os != 'windows-latest'
-        shell: bash
-        run: |
-          if [ "${{ steps.cache_deps.outputs.cache-hit }}" == "true" ]; then
-            echo "Checking Unix cache directory..."
-            ls -la "${{ steps.set_outputs.outputs.cache-path }}" || echo "Directory not found"
-          else
-            echo "Cache miss - directory will be created during build"
-          fi
-
-      - name: Check Cache Directory (Windows)
-        if: inputs.os == 'windows-latest'
-        shell: pwsh
-        run: |
+          # Separate scripts for different OS types to avoid syntax issues
+          ${{ (inputs.os == 'windows-latest') && '
           if ("${{ steps.cache_deps.outputs.cache-hit }}" -eq "true") {
             Write-Host "Checking Windows cache directory..."
             if (Test-Path "${{ steps.set_outputs.outputs.cache-path }}") {
@@ -88,9 +76,15 @@ jobs:
           } else {
             Write-Host "Cache miss - directory will be created during build"
           }
-
-      - name: Cache Check Results Footer
-        run: echo "================================="
+          ' || '
+          if [ "${{ steps.cache_deps.outputs.cache-hit }}" = "true" ]; then
+            echo "Checking Unix cache directory..."
+            ls -la "${{ steps.set_outputs.outputs.cache-path }}" || echo "Directory not found"
+          else
+            echo "Cache miss - directory will be created during build"
+          fi
+          ' }}
+          echo "================================="
 
   build_deps: # call next step
     name: Build Deps
