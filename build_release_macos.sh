@@ -129,7 +129,7 @@ function build_deps() {
             DEPS_BUILD_DIR="$DEPS_DIR/build/$_ARCH"
             DEPS="$DEPS_BUILD_DIR/OrcaSlicer_dep"
 
-            echo "Building deps..."
+            echo "Building deps for $_ARCH..."
             (
                 set -x
                 mkdir -p "$DEPS"
@@ -143,10 +143,40 @@ function build_deps() {
                         -DCMAKE_OSX_ARCHITECTURES:STRING="${_ARCH}" \
                         -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_DEPLOYMENT_TARGET}" \
                         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-                        -DOPENCV_CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+                        -DOPENCV_CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
+                        -DCMAKE_VERBOSE_MAKEFILE=ON \
+                        -DVERBOSE=1
                 fi
-                cmake --build . --config "$BUILD_CONFIG" --target deps
+
+                # Add more detailed error handling
+                echo "Starting build with detailed logging..."
+                set +e
+                if cmake --build . --config "$BUILD_CONFIG" --target deps --verbose; then
+                    echo "Build succeeded for $_ARCH"
+                else
+                    BUILD_EXIT_CODE=$?
+                    echo "Build failed for $_ARCH with exit code $BUILD_EXIT_CODE"
+
+                    # Check for error logs
+                    echo "Checking for error logs in CMakeFiles directory..."
+                    find . -name "*.log" -type f -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No log files found"
+
+                    echo "Showing last 50 lines of build output if available..."
+                    if [ -f "build_output.log" ]; then
+                        tail -n 50 build_output.log
+                    fi
+
+                    # Propagate the failure
+                    exit $BUILD_EXIT_CODE
+                fi
+                set -e
             )
+
+            # Exit on any failure
+            if [ $? -ne 0 ]; then
+                echo "Dependency build for $_ARCH failed. Exiting."
+                exit 1
+            fi
         fi
     done
 }

@@ -115,11 +115,25 @@ jobs:
       - name: Build on Mac ${{ inputs.arch }}
         if: inputs.os == 'macos-14'
         working-directory: ${{ github.workspace }}
+        env:
+          VERBOSE: 1
+          CMAKE_VERBOSE_MAKEFILE: ON
         run: |
             brew install automake texinfo libtool
             brew list
             brew uninstall --ignore-dependencies zstd
-            ./build_release_macos.sh -dx -a universal -t 10.15 -1
+
+            # Redirect build output to log file for detailed analysis on failure
+            echo "Running build with detailed logging..."
+            ./build_release_macos.sh -dx -a universal -t 10.15 -1 > mac_build_log.txt 2>&1 || {
+              echo "==== BUILD FAILED - SHOWING LAST 200 LINES OF LOG ====";
+              tail -n 200 mac_build_log.txt;
+              echo "===== SEARCHING FOR ERROR MESSAGES =====";
+              grep -A 5 -B 5 "error:" mac_build_log.txt || echo "No specific error messages found";
+              exit 1;
+            }
+
+            # Clean up to save space
             for arch in arm64 x86_64; do
                 (cd "${{ github.workspace }}/deps/build/${arch}" && \
                 find . -mindepth 1 -maxdepth 1 ! -name 'OrcaSlicer_dep' -exec rm -rf {} +)
