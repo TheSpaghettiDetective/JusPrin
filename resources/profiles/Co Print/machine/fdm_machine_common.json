@@ -5,7 +5,7 @@
     "instantiation": "false",
     "printer_technology": "FFF",
     "deretraction_speed": [
-        "30"
+        "50"
     ],
     "extruder_colour": [
         "#FCE94F"
@@ -31,7 +31,7 @@
         "10000"
     ],
     "machine_max_acceleration_z": [
-        "100"
+        "500"
     ],
     "machine_max_speed_e": [
         "60"
@@ -82,13 +82,13 @@
         "2"
     ],
     "retract_before_wipe": [
-        "0%"
+        "70%"
     ],
     "retract_when_changing_layer": [
-        "0"
+        "1"
     ],
     "retraction_length": [
-        "0.5"
+        "1"
     ],
     "retract_length_toolchange": [
         "1"
@@ -103,10 +103,8 @@
         "0"
     ],
     "retraction_speed": [
-        "60"
+        "50"
     ],
-    "machine_load_filament_time": "9.75",
-    "machine_unload_filament_time": "9.75",
     "single_extruder_multi_material": "1",
     "wipe": [
         "1"

@@ -40,7 +40,6 @@
 #include "ParamsPanel.hpp"
 #include "Widgets/RoundedRectangle.hpp"
 #include "Widgets/TextInput.hpp"
-#include "Widgets/CheckBox.hpp" // ORCA
 
 class TabCtrl;
 
@@ -57,7 +56,7 @@ class OG_CustomCtrl;
 // Single Tab page containing a{ vsizer } of{ optgroups }
 // package Slic3r::GUI::Tab::Page;
 using ConfigOptionsGroupShp = std::shared_ptr<ConfigOptionsGroup>;
-class Page: public std::enable_shared_from_this<Page>// : public wxScrolledWindow
+class Page// : public wxScrolledWindow
 {
 	//BBS: GUI refactor
 	wxPanel*		m_tab_owner;
@@ -164,9 +163,8 @@ protected:
 
    	struct PresetDependencies {
 		Preset::Type type	  = Preset::TYPE_INVALID;
-		::CheckBox*   checkbox = nullptr;
-		wxStaticText* checkbox_title = nullptr;
-		Button 	*btn  = nullptr;
+		wxCheckBox 	*checkbox = nullptr;
+		ScalableButton 	*btn  = nullptr;
 		std::string  key_list; // "compatible_printers"
 		std::string  key_condition;
 		wxString     dialog_title;
@@ -393,6 +391,7 @@ public:
 	DynamicPrintConfig*	get_config() { return m_config; }
     PresetCollection *  get_presets() { return m_presets; }
     TabPresetComboBox *  get_combo_box() { return m_presets_choice; }
+    void                ApplyConfig(const std::string& opt_key, const boost::any& value);
 
 	virtual void    on_value_change(const std::string& opt_key, const boost::any& value);
 
@@ -559,7 +558,7 @@ private:
     void            update_filament_overrides_page(const DynamicPrintConfig* printers_config);
 	void 			update_volumetric_flow_preset_hints();
 
-    std::map<std::string, ::CheckBox*> m_overrides_options;
+    std::map<std::string, wxCheckBox*> m_overrides_options;
 
 public:
 	//BBS: GUI refactor

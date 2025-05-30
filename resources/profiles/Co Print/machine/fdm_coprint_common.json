@@ -10,18 +10,18 @@
 		"0.4"
 	],
     "retract_before_wipe": [
-        "0%"
+        "70%"
     ],
 	"printable_area": [
 		"0x0",
-		"225x0",
-		"225x225",
-		"0x225"
+		"350x0",
+		"350x350",
+		"0x350"
 	],
-	"printable_height": "250",
+	"printable_height": "345",
 	"gcode_flavor": "klipper",
     "retraction_length": [
-        "0.5"
+        "1"
     ],
     "machine_max_speed_e": [
         "100"
@@ -33,7 +33,7 @@
         "500"
     ],
     "machine_max_speed_z": [
-        "10"
+        "20"
     ],
     "machine_max_acceleration_e": [
         "2500"
@@ -54,16 +54,16 @@
         "5000"
     ],
     "machine_max_acceleration_z": [
-        "100"
+        "500"
     ],
     "machine_max_jerk_e": [
         "2.5"
     ],
     "machine_max_jerk_x": [
-        "8"
+        "10"
     ],
     "machine_max_jerk_y": [
-        "8"
+        "10"
     ],
     "machine_max_jerk_z": [
         "0.2"
@@ -72,10 +72,10 @@
         "0.2"
     ],
 	"retraction_speed": [
-        "60"
+        "50"
     ],
 	"deretraction_speed": [
-        "30"
+        "50"
     ],
 	"retraction_minimum_travel": [
         "1"
@@ -89,7 +89,6 @@
 	"thumbnails": [
 		"300x300",
         "400x300",
-		"96x96",
         "32x32"
 	],
     "retract_lift_below": [
@@ -100,7 +99,7 @@
 	"machine_start_gcode": "start_print  EXTRUDER=[initial_extruder] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single]",
     "machine_end_gcode": "end_print",
     "default_filament_profile": [
-		"CoPrint Generic PLA"
+		"Co Print PLA"
 	],
     "extruder_clearance_radius": [
         "65"

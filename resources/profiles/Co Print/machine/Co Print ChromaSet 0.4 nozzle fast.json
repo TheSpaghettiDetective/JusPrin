@@ -12,7 +12,7 @@
 		"0.4"
 	],
     "retract_before_wipe": [
-        "0%"
+        "70%"
     ],
 	"printable_area": [
 		"0x0",
@@ -20,13 +20,13 @@
 		"225x225",
 		"0x225"
 	],
-	"printable_height": "250",
+	"printable_height": "345",
 	"gcode_flavor": "klipper",
     "retraction_length": [
-        "0.5"
+        "1"
     ],
     "machine_max_speed_e": [
-        "100"
+        "20"
     ],
     "machine_max_speed_x": [
         "700"
@@ -74,7 +74,7 @@
         "0.2"
     ],
 	"retraction_speed": [
-        "60"
+        "30"
     ],
 	"deretraction_speed": [
         "30"
@@ -94,7 +94,6 @@
 	"thumbnails": [
 		"300x300",
         "400x300",
-		"96x96",
         "32x32"
 	],
     "retract_lift_below": [
@@ -105,7 +104,7 @@
     "machine_end_gcode": "end_print",
     "change_filament_gcode": "FILAMENT_CHANGE LAYER_NUM=[layer_num] NEXT_EXTRUDER=[next_extruder]",
     "default_filament_profile": [
-		"CoPrint Generic PLA"
+		"Co Print PLA"
 	],
     "extruder_clearance_radius": [
         "65"
@@ -135,7 +134,7 @@
         "25"
     ],
     "retract_when_changing_layer": [
-        "0"
+        "1"
     ],
     "extra_loading_move": [
         "0"
@@ -144,7 +143,7 @@
         "1"
     ],
     
-    "z_hop_types": "Spiral Lift"
+    "z_hop_types": "Normal Lift"
 
 
 }

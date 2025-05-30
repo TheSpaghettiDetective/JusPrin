@@ -17,17 +17,19 @@ public:
         SP_BEGAN,             // still hidden but allows to go to SP_PROGRESS state. This prevents showing progress after slicing was canceled.
         SP_PROGRESS,          // never fades outs, no close button, has cancel button
         SP_CANCELLED,         // fades after 10 seconds, simple message
-        //SP_BEFORE_COMPLETED,  // to keep displaying DailyTips for 3 seconds 
+        //SP_BEFORE_COMPLETED,  // to keep displaying DailyTips for 3 seconds
         SP_COMPLETED          // Has export hyperlink and print info, fades after 20 sec if sidebar is shown, otherwise no fade out
     };
     SlicingProgressNotification(const NotificationData& n, NotificationIDProvider& id_provider, wxEvtHandler* evt_handler, std::function<bool()> callback)
         : PopNotification(n, id_provider, evt_handler)
         , m_cancel_callback(callback)
         , m_dailytips_panel(new DailyTipsPanel(true, DailyTipsLayout::Vertical))
+        , m_pop_up_slicing_progress(true)
     {
         set_progress_state(SlicingProgressState::SP_NO_SLICING);
     }
     void                set_percentage(float percent) { m_percentage = percent; }
+    float              get_percentage() const { return m_percentage; }
     DailyTipsPanel*     get_dailytips_panel() { return m_dailytips_panel; }
     SlicingProgressState get_progress_state() { return m_sp_state; }
     // sets text of notification - call after setting progress state
@@ -49,6 +51,9 @@ public:
     void				set_fff(bool b) { m_is_fff = b; }
     void                set_export_possible(bool b) { m_export_possible = b; }
     void                on_change_color_mode(bool is_dark) override;
+    // Control whether notifications should be shown based on pop_up flag
+    void                set_popup(bool pop_up_slicing_progress) { m_pop_up_slicing_progress = pop_up_slicing_progress; }
+    bool                get_popup() const { return m_pop_up_slicing_progress; }
 protected:
     void        init() override;
     void        render(GLCanvas3D& canvas, float initial_y, bool move_from_overlay, float overlay_width, float right_margin) override;
@@ -75,6 +80,8 @@ protected:
     // if true, it is possible show export hyperlink in state SP_PROGRESS
     bool                    m_export_possible{ false };
     DailyTipsPanel*         m_dailytips_panel{ nullptr };
+    // flag to control whether notifications should be shown
+    bool                    m_pop_up_slicing_progress{ true };
 
     /* currently not used */
     bool				    m_has_print_info{ false };

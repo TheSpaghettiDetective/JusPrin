@@ -194,7 +194,10 @@ void FillGyroid::_fill_surface_single(
 	if (! polylines.empty()) {
 		// connect lines
 		size_t polylines_out_first_idx = polylines_out.size();
-        chain_or_connect_infill(std::move(polylines), expolygon, polylines_out, this->spacing, params);
+		if (params.dont_connect())
+        	append(polylines_out, chain_polylines(polylines));
+        else
+            this->connect_infill(std::move(polylines), expolygon, polylines_out, this->spacing, params);
 
 	    // new paths must be rotated back
         if (std::abs(infill_angle) >= EPSILON) {

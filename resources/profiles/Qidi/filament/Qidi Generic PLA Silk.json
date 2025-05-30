@@ -32,9 +32,6 @@
     "hot_plate_temp" : [
         "55"
     ],
-	"filament_vendor": [
-        "Generic"
-    ],
 	"compatible_printers": [
         "Qidi X-Plus 0.4 nozzle",
         "Qidi X-Max 0.4 nozzle",

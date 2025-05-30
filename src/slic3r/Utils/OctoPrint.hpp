@@ -49,8 +49,9 @@ protected:
     virtual void set_auth(Http &http) const;
     std::string make_url(const std::string &path) const;
 
+private:
 #ifdef WIN32
-    virtual bool test_with_resolved_ip(wxString& curl_msg) const;
+    bool test_with_resolved_ip(wxString& curl_msg) const;
 #endif
 };
 

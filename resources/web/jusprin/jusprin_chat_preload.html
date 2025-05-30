@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Redirecting...</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .message {
+            text-align: center;
+            padding: 20px;
+        }
+        .error {
+            color: #dc3545;
+            display: none;
+        }
+        .loading {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="message">
+        <div class="loading">
+            <h2>Please wait...</h2>
+        </div>
+        <div class="error">
+            <h2>Connection Error</h2>
+            <p>Unable to connect to JusPrin server. Please try again later.</p>
+            <button onclick="checkAndRedirectToChatServer()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        function showError() {
+            document.querySelector('.loading').style.display = 'none';
+            document.querySelector('.error').style.display = 'block';
+        }
+
+        function showLoading() {
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.error').style.display = 'none';
+        }
+
+        function checkAndRedirectToChatServer(developerMode = false) {
+            showLoading();
+
+            if (typeof CHAT_SERVER_URL === 'undefined') {
+                setTimeout(checkAndRedirectToChatServer, 1000);
+                return;
+            }
+
+            // Set a timeout to handle no response
+            const timeoutId = setTimeout(() => {
+                console.error("Timeout");
+                showError();
+            }, 5000); // 5 second timeout
+
+            let pageUrl = CHAT_SERVER_URL + '/v0.4/embedded_chat/';
+            if (developerMode) {
+                pageUrl += '?devmode=true';
+            }
+            fetch(pageUrl, {
+                method: 'HEAD',
+                mode: 'no-cors'
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                // Don't check response.ok when using no-cors
+                // Just redirect if we get any response
+                window.location.href = pageUrl;
+            })
+            .catch((e) => {
+                console.error(e);
+                clearTimeout(timeoutId);
+                showError();
+            });
+        }
+
+        setTimeout(() => {
+            window.wx.postMessage({ action: 'init_server_url_and_redirect' });
+        }, 100);    // Ugly workaround for error "undefined is not an object (evaluating window.wx.postMessage)"
+    </script>
+</body>
+</html>

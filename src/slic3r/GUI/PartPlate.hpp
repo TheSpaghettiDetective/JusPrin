@@ -84,6 +84,7 @@ public:
         HEIGHT_LIMIT_BOTH
     };
 
+    void render_grid(bool bottom);
 private:
     PartPlateList* m_partplate_list {nullptr };
     Plater* m_plater; //Plater reference, not own it
@@ -117,6 +118,7 @@ private:
 
     friend class PartPlateList;
 
+    Pointfs m_raw_shape;
     Pointfs m_shape;
     Pointfs m_exclude_area;
     BoundingBoxf3 m_bounding_box;
@@ -180,7 +182,6 @@ private:
     void render_logo_texture(GLTexture &logo_texture, GLModel &logo_buffer, bool bottom);
     void render_exclude_area(bool force_default_color);
     //void render_background_for_picking(const ColorRGBA render_color) const;
-    void render_grid(bool bottom);
     void render_height_limit(PartPlate::HeightLimitMode mode = HEIGHT_LIMIT_BOTH);
     // void render_label(GLCanvas3D& canvas) const;
     // void render_grabber(const ColorRGBA render_color, bool use_lighting) const;
@@ -197,6 +198,7 @@ private:
     int picking_id_component(int idx) const;
 
 public:
+    static const unsigned int PLATE_BASE_ID = 255 * 255 * 253;
     static const unsigned int PLATE_NAME_HOVER_ID = 6;
     static const unsigned int GRABBER_COUNT = 8;
 
@@ -362,7 +364,7 @@ public:
     bool contains(const BoundingBoxf3& bb) const;
     bool intersects(const BoundingBoxf3& bb) const;
 
-    void render(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_body = false, bool force_background_color = false, HeightLimitMode mode = HEIGHT_LIMIT_NONE, int hover_id = -1, bool render_cali = false, bool show_grid = true);
+    void render(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_body = false, bool force_background_color = false, HeightLimitMode mode = HEIGHT_LIMIT_NONE, int hover_id = -1, bool render_cali = false);
 
     void set_selected();
     void set_unselected();
@@ -691,6 +693,11 @@ public:
         m_height_limit_mode = mode;
     }
 
+    // SoftFever
+    const std::string& get_logo_texture_filename() const { 
+        return m_logo_texture_filename;
+    }
+
     int get_curr_plate_index() const { return m_current_plate; }
     PartPlate* get_curr_plate() { return m_plate_list[m_current_plate]; }
     const PartPlate* get_curr_plate() const { return m_plate_list[m_current_plate]; }
@@ -780,7 +787,7 @@ public:
 
     /*rendering related functions*/
     void on_change_color_mode(bool is_dark) { m_is_dark = is_dark; }
-    void render(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_current = false, bool only_body = false, int hover_id = -1, bool render_cali = false, bool show_grid = true);
+    void render(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_current = false, bool only_body = false, int hover_id = -1, bool render_cali = false);
     void set_render_option(bool bedtype_texture, bool plate_settings);
     void set_render_cali(bool value = true) { render_cali_logo = value; }
     void register_raycasters_for_picking(GLCanvas3D& canvas)

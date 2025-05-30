@@ -9,10 +9,8 @@
 
 #include <libslic3r/BuildVolume.hpp>
 
-#include "Widgets/ComboBox.hpp"
-
 #include <wx/dialog.h>
-#include <wx/simplebook.h> // ORCA
+#include <wx/choicebk.h>
 
 namespace Slic3r {
 namespace GUI {
@@ -36,7 +34,7 @@ struct BedShape
         Diameter
     };
 
-    BedShape(const Pointfs& points);
+    BedShape(const ConfigOptionPoints& points);
 
     bool            is_custom() { return m_build_volume.type() == BuildVolume_Type::Convex || m_build_volume.type() == BuildVolume_Type::Custom; }
 
@@ -58,18 +56,18 @@ class BedShapePanel : public wxPanel
     static const std::string EMPTY_STRING;
 
 	Bed_2D*			   m_canvas;
-    Pointfs            m_shape;
-    Pointfs            m_loaded_shape;
+    std::vector<Vec2d> m_shape;
+    std::vector<Vec2d> m_loaded_shape;
     std::string        m_custom_texture;
     std::string        m_custom_model;
 
 public:
     BedShapePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY), m_custom_texture(NONE), m_custom_model(NONE) {}
 
-    void build_panel(const Pointfs& default_pt, const std::string& custom_texture, const std::string& custom_model);
+    void build_panel(const ConfigOptionPoints& default_pt, const std::string& custom_texture, const std::string& custom_model);
 
     // Returns the resulting bed shape polygon. This value will be stored to the ini file.
-    const Pointfs&     get_shape() const { return m_shape; }
+    const std::vector<Vec2d>& get_shape() const { return m_shape; }
     const std::string& get_custom_texture() const { return (m_custom_texture != NONE) ? m_custom_texture : EMPTY_STRING; }
     const std::string& get_custom_model() const { return (m_custom_model != NONE) ? m_custom_model : EMPTY_STRING; }
 
@@ -78,15 +76,14 @@ private:
     void	    activate_options_page(ConfigOptionsGroupShp options_group);
     wxPanel*    init_texture_panel();
     wxPanel*    init_model_panel();
-    void		set_shape(const Pointfs& points);
+    void		set_shape(const ConfigOptionPoints& points);
     void		update_preview();
 	void		update_shape();
 	void		load_stl();
     void		load_texture();
     void		load_model();
 
-    wxSimplebook* m_shape_options_book;
-    ComboBox*     m_shape_combo;
+	wxChoicebook*	m_shape_options_book;
 	std::vector <ConfigOptionsGroupShp>	m_optgroups;
 
     friend class BedShapeDialog;
@@ -99,9 +96,9 @@ public:
 	BedShapeDialog(wxWindow* parent) : DPIDialog(parent, wxID_ANY, _(L("Bed Shape")),
         wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE) {}
 
-    void build_dialog(const Pointfs& default_pt, const ConfigOptionString& custom_texture, const ConfigOptionString& custom_model);
+    void build_dialog(const ConfigOptionPoints& default_pt, const ConfigOptionString& custom_texture, const ConfigOptionString& custom_model);
 
-    const Pointfs&     get_shape() const { return m_panel->get_shape(); }
+    const std::vector<Vec2d>& get_shape() const { return m_panel->get_shape(); }
     const std::string& get_custom_texture() const { return m_panel->get_custom_texture(); }
     const std::string& get_custom_model() const { return m_panel->get_custom_model(); }
 

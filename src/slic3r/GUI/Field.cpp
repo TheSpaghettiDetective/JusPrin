@@ -1064,7 +1064,16 @@ void SpinCtrl::BUILD() {
 		break;
 	}
 
-    const int min_val = m_opt.min == INT_MIN ? 0 : m_opt.min;
+    const int min_val = m_opt.min == INT_MIN
+#ifdef __WXOSX__
+    // We will forcibly set the input value for SpinControl, since the value
+    // inserted from the keyboard is not updated under OSX.
+    // So, we can't set min control value bigger then 0.
+    // Otherwise, it couldn't be possible to input from keyboard value
+    // less then min_val.
+    || m_opt.min > 0
+#endif
+    ? 0 : m_opt.min;
 	const int max_val = m_opt.max < 2147483647 ? m_opt.max : 2147483647;
 
     static Builder<SpinInput> builder;
@@ -1161,6 +1170,14 @@ void SpinCtrl::propagate_value()
         if (!m_value.empty()) // BBS: null value
             on_kill_focus();
 	} else {
+#ifdef __WXOSX__
+        // check input value for minimum
+        if (m_opt.min > 0 && tmp_value < m_opt.min) {
+            SpinInput* spin = static_cast<SpinInput*>(window);
+            spin->SetValue(m_opt.min);
+            // spin->GetText()->SetInsertionPointEnd(); // BBS
+        }
+#endif
         auto ctrl = dynamic_cast<SpinInput *>(window);
         if (m_value.empty() 
             ? !ctrl->GetTextCtrl()->GetLabel().IsEmpty()
@@ -1727,7 +1744,7 @@ void Choice::msw_rescale()
 
 void ColourPicker::BUILD()
 {
-    auto size = wxSize(def_width_wider() * m_em_unit, -1); // ORCA match color picker width
+	auto size = wxSize(def_width() * m_em_unit, wxDefaultCoord);
     if (m_opt.height >= 0) size.SetHeight(m_opt.height*m_em_unit);
     if (m_opt.width >= 0) size.SetWidth(m_opt.width*m_em_unit);
 
@@ -1750,24 +1767,7 @@ void ColourPicker::BUILD()
 	// 	// recast as a wxWindow to fit the calling convention
 	window = dynamic_cast<wxWindow*>(temp);
 
-	temp->Bind(wxEVT_COLOURPICKER_CHANGED, ([this,temp](wxCommandEvent e) {
-        #ifdef __WXMSW__
-            draw_bmp_btn(temp, temp->GetColour());
-        #endif
-        on_change_field();
-    }), temp->GetId());
-
-    // ORCA reset value to default on right click. previously no way to switch back on windows
-    temp->GetPickerCtrl()->Bind(wxEVT_RIGHT_DOWN, [this, temp](wxMouseEvent e){
-        #ifdef __WXMSW__
-            temp->SetColour(wxTransparentColour);
-            draw_bmp_btn(temp, wxTransparentColour);
-        #else
-            set_undef_value(temp);
-        #endif
-        on_change_field();
-        e.Skip();
-    });
+	temp->Bind(wxEVT_COLOURPICKER_CHANGED, ([this](wxCommandEvent e) { on_change_field(); }), temp->GetId());
 
 	temp->SetToolTip(get_tooltip_text(clr_str));
 }
@@ -1799,69 +1799,17 @@ void ColourPicker::set_undef_value(wxColourPickerCtrl* field)
     btn->SetBitmapLabel(bmp);
 }
 
-// ORCA match style with button on windows
-void ColourPicker::draw_bmp_btn(wxColourPickerCtrl* field, wxColour color)
-{
-    wxButton* btn = dynamic_cast<wxButton*>(field->GetPickerCtrl());
-
-    if (!btn->GetBitmap().IsOk()) return;
-    btn->SetWindowStyle(wxBORDER_NONE); // ORCA just in case to prevent any overflow
-    btn->SetBackgroundColour(*wxWHITE);
-    wxGetApp().UpdateDarkUI(btn);
-
-    auto create_bitmap = [btn](const wxColour& picker_color,const wxColour& bg_color, bool focus) -> wxBitmap {
-        wxSize  btn_sz = btn->GetSize();
-        wxImage image(btn_sz);
-        image.InitAlpha();
-        memset(image.GetAlpha(), 0, image.GetWidth() * image.GetHeight());
-        wxBitmap   bmp(std::move(image));
-        wxMemoryDC dc(bmp);
-        if (!dc.IsOk()) return bmp;
-        wxGCDC dc2(dc); // just use wxGCDC since bitmap button only used for windows
-
-        dc2.SetPen(focus ? wxPen(wxColour(StateColor::darkModeColorFor(wxColour("#009688"))), 1) : *wxTRANSPARENT_PEN);
-        dc2.SetBrush(wxBrush(StateColor::darkModeColorFor(bg_color)));
-        dc2.DrawRoundedRectangle(btn->GetRect(), btn->FromDIP(4));
-
-        int padding = btn->FromDIP(5);
-        dc2.SetPen(*wxTRANSPARENT_PEN);
-        if (picker_color != wxTransparentColour){ // Draw color
-            dc2.SetBrush(wxBrush(picker_color));
-            dc2.DrawRectangle(wxRect(padding, padding, btn_sz.x - 2 * padding, btn_sz.y - 2 * padding));
-        } else { // Draw Pick text
-            // Label::Body_14 rendered much bolder with wxGCDC
-            dc2.SetFont(wxFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
-            wxString text    = _L("Pick") + " " + dots;
-            wxSize   text_sz = dc2.GetTextExtent(text);
-            dc2.SetTextForeground(StateColor::darkModeColorFor(wxColour("#262E30")));
-            dc2.DrawText(text, (btn_sz.x - text_sz.x) / 2, (btn_sz.y - text_sz.y) / 2);
-        }
-        dc.SelectObject(wxNullBitmap);
-        return bmp;
-    };
-
-    btn->SetBitmap(        create_bitmap(color, wxColour("#DFDFDF"), false)); // Normal
-    btn->SetBitmapFocus(   create_bitmap(color, wxColour("#DFDFDF"), true )); // Focus
-    btn->SetBitmapCurrent( create_bitmap(color, wxColour("#D4D4D4"), false)); // Hover
-}
-
 void ColourPicker::set_value(const boost::any& value, bool change_event)
 {
     m_disable_change_event = !change_event;
     const wxString clr_str(boost::any_cast<wxString>(value));
     auto field = dynamic_cast<wxColourPickerCtrl*>(window);
 
-    #ifdef __WXMSW__
-        wxColour clr = (clr_str.IsEmpty() || !clr.IsOk()) ? wxTransparentColour : clr_str;
+    wxColour clr(clr_str);
+    if (clr_str.IsEmpty() || !clr.IsOk())
+        set_undef_value(field);
+    else
         field->SetColour(clr);
-        draw_bmp_btn(field, clr);
-    #else
-        wxColour clr(clr_str);
-        if (clr_str.IsEmpty() || !clr.IsOk())
-            set_undef_value(field);
-        else
-            field->SetColour(clr);
-    #endif
 
     m_disable_change_event = false;
 }
@@ -1883,7 +1831,7 @@ void ColourPicker::msw_rescale()
     Field::msw_rescale();
 
 	wxColourPickerCtrl* field = dynamic_cast<wxColourPickerCtrl*>(window);
-    auto size = wxSize(def_width_wider() * m_em_unit, -1); // ORCA match color picker width with parameters
+    auto size = wxSize(def_width() * m_em_unit, wxDefaultCoord);
     if (m_opt.height >= 0)
         size.SetHeight(m_opt.height * m_em_unit);
     else if (parent_is_custom_ctrl && opt_height > 0)
@@ -1894,23 +1842,16 @@ void ColourPicker::msw_rescale()
     else
         field->SetMinSize(size);
 
-    #ifdef __WXMSW__
-        draw_bmp_btn(field, field->GetColour());
-    #else
-        if (field->GetColour() == wxTransparentColour)
-            set_undef_value(field);
-    #endif
-
+    if (field->GetColour() == wxTransparentColour)
+        set_undef_value(field);
 }
 
 void ColourPicker::sys_color_changed()
 {
 #ifdef _WIN32
-    if (wxWindow* win = this->getWindow())
-        if (wxColourPickerCtrl* picker = dynamic_cast<wxColourPickerCtrl*>(win)){
-            wxGetApp().UpdateDarkUI(picker->GetPickerCtrl(), true);
-            draw_bmp_btn(picker, picker->GetColour());
-        }
+	if (wxWindow* win = this->getWindow())
+		if (wxColourPickerCtrl* picker = dynamic_cast<wxColourPickerCtrl*>(win))
+			wxGetApp().UpdateDarkUI(picker->GetPickerCtrl(), true);
 #endif
 }
 

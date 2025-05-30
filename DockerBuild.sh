@@ -2,6 +2,7 @@
 PROJECT_ROOT=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
 
 set -x
+
 # Wishlist hint:  For developers, creating a Docker Compose 
 # setup with persistent volumes for the build & deps directories
 # would speed up recompile times significantly.  For end users,

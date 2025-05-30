@@ -5,20 +5,10 @@
 #define SKELETAL_TRAPEZOIDATION_GRAPH_H
 
 #include <optional>
-#include <utility>
 
 #include "utils/HalfEdgeGraph.hpp"
 #include "SkeletalTrapezoidationEdge.hpp"
 #include "SkeletalTrapezoidationJoint.hpp"
-#include "libslic3r/Arachne/utils/HalfEdge.hpp"
-#include "libslic3r/Arachne/utils/HalfEdgeNode.hpp"
-#include "libslic3r/libslic3r.h"
-
-namespace Slic3r
-{
-class Line;
-class Point;
-};
 
 namespace Slic3r::Arachne
 {
@@ -93,7 +83,7 @@ public:
      */
     void collapseSmallEdges(coord_t snap_dist = 5);
 
-    void makeRib(edge_t*& prev_edge, const Point &start_source_point, const Point &end_source_point);
+    void makeRib(edge_t*& prev_edge, Point start_source_point, Point end_source_point, bool is_next_to_start_or_end);
 
     /*!
      * Insert a node into the graph and connect it to the input polygon using ribs

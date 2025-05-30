@@ -16,7 +16,7 @@
         "30"
     ],
     "overhang_fan_speed": [
-        "100"
+        "90"
     ],
     "overhang_fan_threshold": [
         "10%"
@@ -31,7 +31,7 @@
         "20"
     ],
     "slow_down_layer_time": [
-        "12"
+        "8"
     ],
     "filament_flow_ratio": [
         "0.94"

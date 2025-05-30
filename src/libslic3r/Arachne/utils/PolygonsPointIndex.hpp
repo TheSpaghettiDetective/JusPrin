@@ -156,6 +156,8 @@ struct PathsPointIndexLocator
     }
 };
 
+using PolygonsPointIndexLocator = PathsPointIndexLocator<Polygons>;
+
 }//namespace Slic3r::Arachne
 
 namespace std

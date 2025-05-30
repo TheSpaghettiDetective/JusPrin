@@ -98,14 +98,12 @@ public:
     wxString m_internal_developer_mode_def;
     wxString m_backup_interval_def;
     wxString m_iot_environment_def;
-
     SelectorHash      m_hash_selector;
     RadioSelectorList m_radio_group;
     // ComboBoxSelectorList    m_comxbo_group;
 
     wxBoxSizer *create_item_title(wxString title, wxWindow *parent, wxString tooltip);
     wxBoxSizer *create_item_combobox(wxString title, wxWindow *parent, wxString tooltip, std::string param, std::vector<wxString> vlist);
-    wxBoxSizer *create_item_combobox(wxString title, wxWindow *parent, wxString tooltip, std::string param, std::vector<wxString> vlist, std::vector<std::string> config_name_index);
     wxBoxSizer *create_item_region_combobox(wxString title, wxWindow *parent, wxString tooltip, std::vector<wxString> vlist);
     wxBoxSizer *create_item_language_combobox(wxString title, wxWindow *parent, wxString tooltip, int padding_left, std::string param, std::vector<const wxLanguageInfo *> vlist);
     wxBoxSizer *create_item_loglevel_combobox(wxString title, wxWindow *parent, wxString tooltip, std::vector<wxString> vlist);
@@ -115,7 +113,7 @@ public:
     wxBoxSizer *create_item_button(wxString title, wxString title2, wxWindow *parent, wxString tooltip, wxString tooltip2, std::function<void()> onclick, bool button_on_left = false);
     wxWindow* create_item_downloads(wxWindow* parent, int padding_left, std::string param);
     wxBoxSizer *create_item_input(wxString title, wxString title2, wxWindow *parent, wxString tooltip, std::string param, std::function<void(wxString)> onchange = {});
-    wxBoxSizer *create_camera_orbit_mult_input(wxString title, wxWindow *parent, wxString tooltip);
+    wxBoxSizer *create_item_text_input(wxString title, wxString title2, wxWindow *parent, wxString tooltip, std::string section, std::string param, std::function<void(wxString)> onchange = {});
     wxBoxSizer *create_item_backup_input(wxString title, wxWindow *parent, wxString tooltip, std::string param);
     wxBoxSizer *create_item_multiple_combobox(
         wxString title, wxWindow *parent, wxString tooltip, int padding_left, std::string parama, std::vector<wxString> vlista, std::vector<wxString> vlistb);
@@ -142,9 +140,6 @@ public:
 protected:
     void OnSelectTabel(wxCommandEvent &event);
     void OnSelectRadio(wxMouseEvent &event);
-
-private:
-    std::tuple<wxBoxSizer*, ComboBox*> create_item_combobox_base(wxString title, wxWindow* parent, wxString tooltip, std::string param, std::vector<wxString> vlist, unsigned int current_index);
 };
 
 wxDECLARE_EVENT(EVT_PREFERENCES_SELECT_TAB, wxCommandEvent);

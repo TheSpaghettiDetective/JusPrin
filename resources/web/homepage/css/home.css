@@ -14,7 +14,7 @@ html, body {
     margin: 0px;
     padding: 0px;
 	line-height: 20px;
-    font-size: 16px;	
+    font-size: 16px;
 }
 
 .ZScrol::-webkit-scrollbar {/*滚动条整体样式*/
@@ -41,13 +41,13 @@ html, body {
 .RedFont
 {
 	font-size:12px;
-	color: #F07E4A;		
+	color: #F07E4A;
 }
 
 .LinkBtn
 {
 	font-size:12px;
-	color: #00ffea;	
+	color: #00ffea;
 	cursor: pointer;
 }
 
@@ -69,12 +69,16 @@ body
 	justify-content: flex-start;
 }
 
+#TopContainer
+{
+	width: 100%;
+	height: 100%;
+}
+
 #LeftBoard
 {
 	border-right-width: 1px;
 	border-right-style: solid;
-	width:262px;
-	height: 100%;
 }
 
 #LoginArea
@@ -95,11 +99,10 @@ body
 	height:36px;
 	line-height: 36px;
 	display: flex;
-	flex-direction: column;		/*ORCA*/
-	align-items: center;		/*Allow icon centered vertically*/
-	justify-content: center;	/*and use login button in new line*/
+	justify-content: center;
 	user-select: none;
 }
+
 #LoginBtn
 {
 	cursor:pointer;
@@ -134,12 +137,12 @@ body
 
 #Icon1
 {
-	margin-right: 10px;	
+	margin-right: 10px;
 }
 
 #BBLIcon
 {
-	height:96px; /*ORCA use bigger icon to fit logo size*/
+	height:36px;
 }
 
 #Login2
@@ -161,7 +164,7 @@ body
 	white-space: nowrap;
 	text-overflow: ellipsis;
 	text-align: center;
-	overflow: hidden; 
+	overflow: hidden;
 	width: 80%;
 }
 
@@ -171,7 +174,7 @@ body
 	height: 24px;
 	line-height: 24px;
 	color: #4db6ac;
-	border: 1px solid  #009688;
+	border: 1px solid  #694b7c;
 	border-radius: 4px;
 	cursor: pointer;
 	margin-top: 5px;
@@ -188,13 +191,13 @@ body
 /*------------------*/
 #BtnArea
 {
-	
+
 }
 
 
 .BtnItem
 {
-    padding-left:40px;	
+    padding-left:40px;
 	height:50px;
 	line-height: 50px;
 	display: flex;
@@ -230,9 +233,6 @@ body
 /*--------------------*/
 #RightBoard
 {
-	width: 100%;
-	height: 100%;
-	min-width: 835px;
 	overflow-y:auto;
 }
 
@@ -278,7 +278,7 @@ body
 
 .MenuItem:hover
 {
-	border-color: #009688;		/*ORCA color*/
+	border-color: #694b7c;		/*ORCA color*/
 	background-color: #E5F0EE; /*ORCA color with %25 opacity*/
 }
 
@@ -323,7 +323,7 @@ body
 {
 	display:flex;
 	align-items: center;
-	padding: 6px 0px;	
+	padding: 6px 0px;
 }
 
 #HotModel_RIGHT_Title
@@ -375,7 +375,7 @@ body
 
 #RecentTitle
 {
-	
+
 }
 
 #FileList
@@ -414,7 +414,7 @@ body
 	background-color: #E4E4E4;
 	border-radius: 8px;
 	width: 184px;
-	height: 184px;	
+	height: 184px;
 }
 
 .FileItem img
@@ -431,7 +431,7 @@ body
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
-    word-break: break-all;	
+    word-break: break-all;
 }
 
 .FileDate
@@ -466,7 +466,7 @@ body
 .CT_Item:hover
 {
 	cursor: pointer;
-	background-color:#009688; /*ORCA color*/
+	background-color:#694b7c; /*ORCA color*/
 	border-radius: 4px;
 	color: #fff;
 }
@@ -476,35 +476,35 @@ body
 {
 	margin-right: 6px;
 	width: 16px;
-	height: 16px;	
+	height: 16px;
 }
 
 #CT_Delete_Bar:hover  .CT_Delete
 {
 	background: url("../img/remove2.svg");
 	background-repeat: no-repeat;
-	background-size: contain;	
+	background-size: contain;
 }
 
 .CT_Delete
 {
 	background: url("../img/remove.svg");
 	background-repeat: no-repeat;
-	background-size: contain;	
+	background-size: contain;
 }
 
 #CT_Folder_Bar:hover .CT_Explore
 {
 	background: url("../img/open_folder2.svg");
 	background-repeat: no-repeat;
-	background-size: contain;	
+	background-size: contain;
 }
 
 .CT_Explore
 {
 	background: url("../img/open_folder.svg");
 	background-repeat: no-repeat;
-	background-size: contain;		
+	background-size: contain;
 }
 
 
@@ -516,7 +516,7 @@ body
 .CT_Text
 {
 	line-height: 20px;
-	height: 20px;	
+	height: 20px;
 	display: block;
 }
 
@@ -599,7 +599,7 @@ body
 @media screen and ( min-width:1681px) and (max-width:2120px ) {
 .GuideBlock
 {
-    width: calc(25% - 20px);	
+    width: calc(25% - 20px);
 	margin: 0px 10px 40px 10px;
 	cursor: pointer;
 }
@@ -637,7 +637,7 @@ body
 
 .UG_IMG
 {
-	width: 100%;	
+	width: 100%;
 }
 
 .UG_IMG img
@@ -680,7 +680,7 @@ body
 	display:flex;
 	align-items: center;
 	height: 28px;
-	padding: 0px 8px;	
+	padding: 0px 8px;
 }
 
 .HotModel_Designer_Info img
@@ -701,8 +701,8 @@ body
 
 #HotModel_RIGHT_Title:hover
 {
-	cursor: pointer;	
-	color:#009688;	
+	cursor: pointer;
+	color:#694b7c;
 }
 
 .HotModelPiece

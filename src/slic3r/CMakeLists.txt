@@ -145,10 +145,6 @@ set(SLIC3R_GUI_SOURCES
     #GUI/Gizmos/GLGizmoFaceDetector.hpp
     GUI/Gizmos/GLGizmoMeasure.cpp
     GUI/Gizmos/GLGizmoMeasure.hpp
-    GUI/Gizmos/GLGizmoBrimEars.cpp
-    GUI/Gizmos/GLGizmoBrimEars.hpp
-    GUI/Gizmos/GLGizmoAssembly.cpp
-    GUI/Gizmos/GLGizmoAssembly.hpp
     GUI/Gizmos/GLGizmoSeam.cpp
     GUI/Gizmos/GLGizmoSeam.hpp
     #GUI/Gizmos/GLGizmoText.cpp
@@ -312,8 +308,6 @@ set(SLIC3R_GUI_SOURCES
     GUI/RemovableDriveManager.hpp
     GUI/SendSystemInfoDialog.cpp
     GUI/SendSystemInfoDialog.hpp
-    GUI/StepMeshDialog.cpp
-    GUI/StepMeshDialog.hpp
     GUI/SurfaceDrag.cpp
     GUI/SurfaceDrag.hpp
     GUI/TextLines.cpp
@@ -541,8 +535,6 @@ set(SLIC3R_GUI_SOURCES
     Utils/MKS.hpp
     Utils/ESP3D.cpp
     Utils/ESP3D.hpp
-    Utils/CrealityPrint.cpp
-    Utils/CrealityPrint.hpp
     Utils/WxFontUtils.cpp
     Utils/WxFontUtils.hpp
     Utils/Duet.cpp
@@ -571,9 +563,18 @@ set(SLIC3R_GUI_SOURCES
     GUI/Jobs/OAuthJob.hpp
     Utils/SimplyPrint.cpp
     Utils/SimplyPrint.hpp
-    Utils/ElegooLink.hpp
-    Utils/ElegooLink.cpp
-    Utils/WebSocketClient.hpp
+    GUI/JusPrin/JusPrinLoginDialog.cpp
+    GUI/JusPrin/JusPrinLoginDialog.hpp
+    GUI/JusPrin/JusPrinChatPanel.cpp
+    GUI/JusPrin/JusPrinChatPanel.hpp
+    GUI/JusPrin/JusPrinPresetConfigUtils.cpp
+    GUI/JusPrin/JusPrinPresetConfigUtils.hpp
+    GUI/JusPrin/JusPrinView3D.cpp
+    GUI/JusPrin/JusPrinView3D.hpp
+    GUI/JusPrin/JusPrinPlateUtils.cpp
+    GUI/JusPrin/JusPrinPlateUtils.hpp
+    GUI/JusPrin/JusPrinNotificationManager.hpp
+    GUI/JusPrin/JusPrinNotificationManager.cpp
 )
 
 if (WIN32)
@@ -595,7 +596,6 @@ if (APPLE)
             GUI/Mouse3DHandlerMac.mm
             GUI/InstanceCheckMac.mm
             GUI/InstanceCheckMac.h
-            GUI/GUI_UtilsMac.mm
             GUI/wxMediaCtrl2.mm
             GUI/wxMediaCtrl2.h
         )
@@ -624,8 +624,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SLIC3R_GUI_SOURCES})
 
 encoding_check(libslic3r_gui)
 
-find_package(libnoise REQUIRED)
-target_link_libraries(libslic3r_gui libslic3r cereal::cereal imgui imguizmo minilzo GLEW::GLEW OpenGL::GL hidapi ${wxWidgets_LIBRARIES} glfw libcurl OpenSSL::SSL OpenSSL::Crypto noise::noise)
+target_link_libraries(libslic3r_gui libslic3r cereal::cereal imgui imguizmo minilzo GLEW::GLEW OpenGL::GL hidapi ${wxWidgets_LIBRARIES} glfw libcurl OpenSSL::SSL OpenSSL::Crypto)
 
 if (MSVC)
     target_link_libraries(libslic3r_gui Setupapi.lib)

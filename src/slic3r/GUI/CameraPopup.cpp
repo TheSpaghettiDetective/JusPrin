@@ -406,9 +406,9 @@ void CameraPopup::update(bool vcamera_streaming)
 wxString CameraPopup::to_resolution_label_string(CameraResolution resolution) {
     switch (resolution) {
     case RESOLUTION_720P:
-        return "720p";
+        return _L("720p");
     case RESOLUTION_1080P:
-        return "1080p";
+        return _L("1080p");
     default:
         return "";
     }

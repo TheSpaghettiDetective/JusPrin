@@ -42,30 +42,30 @@ WebViewPanel::WebViewPanel(wxWindow *parent)
         url = wxString::Format("file://%s/web/homepage/index.html?lang=%s", from_u8(resources_dir()), strlang);
 
     wxBoxSizer* topsizer = new wxBoxSizer(wxVERTICAL);
-    
+
 #if !BBL_RELEASE_TO_PUBLIC
     // Create the button
     bSizer_toolbar = new wxBoxSizer(wxHORIZONTAL);
 
-    m_button_back = new wxButton(this, wxID_ANY, _L("Back"), wxDefaultPosition, wxDefaultSize, 0);
+    m_button_back = new wxButton(this, wxID_ANY, wxT("Back"), wxDefaultPosition, wxDefaultSize, 0);
     m_button_back->Enable(false);
     bSizer_toolbar->Add(m_button_back, 0, wxALL, 5);
 
-    m_button_forward = new wxButton(this, wxID_ANY, _L("Forward"), wxDefaultPosition, wxDefaultSize, 0);
+    m_button_forward = new wxButton(this, wxID_ANY, wxT("Forward"), wxDefaultPosition, wxDefaultSize, 0);
     m_button_forward->Enable(false);
     bSizer_toolbar->Add(m_button_forward, 0, wxALL, 5);
 
-    m_button_stop = new wxButton(this, wxID_ANY, _L("Stop"), wxDefaultPosition, wxDefaultSize, 0);
+    m_button_stop = new wxButton(this, wxID_ANY, wxT("Stop"), wxDefaultPosition, wxDefaultSize, 0);
 
     bSizer_toolbar->Add(m_button_stop, 0, wxALL, 5);
 
-    m_button_reload = new wxButton(this, wxID_ANY, _L("Reload"), wxDefaultPosition, wxDefaultSize, 0);
+    m_button_reload = new wxButton(this, wxID_ANY, wxT("Reload"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer_toolbar->Add(m_button_reload, 0, wxALL, 5);
 
     m_url = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     bSizer_toolbar->Add(m_url, 1, wxALL | wxEXPAND, 5);
 
-    m_button_tools = new wxButton(this, wxID_ANY, _L("Tools"), wxDefaultPosition, wxDefaultSize, 0);
+    m_button_tools = new wxButton(this, wxID_ANY, wxT("Tools"), wxDefaultPosition, wxDefaultSize, 0);
     bSizer_toolbar->Add(m_button_tools, 0, wxALL, 5);
 
     topsizer->Add(bSizer_toolbar, 0, wxEXPAND, 0);
@@ -225,7 +225,7 @@ WebViewPanel::~WebViewPanel()
 {
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__ << " Start";
     SetEvtHandlerEnabled(false);
-    
+
     delete m_tools_menu;
 
     if (m_LoginUpdateTimer != nullptr) {
@@ -281,6 +281,7 @@ void WebViewPanel::UpdateState()
     //SetTitle(m_browser->GetCurrentTitle());
     m_url->SetValue(m_browser->GetCurrentURL());
 #endif //BBL_RELEASE_TO_PUBLIC
+    update_oauth_access_token();
 }
 
 void WebViewPanel::OnIdle(wxIdleEvent& WXUNUSED(evt))
@@ -421,11 +422,6 @@ void WebViewPanel::OnFreshLoginStatus(wxTimerEvent &event)
         Slic3r::GUI::wxGetApp().get_login_info();
 }
 
-void WebViewPanel::SetLoginPanelVisibility(bool bshow)
-{
-    wxString strJS = wxString::Format("SetLoginPanelVisibility(%s)", bshow ? "true" : "false");
-    RunScript(strJS);
-}
 void WebViewPanel::SendRecentList(int images)
 {
     boost::property_tree::wptree req;
@@ -463,16 +459,16 @@ void WebViewPanel::SendDesignStaffpick(bool on)
 void WebViewPanel::OpenModelDetail(std::string id, NetworkAgent *agent)
 {
     std::string url;
-    if ((agent ? agent->get_model_mall_detail_url(&url, id) : get_model_mall_detail_url(&url, id)) == 0) 
+    if ((agent ? agent->get_model_mall_detail_url(&url, id) : get_model_mall_detail_url(&url, id)) == 0)
     {
-        if (url.find("?") != std::string::npos) 
-        { 
+        if (url.find("?") != std::string::npos)
+        {
             url += "&from=orcaslicer";
         } else {
             url += "?from=orcaslicer";
         }
-        
-        wxLaunchDefaultBrowser(url); 
+
+        wxLaunchDefaultBrowser(url);
     }
 }
 
@@ -534,8 +530,16 @@ int WebViewPanel::get_model_mall_detail_url(std::string *url, std::string id)
 
 void WebViewPanel::update_mode()
 {
+    m_browser->EnableAccessToDevTools(wxGetApp().app_config->get_bool("developer_mode"));
     GetSizer()->Show(size_t(0), wxGetApp().app_config->get("internal_developer_mode") == "true");
     GetSizer()->Layout();
+}
+
+void WebViewPanel::update_oauth_access_token()
+{
+    wxString strJS = wxString::Format("SetLoginStatus(%s)", wxGetApp().app_config->get_with_default("jusprin_server", "access_token", "").empty() ? "false" : "true");
+    RunScript(strJS);
+    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << " " << strJS;
 }
 
 /**
@@ -890,7 +894,7 @@ void WebViewPanel::OnError(wxWebViewEvent& evt)
 
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__ << ": [" << category << "] " << evt.GetString().ToUTF8().data();
 
-    if (wxGetApp().get_mode() == comDevelop) 
+    if (wxGetApp().get_mode() == comDevelop)
     {
         wxLogMessage("%s", "Error; url='" + evt.GetURL() + "', error='" + category + " (" + evt.GetString() + ")'");
 

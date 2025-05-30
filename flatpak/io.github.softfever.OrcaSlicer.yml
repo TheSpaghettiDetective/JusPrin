@@ -1,6 +1,6 @@
 app-id: io.github.softfever.OrcaSlicer
 runtime: org.gnome.Platform
-runtime-version: "46"
+runtime-version: "45"
 sdk: org.gnome.Sdk
 command: entrypoint
 separate-locales: true
@@ -14,39 +14,13 @@ finish-args:
   - --filesystem=xdg-run/gvfs
   - --filesystem=/run/media
   - --filesystem=/media
-  - --filesystem=/run/spnav.sock:ro
   # Allow OrcaSlicer to talk to other instances
   - --talk-name=io.github.softfever.OrcaSlicer.InstanceCheck.*
   - --system-talk-name=org.freedesktop.UDisks2
-  - --env=SPNAV_SOCKET=/run/spnav.sock
   # set dark theme
-  - --env=ORCA_SLICER_DARK_THEME=false
+  - --env=BAMBU_STUDIO_DARK_THEME=false
 
 modules:
-  # xprop, xlib is needed to manipulate the X11 window and set _GTK_THEME_VARIANT dark on X11
-  # and paint the window dark when ORCA_SLICER_DARK_THEME is true
-  # see: entrypoint & set-dark-theme-variant.py (originated from Pursa Slicer flatpak which originated from spotify client flatpak)
-  - name: xprop
-    sources:
-    - type: archive
-      url: https://xorg.freedesktop.org/archive/individual/app/xprop-1.2.5.tar.gz
-      sha256: b7bf6b6be6cf23e7966a153fc84d5901c14f01ee952fbd9d930aa48e2385d670
-  - name: python-setuptools_scm
-    buildsystem: simple
-    build-commands:
-    - pip3 install --no-deps --no-build-isolation --verbose --prefix=${FLATPAK_DEST} .
-    sources:
-    - type: archive
-      url: https://files.pythonhosted.org/packages/57/38/930b1241372a9f266a7df2b184fb9d4f497c2cef2e016b014f82f541fe7c/setuptools_scm-6.0.1.tar.gz
-      sha256: d1925a69cb07e9b29416a275b9fadb009a23c148ace905b2fb220649a6c18e92
-  - name: python-xlib
-    buildsystem: simple
-    build-commands:
-    - pip3 install --no-deps --no-build-isolation --verbose --prefix=${FLATPAK_DEST} .
-    sources:
-    - type: archive
-      url: https://files.pythonhosted.org/packages/86/f5/8c0653e5bb54e0cbdfe27bf32d41f27bc4e12faa8742778c17f2a71be2c0/python-xlib-0.33.tar.gz
-      sha256: 55af7906a2c75ce6cb280a584776080602444f75815a7aff4d287bb2d7018b32
 
   # JPEG codec for the liveview
   - name: gst-plugins-good
@@ -61,6 +35,47 @@ modules:
       - type: archive
         url: https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-1.22.8.tar.xz
         sha256: e305b9f07f52743ca481da0a4e0c76c35efd60adaf1b0694eb3bb021e2137e39
+
+  # xprop, xlib is needed to manipulate the X11 window and set _GTK_THEME_VARIANT dark on X11
+  # and paint the window dark when PRUSA_SLICER_DARK_THEME is true
+  # see: entrypoint & set-dark-theme-variant.py (originated from spotify client flatpak)
+  - name: xprop
+    sources:
+      - type: archive
+        url: http://mirrors.ircam.fr/pub/x.org/individual/app/xprop-1.2.5.tar.gz
+        sha256: b7bf6b6be6cf23e7966a153fc84d5901c14f01ee952fbd9d930aa48e2385d670
+  - name: python-flit_core
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps --no-build-isolation --verbose --prefix=${FLATPAK_DEST} .
+    sources:
+      - type: archive
+        url: https://files.pythonhosted.org/packages/c4/e6/c1ac50fe3eebb38a155155711e6e864e254ce4b6e17fe2429b4c4d5b9e80/flit_core-3.9.0.tar.gz
+        sha256: 72ad266176c4a3fcfab5f2930d76896059851240570ce9a98733b658cb786eba
+  - name: python-packaging
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps --no-build-isolation --verbose --prefix=${FLATPAK_DEST} .
+    sources:
+      - type: archive
+        url: https://files.pythonhosted.org/packages/51/65/50db4dda066951078f0a96cf12f4b9ada6e4b811516bf0262c0f4f7064d4/packaging-24.1.tar.gz
+        sha256: 026ed72c8ed3fcce5bf8950572258698927fd1dbda10a5e981cdf0ac37f4f002
+  - name: python-setuptools_scm
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps --no-build-isolation --verbose --prefix=${FLATPAK_DEST} .
+    sources:
+      - type: archive
+        url: https://files.pythonhosted.org/packages/57/38/930b1241372a9f266a7df2b184fb9d4f497c2cef2e016b014f82f541fe7c/setuptools_scm-6.0.1.tar.gz
+        sha256: d1925a69cb07e9b29416a275b9fadb009a23c148ace905b2fb220649a6c18e92
+  - name: python-xlib
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps --no-build-isolation --verbose --prefix=${FLATPAK_DEST} .
+    sources:
+      - type: archive
+        url: https://files.pythonhosted.org/packages/86/f5/8c0653e5bb54e0cbdfe27bf32d41f27bc4e12faa8742778c17f2a71be2c0/python-xlib-0.33.tar.gz
+        sha256: 55af7906a2c75ce6cb280a584776080602444f75815a7aff4d287bb2d7018b32
 
   # For libOSMesa
   - name: mesa
@@ -82,7 +97,7 @@ modules:
       - "*.a"
     sources:
       - type: archive
-        url: https://archive.mesa3d.org/older-versions/20.x/mesa-20.2.6.tar.xz
+        url: https://archive.mesa3d.org/mesa-20.2.6.tar.xz
         sha256: f12ca3c6c622f11cd79ad66b4220f04514fa96f795062fe92a37339ab19885db
 
   - name: glu
@@ -106,12 +121,6 @@ modules:
         tag: v5.249.0
     cleanup:
       - / 
-
-  - name: libspnav
-    sources:
-      - type: archive
-        url: https://github.com/FreeSpacenav/libspnav/releases/download/v1.2/libspnav-1.2.tar.gz
-        sha256: 093747e7e03b232e08ff77f1ad7f48552c06ac5236316a5012db4269951c39db
  
   - name: orca_wxwidgets
     buildsystem: simple
@@ -141,7 +150,7 @@ modules:
           -DwxUSE_LIBPNG=sys \
           -DwxUSE_ZLIB=sys \
           -DwxUSE_LIBJPEG=sys \
-          -DwxUSE_LIBTIFF=OFF \
+          -DwxUSE_LIBTIFF=sys \
           -DwxUSE_EXPAT=sys \
           -DBUILD_SHARED_LIBS:BOOL=ON \
           -DCMAKE_INSTALL_PREFIX:STRING=/app \
@@ -153,8 +162,6 @@ modules:
         url: https://github.com/SoftFever/Orca-deps-wxWidgets
         branch: master
         path: ../
-      - type: patch
-        path: patches/0001-Enable-using-a-dark-theme-when-Gnome-dark-style-is-s.patch
     cleanup:
       - "*.la"
       - "*.a"
@@ -223,9 +230,9 @@ modules:
 
       # MPFR
       - type: file
-        url: https://www.mpfr.org/mpfr-4.2.2/mpfr-4.2.2.tar.bz2
+        url: https://www.mpfr.org/mpfr-current/mpfr-4.2.1.tar.bz2
         dest: external-packages/MPFR
-        sha256: 9ad62c7dc910303cd384ff8f1f4767a655124980bb6d8650fe62c815a231bb7b
+        sha256: b9df93635b20e4089c29623b19420c4ac848a1b29df1cfd59f26cab0d2666aa0
 
       # NLopt
       - type: file
@@ -286,18 +293,13 @@ modules:
         url: https://github.com/glfw/glfw/archive/refs/tags/3.3.7.zip
         dest: external-packages/GLFW
         sha256: e02d956935e5b9fb4abf90e2c2e07c9a0526d7eacae8ee5353484c69a2a76cd0
-      # libnoise
-      - type: file
-        url: https://github.com/SoftFever/Orca-deps-libnoise/archive/refs/tags/1.0.zip
-        dest: external-packages/libnoise
-        sha256: 96ffd6cc47898dd8147aab53d7d1b1911b507d9dbaecd5613ca2649468afd8b6
 
   - name: OrcaSlicer 
     buildsystem: simple
     build-commands:
       - |
-        mkdir -p build
-        CXXFLAGS=-std=gnu++20 cmake . -B build \
+        mkdir -p build && cd build
+        CXXFLAGS=-std=gnu++20 cmake ../ \
           -DSLIC3R_PCH=OFF \
           -DSLIC3R_FHS=ON \
           -DSLIC3R_GTK=3 \
@@ -309,9 +311,7 @@ modules:
           -DBBL_RELEASE_TO_PUBLIC=1 \
           -DCMAKE_PREFIX_PATH=/app \
           -DCMAKE_INSTALL_PREFIX=/app
-        CXXFLAGS=-std=gnu++20 cmake --build build --target OrcaSlicer -j$FLATPAK_BUILDER_N_JOBS
-        ./run_gettext.sh
-        CXXFLAGS=-std=gnu++20 cmake --build build --target install -j$FLATPAK_BUILDER_N_JOBS
+        CXXFLAGS=-std=gnu++20 cmake --build . --target install -j$FLATPAK_BUILDER_N_JOBS
 
     cleanup:
       - /include
@@ -323,10 +323,9 @@ modules:
         install -Dm644 ${FLATPAK_ID}.metainfo.xml /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
         mv /app/share/applications/OrcaSlicer.desktop /app/share/applications/${FLATPAK_ID}.desktop
         desktop-file-edit --set-key=Exec --set-value="entrypoint %U" /app/share/applications/${FLATPAK_ID}.desktop
+        install -Dm755 set-dark-theme-variant.py /app/bin
         install -Dm755 entrypoint /app/bin
         install -Dm755 umount /app/bin
-        install set-dark-theme-variant.py /app/bin
-        install uses-dark-theme.py /app/bin
 
     sources:
       # -
@@ -347,12 +346,12 @@ modules:
       # script to set dark theme variant
       - type: file
         path: set-dark-theme-variant.py
-      
-      # script to detect if host uses dark theme
-      - type: file
-        path: uses-dark-theme.py
 
       # start-up script
+      # README: workaround for the following issues, also enables dark theme variant:
+      # SEE: https://github.com/flathub/com.bambulab.BambuStudio/issues/27
+      # SEE: https://github.com/flathub/com.bambulab.BambuStudio/issues/3
+      # SEE: https://github.com/prusa3d/PrusaSlicer/issues/2365
       - type: file
         path: entrypoint
 

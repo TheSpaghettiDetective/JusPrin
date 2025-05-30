@@ -36,7 +36,7 @@ void CaliPresetCaliStagePanel::create_panel(wxWindow* parent)
 
     m_complete_radioBox = new wxRadioButton(parent, wxID_ANY, _L("Complete Calibration"));
     m_complete_radioBox->SetForegroundColour(*wxBLACK);
-    
+
     m_complete_radioBox->SetValue(true);
     m_stage = CALI_MANUAL_STAGE_1;
     m_top_sizer->Add(m_complete_radioBox);
@@ -365,7 +365,7 @@ CaliPresetTipsPanel::CaliPresetTipsPanel(
 {
     this->SetBackgroundColour(wxColour(238, 238, 238));
     this->SetMinSize(wxSize(MIN_CALIBRATION_PAGE_WIDTH, -1));
-    
+
     m_top_sizer = new wxBoxSizer(wxVERTICAL);
 
     create_panel(this);
@@ -601,7 +601,7 @@ void CalibrationPresetPage::create_filament_list_panel(wxWindow* parent)
 {
     auto panel_sizer = new wxBoxSizer(wxVERTICAL);
 
-    m_filament_list_tips = new Label(parent, _L("Tips for calibration material: \n- Materials that can share same hot bed temperature\n- Different filament brand and family (Brand = Bambu, Family = Basic, Matte)"));
+    m_filament_list_tips = new Label(parent, _L("Tips for calibration material: \n- Materials that can share same hot bed temperature\n- Different filament brand and family(Brand = Bambu, Family = Basic, Matte)"));
     m_filament_list_tips->Hide();
     m_filament_list_tips->SetFont(Label::Body_13);
     m_filament_list_tips->SetForegroundColour(wxColour(145, 145, 145));
@@ -633,7 +633,7 @@ void CalibrationPresetPage::create_filament_list_panel(wxWindow* parent)
     for (int i = 0; i < 4; i++) {
         auto filament_comboBox_sizer = new wxBoxSizer(wxHORIZONTAL);
         wxRadioButton* radio_btn = new wxRadioButton(m_filament_list_panel, wxID_ANY, "");
-        CheckBox* check_box = new CheckBox(m_filament_list_panel);
+        ::CheckBox* check_box = new ::CheckBox(m_filament_list_panel);
         check_box->SetBackgroundColour(*wxWHITE);
         FilamentComboBox* fcb = new FilamentComboBox(m_filament_list_panel);
         fcb->SetRadioBox(radio_btn);
@@ -673,7 +673,7 @@ void CalibrationPresetPage::create_ext_spool_panel(wxWindow* parent)
     auto panel_sizer = new wxBoxSizer(wxHORIZONTAL);
     panel_sizer->AddSpacer(FromDIP(10));
     wxRadioButton* radio_btn = new wxRadioButton(parent, wxID_ANY, "");
-    CheckBox* check_box = new CheckBox(parent);
+    ::CheckBox* check_box = new ::CheckBox(parent);
     m_virtual_tray_comboBox = new FilamentComboBox(parent);
     m_virtual_tray_comboBox->SetRadioBox(radio_btn);
     m_virtual_tray_comboBox->SetCheckBox(check_box);
@@ -740,7 +740,7 @@ void CalibrationPresetPage::create_page(wxWindow* parent)
         pa_cali_modes.push_back(_L("Pattern"));
         m_pa_cali_method_combox = new CaliComboBox(parent, _L("Method"), pa_cali_modes);
     }
-    
+
     m_ext_spool_panel = new wxPanel(parent);
     create_ext_spool_panel(m_ext_spool_panel);
     m_ext_spool_panel->Hide();
@@ -1074,7 +1074,7 @@ bool CalibrationPresetPage::is_filaments_compatiable(const std::vector<Preset*> 
     }
 
     if (!Print::check_multi_filaments_compatibility(filament_types)) {
-        error_tips = _u8L("Cannot print multiple filaments which have large difference of temperature together. Otherwise, the extruder and nozzle may be blocked or damaged during printing");
+        error_tips = _u8L("Can not print multiple filaments which have large difference of temperature together. Otherwise, the extruder and nozzle may be blocked or damaged during printing");
         return false;
     }
 
@@ -1361,14 +1361,14 @@ float CalibrationPresetPage::get_nozzle_value()
 void CalibrationPresetPage::update(MachineObject* obj)
 {
     curr_obj = obj;
-    
+
     //update printer status
     update_show_status();
 
 }
 
 void CalibrationPresetPage::on_device_connected(MachineObject* obj)
-{   
+{
     init_with_machine(obj);
     update_combobox_filaments(obj);
 }
@@ -1605,12 +1605,12 @@ void CalibrationPresetPage::sync_ams_info(MachineObject* obj)
     for (auto ams = obj->amsList.begin(); ams != obj->amsList.end(); ams++) {
         AMSinfo info;
         info.ams_id = ams->first;
-        if (ams->second->is_exists 
+        if (ams->second->is_exists
             && info.parse_ams_info(obj, ams->second, obj->ams_calibrate_remain_flag, obj->is_support_ams_humidity)) {
             ams_info.push_back(info);
         }
     }
-    
+
     for (auto i = 0; i < m_ams_item_list.size(); i++) {
         AMSItem* item = m_ams_item_list[i];
         if (ams_info.size() > 1) {
@@ -1732,7 +1732,7 @@ std::map<int, Preset*> CalibrationPresetPage::get_selected_filaments()
             out.emplace(std::make_pair(fcb_list[i]->get_tray_id(), preset));
         }
     }
-    
+
 
     return out;
 }

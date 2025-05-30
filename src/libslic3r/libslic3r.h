@@ -2,10 +2,10 @@
 #define _libslic3r_h_
 
 #include "libslic3r_version.h"
-#define SLIC3R_APP_FULL_NAME "Orca Slicer"
-#define GCODEVIEWER_APP_NAME "OrcaSlicer G-code Viewer"
-#define GCODEVIEWER_APP_KEY  "OrcaSlicerGcodeViewer"
-#define GCODEVIEWER_BUILD_ID std::string("OrcaSlicer G-code Viewer-") + std::string(SLIC3R_VERSION) + std::string("-RC")
+#define SLIC3R_APP_FULL_NAME "JusPrin"
+#define GCODEVIEWER_APP_NAME "JusPrin G-code Viewer"
+#define GCODEVIEWER_APP_KEY  "JusPrinGcodeViewer"
+#define GCODEVIEWER_BUILD_ID std::string("JusPrin G-code Viewer-") + std::string(SLIC3R_VERSION) + std::string("-RC")
 
 // this needs to be included early for MSVC (listing it in Build.PL is not enough)
 #include <memory>
@@ -65,8 +65,9 @@ static constexpr double LARGE_BED_THRESHOLD = 2147;
 static constexpr size_t MAXIMUM_EXTRUDER_NUMBER = 64;
 
 extern double SCALING_FACTOR;
+// for creating circles (for brim_ear)
+#define POLY_SIDES 24
 static constexpr double PI = 3.141592653589793238;
-#define POLY_SIDE_COUNT 24 // for brim ear circle
 // When extruding a closed loop, the loop is interrupted and shortened a bit to reduce the seam.
 // SoftFever: replaced by seam_gap now
 // static constexpr double LOOP_CLIPPING_LENGTH_OVER_NOZZLE_DIAMETER = 0.15;
@@ -75,7 +76,7 @@ static constexpr double RESOLUTION = 0.0125;
 static constexpr double SPARSE_INFILL_RESOLUTION = 0.04;
 #define                 SCALED_SPARSE_INFILL_RESOLUTION (SPARSE_INFILL_RESOLUTION / SCALING_FACTOR)
 
-static constexpr double SUPPORT_RESOLUTION = 0.0375;
+static constexpr double SUPPORT_RESOLUTION = 0.1;
 #define                 SCALED_SUPPORT_RESOLUTION (SUPPORT_RESOLUTION / SCALING_FACTOR)
 // Maximum perimeter length for the loop to apply the small perimeter speed. 
 #define                 SMALL_PERIMETER_LENGTH(LENGTH)  (((LENGTH) / SCALING_FACTOR) * 2 * PI)

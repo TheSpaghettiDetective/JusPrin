@@ -48,8 +48,8 @@ using SplitNode = std::vector<ClipperZUtils::ZPath*>;
 static bool point_on_line(const Point& p, const Line& l)
 {
     // Check collinear
-    const Vec2crd d1 = l.b - l.a;
-    const Vec2crd d2 = p - l.a;
+    const auto d1 = l.b - l.a;
+    const auto d2 = p - l.a;
     if (d1.x() * d2.y() != d1.y() * d2.x()) { 
         return false;
     }
@@ -264,7 +264,7 @@ SplittedLine do_split_line(const ClipperZUtils::ZPath& path, const ExPolygons& c
             }
             for (const auto segment : node) {
                 for (const ClipperZUtils::ZPoint& sp : *segment) {
-                    assert(!is_clip(sp));
+//                    assert(!is_clip(sp.z()));
                     result.emplace_back(to_point(sp), true, sp.z());
                 }
                 result.back().clipped = false; // Mark the end of the clipped line

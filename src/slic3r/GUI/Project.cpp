@@ -237,7 +237,7 @@ void ProjectPanel::OnScriptMessage(wxWebViewEvent& evt)
 {
     try {
         wxString strInput = evt.GetString();
-        json     j = json::parse(strInput.utf8_string());
+        json     j = json::parse(strInput);
 
         wxString strCmd = j["command"];
 

@@ -47,6 +47,8 @@ struct SlicingParameters;
 namespace TreeSupport3D
 {
 
+// The number of vertices in each circle.
+static constexpr const size_t SUPPORT_TREE_CIRCLE_RESOLUTION = 25;
 
 struct AreaIncreaseSettings
 {
@@ -137,10 +139,6 @@ struct SupportElementStateBits {
 
 struct SupportElementState : public SupportElementStateBits
 {
-    int type = 0;
-    coordf_t radius = 0;
-    float print_z = 0;
-
     /*!
      * \brief The layer this support elements wants reach
      */
@@ -308,11 +306,11 @@ void organic_draw_branches(
     SupportGeneratorLayersPtr       &intermediate_layers,
     SupportGeneratorLayerStorage    &layer_storage,
 
-    std::function<void()> throw_on_cancel);
+    std::function<void()>            throw_on_cancel);
 
 } // namespace TreeSupport3D
 
-void generate_tree_support_3D(PrintObject &print_object, TreeSupport* tree_support, std::function<void()> throw_on_cancel = []{});
+void generate_tree_support_3D(PrintObject &print_object, std::function<void()> throw_on_cancel = []{});
 
 } // namespace Slic3r
 

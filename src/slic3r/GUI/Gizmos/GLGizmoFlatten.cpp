@@ -143,9 +143,7 @@ void GLGizmoFlatten::set_flattening_data(const ModelObject* model_object, int in
 {
     if (model_object != m_old_model_object || instance_id != m_old_instance_id) {
         m_planes.clear();
-        if (get_state() == On) { // Only touch the raycasters if it's current
-            on_unregister_raycasters_for_picking();
-        }
+        on_unregister_raycasters_for_picking();
     }
 }
 

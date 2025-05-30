@@ -176,7 +176,7 @@ public:
                        const wxSize &  size  = wxDefaultSize,
                        long            style = wxTAB_TRAVERSAL,
                        const wxString &name  = wxEmptyString);
-    
+
     ~MachineObjectPanel();
 
     void show_bind_dialog();
@@ -194,12 +194,12 @@ protected:
 };
 
 #define SELECT_MACHINE_POPUP_SIZE wxSize(FromDIP(216), FromDIP(364))
-#define SELECT_MACHINE_LIST_SIZE wxSize(FromDIP(212), FromDIP(360))  
-#define SELECT_MACHINE_ITEM_SIZE wxSize(FromDIP(190), FromDIP(35))
+#define SELECT_MACHINE_LIST_SIZE wxSize(FromDIP(212), FromDIP(360))
+#define SELECT_MACHINE_ITEM_SIZE wxSize(FromDIP(182), FromDIP(35))
 #define SELECT_MACHINE_GREY900 wxColour(38, 46, 48)
 #define SELECT_MACHINE_GREY600 wxColour(144,144,144)
 #define SELECT_MACHINE_GREY400 wxColour(206, 206, 206)
-#define SELECT_MACHINE_BRAND wxColour(0, 150, 136)
+#define SELECT_MACHINE_BRAND wxColour(105, 75, 124)
 #define SELECT_MACHINE_REMIND wxColour(255,111,0)
 #define SELECT_MACHINE_LIGHT_GREEN wxColour(219, 253, 231)
 
@@ -214,7 +214,6 @@ class PinCodePanel : public wxPanel
 {
 public:
     PinCodePanel(wxWindow* parent,
-        int type,
         wxWindowID      winid = wxID_ANY,
         const wxPoint& pos = wxDefaultPosition,
         const wxSize& size = wxDefaultSize);
@@ -222,7 +221,6 @@ public:
 
     ScalableBitmap       m_bitmap;
     bool           m_hover{false};
-    int            m_type{0};
 
     void OnPaint(wxPaintEvent& event);
     void render(wxDC& dc);
@@ -256,7 +254,6 @@ private:
     int                               m_my_devices_count{0};
     int                               m_other_devices_count{0};
     PinCodePanel*                     m_panel_ping_code{nullptr};
-    PinCodePanel*                     m_panel_direct_connection{nullptr};
     wxWindow*                         m_placeholder_panel{nullptr};
     wxHyperlinkCtrl*                  m_hyperlink{nullptr};
     Label*                            m_ping_code_text{nullptr};
@@ -276,7 +273,7 @@ private:
     std::string                       m_print_info = "";
     bool                              m_dismiss { false };
 
-    std::map<std::string, MachineObject*> m_bind_machine_list; 
+    std::map<std::string, MachineObject*> m_bind_machine_list;
     std::map<std::string, MachineObject*> m_free_machine_list;
 
 private:
@@ -361,9 +358,9 @@ private:
     wxColour                            m_colour_def_color{wxColour(255, 255, 255)};
     wxColour                            m_colour_bold_color{wxColour(38, 46, 48)};
     StateColor                          m_btn_bg_enable;
-    
+
     std::shared_ptr<int>                m_token = std::make_shared<int>(0);
-    std::map<std::string, CheckBox *>   m_checkbox_list;
+    std::map<std::string, ::CheckBox *>   m_checkbox_list;
     //std::map<std::string, bool>         m_checkbox_state_list;
     std::vector<wxString>               m_bedtype_list;
     std::vector<MachineObject*>         m_list;
@@ -373,7 +370,7 @@ private:
     std::unique_ptr<Worker>             m_worker;
 
     Slic3r::DynamicPrintConfig          m_required_data_config;
-    Slic3r::Model                       m_required_data_model; 
+    Slic3r::Model                       m_required_data_model;
     Slic3r::PlateDataPtrs               m_required_data_plate_data_list;
     std::string                         m_required_data_file_name;
     std::string                         m_required_data_file_path;

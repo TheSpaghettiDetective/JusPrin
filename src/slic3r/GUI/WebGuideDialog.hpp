@@ -73,8 +73,7 @@ public:
     bool IsFirstUse();
 
     //Model - Machine - Filaments
-    int LoadProfileData();
-    int SaveProfileData();
+    int LoadProfile();
     int LoadProfileFamily(std::string strVendor, std::string strFilePath);
     int SaveProfile();
     int GetFilamentInfo( std::string VendorDirectory,json & pFilaList, std::string filepath, std::string &sVendor, std::string &sType);
@@ -104,14 +103,9 @@ private:
 
     wxString m_SectionName;
 
-    bool orca_bundle_rsrc;
+    bool bbl_bundle_rsrc;
     boost::filesystem::path vendor_dir;
     boost::filesystem::path rsrc_vendor_dir;
-
-    //First Load
-    bool bFirstComplete{false};
-    bool m_destroy{false};
-    boost::thread* m_load_task{ nullptr };
 
     // User Config
     bool PrivacyUse;
@@ -120,9 +114,6 @@ private:
 
     bool InstallNetplugin;
     bool network_plugin_ready {false};
-
-    json m_OrcaFilaList;
-    std::string m_OrcaFilaLibPath;
 
 #if wxUSE_WEBVIEW_IE
     wxMenuItem *m_script_object_el;

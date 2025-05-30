@@ -62,10 +62,10 @@ TipsDialog::TipsDialog(wxWindow *parent, const wxString &title, const wxString &
 
     m_confirm = new Button(this, _L("OK"));
     StateColor btn_bg_green(std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-                            std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal));
+                            std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal));
 
     m_confirm->SetBackgroundColor(btn_bg_green);
-    m_confirm->SetBorderColor(wxColour(0, 150, 136));
+    m_confirm->SetBorderColor(wxColour(105, 75, 124));
     m_confirm->SetTextColor(wxColour(255, 255, 255));
     m_confirm->SetSize(TIPS_DIALOG_BUTTON_SIZE);
     m_confirm->SetMinSize(TIPS_DIALOG_BUTTON_SIZE);
@@ -225,7 +225,7 @@ ParamsPanel::ParamsPanel( wxWindow* parent, wxWindowID id, const wxPoint& pos, c
         m_tips_arrow = new ScalableButton(m_top_panel, wxID_ANY, "tips_arrow");
         m_tips_arrow->Hide();
 
-        m_title_view = new Label(m_top_panel, Label::Body_12, _L("Advance")); // ORCA match size with advanced toggle on tab.cpp m_static_title
+        m_title_view = new Label(m_top_panel, _L("Advance"));
         m_mode_view = new SwitchButton(m_top_panel, wxID_ABOUT);
 
         // BBS: new layout
@@ -250,8 +250,8 @@ ParamsPanel::ParamsPanel( wxWindow* parent, wxWindowID id, const wxPoint& pos, c
 
 
 
-    //m_export_to_file = new Button( this, _L("Export To File"), "");
-    //m_import_from_file = new Button( this, _L("Import From File") );
+    //m_export_to_file = new Button( this, wxT("Export To File"), "");
+    //m_import_from_file = new Button( this, wxT("Import From File") );
 
     // Initialize the page.
 #if __WXOSX__
@@ -360,24 +360,24 @@ void ParamsPanel::create_layout()
 
     if (m_top_panel) {
         m_mode_sizer = new wxBoxSizer( wxHORIZONTAL );
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::TitlebarMargin()));
+        m_mode_sizer->AddSpacer(FromDIP(11));
         m_mode_sizer->Add(m_process_icon, 0, wxALIGN_CENTER);
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::ElementSpacing()));
+        m_mode_sizer->AddSpacer(FromDIP(11));
         m_mode_sizer->Add( m_title_label, 0, wxALIGN_CENTER );
         m_mode_sizer->AddStretchSpacer(2);
         m_mode_sizer->Add(m_mode_region, 0, wxALIGN_CENTER);
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::ElementSpacing()));
+        m_mode_sizer->AddStretchSpacer(1);
         m_mode_sizer->Add(m_tips_arrow, 0, wxALIGN_CENTER);
         m_mode_sizer->AddStretchSpacer(8);
         m_mode_sizer->Add( m_title_view, 0, wxALIGN_CENTER );
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::ElementSpacing()));
+        m_mode_sizer->AddSpacer(FromDIP(2));
         m_mode_sizer->Add(m_mode_view, 0, wxALIGN_CENTER);
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::ElementSpacing() * 6)); // ORCA using spacer prevents shaky mode_view when tips_arrow highlighting mode_region instead using AddStretchSpacer
+        m_mode_sizer->AddStretchSpacer(2);
         m_mode_sizer->Add(m_setting_btn, 0, wxALIGN_CENTER);
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::IconSpacing()));
+        m_mode_sizer->AddSpacer(FromDIP(2));
         m_mode_sizer->Add(m_compare_btn, 0, wxALIGN_CENTER);
 
-        m_mode_sizer->AddSpacer(FromDIP(SidebarProps::TitlebarMargin()));
+        m_mode_sizer->AddSpacer(FromDIP(8));
         //m_mode_sizer->Add( m_search_btn, 0, wxALIGN_CENTER );
         //m_mode_sizer->AddSpacer(16);
         m_mode_sizer->SetMinSize(-1, FromDIP(30));

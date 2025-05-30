@@ -4,10 +4,7 @@
 #ifndef OUTER_WALL_INSET_BEADING_STRATEGY_H
 #define OUTER_WALL_INSET_BEADING_STRATEGY_H
 
-#include <string>
-
 #include "BeadingStrategy.hpp"
-#include "libslic3r/libslic3r.h"
 
 namespace Slic3r::Arachne
 {

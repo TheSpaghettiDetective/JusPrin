@@ -600,7 +600,7 @@ DiffViewCtrl::DiffViewCtrl(wxWindow* parent, wxSize size)
     this->Bind(wxEVT_DATAVIEW_ITEM_VALUE_CHANGED, &DiffViewCtrl::item_value_changed, this);
 }
 
-DiffViewCtrl::~DiffViewCtrl() { 
+DiffViewCtrl::~DiffViewCtrl() {
     this->AssociateModel(nullptr);
     delete model;
 }
@@ -819,7 +819,7 @@ UnsavedChangesDialog::UnsavedChangesDialog(Preset::Type type, PresetCollection *
 
 inline int UnsavedChangesDialog::ShowModal()
 {
-    auto choise_key = "save_preset_choise"; 
+    auto choise_key = "save_preset_choise";
     auto choise     = wxGetApp().app_config->get(choise_key);
     long result = 0;
     if ((m_buttons & REMEMBER_CHOISE) && !choise.empty() && wxString(choise).ToLong(&result) && (1 << result) & (m_buttons | DONT_SAVE)) {
@@ -966,7 +966,7 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
      // Add Buttons
     wxFont      btn_font = this->GetFont().Scaled(1.4f);
     StateColor btn_bg_green(std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-                            std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal));
+                            std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal));
 
     auto add_btn = [this, m_sizer_button, btn_font, dependent_presets, btn_bg_green](Button **btn, int &btn_id, const std::string &icon_name, Action close_act, const wxString &label,
                                                                               bool focus, bool process_enable = true) {
@@ -974,7 +974,7 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
 
         if (focus) {
             (*btn)->SetBackgroundColor(btn_bg_green);
-            (*btn)->SetBorderColor(wxColour(0, 150, 136));
+            (*btn)->SetBorderColor(wxColour(105, 75, 124));
             (*btn)->SetTextColor(wxColour("#FFFFFE"));
         } else {
             (*btn)->SetTextColor(wxColour(107, 107, 107));
@@ -1418,7 +1418,7 @@ void UnsavedChangesDialog::update(Preset::Type type, PresetCollection* dependent
 
     wxString action_msg;
     if (dependent_presets) {
-        action_msg = format_wxstr(_L("You have changed some settings of preset \"%1%\"."), dependent_presets->get_edited_preset().name);
+        action_msg = format_wxstr(_L("You have changed some settings of preset \"%1%\". "), dependent_presets->get_edited_preset().name);
         if (!m_transfer_btn) {
             action_msg += _L("\nYou can save or discard the preset values you have modified.");
         } else {
@@ -1610,7 +1610,7 @@ void UnsavedChangesDialog::update_list()
        wxSize text_size = m_action_line->GetTextExtent(m_action_line->GetLabel());
        int    width     = UNSAVE_CHANGE_DIALOG_ACTION_LINE_SIZE.GetWidth();
        // +2: Ensure that there is at least one line and that the content contains '\n'
-       int    rows      = int(text_size.GetWidth() / width) + 2; 
+       int    rows      = int(text_size.GetWidth() / width) + 2;
        int    height    = rows * text_size.GetHeight();
        m_action_line->SetMinSize(wxSize(width, height));
        Layout();
@@ -1664,19 +1664,17 @@ void UnsavedChangesDialog::update_tree(Preset::Type type, PresetCollection* pres
 
         // process changes of extruders count
         if (type == Preset::TYPE_PRINTER && old_pt == ptFFF &&
-            old_config.opt<ConfigOptionFloats>("nozzle_diameter")->values.size() != new_config.opt<ConfigOptionFloats>("nozzle_diameter")->values.size()) {
+            old_config.opt<ConfigOptionStrings>("extruder_colour")->values.size() != new_config.opt<ConfigOptionStrings>("extruder_colour")->values.size()) {
             wxString local_label = _L("Extruders count");
-            wxString old_val = from_u8((boost::format("%1%") % old_config.opt<ConfigOptionFloats>("nozzle_diameter")->values.size()).str());
-            wxString new_val = from_u8((boost::format("%1%") % new_config.opt<ConfigOptionFloats>("nozzle_diameter")->values.size()).str());
+            wxString old_val = from_u8((boost::format("%1%") % old_config.opt<ConfigOptionStrings>("extruder_colour")->values.size()).str());
+            wxString new_val = from_u8((boost::format("%1%") % new_config.opt<ConfigOptionStrings>("extruder_colour")->values.size()).str());
 
             //BBS: the page "General" changed to "Basic information" instead
             //m_tree->Append("extruders_count", type, _L("General"), _L("Capabilities"), local_label, old_val, new_val, category_icon_map.at("Basic information"));
             //m_tree->Append("extruders_count", type, _L("General"), _L("Capabilities"), local_label, old_val, new_val, category_icon_map.at("General"));
 
-            if (old_val != new_val) {
-                PresetItem pi = {type, "extruders_count", _L("General"), _L("Capabilities"), local_label, old_val, new_val};
-                m_presetitems.push_back(pi);
-            }
+            PresetItem pi = {type, "extruders_count", _L("General"), _L("Capabilities"), local_label, old_val, new_val};
+            m_presetitems.push_back(pi);
         }
 
         for (const std::string& opt_key : dirty_options) {
@@ -1824,11 +1822,11 @@ FullCompareDialog::FullCompareDialog(const wxString& option_name, const wxString
 static PresetCollection* get_preset_collection(Preset::Type type, PresetBundle* preset_bundle = nullptr) {
     if (!preset_bundle)
         preset_bundle = wxGetApp().preset_bundle;
-    return  type == Preset::Type::TYPE_PRINTER      ? &preset_bundle->printers :
+    return  type == Preset::Type::TYPE_PRINT        ? &preset_bundle->prints :
+            type == Preset::Type::TYPE_SLA_PRINT    ? &preset_bundle->sla_prints :
             type == Preset::Type::TYPE_FILAMENT     ? &preset_bundle->filaments :
             type == Preset::Type::TYPE_SLA_MATERIAL ? &preset_bundle->sla_materials :
-            type == Preset::Type::TYPE_PRINT        ? &preset_bundle->prints :
-            type == Preset::Type::TYPE_SLA_PRINT    ? &preset_bundle->sla_prints :
+            type == Preset::Type::TYPE_PRINTER      ? &preset_bundle->printers :
             nullptr;
 }
 
@@ -1844,7 +1842,7 @@ void DiffPresetDialog::create_presets_sizer()
 {
     m_presets_sizer = new wxBoxSizer(wxVERTICAL);
 
-    for (auto new_type : { Preset::TYPE_PRINTER, Preset::TYPE_FILAMENT, Preset::TYPE_SLA_MATERIAL, Preset::TYPE_PRINT, Preset::TYPE_SLA_PRINT })
+    for (auto new_type : { Preset::TYPE_PRINT, Preset::TYPE_SLA_PRINT, Preset::TYPE_FILAMENT, Preset::TYPE_SLA_MATERIAL, Preset::TYPE_PRINTER })
     {
         const PresetCollection* collection = get_preset_collection(new_type);
         wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -1935,7 +1933,7 @@ void DiffPresetDialog::create_buttons()
     StateColor btn_bg_green(std::pair<wxColour, int>(wxColour(206, 206, 206), StateColor::Disabled),
                             std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
                             std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-                            std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal));
+                            std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal));
     m_buttons   = new wxBoxSizer(wxHORIZONTAL);
 
     auto show_in_bottom_info = [this](const wxString& ext_line, wxEvent* e = nullptr) {
@@ -1945,10 +1943,10 @@ void DiffPresetDialog::create_buttons()
         if (e) e->Skip();
     };
 
-    // Transfer 
+    // Transfer
     m_transfer_btn = new Button(this, L("Transfer"));
     m_transfer_btn->SetBackgroundColor(btn_bg_green);
-    m_transfer_btn->SetBorderColor(wxColour(0, 150, 136));
+    m_transfer_btn->SetBorderColor(wxColour(105, 75, 124));
     m_transfer_btn->SetTextColor(wxColour("#FFFFFE"));
     m_transfer_btn->SetMinSize(wxSize(-1, -1));
     m_transfer_btn->SetCornerRadius(FromDIP(12));
@@ -2019,7 +2017,7 @@ void DiffPresetDialog::create_edit_sizer()
             this->Layout();
     });
 
-    // Add Buttons 
+    // Add Buttons
     create_buttons();
 
     // Create and fill edit sizer
@@ -2260,7 +2258,7 @@ void DiffPresetDialog::update_tree()
     bool can_transfer_options = m_view_type == Preset::TYPE_INVALID || get_left_preset_name(m_view_type) != get_right_preset_name(m_view_type);
     m_edit_sizer->Show(show_tree && can_transfer_options);
     m_buttons->Show(m_edit_sizer->IsShown(size_t(0)) && m_use_for_transfer->GetValue());
-   
+
     update_bottom_info(bottom_info);
 
     if (tree_was_shown == m_tree->IsShown())
@@ -2383,17 +2381,13 @@ void DiffPresetDialog::button_event(Action act)
 
 std::string DiffPresetDialog::get_left_preset_name(Preset::Type type)
 {
-    PresetComboBox* cb = std::find_if(m_preset_combos.begin(), m_preset_combos.end(), [type](const DiffPresets& p) {
-                             return p.presets_left->get_type() == type;
-                         })->presets_left;
+    PresetComboBox* cb = m_preset_combos[int(type - Preset::TYPE_PRINT)].presets_left;
     return Preset::remove_suffix_modified(get_selection(cb));
 }
 
 std::string DiffPresetDialog::get_right_preset_name(Preset::Type type)
 {
-    PresetComboBox* cb = std::find_if(m_preset_combos.begin(), m_preset_combos.end(), [type](const DiffPresets& p) {
-                             return p.presets_right->get_type() == type;
-                         })->presets_right;
+    PresetComboBox* cb = m_preset_combos[int(type - Preset::TYPE_PRINT)].presets_right;
     return Preset::remove_suffix_modified(get_selection(cb));
 }
 

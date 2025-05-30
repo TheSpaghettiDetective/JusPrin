@@ -149,9 +149,9 @@ wxString CopyrightsDialog::get_html_text()
                 "<font size=\"3\">",
          bgr_clr_str, text_clr_str, text_clr_str,
         _L("License"),
-        _L("Orca Slicer is licensed under "),
+        _L("JusPrin is licensed under "),
         "https://www.gnu.org/licenses/agpl-3.0.html",_L("GNU Affero General Public License, version 3"),
-        _L("Orca Slicer is based on PrusaSlicer and BambuStudio"),
+        _L("JusPrin is based on Orca Slicer"),
         _L("Libraries"),
         _L("This software uses open source components whose copyright and other proprietary rights belong to their respective owners"));
 
@@ -219,7 +219,7 @@ AboutDialog::AboutDialog()
     std::string icon_path = (boost::format("%1%/images/OrcaSlicerTitle.ico") % resources_dir()).str();
     SetIcon(wxIcon(encode_path(icon_path.c_str()), wxBITMAP_TYPE_ICO));
 
-    wxPanel* m_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(560), FromDIP(125)), wxTAB_TRAVERSAL);
+    wxPanel *m_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(560), FromDIP(237)), wxTAB_TRAVERSAL);
 
     wxBoxSizer *panel_versizer = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *vesizer  = new wxBoxSizer(wxVERTICAL);
@@ -232,10 +232,8 @@ AboutDialog::AboutDialog()
     main_sizer->Add(m_panel, 1, wxEXPAND | wxALL, 0);
     main_sizer->Add(ver_sizer, 0, wxEXPAND | wxALL, 0);
 
-	bool is_dark = wxGetApp().app_config->get("dark_color_mode") == "1";
-
     // logo
-    m_logo_bitmap = ScalableBitmap(this, is_dark ? "OrcaSlicer_about_dark" : "OrcaSlicer_about", FromDIP(125));
+    m_logo_bitmap = ScalableBitmap(this, "OrcaSlicer_about", 250);
     m_logo = new wxStaticBitmap(this, wxID_ANY, m_logo_bitmap.bmp(), wxDefaultPosition,wxDefaultSize, 0);
     m_logo->SetSizer(vesizer);
 
@@ -243,32 +241,24 @@ AboutDialog::AboutDialog()
 
     // version
     {
-
-        auto _build_string_font = Label::Body_12;
-        // _build_string_font.SetStyle(wxFONTSTYLE_ITALIC);
-
-        vesizer->Add(0, 0, 1, wxEXPAND, FromDIP(5));
-        auto          version_string = std::string(SoftFever_VERSION); // _L("Orca Slicer ") + " " + std::string(SoftFever_VERSION);
+        vesizer->Add(0, FromDIP(165), 1, wxEXPAND, FromDIP(5));
+        auto version_string = _L("JusPrin") + " " + std::string(SoftFever_VERSION);
         wxStaticText* version = new wxStaticText(this, wxID_ANY, version_string.c_str(), wxDefaultPosition, wxDefaultSize);
-        wxStaticText* credits_string = new wxStaticText(this, wxID_ANY, wxString::Format("Build %s", std::string(GIT_COMMIT_HASH)), wxDefaultPosition, wxDefaultSize);
-        credits_string->SetFont(_build_string_font);
+        wxStaticText* bs_version = new wxStaticText(this, wxID_ANY, wxString::Format("Based on Orca Slicer"), wxDefaultPosition, wxDefaultSize);
+        bs_version->SetFont(Label::Body_12);
         wxFont version_font = GetFont();
         #ifdef __WXMSW__
-			version_font.SetPointSize(version_font.GetPointSize()-1);
+        version_font.SetPointSize(version_font.GetPointSize()-1);
         #else
             version_font.SetPointSize(11);
         #endif
-        version_font.SetPointSize(FromDIP(20));
+        version_font.SetPointSize(FromDIP(16));
         version->SetFont(version_font);
-        version->SetForegroundColour(wxColour("#949494"));
-        credits_string->SetForegroundColour(wxColour("#949494"));
-        version->SetBackgroundColour(wxColour("#FFFFFF"));
-        credits_string->SetBackgroundColour(wxColour("#FFFFFF"));
 
-        vesizer->Add(version, 0, wxRIGHT | wxALIGN_RIGHT, FromDIP(20));
-        vesizer->AddSpacer(FromDIP(5));
-        vesizer->Add(credits_string, 0, wxRIGHT | wxALIGN_RIGHT, FromDIP(20));
-        // #if BBL_INTERNAL_TESTING
+
+        vesizer->Add(version, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, FromDIP(5));
+        vesizer->Add(bs_version, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, FromDIP(5));
+// #if BBL_INTERNAL_TESTING
 //         wxString build_time = wxString::Format("Build Time: %s", std::string(SLIC3R_BUILD_TIME));
 //         wxStaticText* build_time_text = new wxStaticText(this, wxID_ANY, build_time, wxDefaultPosition, wxDefaultSize);
 //         build_time_text->SetForegroundColour(wxColour("#FFFFFE"));
@@ -283,7 +273,8 @@ AboutDialog::AboutDialog()
     text_sizer_horiz->Add( 0, 0, 0, wxLEFT, FromDIP(20));
 
     std::vector<wxString> text_list;
-    text_list.push_back(_L("OrcaSlicer is based on BambuStudio, PrusaSlicer, and SuperSlicer."));
+    text_list.push_back(_L("JusPrin is based on Orca Slicer."));
+    text_list.push_back(_L("Orca Slicer is based on BambuStudio, PrusaSlicer, and SuperSlicer."));
     text_list.push_back(_L("BambuStudio is originally based on PrusaSlicer by PrusaResearch."));
     text_list.push_back(_L("PrusaSlicer is originally based on Slic3r by Alessandro Ranellucci."));
     text_list.push_back(_L("Slic3r was created by Alessandro Ranellucci with the help of many other contributors."));
@@ -328,7 +319,7 @@ AboutDialog::AboutDialog()
 
     copyright_hor_sizer->Add(copyright_ver_sizer, 0, wxLEFT, FromDIP(20));
 
-    wxStaticText *html_text = new wxStaticText(this, wxID_ANY, "Copyright(C) 2022-2024 Li Jiang All Rights Reserved", wxDefaultPosition, wxDefaultSize);
+    wxStaticText *html_text = new wxStaticText(this, wxID_ANY, "Copyright(C) 2022-2024 Obico All Rights Reserved", wxDefaultPosition, wxDefaultSize);
     html_text->SetForegroundColour(wxColour(107, 107, 107));
 
     copyright_ver_sizer->Add(html_text, 0, wxALL , 0);
@@ -345,7 +336,7 @@ AboutDialog::AboutDialog()
               (boost::format(
               "<html>"
               "<body>"
-              "<p style=\"text-align:left\"><a style=\"color:#009789\" href=\"https://github.com/SoftFever/Orcaslicer\">https://github.com/SoftFever/Orcaslicer</ a></p>"
+              "<p style=\"text-align:left\"><a style=\"color:#009789\" href=\"https://github.com/TheSpaghettiDetective/JusPrin\">https://github.com/TheSpaghettiDetective/JusPrin</ a></p>"
               "</body>"
               "</html>")
             ).str());

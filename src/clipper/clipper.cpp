@@ -119,10 +119,6 @@ inline cInt Round(double val)
   return static_cast<cInt>((val < 0) ? (val - 0.5) : (val + 0.5));
 }
 
-// Overriding the Eigen operators because we don't want to compare Z coordinate if IntPoint is 3 dimensional.
-inline bool operator==(const IntPoint &l, const IntPoint &r) { return l.x() == r.x() && l.y() == r.y(); }
-inline bool operator!=(const IntPoint &l, const IntPoint &r) { return l.x() != r.x() || l.y() != r.y(); }
-
 //------------------------------------------------------------------------------
 // PolyTree methods ...
 //------------------------------------------------------------------------------
@@ -193,22 +189,16 @@ double Area(const Path &poly)
 }
 //------------------------------------------------------------------------------
 
-double Area(const OutPt *op)
+double Area(const OutRec &outRec)
 {
-  const OutPt *startOp = op;
+  OutPt *op = outRec.Pts;
   if (!op) return 0;
   double a = 0;
   do {
     a +=  (double)(op->Prev->Pt.x() + op->Pt.x()) * (double)(op->Prev->Pt.y() - op->Pt.y());
     op = op->Next;
-  } while (op != startOp);
+  } while (op != outRec.Pts);
   return a * 0.5;
-}
-//------------------------------------------------------------------------------
-
-double Area(const OutRec &outRec)
-{
-  return Area(outRec.Pts);
 }
 //------------------------------------------------------------------------------
 
@@ -546,32 +536,27 @@ bool FirstIsBottomPt(const OutPt* btmPt1, const OutPt* btmPt2)
   p = btmPt2->Next;
   while ((p->Pt == btmPt2->Pt) && (p != btmPt2)) p = p->Next;
   double dx2n = std::fabs(GetDx(btmPt2->Pt, p->Pt));
-
-  if (std::max(dx1p, dx1n) == std::max(dx2p, dx2n) &&
-    std::min(dx1p, dx1n) == std::min(dx2p, dx2n))
-      return Area(btmPt1) > 0; //if otherwise identical use orientation
-  else
-    return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
+  return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n);
 }
 //------------------------------------------------------------------------------
 
 // Called by GetLowermostRec()
 OutPt* GetBottomPt(OutPt *pp)
 {
-  OutPt* dups = nullptr;
+  OutPt* dups = 0;
   OutPt* p = pp->Next;
   while (p != pp)
   {
     if (p->Pt.y() > pp->Pt.y())
     {
       pp = p;
-      dups = nullptr;
+      dups = 0;
     }
     else if (p->Pt.y() == pp->Pt.y() && p->Pt.x() <= pp->Pt.x())
     {
       if (p->Pt.x() < pp->Pt.x())
       {
-        dups = nullptr;
+        dups = 0;
         pp = p;
       } else
       {
@@ -592,7 +577,6 @@ OutPt* GetBottomPt(OutPt *pp)
   }
   return pp;
 }
-
 //------------------------------------------------------------------------------
 
 bool Pt2IsBetweenPt1AndPt3(const IntPoint &pt1,

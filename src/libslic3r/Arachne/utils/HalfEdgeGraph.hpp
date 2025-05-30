@@ -21,10 +21,8 @@ class HalfEdgeGraph
 public:
     using edge_t = derived_edge_t;
     using node_t = derived_node_t;
-    using Edges = std::list<edge_t>;
-    using Nodes = std::list<node_t>;
-    Edges edges;
-    Nodes nodes;
+    std::list<edge_t> edges;
+    std::list<node_t> nodes;
 };
 
 } // namespace Slic3r::Arachne

@@ -191,6 +191,11 @@ bool  NotificationManager::SlicingProgressNotification::update_state(bool paused
 
 void NotificationManager::SlicingProgressNotification::render(GLCanvas3D& canvas, float initial_y, bool move_from_overlay, float overlay_width, float right_margin)
 {
+	// Skip rendering the notification if popup is disabled
+	if (!m_pop_up_slicing_progress && m_sp_state == SlicingProgressState::SP_PROGRESS) {
+		return;
+	}
+
 	if (m_state == EState::Unknown || m_state == PopNotification::EState::Hovered)
 		init();
 
@@ -346,13 +351,13 @@ void Slic3r::GUI::NotificationManager::SlicingProgressNotification::render_text(
 		imgui.pop_bold_font();
 		return;
 	}
-	if (m_sp_state == SlicingProgressState::SP_CANCELLED) {
+	if (m_sp_state == Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED) {
 		imgui.push_bold_font();
 		ImGui::SetCursorScreenPos(ImVec2(pos.x + ImGui::CalcTextSize(" ").x, pos.y + (icon_size.y - m_line_height) / 2));
 		imgui.text(m_text1.substr(0, m_endlines[0]).c_str());
 		imgui.pop_bold_font();
 	}
-	if(m_sp_state == SlicingProgressState::SP_PROGRESS)	{
+	if(m_sp_state == Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS)	{
 		// multi-line text
         int last_end = 0;
         for (auto i = 0; i < m_lines_count; i++) {
@@ -365,12 +370,12 @@ void Slic3r::GUI::NotificationManager::SlicingProgressNotification::render_text(
 
 void Slic3r::GUI::NotificationManager::SlicingProgressNotification::render_bar(const ImVec2& pos, const ImVec2& size)
 {
-	if (m_sp_state != SlicingProgressState::SP_PROGRESS)
+	if (m_sp_state != Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS)
 		return;
 
 	ImGuiWrapper& imgui = *wxGetApp().imgui();
 
-	ImColor progress_color = ImColor(0, 150, 136, (int)(255 * m_current_fade_opacity));
+	ImColor progress_color = ImColor(105, 75, 124, (int)(255 * m_current_fade_opacity));
 	ImColor bg_color = ImColor(217, 217, 217, (int)(255 * m_current_fade_opacity));
 
 	ImVec2 lineStart = pos;
@@ -378,7 +383,7 @@ void Slic3r::GUI::NotificationManager::SlicingProgressNotification::render_bar(c
 	ImVec2 midPoint = ImVec2(lineStart.x + (lineEnd.x - lineStart.x) * m_percentage, lineEnd.y);
 	ImGui::GetWindowDrawList()->AddRectFilled(lineStart, lineEnd, bg_color);
 	ImGui::GetWindowDrawList()->AddRectFilled(lineStart, midPoint, progress_color);
-	
+
 	// percentage text
 	ImVec2 text_pos = ImVec2(pos.x, pos.y + size.y + m_line_height * 0.2f);
 	std::string text;
@@ -396,7 +401,7 @@ void NotificationManager::SlicingProgressNotification::render_dailytips_panel(co
 
 void NotificationManager::SlicingProgressNotification::render_show_dailytips(const ImVec2& pos)
 {
-	if (m_sp_state != SlicingProgressState::SP_COMPLETED && m_sp_state != SlicingProgressState::SP_CANCELLED)
+	if (m_sp_state != Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED && m_sp_state != Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED)
 		return;
 
 	ImGuiWrapper& imgui = *wxGetApp().imgui();
@@ -435,7 +440,7 @@ void NotificationManager::SlicingProgressNotification::on_show_dailytips()
 
 void Slic3r::GUI::NotificationManager::SlicingProgressNotification::render_cancel_button(const ImVec2& pos, const ImVec2& size)
 {
-	if (m_sp_state == SlicingProgressState::SP_PROGRESS) {
+	if (m_sp_state == Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS) {
 		ImGuiWrapper& imgui = *wxGetApp().imgui();
 
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.0f, .0f, .0f, .0f));
@@ -464,7 +469,7 @@ void Slic3r::GUI::NotificationManager::SlicingProgressNotification::render_cance
 
 void NotificationManager::SlicingProgressNotification::render_close_button(const ImVec2& pos, const ImVec2& size)
 {
-	if (m_sp_state == SlicingProgressState::SP_CANCELLED || m_sp_state == SlicingProgressState::SP_COMPLETED) {
+	if (m_sp_state == Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED || m_sp_state == Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED) {
 		ImGuiWrapper& imgui = *wxGetApp().imgui();
 
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.0f, .0f, .0f, .0f));

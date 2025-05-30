@@ -28,6 +28,7 @@
 #include "libslic3r/calib.hpp"
 #include "libslic3r/CutUtils.hpp"
 #include "libslic3r/FlushVolCalc.hpp"
+#include "slic3r/GUI/JusPrin/JusPrinChatPanel.hpp"
 
 #define FILAMENT_SYSTEM_COLORS_NUM      16
 
@@ -83,6 +84,7 @@ using t_optgroups = std::vector <std::shared_ptr<ConfigOptionsGroup>>;
 
 class Plater;
 enum class ActionButtonType : int;
+class JusPrinChatPanel;
 
 #define EVT_PUBLISHING_START        1
 #define EVT_PUBLISHING_STOP         2
@@ -106,15 +108,6 @@ wxDECLARE_EVENT(EVT_DEL_FILAMENT, SimpleEvent);
 using ColorEvent = Event<wxColour>;
 wxDECLARE_EVENT(EVT_ADD_CUSTOM_FILAMENT, ColorEvent);
 const wxString DEFAULT_PROJECT_NAME = "Untitled";
-
-class SidebarProps
-{
-public:
-    static int TitlebarMargin();
-    static int ContentMargin();
-    static int IconSpacing();
-    static int ElementSpacing();
-};
 
 class Sidebar : public wxPanel
 {
@@ -273,9 +266,6 @@ public:
     void calib_max_vol_speed(const Calib_Params& params);
     void calib_retraction(const Calib_Params& params);
     void calib_VFA(const Calib_Params& params);
-    void calib_input_shaping_freq(const Calib_Params& params);
-    void calib_input_shaping_damp(const Calib_Params& params);
-    void calib_junction_deviation(const Calib_Params& params);
 
     BuildVolume_Type get_build_volume_type() const;
 
@@ -795,6 +785,8 @@ public:
 
     bool is_loading_project() const { return m_loading_project; }
 
+    GUI::JusPrinChatPanel* jusprinChatPanel() const;
+
 private:
     struct priv;
     std::unique_ptr<priv> p;
@@ -823,7 +815,6 @@ private:
     int start_next_slice();
 
     void _calib_pa_pattern(const Calib_Params& params);
-    void _calib_pa_pattern_gen_gcode();
     void _calib_pa_tower(const Calib_Params& params);
     void _calib_pa_select_added_objects();
 

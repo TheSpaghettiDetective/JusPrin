@@ -124,7 +124,7 @@
     "1"
   ],
   "default_filament_profile": [
-    "Qidi Generic PLA"
+    "Generic PLA @QIDI"
   ],
   "default_print_profile": "0.20mm Standard @QIDI",
   "bed_exclude_area": [

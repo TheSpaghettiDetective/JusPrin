@@ -56,14 +56,14 @@
         "1.75"
       ],
       "filament_flow_ratio": [
-        "0.95"
+        "0.91"
       ],
       "filament_is_support": [
         "0"
       ],
 
       "filament_max_volumetric_speed": [
-        "14"
+        "15"
       ],
       "filament_minimal_purge_on_wipe_tower": [
         "15"
@@ -175,10 +175,10 @@
         "90"
       ],
       "filament_load_time": [
-        "9.75"
+        "0"
       ],
       "filament_unload_time": [
-        "9.75"
+        "0"
       ],
       "filament_toolchange_delay": [
         "0"

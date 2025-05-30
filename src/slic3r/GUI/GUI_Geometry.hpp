@@ -6,7 +6,7 @@ namespace GUI {
 
 enum class ECoordinatesType : unsigned char
 {
-    World = 0,
+    World,
     Instance,
     Local
 };

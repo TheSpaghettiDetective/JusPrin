@@ -15,11 +15,8 @@
     "slow_down_layer_time": [
         "8"
     ],
-    "enable_pressure_advance": [
-        "0"
-    ],
     "pressure_advance": [
-        "0.032"
+        "0.084"
     ],
     "compatible_printers": [
       "InfiMech TX 0.4 nozzle"

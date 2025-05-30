@@ -94,7 +94,6 @@ public:
 
 public:
     void SendRecentList(int images);
-    void SetLoginPanelVisibility(bool bshow);
     void SendDesignStaffpick(bool on);
     void OpenModelDetail(std::string id, NetworkAgent *agent);
     void SendLoginInfo();
@@ -104,6 +103,9 @@ public:
     int  get_model_mall_detail_url(std::string *url, std::string id);
 
     void update_mode();
+    void update_ui_from_settings();
+    void update_oauth_access_token();
+
 private:
 
     wxWebView* m_browser;

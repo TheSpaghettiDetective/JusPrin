@@ -1,9 +1,6 @@
 #ifndef slic3r_VoronoiUtilsCgal_hpp_
 #define slic3r_VoronoiUtilsCgal_hpp_
 
-#include <boost/polygon/polygon.hpp>
-#include <iterator>
-
 #include "Voronoi.hpp"
 #include "../Arachne/utils/PolygonsSegmentIndex.hpp"
 

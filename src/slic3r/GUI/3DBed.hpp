@@ -47,12 +47,6 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z);
 class Bed3D
 {
 public:
-    // ORCA make bed colors accessable for 2D bed
-    static ColorRGBA DEFAULT_MODEL_COLOR;
-    static ColorRGBA DEFAULT_MODEL_COLOR_DARK;
-    static ColorRGBA DEFAULT_SOLID_GRID_COLOR;
-    static ColorRGBA DEFAULT_TRANSPARENT_GRID_COLOR;
-
     static ColorRGBA AXIS_X_COLOR;
     static ColorRGBA AXIS_Y_COLOR;
     static ColorRGBA AXIS_Z_COLOR;
@@ -80,7 +74,7 @@ public:
             m_stem_length = length;
             m_arrow.reset();
         }
-        float get_total_length() const { return m_stem_length; } // + DefaultTipLength; } // ORCA axis without arrow
+        float get_total_length() const { return m_stem_length + DefaultTipLength; }
         void render();
     };
 
@@ -127,7 +121,7 @@ public:
     // as this class does not use it, thus there is no need to update the UI.
     // BBS
     bool set_shape(const Pointfs& printable_area, const double printable_height, const std::string& custom_model, bool force_as_custom = false,
-        const Vec2d& position = Vec2d::Zero(), bool with_reset = true);
+        const Vec2d position = Vec2d::Zero(), bool with_reset = true);
 
     void set_position(Vec2d& position);
     void set_axes_mode(bool origin);

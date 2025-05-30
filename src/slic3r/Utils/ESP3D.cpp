@@ -55,7 +55,7 @@ bool ESP3D::test(wxString& msg) const
     return ret;
 }
 
-wxString ESP3D::get_test_ok_msg() const { return _(L("Connection to ESP3D is working correctly.")); }
+wxString ESP3D::get_test_ok_msg() const { return _(L("Connection to ESP3D works correctly.")); }
 
 wxString ESP3D::get_test_failed_msg(wxString& msg) const
 {
@@ -71,7 +71,7 @@ bool ESP3D::upload(PrintHostUpload upload_data, ProgressFn prorgess_fn, ErrorFn 
     http.header("Connection", "keep-alive")
         .form_add_file("file", upload_data.source_path, short_name)
         .on_complete([&](std::string body, unsigned status) {
-            // check for OK
+            // check  for OK
             if (upload_data.post_action == PrintHostPostUploadAction::StartPrint) {
                 wxString errormsg;
                 res = start_print(errormsg, short_name);

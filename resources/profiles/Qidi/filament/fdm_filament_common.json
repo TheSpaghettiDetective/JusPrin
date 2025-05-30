@@ -151,7 +151,7 @@
         "0"
     ],
     "dont_slow_down_outer_wall": [
-        "0"
+        "1"
     ],
     "compatible_printers": []
 }

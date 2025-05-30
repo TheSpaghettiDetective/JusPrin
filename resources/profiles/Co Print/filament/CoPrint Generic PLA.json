@@ -7,15 +7,13 @@
 	"instantiation": "true",
 	"inherits": "fdm_filament_pla",
 	"filament_load_time": [
-        "9.75"
+        "10"
       ],
       "filament_unload_time": [
-        "9.75"
+        "10"
       ],
 	"compatible_printers": [
 		"Co Print ChromaSet 0.4 nozzle",
-		"Co Print ChromaSet 0.4 nozzle - Ender-3 V3",
-		"Co Print ChromaSet 0.4 nozzle - Ender-3 V3 Plus",
 		"Co Print ChromaSet 0.4 nozzle fast"
 	]
 }

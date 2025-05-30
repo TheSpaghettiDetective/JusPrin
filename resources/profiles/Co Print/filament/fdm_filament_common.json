@@ -41,7 +41,7 @@
     ],
 
     "filament_flow_ratio": [
-        "0.95"
+        "0.91"
     ],
     "reduce_fan_stop_start_freq": [
         "0"
@@ -62,7 +62,7 @@
         "1.75"
     ],
     "filament_max_volumetric_speed": [
-        "14"
+        "15"
     ],
     "filament_minimal_purge_on_wipe_tower": [
         "15"

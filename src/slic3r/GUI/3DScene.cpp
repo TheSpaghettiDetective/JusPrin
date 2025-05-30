@@ -84,11 +84,7 @@ std::vector<Slic3r::ColorRGBA> get_extruders_colors()
 
 float FullyTransparentMaterialThreshold  = 0.1f;
 float FullTransparentModdifiedToFixAlpha = 0.3f;
-// Be careful changing this value because it could break thumbnail color due to rounding error!
-// The color rendering on BambuLab's "send to printer" screen relies on the assumption that this color can be accurately rendered by OpenGL,
-// value like 0.18f could not because in C++ (int)(0.18f * 255) == 45 however in OpenGL it renders this as 46
-// which breaks the `SelectMachineDialog::record_edge_pixels_data()` function!
-float FULL_BLACK_THRESHOLD = 0.2f;
+float FULL_BLACK_THRESHOLD = 0.18f;
 
 Slic3r::ColorRGBA adjust_color_for_rendering(const Slic3r::ColorRGBA &colors)
 {
@@ -675,13 +671,12 @@ std::vector<int> GLVolumeCollection::load_object(
     int                      obj_idx,
     const std::vector<int>  &instance_idxs,
     const std::string       &color_by,
-    bool 					 opengl_initialized,
-    bool                    need_raycaster)
+    bool 					 opengl_initialized)
 {
     std::vector<int> volumes_idx;
     for (int volume_idx = 0; volume_idx < int(model_object->volumes.size()); ++volume_idx)
         for (int instance_idx : instance_idxs)
-            volumes_idx.emplace_back(this->GLVolumeCollection::load_object_volume(model_object, obj_idx, volume_idx, instance_idx, color_by, opengl_initialized, false, false, need_raycaster));
+            volumes_idx.emplace_back(this->GLVolumeCollection::load_object_volume(model_object, obj_idx, volume_idx, instance_idx, color_by, opengl_initialized));
     return volumes_idx;
 }
 
@@ -694,8 +689,7 @@ int GLVolumeCollection::load_object_volume(
     const std::string   &color_by,
     bool 				 opengl_initialized,
     bool                 in_assemble_view,
-    bool                 use_loaded_id,
-    bool                 need_raycaster)
+    bool                 use_loaded_id)
 {
     const ModelVolume   *model_volume = model_object->volumes[volume_idx];
     const int            extruder_id  = model_volume->extruder_id();
@@ -713,7 +707,7 @@ int GLVolumeCollection::load_object_volume(
     v.model.init_from(mesh, true);
 #else
     v.model.init_from(*mesh);
-    if (need_raycaster) { v.mesh_raycaster = std::make_unique<GUI::MeshRaycaster>(mesh); }
+    v.mesh_raycaster = std::make_unique<GUI::MeshRaycaster>(mesh);
 #endif // ENABLE_SMOOTH_NORMALS
     v.composite_id = GLVolume::CompositeID(obj_idx, volume_idx, instance_idx);
 
@@ -895,13 +889,8 @@ int GLVolumeCollection::get_selection_support_threshold_angle(bool &enable_suppo
 }
 
 //BBS: add outline drawing logic
-void GLVolumeCollection::render(GLVolumeCollection::ERenderType       type,
-                                bool                                  disable_cullface,
-                                const Transform3d &                   view_matrix,
-                                const Transform3d&                    projection_matrix,
-                                const GUI::Size&                      cnv_size,
-                                std::function<bool(const GLVolume &)> filter_func,
-                                bool                                  partly_inside_enable) const
+void GLVolumeCollection::render(GLVolumeCollection::ERenderType type, bool disable_cullface, const Transform3d& view_matrix, const Transform3d& projection_matrix, const GUI::Size& cnv_size,
+    std::function<bool(const GLVolume&)> filter_func) const
 {
     GLVolumeWithIdAndZList to_render = volumes_to_render(volumes, type, view_matrix, filter_func);
     if (to_render.empty())
@@ -969,7 +958,7 @@ void GLVolumeCollection::render(GLVolumeCollection::ERenderType       type,
         //shader->set_uniform("print_volume.xy_data", m_render_volume.data);
         //shader->set_uniform("print_volume.z_data", m_render_volume.zs);
 
-        if (volume.first->partly_inside && partly_inside_enable) {
+        if (volume.first->partly_inside) {
             //only partly inside volume need to be painted with boundary check
             shader->set_uniform("print_volume.type", static_cast<int>(m_print_volume.type));
             shader->set_uniform("print_volume.xy_data", m_print_volume.data);
@@ -1082,15 +1071,14 @@ bool GLVolumeCollection::check_outside_state(const BuildVolume &build_volume, Mo
     {
         if (! volume->is_modifier && (volume->shader_outside_printer_detection_enabled || (! volume->is_wipe_tower && volume->composite_id.volume_id >= 0))) {
             BuildVolume::ObjectState state;
+            const BoundingBoxf3& bb = volume_bbox(*volume);
             if (volume_below(*volume))
                 state = BuildVolume::ObjectState::Below;
             else {
                 switch (plate_build_volume.type()) {
-                case BuildVolume_Type::Rectangle: {
-                    //FIXME this test does not evaluate collision of a build volume bounding box with non-convex objects.
-                    const BoundingBoxf3& bb = volume_bbox(*volume);
+                case BuildVolume_Type::Rectangle:
+                //FIXME this test does not evaluate collision of a build volume bounding box with non-convex objects.
                     state = plate_build_volume.volume_state_bbox(bb);
-                }
                     break;
                 case BuildVolume_Type::Circle:
                 case BuildVolume_Type::Convex:

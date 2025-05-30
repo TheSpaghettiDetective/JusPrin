@@ -38,7 +38,6 @@ struct Camera
     int  requires_zoom_to_plate{ REQUIRES_ZOOM_TO_PLATE_IDLE };
 
 private:
-    bool m_prevent_auto_type = true;
     EType m_type{ EType::Perspective };
     bool m_update_config_on_type_change_enabled{ false };
     Vec3d m_target{ Vec3d::Zero() };
@@ -66,7 +65,6 @@ public:
     // valid values for type: "false" -> ortho, "true" -> perspective
     void set_type(const std::string& type) { set_type((type == "true") ? EType::Perspective : EType::Ortho); }
     void select_next_type();
-    void auto_type(EType preferred_type);
 
     void enable_update_config_on_type_change(bool enable) { m_update_config_on_type_change_enabled = enable; }
 

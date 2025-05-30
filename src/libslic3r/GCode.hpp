@@ -223,7 +223,7 @@ public:
 
     std::string     travel_to(const Point& point, ExtrusionRole role, std::string comment, double z = DBL_MAX);
     bool            needs_retraction(const Polyline& travel, ExtrusionRole role, LiftType& lift_type);
-    std::string     retract(bool toolchange = false, bool is_last_retraction = false, LiftType lift_type = LiftType::NormalLift, ExtrusionRole role = erNone);
+    std::string     retract(bool toolchange = false, bool is_last_retraction = false, LiftType lift_type = LiftType::NormalLift);
     std::string     unretract() { return m_writer.unlift() + m_writer.unretract(); }
     std::string     set_extruder(unsigned int extruder_id, double print_z, bool by_object=false);
     bool is_BBL_Printer();
@@ -311,7 +311,6 @@ private:
     std::string generate_skirt(const Print &print,
         const ExtrusionEntityCollection &skirt,
         const Point& offset,
-        const float skirt_start_angle,
         const LayerTools &layer_tools,
         const Layer& layer,
         unsigned int extruder_id);
@@ -364,7 +363,7 @@ private:
     std::string     extrude_entity(const ExtrusionEntity &entity, std::string description = "", double speed = -1., const ExtrusionEntitiesPtr& region_perimeters = ExtrusionEntitiesPtr());
     // Orca: pass the complete collection of region perimeters to the extrude loop to check whether the wipe before external loop
     // should be executed
-    std::string     extrude_loop(ExtrusionLoop loop, std::string description, double speed = -1., const ExtrusionEntitiesPtr& region_perimeters = ExtrusionEntitiesPtr(), const Point* start_point = nullptr);
+    std::string     extrude_loop(ExtrusionLoop loop, std::string description, double speed = -1., const ExtrusionEntitiesPtr& region_perimeters = ExtrusionEntitiesPtr());
     std::string     extrude_multi_path(ExtrusionMultiPath multipath, std::string description = "", double speed = -1.);
     std::string     extrude_path(ExtrusionPath path, std::string description = "", double speed = -1.);
     
@@ -446,7 +445,7 @@ private:
 		// For sequential print, the instance of the object to be printing has to be defined.
 		const size_t                     				 single_object_instance_idx);
 
-    std::string     extrude_perimeters(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region, bool is_first_layer, bool is_infill_first);
+    std::string     extrude_perimeters(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region);
     std::string     extrude_infill(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region, bool ironing);
     std::string     extrude_support(const ExtrusionEntityCollection& support_fills);
 
@@ -516,7 +515,6 @@ private:
     std::string _encode_label_ids_to_base64(std::vector<size_t> ids);
     // Orca
     bool m_is_overhang_fan_on;
-    bool m_is_internal_bridge_fan_on; // ORCA: Add support for separate internal bridge fan speed control
     bool m_is_supp_interface_fan_on;
     // Markers for the Pressure Equalizer to recognize the extrusion type.
     // The Pressure Equalizer removes the markers from the final G-code.
@@ -548,9 +546,9 @@ private:
 #endif // ENABLE_GCODE_VIEWER_DATA_CHECKING
 
     // Always check gcode placeholders when building in debug mode.
-#if !defined(NDEBUG)
-#define ORCA_CHECK_GCODE_PLACEHOLDERS 1
-#endif
+//#if !defined(NDEBUG)
+//#define ORCA_CHECK_GCODE_PLACEHOLDERS 1
+//#endif
     
 #if ORCA_CHECK_GCODE_PLACEHOLDERS
     std::map<std::string, std::vector<std::string>> m_placeholder_error_messages;

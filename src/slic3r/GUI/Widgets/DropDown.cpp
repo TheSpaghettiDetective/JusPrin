@@ -39,7 +39,7 @@ DropDown::DropDown(std::vector<wxString> &texts,
     , state_handler(this)
     , border_color(0xDBDBDB)
     , text_color(0x363636)
-    , selector_border_color(std::make_pair(0x009688, (int) StateColor::Hovered),
+    , selector_border_color(std::make_pair(0x694b7c, (int) StateColor::Hovered),
         std::make_pair(*wxWHITE, (int) StateColor::Normal))
     , selector_background_color(std::make_pair(0xBFE1DE, (int) StateColor::Checked), // ORCA updated background color for checked item
         std::make_pair(*wxWHITE, (int) StateColor::Normal))
@@ -89,7 +89,7 @@ void DropDown::Invalidate(bool clear)
 
 void DropDown::SetSelection(int n)
 {
-    assert(n < (int) texts.size());
+//    assert(n < (int) texts.size());
     if (n >= (int) texts.size())
         n = -1;
     if (selection == n) return;

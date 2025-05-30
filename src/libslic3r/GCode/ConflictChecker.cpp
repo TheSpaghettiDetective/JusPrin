@@ -119,9 +119,7 @@ float LinesBucketQueue::getCurrBottomZ()
     }
 
     for (LinesBucket *bp : lowests) {
-        float prevZ = bp->curBottomZ();
         bp->raise();
-        if (bp->curBottomZ() == prevZ) continue;
         if (bp->valid()) { line_bucket_ptr_queue.push(bp); }
     }
     return layerBottomZ;

@@ -1,4 +1,4 @@
-FROM docker.io/ubuntu:24.04
+FROM docker.io/ubuntu:22.04
 LABEL maintainer "DeftDawg <DeftDawg@gmail.com>"
 
 # Disable interactive package configuration
@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install  -y \
     libtool \
     libudev-dev \
     libwayland-dev \
-    libwebkit2gtk-4.1-dev \
+    libwebkit2gtk-4.0-dev \
     libxkbcommon-dev \
     locales \
     locales-all \
@@ -68,14 +68,14 @@ WORKDIR OrcaSlicer
 RUN ./BuildLinux.sh -u
 
 # Build dependencies in ./deps
-RUN ./BuildLinux.sh -dr
+RUN ./BuildLinux.sh -d
 
 # Build slic3r
-RUN ./BuildLinux.sh -sr
+RUN ./BuildLinux.sh -s
 
 # Build AppImage
 ENV container podman
-RUN ./BuildLinux.sh -ir
+RUN ./BuildLinux.sh -i
 
 # It's easier to run Orca Slicer as the same username,
 # UID and GID as your workstation.  Since we bind mount
@@ -86,16 +86,10 @@ SHELL ["/bin/bash", "-l", "-c"]
 ARG USER=root
 ARG UID=0
 ARG GID=0
-RUN if [[ "$UID" != "0" ]]; then \
-      # Create group if it doesn't exist \
-      groupadd -f -g $GID $USER; \
-      # Check if user with this UID already exists \
-      if getent passwd $UID > /dev/null 2>&1; then \
-        echo "User with UID $UID already exists, skipping user creation"; \
-      else \
-        useradd -u $UID -g $GID $USER; \
-      fi \
-    fi
+RUN [[ "$UID" != "0" ]] \
+  && groupadd -f -g $GID $USER \
+  && useradd -u $UID -g $GID $USER
+
 # Using an entrypoint instead of CMD because the binary
 # accepts several command line arguments.
-ENTRYPOINT ["/OrcaSlicer/build/package/bin/orca-slicer"]
+ENTRYPOINT ["/OrcaSlicer/build/package/bin/jus-prin"]

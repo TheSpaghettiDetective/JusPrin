@@ -35,7 +35,7 @@ namespace GUI {
 //------------------------------------------
 
 EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const std::string& value) :
-    DPIDialog(parent, wxID_ANY, format_wxstr(_L("Edit Custom G-code (%1%)"), key), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER)
+    DPIDialog(parent, wxID_ANY, format_wxstr(_L("Edit Custom G-code (%1%)"), key), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE/* | wxRESIZE_BORDER*/)
 {
     SetFont(wxGetApp().normal_font());
     SetBackgroundColour(*wxWHITE);
@@ -55,7 +55,7 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
     m_search_bar = new wxSearchCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     m_search_bar->ShowSearchButton(true);
     m_search_bar->ShowCancelButton(true);
-    m_search_bar->SetDescriptiveText(_L("Search G-code placeholders"));
+    m_search_bar->SetDescriptiveText(_L("Search gcode placeholders"));
     m_search_bar->SetForegroundColour(*wxBLACK);
     wxGetApp().UpdateDarkUI(m_search_bar);
 
@@ -68,15 +68,15 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
 
     param_sizer->Add(m_search_bar, 0, wxEXPAND | wxALL, border);
 
-    m_params_list = new ParamsViewCtrl(this, wxDefaultSize);
+    m_params_list = new ParamsViewCtrl(this, wxSize(em * 45, em * 70));
     m_params_list->SetFont(wxGetApp().code_font());
     wxGetApp().UpdateDarkUI(m_params_list);
-    param_sizer->Add(m_params_list, 1, wxEXPAND | wxALL, border);
+    param_sizer->Add(m_params_list, 0, wxEXPAND | wxALL, border);
 
     m_add_btn = new ScalableButton(this, wxID_ANY, "add_copies");
     m_add_btn->SetToolTip(_L("Add selected placeholder to G-code"));
 
-    m_gcode_editor = new wxTextCtrl(this, wxID_ANY, value, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE
+    m_gcode_editor = new wxTextCtrl(this, wxID_ANY, value, wxDefaultPosition, wxSize(em * 75, em * 70), wxTE_MULTILINE
 #ifdef _WIN32
     | wxBORDER_SIMPLE
 #endif
@@ -86,12 +86,12 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
     wxGetApp().UpdateDarkUI(m_gcode_editor);
 
     grid_sizer->Add(param_sizer,  1, wxEXPAND);
-    grid_sizer->Add(m_add_btn,      0, wxALIGN_CENTER_VERTICAL);
+    grid_sizer->Add(m_add_btn,      0, wxTOP, m_params_list->GetSize().y/2);
     grid_sizer->Add(m_gcode_editor, 2, wxEXPAND);
 
     grid_sizer->AddGrowableRow(0, 1);
     grid_sizer->AddGrowableCol(0, 1);
-    grid_sizer->AddGrowableCol(2, 2);
+    grid_sizer->AddGrowableCol(2, 1);
 
     m_param_label = new wxStaticText(this, wxID_ANY, _L("Select placeholder"));
     m_param_label->SetFont(wxGetApp().bold_font());
@@ -115,9 +115,6 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
     topSizer->SetSizeHints(this);
 
     this->Fit();
-
-    fit_in_display(*this, {100 * em, 70 * em});
-
     this->Layout();
 
     this->CenterOnScreen();
@@ -359,7 +356,7 @@ void EditGCodeDialog::selection_changed(wxDataViewEvent& evt)
                 break;
             }
         }
-        // Orca: move below checking for def in custom defined G-code placeholders
+        // Orca: move below checking for def in custom defined gcode placeholders
         // This allows custom placeholders to override the default ones for this dialog
         // Override custom def if selection is within the preset category
         if (!def || m_params_list->GetSelectedTopLevelCategory() == "Presets") {
@@ -452,11 +449,11 @@ wxBoxSizer* EditGCodeDialog::create_btn_sizer(long flags)
     StateColor ok_btn_bg(
         std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
         std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-        std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal)
+        std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal)
     );
 
     StateColor ok_btn_bd(
-        std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal)
+        std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal)
     );
 
     StateColor ok_btn_text(
@@ -481,11 +478,11 @@ wxBoxSizer* EditGCodeDialog::create_btn_sizer(long flags)
     StateColor calc_btn_bg(
         std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
         std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-        std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal)
+        std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal)
     );
 
     StateColor calc_btn_bd(
-        std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal)
+        std::pair<wxColour, int>(wxColour(105, 75, 124), StateColor::Normal)
     );
 
     StateColor calc_btn_text(
@@ -537,7 +534,7 @@ static void make_bold(wxString& str)
 static void highlight(wxString& str)
 {
 #if defined(SUPPORTS_MARKUP) && !defined(__APPLE__)
-    str = format_wxstr("<span bgcolor=\"#009688\">%1%</span>", str);
+    str = format_wxstr("<span bgcolor=\"#694b7c\">%1%</span>", str);
 #endif
 }
 

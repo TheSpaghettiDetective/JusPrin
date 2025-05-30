@@ -38,6 +38,9 @@
     "filament_type": [
         "PETG-CF"
     ],
+    "filament_vendor": [
+        "Generic"
+    ],
     "hot_plate_temp": [
         "70"
     ],
@@ -61,6 +64,9 @@
     ],
     "slow_down_layer_time": [
         "6"
+    ],
+    "temperature_vitrification": [
+        "70"
     ],
     "textured_plate_temp": [
         "70"

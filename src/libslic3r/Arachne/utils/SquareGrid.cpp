@@ -2,10 +2,7 @@
 //CuraEngine is released under the terms of the AGPLv3 or higher.
 
 #include "SquareGrid.hpp"
-
-#include <cassert>
-
-#include "libslic3r/Point.hpp"
+#include "../../Point.hpp"
 
 using namespace Slic3r::Arachne;
 

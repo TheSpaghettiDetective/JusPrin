@@ -124,7 +124,7 @@
     "1"
   ],
   "default_filament_profile": [
-    "Generic PLA @Elegoo"
+    "Elegoo Generic PLA"
   ],
   "default_print_profile": "",
   "bed_exclude_area": [

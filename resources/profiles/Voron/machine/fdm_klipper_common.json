@@ -125,7 +125,7 @@
     "1"
   ],
   "default_filament_profile": [
-    "Generic PLA @System"
+    "Voron Generic ABS"
   ],
   "default_print_profile": "0.20mm Standard @Voron",
   "bed_exclude_area": [

@@ -140,6 +140,8 @@ class MainFrame : public DPIFrame
     // BBS
     wxBoxSizer* create_side_tools();
 
+
+
     // MenuBar items changeable in respect to printer technology
     enum MenuItems
     {                   //   FFF                  SLA
@@ -203,6 +205,9 @@ protected:
 public:
     MainFrame();
     ~MainFrame() = default;
+
+    wxWindowID m_mode_id_base;
+
 
     //BBS GUI refactor
     enum TabPosition
@@ -346,6 +351,8 @@ public:
     void        refresh_plugin_tips();
     void RunScript(wxString js);
 
+    void start_slicer_all(bool pop_up_slicing_progress = true);
+
     //SoftFever
     void show_device(bool bBBLPrinter);
 
@@ -354,9 +361,6 @@ public:
     MaxVolumetricSpeed_Test_Dlg* m_vol_test_dlg { nullptr };
     VFA_Test_Dlg* m_vfa_test_dlg { nullptr };
     Retraction_Test_Dlg* m_retraction_calib_dlg{ nullptr };
-    Input_Shaping_Freq_Test_Dlg* m_IS_freq_calib_dlg{ nullptr };
-    Input_Shaping_Damp_Test_Dlg* m_IS_damp_calib_dlg{ nullptr };
-    Junction_Deviation_Test_Dlg* m_junction_deviation_calib_dlg{ nullptr };
 
     // BBS. Replace title bar and menu bar with top bar.
     BBLTopbar*            m_topbar{ nullptr };
@@ -385,7 +389,7 @@ public:
     wxWindow*             m_plater_page{ nullptr };
     PrintHostQueueDialog* m_printhost_queue_dlg;
 
-    
+
     mutable int m_print_select{ ePrintAll };
     mutable int m_slice_select{ eSliceAll };
     // Button* m_publish_btn{ nullptr };

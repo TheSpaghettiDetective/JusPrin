@@ -1,50 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Verify that your CMake version is exactly 3.31.x series or lower on windows
-if ( ((MSVC) OR (WIN32)) AND (${CMAKE_VERSION} VERSION_GREATER_EQUAL "4.0") )
-    message(FATAL_ERROR "Only cmake versions between 3.13.x and 3.31.x is supported on windows. Detected version: ${CMAKE_VERSION}")
-endif()
-
-if (WIN32)
-    # Detect known CI environments
-    set(IS_CI FALSE)
-    if(DEFINED ENV{CI})
-        set(IS_CI TRUE)
-    elseif(DEFINED ENV{GITHUB_ACTIONS})
-        set(IS_CI TRUE)
-    elseif(DEFINED ENV{GITLAB_CI})
-        set(IS_CI TRUE)
-    elseif(DEFINED ENV{TF_BUILD})
-        set(IS_CI TRUE)
-    elseif(DEFINED ENV{BUILD_NUMBER}) # Jenkins
-        set(IS_CI TRUE)
-    endif()
-
-    # Detect common misconfiguration (Strawberry Perl in PATH before CMake)
-    # We use ENV to check the PATH order
-    string(REPLACE "\\" "/" ENV_PATH "$ENV{PATH}")
-    string(FIND "${ENV_PATH}" "Strawberry/c/bin" STRAWBERRY_POS)
-    string(FIND "${ENV_PATH}" "Program Files/CMake/bin" CMAKE_POS)
-
-    if (STRAWBERRY_POS GREATER -1 AND CMAKE_POS GREATER -1 AND STRAWBERRY_POS LESS CMAKE_POS)
-        set(_warning_text "
-#############################################################
-Detected Strawberry Perl's 'c/bin' appearing before CMake in PATH.
-This is known to cause CMake to misbehave (e.g., missing modules).
-Please adjust your PATH so that:
-C:\\Program Files\\CMake\\bin
-appears before:
-C:\\Strawberry\\c\\bin
-You can do this in Environment Variables settings.
-#############################################################
-        ")
-
-        if(NOT IS_CI)
-            message(FATAL_ERROR "${_warning_text}")
-        endif()
-    endif()
-endif ()
-
 if (APPLE)
     # if CMAKE_OSX_DEPLOYMENT_TARGET is not set, set it to 11.3
     if (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
@@ -65,18 +20,6 @@ file(TO_NATIVE_PATH "${SLIC3R_RESOURCES_DIR}" SLIC3R_RESOURCES_DIR_WIN)
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "No build type selected, default to Release")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (default Release)" FORCE)
-endif()
-
-find_package(Git)
-if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
-    # Check current Git commit hash
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} log -1 --format=%h
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    add_definitions("-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
 endif()
 
 if(DEFINED ENV{SLIC3R_STATIC})
@@ -118,7 +61,7 @@ if (APPLE)
     if (CMAKE_MACOSX_BUNDLE)
         set(CMAKE_INSTALL_RPATH @executable_path/../Frameworks)
     endif()
-    SET(CMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.softfever3d.orca-slicer")
+    SET(CMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "io.obico.jusprin")
 
     message(STATUS "Orca: IS_CROSS_COMPILE: ${IS_CROSS_COMPILE}")
 endif ()
@@ -227,7 +170,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT WIN32)
     # Add DEBUG flags to debug builds.
-    add_compile_definitions("$<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>")
+    add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
 endif()
 
 # To be able to link libslic3r with the Perl XS module.
@@ -338,7 +281,7 @@ if (NOT MSVC AND ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMP
         add_compile_options(-Wno-deprecated-declarations)
     endif()
 
-    if((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang") AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER 15)
+    if (${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER 15)
         add_compile_options(-Wno-error=enum-constexpr-conversion)
     endif()
 
@@ -357,10 +300,6 @@ if (NOT MSVC AND ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMP
     # Bit of a hack for flatpak building: compress the debug info with zstd to save space in CI
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13.0)
         add_compile_options(-gz=zstd)
-    endif()
-
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=template-id-cdtor" )
     endif()
 
 endif()
@@ -468,14 +407,12 @@ if(SLIC3R_STATIC)
     set(Boost_USE_STATIC_LIBS ON)
     # Use boost libraries linked statically to the C++ runtime.
     # set(Boost_USE_STATIC_RUNTIME ON)
-else()
-    add_definitions(-DBOOST_LOG_DYN_LINK)
 endif()
 #set(Boost_DEBUG ON)
 # set(Boost_COMPILER "-mgw81")
 # boost::process was introduced first in version 1.64.0,
 # boost::beast::detail::base64 was introduced first in version 1.66.0
-find_package(Boost 1.83.0 REQUIRED COMPONENTS system filesystem thread log log_setup locale regex chrono atomic date_time iostreams program_options nowide)
+find_package(Boost 1.66 REQUIRED COMPONENTS system filesystem thread log locale regex chrono atomic date_time iostreams program_options)
 
 add_library(boost_libs INTERFACE)
 add_library(boost_headeronly INTERFACE)
@@ -785,7 +722,7 @@ endfunction()
 
 # libslic3r, OrcaSlicer GUI and the OrcaSlicer executable.
 add_subdirectory(src)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT OrcaSlicer_app_gui)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT JusPrin_app_gui)
 
 add_dependencies(gettext_make_pot hintsToPot)
 
@@ -805,7 +742,7 @@ if(SLIC3R_BUILD_TESTS)
 endif()
 
 if (NOT WIN32 AND NOT APPLE)
-    set(SLIC3R_APP_CMD "orca-slicer")
+    set(SLIC3R_APP_CMD "jus-prin")
     configure_file(${LIBDIR}/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh @ONLY)
 endif()
 
@@ -843,29 +780,29 @@ endif ()
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION ".")
 configure_file(${LIBDIR}/platform/unix/fhs.hpp.in ${LIBDIR_BIN}/platform/unix/fhs.hpp)
 
-set (CPACK_PACKAGE_NAME "OrcaSlicer")
-set (CPACK_PACKAGE_VENDOR "SoftFever")
+set (CPACK_PACKAGE_NAME "JusPrin")
+set (CPACK_PACKAGE_VENDOR "obico")
 set (CPACK_PACKAGE_VERSION_MAJOR "${ORCA_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${ORCA_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${ORCA_VERSION_PATCH}")
-set (CPACK_PACKAGE_FILE_NAME "OrcaSlicer_Windows_Installer_V${SoftFever_VERSION}")
-set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Orca Slicer is an open source slicer for FDM printers")
-set (CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/SoftFever/OrcaSlicer")
+set (CPACK_PACKAGE_FILE_NAME "JusPrin_Windows_Installer_V${SoftFever_VERSION}")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "JusPrin is an open source slicer for FDM printers")
+set (CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/TheSpaghettiDetective/JusPrin")
 set (CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
-set (CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/resources/images\\\\OrcaSlicer.ico")
+set (CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/resources/images\\\\JusPrin.ico")
 set (CPACK_NSIS_MUI_ICON "${CPACK_PACKAGE_ICON}")
 set (CPACK_NSIS_MUI_UNIICON "${CPACK_PACKAGE_ICON}")
-set (CPACK_NSIS_INSTALLED_ICON_NAME  "$INSTDIR\\\\orca-slicer.exe")
+set (CPACK_NSIS_INSTALLED_ICON_NAME  "jus-prin.exe")
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-    CreateShortCut \\\"$DESKTOP\\\\OrcaSlicer.lnk\\\" \\\"$INSTDIR\\\\orca-slicer.exe\\\"
+    CreateShortCut \\\"$DESKTOP\\\\JusPrin.lnk\\\" \\\"$INSTDIR\\\\jus-prin.exe\\\"
 ")
 set (CPACK_PACKAGE_CHECKSUM SHA256)
-set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "OrcaSlicer")
+set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "JusPrin")
 set (CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
 set (CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
 # set (CPACK_NSIS_MODIFY_PATH "ON")
-set(CPACK_PACKAGE_EXECUTABLES "orca-slicer;OrcaSlicer")
-set(CPACK_CREATE_DESKTOP_LINKS "orca-slicer")
+set(CPACK_PACKAGE_EXECUTABLES "jus-prin;JusPrin")
+set(CPACK_CREATE_DESKTOP_LINKS "jus-prin")
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE.txt) # must also include in install command
 
 set(CPACK_WIX_UPGRADE_GUID "058245e8-20e0-4a95-9ab7-1acfe17ad511")

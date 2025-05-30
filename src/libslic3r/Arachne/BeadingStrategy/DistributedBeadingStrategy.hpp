@@ -5,7 +5,6 @@
 #define DISTRIBUTED_BEADING_STRATEGY_H
 
 #include "BeadingStrategy.hpp"
-#include "libslic3r/libslic3r.h"
 
 namespace Slic3r::Arachne
 {

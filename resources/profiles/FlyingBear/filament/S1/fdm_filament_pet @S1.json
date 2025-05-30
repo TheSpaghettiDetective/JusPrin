@@ -53,7 +53,7 @@
         "30"
     ],
     "nozzle_temperature_initial_layer": [
-        "245"
+        "220"
     ],
     "reduce_fan_stop_start_freq": [
         "1"
@@ -68,7 +68,7 @@
         "90"
     ],
     "nozzle_temperature": [
-        "245"
+        "220"
     ],
     "temperature_vitrification": [
         "80"
@@ -80,7 +80,7 @@
         "280"
     ],
     "additional_cooling_fan_speed": [
-        "0"
+        "100"
     ],
     "filament_start_gcode": [
         "; filament start gcode\n"

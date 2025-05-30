@@ -2,7 +2,7 @@
 var m_ProfileItem;
 
 var FilamentPriority=new Array( "pla","abs","pet","tpu","pc");
-var VendorPriority=new Array("Orca Built-in","bambu lab","bambulab","bbl","kexcelled","polymaker","esun","Generic");
+var VendorPriority=new Array("bambu lab","bambulab","bbl","kexcelled","polymaker","esun","generic");
   
 function OnInit()
 {
@@ -95,8 +95,8 @@ function SortUI()
 	for(let n=0;n<nMode;n++)
 	{
 		let sModel=ModelList[n];	
-		/* ORCA use label tag to allow checkbox to toggle when user ckicked to text */
-		HtmlMode+='<label><input type="checkbox" mode="'+sModel['model']+'"  nozzle="'+sModel['nozzle_selected']+'"   onChange="MachineClick()" />'+sModel['model']+'</label>';
+
+		HtmlMode+='<div><input type="checkbox" mode="'+sModel['model']+'"  nozzle="'+sModel['nozzle_selected']+'"   onChange="MachineClick()" />'+sModel['model']+'</div>';
 	}
 	
 	$('#MachineList .CValues').append(HtmlMode);	
@@ -138,7 +138,6 @@ function SortUI()
 		//let bCheck=$("#MachineList input:first").prop("checked");
 		if( fModel=='')
 		{
-			// Orca: hide
 			bFind=true;
 		}
 		else
@@ -172,8 +171,7 @@ function SortUI()
 			let LowType=fType.toLowerCase();
 		    if(!TypeHtmlArray.hasOwnProperty(LowType))
 		    {
-				/* ORCA use label tag to allow checkbox to toggle when user ckicked to text */
-			    let HtmlType='<label><input type="checkbox" filatype="'+fType+'" onChange="FilaClick()"   />'+fType+'</label>';
+			    let HtmlType='<div><input type="checkbox" filatype="'+fType+'" onChange="FilaClick()"   />'+fType+'</div>';
 			
 				TypeHtmlArray[LowType]=HtmlType;
 		    }
@@ -182,8 +180,7 @@ function SortUI()
 			let lowVendor=fVendor.toLowerCase();
 			if(!VendorHtmlArray.hasOwnProperty(lowVendor))
 		    {
-				/* ORCA use label tag to allow checkbox to toggle when user ckicked to text */
-			    let HtmlVendor='<label><input type="checkbox" vendor="'+fVendor+'"  onChange="VendorClick()" />'+fVendor+'</label>';
+			    let HtmlVendor='<div><input type="checkbox" vendor="'+fVendor+'"  onChange="VendorClick()" />'+fVendor+'</div>';
 				
 				VendorHtmlArray[lowVendor]=HtmlVendor;
 		    }
@@ -192,8 +189,7 @@ function SortUI()
 			let pFila=$("#ItemBlockArea input[vendor='"+fVendor+"'][filatype='"+fType+"'][name='"+fShortName+"']");
 	        if(pFila.length==0)
 		    {
-				/* ORCA use label tag to allow checkbox to toggle when user ckicked to text */
-			    let HtmlFila='<label class="MItem"><input type="checkbox" vendor="'+fVendor+'"  filatype="'+fType+'" filalist="'+fWholeName+';'+'"  model="'+fModel+'" name="'+fShortName+'" />'+fShortName+'</label>';
+			    let HtmlFila='<div class="MItem"><input type="checkbox" vendor="'+fVendor+'"  filatype="'+fType+'" filalist="'+fWholeName+';'+'"  model="'+fModel+'" name="'+fShortName+'" />'+fShortName+'</div>';
 			
 			    $("#ItemBlockArea").append(HtmlFila);
 		    } 
@@ -202,11 +198,7 @@ function SortUI()
 				let strModel=pFila.attr("model");
 				let strFilalist=pFila.attr("filalist");
 				
-				if(strModel == '' || fModel == '')
-					pFila.attr("model", '');
-				else
-					pFila.attr("model", strModel+fModel);
-					
+				pFila.attr("model", strModel+fModel);
 				pFila.attr("filalist", strFilalist+fWholeName+';');
 			}
 			
@@ -477,7 +469,7 @@ function ChooseDefaultFilament()
 		let OneFF=OneNode.getElementsByTagName("input")[0];
 		$(OneFF).prop("checked",false);
 		
-	    let filamentList=GetFilamentShortname(OneFF.getAttribute("filalist")); 
+	    let filamentList=OneFF.getAttribute("filalist"); 
 		//alert(filamentList);
 		let filamentArray=filamentList.split(';')
 		

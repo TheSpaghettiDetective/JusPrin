@@ -652,8 +652,7 @@ void Slic3r::GUI::ImageGrid::renderContent1(wxDC &dc, wxPoint const &pt, int ind
         if (hit) {
             texts.Add(_L("Delete"));
             texts.Add(secondAction);
-            if (!thirdAction.IsEmpty())
-                texts.Add(thirdAction);
+            texts.Add(thirdAction);
             renderButtons(dc, texts, rect, m_hit_type == HIT_ACTION ? m_hit_item & 3 : -1, states);
         } else if (!nonHoverText.IsEmpty()) {
             texts.Add(nonHoverText);

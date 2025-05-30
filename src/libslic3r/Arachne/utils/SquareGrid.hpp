@@ -4,15 +4,12 @@
 #ifndef UTILS_SQUARE_GRID_H
 #define UTILS_SQUARE_GRID_H
 
-#include <stdint.h>
+#include "../../Point.hpp"
+
 #include <cassert>
+#include <unordered_map>
 #include <vector>
 #include <functional>
-#include <utility>
-#include <cinttypes>
-
-#include "../../Point.hpp"
-#include "libslic3r/libslic3r.h"
 
 namespace Slic3r::Arachne {
 

@@ -18,7 +18,7 @@
 #include "Camera.hpp"
 #include "SceneRaycaster.hpp"
 #include "IMToolbar.hpp"
-#include "slic3r/GUI/3DBed.hpp"
+
 #include "libslic3r/Slicing.hpp"
 
 #include <float.h>
@@ -172,6 +172,7 @@ wxDECLARE_EVENT(EVT_GLCANVAS_INSTANCE_ROTATED, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_INSTANCE_SCALED, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, Event<bool>);
 wxDECLARE_EVENT(EVT_GLCANVAS_UPDATE_GEOMETRY, Vec3dsEvent<2>);
+wxDECLARE_EVENT(EVT_GLCANVAS_MOUSE_DOWN, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_MOUSE_DRAGGING_STARTED, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_MOUSE_DRAGGING_FINISHED, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_UPDATE_BED_SHAPE, SimpleEvent);
@@ -512,7 +513,6 @@ private:
     wxGLContext* m_context;
     SceneRaycaster m_scene_raycaster;
     Bed3D &m_bed;
-    std::map<std::string, wxString> m_assembly_view_desc;
 #if ENABLE_RETINA_GL
     std::unique_ptr<RetinaHelper> m_retina_helper;
 #endif
@@ -612,8 +612,8 @@ private:
 
     PrinterTechnology current_printer_technology() const;
 
-    bool        m_show_world_axes{false};
-    Bed3D::Axes m_axes;
+
+
     //BBS:record key botton frequency
     int auto_orient_count = 0;
     int auto_arrange_count = 0;
@@ -744,7 +744,6 @@ public:
         m_scene_raycaster.set_gizmos_on_top(value);
     }
 
-    float get_explosion_ratio() { return m_explosion_ratio; }
     void reset_explosion_ratio() { m_explosion_ratio = 1.0; }
     void on_change_color_mode(bool is_dark, bool reinit = true);
     const bool get_dark_mode_status() { return m_is_dark; }
@@ -808,7 +807,6 @@ public:
     void set_color_clip_plane(const Vec3d& cp_normal, double offset) { m_volumes.set_color_clip_plane(cp_normal, offset); }
     void set_color_clip_plane_colors(const std::array<ColorRGBA, 2>& colors) { m_volumes.set_color_clip_plane_colors(colors); }
 
-    void set_show_world_axes(bool flag) { m_show_world_axes = flag; }
     void refresh_camera_scene_box();
     void set_color_by(const std::string& value);
 
@@ -1113,7 +1111,6 @@ public:
         m_sequential_print_clearance.set_polygons(polygons, height_polygons);
     }
 
-    bool can_sequential_clearance_show_in_gizmo();
     void update_sequential_clearance();
 
     const Print* fff_print() const;
@@ -1164,7 +1161,7 @@ private:
     void _render_background();
     void _render_bed(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_axes);
     //BBS: add part plate related logic
-    void _render_platelist(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_current, bool only_body = false, int hover_id = -1, bool render_cali = false, bool show_grid = true);
+    void _render_platelist(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_current, bool only_body = false, int hover_id = -1, bool render_cali = false);
     //BBS: add outline drawing logic
     void _render_objects(GLVolumeCollection::ERenderType type, bool with_outline = true);
     //BBS: GUI refactor: add canvas size as parameters
@@ -1192,8 +1189,7 @@ private:
     // BBS
     //void _render_view_toolbar() const;
     void _render_paint_toolbar() const;
-    float _show_assembly_tooltip_information(float caption_max, float x, float y) const;
-    void _render_assemble_control();
+    void _render_assemble_control() const;
     void _render_assemble_info() const;
 #if ENABLE_SHOW_CAMERA_TARGET
     void _render_camera_target();

@@ -47,10 +47,12 @@ void PrintJob::prepare()
 {
     if (job_data.is_from_plater)
         m_plater->get_print_job_data(&job_data);
-    std::string temp_file = Slic3r::resources_dir() + "/check_access_code.txt";
-    auto check_access_code_path = temp_file.c_str();
-    BOOST_LOG_TRIVIAL(trace) << "sned_job: check_access_code_path = " << check_access_code_path;
-    job_data._temp_path = fs::path(check_access_code_path);
+    if (&job_data) {
+        std::string temp_file = Slic3r::resources_dir() + "/check_access_code.txt";
+        auto check_access_code_path = temp_file.c_str();
+        BOOST_LOG_TRIVIAL(trace) << "sned_job: check_access_code_path = " << check_access_code_path;
+        job_data._temp_path = fs::path(check_access_code_path);
+    }
 }
 
 void PrintJob::on_success(std::function<void()> success)
@@ -269,16 +271,7 @@ void PrintJob::process(Ctl &ctl)
         auto model_name = model_info->metadata_items.find(BBL_DESIGNER_MODEL_TITLE_TAG);
         if (model_name != model_info->metadata_items.end()) {
             try {
-
-                std::string mall_model_name = model_name->second;
-                std::replace(mall_model_name.begin(), mall_model_name.end(), ' ', '_');
-                const char* unusable_symbols = "<>[]:/\\|?*\" ";
-                for (const char* symbol = unusable_symbols; *symbol != '\0'; ++symbol) {
-                    std::replace(mall_model_name.begin(), mall_model_name.end(), *symbol, '_');
-                }
-
-                std::regex pattern("_+");
-                params.project_name = std::regex_replace(mall_model_name, pattern, "_");
+                params.project_name = model_name->second;
             }
             catch (...) {}
         }
@@ -508,7 +501,7 @@ void PrintJob::process(Ctl &ctl)
         else if (!wxGetApp().app_config->get("lan_mode_only").empty() && wxGetApp().app_config->get("lan_mode_only") == "1") {
 
             if (params.password.empty() || params.dev_ip.empty()) {
-                error_text = wxString::Format(_L("Access code:%s IP address:%s"), params.password, params.dev_ip);
+                error_text = wxString::Format("Access code:%s Ip address:%s", params.password, params.dev_ip);
                 result = BAMBU_NETWORK_ERR_FTP_UPLOAD_FAILED;
             }
             else {
@@ -517,7 +510,7 @@ void PrintJob::process(Ctl &ctl)
                 is_try_lan_mode = true;
                 result = m_agent->start_local_print_with_record(params, update_fn, cancel_fn, wait_fn);
                 if (result < 0) {
-                    error_text = wxString::Format(_L("Access code:%s IP address:%s"), params.password, params.dev_ip);
+                    error_text = wxString::Format("Access code:%s Ip address:%s", params.password, params.dev_ip);
                     // try to send with cloud
                     BOOST_LOG_TRIVIAL(warning) << "print_job: use ftp send print failed";
                 }

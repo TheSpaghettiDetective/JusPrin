@@ -1,13 +1,9 @@
 {
 	"name": "Comgrow",
-	"version":  "02.03.00.03",
+	"version": "02.02.00.01",
 	"force_update": "0",
 	"description": "Comgrow configurations",
 	"machine_model_list": [
-		{
-			"name": "Comgrow T300",
-			"sub_path": "machine/Comgrow T300.json"
-		},
 		{
 			"name": "Comgrow T500",
 			"sub_path": "machine/Comgrow T500.json"
@@ -21,10 +17,6 @@
 		{
 			"name": "fdm_process_comgrow_common",
 			"sub_path": "process/fdm_process_comgrow_common.json"
-		},
-		{
-			"name": "0.20mm Optimal @Comgrow T300 - official",
-			"sub_path": "process/0.20mm Optimal @Comgrow T300 0.4 - official.json"
 		},
 		{
 			"name": "0.16mm Optimal @Comgrow T500",
@@ -108,10 +100,6 @@
 		{
 			"name": "Comgrow Generic ABS",
 			"sub_path": "filament/Comgrow Generic ABS.json"
-		},
-		{
-			"name": "Comgrow T300 PLA",
-			"sub_path": "filament/Comgrow T300 PLA.json"
 		}
 	],
 	"machine_list": [
@@ -122,10 +110,6 @@
 		{
 			"name": "fdm_comgrow_common",
 			"sub_path": "machine/fdm_comgrow_common.json"
-		},
-		{
-			"name": "Comgrow T300 0.4 nozzle",
-			"sub_path": "machine/Comgrow T300 0.4 nozzle.json"
 		},
 		{
 			"name": "Comgrow T500 0.4 nozzle",

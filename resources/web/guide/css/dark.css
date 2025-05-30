@@ -6,7 +6,7 @@
 
 body
 {
-	background-color:#2D2D31; /* ORCA match background color */
+	background-color:#3E3E45;
 	color: #efeff0;
 }
 
@@ -20,35 +20,20 @@ body
 
 #Title div
 {
-	color: #009688;
-}
-
-.search>input[type=text]{
-	background-color:#2D2D31;
-}
-
-/*---Checkboxes ORCA---*/
-input[type=checkbox]{
-	background-color:#2D2D31;
-	border-color:#4A4A51;
-}
-
-input[type=checkbox]:checked{
-	background-color:#009688;
+	color: #694b7c;
 }
 
 /*-----Button-----*/
-.GrayBtn, .SmallBtn /* ORCA match button style GrayBtn & SmallBtn */
+.GrayBtn
 {
-	background-color:#3E3E45;
-	/* border: 1px solid #B9B9BC; */
-	color: #FFFFFF;	
+	border: 1px solid #B9B9BC;
+	color: #B9B9BC;
 }
 
-.GrayBtn:hover, .SmallBtn:hover /* ORCA match button style GrayBtn & SmallBtn */
+.GrayBtn:hover
 {
-	background-color:#49494E;
-	color: #FFFFFF;
+	background-color:#E8E8E8;
+	color: #565656;
 }
 
 /*-------Text------*/
@@ -78,8 +63,8 @@ input[type=checkbox]:checked{
 
 .RegionSelected:hover
 {
-	background-color:#009688;
-	color: #fff;	
+	background-color:#694b7c;
+	color: #fff;
 }
 
 /*----Menu----*/

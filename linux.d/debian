@@ -1,4 +1,4 @@
-FOUND_GTK3=$(dpkg -l libgtk* | grep gtk-3 || echo '')
+FOUND_GTK3=$(dpkg -l libgtk* | grep gtk-3)
 
 REQUIRED_DEV_PACKAGES=(
     autoconf
@@ -17,7 +17,6 @@ REQUIRED_DEV_PACKAGES=(
     libmspack-dev
     libosmesa6-dev
     libsecret-1-dev
-    libspnav-dev
     libssl-dev
     libtool
     libudev-dev

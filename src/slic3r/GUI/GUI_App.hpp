@@ -1,6 +1,13 @@
 #ifndef slic3r_GUI_App_hpp_
 #define slic3r_GUI_App_hpp_
 
+#include <wx/app.h>
+#include <wx/colour.h>
+#include <wx/font.h>
+#include <wx/string.h>
+#include <wx/snglinst.h>
+#include <wx/msgdlg.h>
+
 #include <memory>
 #include <string>
 #include "ImGuiWrapper.hpp"
@@ -18,13 +25,6 @@
 #include "slic3r/GUI/Jobs/UpgradeNetworkJob.hpp"
 #include "slic3r/GUI/HttpServer.hpp"
 #include "../Utils/PrintHost.hpp"
-
-#include <wx/app.h>
-#include <wx/colour.h>
-#include <wx/font.h>
-#include <wx/string.h>
-#include <wx/snglinst.h>
-#include <wx/msgdlg.h>
 
 #include <mutex>
 #include <stack>
@@ -81,7 +81,6 @@ class ParamsDialog;
 class HMSQuery;
 class ModelMallDialog;
 class PingCodeBindDialog;
-class NetworkErrorDialog;
 
 
 enum FileType
@@ -91,7 +90,6 @@ enum FileType
     FT_OBJ,
     FT_AMF,
     FT_3MF,
-    FT_GCODE_3MF,
     FT_GCODE,
     FT_MODEL,
     FT_ZIP,
@@ -136,6 +134,11 @@ enum CameraMenuIDs {
     wxID_CAMERA_COUNT,
 };
 
+enum ModeMenuIDs {
+    wxID_MODE_CLASSIC,
+    wxID_MODE_AI,
+    wxID_MODE_COUNT,
+};
 
 class Tab;
 class ConfigWizard;
@@ -239,7 +242,7 @@ private:
     bool            m_opengl_initialized{ false };
 #endif
 
-   
+
 //#ifdef _WIN32
     wxColour        m_color_label_modified;
     wxColour        m_color_label_sys;
@@ -276,7 +279,7 @@ private:
 	std::unique_ptr <OtherInstanceMessageHandler> m_other_instance_message_handler;
     std::unique_ptr <wxSingleInstanceChecker> m_single_instance_checker;
     std::string m_instance_hash_string;
-	size_t m_instance_hash_int;
+	    size_t m_instance_hash_int;
 
     std::unique_ptr<Downloader> m_downloader;
 
@@ -311,8 +314,8 @@ private:
     HttpServer       m_http_server;
     bool             m_show_gcode_window{true};
     boost::thread    m_check_network_thread;
-public:
-    //try again when subscription fails
+  public:
+      //try again when subscription fails
     void            on_start_subscribe_again(std::string dev_id);
     void            check_filaments_in_blacklist(std::string tag_supplier, std::string tag_material, bool& in_blacklist, std::string& action, std::string& info);
     std::string     get_local_models_path();
@@ -338,7 +341,7 @@ public:
     bool is_gcode_viewer() const { return m_app_mode == EAppMode::GCodeViewer; }
     bool is_recreating_gui() const { return m_is_recreating_gui; }
     std::string logo_name() const { return is_editor() ? "OrcaSlicer" : "OrcaSlicer-gcodeviewer"; }
-    
+
     // SoftFever
     bool show_gcode_window() const { return m_show_gcode_window; }
     void toggle_show_gcode_window();
@@ -395,9 +398,9 @@ public:
     bool            get_side_menu_popup_status();
     void            set_side_menu_popup_status(bool status);
     void            link_to_network_check();
-    void            link_to_lan_only_wiki();
 
-    const wxColour& get_label_clr_modified() { return m_color_label_modified; }
+
+    const wxColour& get_label_clr_modified(){ return m_color_label_modified; }
     const wxColour& get_label_clr_sys()     { return m_color_label_sys; }
     const wxColour& get_label_clr_default() { return m_color_label_default; }
     const wxColour& get_window_default_clr(){ return m_color_window_default; }
@@ -558,7 +561,7 @@ public:
 #endif /* __APPLE */
 
     Sidebar&             sidebar();
-    GizmoObjectManipulation *obj_manipul();
+    GizmoObjectManipulation*  obj_manipul();
     ObjectSettings*      obj_settings();
     ObjectList*          obj_list();
     ObjectLayers*        obj_layers();
@@ -575,8 +578,6 @@ public:
     std::string         m_mall_model_download_name;
     ModelMallDialog*    m_mall_publish_dialog{ nullptr };
     PingCodeBindDialog* m_ping_code_binding_dialog{ nullptr };
-
-    NetworkErrorDialog* m_server_error_dialog { nullptr };
 
     void            set_download_model_url(std::string url) {m_mall_model_download_url = url;}
     void            set_download_model_name(std::string name) {m_mall_model_download_name = name;}
@@ -631,7 +632,6 @@ public:
 	size_t      get_instance_hash_int ()              { return m_instance_hash_int; }
 
     ImGuiWrapper* imgui() { return m_imgui.get(); }
-
     PrintHostJobQueue& printhost_job_queue() { return *m_printhost_job_queue.get(); }
 
     void            open_web_page_localized(const std::string &http_address);
@@ -652,7 +652,7 @@ public:
     bool is_glsl_version_greater_or_equal_to(unsigned int major, unsigned int minor) const { return m_opengl_mgr.get_gl_info().is_glsl_version_greater_or_equal_to(major, minor); }
     int  GetSingleChoiceIndex(const wxString& message, const wxString& caption, const wxArrayString& choices, int initialSelection);
 
-    // extend is stl/3mf/gcode/step etc 
+    // extend is stl/3mf/gcode/step etc
     void            associate_files(std::wstring extend);
     void            disassociate_files(std::wstring extend);
     bool            check_url_association(std::wstring url_prefix, std::wstring& reg_bin);
@@ -672,6 +672,9 @@ public:
     void            cancel_networking_install();
     void            restart_networking();
     void            check_config_updates_from_updater() { check_updates(false); }
+
+    void            show_jusprin_login();
+    void            update_oauth_access_token();
 
 private:
     int             updating_bambu_networking();
