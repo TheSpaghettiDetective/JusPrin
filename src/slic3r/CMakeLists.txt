@@ -145,6 +145,10 @@ set(SLIC3R_GUI_SOURCES
     #GUI/Gizmos/GLGizmoFaceDetector.hpp
     GUI/Gizmos/GLGizmoMeasure.cpp
     GUI/Gizmos/GLGizmoMeasure.hpp
+    GUI/Gizmos/GLGizmoBrimEars.cpp
+    GUI/Gizmos/GLGizmoBrimEars.hpp
+    GUI/Gizmos/GLGizmoAssembly.cpp
+    GUI/Gizmos/GLGizmoAssembly.hpp
     GUI/Gizmos/GLGizmoSeam.cpp
     GUI/Gizmos/GLGizmoSeam.hpp
     #GUI/Gizmos/GLGizmoText.cpp
@@ -535,6 +539,8 @@ set(SLIC3R_GUI_SOURCES
     Utils/MKS.hpp
     Utils/ESP3D.cpp
     Utils/ESP3D.hpp
+    Utils/CrealityPrint.cpp
+    Utils/CrealityPrint.hpp
     Utils/WxFontUtils.cpp
     Utils/WxFontUtils.hpp
     Utils/Duet.cpp
@@ -563,6 +569,9 @@ set(SLIC3R_GUI_SOURCES
     GUI/Jobs/OAuthJob.hpp
     Utils/SimplyPrint.cpp
     Utils/SimplyPrint.hpp
+    Utils/ElegooLink.hpp
+    Utils/ElegooLink.cpp
+    Utils/WebSocketClient.hpp
     GUI/JusPrin/JusPrinLoginDialog.cpp
     GUI/JusPrin/JusPrinLoginDialog.hpp
     GUI/JusPrin/JusPrinChatPanel.cpp
@@ -628,7 +637,8 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SLIC3R_GUI_SOURCES})
 
 encoding_check(libslic3r_gui)
 
-target_link_libraries(libslic3r_gui libslic3r cereal::cereal imgui imguizmo minilzo GLEW::GLEW OpenGL::GL hidapi ${wxWidgets_LIBRARIES} glfw libcurl OpenSSL::SSL OpenSSL::Crypto)
+find_package(libnoise REQUIRED)
+target_link_libraries(libslic3r_gui libslic3r cereal::cereal imgui imguizmo minilzo GLEW::GLEW OpenGL::GL hidapi ${wxWidgets_LIBRARIES} glfw libcurl OpenSSL::SSL OpenSSL::Crypto noise::noise)
 
 if (MSVC)
     target_link_libraries(libslic3r_gui Setupapi.lib)

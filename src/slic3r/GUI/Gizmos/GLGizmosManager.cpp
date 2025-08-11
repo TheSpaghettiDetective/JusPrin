@@ -15,6 +15,7 @@
 #include "slic3r/GUI/Gizmos/GLGizmoFlatten.hpp"
 //#include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoFdmSupports.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoBrimEars.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoCut.hpp"
 //#include "slic3r/GUI/Gizmos/GLGizmoFaceDetector.hpp"
 //#include "slic3r/GUI/Gizmos/GLGizmoHollow.hpp"
@@ -23,8 +24,8 @@
 #include "slic3r/GUI/Gizmos/GLGizmoSimplify.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoEmboss.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoSVG.hpp"
-#include "slic3r/GUI/Gizmos/GLGizmoMeasure.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoMeshBoolean.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoAssembly.hpp"
 
 #include "libslic3r/format.hpp"
 #include "libslic3r/Model.hpp"
@@ -61,7 +62,9 @@ std::vector<size_t> GLGizmosManager::get_selectable_idxs() const
     out.reserve(m_gizmos.size());
     if (m_parent.get_canvas_type() == GLCanvas3D::CanvasAssembleView) {
         for (size_t i = 0; i < m_gizmos.size(); ++i)
-            if (m_gizmos[i]->get_sprite_id() == (unsigned int)MmuSegmentation)
+            if (m_gizmos[i]->get_sprite_id() == (unsigned int) Measure ||
+                m_gizmos[i]->get_sprite_id() == (unsigned int) Assembly ||
+                m_gizmos[i]->get_sprite_id() == (unsigned int) MmuSegmentation)
                 out.push_back(i);
     }
     else {
@@ -158,8 +161,11 @@ void GLGizmosManager::switch_gizmos_icon_filename()
         case(EType::MeshBoolean):
             gizmo->set_icon_filename(m_is_dark ? "toolbar_meshboolean_dark.svg" : "toolbar_meshboolean.svg");
             break;
-        case(EType::Measure):
+        case (EType::Measure):
             gizmo->set_icon_filename(m_is_dark ? "toolbar_measure_dark.svg" : "toolbar_measure.svg");
+            break;
+        case (EType::Assembly):
+            gizmo->set_icon_filename(m_is_dark ? "toolbar_assembly_dark.svg" : "toolbar_assembly.svg");
             break;
         }
 
@@ -199,7 +205,9 @@ bool GLGizmosManager::init()
     m_gizmos.emplace_back(new GLGizmoEmboss(m_parent, m_is_dark ? "toolbar_text_dark.svg" : "toolbar_text.svg", EType::Emboss));
     m_gizmos.emplace_back(new GLGizmoSVG(m_parent));
     m_gizmos.emplace_back(new GLGizmoMeasure(m_parent, m_is_dark ? "toolbar_measure_dark.svg" : "toolbar_measure.svg", EType::Measure));
+    m_gizmos.emplace_back(new GLGizmoAssembly(m_parent, m_is_dark ? "toolbar_assembly_dark.svg" : "toolbar_assembly.svg", EType::Assembly));
     m_gizmos.emplace_back(new GLGizmoSimplify(m_parent, "reduce_triangles.svg", EType::Simplify));
+    m_gizmos.emplace_back(new GLGizmoBrimEars(m_parent, m_is_dark ? "toolbar_brimears_dark.svg" : "toolbar_brimears.svg", EType::BrimEars));
     //m_gizmos.emplace_back(new GLGizmoSlaSupports(m_parent, "sla_supports.svg", sprite_id++));
     //m_gizmos.emplace_back(new GLGizmoFaceDetector(m_parent, "face recognition.svg", sprite_id++));
     //m_gizmos.emplace_back(new GLGizmoHollow(m_parent, "hollow.svg", sprite_id++));
@@ -342,6 +350,8 @@ bool GLGizmosManager::check_gizmos_closed_except(EType type) const
 
 void GLGizmosManager::set_hover_id(int id)
 {
+	// Measure and assembly handles hover by itself
+    if (m_current == EType::Measure || m_current == EType::Assembly) { return; }
     if (!m_enabled || m_current == Undefined)
         return;
 
@@ -366,6 +376,9 @@ void GLGizmosManager::update_data()
                                    ? get_current()->get_requirements()
                                    : CommonGizmosDataID(0));
     if (m_current != Undefined) m_gizmos[m_current]->data_changed(m_serializing);
+
+    // Orca: hack: Fix issue that flatten gizmo faces not updated after reload from disk
+    if (m_current != Flatten && !m_gizmos.empty()) m_gizmos[Flatten]->data_changed(m_serializing);
 
     //BBS: GUI refactor: add object manipulation in gizmo
     m_object_manipulation.update_ui_from_settings();
@@ -435,11 +448,15 @@ bool GLGizmosManager::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_p
     else if (m_current == MmuSegmentation)
         return dynamic_cast<GLGizmoMmuSegmentation*>(m_gizmos[MmuSegmentation].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == Measure)
-        return dynamic_cast<GLGizmoMeasure*>(m_gizmos[Measure].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
+        return dynamic_cast<GLGizmoMeasure *>(m_gizmos[Measure].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
+    else if (m_current == Assembly)
+        return dynamic_cast<GLGizmoAssembly *>(m_gizmos[Assembly].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == Cut)
         return dynamic_cast<GLGizmoCut3D*>(m_gizmos[Cut].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == MeshBoolean)
         return dynamic_cast<GLGizmoMeshBoolean*>(m_gizmos[MeshBoolean].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
+    else if (m_current == BrimEars)
+        return dynamic_cast<GLGizmoBrimEars*>(m_gizmos[BrimEars].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else
         return false;
 }
@@ -530,7 +547,7 @@ bool GLGizmosManager::on_mouse_wheel(const wxMouseEvent &evt)
 {
     bool processed = false;
 
-    if (/*m_current == SlaSupports || m_current == Hollow ||*/ m_current == FdmSupports || m_current == Seam || m_current == MmuSegmentation) {
+    if (/*m_current == SlaSupports || m_current == Hollow ||*/ m_current == FdmSupports || m_current == Seam || m_current == MmuSegmentation || m_current == BrimEars) {
         float rot = (float)evt.GetWheelRotation() / (float)evt.GetWheelDelta();
         if (gizmo_event((rot > 0.f ? SLAGizmoEventType::MouseWheelUp : SLAGizmoEventType::MouseWheelDown), Vec2d::Zero(), evt.ShiftDown(), evt.AltDown()
             // BBS
@@ -656,6 +673,11 @@ bool GLGizmosManager::on_mouse(const wxMouseEvent &mouse_event)
         // &m_gizmos[m_current]->on_mouse != &GLGizmoBase::on_mouse &&
         m_gizmos[m_current]->on_mouse(mouse_event))
         return true;
+
+    if (mouse_event.RightUp() && m_current != EType::Undefined && !m_parent.is_mouse_dragging()) {
+        // Prevent default right context menu in gizmos
+        return true;
+    }
         
     return false;
 }
@@ -693,7 +715,7 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
         case WXK_ESCAPE:
         {
             if (m_current != Undefined) {
-                if (m_current == Measure && gizmo_event(SLAGizmoEventType::Escape)) {
+                if ((m_current == Measure || m_current == Assembly) && gizmo_event(SLAGizmoEventType::Escape)) {
                     // do nothing
                 } else
                 //if ((m_current != SlaSupports) || !gizmo_event(SLAGizmoEventType::DiscardChanges))
@@ -703,14 +725,7 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
             }
             break;
         }
-        case WXK_BACK:
-        case WXK_DELETE:
-        {
-            if ((m_current == Cut || m_current == Measure) && gizmo_event(SLAGizmoEventType::Delete))
-                processed = true;
-
-            break;
-        }
+        //skip some keys when gizmo
         case 'A':
         case 'a':
         {
@@ -737,14 +752,12 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
         //}
 
 
-        //case WXK_BACK:
-        //case WXK_DELETE:
-        //{
-        //    if ((m_current == SlaSupports || m_current == Hollow) && gizmo_event(SLAGizmoEventType::Delete))
-        //        processed = true;
-
-        //    break;
-        //}
+        case WXK_BACK:
+        case WXK_DELETE: {
+            if ((m_current == Cut || m_current == Measure || m_current == Assembly) && gizmo_event(SLAGizmoEventType::Delete))
+                processed = true;
+            break;
+        }
         //case 'A':
         //case 'a':
         //{
@@ -804,21 +817,25 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
     int keyCode = evt.GetKeyCode();
     bool processed = false;
 
-    if (evt.GetEventType() == wxEVT_KEY_UP) {
-        /*if (m_current == SlaSupports || m_current == Hollow)
+    if (evt.GetEventType() == wxEVT_KEY_UP)
+    {
+        if (/*m_current == SlaSupports || m_current == Hollow ||*/ m_current == BrimEars)
         {
             bool is_editing = true;
             bool is_rectangle_dragging = false;
 
-            if (m_current == SlaSupports) {
+            /*if (m_current == SlaSupports) {
                 GLGizmoSlaSupports* gizmo = dynamic_cast<GLGizmoSlaSupports*>(get_current());
                 is_editing = gizmo->is_in_editing_mode();
                 is_rectangle_dragging = gizmo->is_selection_rectangle_dragging();
-            }
-            else {
-                GLGizmoHollow* gizmo = dynamic_cast<GLGizmoHollow*>(get_current());
+            } else*/ if (m_current == BrimEars) {
+                GLGizmoBrimEars* gizmo = dynamic_cast<GLGizmoBrimEars*>(get_current());
                 is_rectangle_dragging = gizmo->is_selection_rectangle_dragging();
             }
+            /*else {
+                GLGizmoHollow* gizmo = dynamic_cast<GLGizmoHollow*>(get_current());
+                is_rectangle_dragging = gizmo->is_selection_rectangle_dragging();
+            }*/
 
             if (keyCode == WXK_SHIFT)
             {
@@ -838,14 +855,13 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
                 // capture number key
                 processed = true;
             }
-        }*/
-		if (m_current == Measure) { 
+        }
+        if (m_current == Measure || m_current == Assembly) {
             if (keyCode == WXK_CONTROL)
                 gizmo_event(SLAGizmoEventType::CtrlUp, Vec2d::Zero(), evt.ShiftDown(), evt.AltDown(), evt.CmdDown());
             else if (keyCode == WXK_SHIFT)
                 gizmo_event(SLAGizmoEventType::ShiftUp, Vec2d::Zero(), evt.ShiftDown(), evt.AltDown(), evt.CmdDown());
         }
-
 //        if (processed)
 //            m_parent.set_cursor(GLCanvas3D::Standard);
     }
@@ -857,7 +873,12 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
 //            m_parent.set_cursor(GLCanvas3D::Cross);
             processed = true;
         }
-        else*/ if (m_current == Cut) {
+        else*/ if  ((m_current == BrimEars) && ((keyCode == WXK_SHIFT) || (keyCode == WXK_ALT)))
+        {
+            processed = true;
+        }
+        else if (m_current == Cut)
+        {
             auto do_move = [this, &processed](double delta_z) {
                 GLGizmoCut3D* cut = dynamic_cast<GLGizmoCut3D*>(get_current());
                 cut->shift_cut(delta_z);
@@ -910,7 +931,7 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
         }
         else if (m_current == FdmSupports) {
             GLGizmoFdmSupports* fdm_support = dynamic_cast<GLGizmoFdmSupports*>(get_current());
-            if (fdm_support != nullptr && keyCode == 'F' || keyCode == 'S' || keyCode == 'C' || keyCode == 'G') {
+            if (fdm_support != nullptr && (keyCode == 'F' || keyCode == 'S' || keyCode == 'C' || keyCode == 'G')) {
                 processed = fdm_support->on_key_down_select_tool_type(keyCode);
             }
             if (processed) {
@@ -920,15 +941,14 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
         }
         else if (m_current == Seam) {
             GLGizmoSeam* seam = dynamic_cast<GLGizmoSeam*>(get_current());
-            if (seam != nullptr && keyCode == 'S' || keyCode == 'C') {
+            if (seam != nullptr && (keyCode == 'S' || keyCode == 'C')) {
                 processed = seam->on_key_down_select_tool_type(keyCode);
             }
             if (processed) {
                 // force extra frame to automatically update window size
                 wxGetApp().imgui()->set_requires_extra_frame();
             }
-        }
-        else if (m_current == Measure) {
+        } else if (m_current == Measure || m_current == Assembly) {
             if (keyCode == WXK_CONTROL)
                 gizmo_event(SLAGizmoEventType::CtrlDown, Vec2d::Zero(), evt.ShiftDown(), evt.AltDown(), evt.CmdDown());
             else if (keyCode == WXK_SHIFT)
@@ -1317,11 +1337,15 @@ bool GLGizmosManager::grabber_contains_mouse() const
 
 bool GLGizmosManager::is_in_editing_mode(bool error_notification) const
 {
-    //if (m_current != SlaSupports || ! dynamic_cast<GLGizmoSlaSupports*>(get_current())->is_in_editing_mode())
+    /*if (m_current == SlaSupports && dynamic_cast<GLGizmoSlaSupports*>(get_current())->is_in_editing_mode()) {
+        return true;
+    } else*/ if (m_current == BrimEars) {
+        dynamic_cast<GLGizmoBrimEars*>(get_current())->save_model();
         return false;
+    } else {
+        return false;
+    }
 
-    // BBS: remove SLA editing notification
-    //return true;
 }
 
 

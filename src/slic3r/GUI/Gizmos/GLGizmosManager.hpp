@@ -86,7 +86,9 @@ public:
         Emboss,
         Svg,
         Measure,
+        Assembly,
         Simplify,
+        BrimEars,
         //SlaSupports,
         // BBS
         //FaceRecognition,

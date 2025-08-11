@@ -39,8 +39,10 @@ protected:
 	wxRadioBox* m_rbMethod;
 	TextInput* m_tiStartPA;
 	TextInput* m_tiEndPA;
-	TextInput* m_tiPAStep;
-	::CheckBox* m_cbPrintNum;
+    TextInput* m_tiPAStep;
+    ::CheckBox* m_cbPrintNum;
+    TextInput* m_tiBMAccels;
+    TextInput* m_tiBMSpeeds;
 	Button* m_btnStart;
 
 	Plater* m_plater;

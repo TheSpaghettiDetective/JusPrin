@@ -30,6 +30,10 @@ if (APPLE)
 
 endif ()
 
+if(POLICY CMP0135) # DOWNLOAD_EXTRACT_TIMESTAMP
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(OrcaSlicer-deps)
 
 include(ExternalProject)
@@ -56,10 +60,6 @@ endif ()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     option(DEP_WX_GTK3 "Build wxWidgets against GTK3" OFF)
-else() 
-    if(POLICY CMP0135) # DOWNLOAD_EXTRACT_TIMESTAMP
-        cmake_policy(SET CMP0135 NEW)
-    endif()
 endif()
 
 set(IS_CROSS_COMPILE FALSE)
@@ -81,19 +81,19 @@ if (APPLE)
 endif ()
 
 
-# On developer machines, it can be enabled to speed up compilation and suppress warnings coming from IGL. 
+# On developer machines, it can be enabled to speed up compilation and suppress warnings coming from IGL.
 # FIXME:
 # Enabling this option is not safe. IGL will compile itself with its own version of Eigen while
 # Slic3r compiles with a different version which will cause runtime errors.
 # option(DEP_BUILD_IGL_STATIC "Build IGL as a static library. Might cause link errors and increase binary size." OFF)
 
 message(STATUS "OrcaSlicer deps DESTDIR: ${DESTDIR}")
-message(STATUS "OrcaSlicer dowload dir for source packages: ${DEP_DOWNLOAD_DIR}")
+message(STATUS "OrcaSlicer download dir for source packages: ${DEP_DOWNLOAD_DIR}")
 message(STATUS "OrcaSlicer deps debug build: ${DEP_DEBUG}")
 
 find_package(Git REQUIRED)
 
-# The default command line for patching. Only works for newer 
+# The default command line for patching. Only works for newer
 set(PATCH_CMD ${GIT_EXECUTABLE} apply --verbose --ignore-space-change --whitespace=fix)
 
 if (NOT _is_multi AND NOT CMAKE_BUILD_TYPE)
@@ -194,7 +194,7 @@ else()
             ${P_ARGS_CMAKE_ARGS}
        ${P_ARGS_UNPARSED_ARGUMENTS}
        BUILD_COMMAND ${CMAKE_COMMAND} --build . --config Release -- ${_build_j}
-       INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install --config Release 
+       INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install --config Release
     )
 
 endif()
@@ -255,18 +255,18 @@ if(FLATPAK)
 endif()
 
 set(ZLIB_PKG "")
-if (NOT ZLIB_FOUND) 
+if (NOT ZLIB_FOUND)
     include(ZLIB/ZLIB.cmake)
     set(ZLIB_PKG dep_ZLIB)
 endif ()
 set(PNG_PKG "")
-if (NOT PNG_FOUND) 
+if (NOT PNG_FOUND)
     include(PNG/PNG.cmake)
     set(PNG_PKG dep_PNG)
 endif ()
 set(EXPAT_PKG "")
 find_package(EXPAT)
-if (NOT EXPAT_FOUND) 
+if (NOT EXPAT_FOUND)
     include(EXPAT/EXPAT.cmake)
     set(EXPAT_PKG dep_EXPAT)
 endif ()
@@ -293,12 +293,13 @@ include(MPFR/MPFR.cmake)
 include(CGAL/CGAL.cmake)
 
 include(NLopt/NLopt.cmake)
+include(libnoise/libnoise.cmake)
 
 
 # I *think* 1.1 is used for *just* md5 hashing?
 # 3.1 has everything in the right place, but the md5 funcs used are deprecated
 # a grep across the repo shows it is used for other things
-# TODO: update openssl and everything that uses <openssl/md5.h> 
+# TODO: update openssl and everything that uses <openssl/md5.h>
 set(OPENSSL_PKG "")
 if(NOT OPENSSL_FOUND)
     include(OpenSSL/OpenSSL.cmake)
@@ -306,7 +307,7 @@ if(NOT OPENSSL_FOUND)
 endif()
 
 # we don't want to load a "wrong" openssl when loading curl
-# so, just don't even bother 
+# so, just don't even bother
 # ...i think this is how it works? change if wrong
 set(CURL_PKG "")
 if (NOT OPENSSL_FOUND OR NOT CURL_FOUND)
@@ -326,7 +327,7 @@ if (NOT TIFF_FOUND)
     set(TIFF_PKG "dep_TIFF")
 endif()
 
-# flatpak builds wxwidgets separately 
+# flatpak builds wxwidgets separately
 set(WXWIDGETS_PKG "")
 if (NOT FLATPAK)
     include(wxWidgets/wxWidgets.cmake)
@@ -336,8 +337,22 @@ endif()
 set(FREETYPE_PKG "")
 if(NOT FREETYPE_FOUND)
     include(FREETYPE/FREETYPE.cmake)
-    set(FREETYPE_PKG "dep_FREETYPE") 
+    set(FREETYPE_PKG "dep_FREETYPE")
 endif()
+
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --is-inside-work-tree
+    RESULT_VARIABLE REV_PARSE_RESULT
+    OUTPUT_VARIABLE REV_PARSE_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Will output "true" and have a 0 return code if within a git repo
+if((REV_PARSE_RESULT EQUAL 0) AND (REV_PARSE_OUTPUT STREQUAL "true"))
+    set(IN_GIT_REPO TRUE)
+    # Find relative path from root to source used for adjusting patch command
+    file(RELATIVE_PATH BINARY_DIR_REL  ${CMAKE_SOURCE_DIR}/.. ${CMAKE_BINARY_DIR})
+endif ()
 
 include(OCCT/OCCT.cmake)
 include(OpenCV/OpenCV.cmake)
@@ -360,11 +375,16 @@ set(_dep_list
     ${PNG_PKG}
     ${ZLIB_PKG}
     ${EXPAT_PKG}
+    dep_libnoise
     )
 
 if (MSVC)
     # Experimental
     #list(APPEND _dep_list "dep_qhull")
+    # Force wxWidgets on Windows since it's required
+    if (NOT WXWIDGETS_PKG)
+        list(APPEND _dep_list "dep_wxWidgets")
+    endif()
 else()
     list(APPEND _dep_list "dep_Qhull")
     # Not working, static build has different Eigen

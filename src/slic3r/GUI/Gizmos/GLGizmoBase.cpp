@@ -74,11 +74,11 @@ PickingModel GLGizmoBase::Grabber::s_cone;
 
 GLGizmoBase::Grabber::~Grabber()
 {
-    if (s_cube.model.is_initialized())
-        s_cube.model.reset();
+    //if (s_cube.model.is_initialized())
+    //    s_cube.model.reset();
 
-    if (s_cone.model.is_initialized())
-        s_cone.model.reset();
+    //if (s_cone.model.is_initialized())
+    //    s_cone.model.reset();
 }
 
 float GLGizmoBase::Grabber::get_half_size(float size) const
@@ -192,6 +192,39 @@ void GLGizmoBase::Grabber::render(float size, const ColorRGBA& render_color)
             render_extension(6, s_cone, extension_model_matrix_base * Geometry::assemble_transform(-2.0 * extension_size * Vec3d::UnitZ(), Vec3d(double(PI), 0.0, 0.0), extension_scale));
         }
     }
+}
+
+bool GLGizmoBase::render_combo(const std::string &label, const std::vector<std::string> &lines, int &selection_idx, float label_width, float item_width)
+{
+    ImGuiWrapper::push_combo_style(m_parent.get_scale());
+    ImGui::AlignTextToFramePadding();
+    m_imgui->text(label);
+    ImGui::SameLine(label_width);
+    ImGui::PushItemWidth(item_width);
+
+    size_t selection_out = selection_idx;
+
+    const char *selected_str = (selection_idx >= 0 && selection_idx < int(lines.size())) ? lines[selection_idx].c_str() : "";
+    if (ImGui::BBLBeginCombo(("##" + label).c_str(), selected_str, 0)) {
+        for (size_t line_idx = 0; line_idx < lines.size(); ++line_idx) {
+            ImGui::PushID(int(line_idx));
+            if (ImGui::Selectable("", line_idx == selection_idx)) selection_out = line_idx;
+
+            ImGui::SameLine();
+            ImGui::Text("%s", lines[line_idx].c_str());
+            ImGui::PopID();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    bool is_changed = selection_idx != selection_out;
+    selection_idx   = selection_out;
+
+    //if (is_changed) update_connector_shape();
+    ImGuiWrapper::pop_combo_style();
+
+    return is_changed;
 }
 
 GLGizmoBase::GLGizmoBase(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)

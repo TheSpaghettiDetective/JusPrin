@@ -115,8 +115,12 @@ void ChatActivationButton::OnPaint(wxPaintEvent& event) {
         wxColour borderColor = !m_isHovered ? wxColour(0, 0, 0, 0) : *wxBLUE;
         gc->SetPen(wxPen(borderColor, 1));
         gc->DrawRoundedRectangle(3, 3, width-6, height-6, radius);
-
 #else
+        // Draw drop shadows with offset
+        // Second shadow (smaller, more intense)
+        gc->SetBrush(wxBrush(wxColour(33, 33, 33, 15)));
+        gc->DrawRectangle(1, 1, width - 2, height - 2);
+
         // Main button
         gc->SetBrush(wxBrush(*wxWHITE));
         wxColour borderColor = !m_isHovered ? wxColour(0, 0, 0, 0) : *wxBLUE;

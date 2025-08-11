@@ -1,4 +1,5 @@
 #include "CreatePresetsDialog.hpp"
+#include <boost/log/trivial.hpp>
 #include <vector>
 #include <set>
 #include <unordered_map>
@@ -50,14 +51,14 @@ static const std::vector<std::string> filament_vendors =
      "Fil X",                  "GEEETECH",               "Giantarm",               "Gizmo Dorks",            "GreenGate3D",
      "HATCHBOX",               "Hello3D",                "IC3D",                   "IEMAI",                  "IIID Max",
      "INLAND",                 "iProspect",              "iSANMATE",               "Justmaker",              "Keene Village Plastics",
-     "Kexcelled",              "MakerBot",               "MatterHackers",          "MIKA3D",                 "NinjaTek",
-     "Nobufil",                "Novamaker",              "OVERTURE",               "OVVNYXE",                "Polymaker",
-     "Priline",                "Printed Solid",          "Protopasta",             "Prusament",              "Push Plastic",
-     "R3D",                    "Re-pet3D",               "Recreus",                "Regen",                  "RatRig",
-     "Sain SMART",             "SliceWorx",              "Snapmaker",              "SnoLabs",                "Spectrum",
-     "SUNLU",                  "TTYT3D",                 "Tianse",                 "UltiMaker",              "Valment",
-     "Verbatim",               "VO3D",                   "Voxelab",                "VOXELPLA",               "YOOPAI",
-     "Yousu",                  "Ziro",                   "Zyltech"};
+     "Kexcelled",              "LDO",                    "MakerBot",               "MatterHackers",          "MIKA3D",
+     "NinjaTek",               "Nobufil",                "Novamaker",              "OVERTURE",               "OVVNYXE",
+     "Polymaker",              "Priline",                "Printed Solid",          "Protopasta",             "Prusament",
+     "Push Plastic",           "R3D",                    "Re-pet3D",               "Recreus",                "Regen",
+     "RatRig",                 "Sain SMART",             "SliceWorx",              "Snapmaker",              "SnoLabs",
+     "Spectrum",               "SUNLU",                  "TTYT3D",                 "Tianse",                 "UltiMaker",
+     "Valment",                "Verbatim",               "VO3D",                   "Voxelab",                "VOXELPLA",
+     "YOOPAI",                 "Yousu",                  "Ziro",                   "Zyltech"};
 
 static const std::vector<std::string> filament_types = {"PLA",    "rPLA",  "PLA+",      "PLA Tough", "PETG",  "ABS",    "ASA",    "FLEX",   "HIPS",   "PA",     "PACF",
                                                         "NYLON",  "PVA",   "PVB",       "PC",        "PCABS", "PCTG",   "PCCF",   "PHA",    "PP",     "PEI",    "PET",
@@ -542,17 +543,30 @@ static char* read_json_file(const std::string &preset_path)
 }
 
 static std::string get_printer_nozzle_diameter(std::string printer_name) {
+    // Create a lowercase version of the printer_name for case-insensitive search
+    std::string printer_name_lower = printer_name;
+    std::transform(printer_name_lower.begin(), printer_name_lower.end(), printer_name_lower.begin(), ::tolower);
 
-    size_t index = printer_name.find(" nozzle");
+    size_t index = printer_name_lower.find(" nozzle)");
     if (std::string::npos == index) {
-        return "";
+        size_t index = printer_name_lower.find(" nozzle");
+        if (std::string::npos == index) {
+            return "";
+        }
+        std::string nozzle = printer_name_lower.substr(0, index);
+        size_t      last_space_index = nozzle.find_last_of(" ");
+        if (std::string::npos == index) {
+            return "";
+        }
+        return nozzle.substr(last_space_index + 1);
+    } else {
+        std::string nozzle = printer_name_lower.substr(0, index);
+        size_t      last_bracket_index = nozzle.find_last_of("(");
+        if (std::string::npos == index) {
+            return "";
+        }
+        return nozzle.substr(last_bracket_index + 1);
     }
-    std::string nozzle           = printer_name.substr(0, index);
-    size_t      last_space_index = nozzle.find_last_of(" ");
-    if (std::string::npos == index) {
-        return "";
-    }
-    return nozzle.substr(last_space_index + 1);
 }
 
 static void adjust_dialog_in_screen(DPIDialog* dialog) {
@@ -1179,10 +1193,11 @@ wxArrayString CreateFilamentPresetDialog::get_filament_preset_choices()
             std::string preset_name = filament_preset->name;
             BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " filament_id: " << filament_preset->filament_id << " preset name: " << filament_preset->name;
             size_t      index_at    = preset_name.find(" @");
+            std::string cur_preset_name = preset_name;
             if (std::string::npos != index_at) {
-                std::string cur_preset_name = preset_name.substr(0, index_at);
-                preset_name_set.insert(from_u8(cur_preset_name));
+                cur_preset_name = preset_name.substr(0, index_at);
             }
+            preset_name_set.insert(from_u8(cur_preset_name));
         }
         assert(1 == preset_name_set.size());
         if (preset_name_set.size() > 1) {
@@ -1813,7 +1828,7 @@ wxBoxSizer *CreatePrinterPresetDialog::create_bed_size_item(wxWindow *parent)
      // ORCA use icon on input box to match style with other Point fields
     horizontal_sizer->Add(length_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxALIGN_CENTER_VERTICAL, FromDIP(10));
     wxBoxSizer *length_input_sizer      = new wxBoxSizer(wxVERTICAL);
-    m_bed_size_x_input = new TextInput(parent, "200", "mm", "inputbox_x", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
+    m_bed_size_x_input = new TextInput(parent, "200", _L("mm"), "inputbox_x", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
     wxTextValidator validator(wxFILTER_DIGITS);
     m_bed_size_x_input->GetTextCtrl()->SetValidator(validator);
     length_input_sizer->Add(m_bed_size_x_input, 0, wxEXPAND | wxLEFT, FromDIP(5));
@@ -1823,7 +1838,7 @@ wxBoxSizer *CreatePrinterPresetDialog::create_bed_size_item(wxWindow *parent)
     // ORCA use icon on input box to match style with other Point fields
     horizontal_sizer->Add(width_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxALIGN_CENTER_VERTICAL, FromDIP(10));
     wxBoxSizer *width_input_sizer      = new wxBoxSizer(wxVERTICAL);
-    m_bed_size_y_input            = new TextInput(parent, "200", "mm", "inputbox_y", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
+    m_bed_size_y_input            = new TextInput(parent, "200", _L("mm"), "inputbox_y", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
     m_bed_size_y_input->GetTextCtrl()->SetValidator(validator);
     width_input_sizer->Add(m_bed_size_y_input, 0, wxEXPAND | wxALL, 0);
     horizontal_sizer->Add(width_input_sizer, 0, wxEXPAND | wxALL | wxALIGN_CENTER_VERTICAL, FromDIP(5));
@@ -1846,7 +1861,7 @@ wxBoxSizer *CreatePrinterPresetDialog::create_origin_item(wxWindow *parent)
     // ORCA use icon on input box to match style with other Point fields
     horizontal_sizer->Add(length_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxALIGN_CENTER_VERTICAL, FromDIP(10));
     wxBoxSizer *length_input_sizer = new wxBoxSizer(wxVERTICAL);
-    m_bed_origin_x_input           = new TextInput(parent, "0", "mm", "inputbox_x", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
+    m_bed_origin_x_input           = new TextInput(parent, "0", _L("mm"), "inputbox_x", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
     wxTextValidator validator(wxFILTER_DIGITS);
     m_bed_origin_x_input->GetTextCtrl()->SetValidator(validator);
     length_input_sizer->Add(m_bed_origin_x_input, 0, wxEXPAND | wxLEFT, FromDIP(5)); // Align with other
@@ -1856,7 +1871,7 @@ wxBoxSizer *CreatePrinterPresetDialog::create_origin_item(wxWindow *parent)
     // ORCA use icon on input box to match style with other Point fields
     horizontal_sizer->Add(width_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxALIGN_CENTER_VERTICAL, FromDIP(10));
     wxBoxSizer *width_input_sizer = new wxBoxSizer(wxVERTICAL);
-    m_bed_origin_y_input          = new TextInput(parent, "0", "mm", "inputbox_y", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
+    m_bed_origin_y_input          = new TextInput(parent, "0", _L("mm"), "inputbox_y", wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER);
     m_bed_origin_y_input->GetTextCtrl()->SetValidator(validator);
     width_input_sizer->Add(m_bed_origin_y_input, 0, wxEXPAND | wxALL, 0);
     horizontal_sizer->Add(width_input_sizer, 0, wxEXPAND | wxALL | wxALIGN_CENTER_VERTICAL, FromDIP(5));
@@ -1949,7 +1964,7 @@ wxBoxSizer *CreatePrinterPresetDialog::create_max_print_height_item(wxWindow *pa
     horizontal_sizer->Add(optionSizer, 0, wxEXPAND | wxALL | wxALIGN_CENTER_VERTICAL, FromDIP(10));
 
     wxBoxSizer *hight_input_sizer = new wxBoxSizer(wxVERTICAL);
-    m_print_height_input          = new TextInput(parent, "200", "mm", wxEmptyString, wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER); // Use same alignment with all other input boxes
+    m_print_height_input          = new TextInput(parent, "200", _L("mm"), wxEmptyString, wxDefaultPosition, PRINTER_SPACE_SIZE, wxTE_PROCESS_ENTER); // Use same alignment with all other input boxes
     wxTextValidator validator(wxFILTER_DIGITS);
     m_print_height_input->GetTextCtrl()->SetValidator(validator);
     hight_input_sizer->Add(m_print_height_input, 0, wxEXPAND | wxLEFT, FromDIP(5));
@@ -4226,6 +4241,10 @@ void ExportConfigsDialog::data_init()
         Preset *new_filament_preset = new Preset(filament_preset);
         const Preset *base_filament_preset = preset_bundle.filaments.get_preset_base(*new_filament_preset);
 
+        if (base_filament_preset == nullptr) {
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << " Failed to find base preset";
+            continue;
+        }
         std::string filament_preset_name = base_filament_preset->name;
         std::string machine_name         = get_machine_name(filament_preset_name);
         m_filament_name_to_presets[get_filament_name(filament_preset_name)].push_back(std::make_pair(get_vendor_name(machine_name), new_filament_preset));

@@ -32,7 +32,6 @@ set(lisbslic3r_sources
     AABBMesh.cpp
     Algorithm/LineSplit.hpp
     Algorithm/LineSplit.cpp
-    Algorithm/PathSorting.hpp
     Algorithm/RegionExpansion.hpp
     Algorithm/RegionExpansion.cpp
     AnyPtr.hpp
@@ -44,6 +43,7 @@ set(lisbslic3r_sources
     FaceDetector.hpp
     Brim.cpp
     Brim.hpp
+    BrimEarsPoint.hpp
     BuildVolume.cpp
     BuildVolume.hpp
     Circle.cpp
@@ -310,16 +310,16 @@ set(lisbslic3r_sources
     Support/SupportLayer.hpp
     Support/SupportMaterial.cpp
     Support/SupportMaterial.hpp
-    Support/SupportParameters.hpp
     Support/SupportSpotsGenerator.cpp
     Support/SupportSpotsGenerator.hpp
     Support/TreeSupport.hpp
     Support/TreeSupport.cpp
-    Support/TreeSupport3D.cpp
     Support/TreeSupport3D.hpp
-    Support/TreeSupportCommon.hpp
-    Support/TreeModelVolumes.cpp
+    Support/TreeSupport3D.cpp
     Support/TreeModelVolumes.hpp
+    Support/TreeModelVolumes.cpp
+    Support/TreeSupportCommon.hpp
+    Support/SupportParameters.hpp
     PrincipalComponents2D.cpp
     PrincipalComponents2D.hpp
     MinimumSpanningTree.hpp
@@ -420,7 +420,6 @@ set(lisbslic3r_sources
     Arachne/BeadingStrategy/WideningBeadingStrategy.hpp
     Arachne/BeadingStrategy/WideningBeadingStrategy.cpp
     Arachne/utils/ExtrusionJunction.hpp
-    Arachne/utils/ExtrusionJunction.cpp
     Arachne/utils/ExtrusionLine.hpp
     Arachne/utils/ExtrusionLine.cpp
     Arachne/utils/HalfEdge.hpp
@@ -504,7 +503,7 @@ if (_opts)
     target_compile_options(libslic3r_cgal PRIVATE "${_opts_bad}")
 endif()
 
-target_link_libraries(libslic3r_cgal PRIVATE ${_cgal_tgt} libigl mcut)
+target_link_libraries(libslic3r_cgal PRIVATE ${_cgal_tgt} libigl mcut boost_libs)
 
 if (MSVC AND "${CMAKE_SIZEOF_VOID_P}" STREQUAL "4") # 32 bit MSVC workaround
     target_compile_definitions(libslic3r_cgal PRIVATE CGAL_DO_NOT_USE_MPZF)
@@ -552,7 +551,7 @@ set(OCCT_LIBS
     TKernel
 )
 
-
+find_package(libnoise REQUIRED)
 target_link_libraries(libslic3r
     libnest2d
     admesh
@@ -578,11 +577,8 @@ target_link_libraries(libslic3r
     JPEG::JPEG
     qoi
     opencv_world
+    noise::noise
     )
-
-if(NOT SLIC3R_STATIC)
-    target_compile_definitions(libslic3r PUBLIC BOOST_ALL_DYN_LINK)
-endif()
 
 if(NOT WIN32)
     target_link_libraries(libslic3r freetype)

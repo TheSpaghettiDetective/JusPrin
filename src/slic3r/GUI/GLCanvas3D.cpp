@@ -590,7 +590,7 @@ void GLCanvas3D::LayersEditing::adjust_layer_height_profile()
 {
     this->update_slicing_parameters();
     PrintObject::update_layer_height_profile(*m_model_object, *m_slicing_parameters, m_layer_height_profile);
-    Slic3r::adjust_layer_height_profile(*m_slicing_parameters, m_layer_height_profile, this->last_z, this->strength, this->band_width, this->last_action);
+    Slic3r::adjust_layer_height_profile(*m_model_object, *m_slicing_parameters, m_layer_height_profile, this->last_z, this->strength, this->band_width, this->last_action);
     m_layers_texture.valid = false;
 }
 
@@ -1442,6 +1442,8 @@ void GLCanvas3D::toggle_model_objects_visibility(bool visible, const ModelObject
                         && !vol->is_modifier) {
                         vol->force_neutral_color = true;
                     }
+                    else if (gizmo_type == GLGizmosManager::BrimEars)
+                        vol->force_neutral_color = false;
                     else if (gizmo_type == GLGizmosManager::MmuSegmentation)
                         vol->is_active = false;
                     else
@@ -1540,15 +1542,22 @@ void GLCanvas3D::refresh_camera_scene_box()
 BoundingBoxf3 GLCanvas3D::volumes_bounding_box(bool current_plate_only) const
 {
     BoundingBoxf3 bb;
-    PartPlate    *plate = wxGetApp().plater()->get_partplate_list().get_curr_plate();
-
+    BoundingBoxf3 expand_part_plate_list_box;
+    bool          is_limit = m_canvas_type != ECanvasType::CanvasAssembleView;
+    if (is_limit) {
+        auto        plate_list_box = current_plate_only ? wxGetApp().plater()->get_partplate_list().get_curr_plate()->get_bounding_box() :
+                                                          wxGetApp().plater()->get_partplate_list().get_bounding_box();
+        auto        horizontal_radius = 0.5 * sqrt(std::pow(plate_list_box.min[0] - plate_list_box.max[0], 2) + std::pow(plate_list_box.min[1] - plate_list_box.max[1], 2));
+        const float scale             = 2;
+        expand_part_plate_list_box.merge(plate_list_box.min - scale * Vec3d(horizontal_radius, horizontal_radius, 0));
+        expand_part_plate_list_box.merge(plate_list_box.max + scale * Vec3d(horizontal_radius, horizontal_radius, 0));
+    }
     for (const GLVolume *volume : m_volumes.volumes) {
         if (!m_apply_zoom_to_volumes_filter || ((volume != nullptr) && volume->zoom_to_volumes)) {
-                const auto plate_bb = plate->get_bounding_box();
-                const auto v_bb     = volume->transformed_bounding_box();
-                if (!plate_bb.overlap(v_bb))
-                    continue;
-                bb.merge(v_bb);
+            const auto v_bb     = volume->transformed_bounding_box();
+            if (is_limit && !expand_part_plate_list_box.overlap(v_bb))
+                continue;
+            bb.merge(v_bb);
         }
     }
     return bb;
@@ -1894,6 +1903,7 @@ void GLCanvas3D::render(bool only_init)
 
     //BBS add partplater rendering logic
     bool only_current = false, only_body = false, show_axes = true, no_partplate = false;
+    bool show_grid = true;
     GLGizmosManager::EType gizmo_type = m_gizmos.get_current_type();
     if (!m_main_toolbar.is_enabled()) {
         //only_body = true;
@@ -1901,6 +1911,8 @@ void GLCanvas3D::render(bool only_init)
     }
     else if ((gizmo_type == GLGizmosManager::FdmSupports) || (gizmo_type == GLGizmosManager::Seam) || (gizmo_type == GLGizmosManager::MmuSegmentation))
         no_partplate = true;
+    else if (gizmo_type == GLGizmosManager::BrimEars && !camera.is_looking_downward())
+        show_grid = false;
 
     /* view3D render*/
     int hover_id = (m_hover_plate_idxs.size() > 0)?m_hover_plate_idxs.front():-1;
@@ -1912,7 +1924,7 @@ void GLCanvas3D::render(bool only_init)
         if (!no_partplate)
             _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), !camera.is_looking_downward(), show_axes);
         if (!no_partplate) //BBS: add outline logic
-            _render_platelist(camera.get_view_matrix(), camera.get_projection_matrix(), !camera.is_looking_downward(), only_current, only_body, hover_id, true);
+            _render_platelist(camera.get_view_matrix(), camera.get_projection_matrix(), !camera.is_looking_downward(), only_current, only_body, hover_id, true, show_grid);
         _render_objects(GLVolumeCollection::ERenderType::Transparent, !m_gizmos.is_running());
     }
     /* preview render */
@@ -3520,6 +3532,12 @@ void GLCanvas3D::on_key(wxKeyEvent& evt)
                         m_dirty = true;
                     }
 //                    set_cursor(Standard);
+#ifdef __WXMSW__
+                    if (m_camera_movement && m_is_touchpad_navigation) {
+                        m_camera_movement = false;
+                        m_mouse.set_start_position_3D_as_invalid();
+                    }
+#endif
                 }
                 else if (keyCode == WXK_CONTROL)
                     m_dirty = true;
@@ -3874,6 +3892,12 @@ std::string format_mouse_event_debug_message(const wxMouseEvent &evt)
 		out += "RightUp ";
 	if (evt.RightDClick())
 		out += "RightDClick ";
+    if (evt.AltDown())
+        out += "AltDown ";
+    if (evt.ShiftDown())
+        out += "ShiftDown ";
+    if (evt.ControlDown())
+        out += "ControlDown ";
 
 	sprintf(buf, "(%d, %d)", evt.GetX(), evt.GetY());
 	out += buf;
@@ -3911,6 +3935,7 @@ void GLCanvas3D::on_gesture(wxGestureEvent &evt)
             camera.rotate_on_sphere_with_target(-rotate, 0, rotate_limit, plate->get_bounding_box().center());
         else
             camera.rotate_on_sphere(-rotate, 0, rotate_limit);
+        camera.auto_type(Camera::EType::Perspective);
     }
     m_dirty = true;
 }
@@ -4278,10 +4303,10 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
             // Orca: Sphere rotation for painting view
             // if dragging over blank area with left button, rotate
             if ((any_gizmo_active || m_hover_volume_idxs.empty()) && m_mouse.is_start_position_3D_defined()) {
+                Camera& camera = wxGetApp().plater()->get_camera();
                 const Vec3d rot = (Vec3d(pos.x(), pos.y(), 0.) - m_mouse.drag.start_position_3D) * (PI * TRACKBALLSIZE / 180.);
                 if (this->m_canvas_type == ECanvasType::CanvasAssembleView || m_gizmos.get_current_type() == GLGizmosManager::FdmSupports ||
                     m_gizmos.get_current_type() == GLGizmosManager::Seam || m_gizmos.get_current_type() == GLGizmosManager::MmuSegmentation) {
-                    Camera& camera = wxGetApp().plater()->get_camera();
                     Vec3d rotate_target = Vec3d::Zero();
                     if (!m_selection.is_empty())
                         rotate_target = m_selection.get_bounding_box().center();
@@ -4292,14 +4317,12 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                 else {
                     if (wxGetApp().app_config->get_bool("use_free_camera"))
                         // Virtual track ball (similar to the 3DConnexion mouse).
-                        wxGetApp().plater()->get_camera().rotate_local_around_target(Vec3d(rot.y(), rot.x(), 0.));
+                        camera.rotate_local_around_target(Vec3d(rot.y(), rot.x(), 0.));
                     else {
                         // Forces camera right vector to be parallel to XY plane in case it has been misaligned using the 3D mouse free rotation.
                         // It is cheaper to call this function right away instead of testing wxGetApp().plater()->get_mouse3d_controller().connected(),
                         // which checks an atomics (flushes CPU caches).
                         // See GH issue #3816.
-                        Camera& camera = wxGetApp().plater()->get_camera();
-
                         bool rotate_limit = current_printer_technology() != ptSLA;
 
                         camera.recover_from_free_camera();
@@ -4333,6 +4356,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                         }
                     }
                 }
+                camera.auto_type(Camera::EType::Perspective);
 
                 m_dirty = true;
             }
@@ -4450,7 +4474,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
             logical_pos = logical_pos.cwiseQuotient(Vec2d(factor, factor));
 #endif // ENABLE_RETINA_GL
 
-            if (!m_mouse.ignore_right_up) {
+            if (!m_mouse.ignore_right_up && m_gizmos.get_current_type() == GLGizmosManager::EType::Undefined) {
                 //BBS post right click event
                 if (!m_hover_plate_idxs.empty()) {
                     post_event(RBtnPlateEvent(EVT_GLCANVAS_PLATE_RIGHT_CLICK, { logical_pos, m_hover_plate_idxs.front() }));
@@ -5668,7 +5692,6 @@ bool GLCanvas3D::_render_arrange_menu(float left, float right, float bottom, flo
     return settings_changed;
 }
 
-static float       identityMatrix[16]   = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
 static const float cameraProjection[16] = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
 
 void GLCanvas3D::_render_3d_navigator()
@@ -5678,7 +5701,6 @@ void GLCanvas3D::_render_3d_navigator()
     }
 
     ImGuizmo::BeginFrame();
-    ImGuizmo::AllowAxisFlip(false);
 
     auto& style                                = ImGuizmo::GetStyle();
     style.Colors[ImGuizmo::COLOR::DIRECTION_X] = ImGuiWrapper::to_ImVec4(ColorRGBA::Y());
@@ -5706,7 +5728,6 @@ void GLCanvas3D::_render_3d_navigator()
     const float viewManipulateLeft = 0;
     const float viewManipulateTop  = io.DisplaySize.y;
     const float camDistance        = 8.f;
-    ImGuizmo::SetID(0);
 
     Camera&     camera           = wxGetApp().plater()->get_camera();
     Transform3d m                = Transform3d::Identity();
@@ -5722,11 +5743,11 @@ void GLCanvas3D::_render_3d_navigator()
     }
 
     const float size  = 128 * sc;
-    const bool dirty = ImGuizmo::ViewManipulate(cameraView, cameraProjection, ImGuizmo::OPERATION::ROTATE, ImGuizmo::MODE::WORLD,
-                                                identityMatrix, camDistance, ImVec2(viewManipulateLeft, viewManipulateTop - size),
-                                                ImVec2(size, size), 0x00101010);
+    const auto result = ImGuizmo::ViewManipulate(cameraView, cameraProjection, ImGuizmo::OPERATION::ROTATE, ImGuizmo::MODE::WORLD, nullptr,
+                                                 camDistance, ImVec2(viewManipulateLeft, viewManipulateTop - size), ImVec2(size, size),
+                                                 0x00101010);
 
-    if (dirty) {
+    if (result.changed) {
         for (unsigned int c = 0; c < 4; ++c) {
             for (unsigned int r = 0; r < 4; ++r) {
                 m(r, c) = cameraView[c * 4 + r];
@@ -5735,6 +5756,25 @@ void GLCanvas3D::_render_3d_navigator()
         // Rotate back
         m = m * (coord_mapping_transform.inverse());
         camera.set_rotation(m);
+
+        if (result.dragging) {
+            // Switch back to perspective view when normal dragging
+            camera.auto_type(Camera::EType::Perspective);
+        } else if (result.clicked_box >= 0) {
+            switch (result.clicked_box) {
+            case 4: // back
+            case 10: // top
+            case 12: // right
+            case 14: // left
+            case 16: // bottom
+            case 22: // front
+                // Automatically switch to orthographic view when click the center face of the navigator
+                camera.auto_type(Camera::EType::Ortho); break;
+            default:
+                // Otherwise switch back to perspective view
+                camera.auto_type(Camera::EType::Perspective); break;
+            }
+        }
 
         request_extra_frame();
     }
@@ -5944,7 +5984,7 @@ void GLCanvas3D::render_thumbnail_internal(ThumbnailData& thumbnail_data, const 
 
             ColorRGBA new_color = adjust_color_for_rendering(curr_color);
             if (ban_light) {
-                new_color[3] = (255 - vol->extruder_id) / 255.0f;
+                new_color[3] =(255 - (vol->extruder_id -1))/255.0f;
             }
             vol->model.set_color(new_color);
             shader->set_uniform("volume_world_matrix", vol->world_matrix());
@@ -6772,7 +6812,7 @@ void GLCanvas3D::_picking_pass()
         case SceneRaycaster::EType::Bed:
         {
             // BBS: add plate picking logic
-            int plate_hover_id = PartPlate::PLATE_BASE_ID - hit.raycaster_id;
+            int plate_hover_id = hit.raycaster_id;
             if (plate_hover_id >= 0 && plate_hover_id < PartPlateList::MAX_PLATES_COUNT * PartPlate::GRABBER_COUNT) {
                 wxGetApp().plater()->get_partplate_list().set_hover_id(plate_hover_id);
                 m_hover_plate_idxs.emplace_back(plate_hover_id);
@@ -7155,9 +7195,9 @@ void GLCanvas3D::_render_bed(const Transform3d& view_matrix, const Transform3d& 
     m_bed.render(*this, view_matrix, projection_matrix, bottom, scale_factor, show_axes);
 }
 
-void GLCanvas3D::_render_platelist(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_current, bool only_body, int hover_id, bool render_cali)
+void GLCanvas3D::_render_platelist(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool only_current, bool only_body, int hover_id, bool render_cali, bool show_grid)
 {
-    wxGetApp().plater()->get_partplate_list().render(view_matrix, projection_matrix, bottom, only_current, only_body, hover_id, render_cali);
+    wxGetApp().plater()->get_partplate_list().render(view_matrix, projection_matrix, bottom, only_current, only_body, hover_id, render_cali, show_grid);
 }
 
 void GLCanvas3D::_render_plane() const
@@ -7424,7 +7464,7 @@ void GLCanvas3D::_check_and_update_toolbar_icon_scale()
         return;
     }
 
-    float scale = wxGetApp().toolbar_icon_scale();
+    float scale = wxGetApp().toolbar_icon_scale() * get_scale();
     Size cnv_size = get_canvas_size();
 
     //BBS: GUI refactor: GLToolbar
@@ -7435,26 +7475,12 @@ void GLCanvas3D::_check_and_update_toolbar_icon_scale()
     float size   = size_i;
 
     // Set current size for all top toolbars. It will be used for next calculations
-#if ENABLE_RETINA_GL
-    const float sc = m_retina_helper->get_scale_factor() * scale;
-    //BBS: GUI refactor: GLToolbar
-    m_main_toolbar.set_scale(sc);
-    m_assemble_view_toolbar.set_scale(sc);
-    m_separator_toolbar.set_scale(sc);
-    collapse_toolbar.set_scale(sc / 2.0);
-    size *= m_retina_helper->get_scale_factor();
-
-    auto* m_notification = wxGetApp().plater()->get_notification_manager();
-    m_notification->set_scale(sc);
-    m_gizmos.set_overlay_scale(sc);
-#else
     //BBS: GUI refactor: GLToolbar
     m_main_toolbar.set_icons_size(size);
     m_assemble_view_toolbar.set_icons_size(size);
     m_separator_toolbar.set_icons_size(size);
     collapse_toolbar.set_icons_size(size / 2.0);
     m_gizmos.set_overlay_icon_size(size);
-#endif // ENABLE_RETINA_GL
 
     //BBS: GUI refactor: GLToolbar
 #if BBS_TOOLBAR_ON_TOP
@@ -7491,9 +7517,7 @@ void GLCanvas3D::_check_and_update_toolbar_icon_scale()
 
     // set minimum scale as a auto scale for the toolbars
     float new_scale = std::min(new_h_scale, new_v_scale);
-#if ENABLE_RETINA_GL
-    new_scale /= m_retina_helper->get_scale_factor();
-#endif
+    new_scale /= get_scale();
     if (fabs(new_scale - scale) > 0.05) // scale is changed by 5% and more
         wxGetApp().set_auto_toolbar_icon_scale(new_scale);
 }
