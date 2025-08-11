@@ -81,7 +81,7 @@ if (APPLE)
 endif ()
 
 
-# On developer machines, it can be enabled to speed up compilation and suppress warnings coming from IGL. 
+# On developer machines, it can be enabled to speed up compilation and suppress warnings coming from IGL.
 # FIXME:
 # Enabling this option is not safe. IGL will compile itself with its own version of Eigen while
 # Slic3r compiles with a different version which will cause runtime errors.
@@ -93,7 +93,7 @@ message(STATUS "OrcaSlicer deps debug build: ${DEP_DEBUG}")
 
 find_package(Git REQUIRED)
 
-# The default command line for patching. Only works for newer 
+# The default command line for patching. Only works for newer
 set(PATCH_CMD ${GIT_EXECUTABLE} apply --verbose --ignore-space-change --whitespace=fix)
 
 if (NOT _is_multi AND NOT CMAKE_BUILD_TYPE)
@@ -194,7 +194,7 @@ else()
             ${P_ARGS_CMAKE_ARGS}
        ${P_ARGS_UNPARSED_ARGUMENTS}
        BUILD_COMMAND ${CMAKE_COMMAND} --build . --config Release -- ${_build_j}
-       INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install --config Release 
+       INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install --config Release
     )
 
 endif()
@@ -255,18 +255,18 @@ if(FLATPAK)
 endif()
 
 set(ZLIB_PKG "")
-if (NOT ZLIB_FOUND) 
+if (NOT ZLIB_FOUND)
     include(ZLIB/ZLIB.cmake)
     set(ZLIB_PKG dep_ZLIB)
 endif ()
 set(PNG_PKG "")
-if (NOT PNG_FOUND) 
+if (NOT PNG_FOUND)
     include(PNG/PNG.cmake)
     set(PNG_PKG dep_PNG)
 endif ()
 set(EXPAT_PKG "")
 find_package(EXPAT)
-if (NOT EXPAT_FOUND) 
+if (NOT EXPAT_FOUND)
     include(EXPAT/EXPAT.cmake)
     set(EXPAT_PKG dep_EXPAT)
 endif ()
@@ -299,7 +299,7 @@ include(libnoise/libnoise.cmake)
 # I *think* 1.1 is used for *just* md5 hashing?
 # 3.1 has everything in the right place, but the md5 funcs used are deprecated
 # a grep across the repo shows it is used for other things
-# TODO: update openssl and everything that uses <openssl/md5.h> 
+# TODO: update openssl and everything that uses <openssl/md5.h>
 set(OPENSSL_PKG "")
 if(NOT OPENSSL_FOUND)
     include(OpenSSL/OpenSSL.cmake)
@@ -307,7 +307,7 @@ if(NOT OPENSSL_FOUND)
 endif()
 
 # we don't want to load a "wrong" openssl when loading curl
-# so, just don't even bother 
+# so, just don't even bother
 # ...i think this is how it works? change if wrong
 set(CURL_PKG "")
 if (NOT OPENSSL_FOUND OR NOT CURL_FOUND)
@@ -327,7 +327,7 @@ if (NOT TIFF_FOUND)
     set(TIFF_PKG "dep_TIFF")
 endif()
 
-# flatpak builds wxwidgets separately 
+# flatpak builds wxwidgets separately
 set(WXWIDGETS_PKG "")
 if (NOT FLATPAK)
     include(wxWidgets/wxWidgets.cmake)
@@ -337,7 +337,7 @@ endif()
 set(FREETYPE_PKG "")
 if(NOT FREETYPE_FOUND)
     include(FREETYPE/FREETYPE.cmake)
-    set(FREETYPE_PKG "dep_FREETYPE") 
+    set(FREETYPE_PKG "dep_FREETYPE")
 endif()
 
 execute_process(
@@ -381,6 +381,10 @@ set(_dep_list
 if (MSVC)
     # Experimental
     #list(APPEND _dep_list "dep_qhull")
+    # Force wxWidgets on Windows since it's required
+    if (NOT WXWIDGETS_PKG)
+        list(APPEND _dep_list "dep_wxWidgets")
+    endif()
 else()
     list(APPEND _dep_list "dep_Qhull")
     # Not working, static build has different Eigen
