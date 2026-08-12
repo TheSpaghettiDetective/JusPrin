@@ -1,0 +1,322 @@
+# Native UI rewrite plan
+
+**Status:** Current direction
+
+**Platform decision:** Keep OrcaSlicer's existing C++17, wxWidgets, ImGui,
+OpenGL, and CMake platform. Electron and a WebGL viewport are out of scope.
+
+**Immediate objective:** Establish how easily the wireframed shell and a new
+gizmo presentation can be built around the real OrcaSlicer viewport. These are
+implementation-confidence spikes, not another platform selection exercise.
+
+**Results document:** `docs/native-ui-spike-results.md`
+
+---
+
+## 1. Target product
+
+The new UI is intentionally much smaller than stock OrcaSlicer. The Prepare
+screen has four stable regions:
+
+1. A compact machine/status row at the top
+2. A collapsible plates/objects pane on the left
+3. The existing 3D workspace in the center
+4. A fixed Agent conversation pane on the right
+
+The primary action, Slice, remains visible at the bottom of the workspace. The
+Preview screen continues to use OrcaSlicer's existing G-code preview. Advanced
+operations appear only when the user or agent invokes them.
+
+The UI rewrite must not become a rewrite of slicing, project state, mesh
+operations, viewport rendering, picking, undo/redo, or G-code preview.
+
+## 2. Architecture baseline
+
+```text
+OrcaSlicer process (C++ / wxWidgets)
+├── New compact top navigation
+├── New thin plates/objects pane
+├── Existing GLCanvas3D
+│   ├── existing rendering and camera
+│   ├── existing picking and selection
+│   ├── existing geometry operations
+│   └── restyled/reorganized ImGui or GL overlays
+├── Existing G-code Preview canvas
+├── Existing slicing actions and state
+└── wxWebView
+    └── Local React/TypeScript Agent interface
+```
+
+The initial boundary is deliberately conservative:
+
+- The viewport and everything drawn over it stay native.
+- The Agent interface uses React/TypeScript inside `wxWebView`.
+- The top bar and left pane start as native wxWidgets.
+- C++ remains the authoritative owner of application and project state.
+
+If the thin native object pane proves disproportionately difficult to style or
+maintain, a WebView implementation may be compared later. That is a boundary
+optimization within the native application, not a reason to reconsider
+Electron.
+
+## 3. What the repository already proves
+
+These are established capabilities, not hypotheses the spikes need to retest:
+
+- `Plater` already places the sidebar and central viewport under a
+  `wxAuiManager`: [`Plater.cpp`](../src/slic3r/GUI/Plater.cpp).
+- The sidebar already supports collapse and restore.
+- `View3D` already creates `GLCanvas3D` with picking, moving, selection, labels,
+  toolbars, and gizmos enabled: [`GUI_Preview.cpp`](../src/slic3r/GUI/GUI_Preview.cpp).
+- Prepare and Preview already use separate native canvas views.
+- OrcaSlicer already creates WebView2 on Windows, WKWebView on macOS, and
+  WebKitGTK on Linux: [`WebView.cpp`](../src/slic3r/GUI/Widgets/WebView.cpp).
+- Existing UI exchanges structured messages between JavaScript and C++:
+  [`WipeTowerDialog.cpp`](../src/slic3r/GUI/WipeTowerDialog.cpp).
+- Existing painter gizmos already provide mesh raycasting, brush selection,
+  clipping behavior, and facet visualization:
+  [`GLGizmoPainterBase.cpp`](../src/slic3r/GUI/Gizmos/GLGizmoPainterBase.cpp).
+
+These facts show that the proposed pieces exist. They do not yet prove that the
+new composition and visual treatment will be clean across all supported
+platforms.
+
+## 4. Questions to answer first
+
+Do not assign speculative risk rankings. Answer the following questions with
+small working implementations:
+
+1. Does the real GL canvas behave correctly between a collapsible native pane
+   and a continuously updating Agent WebView?
+2. Can one representative gizmo receive the wireframed presentation while
+   retaining its existing geometry, selection, numerical input, and undo/redo?
+
+Only these two questions belong in the first spike sequence.
+
+Semantic annotations and the complete object panel are product features. They
+are explicitly deferred until the shell and gizmo experiments finish.
+
+---
+
+# Spike 1 — Native shell composition
+
+**Timebox:** Target two developer-days. If it is not demonstrable after three,
+stop and document the blocking behavior rather than expanding the prototype.
+
+## 5. Build the smallest real composition
+
+Build a development-only shell using production components:
+
+- Compact native placeholder top row
+- Collapsible native left pane containing two plates and two objects
+- The real `GLCanvas3D`, displaying and selecting a real model
+- Fixed right `wxWebView` loading a local minimal React/TypeScript chat page
+- Existing Slice action
+- Existing Prepare/Preview switch
+
+The chat prototype needs only an input, a scrollable transcript, and simulated
+streaming output. Do not build an agent backend, MCP, account UI, settings, or
+final visual polish.
+
+Use one C++ state owner. JavaScript sends typed commands and receives typed
+events; it must not become a second source of project state.
+
+## 6. Exercise the seams
+
+The demonstration must include:
+
+1. Select an object in the left pane and observe the viewport selection.
+2. Select an object in the viewport and observe the left-pane selection.
+3. Collapse and restore the left pane repeatedly while orbiting the model.
+4. Stream a long dummy response while orbiting and resizing the viewport.
+5. Move focus among the canvas, chat input, and application shortcuts.
+6. Switch between Prepare and Preview with the Agent pane still present.
+7. Trigger Slice through the new button.
+8. Resize at normal and high-DPI scaling.
+
+## 7. Cross-platform check
+
+`wxWebView` does not provide one identical browser engine:
+
+| Platform | Backend used by OrcaSlicer |
+|---|---|
+| Windows | WebView2 / Chromium |
+| macOS | WKWebView |
+| Linux | WebKitGTK 4.1 |
+
+Run Linux/WebKitGTK early rather than treating it as a final compatibility
+check. Run packaged or release-like builds on all three platforms before calling
+the composition demonstrated.
+
+Check and record:
+
+- Rendering or resize glitches between WebView and GL canvas
+- Focus, global shortcuts, clipboard, text selection, and IME behavior
+- Chat scroll anchoring during streaming
+- WebView startup and reload behavior
+- CPU and memory at idle and during simulated streaming
+- Light/dark appearance and 100%/200% scaling
+- Any platform-specific CSS or JavaScript required
+
+The goal is not zero defects in a prototype. The result must identify whether
+problems are localized implementation work or require changing the proposed
+widget boundary.
+
+## 8. Spike 1 result
+
+Write the following to `docs/native-ui-spike-results.md`:
+
+- Commit/build tested on each operating system
+- Screenshots of resting, expanded, and Preview states
+- Behavior observed for every item in §§6–7
+- Native and WebView process memory
+- Platform-specific differences
+- Any recommended adjustment to the native/WebView boundary
+- What could not be tested and why
+
+Do not use this result to reopen Electron. If the layout exposes a problem,
+first adjust the wx layout, WebView scope, or Agent-pane implementation.
+
+---
+
+# Spike 2 — One complete gizmo presentation
+
+**Timebox:** Target three developer-days. Stop at the timebox and report the
+coupling discovered; do not turn the spike into a general gizmo refactor.
+
+## 9. Representative workflow
+
+Use Move or Rotate as the representative operation. Implement the wireframed
+workflow around the real selected object:
+
+1. Show the compact screen-space action strip next to the selected object.
+2. Activate the existing native gizmo from that strip.
+3. Manipulate the object using the existing 3D interaction.
+4. Enter one exact numerical value.
+5. Commit and cancel an edit.
+6. Undo and redo the edit.
+7. Deselect the object and return to the resting state.
+
+The prototype may initially retain the existing 3D handles. The question is
+whether presentation can be reorganized without duplicating transformation,
+picking, snapping, or undo behavior.
+
+## 10. Instrument the coupling
+
+Record every production class changed and classify the change:
+
+- New presentation/controller code
+- A small API exposed from existing behavior
+- Existing gizmo behavior modified
+- Geometry or picking logic duplicated
+
+Also record whether a second gizmo could use the same presentation API without
+copying the first gizmo's glue code. Do not implement the second gizmo merely to
+make the prototype look complete.
+
+## 11. Spike 2 result
+
+The result should answer:
+
+- Can the new visual hierarchy launch and control existing gizmos?
+- Which parts of the old ImGui input window are behavior rather than
+  presentation?
+- Can numerical editing and undo/redo remain authoritative in C++?
+- Does the screen-space action strip remain correctly positioned during camera,
+  selection, DPI, and window-size changes?
+- What reusable command/controller seam is needed before converting other
+  gizmos?
+
+If the presentation is tightly coupled, adjust the new UI design or introduce a
+narrow native controller layer. This is an implementation-planning result, not
+a trigger to replace the viewport.
+
+---
+
+# Work after the two spikes
+
+## 12. Thin plates/objects pane
+
+Build the production panel only after Spike 1 determines its widget boundary.
+It must cover the smaller product workflow rather than reproduce all of
+`GUI_ObjectList`:
+
+- List and switch plates
+- List objects on the active plate
+- Synchronize selection with the viewport
+- Add, rename, duplicate, and remove an object
+- Expose less common actions through a compact overflow menu or the Agent
+
+Before implementing each behavior, identify its existing model command and
+undo/redo path. Do not copy business logic out of `GUI_ObjectList` into a second
+UI implementation.
+
+## 13. Semantic annotation
+
+Treat annotation as a product/data-model investigation on the chosen native
+platform. It does not gate the platform or the shell.
+
+The first annotation prototype should answer:
+
+1. Can existing painter picking and facet visualization be reused for arbitrary
+   named meanings?
+2. Should semantic labels use existing facet-state serialization or a separate
+   project-level annotation model?
+3. Can annotations survive save/reload, mesh transforms, object duplication,
+   and undo/redo?
+4. Can the agent receive a stable structured representation of the annotated
+   regions?
+
+Start with two labels and one object. Do not build the complete palette until
+the storage and lifecycle behavior are demonstrated.
+
+## 14. Agent interface
+
+Once Spike 1 validates the embedded UI, build the Agent pane as a standalone
+local React/TypeScript package with:
+
+- A versioned typed command/event schema
+- Deterministic mock conversations for UI tests
+- Incremental message rendering
+- Explicit focus and shortcut rules
+- No direct ownership of Orca project state
+
+MCP and broad agent autonomy are outside this plan. They can be layered on the
+same command boundary later without changing the viewport architecture.
+
+## 15. Gizmo rollout
+
+Use the controller seam learned in Spike 2. Convert tools by interaction family,
+not by visual order:
+
+1. Move, rotate, and scale
+2. Mirror, duplicate, and place-on-face
+3. Measure
+4. Cut and repair
+5. Text and emboss
+6. Painter-based tools
+
+For each family, preserve existing selection, undo/redo, shortcuts, and project
+serialization before removing its old presentation.
+
+## 16. Constraints
+
+- Do not modify slicing algorithms for UI convenience.
+- Do not replace `GLCanvas3D` or G-code Preview.
+- Do not reimplement geometry operations in TypeScript.
+- Do not place WebView content over the native GL canvas.
+- Do not make JavaScript a second authoritative project model.
+- Do not attempt stock OrcaSlicer feature parity where the new product does not
+  require it.
+- Do not reopen Electron/WebGL work without a new explicit product decision.
+
+## 17. Completion of this plan
+
+The planning phase is complete when:
+
+1. Both spike results are written with evidence from the target operating
+   systems.
+2. The native/WebView boundary is fixed for the first production milestone.
+3. The reusable gizmo presentation seam is documented.
+4. The remaining product work is estimated from the demonstrated seams rather
+   than assumed risk levels.
