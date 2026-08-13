@@ -1,6 +1,14 @@
 # Native UI Spike 1 results
 
-**Status:** macOS implementation demonstrated; Windows and Linux remain untested.
+**Status:** Native/WebView boundary demonstrated on macOS and Ubuntu 24.04 under
+X11 with Mesa llvmpipe software rendering. Windows, Linux/Wayland, Linux with a
+physical GPU, and several input-specific checks remain untested or partial.
+
+**Interpretation:** Spike 1 is now classified as an integration demonstration
+and platform-QA exercise, not an architectural-feasibility spike. The underlying
+technical nature was already supported by mature OrcaSlicer layout, GL canvas,
+WebView, and bridge implementations. See
+[`native-ui-risk-and-verification.md`](native-ui-risk-and-verification.md).
 
 ## Build tested
 
@@ -8,7 +16,7 @@
 |---|---|---|
 | macOS 26.2, Apple silicon | `codex/native-ui-spike-1`, based on `12a77c4c26`; arm64 Release configuration | Passed with a local macOS 15.0 deployment target. The production 11.3 target did not compile against the installed macOS 26.5 SDK because unchanged OrcaSlicer Objective-C++ sources hit `-Werror=unguarded-availability-new`. |
 | Windows | Not run | Untested: no Windows environment was available. |
-| Linux / WebKitGTK 4.1 | Not run | Untested: no Linux environment was available. This is still required before calling the composition cross-platform demonstrated. |
+| Ubuntu 24.04, X11, Mesa llvmpipe | `eb34893c96`; release-like AppImage from `./build_linux.sh -dsi` | Passed for the tested software-rendered X11 boundary. The native pane, production GL canvas, and WebKitGTK Agent pane operated together without a blocking product defect. This does not cover Wayland or a physical GPU. |
 
 The Agent package also passed `npm run typecheck` and `npm run build` with Vite 8.2.1. Its production output is a single local HTML file so WKWebView can load the React bundle from a `file:` URL without cross-origin subresource failures. `node_modules` is ignored and is not part of the result.
 
@@ -55,6 +63,70 @@ Screenshots were visually inspected through the local computer-control session f
 
 ## Boundary recommendation
 
-The tested macOS result does not require changing the proposed boundary. Keep the real viewport, project state, selection, slicing, and view switching in C++; keep the Agent conversation isolated in the fixed WebView. For production work, preserve the single-file or an equivalent registered-resource loading strategy and add an automated bridge contract test before expanding the command surface.
+The demonstrated macOS and Linux/X11 results do not require changing the
+proposed boundary. Keep the real viewport, project state, selection, slicing,
+and view switching in C++; keep the Agent conversation isolated in the fixed
+WebView. For production work, preserve the single-file or an equivalent
+registered-resource loading strategy and add an automated bridge contract test
+before expanding the command surface.
 
-Do not treat this as cross-platform completion. Linux/WebKitGTK is the highest-priority remaining run, followed by Windows/WebView2, explicit IME/clipboard/shortcut checks, viewport-to-list selection, continuous orbit-plus-stream input, and 100%/200% scaling.
+Do not treat this as full platform coverage. Windows/WebView2 is the
+highest-priority remaining run, followed by Linux/Wayland and physical-GPU
+coverage, explicit IME/clipboard/shortcut checks, viewport-to-list selection,
+continuous orbit-plus-stream input, and physical high-DPI validation.
+
+## Linux/X11 demonstration
+
+The 2026-08-12 GCP run built the release-like AppImage incrementally after one
+SSH transport interruption and launched it in a private XFCE/VNC X11 session.
+The renderer was Mesa llvmpipe. Because this was software rendering, WebKitGTK
+required `APPIMAGE_EXTRACT_AND_RUN=1` and
+`WEBKIT_DISABLE_DMABUF_RENDERER=1` in that test environment.
+
+Observed evidence:
+
+- The native shell, real viewport, and Agent WebView started and remained
+  usable together; no blocking boundary defect was found.
+- Selection from the left list to the real viewport worked.
+- Orbit, pane collapse/restore, resize, simulated streaming, Prepare/Preview,
+  and existing Slice-to-G-code Preview worked in sequential stress testing.
+- Fresh launches at 96 and 192 logical DPI worked. A fresh `Greybird-dark`
+  launch produced matching dark native, GL, and Agent surfaces.
+- Aggressive synthetic unmaximize/resize/maximize sequences emitted isolated
+  non-fatal GTK assertions, but the shell recovered without a visible black GL
+  region, WebView gap, or crash.
+- The committed Agent bundle was present in the AppImage. The VM's Node.js
+  18.19.1 was too old for the locked Vite 8 toolchain, so the web source was not
+  rebuilt on that VM.
+
+Limitations:
+
+- The single-pointer harness did not demonstrate uninterrupted orbit while a
+  second input simultaneously operated native controls.
+- Global-shortcut routing was inconclusive, and no IME was configured.
+- The run did not cover Wayland, a physical GPU, or hardware high-DPI output.
+- Existing OrcaSlicer WebViews made individual WebKit-helper resource
+  attribution unreliable.
+- Canonical repository-local screenshots and complete build logs were not
+  retained with this results document.
+
+The detailed environment lessons and reproduction instructions are in
+[`native-ui-spike-linux-gcp-test-spec.md`](native-ui-spike-linux-gcp-test-spec.md).
+
+## Remaining Spike 1 verification
+
+The architecture is not waiting on these checks. They are targeted closure of
+platform and interaction coverage:
+
+1. Run the packaged shell on Windows/WebView2.
+2. Run Linux with a physical GPU and Wayland if both are supported target
+   configurations.
+3. Test clipboard, an unmistakable global shortcut, and IME composition on all
+   three WebView backends.
+4. Confirm viewport-to-list selection and true simultaneous orbit, streaming,
+   resize, and pane operations with a human or multi-input harness.
+5. Capture durable screenshots and logs for the remaining runs.
+
+A failure changes the native/WebView boundary only if it is reproduced and
+cannot be corrected with localized layout, focus, backend, packaging, CSS, or
+bridge work.

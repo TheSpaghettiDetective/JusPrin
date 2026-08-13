@@ -1,5 +1,13 @@
 # Spike 1 Linux GCP validation specification
 
+**Status:** Executed on 2026-08-12 for Ubuntu 24.04, X11, and Mesa llvmpipe;
+retained as the reproducible procedure for follow-up Linux coverage.
+
+**Assessment method:** Classify observations using
+[`native-ui-risk-and-verification.md`](native-ui-risk-and-verification.md).
+Environment limitations and localized backend defects are not architecture
+failures unless evidence shows that they require a broad boundary change.
+
 ## Objective
 
 Validate Spike 1 from branch `codex/native-ui-spike-1` on an ephemeral Ubuntu

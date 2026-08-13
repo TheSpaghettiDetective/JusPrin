@@ -11,6 +11,8 @@ implementation-confidence spikes, not another platform selection exercise.
 
 **Results document:** `docs/native-ui-spike-results.md`
 
+**Risk and verification method:** `docs/native-ui-risk-and-verification.md`
+
 ---
 
 ## 1. Target product
@@ -59,7 +61,21 @@ maintain, a WebView implementation may be compared later. That is a boundary
 optimization within the native application, not a reason to reconsider
 Electron.
 
-## 3. What the repository already proves
+## 3. Evidence baseline and assessment rule
+
+Before assigning risk to a requirement, classify its underlying technical
+nature and search for a mature implementation of that same nature. Search the
+current codebase and history first, followed by upstream/fork code and mature
+open-source implementations using the same or a comparable stack. The exact
+wireframed arrangement does not need to exist for its underlying capability to
+be proven.
+
+Assess only the unproven delta from that precedent. Keep technical feasibility,
+Orca integration, product behavior, delivery effort, regression exposure, and
+platform QA separate. Use a spike only for consequential uncertainty that code
+inspection, mature precedent, or a focused test cannot resolve. The complete
+method and current evidence ledger are in
+[`native-ui-risk-and-verification.md`](native-ui-risk-and-verification.md).
 
 These are established capabilities, not hypotheses the spikes need to retest:
 
@@ -76,20 +92,30 @@ These are established capabilities, not hypotheses the spikes need to retest:
 - Existing painter gizmos already provide mesh raycasting, brush selection,
   clipping behavior, and facet visualization:
   [`GLGizmoPainterBase.cpp`](../src/slic3r/GUI/Gizmos/GLGizmoPainterBase.cpp).
+- `GLCanvas3D` already projects object bounds into screen coordinates and
+  positions ImGui windows next to objects.
+- `GizmoObjectManipulation` already owns exact numerical transforms and their
+  existing undo snapshots.
+- `FacetsAnnotation` and the existing painter gizmos already provide facet
+  states, copying, undo integration, and 3MF persistence.
 
-These facts show that the proposed pieces exist. They do not yet prove that the
-new composition and visual treatment will be clean across all supported
-platforms.
+These facts, mature uses elsewhere in OrcaSlicer, and the completed macOS and
+Linux/X11 Spike 1 demonstrations establish that the proposed architecture is
+technically feasible. Remaining platform configurations and visual treatment
+still require targeted integration and QA evidence; they are not, by
+themselves, architecture risks.
 
-## 4. Questions to answer first
+## 4. Remaining questions to answer first
 
-Do not assign speculative risk rankings. Answer the following questions with
-small working implementations:
+Do not assign speculative risk rankings or use prototypes to re-prove mature
+capabilities. Answer only the residual questions with the cheapest useful
+evidence:
 
-1. Does the real GL canvas behave correctly between a collapsible native pane
-   and a continuously updating Agent WebView?
-2. Can one representative gizmo receive the wireframed presentation while
-   retaining its existing geometry, selection, numerical input, and undo/redo?
+1. Which backend-specific focus, input, resize, appearance, or packaging issues
+   remain after the demonstrated GL/native/WebView composition?
+2. What narrow reusable controller seam lets one representative gizmo receive
+   the wireframed presentation while retaining its existing geometry,
+   selection, numerical input, and undo/redo?
 
 Only these two questions belong in the first spike sequence.
 
@@ -99,6 +125,12 @@ are explicitly deferred until the shell and gizmo experiments finish.
 ---
 
 # Spike 1 — Native shell composition
+
+**Assessment:** The underlying capability was already supported by mature Orca
+components. The spike is an integration demonstration and cross-platform QA
+activity, not an architectural-feasibility gate. macOS and Ubuntu/X11 with
+WebKitGTK and Mesa software rendering have demonstrated the boundary; targeted
+coverage remains as recorded in the results document.
 
 **Implementation timebox:** Target two developer-days on the primary development
 platform. If the shell is not locally demonstrable after three, stop and
@@ -187,6 +219,11 @@ first adjust the wx layout, WebView scope, or Agent-pane implementation.
 
 # Spike 2 — One complete gizmo presentation
 
+**Assessment:** Existing code already proves gizmo activation, screen-space
+overlay placement, numerical transforms, snapshots, and undo/redo. This spike
+measures presentation coupling and discovers the reusable native controller
+seam; it does not re-prove those capabilities.
+
 **Timebox:** Target three developer-days. Stop at the timebox and report the
 coupling discovered; do not turn the spike into a general gizmo refactor.
 
@@ -227,6 +264,10 @@ Record every production class changed and classify the change:
 Also record whether a second gizmo could use the same presentation API without
 copying the first gizmo's glue code. Do not implement the second gizmo merely to
 make the prototype look complete.
+
+Before making changes, record the mature implementation that proves each
+required behavior and identify the exact API or ownership delta the spike is
+testing. Do not count already-proven behavior as residual risk.
 
 ## 11. Spike 2 result
 
@@ -269,7 +310,11 @@ UI implementation.
 ## 13. Semantic annotation
 
 Treat annotation as a product/data-model investigation on the chosen native
-platform. It does not gate the platform or the shell.
+platform. Existing painter gizmos, `TriangleSelector`, `FacetsAnnotation`, undo,
+copying, and 3MF serialization already prove the technical nature of facet
+painting and persistence. The investigation is limited to the delta for
+arbitrary semantic labels and an agent-facing representation. It does not gate
+the platform or the shell.
 
 The first annotation prototype should answer:
 
@@ -335,3 +380,6 @@ The planning phase is complete when:
 3. The reusable gizmo presentation seam is documented.
 4. The remaining product work is estimated from the demonstrated seams rather
    than assumed risk levels.
+5. Each production area has an evidence-ledger entry that states its technical
+   nature, mature precedents, unproven delta, residual risk category, and
+   verification exit condition.
