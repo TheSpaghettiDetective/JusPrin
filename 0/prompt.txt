@@ -1,0 +1,165 @@
+<recommended_plugins>
+Here is a list of plugins that are available but not installed.
+
+- Airtable (airtable@openai-curated-remote)
+- Apollo.io (apollo@openai-curated-remote)
+- Asana (asana@openai-curated-remote)
+- Atlassian Rovo (atlassian-rovo@openai-curated-remote)
+- Base44 (base44@openai-curated-remote)
+- Box (box@openai-curated-remote)
+- Canva (canva@openai-curated-remote)
+- Cloudflare (cloudflare@openai-curated-remote)
+- Codex Security (codex-security@openai-curated-remote)
+- Figma (figma@openai-curated-remote)
+- GitHub (github@openai-curated-remote)
+- Gmail (gmail@openai-curated-remote)
+- Google Calendar (google-calendar@openai-curated-remote)
+- Google Drive (google-drive@openai-curated-remote)
+- Granola (granola@openai-curated-remote)
+- HeyGen (heygen@openai-curated-remote)
+- HubSpot (hubspot@openai-curated-remote)
+- HyperFrames by HeyGen (hyperframes@openai-curated-remote)
+- Linear (linear@openai-curated-remote)
+- Lovable (lovable@openai-curated-remote)
+- Monday.com (monday-com@openai-curated-remote)
+- Neon Postgres (neon-postgres@openai-curated-remote)
+- Notion (notion@openai-curated-remote)
+- Outlook Calendar (outlook-calendar@openai-curated-remote)
+- Outlook Email (outlook-email@openai-curated-remote)
+- PostHog (posthog@openai-curated-remote)
+- Remotion (remotion@openai-curated-remote)
+- Replit (replit@openai-curated-remote)
+- Semrush (semrush@openai-curated-remote)
+- Sentry (sentry@openai-curated-remote)
+- SharePoint (sharepoint@openai-curated-remote)
+- Slack (slack@openai-curated-remote)
+- Stripe (stripe@openai-curated-remote)
+- Superpowers (superpowers@openai-curated-remote)
+- Teams (teams@openai-curated-remote)
+- Vercel (vercel@openai-curated-remote)
+- Wix (wix@openai-curated-remote)
+- Zotero (zotero@openai-curated-remote)
+</recommended_plugins>
+
+# AGENTS.md instructions for /Users/kenneth/Projects/JusPrin
+
+<INSTRUCTIONS>
+# Global Claude Code Rules
+
+## Git Commit Policy
+
+When the user asks to commit changes:
+1. Run `git status` and `git diff` to review the changes
+2. Generate a proposed commit message
+3. Present the commit message to the user and ask for confirmation
+4. Only execute `git commit` after the user explicitly confirms
+
+When the user asks to revert or amend commits:
+1. Explain what will be reverted/amended
+2. Ask for confirmation before executing any `git revert`, `git reset`, or `git commit --amend` commands
+3. Only proceed after explicit user approval
+4. Never revert commits without explicit user confirmation.
+
+This applies to all git operations that modify commit history.
+
+## Submodule Policy
+
+**Never commit or attempt to commit submodule updates.**
+
+When `git status` shows modified submodules (e.g., `modified: some-submodule (new commits)`):
+- Do not stage or commit the submodule change
+- Do not include submodules when running `git add`
+- Leave submodule management to the user
+
+## Testing Principles
+
+1. Always test your code change unless the change is not testable.
+
+2. If the change is not testable, highlight the reason why it's not testable to get the user's attention.
+
+3. By default, do end-to-end testing on everything that may potentially be impacted by your change on the local dev environment.
+
+4. Search for how the dev environment should be started if it's not obvious.
+
+5. Look for README files in the project for related info.
+
+6. Check if the local dev is already running before you try to start it again.
+
+## Bug Fix Policy
+
+**Never apply a fix for a bug you cannot reproduce.**
+
+Before writing any fix:
+1. Reproduce the bug first in the local dev environment.
+2. If the bug cannot be reproduced locally (e.g., only manifests in release mode, requires specific device conditions, or the debug framework masks the crash), stop and tell the user — do not apply the fix.
+3. A fix is only valid if you can demonstrate the broken behavior before the fix and the correct behavior after.
+
+## Epistemic Discipline — Root Cause of Repeated Errors
+
+**The core failure mode: confusing "generating a plausible explanation" with "knowing the answer."**
+
+Coherent ≠ true. A narrative that feels right because it's internally consistent is not a verified fact.
+
+Rules to follow every time:
+
+1. **Search before asserting, not after being challenged.** The internet is always available. Use it proactively, not reactively as damage control.
+
+2. **Explicitly label inference vs. verified fact.** If it hasn't been confirmed by a source, say "my hypothesis is..." or "I'd expect..." — never state it as fact.
+
+3. **"I don't know yet" is a complete and correct answer.** Saying it is more helpful than fabricating a confident-sounding explanation.
+
+## Problem Definition Before Search
+
+**A well-defined problem statement is more valuable than a clever hypothesis.**
+
+The discipline:
+1. **Define the problem precisely first.** Strip out assumptions one by one until the statement contains only what is actually known. Remove irrelevant context (e.g. subscription type if it doesn't affect the symptom).
+2. **Search for the problem directly** — not for your hypothesis. People who already solved the same problem will surface the real root cause.
+3. **Let the search results form the conclusion.** Don't search to confirm what you already believe.
+4. **Be flexible about scope.** Start with the most likely affected area (e.g. Discord) but stay open to other channels or systems being equally or more affected.
+
+Searching to validate a hypothesis finds confirmation of whatever you already believed. Searching for the problem finds answers.
+
+
+## Sentry Access
+
+- Instance: `sentry.obico.io`
+- API base: `https://sentry.obico.io/api/0/`
+- Auth token: `REDACTED`
+- Usage: `curl -H "Authorization: Bearer <token>" <api_url>`
+
+--- project-doc ---
+
+# Repository Guidelines
+
+## Project Structure & Module Organization
+OrcaSlicer’s C++17 sources live in `src/`, split by feature modules and platform adapters. User assets, icons, and printer presets are in `resources/`; translations stay in `localization/`. Tests sit in `tests/`, grouped by domain (`libslic3r/`, `sla_print/`, etc.) with fixtures under `tests/data/`. CMake helpers reside in `cmake/`, and longer references in `doc/` and `SoftFever_doc/`. Automation scripts belong in `scripts/` and `tools/`. Treat everything in `deps/` and `deps_src/` as vendored snapshots—do not modify without mirroring upstream tags.
+
+## Build, Test, and Development Commands
+Use out-of-source builds:
+- `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release` configures dependencies and generates build files.
+- `cmake --build build --target OrcaSlicer --config Release` compiles the app; add `--parallel` to speed up.
+- `cmake --build build --target tests` then `ctest --test-dir build --output-on-failure` runs automated suites.
+Platform helpers such as `build_linux.sh`, `build_release_macos.sh`, and `build_release_vs2022.bat` wrap the same flow with toolchain flags. Use `build_release_macos.sh -sx` when reproducing macOS build issues, and `scripts/DockerBuild.sh` for reproducible container builds.
+
+## Coding Style & Naming Conventions
+`.clang-format` enforces 4-space indents, a 140-column limit, aligned initializers, and brace wrapping for classes and functions. Run `clang-format -i <file>` before committing; the CMake `clang-format` target is available when LLVM tools are on your PATH. Prefer `CamelCase` for classes, `snake_case` for functions and locals, and `SCREAMING_CASE` for constants, matching conventions in `src/`. Keep headers self-contained and align include order with the IWYU pragmas.
+
+## Testing Guidelines
+Unit tests rely on Catch2 (`tests/catch2/`). Name specs after the component under test—for example `tests/libslic3r/TestPlanarHole.cpp`—and tag long-running cases so `ctest -L fast` remains useful. Cover new algorithms with deterministic fixtures or sample G-code stored in `tests/data/`. Document manual printer validation or regression slicer checks in your PR when automated coverage is insufficient.
+
+## Commit & Pull Request Guidelines
+The history favors concise, sentence-style subject lines with optional issue references, e.g., `Fix grid lines origin for multiple plates (#10724)`. Squash fixups locally before opening a PR. Complete `.github/pull_request_template.md`, include reproduction steps or screenshots for UI changes, and mention impacted presets or translations. Link issues via `Closes #NNNN` when applicable, and call out dependency bumps or profile migrations for maintainer review.
+
+## Security & Configuration Tips
+Follow `SECURITY.md` for vulnerability reporting. Keep API tokens and printer credentials out of tracked configs; use `sandboxes/` for experimental settings. When touching third-party code in `deps_src/`, record the upstream commit or release in your PR description and run the relevant platform build script to confirm integration.
+
+</INSTRUCTIONS>
+
+<environment_context>
+  <cwd>/Users/kenneth/Projects/JusPrin</cwd>
+  <shell>zsh</shell>
+  <current_date>2026-08-13</current_date>
+  <timezone>America/Los_Angeles</timezone>
+  <filesystem><workspace_roots><root>/Users/kenneth/Projects/JusPrin</root><root>/Users/kenneth/.codex/visualizations/2026/08/13/019ffd67-13ed-7d53-a494-4ec24de3f281</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+</environment_context>
