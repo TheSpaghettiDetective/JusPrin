@@ -33,6 +33,15 @@ The final product should therefore retain nine primary surfaces:
 
 These are not remnants of a legacy slicer. They are the information and control boundary between a person, an AI agent, and a physical manufacturing process.
 
+The interface should not give every retained feature equal weight. Features fall into four visibility levels:
+
+1. **Default** — continuously visible in an ordinary project.
+2. **Contextual** — appears when the project, current selection, or agent uncertainty makes it relevant.
+3. **On demand** — available through Project details, More, or the expert layer.
+4. **Interruptive** — normally hidden, but made prominent when a consequential warning, mismatch, or unresolved decision occurs.
+
+Frequency alone does not determine visibility. A control can be rarely used but interruptive because overlooking it would be costly or unsafe.
+
 ---
 
 # 1. Why an AI agent sometimes lacks enough information
@@ -121,6 +130,57 @@ These are authoritative project facts, not slicing parameters.
 
 # 2. The surfaces that must remain
 
+## 2.0 Project-window hierarchy
+
+The Project window should not treat Prepare, Preview, and Info as three equal destinations.
+
+- **Prepare is the dominant, persistent workspace.** It is where users inspect the model, communicate intent, manipulate geometry, resolve uncertainty, and review the agent's plan.
+- **Preview becomes Check print.** It is a temporary sliced-verification mode, not an equal workspace. Leaving Check returns the user to Prepare.
+- **Info becomes Project details.** It is a drawer opened from the project name or menu. The agent reads its contents continuously even when the drawer is closed.
+- **Print opens Send preflight.** It never sends directly. Explicit Send remains the consequential commitment.
+
+The normal flow is:
+
+`Prepare -> Check print -> return to Prepare if correction is needed -> Print -> Send preflight -> explicit Send`
+
+### Default Project-window composition
+
+The default window should contain:
+
+- Project name and saved/unsaved state
+- Compact printer pointer: target printer, nozzle, build plate, and material
+- Compact, editable intent summary
+- Compact active plate/object summary
+- 3D Prepare canvas
+- Essential direct-manipulation tools
+- Compact pinned agent plan
+- Highest unresolved assumption, compromise, or risk
+- Check print
+- Print
+- Consequential warnings when applicable
+
+The canvas is the primary human-agent collaboration surface. It must make the build plate and model visible, support camera rotation, pan, zoom, selection, and direct spatial manipulation, and show agent-proposed changes before they are accepted.
+
+The compact summaries should keep the governing assumptions visible without expanding full editors. Examples:
+
+> Decorative · appearance first · protect front surface · under 5 hours
+
+> Plate 1 · Fuzzy Heart · 1 copy · PLA Matte
+
+A one-object project should not permanently display a large object tree. A complete intent questionnaire should not remain expanded after it has been answered.
+
+### Direct resolution of uncertainty
+
+Warnings should link to the user action that resolves them rather than expecting the user to translate them into legacy slicer controls:
+
+- `Support enters this hole` -> `Protect this opening`
+- `Seam crosses a visible face` -> `Mark visible face`
+- `Strength direction is unclear` -> `Show load direction`
+- `Part may not fit` -> `Enter critical dimension`
+- `Support may be hard to remove` -> `Adjust supports`
+
+Each feature still has one authoritative home, but summaries, warnings, and resolution actions may appear elsewhere. For example, Printer Configuration owns the installed hardware state while Prepare shows a compact pointer and any mismatch.
+
 ## 2.1 Project knowledge
 
 This surface answers: **What is this project, and what does someone need to know about it?**
@@ -135,7 +195,8 @@ The mesh does not contain reliable authorship, licensing, safety, assembly, or u
 
 ### What should remain
 
-- Project name and description
+- Project name and saved/unsaved state
+- Project description
 - Author and license
 - Safety and usage instructions
 - Reference pictures
@@ -147,6 +208,18 @@ The mesh does not contain reliable authorship, licensing, safety, assembly, or u
 ### What the agent should do
 
 The agent should read this material before planning the print, highlight contradictions, and ask about missing safety or assembly information when relevant.
+
+Only the project name and saved/unsaved state need to remain in the normal Project-window chrome. The rest belongs in the Project details drawer and surfaces automatically only when consequential:
+
+- Safety or usage warning: on import, when it affects planning, and before Print
+- License restriction: when sharing, publishing, using commercially, or exporting
+- Assembly instructions: for multi-part projects and plate organization
+- Bill of materials or accessories: when non-printed components are required
+- Reference image: when it clarifies orientation, color, or intended appearance
+- Profile note: when the agent proposes deviating from it
+- Recovery or version warning: when work is unsaved or versions conflict
+
+The user should not have to open Project details for its contents to influence the plan.
 
 ---
 
@@ -216,6 +289,8 @@ Translate intent into technical settings. For example:
 
 The user should judge that reasoning without having to configure every underlying value.
 
+The full intent editor should appear during project creation, import, or when requirements are incomplete. Afterward, Prepare should retain only a compact editable summary. Specialized questions such as food contact, flexibility, critical clearances, and protected support surfaces should appear contextually rather than in every project.
+
 ---
 
 ## 2.4 Objects, parts, and plates
@@ -247,6 +322,8 @@ Multi-plate organization can also represent batches, material differences, alter
 
 Arrange objects, detect accidental overlaps, identify likely duplicates, balance plates, and suggest grouping—but show the resulting job manifest for confirmation.
 
+For a simple one-object, one-material, one-plate project, show a compact job summary by default. Expand the full object-and-part tree contextually when the project contains multiple objects, parts, plates, materials, modifiers, or print-order constraints. Search should appear only when the project is complex enough to need it.
+
 ---
 
 ## 2.5 Essential geometry editing
@@ -255,7 +332,7 @@ This surface answers: **Does the printable geometry need to be intentionally cha
 
 This was underrepresented in the previous report. Geometry editing must remain a first-class capability.
 
-### Essential operations
+### Default operations
 
 - Add and remove models
 - Select parts
@@ -263,6 +340,12 @@ This was underrepresented in the previous report. Geometry editing must remain a
 - Place a model on a chosen face
 - Arrange models on the plate
 - Duplicate and change quantity
+- Undo and redo
+
+### Contextual operations
+
+These remain first-class capabilities but should appear under More, through the selected-object menu, or when the situation calls for them:
+
 - Mirror
 - Cut and split
 - Merge or assemble related parts
@@ -272,6 +355,8 @@ This was underrepresented in the previous report. Geometry editing must remain a
 - Repair or identify problematic geometry
 - Create intentional modifiers
 - Paint supports, seams, materials, or other region-specific behavior
+
+Examples of contextual surfacing include offering Cut for an oversized model, Measure when fit or clearance matters, Repair when mesh defects are detected, and region annotation when the agent cannot determine where support contact is acceptable.
 
 ### Why the agent cannot decide this alone
 
@@ -340,17 +425,20 @@ This surface answers: **What strategy has the agent chosen, and why?**
 
 This is the AI-first replacement for most of OrcaSlicer’s process-setting panels.
 
-### What should be shown
+### What should be shown by default
 
 - Selected orientation
-- Material assumptions
-- Strength strategy
-- Support strategy
-- Surface-quality strategy
-- Expected compromises
+- Overall material, strength, support, and surface-quality strategy
+- Most important assumption the agent could not verify
+- Most important compromise or unresolved risk
+
+### What should appear when expanded
+
+- Detailed rationale and alternative plans
+- Confidence by decision
 - Important deviations from the normal printer profile
-- Assumptions the agent could not verify
-- Confidence and unresolved risks
+- Full change history
+- Numerical implementation settings through the expert layer
 
 ### Why this surface is needed
 
@@ -376,29 +464,45 @@ The user may not need to know that a particular wall speed is 72 mm/s, but they 
 
 These settings should remain accessible to experts, but they do not need to be primary beginner-facing surfaces.
 
+Do not always show time and material estimates in Prepare. Show them there only after a valid background slice exists. Until then, the plan can say `Ready to check`.
+
 ---
 
-## 2.8 Print-plan verification
+## 2.8 Check print: print-plan verification
 
 This surface answers: **What will the printer actually do?**
 
-OrcaSlicer’s Preview tab is not merely an expert visualization. It is the last opportunity to discover a bad plan before material and machine time are consumed.
+OrcaSlicer’s Preview capability is not merely an expert visualization. It is the last opportunity to discover a bad plan before material and machine time are consumed. In the AI-first product it should become **Check print**, a temporary mode that changes the main canvas into a sliced verification view.
 
-### Beginner-facing verification
+### Default verification
 
 - Overall appearance of the sliced result
 - Estimated time
 - Material usage and cost
-- Number of layers
+- Highest-priority warnings
+- Comparison with the user’s stated intent
+
+When supports exist, support verification becomes the default Check view:
+
 - Support locations
-- Likely support scars
-- Seam locations
+- Contact surfaces and likely scars
+- Supports that may be difficult to remove
+- Supports entering holes, cavities, or mating regions
+- A direct Adjust supports or Mark protected areas action that returns to Prepare
+
+If no supports exist, Check should emphasize the most consequential detected risk instead.
+
+### Contextual verification
+
+- Seams on protected or visible surfaces
 - Risky bridges and overhangs
 - Thin or missing features
-- First-layer contact
-- Material changes and purge waste
-- Important warnings
-- Comparison with the user’s stated intent
+- First-layer contact problems
+- Unsupported islands
+- Unexpected gaps or collisions
+- Material or color changes
+- Purge volume and waste
+- Prime tower and extruder assignments
 
 ### Expert verification
 
@@ -428,11 +532,17 @@ An agent may verify that a toolpath is internally consistent while still misunde
 
 Inspect the complete preview automatically and present a short risk-focused report. The user should review the meaningful consequences instead of manually examining every toolpath by default.
 
+Layer count and the complete extrusion-role legend are not beginner decision aids. Keep them in Inspect toolpaths with the other expert diagnostics.
+
 ---
 
 ## 2.9 Print preflight
 
 This surface answers: **Is the correct job about to be sent to the correct physical machine?**
+
+Prepare should contain a visible Print entry point. Print opens this preflight; it does not bypass it:
+
+`Print -> Send preflight -> explicit Send`
 
 ### What should remain
 
@@ -583,86 +693,132 @@ The agent can simplify the workflows, but it should not silently enable cloud co
 
 # 3. Recommended final product structure
 
-The AI-piloted application should follow the lifecycle of a print.
+The application should use one main window rather than turning every stage of a print into equal global navigation.
 
-## 1. Library
+## 3.1 Home
 
-Projects, recent files, printer fleet, ownership, backup, and import.
+Home is the hub for:
 
-## 2. Setup
+- Printer cards showing availability, condition, and loaded filament
+- Project gallery, open, and project status
+- Import of 3MF, STL, STEP, SVG, OBJ, AMF, and ZIP files
+- Entry to project versions and backups
+- Launching Monitor
 
-Physical printer, nozzle, plate, filament, AMS mapping, and machine readiness.
+## 3.2 Project window
 
-## 3. Intent
+The Project window contains the print-planning lifecycle without dividing it into equal destinations:
 
-Purpose, priorities, mechanical requirements, appearance goals, protected surfaces, safety information, and constraints.
+- **Prepare:** dominant workspace containing intent, objects and plates, the 3D canvas, geometry editing, local meaning, and the agent plan
+- **Check print:** temporary sliced-verification mode
+- **Project details:** drawer for authoritative project knowledge
+- **Print:** entry point to Send preflight
 
-## 4. Prepare
+Prepare may point to Printer Configuration, but it does not own machine calibration, filament inventory, maintenance, or privacy settings.
 
-The 3D canvas, objects and plates, essential geometry editing, spatial annotation, and agent-proposed changes.
+## 3.3 Printer Configuration
 
-## 5. Plan
+Printer Configuration owns:
 
-A plain-language account of the strategy the agent selected, its assumptions, tradeoffs, and unresolved questions.
+- Target printer, nozzle, and build-plate configuration
+- Loaded filament, material colors, AMS, and multi-material inventory
+- Calibration workflows
+- Troubleshooting and maintenance
+- Firmware-update timing
+- Camera and monitoring privacy
+- Network plugins and diagnostic tools
+- Stored printer files and timelapses
 
-## 6. Verify
+Prepare displays a compact pointer to this state and surfaces mismatches; it does not duplicate the complete configuration UI.
 
-The sliced result, time and material estimates, visual risks, layer playback, and optional expert toolpath inspection.
+## 3.4 Monitor
 
-## 7. Print
+Monitor is a pop-out surface so it can remain visible while the user works elsewhere. It owns:
 
-Destination, filament mapping, safety checks, monitoring choices, and explicit authorization.
+- Camera
+- Progress, current layer, and remaining time
+- Printer state
+- Nozzle and bed temperatures
+- Health and fault alerts
+- Pause, Resume, and Stop as never-hidden human overrides
 
-## 8. Monitor
+Manual movement, homing, detailed fan or light control, storage, and file management are contextual.
 
-Camera, progress, alerts, temperatures, pause, resume, stop, and recovery.
+## 3.5 Overlays and application-level layers
 
-## 9. Diagnose
+- **Send preflight:** final job, destination, material mapping, safety, and monitoring confirmation followed by explicit Send
+- **Expert layer:** raw process settings, numeric per-object and per-region overrides, manual calibration ranges, toolpath diagnostics, and G-code
+- **Preferences:** cloud region, stealth/offline behavior, network plugins, sync, updates, privacy, backup and recovery, import/export administration, and developer tools
 
-Guided troubleshooting, calibration, maintenance recommendations, firmware, and printer health history.
-
-An **Expert** drawer can expose raw process settings, manual calibration ranges, configuration files, diagnostic tools, and G-code without forcing beginners to understand them.
+This structure preserves the lifecycle of a print without turning Setup, Intent, Plan, Verify, Print, Monitor, and Diagnose into nine equal screens.
 
 ---
 
 # 4. Visibility hierarchy
 
-## Always visible or one action away
+## 4.1 Default
 
-- Current printer, plate, nozzle, and material
-- Objects and plates being printed
-- Intent and important requirements
-- Essential geometry tools
-- Agent plan and assumptions
-- Preview and major risks
-- Print destination and preflight
-- Camera, progress, pause, and stop
-- Safety and printer-health alerts
+Continuously visible in the ordinary Project window:
 
-## Shown when relevant
+- Project name and saved/unsaved state
+- Current printer, nozzle, plate, and material summary
+- Compact intent summary
+- Compact active plate and object summary
+- 3D Prepare canvas
+- Add, remove, select, move, rotate, scale, place on face, arrange, duplicate, Undo, and Redo
+- Compact agent plan
+- Highest unresolved assumption or risk
+- Check print and Print
 
-- Local surface annotations
-- Object-specific requirements
-- Material mapping
-- Assembly and project instructions
-- Calibration recommendations
-- Firmware updates
-- Storage and timelapses
-- Multi-device management
-- Import and export choices
+Inside Check, the default changes to sliced appearance, time, material, cost, the highest-priority warning, and comparison with intent. When supports exist, support placement and removal risk become the default Check emphasis.
 
-## Hidden by default but retained for experts
+## 4.2 Contextual
 
+Shown when the project or current task makes it relevant:
+
+- Full object, part, and plate tree
+- Per-object material or extruder
+- Modifiers, support enforcers, blockers, print order, and search
+- Local surface annotations and object-specific requirements
+- Mirror, cut, split, merge, assemble, text, measure, repair, positive/negative parts, and multi-plate distribution
+- Seam, bridge, overhang, thin-feature, first-layer, island, and collision inspection
+- Material changes, purge waste, prime tower, and extruder assignments
+- Time and material estimate in Prepare after a valid background slice exists
+- Assembly instructions, accessories, and reference pictures
+- Calibration and maintenance recommendations
+- Firmware updates, storage, timelapses, and multi-device management
+
+## 4.3 On demand
+
+Available through Project details, More, or the expert layer:
+
+- Full intent questionnaire after it has been completed
+- Project description, author, license, pictures, BOM, assembly guide, and profile notes
+- Version, backup, ownership, and export administration
+- Detailed agent rationale, alternatives, confidence, profile deviations, and change history
 - Individual speeds and accelerations
 - Exact line widths
 - Infill and support implementation parameters
 - Retraction, wiping, cooling, and purge details
+- Complete toolpath legend and playback
 - Raw G-code
 - Manual calibration ranges
-- Network tests
-- Configuration folders
-- Developer mode
-- Window-layout and visualization preferences
+- Network tests, configuration folders, developer mode, and visualization preferences
+
+## 4.4 Interruptive
+
+Normally hidden, but presented prominently at the point where the user can resolve it:
+
+- Wrong printer, nozzle, plate, or filament
+- Safety or usage instruction relevant to the current plan
+- Unsupported, missing, or defective geometry
+- Support entering a protected region
+- Violated dimensional requirement
+- Material incompatible with the stated use
+- Agent uncertainty about a meaning-changing geometry operation
+- License conflict during sharing, publishing, commercial use, or export
+- Unsaved work, recovery issue, or version conflict
+- Printer-health or safety alert
 
 ---
 
