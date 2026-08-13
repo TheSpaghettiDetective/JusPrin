@@ -3,7 +3,7 @@
 ## Objective
 
 Validate Spike 1 from branch `codex/native-ui-spike-1` on an ephemeral Ubuntu
-24.04 Compute Engine VM in the `elegoo-obico` GCP project. The run must exercise
+24.04 Compute Engine VM in the `elegoo-backend` GCP project. The run must exercise
 the real OrcaSlicer OpenGL canvas beside the native wxWidgets pane and the
 WebKitGTK Agent pane. It must add evidence to
 `docs/native-ui-spike-results.md`; it must not add product features or silently
@@ -14,15 +14,15 @@ VNC/X11 session using Mesa software rendering does not demonstrate Wayland or a
 physical GPU, so label those configurations untested unless they are exercised
 separately.
 
-## Current access blocker
+## Access preflight
 
 As of 2026-08-12, the locally configured identity is
 `ai-agent@tsdtechnology.iam.gserviceaccount.com`. Read-only checks against
-`elegoo-obico` return `PERMISSION_DENIED` or project-not-found. Before creating
-anything, use a project-authorized identity and confirm the exact project ID.
+`elegoo-backend` must succeed before creating anything. Use a project-authorized
+identity and confirm the exact project ID.
 
 Do not change project IAM, billing, organization policies, networks, firewall
-rules, or service accounts to work around this blocker. If an authorized
+rules, or service accounts to work around failed access checks. If an authorized
 identity is unavailable, stop and report the required permission to the user.
 
 ## Safety and cost requirements
@@ -53,7 +53,7 @@ identity is unavailable, stop and report the required permission to the user.
 
 ## Preflight
 
-1. Verify the active GCP identity and read access to `elegoo-obico`.
+1. Verify the active GCP identity and read access to `elegoo-backend`.
 2. Confirm Compute Engine is already enabled. Do not enable APIs without user
    approval if that would change project configuration.
 3. List existing labeled resources to avoid name collisions and accidental
@@ -201,6 +201,192 @@ Follow the repository commit policy for any results-document commit: review
 `git status` and `git diff`, propose the commit message, and wait for explicit
 user confirmation before committing. Use a separate results branch unless the
 user explicitly directs otherwise.
+
+## Lessons learned and issue reproduction
+
+The 2026-08-12 run demonstrated the boundary on Ubuntu 24.04 under X11 with
+Mesa llvmpipe. It did not reveal a blocking Spike 1 product defect. The issues
+below were infrastructure, environment, or test-harness limitations. Preserve
+that distinction in future result reports.
+
+### SSH can disconnect during the dependency build
+
+The first `./build_linux.sh -dsi` connection reset after dependency
+compilation. The remote build process was no longer running, but the completed
+dependency outputs were intact. Running the same supported command again
+resumed incrementally and produced the AppImage without source changes.
+
+To reproduce and recover:
+
+1. Start the normal build over SSH and save its output:
+   `./build_linux.sh -dsi 2>&1 | tee build-linux-dsi.log`.
+2. If SSH disconnects, reconnect and check for an existing build process with
+   `pgrep -af 'build_linux.sh|cmake --build|ninja|make'`.
+3. If no build is active, rerun exactly `./build_linux.sh -dsi`; do not invent a
+   different CMake configuration or clean the successful dependency outputs.
+4. Record the transport interruption separately from the final build result.
+
+Lesson: the supported Linux build is safely incremental for this failure mode.
+Use a persistent remote session or a detached log for long runs, and never
+classify an SSH transport reset as a compilation failure without checking the
+remote process and build log.
+
+### The default Node.js was too old for the locked web toolchain
+
+Ubuntu supplied Node.js 18.19.1 and no npm, while the locked Vite 8 toolchain
+requires Node.js 20.19+ or 22.12+. This did not block the composition test
+because the committed single-file `dist/index.html` was present in both the
+package tree and AppImage.
+
+To reproduce:
+
+1. Run `node --version` and `npm --version` on the VM.
+2. Inspect the package engines with
+   `cd resources/web/native-ui-spike && node -p "require('./package-lock.json').packages['node_modules/vite'].engines.node"`
+   when npm/Node are sufficiently functional to do so.
+3. Confirm `resources/web/native-ui-spike/dist/index.html` exists before
+   deciding whether the optional web rebuild can be skipped.
+
+Lesson: check the Node version before spending time on `npm ci`. Treat the
+committed bundle as the runtime input for this validation, but require a current
+Node environment whenever the web source itself must be rebuilt or changed.
+
+### Software-rendered VNC needs an explicit WebKit launch path
+
+The VNC desktop reported Mesa llvmpipe rather than a physical GPU. WebKitGTK
+logged expected DRI3 warnings in that environment. Launching the AppImage with
+extraction and the DMABUF renderer disabled produced a stable Agent pane:
+
+```sh
+export DISPLAY=:1
+export XDG_SESSION_TYPE=x11
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+APPIMAGE_EXTRACT_AND_RUN=1 \
+ORCA_NATIVE_UI_SPIKE=1 \
+WEBKIT_DISABLE_DMABUF_RENDERER=1 \
+./OrcaSlicer_Linux_V2.4.0-dev.AppImage \
+  --datadir "$SPIKE_DATA_DIR"
+```
+
+Before launch, create `SPIKE_DATA_DIR` as a new empty directory outside any
+normal OrcaSlicer profile, for example:
+
+```sh
+SPIKE_DATA_DIR=$(mktemp -d /tmp/orca-spike1-data.XXXXXX)
+export SPIKE_DATA_DIR
+```
+
+Confirm the renderer with
+`DISPLAY=:1 glxinfo -B`. The expected evidence is `llvmpipe`; do not describe
+this run as GPU or Wayland coverage.
+
+Lesson: `libEGL`/DRI3 warnings alone are not proof of a product defect under
+software VNC. Correlate them with visible corruption, a WebKit helper failure,
+or a crash. Keep `WEBKIT_DISABLE_DMABUF_RENDERER=1` specific to this test
+environment rather than turning it into a product default.
+
+### Fresh profiles introduce unrelated startup prompts
+
+The isolated data directory correctly triggered the setup wizard, an SSL
+certificate decision, and an available-version notice. These prompts obscured
+the shell until they were completed or dismissed, but they were not caused by
+the Spike pane.
+
+To reproduce, launch with a new `--datadir`, complete the Generic Klipper setup
+without installing proprietary plug-ins, dismiss the update notice, and then
+verify that a new project seeds the Spike shell. On close, choose not to save
+the synthetic project before relaunching.
+
+Lesson: budget for first-run UI in an end-to-end test. Record it separately so
+startup prompts are not mistaken for WebView load failures.
+
+### Theme and DPI changes are most reliable across a relaunch
+
+Changing the XFCE theme while OrcaSlicer was already open did not fully repaint
+the existing shell. Fresh launches at 96 and 192 logical DPI worked, and a
+fresh `Greybird-dark` launch produced matching dark native, GL, and Agent
+surfaces.
+
+To reproduce:
+
+1. Set normal DPI with
+   `xfconf-query -c xsettings -p /Xft/DPI -n -t int -s 96`, then launch and
+   capture the shell.
+2. Close OrcaSlicer, set the property to `192`, relaunch, and inspect native/
+   WebView geometry at the same VNC resolution.
+3. Restore DPI to `96`, then relaunch with `GTK_THEME=Greybird-dark` to test
+   dark appearance.
+
+Lesson: test theme and logical-DPI startup behavior with fresh processes. A
+fixed 1280x720 VNC screen at 192 logical DPI is useful seam coverage, but it is
+not evidence from a physical high-resolution monitor.
+
+### Some input checks require a human or a richer remote-input harness
+
+The single-pointer remote controller could orbit, collapse/restore, resize, and
+stream in the same stress sequence, but it could not hold one uninterrupted
+orbit drag while independently clicking another native control. No IME was
+configured. `Ctrl+1` also produced no visible camera change from the tested
+oblique view, so global shortcut routing remained inconclusive.
+
+To reproduce the remaining manual checks:
+
+1. With one hand, hold the normal viewport orbit gesture continuously.
+2. While the Agent response is streaming, use a second input method to toggle
+   the native list and resize/maximize the window without ending the orbit.
+3. Focus the canvas and press a known global shortcut that produces an
+   unmistakable visual change; repeat with focus in the chat input.
+4. Install and configure an IBus engine, compose non-ASCII text in the chat
+   input, commit it, and verify the exact submitted string.
+
+Lesson: report these checks as Partial or Untested unless simultaneous input,
+shortcut effect, and IME composition are directly observed. Sequential stress
+steps are useful evidence, but they are not equivalent to physical simultaneity.
+
+### Aggressive synthetic resize can emit non-fatal GTK assertions
+
+Rapid `wmctrl` unmaximize/resize/maximize sequences produced isolated GTK
+scrollbar and zero-width assertions. The shell recovered without a black GL
+region, WebView gap, or crash.
+
+To reproduce, identify the OrcaSlicer window with `wmctrl -lx`, then remove its
+maximized state, resize it to approximately 1050x640, and maximize it again
+while a mock response streams. Retain both the application log and screenshots.
+
+Lesson: do not ignore these messages, but judge them with runtime evidence. A
+non-fatal toolkit assertion without visible or functional impact is an
+observation, not by itself a failed native/WebView boundary.
+
+### Resource measurements include OrcaSlicer's existing WebViews
+
+Several WebKit network and WebContent helpers were already owned by the main
+process, and no separate GPU helper was identifiable under software rendering.
+The Spike Agent helper could not be attributed reliably by process name alone.
+
+To reproduce, sample the application and all child helpers with
+`ps -eo pid,ppid,comm,%cpu,%mem,rss,vsz,etime,args` at idle and during a stream,
+then relate helpers to the OrcaSlicer parent PID.
+
+Lesson: report whole-application point samples and ranges. Do not claim that a
+specific helper or its memory belongs exclusively to the Agent pane without
+stronger process-level attribution.
+
+### Keep remote-display credentials ephemeral
+
+The private VNC session required a password, but the cleartext handoff file was
+not part of the evidence and was deleted before the VM. A pattern audit of the
+copied evidence found no credentials, SSH keys, tokens, private profiles, or VNC
+passwords.
+
+To reproduce the safe cleanup, remove any temporary cleartext password file,
+scan only the preserved evidence for common credential/key patterns, copy the
+evidence off the VM, delete the VM, and verify that its instance, auto-delete
+boot disk, ephemeral address, matching firewall rules, and static addresses are
+all absent.
+
+Lesson: bind VNC/noVNC to localhost, tunnel them over SSH, never put the password
+in the repository or result document, and perform the credential audit before
+destroying the VM.
 
 ## References
 
