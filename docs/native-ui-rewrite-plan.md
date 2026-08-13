@@ -100,8 +100,14 @@ are explicitly deferred until the shell and gizmo experiments finish.
 
 # Spike 1 — Native shell composition
 
-**Timebox:** Target two developer-days. If it is not demonstrable after three,
-stop and document the blocking behavior rather than expanding the prototype.
+**Implementation timebox:** Target two developer-days on the primary development
+platform. If the shell is not locally demonstrable after three, stop and
+document the blocking behavior rather than expanding the prototype.
+
+The packaged or release-like checks on Windows, macOS, and Linux in §7 are a
+separate validation activity and are not included in this implementation
+timebox. The composition is not considered demonstrated across supported
+platforms until those checks are complete.
 
 ## 5. Build the smallest real composition
 
@@ -193,9 +199,17 @@ workflow around the real selected object:
 2. Activate the existing native gizmo from that strip.
 3. Manipulate the object using the existing 3D interaction.
 4. Enter one exact numerical value.
-5. Commit and cancel an edit.
-6. Undo and redo the edit.
-7. Deselect the object and return to the resting state.
+5. Verify that the value is applied and snapshotted through the existing gizmo
+   path.
+6. Undo and redo the applied value.
+7. Dismiss the gizmo, then deselect the object and return to the resting state.
+
+"Apply" in this spike means preserving OrcaSlicer's current exact-value
+behavior: the input updates the transform and creates an undo snapshot through
+`GizmoObjectManipulation`. Dismissing the gizmo does not roll the transform
+back; Undo is the existing way to revert it. A draft transaction with explicit
+Apply and Cancel actions would be new product behavior and is out of scope for
+this presentation spike.
 
 The prototype may initially retain the existing 3D handles. The question is
 whether presentation can be reorganized without duplicating transformation,
@@ -221,7 +235,8 @@ The result should answer:
 - Can the new visual hierarchy launch and control existing gizmos?
 - Which parts of the old ImGui input window are behavior rather than
   presentation?
-- Can numerical editing and undo/redo remain authoritative in C++?
+- Can numerical editing, existing snapshot timing, and undo/redo remain
+  authoritative in C++?
 - Does the screen-space action strip remain correctly positioned during camera,
   selection, DPI, and window-size changes?
 - What reusable command/controller seam is needed before converting other
