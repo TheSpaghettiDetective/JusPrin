@@ -11,19 +11,26 @@ OrcaSlicer behavior.
 
 ## 1. Source and scope
 
-These lessons come from the workspace-adapter spike on feature branch
-`codex/orca-workspace-adapter-spike`, implementation commit
-`4e278e3276a91a7142615492beb58bdf71116a78`.
+These lessons come from two spikes on feature branch
+`codex/orca-workspace-adapter-spike`:
+
+- Workspace-adapter implementation commit
+  `4e278e3276a91a7142615492beb58bdf71116a78`.
+- Invisible legacy UI implementation commit
+  `65fc3b56e12e5be66851125cbedd8974d7eeb8c6`.
 
 Related documents:
 
 - [Workspace adapter spike](orca-workspace-adapter-spike.md)
 - [Workspace adapter spike results](orca-workspace-adapter-spike-results.md)
 - [Invisible legacy UI prerequisite spike](orca-invisible-legacy-ui-spike.md)
+- [Invisible legacy UI spike results](orca-invisible-legacy-ui-spike-results.md)
 
 The tested adapter surface includes workspace snapshots, object selection,
 rename, duplicate, remove, undo, redo, change notifications, and committed
-viewport transforms.
+viewport transforms. The invisible legacy UI spike repeated the complete probe
+workflow while an opaque empty window covered the still-mapped OrcaSlicer
+`MainFrame`.
 
 ## 2. OrcaSlicer-specific findings
 
@@ -84,19 +91,27 @@ The result proves that a JusPrin companion or overlay UI can use the adapter
 while the legacy UI remains operational. It does not prove that the legacy UI
 can be omitted from construction.
 
-The follow-up invisible-UI spike tests a narrower migration strategy: keep the
-legacy UI constructed and event-capable, but completely cover it with an opaque
-empty JusPrin window.
+The follow-up invisible-UI spike demonstrated a narrower migration strategy:
+keep the legacy UI constructed and event-capable, but completely cover it with
+an opaque empty JusPrin window. Every tested probe command continued to work,
+including undo and redo with stable session-scoped object identity. This proves
+concealment for the tested command surface; it still does not prove that the
+legacy UI can be omitted from construction.
 
 ### GUI event-loop delay is not a project-ready signal
 
 The development probe can be constructed before command-line project loading
 finishes. Even two delayed GUI callbacks may run before the requested project is
-available, so the first probe snapshot can be empty.
+available, so the first probe snapshot can be empty. The invisible legacy UI
+spike also observed a separate non-modal `Loading...` top-level during startup.
+Its existence was another sign that window construction and event-loop turns do
+not mean that project loading has completed.
 
 Tests must wait for a snapshot containing the expected loaded project before
-starting commands. Production code should attach to an explicit project-ready
-signal rather than treating `CallAfter` as a readiness guarantee.
+starting commands. Tests that make visibility claims must also wait until
+temporary startup windows have disappeared. Production code should attach to an
+explicit project-ready signal rather than treating `CallAfter` as a readiness
+guarantee.
 
 ## 3. Resolved implementation problems
 
@@ -161,6 +176,81 @@ checks its lifetime before delayed work accesses adapter state.
 **Lesson for future agents:** Every delayed GUI callback needs an explicit
 lifetime strategy. Closing a window does not make queued lambdas safe.
 
+### A parented top-level shell did not have an independent lifetime
+
+**Observed problem:** The first opaque shell was a top-level `wxFrame` parented
+to the legacy OrcaSlicer frame. On macOS, destroying the probe also caused the
+tracked legacy frame and shell to be destroyed. A parent relationship chosen for
+window stacking had unintentionally coupled the windows' lifetimes.
+
+**Resolution:** The shell became an unparented top-level window. It explicitly
+observes legacy move, size, visibility, activation, and destruction events, while
+the probe remains owned by the shell. The final run destroyed the probe while
+the application, legacy frame, and opaque shell remained alive.
+
+**Lesson for future agents:** Treat wx top-level parenting as lifecycle
+ownership, not as a harmless z-order hint. Windows that must survive
+independently should have independent ownership and explicit lifecycle
+observation.
+
+### Native choice dismissal moved focus to the opaque shell
+
+**Observed problem:** Dismissing the native macOS `wxChoice` popup could leave
+the opaque shell as the key window. The probe still existed, but it was no longer
+the usable window above the shell.
+
+**Resolution:** The choice handler schedules probe `Raise()` and control
+`SetFocus()` calls with `CallAfter`, after the native popup has completed its own
+focus transition.
+
+**Lesson for future agents:** Focus after a native popup is asynchronous. Check
+the settled state on the next event-loop turn, and restore the intended window
+there instead of fighting the native control inside its event callback.
+
+### One-time window raising did not guarantee continued occlusion
+
+**Observed problem:** Raising the shell and probe once at startup was not enough.
+Normal OrcaSlicer activation during project loading brought the legacy frame
+forward, and OrcaSlicer also created a separate non-modal `Loading...` top-level
+that was not part of `MainFrame`.
+
+**Resolution:** The shell observes legacy activation and geometry events, checks
+coverage on a timer, and restores the order of legacy frame, shell, and probe
+after ordinary non-modal activation. The spike also inventories shown
+`wxTopLevelWindows`. An unexpected modal is logged as a test failure rather than
+silently hidden.
+
+**Lesson for future agents:** Occlusion is a continuously maintained invariant,
+not a one-time `Raise()` call. Covering `MainFrame` is insufficient because
+OrcaSlicer may create other top-level progress, error, or modal windows.
+
+### Automatic top-level placement did not ensure visible placement
+
+**Observed problem:** The probe could be constructed, accessible, and reported
+as active without appearing visibly above the shell on the tested multi-display
+macOS arrangement.
+
+**Resolution:** The shell positions the probe explicitly inside its own screen
+rectangle and repositions it when shell coverage changes.
+
+**Lesson for future agents:** Do not rely on operating-system placement for a
+top-level tool that must remain visible relative to another top-level window.
+Set and verify its screen position explicitly.
+
+### A borderless shell had no normal recovery action
+
+**Observed problem:** The borderless, no-taskbar shell had no close button, and
+the normal Command-W shortcut did not close it. A failed development run could
+therefore leave the legacy frame covered without an obvious recovery path.
+
+**Resolution:** The shell handles Escape and Command-W explicitly. Closing the
+shell stops event tracking, hides and destroys only the shell, and raises the
+already-existing legacy frame.
+
+**Lesson for future agents:** Every borderless development shell needs an
+explicit, tested escape path. Recovery must reveal the existing application
+state without depending on hidden controls or process termination.
+
 ### Unsupported native selection could be mistaken for no selection
 
 **Observed problem:** The JusPrin contract currently represents object-level
@@ -211,6 +301,19 @@ the tool cannot reach a required control, switch to a documented manual check
 instead of spending the entire verification window retrying equivalent pointer
 techniques.
 
+### Accessibility state did not prove visual stacking
+
+The computer-control backend could inspect the probe's accessibility tree and
+capture the individual probe window even when a full-display screenshot showed
+that the probe was not visibly above the shell. Accessibility confirms that a
+window exists and can expose controls; it does not prove what pixels the user
+can currently see.
+
+Visibility and occlusion claims need both kinds of evidence: authoritative
+window state and a display-level screenshot. For covering windows, also record
+screen rectangles, focus changes, z-order recovery events, and unexpected
+top-level windows.
+
 ### Manual instructions must name visible controls
 
 An early instruction said "click Select" without explaining that `Select` was a
@@ -259,19 +362,31 @@ Before adding or changing a workspace capability:
 - Expect native callbacks to occur during a command, before the command returns.
 - Use one authoritative event source for each change to avoid feedback loops.
 - Merge noisy events, but protect every delayed callback against destruction.
+- Give top-level windows with independent lifetimes independent ownership;
+  observe their lifecycle explicitly instead of parenting them for z-order.
+- Treat focus after native popups as asynchronous and verify the settled window
+  on the next event-loop turn.
+- Maintain covering-window geometry and z-order continuously, and inventory all
+  shown top-level windows rather than assuming `MainFrame` is the only one.
+- Position required auxiliary top-level windows explicitly and verify their
+  placement on the tested display arrangement.
+- Give every borderless development shell an explicit, tested recovery action.
 - Report unsupported native state instead of silently translating it incorrectly.
 - Wait for an explicit loaded-project condition before running a workflow.
 - Run focused contract tests and the real native workflow.
+- Use display-level screenshots for visibility claims; an accessibility tree or
+  individual-window capture does not prove visual stacking.
 - Use exact visible language in every manual test instruction.
 - Separate verified behavior, inference, tooling limitations, and missing
   evidence in the final report.
 
 ## 6. Known follow-up questions
 
-- Can every probe command continue working while an opaque empty JusPrin window
-  completely covers the still-constructed legacy OrcaSlicer UI?
-- Does any command raise a legacy dialog or steal focus above the covering
-  JusPrin window?
+- Does the covering-window lifecycle behave consistently on Windows and Linux?
+- Do movement, resizing, maximization, restoration, display changes, and multiple
+  monitor arrangements preserve complete occlusion?
+- How should a production shell present required legacy modal, error, and
+  progress windows without exposing the rest of the legacy UI?
 - What explicit OrcaSlicer event should replace event-loop delays as the
   production project-ready signal?
 - Which additional workspace mutations need observation beyond the current
