@@ -14,7 +14,7 @@ Validate Spike 1 from branch `codex/native-ui-spike-1` on an ephemeral Ubuntu
 24.04 Compute Engine VM in the `elegoo-backend` GCP project. The run must exercise
 the real OrcaSlicer OpenGL canvas beside the native wxWidgets pane and the
 WebKitGTK Agent pane. It must add evidence to
-`docs/native-ui-spike-results.md`; it must not add product features or silently
+`agent-docs/native-ui-spike-results.md`; it must not add product features or silently
 fix failures discovered during validation.
 
 This VM run can demonstrate Linux/WebKitGTK under its actual display stack. A
@@ -180,7 +180,7 @@ Collect repository-local screenshots for at least:
 - any failure or rendering artifact
 
 Append the Linux build, environment, observations, resource samples,
-screenshots, and limitations to `docs/native-ui-spike-results.md`. Do not erase
+screenshots, and limitations to `agent-docs/native-ui-spike-results.md`. Do not erase
 or rewrite the macOS evidence. State explicitly whether the result covers X11,
 Wayland, software rendering, and/or GPU rendering.
 

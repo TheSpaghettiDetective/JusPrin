@@ -174,7 +174,7 @@ remaining evidence as targeted QA:
    WebView backends.
 4. Exercise viewport-to-list selection and true simultaneous orbit, streaming,
    and resize with a human or multi-input harness.
-5. Record results in `docs/native-ui-spike-results.md`, distinguishing product
+5. Record results in `agent-docs/native-ui-spike-results.md`, distinguishing product
    defects from environment and harness limitations.
 
 A localized focus, CSS, packaging, or resize defect does not invalidate the

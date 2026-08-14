@@ -9,9 +9,9 @@ OpenGL, and CMake platform. Electron and a WebGL viewport are out of scope.
 gizmo presentation can be built around the real OrcaSlicer viewport. These are
 implementation-confidence spikes, not another platform selection exercise.
 
-**Results document:** `docs/native-ui-spike-results.md`
+**Results document:** `agent-docs/native-ui-spike-results.md`
 
-**Risk and verification method:** `docs/native-ui-risk-and-verification.md`
+**Risk and verification method:** `agent-docs/native-ui-risk-and-verification.md`
 
 ---
 
@@ -202,7 +202,7 @@ widget boundary.
 
 ## 8. Spike 1 result
 
-Write the following to `docs/native-ui-spike-results.md`:
+Write the following to `agent-docs/native-ui-spike-results.md`:
 
 - Commit/build tested on each operating system
 - Screenshots of resting, expanded, and Preview states

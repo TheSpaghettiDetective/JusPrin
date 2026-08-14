@@ -7,7 +7,7 @@
 > only as a record of the discarded direction.
 
 **Status:** Superseded — do not start
-**Former deliverable:** `docs/spike-webgl2-viewport-results.md`
+**Former deliverable:** `agent-docs/spike-webgl2-viewport-results.md`
 
 ## Why this plan was superseded
 
@@ -486,7 +486,7 @@ fallback (§2.1) applies equally.
 
 ## 16. Reporting
 
-Write `docs/spike-webgl2-viewport-results.md` with:
+Write `agent-docs/spike-webgl2-viewport-results.md` with:
 - Full measurements — **native baseline alongside WebGL2**, every machine, every resolution,
   percentiles not averages, JSON attached. Do not summarize away bad numbers.
 - Each §3.2 and §3.3 threshold marked pass/fail with the actual figure
