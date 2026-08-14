@@ -126,6 +126,12 @@ set(SLIC3R_GUI_SOURCES
     GUI/GCodeViewer.hpp
     GUI/Gizmos/GizmoObjectManipulation.cpp
     GUI/Gizmos/GizmoObjectManipulation.hpp
+    GUI/JusPrin/Workspace/FakeWorkspace.hpp
+    GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
+    GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
+    GUI/JusPrin/Workspace/Workspace.hpp
+    GUI/JusPrin/Workspace/WorkspaceProbe.cpp
+    GUI/JusPrin/Workspace/WorkspaceProbe.hpp
     GUI/Gizmos/GLGizmoAssembly.cpp
     GUI/Gizmos/GLGizmoAssembly.hpp
     GUI/Gizmos/GLGizmoBase.cpp

@@ -3,6 +3,7 @@
 #include "libslic3r_version.h"
 
 #include <cstddef>
+#include <cstdlib>
 #include <algorithm>
 #include <numeric>
 #include <limits>
@@ -126,6 +127,8 @@
 #include "Gizmos/GLGizmoSimplify.hpp" // create suggestion notification
 #include "Gizmos/GLGizmoSVG.hpp" // Drop SVG file
 #include "Gizmos/GizmoObjectManipulation.hpp"
+#include "JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
+#include "JusPrin/Workspace/WorkspaceProbe.hpp"
 
 // BBS
 #include "Widgets/ProgressDialog.hpp"
@@ -4394,6 +4397,7 @@ struct Plater::priv
     AssembleView* assemble_view { nullptr };
     bool first_enter_assemble{ true };
     std::unique_ptr<NotificationManager> notification_manager;
+    std::unique_ptr<JusPrin::Workspace::OrcaWorkspaceAdapter> workspace_adapter;
 
     ProjectDirtyStateManager dirty_state;
 
@@ -5462,6 +5466,14 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
     //    sidebar->collapse(is_collapsed);
     //}
     update_sidebar(true);
+
+    const char* workspace_spike = std::getenv("JUSPRIN_WORKSPACE_SPIKE");
+    if (workspace_spike != nullptr && std::string(workspace_spike) == "1") {
+        q->CallAfter([this, q]() {
+            workspace_adapter = std::make_unique<JusPrin::Workspace::OrcaWorkspaceAdapter>(*q);
+            q->CallAfter([this, q]() { JusPrin::Workspace::show_workspace_probe(q, *workspace_adapter); });
+        });
+    }
 }
 
 Plater::priv::~priv()
@@ -14615,6 +14627,44 @@ void Plater::trigger_restore_project(int skip_confirm)
 
 //BBS
 bool Plater::delete_object_from_model(size_t obj_idx, bool refresh_immediately) { return p->delete_object_from_model(obj_idx, refresh_immediately); }
+
+bool Plater::rename_object(size_t obj_idx, const std::string& name)
+{
+    if (obj_idx >= p->model.objects.size() || name.empty())
+        return false;
+
+    ModelObject* object = p->model.objects[obj_idx];
+    if (object->name == name)
+        return true;
+
+    Plater::TakeSnapshot snapshot(this, "Rename Object");
+    object->name = name;
+    if (object->volumes.size() == 1)
+        object->volumes.front()->name = name;
+    Slic3r::save_object_mesh(*object);
+    p->sidebar->obj_list()->update_name_for_items();
+    return true;
+}
+
+int Plater::duplicate_object(size_t obj_idx)
+{
+    if (obj_idx >= p->model.objects.size())
+        return -1;
+
+    Selection& selection = p->get_selection();
+    selection.add_object(static_cast<unsigned int>(obj_idx));
+    const std::size_t old_size = p->model.objects.size();
+    selection.clone(1);
+    return p->model.objects.size() == old_size + 1 ? static_cast<int>(old_size) : -1;
+}
+
+bool Plater::delete_object(size_t obj_idx)
+{
+    if (obj_idx >= p->model.objects.size() || !p->delete_object_from_model(obj_idx))
+        return false;
+    p->sidebar->obj_list()->delete_object_from_list(obj_idx);
+    return true;
+}
 
 //BBS: delete all from model
 void Plater::delete_all_objects_from_model()

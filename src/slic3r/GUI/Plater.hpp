@@ -456,6 +456,9 @@ public:
     void deselect_all();
     void exit_gizmo();
     void remove(size_t obj_idx);
+    bool rename_object(size_t obj_idx, const std::string& name);
+    int duplicate_object(size_t obj_idx);
+    bool delete_object(size_t obj_idx);
     void reset(bool apply_presets_change = false);
     void reset_with_confirm();
     //BBS: return int for various result
