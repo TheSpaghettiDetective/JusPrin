@@ -1,0 +1,1105 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/bcaty0",
+    "id": "bcaty0",
+    "slide": 3,
+    "layoutId": "71ca54b9-27de-441e-adc1-b5e3050abc7f",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "0d6a2169-386f-43b3-bf7e-1bd45811752a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#17131F",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Courier New",
+      "HarmonyOS Sans SC"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "71ca54b9-27de-441e-adc1-b5e3050abc7f",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "0d6a2169-386f-43b3-bf7e-1bd45811752a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "0d6a2169-386f-43b3-bf7e-1bd45811752a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/redkbqtg",
+      "id": "1",
+      "name": "eyebrow-3",
+      "bbox": [
+        64,
+        46,
+        500,
+        23
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "PRODUCT CONSTRAINTS",
+      "textPreview": "PRODUCT CONSTRAINTS",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "PRODUCT CONSTRAINTS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "PRODUCT CONSTRAINTS",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "PRODUCT CONSTRAINTS",
+              "fontSize": 14,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/szm1kva1",
+      "id": "2",
+      "name": "title-3",
+      "bbox": [
+        64,
+        78,
+        1135,
+        70
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Design for a native, dense, high-DPI desktop application.",
+      "textPreview": "Design for a native, dense, high-DPI desktop application.",
+      "resolvedFontSize": 44,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 44,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Design for a native, dense, high-DPI desktop application."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Design for a native, dense, high-DPI desktop application.",
+          "lineSpacingPercent": 98000,
+          "resolvedTextStyle": {
+            "fontSize": 44,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 0.98
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Design for a native, dense, high-DPI desktop application.",
+              "fontSize": 44,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 0.98
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/t0v2d0bm",
+      "id": "3",
+      "name": "constraint-card-0",
+      "bbox": [
+        64,
+        190,
+        336,
+        290
+      ],
+      "rotation": 0,
+      "geometry": "roundRect",
+      "fillColor": "#211B2A",
+      "lineColor": "#4B3E57",
+      "lineWidth": 1
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i9kjelcz",
+      "id": "4",
+      "name": "constraint-label-0",
+      "bbox": [
+        88,
+        220,
+        290,
+        22
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "PLATFORMS",
+      "textPreview": "PLATFORMS",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 13,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "PLATFORMS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "PLATFORMS",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "PLATFORMS",
+              "fontSize": 13,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/jatk76t4",
+      "id": "5",
+      "name": "constraint-copy-0",
+      "bbox": [
+        88,
+        270,
+        290,
+        150
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Windows x64 / ARM64\nmacOS Intel / Apple Silicon\nLinux x86_64 / ARM64",
+      "textPreview": "Windows x64 / ARM64 | macOS Intel / Apple Silicon | Linux x86_64 / ARM64",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 21,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#FFFFFF",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Windows x64 / ARM64"
+          },
+          {
+            "index": 2,
+            "text": "macOS Intel / Apple Silicon"
+          },
+          {
+            "index": 3,
+            "text": "Linux x86_64 / ARM64"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Windows x64 / ARM64",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Windows x64 / ARM64",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "macOS Intel / Apple Silicon",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "macOS Intel / Apple Silicon",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "Linux x86_64 / ARM64",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Linux x86_64 / ARM64",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4b21gbap",
+      "id": "6",
+      "name": "constraint-card-1",
+      "bbox": [
+        438,
+        190,
+        336,
+        290
+      ],
+      "rotation": 0,
+      "geometry": "roundRect",
+      "fillColor": "#2B2336",
+      "lineColor": "#4B3E57",
+      "lineWidth": 1
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5cb29gba",
+      "id": "7",
+      "name": "constraint-label-1",
+      "bbox": [
+        462,
+        220,
+        290,
+        22
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "UI STACK",
+      "textPreview": "UI STACK",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 13,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "UI STACK"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "UI STACK",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "UI STACK",
+              "fontSize": 13,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/u50ja1cn",
+      "id": "8",
+      "name": "constraint-copy-1",
+      "bbox": [
+        462,
+        270,
+        290,
+        150
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "C++17 · wxWidgets · OpenGL\nEmbedded WebView surfaces\nKeyboard-first desktop patterns",
+      "textPreview": "C++17 · wxWidgets · OpenGL | Embedded WebView surfaces | Keyboard-first desktop patterns",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 21,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#FFFFFF",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "C++17 · wxWidgets · OpenGL"
+          },
+          {
+            "index": 2,
+            "text": "Embedded WebView surfaces"
+          },
+          {
+            "index": 3,
+            "text": "Keyboard-first desktop patterns"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "C++17 · wxWidgets · OpenGL",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "C++17 · wxWidgets · OpenGL",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "Embedded WebView surfaces",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Embedded WebView surfaces",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "Keyboard-first desktop patterns",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Keyboard-first desktop patterns",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/v6tk36t8",
+      "id": "9",
+      "name": "constraint-card-2",
+      "bbox": [
+        812,
+        190,
+        336,
+        290
+      ],
+      "rotation": 0,
+      "geometry": "roundRect",
+      "fillColor": "#211B2A",
+      "lineColor": "#4B3E57",
+      "lineWidth": 1
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zadwb2hk",
+      "id": "10",
+      "name": "constraint-label-2",
+      "bbox": [
+        836,
+        220,
+        290,
+        22
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "SCALE",
+      "textPreview": "SCALE",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 13,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "SCALE"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "SCALE",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "SCALE",
+              "fontSize": 13,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/y94f2x0f",
+      "id": "11",
+      "name": "constraint-copy-2",
+      "bbox": [
+        836,
+        270,
+        290,
+        150
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "All dimensions are DIP\nVerify 100%, 150%, and 200%\nSVG icons with PNG fallback",
+      "textPreview": "All dimensions are DIP | Verify 100%, 150%, and 200% | SVG icons with PNG fallback",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 21,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#FFFFFF",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "All dimensions are DIP"
+          },
+          {
+            "index": 2,
+            "text": "Verify 100%, 150%, and 200%"
+          },
+          {
+            "index": 3,
+            "text": "SVG icons with PNG fallback"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "All dimensions are DIP",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "All dimensions are DIP",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "Verify 100%, 150%, and 200%",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Verify 100%, 150%, and 200%",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "SVG icons with PNG fallback",
+          "lineSpacingPercent": 135000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#FFFFFF",
+            "alignment": "left",
+            "lineSpacing": 1.35
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "SVG icons with PNG fallback",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#FFFFFF",
+              "alignment": "left",
+              "lineSpacing": 1.35
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lcvedczq",
+      "id": "12",
+      "name": "constraint-no",
+      "bbox": [
+        64,
+        540,
+        1110,
+        62
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific fonts.",
+      "textPreview": "Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific fonts.",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 21,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#CFC5D3",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific"
+          },
+          {
+            "index": 2,
+            "text": "fonts."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific fonts.",
+          "lineSpacingPercent": 122000,
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#CFC5D3",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.22
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific fonts.",
+              "fontSize": 21,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#CFC5D3",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.22
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0bmx47i5",
+      "id": "13",
+      "name": "footer-3",
+      "bbox": [
+        64,
+        684,
+        650,
+        18
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "JusPrin UI design system · agent-ready specification",
+      "textPreview": "JusPrin UI design system · agent-ready specification",
+      "resolvedFontSize": 11,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 11,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#CFC5D3",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "JusPrin UI design system · agent-ready specification"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "JusPrin UI design system · agent-ready specification",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 11,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#CFC5D3",
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "JusPrin UI design system · agent-ready specification",
+              "fontSize": 11,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#CFC5D3",
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nedgfmhw",
+      "id": "14",
+      "name": "page-3",
+      "bbox": [
+        1150,
+        684,
+        65,
+        18
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "03",
+      "textPreview": "03",
+      "resolvedFontSize": 11,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 11,
+        "typeface": "Courier New",
+        "color": "#CFC5D3",
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "03"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 11,
+            "typeface": "Courier New",
+            "color": "#CFC5D3",
+            "alignment": "right",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "fontSize": 11,
+              "typeface": "Courier New",
+              "color": "#CFC5D3",
+              "alignment": "right",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

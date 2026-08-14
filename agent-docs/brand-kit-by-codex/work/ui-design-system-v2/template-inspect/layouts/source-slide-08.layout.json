@@ -1,0 +1,1005 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/fu1gfa1s",
+    "id": "fu1gfa1s",
+    "slide": 8,
+    "layoutId": "/ppt/slideLayouts/slideLayout1.xml",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "/ppt/slideMasters/slideMaster1.xml",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#17131F",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "fontScheme": {
+      "name": "Office",
+      "majorFont": {
+        "latinTypeface": "Calibri Light",
+        "eastAsianTypeface": "Calibri Light",
+        "complexScriptTypeface": "Calibri Light"
+      },
+      "minorFont": {
+        "latinTypeface": "Calibri",
+        "eastAsianTypeface": "Calibri",
+        "complexScriptTypeface": "Calibri"
+      }
+    },
+    "typefaces": [
+      "Avenir Next",
+      "Calibri",
+      "Calibri Light",
+      "Menlo"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "/ppt/slideLayouts/slideLayout1.xml",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "/ppt/slideMasters/slideMaster1.xml",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "/ppt/slideMasters/slideMaster1.xml",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lgbepgvm",
+      "id": "19",
+      "name": "eyebrow-8",
+      "bbox": [
+        64,
+        48,
+        360,
+        24
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "VISUAL LANGUAGE",
+      "textPreview": "VISUAL LANGUAGE",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "VISUAL LANGUAGE"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "VISUAL LANGUAGE",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Menlo",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "VISUAL LANGUAGE",
+              "fontSize": 14,
+              "typeface": "Menlo",
+              "color": "#CE84B7",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/18byd4zy",
+      "id": "2",
+      "name": "title-8",
+      "bbox": [
+        64,
+        78,
+        1110,
+        68
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Orbit. Direction. Calm containment.",
+      "textPreview": "Orbit. Direction. Calm containment.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Orbit. Direction. Calm containment."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Orbit. Direction. Calm containment.",
+          "lineSpacingPercent": 96000,
+          "resolvedTextStyle": {
+            "fontSize": 48,
+            "typeface": "Avenir Next",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Orbit. Direction. Calm containment.",
+              "fontSize": 48,
+              "typeface": "Avenir Next",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/g72x4zyd",
+      "id": "3",
+      "name": "orbit-104-210",
+      "bbox": [
+        104,
+        210,
+        200,
+        200
+      ],
+      "rotation": 0,
+      "geometry": "ellipse",
+      "lineColor": "#CE84B7",
+      "lineWidth": 3
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ri9g7uhw",
+      "id": "4",
+      "name": "slash-a-104-210",
+      "bbox": [
+        128,
+        304,
+        152,
+        17
+      ],
+      "rotation": -38,
+      "geometry": "roundRect",
+      "fillColor": "#CE84B7",
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/6h0fypgb",
+      "id": "5",
+      "name": "slash-b-104-210",
+      "bbox": [
+        128,
+        304,
+        152,
+        17
+      ],
+      "rotation": 38,
+      "geometry": "roundRect",
+      "fillColor": "#CE84B7",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/tkby9kzm",
+      "id": "6",
+      "name": "diagonal-stage",
+      "bbox": [
+        482,
+        232,
+        228,
+        156
+      ],
+      "rotation": 0,
+      "geometry": "roundRect",
+      "fillColor": "#3A2D64",
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sjix0zy1",
+      "id": "7",
+      "name": "diagonal-a",
+      "bbox": [
+        493,
+        294,
+        210,
+        20
+      ],
+      "rotation": -28,
+      "geometry": "roundRect",
+      "fillColor": "#CE84B7",
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/je9g3ahk",
+      "id": "8",
+      "name": "rounded-one",
+      "bbox": [
+        856,
+        224,
+        258,
+        176
+      ],
+      "rotation": 0,
+      "geometry": "roundRect",
+      "fillColor": "#F6F2F7",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/id0fu50z",
+      "id": "9",
+      "name": "rounded-two",
+      "bbox": [
+        900,
+        268,
+        258,
+        176
+      ],
+      "rotation": 0,
+      "geometry": "roundRect",
+      "fillColor": "#6F4F84",
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/o7ydoret",
+      "id": "10",
+      "name": "visual-title-0",
+      "bbox": [
+        64,
+        452,
+        315,
+        32
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Orbit arcs",
+      "textPreview": "Orbit arcs",
+      "resolvedFontSize": 23.7,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.99,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Orbit arcs"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Orbit arcs",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Avenir Next",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Orbit arcs",
+              "fontSize": 25,
+              "typeface": "Avenir Next",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/98rehwve",
+      "id": "11",
+      "name": "visual-desc-0",
+      "bbox": [
+        64,
+        496,
+        315,
+        82
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Use partial rings to signal progress, connection, or an active workflow.",
+      "textPreview": "Use partial rings to signal progress, connection, or an active workflow.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Use partial rings to signal progress,"
+          },
+          {
+            "index": 2,
+            "text": "connection, or an active workflow."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Use partial rings to signal progress, connection, or an active workflow.",
+          "lineSpacingPercent": 123000,
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Avenir Next",
+            "color": "#CFC5D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Use partial rings to signal progress, connection, or an active workflow.",
+              "fontSize": 17,
+              "typeface": "Avenir Next",
+              "color": "#CFC5D3"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m5gvmhwn",
+      "id": "12",
+      "name": "visual-title-1",
+      "bbox": [
+        444,
+        452,
+        315,
+        32
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Confident diagonals",
+      "textPreview": "Confident diagonals",
+      "resolvedFontSize": 23.7,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.99,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Confident diagonals"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Confident diagonals",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Avenir Next",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Confident diagonals",
+              "fontSize": 25,
+              "typeface": "Avenir Next",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/n6pwfmd8",
+      "id": "13",
+      "name": "visual-desc-1",
+      "bbox": [
+        444,
+        496,
+        315,
+        82
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Use one directional stroke to add momentum - never a tangle of competing angles.",
+      "textPreview": "Use one directional stroke to add momentum - never a tangle of competing angles.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Use one directional stroke to add"
+          },
+          {
+            "index": 2,
+            "text": "momentum - never a tangle of"
+          },
+          {
+            "index": 3,
+            "text": "competing angles."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Use one directional stroke to add momentum - never a tangle of competing angles.",
+          "lineSpacingPercent": 123000,
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Avenir Next",
+            "color": "#CFC5D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Use one directional stroke to add momentum - never a tangle of competing angles.",
+              "fontSize": 17,
+              "typeface": "Avenir Next",
+              "color": "#CFC5D3"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0jydkreh",
+      "id": "14",
+      "name": "visual-title-2",
+      "bbox": [
+        824,
+        452,
+        315,
+        32
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Rounded surfaces",
+      "textPreview": "Rounded surfaces",
+      "resolvedFontSize": 23.7,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.99,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Rounded surfaces"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Rounded surfaces",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "Avenir Next",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Rounded surfaces",
+              "fontSize": 25,
+              "typeface": "Avenir Next",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/1k7edwv2",
+      "id": "15",
+      "name": "visual-desc-2",
+      "bbox": [
+        824,
+        496,
+        315,
+        82
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Use 16-24 px radii for panels and app tiles; pair with quiet, generous spacing.",
+      "textPreview": "Use 16-24 px radii for panels and app tiles; pair with quiet, generous spacing.",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Use 16-24 px radii for panels and app"
+          },
+          {
+            "index": 2,
+            "text": "tiles; pair with quiet, generous spacing."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Use 16-24 px radii for panels and app tiles; pair with quiet, generous spacing.",
+          "lineSpacingPercent": 123000,
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Avenir Next",
+            "color": "#CFC5D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Use 16-24 px radii for panels and app tiles; pair with quiet, generous spacing.",
+              "fontSize": 17,
+              "typeface": "Avenir Next",
+              "color": "#CFC5D3"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ehgvihwr",
+      "id": "16",
+      "name": "background-rule",
+      "bbox": [
+        64,
+        610,
+        1110,
+        42
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Background rule: prefer White, Mist, or Ink. On photography, place the logo on a quiet solid field - never directly over visual noise.",
+      "textPreview": "Background rule: prefer White, Mist, or Ink. On photography, place the logo on a quiet solid field - never directly over visual noise.",
+      "resolvedFontSize": 23.46,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.98,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Background rule: prefer White, Mist, or Ink. On photography, place the logo on a quiet solid field - never directly over visual"
+          },
+          {
+            "index": 2,
+            "text": "noise."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Background rule: prefer White, Mist, or Ink. On photography, place the logo on a quiet solid field - never directly over visual noise.",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Avenir Next",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Background rule: prefer White, Mist, or Ink. On photography, place the logo on a quiet solid field - never directly over visual noise.",
+              "fontSize": 18,
+              "typeface": "Avenir Next",
+              "color": "#CE84B7",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zipwbmdc",
+      "id": "17",
+      "name": "footer-8",
+      "bbox": [
+        64,
+        680,
+        350,
+        20
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "JusPrin visual brand kit",
+      "textPreview": "JusPrin visual brand kit",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "JusPrin visual brand kit"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "JusPrin visual brand kit",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Avenir Next",
+            "color": "#CFC5D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "JusPrin visual brand kit",
+              "fontSize": 13,
+              "typeface": "Avenir Next",
+              "color": "#CFC5D3"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kfixwbe1",
+      "id": "18",
+      "name": "page-8",
+      "bbox": [
+        1160,
+        680,
+        56,
+        20
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "08",
+      "textPreview": "08",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "08"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "08",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Menlo",
+            "color": "#CFC5D3",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "08",
+              "fontSize": 13,
+              "typeface": "Menlo",
+              "color": "#CFC5D3"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

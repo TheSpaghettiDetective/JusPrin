@@ -1,0 +1,425 @@
+{"kind":"deck","id":"pr/rqk61t","name":"Deck"}
+{"kind":"layout","layoutId":"0d6a2169-386f-43b3-bf7e-1bd45811752a","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"71ca54b9-27de-441e-adc1-b5e3050abc7f","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/s513ex","slide":1,"title":"UI DESIGN SYSTEM / 2026","textShapes":7}
+{"kind":"shape","id":"sh/9sja9kzq","slide":1,"name":"cover-orbit","bbox":[830,-120,560,560]}
+{"kind":"shape","id":"sh/mpsrep0z","slide":1,"name":"cover-slash","bbox":[930,150,390,44]}
+{"kind":"textbox","id":"sh/7q1s7uhk","slide":1,"name":"cover-kicker","text":"UI DESIGN SYSTEM / 2026","textPreview":"UI DESIGN SYSTEM / 2026","textChars":23,"textLines":1,"bbox":[66,58,500,24]}
+{"kind":"textbox","id":"sh/loza5kze","slide":1,"name":"cover-name","text":"JusPrin","textPreview":"JusPrin","textChars":7,"textLines":1,"bbox":[260,210,560,84]}
+{"kind":"textbox","id":"sh/yl8ra503","slide":1,"name":"cover-title","text":"One executable visual language\nfor light and dark desktop UI.","textPreview":"One executable visual language | for light and dark desktop UI.","textChars":61,"textLines":2,"bbox":[68,392,820,128]}
+{"kind":"textbox","id":"sh/zmhs3aho","slide":1,"name":"cover-sub","text":"Semantic tokens, native component rules, accessibility states, and design-agent instructions.","textPreview":"Semantic tokens, native component rules, accessibility states, and design-agent instructions.","textChars":93,"textLines":1,"bbox":[68,552,800,52]}
+{"kind":"shape","id":"sh/4jutojid","slide":1,"name":"chip-WINDOWS · MAC · LINUX-956-504","bbox":[956,504,190,34]}
+{"kind":"textbox","id":"sh/5k3ah4zy","slide":1,"name":"chip-text-WINDOWS · MAC · LINUX-956-504","text":"WINDOWS · MAC · LINUX","textPreview":"WINDOWS · MAC · LINUX","textChars":21,"textLines":1,"bbox":[956,512,190,18]}
+{"kind":"textbox","id":"sh/xsvadwjq","slide":1,"name":"footer-1","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/wrmt4r25","slide":1,"name":"page-1","text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"image","id":"im/t8nm98vu","slide":1,"name":"","alt":"JusPrin mark","bbox":[72,174,170,170]}
+{"kind":"notes","id":"nt/s513ex","slide":1,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/idzhqs","slide":2,"title":"HOW TO USE THIS GUIDE","textShapes":15}
+{"kind":"textbox","id":"sh/jytw32ls","slide":2,"name":"eyebrow-2","text":"HOW TO USE THIS GUIDE","textPreview":"HOW TO USE THIS GUIDE","textChars":21,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/kj2dc7md","slide":2,"name":"title-2","text":"The brand palette inspires; semantic tokens decide.","textPreview":"The brand palette inspires; semantic tokens decide.","textChars":51,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/5kbe5c3y","slide":2,"name":"contract-intro","text":"A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must resolve to a named semantic or component token.","textPreview":"A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must resolve to a named semantic...","textChars":157,"textLines":1,"bbox":[64,170,1110,72]}
+{"kind":"textbox","id":"sh/at0v6x4b","slide":2,"name":"contract-num-0","text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[64,300,60,28]}
+{"kind":"textbox","id":"sh/vu9wz2lw","slide":2,"name":"contract-title-0","text":"Start with mode","textPreview":"Start with mode","textChars":15,"textLines":1,"bbox":[64,344,310,38]}
+{"kind":"textbox","id":"sh/wvid8nmh","slide":2,"name":"contract-copy-0","text":"Create paired light and dark frames. Never recolor a finished light design by eye.","textPreview":"Create paired light and dark frames. Never recolor a finished light design by eye.","textChars":82,"textLines":1,"bbox":[64,398,310,112]}
+{"kind":"textbox","id":"sh/xwbe1s32","slide":2,"name":"contract-num-1","text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[438,300,60,28]}
+{"kind":"textbox","id":"sh/ep4vihkf","slide":2,"name":"contract-title-1","text":"Name the intent","textPreview":"Name the intent","textChars":15,"textLines":1,"bbox":[438,344,310,38]}
+{"kind":"textbox","id":"sh/fqdwbml0","slide":2,"name":"contract-copy-1","text":"Choose surface, text, action, border, status, or focus tokens - never a raw purple.","textPreview":"Choose surface, text, action, border, status, or focus tokens - never a raw purple.","textChars":83,"textLines":1,"bbox":[438,398,310,112]}
+{"kind":"textbox","id":"sh/7mtsvuxw","slide":2,"name":"contract-num-2","text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[812,300,60,28]}
+{"kind":"textbox","id":"sh/mlkr2pgb","slide":2,"name":"contract-title-2","text":"Fit the native app","textPreview":"Fit the native app","textChars":18,"textLines":1,"bbox":[812,344,310,38]}
+{"kind":"textbox","id":"sh/9obaxkfm","slide":2,"name":"contract-copy-2","text":"Use the existing wxWidgets density, DIP scaling, keyboard focus, and 4/8/12 radii.","textPreview":"Use the existing wxWidgets density, DIP scaling, keyboard focus, and 4/8/12 radii.","textChars":82,"textLines":1,"bbox":[812,398,310,112]}
+{"kind":"shape","id":"sh/8n294fy1","slide":2,"name":"contract-rule","bbox":[64,560,1120,2]}
+{"kind":"textbox","id":"sh/vqtszuxs","slide":2,"name":"contract-test","text":"Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any deliberate exception.","textPreview":"Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any delib...","textChars":153,"textLines":1,"bbox":[64,590,1120,48]}
+{"kind":"textbox","id":"sh/upkr6pg7","slide":2,"name":"footer-2","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/hcva14fy","slide":2,"name":"page-2","text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/idzhqs","slide":2,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/bcaty0","slide":3,"title":"PRODUCT CONSTRAINTS","textShapes":11}
+{"kind":"textbox","id":"sh/redkbqtg","slide":3,"name":"eyebrow-3","text":"PRODUCT CONSTRAINTS","textPreview":"PRODUCT CONSTRAINTS","textChars":19,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/szm1kva1","slide":3,"name":"title-3","text":"Design for a native, dense, high-DPI desktop application.","textPreview":"Design for a native, dense, high-DPI desktop application.","textChars":57,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"shape","id":"sh/t0v2d0bm","slide":3,"name":"constraint-card-0","bbox":[64,190,336,290]}
+{"kind":"textbox","id":"sh/i9kjelcz","slide":3,"name":"constraint-label-0","text":"PLATFORMS","textPreview":"PLATFORMS","textChars":9,"textLines":1,"bbox":[88,220,290,22]}
+{"kind":"textbox","id":"sh/jatk76t4","slide":3,"name":"constraint-copy-0","text":"Windows x64 / ARM64\nmacOS Intel / Apple Silicon\nLinux x86_64 / ARM64","textPreview":"Windows x64 / ARM64 | macOS Intel / Apple Silicon | Linux x86_64 / ARM64","textChars":68,"textLines":3,"bbox":[88,270,290,150]}
+{"kind":"shape","id":"sh/4b21gbap","slide":3,"name":"constraint-card-1","bbox":[438,190,336,290]}
+{"kind":"textbox","id":"sh/5cb29gba","slide":3,"name":"constraint-label-1","text":"UI STACK","textPreview":"UI STACK","textChars":8,"textLines":1,"bbox":[462,220,290,22]}
+{"kind":"textbox","id":"sh/u50ja1cn","slide":3,"name":"constraint-copy-1","text":"C++17 · wxWidgets · OpenGL\nEmbedded WebView surfaces\nKeyboard-first desktop patterns","textPreview":"C++17 · wxWidgets · OpenGL | Embedded WebView surfaces | Keyboard-first desktop patterns","textChars":84,"textLines":3,"bbox":[462,270,290,150]}
+{"kind":"shape","id":"sh/v6tk36t8","slide":3,"name":"constraint-card-2","bbox":[812,190,336,290]}
+{"kind":"textbox","id":"sh/zadwb2hk","slide":3,"name":"constraint-label-2","text":"SCALE","textPreview":"SCALE","textChars":5,"textLines":1,"bbox":[836,220,290,22]}
+{"kind":"textbox","id":"sh/y94f2x0f","slide":3,"name":"constraint-copy-2","text":"All dimensions are DIP\nVerify 100%, 150%, and 200%\nSVG icons with PNG fallback","textPreview":"All dimensions are DIP | Verify 100%, 150%, and 200% | SVG icons with PNG fallback","textChars":78,"textLines":3,"bbox":[836,270,290,150]}
+{"kind":"textbox","id":"sh/lcvedczq","slide":3,"name":"constraint-no","text":"Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific fonts.","textPreview":"Avoid web-only assumptions: oversized controls, glass effects, blur-heavy surfaces, fixed physical pixels, and platform-specific fonts.","textChars":135,"textLines":1,"bbox":[64,540,1110,62]}
+{"kind":"textbox","id":"sh/0bmx47i5","slide":3,"name":"footer-3","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/nedgfmhw","slide":3,"name":"page-3","text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/bcaty0","slide":3,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/93tyny","slide":4,"title":"COLOR PRIMITIVES","textShapes":31}
+{"kind":"textbox","id":"sh/wv6tgne1","slide":4,"name":"eyebrow-4","text":"COLOR PRIMITIVES","textPreview":"COLOR PRIMITIVES","textChars":16,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/vuxc72xg","slide":4,"name":"title-4","text":"A compact palette supplies both themes.","textPreview":"A compact palette supplies both themes.","textChars":39,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"shape","id":"sh/utobexwv","slide":4,"name":"primitive-0","bbox":[64,176,336,116]}
+{"kind":"textbox","id":"sh/5kzudcfi","slide":4,"name":"primitive-name-0","text":"Orbit","textPreview":"Orbit","textChars":5,"textLines":1,"bbox":[82,193,145,30]}
+{"kind":"textbox","id":"sh/4j6tk7ex","slide":4,"name":"primitive-hex-0","text":"#3A2D64","textPreview":"#3A2D64","textChars":7,"textLines":1,"bbox":[242,197,140,22]}
+{"kind":"textbox","id":"sh/jyxcb2xc","slide":4,"name":"primitive-token-0","text":"brand.orbit","textPreview":"brand.orbit","textChars":11,"textLines":1,"bbox":[82,252,300,20]}
+{"kind":"shape","id":"sh/ixobixwr","slide":4,"name":"primitive-1","bbox":[438,176,336,116]}
+{"kind":"textbox","id":"sh/lova18fe","slide":4,"name":"primitive-name-1","text":"Violet","textPreview":"Violet","textChars":6,"textLines":1,"bbox":[456,193,145,30]}
+{"kind":"textbox","id":"sh/knmt83et","slide":4,"name":"primitive-hex-1","text":"#6F4F84","textPreview":"#6F4F84","textChars":7,"textLines":1,"bbox":[616,197,140,22]}
+{"kind":"textbox","id":"sh/ep4r2xof","slide":4,"name":"primitive-token-1","text":"brand.violet","textPreview":"brand.violet","textChars":12,"textLines":1,"bbox":[456,252,300,20]}
+{"kind":"shape","id":"sh/zqdsv2pk","slide":4,"name":"primitive-2","bbox":[812,176,336,116]}
+{"kind":"textbox","id":"sh/0rm94765","slide":4,"name":"primitive-name-2","text":"Bloom","textPreview":"Bloom","textChars":5,"textLines":1,"bbox":[830,193,145,30]}
+{"kind":"textbox","id":"sh/1svaxs7q","slide":4,"name":"primitive-hex-2","text":"#CE84B7","textPreview":"#CE84B7","textChars":7,"textLines":1,"bbox":[990,197,140,22]}
+{"kind":"textbox","id":"sh/mt4r6xob","slide":4,"name":"primitive-token-2","text":"brand.bloom","textPreview":"brand.bloom","textChars":11,"textLines":1,"bbox":[830,252,300,20]}
+{"kind":"shape","id":"sh/nuxsz2pw","slide":4,"name":"primitive-3","bbox":[64,322,336,116]}
+{"kind":"textbox","id":"sh/ov69876h","slide":4,"name":"primitive-name-3","text":"Ink","textPreview":"Ink","textChars":3,"textLines":1,"bbox":[82,339,145,30]}
+{"kind":"textbox","id":"sh/9wfa1c72","slide":4,"name":"primitive-hex-3","text":"#17131F","textPreview":"#17131F","textChars":7,"textLines":1,"bbox":[242,343,140,22]}
+{"kind":"textbox","id":"sh/ahobaho7","slide":4,"name":"primitive-token-3","text":"neutral.ink","textPreview":"neutral.ink","textChars":11,"textLines":1,"bbox":[82,398,300,20]}
+{"kind":"shape","id":"sh/bixs3mps","slide":4,"name":"primitive-4","bbox":[438,322,336,116]}
+{"kind":"textbox","id":"sh/7mh8rml0","slide":4,"name":"primitive-name-4","text":"Mist","textPreview":"Mist","textChars":4,"textLines":1,"bbox":[456,339,145,30]}
+{"kind":"textbox","id":"sh/6l8rih4f","slide":4,"name":"primitive-hex-4","text":"#F6F2F7","textPreview":"#F6F2F7","textChars":7,"textLines":1,"bbox":[616,343,140,22]}
+{"kind":"textbox","id":"sh/tozqtw36","slide":4,"name":"primitive-token-4","text":"neutral.mist","textPreview":"neutral.mist","textChars":12,"textLines":1,"bbox":[456,398,300,20]}
+{"kind":"shape","id":"sh/8nq9krml","slide":4,"name":"primitive-5","bbox":[812,322,336,116]}
+{"kind":"textbox","id":"sh/jyx8n254","slide":4,"name":"primitive-name-5","text":"Trace","textPreview":"Trace","textChars":5,"textLines":1,"bbox":[830,339,145,30]}
+{"kind":"textbox","id":"sh/yxorex4j","slide":4,"name":"primitive-hex-5","text":"#E8DFEB","textPreview":"#E8DFEB","textChars":7,"textLines":1,"bbox":[990,343,140,22]}
+{"kind":"textbox","id":"sh/lkfqpc3u","slide":4,"name":"primitive-token-5","text":"neutral.trace","textPreview":"neutral.trace","textChars":13,"textLines":1,"bbox":[830,398,300,20]}
+{"kind":"shape","id":"sh/kj69g7mp","slide":4,"name":"primitive-6","bbox":[64,468,336,116]}
+{"kind":"textbox","id":"sh/bux8j25s","slide":4,"name":"primitive-name-6","text":"Success","textPreview":"Success","textChars":7,"textLines":1,"bbox":[82,485,145,30]}
+{"kind":"textbox","id":"sh/atorax47","slide":4,"name":"primitive-hex-6","text":"#2D6A55","textPreview":"#2D6A55","textChars":7,"textLines":1,"bbox":[242,489,140,22]}
+{"kind":"textbox","id":"sh/gnix4zyt","slide":4,"name":"primitive-token-6","text":"status.success","textPreview":"status.success","textChars":14,"textLines":1,"bbox":[82,544,300,20]}
+{"kind":"shape","id":"sh/1obex4fe","slide":4,"name":"primitive-7","bbox":[438,468,336,116]}
+{"kind":"textbox","id":"sh/el0f2pg3","slide":4,"name":"primitive-name-7","text":"Danger","textPreview":"Danger","textChars":6,"textLines":1,"bbox":[456,485,145,30]}
+{"kind":"textbox","id":"sh/fm9wvuh8","slide":4,"name":"primitive-hex-7","text":"#B44757","textPreview":"#B44757","textChars":7,"textLines":1,"bbox":[616,489,140,22]}
+{"kind":"textbox","id":"sh/or2x8jy5","slide":4,"name":"primitive-token-7","text":"status.danger","textPreview":"status.danger","textChars":13,"textLines":1,"bbox":[456,544,300,20]}
+{"kind":"shape","id":"sh/psby1ofq","slide":4,"name":"primitive-8","bbox":[812,468,336,116]}
+{"kind":"textbox","id":"sh/2pkf69gz","slide":4,"name":"primitive-name-8","text":"Warning","textPreview":"Warning","textChars":7,"textLines":1,"bbox":[830,485,145,30]}
+{"kind":"textbox","id":"sh/3qtwzexk","slide":4,"name":"primitive-hex-8","text":"#D49A2A","textPreview":"#D49A2A","textChars":7,"textLines":1,"bbox":[990,489,140,22]}
+{"kind":"textbox","id":"sh/4vyxwfyl","slide":4,"name":"primitive-token-8","text":"status.warning","textPreview":"status.warning","textChars":14,"textLines":1,"bbox":[830,544,300,20]}
+{"kind":"textbox","id":"sh/5w7epkz6","slide":4,"name":"footer-4","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/xo3ylo32","slide":4,"name":"page-4","text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/93tyny","slide":4,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/5j7tjh","slide":5,"title":"SEMANTIC COLOR API","textShapes":48}
+{"kind":"textbox","id":"sh/4zulcr2x","slide":5,"name":"eyebrow-5","text":"SEMANTIC COLOR API","textPreview":"SEMANTIC COLOR API","textChars":18,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/jyl4jmlc","slide":5,"name":"title-5","text":"One token name carries the same intent in both modes.","textPreview":"One token name carries the same intent in both modes.","textChars":53,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/ixs3a1kr","slide":5,"name":"semantic-head-a","text":"TOKEN","textPreview":"TOKEN","textChars":5,"textLines":1,"bbox":[76,166,250,20]}
+{"kind":"textbox","id":"sh/t43mpg3e","slide":5,"name":"semantic-head-b","text":"LIGHT","textPreview":"LIGHT","textChars":5,"textLines":1,"bbox":[382,166,130,20]}
+{"kind":"textbox","id":"sh/s3ulgb29","slide":5,"name":"semantic-head-c","text":"DARK","textPreview":"DARK","textChars":4,"textLines":1,"bbox":[566,166,130,20]}
+{"kind":"textbox","id":"sh/r2l4n6lo","slide":5,"name":"semantic-head-d","text":"PURPOSE","textPreview":"PURPOSE","textChars":7,"textLines":1,"bbox":[754,166,320,20]}
+{"kind":"textbox","id":"sh/61c3e1k3","slide":5,"name":"token-name-0","text":"surface.canvas","textPreview":"surface.canvas","textChars":14,"textLines":1,"bbox":[76,205,290,22]}
+{"kind":"shape","id":"sh/1snmtg3q","slide":5,"name":"token-light-swatch-0","bbox":[382,206,20,20]}
+{"kind":"textbox","id":"sh/grelkb25","slide":5,"name":"token-light-0","text":"#FFFFFF","textPreview":"#FFFFFF","textChars":7,"textLines":1,"bbox":[412,205,135,22]}
+{"kind":"shape","id":"sh/uxkrq9cz","slide":5,"name":"token-dark-swatch-0","bbox":[564,206,20,20]}
+{"kind":"textbox","id":"sh/fytszetk","slide":5,"name":"token-dark-0","text":"#17131F","textPreview":"#17131F","textChars":7,"textLines":1,"bbox":[594,205,135,22]}
+{"kind":"textbox","id":"sh/gz29sju5","slide":5,"name":"token-purpose-0","text":"Primary application background","textPreview":"Primary application background","textChars":30,"textLines":1,"bbox":[754,205,410,24]}
+{"kind":"shape","id":"sh/hkva1obq","slide":5,"name":"token-bg-1","bbox":[64,240,1120,44]}
+{"kind":"textbox","id":"sh/2l4rutcb","slide":5,"name":"token-name-1","text":"surface.subtle","textPreview":"surface.subtle","textChars":14,"textLines":1,"bbox":[76,247,290,22]}
+{"kind":"shape","id":"sh/3mds3ytw","slide":5,"name":"token-light-swatch-1","bbox":[382,248,20,20]}
+{"kind":"textbox","id":"sh/4nmtw3uh","slide":5,"name":"token-light-1","text":"#F6F2F7","textPreview":"#F6F2F7","textChars":7,"textLines":1,"bbox":[412,247,135,22]}
+{"kind":"shape","id":"sh/pova5obm","slide":5,"name":"token-dark-swatch-1","bbox":[564,248,20,20]}
+{"kind":"textbox","id":"sh/ip0ripc7","slide":5,"name":"token-dark-1","text":"#211B2A","textPreview":"#211B2A","textChars":7,"textLines":1,"bbox":[594,247,135,22]}
+{"kind":"textbox","id":"sh/jq9srudc","slide":5,"name":"token-purpose-1","text":"Sidebars and grouped settings","textPreview":"Sidebars and grouped settings","textChars":29,"textLines":1,"bbox":[754,247,410,24]}
+{"kind":"textbox","id":"sh/nupojqt4","slide":5,"name":"token-name-2","text":"surface.raised","textPreview":"surface.raised","textChars":14,"textLines":1,"bbox":[76,289,290,22]}
+{"kind":"shape","id":"sh/m9w7qlsz","slide":5,"name":"token-light-swatch-2","bbox":[382,290,20,20]}
+{"kind":"textbox","id":"sh/9w76l0ba","slide":5,"name":"token-light-2","text":"#FFFFFF","textPreview":"#FFFFFF","textChars":7,"textLines":1,"bbox":[412,289,135,22]}
+{"kind":"shape","id":"sh/ovypsvap","slide":5,"name":"token-dark-swatch-2","bbox":[564,290,20,20]}
+{"kind":"textbox","id":"sh/z65ofqt8","slide":5,"name":"token-dark-2","text":"#2B2336","textPreview":"#2B2336","textChars":7,"textLines":1,"bbox":[594,289,135,22]}
+{"kind":"textbox","id":"sh/e5w7mlsn","slide":5,"name":"token-purpose-2","text":"Dialogs, menus, elevated panels","textPreview":"Dialogs, menus, elevated panels","textChars":31,"textLines":1,"bbox":[754,289,410,24]}
+{"kind":"shape","id":"sh/18n6hgbe","slide":5,"name":"token-bg-3","bbox":[64,324,1120,44]}
+{"kind":"textbox","id":"sh/07epovat","slide":5,"name":"token-name-3","text":"text.primary","textPreview":"text.primary","textChars":12,"textLines":1,"bbox":[76,331,290,22]}
+{"kind":"shape","id":"sh/j298ra9c","slide":5,"name":"token-light-swatch-3","bbox":[382,332,20,20]}
+{"kind":"textbox","id":"sh/i107y5sr","slide":5,"name":"token-light-3","text":"#17131F","textPreview":"#17131F","textChars":7,"textLines":1,"bbox":[412,331,135,22]}
+{"kind":"shape","id":"sh/g7als7q9","slide":5,"name":"token-dark-swatch-3","bbox":[564,332,20,20]}
+{"kind":"textbox","id":"sh/h8jmlcru","slide":5,"name":"token-dark-3","text":"#F6F2F7","textPreview":"#F6F2F7","textChars":7,"textLines":1,"bbox":[594,331,135,22]}
+{"kind":"textbox","id":"sh/u5s3qx8j","slide":5,"name":"token-purpose-3","text":"Headings, values, body copy","textPreview":"Headings, values, body copy","textChars":27,"textLines":1,"bbox":[754,331,410,24]}
+{"kind":"textbox","id":"sh/f614j294","slide":5,"name":"token-name-4","text":"text.secondary","textPreview":"text.secondary","textChars":14,"textLines":1,"bbox":[76,373,290,22]}
+{"kind":"shape","id":"sh/4bu5wrql","slide":5,"name":"token-light-swatch-4","bbox":[382,374,20,20]}
+{"kind":"textbox","id":"sh/pc3mpwr6","slide":5,"name":"token-light-4","text":"#5F5767","textPreview":"#5F5767","textChars":7,"textLines":1,"bbox":[412,373,135,22]}
+{"kind":"shape","id":"sh/29s3uh8f","slide":5,"name":"token-dark-swatch-4","bbox":[564,374,20,20]}
+{"kind":"textbox","id":"sh/3a14nm90","slide":5,"name":"token-dark-4","text":"#CFC5D3","textPreview":"#CFC5D3","textChars":7,"textLines":1,"bbox":[594,373,135,22]}
+{"kind":"textbox","id":"sh/cfu50rqh","slide":5,"name":"token-purpose-4","text":"Descriptions and secondary labels","textPreview":"Descriptions and secondary labels","textChars":33,"textLines":1,"bbox":[754,373,410,24]}
+{"kind":"shape","id":"sh/d03mtw72","slide":5,"name":"token-bg-5","bbox":[64,408,1120,44]}
+{"kind":"textbox","id":"sh/dwbetsr6","slide":5,"name":"token-name-5","text":"border.subtle","textPreview":"border.subtle","textChars":13,"textLines":1,"bbox":[76,415,290,22]}
+{"kind":"shape","id":"sh/cb2dknql","slide":5,"name":"token-light-swatch-5","bbox":[382,416,20,20]}
+{"kind":"textbox","id":"sh/batwri90","slide":5,"name":"token-light-5","text":"#E8DFEB","textPreview":"#E8DFEB","textChars":7,"textLines":1,"bbox":[412,415,135,22]}
+{"kind":"shape","id":"sh/q9kvid8f","slide":5,"name":"token-dark-swatch-5","bbox":[564,416,20,20]}
+{"kind":"textbox","id":"sh/p8bep8ru","slide":5,"name":"token-dark-5","text":"#4B3E57","textPreview":"#4B3E57","textChars":7,"textLines":1,"bbox":[594,415,135,22]}
+{"kind":"textbox","id":"sh/o7idgnqp","slide":5,"name":"token-purpose-5","text":"Dividers and quiet structure","textPreview":"Dividers and quiet structure","textChars":28,"textLines":1,"bbox":[754,415,410,24]}
+{"kind":"textbox","id":"sh/369cni94","slide":5,"name":"token-name-6","text":"border.strong","textPreview":"border.strong","textChars":13,"textLines":1,"bbox":[76,457,290,22]}
+{"kind":"shape","id":"sh/250ved8j","slide":5,"name":"token-light-swatch-6","bbox":[382,458,20,20]}
+{"kind":"textbox","id":"sh/94ve1cre","slide":5,"name":"token-light-6","text":"#6F4F84","textPreview":"#6F4F84","textChars":7,"textLines":1,"bbox":[412,457,135,22]}
+{"kind":"shape","id":"sh/83mds7qt","slide":5,"name":"token-dark-swatch-6","bbox":[564,458,20,20]}
+{"kind":"textbox","id":"sh/69gbm9ob","slide":5,"name":"token-dark-6","text":"#7D6A8D","textPreview":"#7D6A8D","textChars":7,"textLines":1,"bbox":[594,457,135,22]}
+{"kind":"textbox","id":"sh/rapsvepw","slide":5,"name":"token-purpose-6","text":"Focus and essential boundaries","textPreview":"Focus and essential boundaries","textChars":30,"textLines":1,"bbox":[754,457,410,24]}
+{"kind":"shape","id":"sh/sbytoj6h","slide":5,"name":"token-bg-7","bbox":[64,492,1120,44]}
+{"kind":"textbox","id":"sh/tc7axo7m","slide":5,"name":"token-name-7","text":"action.primary","textPreview":"action.primary","textChars":14,"textLines":1,"bbox":[76,499,290,22]}
+{"kind":"shape","id":"sh/ilwbipoz","slide":5,"name":"token-light-swatch-7","bbox":[382,500,20,20]}
+{"kind":"textbox","id":"sh/jm5srupk","slide":5,"name":"token-light-7","text":"#3A2D64","textPreview":"#3A2D64","textChars":7,"textLines":1,"bbox":[412,499,135,22]}
+{"kind":"shape","id":"sh/47etkz65","slide":5,"name":"token-dark-swatch-7","bbox":[564,500,20,20]}
+{"kind":"textbox","id":"sh/587at47q","slide":5,"name":"token-dark-7","text":"#CE84B7","textPreview":"#CE84B7","textChars":7,"textLines":1,"bbox":[594,499,135,22]}
+{"kind":"textbox","id":"sh/2h0butoj","slide":5,"name":"token-purpose-7","text":"Decisive primary action","textPreview":"Decisive primary action","textChars":23,"textLines":1,"bbox":[754,499,410,24]}
+{"kind":"textbox","id":"sh/329c3yp4","slide":5,"name":"token-name-8","text":"action.primary.hover","textPreview":"action.primary.hover","textChars":20,"textLines":1,"bbox":[76,541,290,22]}
+{"kind":"shape","id":"sh/zm18fq5g","slide":5,"name":"token-light-swatch-8","bbox":[382,542,20,20]}
+{"kind":"textbox","id":"sh/yls7ml4v","slide":5,"name":"token-light-8","text":"#4B3A77","textPreview":"#4B3A77","textChars":7,"textLines":1,"bbox":[412,541,135,22]}
+{"kind":"shape","id":"sh/lojqh0n6","slide":5,"name":"token-dark-swatch-8","bbox":[564,542,20,20]}
+{"kind":"textbox","id":"sh/0napovm1","slide":5,"name":"token-dark-8","text":"#D99AC5","textPreview":"#D99AC5","textChars":7,"textLines":1,"bbox":[594,541,135,22]}
+{"kind":"textbox","id":"sh/nql8jq5c","slide":5,"name":"token-purpose-8","text":"Pointer hover","textPreview":"Pointer hover","textChars":13,"textLines":1,"bbox":[754,541,410,24]}
+{"kind":"shape","id":"sh/mpc7q54r","slide":5,"name":"token-bg-9","bbox":[64,576,1120,44]}
+{"kind":"textbox","id":"sh/9s3ql0ni","slide":5,"name":"token-name-9","text":"action.primary.pressed","textPreview":"action.primary.pressed","textChars":22,"textLines":1,"bbox":[76,583,290,22]}
+{"kind":"shape","id":"sh/8rupsvmx","slide":5,"name":"token-light-swatch-9","bbox":[382,584,20,20]}
+{"kind":"textbox","id":"sh/vel8na5o","slide":5,"name":"token-light-9","text":"#2B214F","textPreview":"#2B214F","textChars":7,"textLines":1,"bbox":[412,583,135,22]}
+{"kind":"shape","id":"sh/adc7u543","slide":5,"name":"token-dark-swatch-9","bbox":[564,584,20,20]}
+{"kind":"textbox","id":"sh/sjepkf21","slide":5,"name":"token-dark-9","text":"#B76CA0","textPreview":"#B76CA0","textChars":7,"textLines":1,"bbox":[594,583,135,22]}
+{"kind":"textbox","id":"sh/tkn6dkjm","slide":5,"name":"token-purpose-9","text":"Pressed / active","textPreview":"Pressed / active","textChars":16,"textLines":1,"bbox":[754,583,410,24]}
+{"kind":"textbox","id":"sh/6hw7i5kb","slide":5,"name":"footer-5","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/ri5oba1g","slide":5,"name":"page-5","text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/5j7tjh","slide":5,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/kau1kj","slide":6,"title":"LIGHT AND DARK MODES","textShapes":15}
+{"kind":"textbox","id":"sh/7ulgr694","slide":6,"name":"eyebrow-6","text":"LIGHT AND DARK MODES","textPreview":"LIGHT AND DARK MODES","textChars":20,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/8vuhkrap","slide":6,"name":"title-6","text":"Dark mode is a remapping, not an inversion.","textPreview":"Dark mode is a remapping, not an inversion.","textChars":43,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"shape","id":"sh/tw3ytwru","slide":6,"name":"light-frame","bbox":[64,182,536,414]}
+{"kind":"shape","id":"sh/ypszehs7","slide":6,"name":"dark-frame","bbox":[632,182,536,414]}
+{"kind":"textbox","id":"sh/jq1gnm9s","slide":6,"name":"light-label","text":"LIGHT","textPreview":"LIGHT","textChars":5,"textLines":1,"bbox":[88,205,100,20]}
+{"kind":"textbox","id":"sh/krahgrad","slide":6,"name":"dark-label","text":"DARK","textPreview":"DARK","textChars":4,"textLines":1,"bbox":[656,205,100,20]}
+{"kind":"shape","id":"sh/lsjypwry","slide":6,"name":"mode-sidebar-0","bbox":[64,242,150,354]}
+{"kind":"textbox","id":"sh/a18zahsb","slide":6,"name":"mode-nav-0","text":"PREPARE\n\nPREVIEW\n\nDEVICE","textPreview":"PREPARE |  | PREVIEW |  | DEVICE","textChars":24,"textLines":5,"bbox":[88,272,110,160]}
+{"kind":"textbox","id":"sh/b21gj29w","slide":6,"name":"mode-title-0","text":"Print settings","textPreview":"Print settings","textChars":14,"textLines":1,"bbox":[242,260,300,38]}
+{"kind":"textbox","id":"sh/7e98zqp8","slide":6,"name":"mode-copy-0","text":"Quality\n0.20 mm Standard\n\nMaterial\nPLA / Violet","textPreview":"Quality | 0.20 mm Standard |  | Material | PLA / Violet","textChars":47,"textLines":5,"bbox":[242,320,260,130]}
+{"kind":"shape","id":"sh/6d0rql8n","slide":6,"name":"button-Slice & print-382-510","bbox":[382,510,172,42]}
+{"kind":"textbox","id":"sh/tgrq107e","slide":6,"name":"button-text-Slice & print-382-510","text":"Slice & print","textPreview":"Slice & print","textChars":13,"textLines":1,"bbox":[382,521,172,20]}
+{"kind":"shape","id":"sh/sfi9svqt","slide":6,"name":"mode-sidebar-1","bbox":[632,242,150,354]}
+{"kind":"textbox","id":"sh/fit83apk","slide":6,"name":"mode-nav-1","text":"PREPARE\n\nPREVIEW\n\nDEVICE","textPreview":"PREPARE |  | PREVIEW |  | DEVICE","textChars":24,"textLines":5,"bbox":[656,272,110,160]}
+{"kind":"textbox","id":"sh/uhkru58z","slide":6,"name":"mode-title-1","text":"Print settings","textPreview":"Print settings","textChars":14,"textLines":1,"bbox":[810,260,300,38]}
+{"kind":"textbox","id":"sh/hkbq5k7a","slide":6,"name":"mode-copy-1","text":"Quality\n0.20 mm Standard\n\nMaterial\nPLA / Violet","textPreview":"Quality | 0.20 mm Standard |  | Material | PLA / Violet","textChars":47,"textLines":5,"bbox":[810,320,260,130]}
+{"kind":"shape","id":"sh/gj29wfqp","slide":6,"name":"button-Slice & print-950-510","bbox":[950,510,172,42]}
+{"kind":"textbox","id":"sh/vmp8r6p0","slide":6,"name":"button-text-Slice & print-950-510","text":"Slice & print","textPreview":"Slice & print","textChars":13,"textLines":1,"bbox":[950,521,172,20]}
+{"kind":"textbox","id":"sh/alg7i18f","slide":6,"name":"mode-note","text":"Use lighter brand color on dark surfaces; preserve hierarchy, density, and component geometry.","textPreview":"Use lighter brand color on dark surfaces; preserve hierarchy, density, and component geometry.","textChars":94,"textLines":1,"bbox":[64,626,1100,32]}
+{"kind":"textbox","id":"sh/yhobq9s3","slide":6,"name":"footer-6","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/z2xcze9o","slide":6,"name":"page-6","text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/kau1kj","slide":6,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/0fycq4","slide":7,"title":"ACCESSIBILITY","textShapes":24}
+{"kind":"textbox","id":"sh/jehsjex4","slide":7,"name":"eyebrow-7","text":"ACCESSIBILITY","textPreview":"ACCESSIBILITY","textChars":13,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/4zqtsjep","slide":7,"name":"title-7","text":"Contrast and visible states are part of the specification.","textPreview":"Contrast and visible states are part of the specification.","textChars":58,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/50zalofa","slide":7,"name":"metric-0","text":"12.07:1","textPreview":"12.07:1","textChars":7,"textLines":1,"bbox":[64,196,230,52]}
+{"kind":"textbox","id":"sh/u9obm9gn","slide":7,"name":"metric-label-0","text":"Orbit / White","textPreview":"Orbit / White","textChars":13,"textLines":1,"bbox":[64,260,230,24]}
+{"kind":"textbox","id":"sh/vaxsfex8","slide":7,"name":"metric-use-0","text":"Primary light button","textPreview":"Primary light button","textChars":20,"textLines":1,"bbox":[64,292,230,46]}
+{"kind":"textbox","id":"sh/wb6tozet","slide":7,"name":"metric-1","text":"6.62:1","textPreview":"6.62:1","textChars":6,"textLines":1,"bbox":[344,196,230,52]}
+{"kind":"textbox","id":"sh/hcfah4fy","slide":7,"name":"metric-label-1","text":"Bloom / Ink","textPreview":"Bloom / Ink","textChars":11,"textLines":1,"bbox":[344,260,230,24]}
+{"kind":"textbox","id":"sh/m54bipgb","slide":7,"name":"metric-use-1","text":"Primary dark button","textPreview":"Primary dark button","textChars":19,"textLines":1,"bbox":[344,292,230,46]}
+{"kind":"textbox","id":"sh/76xsbuxw","slide":7,"name":"metric-2","text":"6.89:1","textPreview":"6.89:1","textChars":6,"textLines":1,"bbox":[624,196,230,52]}
+{"kind":"textbox","id":"sh/rmd4fmxo","slide":7,"name":"metric-label-2","text":"Secondary / White","textPreview":"Secondary / White","textChars":17,"textLines":1,"bbox":[624,260,230,24]}
+{"kind":"textbox","id":"sh/ql4n61g3","slide":7,"name":"metric-use-2","text":"Light secondary text","textPreview":"Light secondary text","textChars":20,"textLines":1,"bbox":[624,292,230,46]}
+{"kind":"textbox","id":"sh/d8vmhwfu","slide":7,"name":"metric-3","text":"10.95:1","textPreview":"10.95:1","textChars":7,"textLines":1,"bbox":[904,196,230,52]}
+{"kind":"textbox","id":"sh/cnm58ry9","slide":7,"name":"metric-label-3","text":"Dark secondary / Ink","textPreview":"Dark secondary / Ink","textChars":20,"textLines":1,"bbox":[904,260,230,24]}
+{"kind":"textbox","id":"sh/zad4j6xk","slide":7,"name":"metric-use-3","text":"Dark secondary text","textPreview":"Dark secondary text","textChars":19,"textLines":1,"bbox":[904,292,230,46]}
+{"kind":"shape","id":"sh/e94na1gz","slide":7,"name":"access-rule","bbox":[64,370,1120,2]}
+{"kind":"textbox","id":"sh/1cfmlgfq","slide":7,"name":"access-title-0","text":"Text","textPreview":"Text","textChars":4,"textLines":1,"bbox":[64,410,120,30]}
+{"kind":"textbox","id":"sh/0bm5cby5","slide":7,"name":"access-copy-0","text":"4.5:1 minimum for normal text; 3:1 only for large text.","textPreview":"4.5:1 minimum for normal text; 3:1 only for large text.","textChars":55,"textLines":1,"bbox":[190,410,400,58]}
+{"kind":"textbox","id":"sh/fet472hg","slide":7,"name":"access-title-1","text":"Controls","textPreview":"Controls","textChars":8,"textLines":1,"bbox":[624,410,120,30]}
+{"kind":"textbox","id":"sh/udk3yxgv","slide":7,"name":"access-copy-1","text":"3:1 for essential boundaries and state indicators.","textPreview":"3:1 for essential boundaries and state indicators.","textChars":50,"textLines":1,"bbox":[750,410,400,58]}
+{"kind":"textbox","id":"sh/ilsz294v","slide":7,"name":"access-title-2","text":"Focus","textPreview":"Focus","textChars":5,"textLines":1,"bbox":[64,510,120,30]}
+{"kind":"textbox","id":"sh/jm1gvel0","slide":7,"name":"access-copy-2","text":"2 DIP visible ring; never communicate focus with color shift alone.","textPreview":"2 DIP visible ring; never communicate focus with color shift alone.","textChars":67,"textLines":1,"bbox":[190,510,400,58]}
+{"kind":"textbox","id":"sh/4nah4jml","slide":7,"name":"access-title-3","text":"Status","textPreview":"Status","textChars":6,"textLines":1,"bbox":[624,510,120,30]}
+{"kind":"textbox","id":"sh/5ojyxo36","slide":7,"name":"access-copy-3","text":"Pair color with an icon and plain-language label.","textPreview":"Pair color with an icon and plain-language label.","textChars":49,"textLines":1,"bbox":[750,510,400,58]}
+{"kind":"textbox","id":"sh/uhsfyp4j","slide":7,"name":"footer-7","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/vi1grul4","slide":7,"name":"page-7","text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/0fycq4","slide":7,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/t14pqo","slide":8,"title":"TYPOGRAPHY","textShapes":28}
+{"kind":"textbox","id":"sh/bytwbuh0","slide":8,"name":"eyebrow-8","text":"TYPOGRAPHY","textPreview":"TYPOGRAPHY","textChars":10,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/cz2d4fyl","slide":8,"name":"title-8","text":"Use the fonts JusPrin already ships on every platform.","textPreview":"Use the fonts JusPrin already ships on every platform.","textChars":54,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/x0vedkz6","slide":8,"name":"font-name","text":"HarmonyOS Sans SC","textPreview":"HarmonyOS Sans SC","textChars":17,"textLines":1,"bbox":[64,174,660,74]}
+{"kind":"textbox","id":"sh/29kvy5gj","slide":8,"name":"font-desc","text":"Regular for UI and body · Bold for hierarchy and actions\nKorean: NanumGothic · Thai: Sarabun · fallback: system GUI font","textPreview":"Regular for UI and body · Bold for hierarchy and actions | Korean: NanumGothic · Thai: Sarabun · fallback: system GUI font","textChars":120,"textLines":2,"bbox":[66,256,700,70]}
+{"kind":"textbox","id":"sh/3atw7aho","slide":8,"name":"mono-name","text":"System teletype  0.20 mm  215 C","textPreview":"System teletype  0.20 mm  215 C","textChars":31,"textLines":1,"bbox":[760,196,430,36]}
+{"kind":"textbox","id":"sh/ob2d0fy9","slide":8,"name":"mono-desc","text":"Technical values only. Never require Menlo or another platform-specific face.","textPreview":"Technical values only. Never require Menlo or another platform-specific face.","textChars":77,"textLines":1,"bbox":[760,252,400,60]}
+{"kind":"shape","id":"sh/pcbe9kzu","slide":8,"name":"type-rule","bbox":[64,350,1120,2]}
+{"kind":"textbox","id":"sh/m54va9gn","slide":8,"name":"type-role-0","text":"Page title","textPreview":"Page title","textChars":10,"textLines":1,"bbox":[64,382,190,25]}
+{"kind":"textbox","id":"sh/76dwjeh8","slide":8,"name":"type-size-0","text":"24 / 30","textPreview":"24 / 30","textChars":7,"textLines":1,"bbox":[270,382,110,25]}
+{"kind":"textbox","id":"sh/nyh4j2do","slide":8,"name":"type-weight-0","text":"Bold","textPreview":"Bold","textChars":4,"textLines":1,"bbox":[400,382,110,25]}
+{"kind":"textbox","id":"sh/mx83axc3","slide":8,"name":"type-sample-0","text":"Prepare","textPreview":"Prepare","textChars":7,"textLines":1,"bbox":[540,380,600,30]}
+{"kind":"textbox","id":"sh/90zmlcvu","slide":8,"name":"type-role-1","text":"Section","textPreview":"Section","textChars":7,"textLines":1,"bbox":[64,431,190,25]}
+{"kind":"textbox","id":"sh/8zq5c7u9","slide":8,"name":"type-size-1","text":"18 / 24","textPreview":"18 / 24","textChars":7,"textLines":1,"bbox":[270,431,110,25]}
+{"kind":"textbox","id":"sh/v2h4nmdk","slide":8,"name":"type-weight-1","text":"Bold","textPreview":"Bold","textChars":4,"textLines":1,"bbox":[400,431,110,25]}
+{"kind":"textbox","id":"sh/a18nehcf","slide":8,"name":"type-sample-1","text":"Print settings","textPreview":"Print settings","textChars":14,"textLines":1,"bbox":[540,429,600,30]}
+{"kind":"textbox","id":"sh/x4jmpwvq","slide":8,"name":"type-role-2","text":"Body / control","textPreview":"Body / control","textChars":14,"textLines":1,"bbox":[64,480,190,25]}
+{"kind":"textbox","id":"sh/w3q5gru5","slide":8,"name":"type-size-2","text":"14 / 20","textPreview":"14 / 20","textChars":7,"textLines":1,"bbox":[270,480,110,25]}
+{"kind":"textbox","id":"sh/j614rmdw","slide":8,"name":"type-weight-2","text":"Regular","textPreview":"Regular","textChars":7,"textLines":1,"bbox":[400,480,110,25]}
+{"kind":"textbox","id":"sh/i5snihcb","slide":8,"name":"type-sample-2","text":"0.20 mm Standard","textPreview":"0.20 mm Standard","textChars":16,"textLines":1,"bbox":[540,478,600,30]}
+{"kind":"textbox","id":"sh/u1c7qlwj","slide":8,"name":"type-role-3","text":"Label","textPreview":"Label","textChars":5,"textLines":1,"bbox":[64,529,190,25]}
+{"kind":"textbox","id":"sh/fml8jqx4","slide":8,"name":"type-size-3","text":"12 / 16","textPreview":"12 / 16","textChars":7,"textLines":1,"bbox":[270,529,110,25]}
+{"kind":"textbox","id":"sh/gnepsvep","slide":8,"name":"type-weight-3","text":"Bold","textPreview":"Bold","textChars":4,"textLines":1,"bbox":[400,529,110,25]}
+{"kind":"textbox","id":"sh/1onql0fa","slide":8,"name":"type-sample-3","text":"QUALITY","textPreview":"QUALITY","textChars":7,"textLines":1,"bbox":[540,527,600,30]}
+{"kind":"textbox","id":"sh/6xc7mlwn","slide":8,"name":"type-role-4","text":"Dense metadata","textPreview":"Dense metadata","textChars":14,"textLines":1,"bbox":[64,578,190,25]}
+{"kind":"textbox","id":"sh/7ylofqxs","slide":8,"name":"type-size-4","text":"10 / 14","textPreview":"10 / 14","textChars":7,"textLines":1,"bbox":[270,578,110,25]}
+{"kind":"textbox","id":"sh/szupoved","slide":8,"name":"type-weight-4","text":"Regular","textPreview":"Regular","textChars":7,"textLines":1,"bbox":[400,578,110,25]}
+{"kind":"textbox","id":"sh/t036h0fy","slide":8,"name":"type-sample-4","text":"Last updated 14:32","textPreview":"Last updated 14:32","textChars":18,"textLines":1,"bbox":[540,576,600,30]}
+{"kind":"textbox","id":"sh/qtw7i5wr","slide":8,"name":"footer-8","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/bu58raxc","slide":8,"name":"page-8","text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/t14pqo","slide":8,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/rpghs0","slide":9,"title":"LAYOUT AND GEOMETRY","textShapes":22}
+{"kind":"textbox","id":"sh/wzu1gnid","slide":9,"name":"eyebrow-9","text":"LAYOUT AND GEOMETRY","textPreview":"LAYOUT AND GEOMETRY","textChars":19,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/vy1k7i1s","slide":9,"name":"title-9","text":"A small DIP scale keeps the interface consistent at every density.","textPreview":"A small DIP scale keeps the interface consistent at every density.","textChars":66,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/uxsjed07","slide":9,"name":"dip-rule","text":"DIP, not physical pixels","textPreview":"DIP, not physical pixels","textChars":24,"textLines":1,"bbox":[64,174,500,34]}
+{"kind":"textbox","id":"sh/5432dszu","slide":9,"name":"dip-copy","text":"Use wxWidgets device-independent dimensions. The platform renderer handles physical scaling.","textPreview":"Use wxWidgets device-independent dimensions. The platform renderer handles physical scaling.","textChars":92,"textLines":1,"bbox":[64,218,520,60]}
+{"kind":"shape","id":"sh/43ulkni9","slide":9,"name":"space-0","bbox":[64,320,8,22]}
+{"kind":"textbox","id":"sh/j2lkbiho","slide":9,"name":"space-label-0","text":"4","textPreview":"4","textChars":1,"textLines":1,"bbox":[64,354,70,20]}
+{"kind":"shape","id":"sh/i1cjix03","slide":9,"name":"space-1","bbox":[183,320,12,22]}
+{"kind":"textbox","id":"sh/t8n2hczq","slide":9,"name":"space-label-1","text":"8","textPreview":"8","textChars":1,"textLines":1,"bbox":[183,354,70,20]}
+{"kind":"shape","id":"sh/s7elo7il","slide":9,"name":"space-2","bbox":[302,320,18,22]}
+{"kind":"textbox","id":"sh/a90ja5cv","slide":9,"name":"space-label-2","text":"12","textPreview":"12","textChars":2,"textLines":1,"bbox":[302,354,70,20]}
+{"kind":"shape","id":"sh/va9kjadg","slide":9,"name":"space-3","bbox":[421,320,24,22]}
+{"kind":"textbox","id":"sh/wbi1cfu1","slide":9,"name":"space-label-3","text":"16","textPreview":"16","textChars":2,"textLines":1,"bbox":[421,354,70,20]}
+{"kind":"shape","id":"sh/xcr2lkv6","slide":9,"name":"space-4","bbox":[540,320,30,22]}
+{"kind":"textbox","id":"sh/id0jepcr","slide":9,"name":"space-label-4","text":"20","textPreview":"20","textChars":2,"textLines":1,"bbox":[540,354,70,20]}
+{"kind":"shape","id":"sh/je9knatc","slide":9,"name":"space-5","bbox":[659,320,36,22]}
+{"kind":"textbox","id":"sh/kfi1gfux","slide":9,"name":"space-label-5","text":"24","textPreview":"24","textChars":2,"textLines":1,"bbox":[659,354,70,20]}
+{"kind":"shape","id":"sh/5gb2pkbi","slide":9,"name":"space-6","bbox":[778,320,48,22]}
+{"kind":"textbox","id":"sh/yhgj2lcn","slide":9,"name":"space-label-6","text":"32","textPreview":"32","textChars":2,"textLines":1,"bbox":[778,354,70,20]}
+{"kind":"shape","id":"sh/zip0bqd8","slide":9,"name":"space-7","bbox":[897,320,60,22]}
+{"kind":"textbox","id":"sh/3mlgjmt0","slide":9,"name":"space-label-7","text":"40","textPreview":"40","textChars":2,"textLines":1,"bbox":[897,354,70,20]}
+{"kind":"shape","id":"sh/2lczahsf","slide":9,"name":"space-8","bbox":[1016,320,72,22]}
+{"kind":"textbox","id":"sh/po3y5wb6","slide":9,"name":"space-label-8","text":"48","textPreview":"48","textChars":2,"textLines":1,"bbox":[1016,354,70,20]}
+{"kind":"shape","id":"sh/4nuhcral","slide":9,"name":"geometry-rule","bbox":[64,406,1120,2]}
+{"kind":"shape","id":"sh/filgf2to","slide":9,"name":"radius-0","bbox":[64,446,110,84]}
+{"kind":"textbox","id":"sh/uhcz6hs3","slide":9,"name":"radius-name-0","text":"4 DIP","textPreview":"4 DIP","textChars":5,"textLines":1,"bbox":[200,448,190,28]}
+{"kind":"textbox","id":"sh/hk3yhcbu","slide":9,"name":"radius-use-0","text":"Inputs, parameter, choice, icon","textPreview":"Inputs, parameter, choice, icon","textChars":31,"textLines":1,"bbox":[200,486,190,60]}
+{"kind":"shape","id":"sh/gjuh87a9","slide":9,"name":"radius-1","bbox":[438,446,110,84]}
+{"kind":"textbox","id":"sh/ze5gb698","slide":9,"name":"radius-name-1","text":"8 DIP","textPreview":"8 DIP","textChars":5,"textLines":1,"bbox":[574,448,190,28]}
+{"kind":"textbox","id":"sh/ydwzi1sn","slide":9,"name":"radius-use-1","text":"Compact and branded actions","textPreview":"Compact and branded actions","textChars":27,"textLines":1,"bbox":[574,486,190,60]}
+{"kind":"shape","id":"sh/wn65wzmt","slide":9,"name":"radius-2","bbox":[812,446,110,84]}
+{"kind":"textbox","id":"sh/xofmp4ne","slide":9,"name":"radius-name-2","text":"12 DIP","textPreview":"12 DIP","textChars":6,"textLines":1,"bbox":[948,448,190,28]}
+{"kind":"textbox","id":"sh/alonu94n","slide":9,"name":"radius-use-2","text":"Window actions and large dialogs","textPreview":"Window actions and large dialogs","textChars":32,"textLines":1,"bbox":[948,486,190,60]}
+{"kind":"textbox","id":"sh/bmx4ne58","slide":9,"name":"geometry-no","text":"16-24 DIP radii are reserved for onboarding and marketing surfaces, not the standard application shell.","textPreview":"16-24 DIP radii are reserved for onboarding and marketing surfaces, not the standard application shell.","textChars":103,"textLines":1,"bbox":[64,594,1100,38]}
+{"kind":"textbox","id":"sh/kb650jmp","slide":9,"name":"footer-9","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/lczmtona","slide":9,"name":"page-9","text":"09","textPreview":"09","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/rpghs0","slide":9,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/2l990t","slide":10,"title":"ICONS AND BRAND SHAPES","textShapes":13}
+{"kind":"textbox","id":"sh/y1sfmtcf","slide":10,"name":"eyebrow-10","text":"ICONS AND BRAND SHAPES","textPreview":"ICONS AND BRAND SHAPES","textChars":22,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/l4jyhovq","slide":10,"name":"title-10","text":"Functional clarity comes before logo-derived decoration.","textPreview":"Functional clarity comes before logo-derived decoration.","textChars":56,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"shape","id":"sh/03axoju5","slide":10,"name":"orbit-104-196","bbox":[104,196,180,180]}
+{"kind":"shape","id":"sh/n6lgjydw","slide":10,"name":"orbit-a-104-196","bbox":[125.6,280.6,136.8,12.6]}
+{"kind":"shape","id":"sh/m5cfqtcb","slide":10,"name":"orbit-b-104-196","bbox":[125.6,280.6,136.8,12.6]}
+{"kind":"shape","id":"sh/983yl8v2","slide":10,"name":"icon-diagonal-stage","bbox":[438,220,220,138]}
+{"kind":"shape","id":"sh/87uxs3uh","slide":10,"name":"icon-diagonal","bbox":[454,279,190,18]}
+{"kind":"shape","id":"sh/valgnyds","slide":10,"name":"icon-size-stage","bbox":[816,196,324,180]}
+{"kind":"shape","id":"sh/a9cfudc7","slide":10,"name":"icon-size-16","bbox":[850,254,32,32]}
+{"kind":"textbox","id":"sh/8r21k3yh","slide":10,"name":"icon-size-label-16","text":"16 DIP","textPreview":"16 DIP","textChars":6,"textLines":1,"bbox":[836,318,74,18]}
+{"kind":"shape","id":"sh/9sb2t8f2","slide":10,"name":"icon-size-20","bbox":[942,252,40,40]}
+{"kind":"textbox","id":"sh/mpkjitgr","slide":10,"name":"icon-size-label-20","text":"20 DIP","textPreview":"20 DIP","textChars":6,"textLines":1,"bbox":[932,318,74,18]}
+{"kind":"shape","id":"sh/nqtkryxc","slide":10,"name":"icon-size-24","bbox":[1034,250,48,48]}
+{"kind":"textbox","id":"sh/wv2lo3yt","slide":10,"name":"icon-size-label-24","text":"24 DIP","textPreview":"24 DIP","textChars":6,"textLines":1,"bbox":[1028,318,74,18]}
+{"kind":"textbox","id":"sh/xwb2x8fe","slide":10,"name":"icon-title-0","text":"Orbit motif","textPreview":"Orbit motif","textChars":11,"textLines":1,"bbox":[64,430,300,30]}
+{"kind":"textbox","id":"sh/atk3mtgn","slide":10,"name":"icon-copy-0","text":"Progress, connection, active workflow. Keep strokes visible at output size.","textPreview":"Progress, connection, active workflow. Keep strokes visible at output size.","textChars":75,"textLines":1,"bbox":[64,474,320,90]}
+{"kind":"textbox","id":"sh/vutkvyx8","slide":10,"name":"icon-title-1","text":"Directional accent","textPreview":"Directional accent","textChars":18,"textLines":1,"bbox":[438,430,300,30]}
+{"kind":"textbox","id":"sh/kjmlsnyp","slide":10,"name":"icon-copy-1","text":"One diagonal for momentum. Avoid competing angles and decorative clutter.","textPreview":"One diagonal for momentum. Avoid competing angles and decorative clutter.","textChars":73,"textLines":1,"bbox":[438,474,320,90]}
+{"kind":"textbox","id":"sh/5kv21sfa","slide":10,"name":"icon-title-2","text":"Product icons","textPreview":"Product icons","textChars":13,"textLines":1,"bbox":[816,430,300,30]}
+{"kind":"textbox","id":"sh/tgr2l87e","slide":10,"name":"icon-copy-2","text":"Use the established SVG library at 16, 20, or 24 DIP. Supply PNG fallback.","textPreview":"Use the established SVG library at 16, 20, or 24 DIP. Supply PNG fallback.","textChars":74,"textLines":1,"bbox":[816,474,320,90]}
+{"kind":"textbox","id":"sh/sfi1cnqt","slide":10,"name":"footer-10","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/re9kjipo","slide":10,"name":"page-10","text":"10","textPreview":"10","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/2l990t","slide":10,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/cldb0y","slide":11,"title":"BUTTONS","textShapes":27}
+{"kind":"textbox","id":"sh/4vi9ovu1","slide":11,"name":"eyebrow-11","text":"BUTTONS","textPreview":"BUTTONS","textChars":7,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/ju98fqdg","slide":11,"name":"title-11","text":"Apply the brand through existing semantic variants and states.","textPreview":"Apply the brand through existing semantic variants and states.","textChars":62,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/it0rmlcv","slide":11,"name":"button-light-label","text":"LIGHT","textPreview":"LIGHT","textChars":5,"textLines":1,"bbox":[64,170,120,20]}
+{"kind":"shape","id":"sh/tkbal0vi","slide":11,"name":"button-Slice & print-64-210","bbox":[64,210,180,40]}
+{"kind":"textbox","id":"sh/sz29sfux","slide":11,"name":"button-text-Slice & print-64-210","text":"Slice & print","textPreview":"Slice & print","textChars":13,"textLines":1,"bbox":[64,220,180,20]}
+{"kind":"shape","id":"sh/rytsjadc","slide":11,"name":"button-Cancel-264-210","bbox":[264,210,150,40]}
+{"kind":"textbox","id":"sh/6xkrq5cr","slide":11,"name":"button-text-Cancel-264-210","text":"Cancel","textPreview":"Cancel","textChars":6,"textLines":1,"bbox":[264,220,150,20]}
+{"kind":"shape","id":"sh/9orq9gve","slide":11,"name":"button-Delete-434-210","bbox":[434,210,150,40]}
+{"kind":"textbox","id":"sh/83y9gbut","slide":11,"name":"button-text-Delete-434-210","text":"Delete","textPreview":"Delete","textChars":6,"textLines":1,"bbox":[434,220,150,20]}
+{"kind":"shape","id":"sh/ydcbit07","slide":11,"name":"button-Disabled-604-210","bbox":[604,210,140,40]}
+{"kind":"textbox","id":"sh/zelcryhs","slide":11,"name":"button-text-Disabled-604-210","text":"Disabled","textPreview":"Disabled","textChars":8,"textLines":1,"bbox":[604,220,140,20]}
+{"kind":"shape","id":"sh/0fudk3id","slide":11,"name":"focus-outer-light","bbox":[762,204,190,52]}
+{"kind":"shape","id":"sh/lg3ut8zy","slide":11,"name":"button-Focused-768-210","bbox":[768,210,178,40]}
+{"kind":"textbox","id":"sh/mhcvmd0j","slide":11,"name":"button-text-Focused-768-210","text":"Focused","textPreview":"Focused","textChars":7,"textLines":1,"bbox":[768,220,178,20]}
+{"kind":"textbox","id":"sh/nilcvih4","slide":11,"name":"button-dark-label","text":"DARK","textPreview":"DARK","textChars":4,"textLines":1,"bbox":[64,296,120,20]}
+{"kind":"shape","id":"sh/8judoni9","slide":11,"name":"button-dark-stage","bbox":[64,328,888,82]}
+{"kind":"shape","id":"sh/9knuxszu","slide":11,"name":"button-Slice & print-88-349","bbox":[88,349,180,40]}
+{"kind":"textbox","id":"sh/alwvqd0f","slide":11,"name":"button-text-Slice & print-88-349","text":"Slice & print","textPreview":"Slice & print","textChars":13,"textLines":1,"bbox":[88,359,180,20]}
+{"kind":"shape","id":"sh/v65czih0","slide":11,"name":"button-Cancel-288-349","bbox":[288,349,150,40]}
+{"kind":"textbox","id":"sh/7a5cn2x8","slide":11,"name":"button-text-Cancel-288-349","text":"Cancel","textPreview":"Cancel","textChars":6,"textLines":1,"bbox":[288,359,150,20]}
+{"kind":"shape","id":"sh/69wbexwn","slide":11,"name":"button-Delete-458-349","bbox":[458,349,150,40]}
+{"kind":"textbox","id":"sh/tc7upsfe","slide":11,"name":"button-text-Delete-458-349","text":"Delete","textPreview":"Delete","textChars":6,"textLines":1,"bbox":[458,359,150,20]}
+{"kind":"shape","id":"sh/sbytgnet","slide":11,"name":"focus-outer-dark","bbox":[630,343,190,52]}
+{"kind":"shape","id":"sh/jm5sjixw","slide":11,"name":"button-Focused-636-349","bbox":[636,349,178,40]}
+{"kind":"textbox","id":"sh/ilwbadwr","slide":11,"name":"button-text-Focused-636-349","text":"Focused","textPreview":"Focused","textChars":7,"textLines":1,"bbox":[636,359,178,20]}
+{"kind":"shape","id":"sh/58nulsf2","slide":11,"name":"button-rule","bbox":[64,452,1120,2]}
+{"kind":"textbox","id":"sh/knetcneh","slide":11,"name":"button-spec-title-0","text":"Compact","textPreview":"Compact","textChars":7,"textLines":1,"bbox":[64,490,120,24]}
+{"kind":"textbox","id":"sh/vilsfyx0","slide":11,"name":"button-spec-copy-0","text":"padding 8×3 · radius 8 · body 10","textPreview":"padding 8×3 · radius 8 · body 10","textChars":32,"textLines":1,"bbox":[188,490,200,44]}
+{"kind":"textbox","id":"sh/ahcb6dwf","slide":11,"name":"button-spec-title-1","text":"Window","textPreview":"Window","textChars":6,"textLines":1,"bbox":[438,490,120,24]}
+{"kind":"textbox","id":"sh/0bqh0fq1","slide":11,"name":"button-spec-copy-1","text":"58×24 min · radius 12 · body 12","textPreview":"58×24 min · radius 12 · body 12","textChars":31,"textLines":1,"bbox":[562,490,200,44]}
+{"kind":"textbox","id":"sh/1czitkrm","slide":11,"name":"button-spec-title-2","text":"Choice","textPreview":"Choice","textChars":6,"textLines":1,"bbox":[812,490,120,24]}
+{"kind":"textbox","id":"sh/e98zy58v","slide":11,"name":"button-spec-copy-2","text":"100×32 min · padding 12×8 · radius 4","textPreview":"100×32 min · padding 12×8 · radius 4","textChars":36,"textLines":1,"bbox":[936,490,200,44]}
+{"kind":"textbox","id":"sh/fah0ra9g","slide":11,"name":"button-spec-title-3","text":"Parameter","textPreview":"Parameter","textChars":9,"textLines":1,"bbox":[64,564,120,24]}
+{"kind":"textbox","id":"sh/ofah4fqd","slide":11,"name":"button-spec-copy-3","text":"120×26 · radius 4 · body 14","textPreview":"120×26 · radius 4 · body 14","textChars":27,"textLines":1,"bbox":[188,564,200,44]}
+{"kind":"textbox","id":"sh/pgjixkri","slide":11,"name":"button-spec-title-4","text":"Icon","textPreview":"Icon","textChars":4,"textLines":1,"bbox":[438,564,120,24]}
+{"kind":"textbox","id":"sh/2d8z2p87","slide":11,"name":"button-spec-copy-4","text":"26×26 · icon 16 · radius 4","textPreview":"26×26 · icon 16 · radius 4","textChars":26,"textLines":1,"bbox":[562,564,200,44]}
+{"kind":"textbox","id":"sh/neh0vu9s","slide":11,"name":"button-spec-title-5","text":"Expanded","textPreview":"Expanded","textChars":8,"textLines":1,"bbox":[812,564,120,24]}
+{"kind":"textbox","id":"sh/4j6hsvat","slide":11,"name":"button-spec-copy-5","text":"32 high min · padding 12×8 · radius 4","textPreview":"32 high min · padding 12×8 · radius 4","textChars":37,"textLines":1,"bbox":[936,564,200,44]}
+{"kind":"textbox","id":"sh/5kfyl0re","slide":11,"name":"footer-11","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/hcbihkvu","slide":11,"name":"page-11","text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/cldb0y","slide":11,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/t58yau","slide":12,"title":"CORE COMPONENTS","textShapes":24}
+{"kind":"textbox","id":"sh/wz2hgzul","slide":12,"name":"eyebrow-12","text":"CORE COMPONENTS","textPreview":"CORE COMPONENTS","textChars":15,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/bytgnut0","slide":12,"name":"title-12","text":"Build high fidelity from a small, explicit native component set.","textPreview":"Build high fidelity from a small, explicit native component set.","textChars":64,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"shape","id":"sh/axkzepcf","slide":12,"name":"component-light","bbox":[64,180,536,420]}
+{"kind":"shape","id":"sh/9wbyl4bu","slide":12,"name":"component-dark","bbox":[632,180,536,420]}
+{"kind":"textbox","id":"sh/ob2hczu9","slide":12,"name":"component-mode-0","text":"LIGHT","textPreview":"LIGHT","textChars":5,"textLines":1,"bbox":[88,204,80,18]}
+{"kind":"textbox","id":"sh/natgjuto","slide":12,"name":"input-label-0","text":"Printer name","textPreview":"Printer name","textChars":12,"textLines":1,"bbox":[88,246,160,20]}
+{"kind":"shape","id":"sh/m9kzapc3","slide":12,"name":"input-0","bbox":[88,272,300,38]}
+{"kind":"textbox","id":"sh/tsfixoby","slide":12,"name":"input-value-0","text":"JusPrin Studio","textPreview":"JusPrin Studio","textChars":14,"textLines":1,"bbox":[100,282,270,20]}
+{"kind":"textbox","id":"sh/87mhojud","slide":12,"name":"select-label-0","text":"Quality","textPreview":"Quality","textChars":7,"textLines":1,"bbox":[88,330,160,20]}
+{"kind":"shape","id":"sh/it0zmpwj","slide":12,"name":"select-0","bbox":[88,356,300,38]}
+{"kind":"textbox","id":"sh/ju9gvud4","slide":12,"name":"select-value-0","text":"0.20 mm Standard                 ▾","textPreview":"0.20 mm Standard                 ▾","textChars":34,"textLines":1,"bbox":[100,366,270,20]}
+{"kind":"shape","id":"sh/4vihozep","slide":12,"name":"chip-READY-88-422","bbox":[88,422,126,34]}
+{"kind":"textbox","id":"sh/5wryx4va","slide":12,"name":"chip-text-READY-88-422","text":"READY","textPreview":"READY","textChars":5,"textLines":1,"bbox":[88,430,126,18]}
+{"kind":"shape","id":"sh/u5gzi5wn","slide":12,"name":"chip-WARNING-230-422","bbox":[230,422,126,34]}
+{"kind":"textbox","id":"sh/v6pgrads","slide":12,"name":"chip-text-WARNING-230-422","text":"WARNING","textPreview":"WARNING","textChars":7,"textLines":1,"bbox":[230,430,126,18]}
+{"kind":"shape","id":"sh/wrihkfed","slide":12,"name":"chip-ERROR-372-422","bbox":[372,422,126,34]}
+{"kind":"textbox","id":"sh/hsrytkvy","slide":12,"name":"chip-text-ERROR-372-422","text":"ERROR","textPreview":"ERROR","textChars":5,"textLines":1,"bbox":[372,430,126,18]}
+{"kind":"shape","id":"sh/e1kzu9wr","slide":12,"name":"panel-0","bbox":[88,484,462,82]}
+{"kind":"textbox","id":"sh/f2t0nedc","slide":12,"name":"panel-title-0","text":"Support","textPreview":"Support","textChars":7,"textLines":1,"bbox":[106,502,160,22]}
+{"kind":"textbox","id":"sh/b6lwf6to","slide":12,"name":"panel-copy-0","text":"Build plate only","textPreview":"Build plate only","textChars":16,"textLines":1,"bbox":[106,532,220,20]}
+{"kind":"shape","id":"sh/a5cvm1c3","slide":12,"name":"toggle-track-0","bbox":[458,510,56,28]}
+{"kind":"shape","id":"sh/x8nehgbu","slide":12,"name":"toggle-thumb-0","bbox":[488,514,20,20]}
+{"kind":"textbox","id":"sh/c7udobu9","slide":12,"name":"component-mode-1","text":"DARK","textPreview":"DARK","textChars":4,"textLines":1,"bbox":[656,204,80,18]}
+{"kind":"textbox","id":"sh/za5wj6tk","slide":12,"name":"input-label-1","text":"Printer name","textPreview":"Printer name","textChars":12,"textLines":1,"bbox":[656,246,160,20]}
+{"kind":"shape","id":"sh/y9wvqlcf","slide":12,"name":"input-1","bbox":[656,272,300,38]}
+{"kind":"textbox","id":"sh/lcnelgbq","slide":12,"name":"input-value-1","text":"JusPrin Studio","textPreview":"JusPrin Studio","textChars":14,"textLines":1,"bbox":[668,282,270,20]}
+{"kind":"textbox","id":"sh/kbedsbu5","slide":12,"name":"select-label-1","text":"Quality","textPreview":"Quality","textChars":7,"textLines":1,"bbox":[656,330,160,20]}
+{"kind":"shape","id":"sh/7y5wnqtw","slide":12,"name":"select-1","bbox":[656,356,300,38]}
+{"kind":"textbox","id":"sh/mxwfulcb","slide":12,"name":"select-value-1","text":"0.20 mm Standard                 ▾","textPreview":"0.20 mm Standard                 ▾","textChars":34,"textLines":1,"bbox":[668,366,270,20]}
+{"kind":"shape","id":"sh/43ydkvq9","slide":12,"name":"chip-READY-656-422","bbox":[656,422,126,34]}
+{"kind":"textbox","id":"sh/547ud0ru","slide":12,"name":"chip-text-READY-656-422","text":"READY","textPreview":"READY","textChars":5,"textLines":1,"bbox":[656,430,126,18]}
+{"kind":"shape","id":"sh/i1gvil8j","slide":12,"name":"chip-WARNING-798-422","bbox":[798,422,126,34]}
+{"kind":"textbox","id":"sh/j2pcbq94","slide":12,"name":"chip-text-WARNING-798-422","text":"WARNING","textPreview":"WARNING","textChars":7,"textLines":1,"bbox":[798,430,126,18]}
+{"kind":"shape","id":"sh/wzydgbqd","slide":12,"name":"chip-ERROR-940-422","bbox":[940,422,126,34]}
+{"kind":"textbox","id":"sh/h07u9gry","slide":12,"name":"chip-text-ERROR-940-422","text":"ERROR","textPreview":"ERROR","textChars":5,"textLines":1,"bbox":[940,430,126,18]}
+{"kind":"shape","id":"sh/udwvel87","slide":12,"name":"panel-1","bbox":[656,484,462,82]}
+{"kind":"textbox","id":"sh/ve5c7q9s","slide":12,"name":"panel-title-1","text":"Support","textPreview":"Support","textChars":7,"textLines":1,"bbox":[674,502,160,22]}
+{"kind":"textbox","id":"sh/8bedcbqh","slide":12,"name":"panel-copy-1","text":"Build plate only","textPreview":"Build plate only","textChars":16,"textLines":1,"bbox":[674,532,220,20]}
+{"kind":"shape","id":"sh/9cnu5grm","slide":12,"name":"toggle-track-1","bbox":[1026,510,56,28]}
+{"kind":"shape","id":"sh/xg3adc7e","slide":12,"name":"toggle-thumb-1","bbox":[1056,514,20,20]}
+{"kind":"textbox","id":"sh/cfa94769","slide":12,"name":"footer-12","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/be1sb2po","slide":12,"name":"page-12","text":"12","textPreview":"12","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/t58yau","slide":12,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}
+{"kind":"slide","id":"sl/d9ro3n","slide":13,"title":"DESIGN-AGENT HANDOFF","textShapes":23}
+{"kind":"textbox","id":"sh/tcnid0ny","slide":13,"name":"eyebrow-13","text":"DESIGN-AGENT HANDOFF","textPreview":"DESIGN-AGENT HANDOFF","textChars":20,"textLines":1,"bbox":[64,46,500,23]}
+{"kind":"textbox","id":"sh/69wjilon","slide":13,"name":"title-13","text":"A valid JusPrin UI concept is traceable, paired, and implementation-aware.","textPreview":"A valid JusPrin UI concept is traceable, paired, and implementation-aware.","textChars":74,"textLines":1,"bbox":[64,78,1135,70]}
+{"kind":"textbox","id":"sh/7a50bq58","slide":13,"name":"check-num-0","text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[68,174,50,24]}
+{"kind":"textbox","id":"sh/gfy1ovmp","slide":13,"name":"check-title-0","text":"Mode pair","textPreview":"Mode pair","textChars":9,"textLines":1,"bbox":[142,172,230,30]}
+{"kind":"textbox","id":"sh/hg7ih0na","slide":13,"name":"check-copy-0","text":"Light and dark frames use the same semantic token names.","textPreview":"Light and dark frames use the same semantic token names.","textChars":56,"textLines":1,"bbox":[410,174,700,34]}
+{"kind":"shape","id":"sh/udgjm54j","slide":13,"name":"check-rule-0","bbox":[142,223,970,1]}
+{"kind":"textbox","id":"sh/vep0fa54","slide":13,"name":"check-num-1","text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[68,250,50,24]}
+{"kind":"textbox","id":"sh/43y1sfml","slide":13,"name":"check-title-1","text":"Native density","textPreview":"Native density","textChars":14,"textLines":1,"bbox":[142,248,230,30]}
+{"kind":"textbox","id":"sh/54r2lkn6","slide":13,"name":"check-copy-1","text":"Components use DIP, 4/8/12 radii, and existing control dimensions.","textPreview":"Components use DIP, 4/8/12 radii, and existing control dimensions.","textChars":66,"textLines":1,"bbox":[410,250,700,34]}
+{"kind":"shape","id":"sh/5o7q5kfe","slide":13,"name":"check-rule-1","bbox":[142,299,970,1]}
+{"kind":"textbox","id":"sh/4nypcfyt","slide":13,"name":"check-num-2","text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[68,326,50,24]}
+{"kind":"textbox","id":"sh/3mp83ux8","slide":13,"name":"check-title-2","text":"Typography","textPreview":"Typography","textChars":10,"textLines":1,"bbox":[142,324,230,30]}
+{"kind":"textbox","id":"sh/i1g7apgn","slide":13,"name":"check-copy-2","text":"HarmonyOS Sans SC and system teletype only.","textPreview":"HarmonyOS Sans SC and system teletype only.","textChars":43,"textLines":1,"bbox":[410,326,700,34]}
+{"kind":"shape","id":"sh/dsrq94fa","slide":13,"name":"check-rule-2","bbox":[142,375,970,1]}
+{"kind":"textbox","id":"sh/sri9gzyp","slide":13,"name":"check-num-3","text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[68,402,50,24]}
+{"kind":"textbox","id":"sh/rq987uxk","slide":13,"name":"check-title-3","text":"State coverage","textPreview":"State coverage","textChars":14,"textLines":1,"bbox":[142,400,230,30]}
+{"kind":"textbox","id":"sh/qpg7epgz","slide":13,"name":"check-copy-3","text":"Normal, hover, pressed, disabled, focus, error, and success are shown.","textPreview":"Normal, hover, pressed, disabled, focus, error, and success are shown.","textChars":70,"textLines":1,"bbox":[410,402,700,34]}
+{"kind":"shape","id":"sh/twnqx0f6","slide":13,"name":"check-rule-3","bbox":[142,451,970,1]}
+{"kind":"textbox","id":"sh/8vep4vyl","slide":13,"name":"check-num-4","text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[68,478,50,24]}
+{"kind":"textbox","id":"sh/kr2h0zat","slide":13,"name":"check-title-4","text":"Real content","textPreview":"Real content","textChars":12,"textLines":1,"bbox":[142,476,230,30]}
+{"kind":"textbox","id":"sh/lsby94re","slide":13,"name":"check-copy-4","text":"Test long filenames, localized labels, dense settings, and empty states.","textPreview":"Test long filenames, localized labels, dense settings, and empty states.","textChars":72,"textLines":1,"bbox":[410,478,700,34]}
+{"kind":"shape","id":"sh/yp0zepsn","slide":13,"name":"check-rule-4","bbox":[142,527,970,1]}
+{"kind":"textbox","id":"sh/jqtg7ut8","slide":13,"name":"check-num-5","text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[68,554,50,24]}
+{"kind":"textbox","id":"sh/8f2h4jap","slide":13,"name":"check-title-5","text":"Asset discipline","textPreview":"Asset discipline","textChars":16,"textLines":1,"bbox":[142,552,230,30]}
+{"kind":"textbox","id":"sh/tgbid4ra","slide":13,"name":"check-copy-5","text":"Original mark; existing SVG icons; gradient only in brand moments.","textPreview":"Original mark; existing SVG icons; gradient only in brand moments.","textChars":66,"textLines":1,"bbox":[410,554,700,34]}
+{"kind":"textbox","id":"sh/6dkz29sz","slide":13,"name":"handoff-rule","text":"Use JusPrin-UI-design-tokens.json as the source of truth. If a proposed value is not tokenized, label it as an exception and explain why.","textPreview":"Use JusPrin-UI-design-tokens.json as the source of truth. If a proposed value is not tokenized, label it as an exception and explain why.","textChars":137,"textLines":1,"bbox":[68,626,1070,38]}
+{"kind":"textbox","id":"sh/7et0be94","slide":13,"name":"footer-13","text":"JusPrin UI design system · agent-ready specification","textPreview":"JusPrin UI design system · agent-ready specification","textChars":52,"textLines":1,"bbox":[64,684,650,18]}
+{"kind":"textbox","id":"sh/gjmh8ja1","slide":13,"name":"page-13","text":"13","textPreview":"13","textChars":2,"textLines":1,"bbox":[1150,684,65,18]}
+{"kind":"notes","id":"nt/d9ro3n","slide":13,"text":"[Sources]\n- JusPrin repository: C++17, wxWidgets UI components and bundled fonts.\n- JusPrin logo: user-provided local repository asset.\n[/Sources]"}

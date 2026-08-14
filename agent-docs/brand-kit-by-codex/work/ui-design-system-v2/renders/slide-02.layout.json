@@ -1,0 +1,1215 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/idzhqs",
+    "id": "idzhqs",
+    "slide": 2,
+    "layoutId": "71ca54b9-27de-441e-adc1-b5e3050abc7f",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "0d6a2169-386f-43b3-bf7e-1bd45811752a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Courier New",
+      "HarmonyOS Sans SC"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "71ca54b9-27de-441e-adc1-b5e3050abc7f",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "0d6a2169-386f-43b3-bf7e-1bd45811752a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "0d6a2169-386f-43b3-bf7e-1bd45811752a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/jytw32ls",
+      "id": "1",
+      "name": "eyebrow-2",
+      "bbox": [
+        64,
+        46,
+        500,
+        23
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "HOW TO USE THIS GUIDE",
+      "textPreview": "HOW TO USE THIS GUIDE",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Courier New",
+        "color": "#6F4F84",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "HOW TO USE THIS GUIDE"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "HOW TO USE THIS GUIDE",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Courier New",
+            "color": "#6F4F84",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "HOW TO USE THIS GUIDE",
+              "fontSize": 14,
+              "typeface": "Courier New",
+              "color": "#6F4F84",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kj2dc7md",
+      "id": "2",
+      "name": "title-2",
+      "bbox": [
+        64,
+        78,
+        1135,
+        70
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "The brand palette inspires; semantic tokens decide.",
+      "textPreview": "The brand palette inspires; semantic tokens decide.",
+      "resolvedFontSize": 44,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 44,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#17131F",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "The brand palette inspires; semantic tokens decide."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "The brand palette inspires; semantic tokens decide.",
+          "lineSpacingPercent": 98000,
+          "resolvedTextStyle": {
+            "fontSize": 44,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#17131F",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 0.98
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "The brand palette inspires; semantic tokens decide.",
+              "fontSize": 44,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#17131F",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 0.98
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5kbe5c3y",
+      "id": "3",
+      "name": "contract-intro",
+      "bbox": [
+        64,
+        170,
+        1110,
+        72
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must resolve to a named semantic or component token.",
+      "textPreview": "A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must resolve to a named semantic...",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 23,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#17131F",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must"
+          },
+          {
+            "index": 2,
+            "text": "resolve to a named semantic or component token."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must resolve to a named semantic or component token.",
+          "lineSpacingPercent": 125000,
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#17131F",
+            "alignment": "left",
+            "lineSpacing": 1.25
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "A design agent may use primitives to communicate the JusPrin brand, but every product-interface decision must resolve to a named semantic or component token.",
+              "fontSize": 23,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#17131F",
+              "alignment": "left",
+              "lineSpacing": 1.25
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/at0v6x4b",
+      "id": "4",
+      "name": "contract-num-0",
+      "bbox": [
+        64,
+        300,
+        60,
+        28
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "01",
+      "textPreview": "01",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 15,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "01"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "01",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "01",
+              "fontSize": 15,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vu9wz2lw",
+      "id": "5",
+      "name": "contract-title-0",
+      "bbox": [
+        64,
+        344,
+        310,
+        38
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Start with mode",
+      "textPreview": "Start with mode",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 25,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#3A2D64",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Start with mode"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Start with mode",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#3A2D64",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Start with mode",
+              "fontSize": 25,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#3A2D64",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/wvid8nmh",
+      "id": "6",
+      "name": "contract-copy-0",
+      "bbox": [
+        64,
+        398,
+        310,
+        112
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Create paired light and dark frames. Never recolor a finished light design by eye.",
+      "textPreview": "Create paired light and dark frames. Never recolor a finished light design by eye.",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 18,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#5F5767",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Create paired light and dark frames. Never"
+          },
+          {
+            "index": 2,
+            "text": "recolor a finished light design by eye."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Create paired light and dark frames. Never recolor a finished light design by eye.",
+          "lineSpacingPercent": 128000,
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#5F5767",
+            "alignment": "left",
+            "lineSpacing": 1.28
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Create paired light and dark frames. Never recolor a finished light design by eye.",
+              "fontSize": 18,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#5F5767",
+              "alignment": "left",
+              "lineSpacing": 1.28
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xwbe1s32",
+      "id": "7",
+      "name": "contract-num-1",
+      "bbox": [
+        438,
+        300,
+        60,
+        28
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "02",
+      "textPreview": "02",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 15,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "02"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "fontSize": 15,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ep4vihkf",
+      "id": "8",
+      "name": "contract-title-1",
+      "bbox": [
+        438,
+        344,
+        310,
+        38
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Name the intent",
+      "textPreview": "Name the intent",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 25,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#3A2D64",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Name the intent"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Name the intent",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#3A2D64",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Name the intent",
+              "fontSize": 25,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#3A2D64",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fqdwbml0",
+      "id": "9",
+      "name": "contract-copy-1",
+      "bbox": [
+        438,
+        398,
+        310,
+        112
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Choose surface, text, action, border, status, or focus tokens - never a raw purple.",
+      "textPreview": "Choose surface, text, action, border, status, or focus tokens - never a raw purple.",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 18,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#5F5767",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Choose surface, text, action, border,"
+          },
+          {
+            "index": 2,
+            "text": "status, or focus tokens - never a raw"
+          },
+          {
+            "index": 3,
+            "text": "purple."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Choose surface, text, action, border, status, or focus tokens - never a raw purple.",
+          "lineSpacingPercent": 128000,
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#5F5767",
+            "alignment": "left",
+            "lineSpacing": 1.28
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Choose surface, text, action, border, status, or focus tokens - never a raw purple.",
+              "fontSize": 18,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#5F5767",
+              "alignment": "left",
+              "lineSpacing": 1.28
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7mtsvuxw",
+      "id": "10",
+      "name": "contract-num-2",
+      "bbox": [
+        812,
+        300,
+        60,
+        28
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "03",
+      "textPreview": "03",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 15,
+        "typeface": "Courier New",
+        "color": "#CE84B7",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "03"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Courier New",
+            "color": "#CE84B7",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "fontSize": 15,
+              "typeface": "Courier New",
+              "color": "#CE84B7",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mlkr2pgb",
+      "id": "11",
+      "name": "contract-title-2",
+      "bbox": [
+        812,
+        344,
+        310,
+        38
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Fit the native app",
+      "textPreview": "Fit the native app",
+      "resolvedFontSize": 25,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 25,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#3A2D64",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Fit the native app"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Fit the native app",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 25,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#3A2D64",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Fit the native app",
+              "fontSize": 25,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#3A2D64",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9obaxkfm",
+      "id": "12",
+      "name": "contract-copy-2",
+      "bbox": [
+        812,
+        398,
+        310,
+        112
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Use the existing wxWidgets density, DIP scaling, keyboard focus, and 4/8/12 radii.",
+      "textPreview": "Use the existing wxWidgets density, DIP scaling, keyboard focus, and 4/8/12 radii.",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 18,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#5F5767",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Use the existing wxWidgets density, DIP"
+          },
+          {
+            "index": 2,
+            "text": "scaling, keyboard focus, and 4/8/12 radii."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Use the existing wxWidgets density, DIP scaling, keyboard focus, and 4/8/12 radii.",
+          "lineSpacingPercent": 128000,
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#5F5767",
+            "alignment": "left",
+            "lineSpacing": 1.28
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Use the existing wxWidgets density, DIP scaling, keyboard focus, and 4/8/12 radii.",
+              "fontSize": 18,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#5F5767",
+              "alignment": "left",
+              "lineSpacing": 1.28
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8n294fy1",
+      "id": "13",
+      "name": "contract-rule",
+      "bbox": [
+        64,
+        560,
+        1120,
+        2
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "fillColor": "#E8DFEB",
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vqtszuxs",
+      "id": "14",
+      "name": "contract-test",
+      "bbox": [
+        64,
+        590,
+        1120,
+        48
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any deliberate exception.",
+      "textPreview": "Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any delib...",
+      "resolvedFontSize": 18.52,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 19,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#6F4F84",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.97,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any deliberate"
+          },
+          {
+            "index": 2,
+            "text": "exception."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any deliberate exception.",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#6F4F84",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Output rule: every high-fidelity screen must identify its mode, viewport, semantic tokens, component variants, focus state, and any deliberate exception.",
+              "fontSize": 19,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#6F4F84",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/upkr6pg7",
+      "id": "15",
+      "name": "footer-2",
+      "bbox": [
+        64,
+        684,
+        650,
+        18
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "JusPrin UI design system · agent-ready specification",
+      "textPreview": "JusPrin UI design system · agent-ready specification",
+      "resolvedFontSize": 11,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 11,
+        "typeface": "HarmonyOS Sans SC",
+        "color": "#5F5767",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "JusPrin UI design system · agent-ready specification"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "JusPrin UI design system · agent-ready specification",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 11,
+            "typeface": "HarmonyOS Sans SC",
+            "color": "#5F5767",
+            "alignment": "left",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "JusPrin UI design system · agent-ready specification",
+              "fontSize": 11,
+              "typeface": "HarmonyOS Sans SC",
+              "color": "#5F5767",
+              "alignment": "left",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/hcva14fy",
+      "id": "16",
+      "name": "page-2",
+      "bbox": [
+        1150,
+        684,
+        65,
+        18
+      ],
+      "rotation": 0,
+      "geometry": "rect",
+      "text": "02",
+      "textPreview": "02",
+      "resolvedFontSize": 11,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 11,
+        "typeface": "Courier New",
+        "color": "#5F5767",
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "02"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "02",
+          "lineSpacingPercent": 108000,
+          "resolvedTextStyle": {
+            "fontSize": 11,
+            "typeface": "Courier New",
+            "color": "#5F5767",
+            "alignment": "right",
+            "lineSpacing": 1.08
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "02",
+              "fontSize": 11,
+              "typeface": "Courier New",
+              "color": "#5F5767",
+              "alignment": "right",
+              "lineSpacing": 1.08
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

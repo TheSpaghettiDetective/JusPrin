@@ -1,0 +1,245 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "meta": {
+    "name": "JusPrin UI Design System",
+    "version": "1.0.0",
+    "units": "DIP",
+    "platforms": [
+      "Windows",
+      "macOS",
+      "Linux"
+    ]
+  },
+  "primitive": {
+    "brand": {
+      "orbit": "#3A2D64",
+      "orbitHover": "#4B3A77",
+      "orbitPressed": "#2B214F",
+      "violet": "#6F4F84",
+      "bloom": "#CE84B7",
+      "bloomHover": "#D99AC5",
+      "bloomPressed": "#B76CA0"
+    },
+    "neutral": {
+      "ink": "#17131F",
+      "white": "#FFFFFF",
+      "mist": "#F6F2F7",
+      "trace": "#E8DFEB",
+      "darkSurface": "#211B2A",
+      "darkRaised": "#2B2336",
+      "darkBorder": "#4B3E57",
+      "darkBorderStrong": "#7D6A8D"
+    },
+    "status": {
+      "success": "#2D6A55",
+      "danger": "#B44757",
+      "warning": "#D49A2A",
+      "successDark": "#58B894",
+      "dangerDark": "#F07A8E",
+      "warningDark": "#E9B960"
+    }
+  },
+  "semantic": {
+    "light": {
+      "surface": {
+        "canvas": "#FFFFFF",
+        "subtle": "#F6F2F7",
+        "raised": "#FFFFFF",
+        "selected": "#EDE7F2"
+      },
+      "text": {
+        "primary": "#17131F",
+        "secondary": "#5F5767",
+        "onAction": "#FFFFFF"
+      },
+      "border": {
+        "subtle": "#E8DFEB",
+        "strong": "#6F4F84",
+        "focus": "#6F4F84"
+      },
+      "action": {
+        "primary": "#3A2D64",
+        "primaryHover": "#4B3A77",
+        "primaryPressed": "#2B214F",
+        "primaryText": "#FFFFFF",
+        "secondary": "#FFFFFF",
+        "secondaryHover": "#F6F2F7",
+        "secondaryPressed": "#EDE7F2",
+        "secondaryText": "#17131F",
+        "secondaryBorder": "#E8DFEB",
+        "danger": "#FFFFFF",
+        "dangerText": "#B44757",
+        "dangerBorder": "#B44757",
+        "disabled": "#E4E0E6",
+        "disabledText": "#8A838F"
+      },
+      "status": {
+        "success": "#2D6A55",
+        "danger": "#B44757",
+        "warning": "#D49A2A"
+      }
+    },
+    "dark": {
+      "surface": {
+        "canvas": "#17131F",
+        "subtle": "#211B2A",
+        "raised": "#2B2336",
+        "selected": "#4B3E57"
+      },
+      "text": {
+        "primary": "#F6F2F7",
+        "secondary": "#CFC5D3",
+        "tertiary": "#A99EAE",
+        "onAction": "#17131F"
+      },
+      "border": {
+        "subtle": "#4B3E57",
+        "strong": "#7D6A8D",
+        "focus": "#7D6A8D"
+      },
+      "action": {
+        "primary": "#CE84B7",
+        "primaryHover": "#D99AC5",
+        "primaryPressed": "#B76CA0",
+        "primaryText": "#17131F",
+        "secondary": "#211B2A",
+        "secondaryHover": "#2B2336",
+        "secondaryPressed": "#3A3047",
+        "secondaryText": "#F6F2F7",
+        "secondaryBorder": "#7D6A8D",
+        "danger": "#211B2A",
+        "dangerText": "#F07A8E",
+        "dangerBorder": "#F07A8E",
+        "disabled": "#342C3B",
+        "disabledText": "#857B8C"
+      },
+      "status": {
+        "success": "#58B894",
+        "danger": "#F07A8E",
+        "warning": "#E9B960"
+      }
+    }
+  },
+  "typography": {
+    "ui": {
+      "family": "HarmonyOS Sans SC",
+      "weights": {
+        "regular": 400,
+        "bold": 700
+      },
+      "fallback": "system GUI font"
+    },
+    "technical": {
+      "family": "system teletype",
+      "usage": "measurements, temperatures, filenames, machine status"
+    },
+    "roles": {
+      "pageTitle": {
+        "size": 24,
+        "lineHeight": 30,
+        "weight": 700
+      },
+      "section": {
+        "size": 18,
+        "lineHeight": 24,
+        "weight": 700
+      },
+      "body": {
+        "size": 14,
+        "lineHeight": 20,
+        "weight": 400
+      },
+      "label": {
+        "size": 12,
+        "lineHeight": 16,
+        "weight": 700
+      },
+      "metadata": {
+        "size": 10,
+        "lineHeight": 14,
+        "weight": 400
+      }
+    }
+  },
+  "dimension": {
+    "space": {
+      "1": 4,
+      "2": 8,
+      "3": 12,
+      "4": 16,
+      "5": 20,
+      "6": 24,
+      "8": 32,
+      "10": 40,
+      "12": 48
+    },
+    "radius": {
+      "standard": 4,
+      "compact": 8,
+      "window": 12
+    }
+  },
+  "component": {
+    "button": {
+      "compact": {
+        "paddingX": 8,
+        "paddingY": 3,
+        "radius": 8,
+        "textRole": "metadata"
+      },
+      "window": {
+        "minWidth": 58,
+        "height": 24,
+        "radius": 12,
+        "textSize": 12
+      },
+      "choice": {
+        "minWidth": 100,
+        "height": 32,
+        "paddingX": 12,
+        "paddingY": 8,
+        "radius": 4,
+        "textSize": 14
+      },
+      "parameter": {
+        "width": 120,
+        "height": 26,
+        "radius": 4,
+        "textSize": 14
+      },
+      "icon": {
+        "width": 26,
+        "height": 26,
+        "iconSize": 16,
+        "radius": 4
+      },
+      "expanded": {
+        "minHeight": 32,
+        "paddingX": 12,
+        "paddingY": 8,
+        "radius": 4,
+        "textSize": 14
+      }
+    },
+    "icon": {
+      "sizes": [
+        16,
+        20,
+        24
+      ],
+      "preferredFormat": "SVG",
+      "fallbackFormat": "PNG"
+    },
+    "focus": {
+      "width": 2,
+      "offset": 2,
+      "rule": "Must remain visible without relying on fill-color change alone"
+    }
+  },
+  "rules": {
+    "gradient": "Logo, splash, onboarding, and rare marketing moments only",
+    "measurement": "All product UI dimensions are DIP",
+    "modePair": "Every high-fidelity product frame must be delivered in light and dark mode",
+    "rawColor": "Do not use primitive colors directly in product UI; resolve through semantic tokens"
+  }
+}
