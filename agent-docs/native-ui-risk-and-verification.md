@@ -4,6 +4,12 @@
 
 **Recorded:** 2026-08-12
 
+**Execution consequence:** Do not schedule or implement another Spike 1. Its
+architecture evidence is complete, and production shell work may start. Treat
+remaining platform coverage as non-blocking QA. The only pending spike-like
+task is the Move/Rotate controller-seam discovery, which measures integration
+coupling rather than technical feasibility.
+
 ## Lesson learned
 
 The initial assessment of the native shell overstated its architectural risk.
@@ -161,11 +167,12 @@ Before implementing each product area, add or update a short entry containing:
 The table above is the initial ledger. Update it when evidence changes; do not
 carry an old risk label forward without rechecking its basis.
 
-### B. Close Spike 1 as integration and platform validation
+### B. Finish the remaining non-blocking Spike 1 QA
 
-Spike 1 no longer answers whether the architecture is technically feasible.
-macOS and Linux/X11 have demonstrated the native/WebView boundary. Complete the
-remaining evidence as targeted QA:
+Spike 1 is complete and no longer answers whether the architecture is
+technically feasible. macOS and Linux/X11 have demonstrated the native/WebView
+boundary. Production implementation may proceed while the following evidence
+is completed as targeted QA:
 
 1. Run the packaged shell on Windows/WebView2.
 2. On Linux, test a physical GPU and Wayland if they are supported target
@@ -181,7 +188,7 @@ A localized focus, CSS, packaging, or resize defect does not invalidate the
 boundary. Revisit the boundary only if a reproduced failure cannot be fixed
 locally without broad architectural change.
 
-### C. Run Spike 2 as seam discovery
+### C. Use Spike 2 only as seam discovery
 
 Spike 2 must not attempt to re-prove transforms, gizmo activation, screen-space
 overlays, exact-value application, snapshots, or undo. Those capabilities are

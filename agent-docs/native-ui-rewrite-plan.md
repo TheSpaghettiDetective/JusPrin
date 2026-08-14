@@ -1,13 +1,16 @@
 # Native UI rewrite plan
 
-**Status:** Current direction
+**Status:** Architecture selected; Spike 1 evidence complete; production
+implementation may proceed
 
 **Platform decision:** Keep OrcaSlicer's existing C++17, wxWidgets, ImGui,
 OpenGL, and CMake platform. Electron and a WebGL viewport are out of scope.
 
-**Immediate objective:** Establish how easily the wireframed shell and a new
-gizmo presentation can be built around the real OrcaSlicer viewport. These are
-implementation-confidence spikes, not another platform selection exercise.
+**Current execution:** Do not run another native-shell feasibility spike. Build
+the production JusPrin shell using the established native/WebView boundary.
+Finish the remaining Spike 1 platform checks as non-blocking QA. Run the
+Move/Rotate presentation work only to discover a narrow reusable controller
+seam before converting the other gizmos.
 
 **Results document:** `agent-docs/native-ui-spike-results.md`
 
@@ -105,26 +108,30 @@ technically feasible. Remaining platform configurations and visual treatment
 still require targeted integration and QA evidence; they are not, by
 themselves, architecture risks.
 
-## 4. Remaining questions to answer first
+## 4. Current execution order
 
-Do not assign speculative risk rankings or use prototypes to re-prove mature
-capabilities. Answer only the residual questions with the cheapest useful
-evidence:
+The architecture question for the shell is closed. Work now proceeds in this
+order:
 
-1. Which backend-specific focus, input, resize, appearance, or packaging issues
-   remain after the demonstrated GL/native/WebView composition?
-2. What narrow reusable controller seam lets one representative gizmo receive
-   the wireframed presentation while retaining its existing geometry,
-   selection, numerical input, and undo/redo?
+1. Implement the production JusPrin shell: compact top navigation, thin native
+   object/plate pane, existing viewport and Preview, existing Slice action, and
+   the fixed Agent WebView with C++ authoritative state.
+2. In parallel with implementation, close the remaining Windows and targeted
+   input/display checks from Spike 1 as platform QA. These checks do not gate
+   starting the production shell.
+3. Implement one Move or Rotate presentation as a bounded controller-seam
+   discovery task. Preserve the existing native manipulation, exact-value,
+   snapshot, and undo/redo paths.
+4. Use the established shell and controller seam for semantic annotations, the
+   production Agent interface, and gizmo-family rollout.
 
-Only these two questions belong in the first spike sequence.
-
-Semantic annotations and the complete object panel are product features. They
-are explicitly deferred until the shell and gizmo experiments finish.
+Do not describe this sequence as two pending confidence spikes. Spike 1 is
+completed evidence. The remaining shell checks are QA, and the Move/Rotate task
+measures coupling rather than feasibility.
 
 ---
 
-# Spike 1 — Native shell composition
+# Completed evidence — Native shell composition (Spike 1)
 
 **Assessment:** The underlying capability was already supported by mature Orca
 components. The spike is an integration demonstration and cross-platform QA
@@ -132,18 +139,18 @@ activity, not an architectural-feasibility gate. macOS and Ubuntu/X11 with
 WebKitGTK and Mesa software rendering have demonstrated the boundary; targeted
 coverage remains as recorded in the results document.
 
-**Implementation timebox:** Target two developer-days on the primary development
-platform. If the shell is not locally demonstrable after three, stop and
-document the blocking behavior rather than expanding the prototype.
+**Implementation status:** Complete in the experimental OrcaSlicer branch. Its
+result informs the production JusPrin implementation; there is no remaining
+Spike 1 implementation task in this plan.
 
-The packaged or release-like checks on Windows, macOS, and Linux in §7 are a
-separate validation activity and are not included in this implementation
-timebox. The composition is not considered demonstrated across supported
-platforms until those checks are complete.
+Packaged or release-like checks remain a separate validation activity. macOS
+and Ubuntu/X11 with software rendering demonstrated the boundary. Windows and
+the explicitly listed input/display configurations remain release evidence, not
+an architecture or implementation-start gate.
 
-## 5. Build the smallest real composition
+## 5. Composition that was demonstrated
 
-Build a development-only shell using production components:
+The development-only shell used production components:
 
 - Compact native placeholder top row
 - Collapsible native left pane containing two plates and two objects
@@ -152,16 +159,17 @@ Build a development-only shell using production components:
 - Existing Slice action
 - Existing Prepare/Preview switch
 
-The chat prototype needs only an input, a scrollable transcript, and simulated
-streaming output. Do not build an agent backend, MCP, account UI, settings, or
-final visual polish.
+The chat prototype contained only an input, a scrollable transcript, and
+simulated streaming output. It intentionally did not include an agent backend,
+MCP, account UI, settings, or final visual polish.
 
-Use one C++ state owner. JavaScript sends typed commands and receives typed
-events; it must not become a second source of project state.
+The production implementation must retain the demonstrated ownership rule: one
+C++ state owner; JavaScript sends typed commands and receives typed events; it
+must not become a second source of project state.
 
-## 6. Exercise the seams
+## 6. Seams exercised
 
-The demonstration must include:
+The demonstration and its follow-up validation covered or attempted:
 
 1. Select an object in the left pane and observe the viewport selection.
 2. Select an object in the viewport and observe the left-pane selection.
@@ -172,7 +180,7 @@ The demonstration must include:
 7. Trigger Slice through the new button.
 8. Resize at normal and high-DPI scaling.
 
-## 7. Cross-platform check
+## 7. Remaining cross-platform QA
 
 `wxWebView` does not provide one identical browser engine:
 
@@ -182,9 +190,11 @@ The demonstration must include:
 | macOS | WKWebView |
 | Linux | WebKitGTK 4.1 |
 
-Run Linux/WebKitGTK early rather than treating it as a final compatibility
-check. Run packaged or release-like builds on all three platforms before calling
-the composition demonstrated.
+The boundary has been demonstrated on macOS/WKWebView and Ubuntu
+X11/WebKitGTK with Mesa software rendering. Run a packaged or release-like
+Windows/WebView2 build and the remaining targeted configurations before the
+production milestone is release-complete. Do not use those gaps to reclassify
+the shell as an unresolved architecture decision.
 
 Check and record:
 
@@ -196,13 +206,15 @@ Check and record:
 - Light/dark appearance and 100%/200% scaling
 - Any platform-specific CSS or JavaScript required
 
-The goal is not zero defects in a prototype. The result must identify whether
-problems are localized implementation work or require changing the proposed
-widget boundary.
+The goal is to classify observed defects accurately. Focus, CSS, packaging,
+resize, theme, or input defects are localized QA findings unless reproduced
+evidence shows that they require changing the widget boundary.
 
-## 8. Spike 1 result
+## 8. Spike 1 result record
 
-Write the following to `agent-docs/native-ui-spike-results.md`:
+The completed result is recorded in
+`agent-docs/native-ui-spike-results.md`. Append future platform-QA evidence to
+that record, including:
 
 - Commit/build tested on each operating system
 - Screenshots of resting, expanded, and Preview states
@@ -217,7 +229,7 @@ first adjust the wx layout, WebView scope, or Agent-pane implementation.
 
 ---
 
-# Spike 2 — One complete gizmo presentation
+# Next seam task — One complete gizmo presentation (Spike 2)
 
 **Assessment:** Existing code already proves gizmo activation, screen-space
 overlay placement, numerical transforms, snapshots, and undo/redo. This spike
@@ -289,13 +301,13 @@ a trigger to replace the viewport.
 
 ---
 
-# Work after the two spikes
+# Production implementation
 
 ## 12. Thin plates/objects pane
 
-Build the production panel only after Spike 1 determines its widget boundary.
-It must cover the smaller product workflow rather than reproduce all of
-`GUI_ObjectList`:
+Spike 1 has determined the widget boundary. Build the production panel now as
+part of the production shell. It must cover the smaller product workflow rather
+than reproduce all of `GUI_ObjectList`:
 
 - List and switch plates
 - List objects on the active plate
@@ -332,8 +344,8 @@ the storage and lifecycle behavior are demonstrated.
 
 ## 14. Agent interface
 
-Once Spike 1 validates the embedded UI, build the Agent pane as a standalone
-local React/TypeScript package with:
+Spike 1 validated the embedded UI boundary. Build the production Agent pane as
+a standalone local React/TypeScript package with:
 
 - A versioned typed command/event schema
 - Deterministic mock conversations for UI tests
@@ -370,16 +382,18 @@ serialization before removing its old presentation.
   require it.
 - Do not reopen Electron/WebGL work without a new explicit product decision.
 
-## 17. Completion of this plan
+## 17. Planning status and remaining gates
 
-The planning phase is complete when:
+The platform and shell architecture planning is complete. Production shell
+implementation does not wait for another Spike 1 run. The remaining gates are:
 
-1. Both spike results are written with evidence from the target operating
-   systems.
-2. The native/WebView boundary is fixed for the first production milestone.
-3. The reusable gizmo presentation seam is documented.
-4. The remaining product work is estimated from the demonstrated seams rather
-   than assumed risk levels.
-5. Each production area has an evidence-ledger entry that states its technical
+1. Before the cross-platform production milestone is called release-complete,
+   record the remaining Windows and targeted Linux/input evidence in the Spike
+   1 results.
+2. Before converting gizmo families, document the reusable presentation seam
+   discovered by the Move or Rotate task.
+3. Estimate remaining product work from demonstrated seams rather than assumed
+   risk levels.
+4. Give each production area an evidence-ledger entry that states its technical
    nature, mature precedents, unproven delta, residual risk category, and
    verification exit condition.
