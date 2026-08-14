@@ -10,6 +10,7 @@
 #include <wx/textctrl.h>
 
 #include <cstdlib>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <set>
@@ -92,6 +93,16 @@ public:
         auto* controls = new wxBoxSizer(wxHORIZONTAL);
         controls->Add(new wxStaticText(this, wxID_ANY, "Object:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
         m_objects = new wxChoice(this, wxID_ANY);
+        m_objects->Bind(wxEVT_CHOICE, [this](wxCommandEvent& event) {
+            // On macOS, dismissing the native choice popup can leave the
+            // probe's opaque parent as the key window. Restore the probe on
+            // the next event-loop turn so it stays usable above the shell.
+            CallAfter([this] {
+                Raise();
+                m_objects->SetFocus();
+            });
+            event.Skip();
+        });
         controls->Add(m_objects, 1, wxRIGHT, 8);
         add_button(controls, "Refresh", [this] { refresh("manual"); });
         add_button(controls, "Select", [this] { run("select", [this](ObjectId id) { return m_workspace.select_object(id); }); });
@@ -201,9 +212,12 @@ private:
 
     void append(const std::string& line)
     {
-        m_log->AppendText(wxString::FromUTF8(line) + "\n");
+        std::ostringstream ordered;
+        ordered << "PROBE seq=" << std::setw(4) << std::setfill('0') << ++m_log_sequence << ' ' << line;
+        const std::string ordered_line = ordered.str();
+        m_log->AppendText(wxString::FromUTF8(ordered_line) + "\n");
         if (m_log_file) {
-            m_log_file << line << '\n';
+            m_log_file << ordered_line << '\n';
             m_log_file.flush();
         }
     }
@@ -215,14 +229,16 @@ private:
     std::optional<ObjectId> m_preferred_object;
     WorkspaceSubscription m_subscription;
     std::ofstream m_log_file;
+    std::uint64_t m_log_sequence{0};
 };
 
 } // namespace
 
-void show_workspace_probe(wxWindow* parent, IWorkspace& workspace)
+wxWindow* show_workspace_probe(wxWindow* parent, IWorkspace& workspace)
 {
     auto* probe = new WorkspaceProbeFrame(parent, workspace);
     probe->Show();
+    return probe;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

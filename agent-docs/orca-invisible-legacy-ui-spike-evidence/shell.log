@@ -1,0 +1,19 @@
+SHELL seq=0001 created title="JusPrin Empty Shell Spike" legacy_title=""
+SHELL seq=0002 legacy_visibility shown=1
+SHELL seq=0003 legacy_focus active=1
+SHELL seq=0004 legacy_focus active=0
+SHELL seq=0005 shell_focus active=1
+SHELL seq=0006 shown legacy_shown=1 legacy_active=0 shell_shown=1 shell_active=1 coverage_match=1 legacy_bounds={x=522 y=1473 width=1083 height=767} shell_bounds={x=522 y=1473 width=1083 height=767}
+SHELL seq=0007 shell_focus active=0
+SHELL seq=0008 probe_shown title="JusPrin Workspace Adapter Probe" bounds={x=546 y=1497 width=760 height=480}
+SHELL seq=0009 unexpected_top_level_shown title="Loading..." modal=0
+SHELL seq=0010 legacy_focus active=1
+SHELL seq=0011 legacy_focus active=0
+SHELL seq=0012 shell_focus active=1
+SHELL seq=0013 z_order_restored_after_legacy_activation legacy_shown=1 legacy_active=0 shell_shown=1 shell_active=1 coverage_match=1 legacy_bounds={x=522 y=1473 width=1083 height=767} shell_bounds={x=522 y=1473 width=1083 height=767}
+SHELL seq=0014 probe_destroyed shell_remains_shown=1
+SHELL seq=0015 close_shortcut
+SHELL seq=0016 close_requested
+SHELL seq=0017 shell_focus active=0
+SHELL seq=0018 legacy_revealed_after_shell_close legacy_shown=1 legacy_active=1 shell_shown=0 shell_active=0 coverage_match=1 legacy_bounds={x=522 y=1473 width=1083 height=767} shell_bounds={x=522 y=1473 width=1083 height=767}
+SHELL seq=0019 destroyed

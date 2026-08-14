@@ -129,6 +129,7 @@
 #include "Gizmos/GizmoObjectManipulation.hpp"
 #include "JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "JusPrin/Workspace/WorkspaceProbe.hpp"
+#include "JusPrin/InvisibleLegacyUiSpike.hpp"
 
 // BBS
 #include "Widgets/ProgressDialog.hpp"
@@ -5467,11 +5468,20 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
     //}
     update_sidebar(true);
 
-    const char* workspace_spike = std::getenv("JUSPRIN_WORKSPACE_SPIKE");
-    if (workspace_spike != nullptr && std::string(workspace_spike) == "1") {
+    const char* workspace_spike        = std::getenv("JUSPRIN_WORKSPACE_SPIKE");
+    const char* invisible_legacy_spike = std::getenv("JUSPRIN_INVISIBLE_LEGACY_UI_SPIKE");
+    const bool show_workspace_spike    = workspace_spike != nullptr && std::string(workspace_spike) == "1";
+    const bool show_invisible_spike    = invisible_legacy_spike != nullptr && std::string(invisible_legacy_spike) == "1";
+    if (show_workspace_spike || show_invisible_spike) {
         q->CallAfter([this, q]() {
             workspace_adapter = std::make_unique<JusPrin::Workspace::OrcaWorkspaceAdapter>(*q);
-            q->CallAfter([this, q]() { JusPrin::Workspace::show_workspace_probe(q, *workspace_adapter); });
+            q->CallAfter([this, q]() {
+                const char* invisible = std::getenv("JUSPRIN_INVISIBLE_LEGACY_UI_SPIKE");
+                if (invisible != nullptr && std::string(invisible) == "1")
+                    JusPrin::Workspace::show_invisible_legacy_ui_spike(q, *workspace_adapter);
+                else
+                    JusPrin::Workspace::show_workspace_probe(q, *workspace_adapter);
+            });
         });
     }
 }

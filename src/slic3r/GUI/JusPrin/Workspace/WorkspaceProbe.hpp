@@ -8,6 +8,6 @@ class IWorkspace;
 
 // Development-only probe. The implementation consumes only IWorkspace and
 // deliberately has no access to Plater, GLCanvas3D, or Model.
-void show_workspace_probe(wxWindow* parent, IWorkspace& workspace);
+wxWindow* show_workspace_probe(wxWindow* parent, IWorkspace& workspace);
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

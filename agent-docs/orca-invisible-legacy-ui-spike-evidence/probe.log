@@ -1,0 +1,36 @@
+PROBE seq=0001 SNAPSHOT source=initial revision=0 plates=1 active=11 selection=none can_undo=0 can_redo=0 objects=[]
+PROBE seq=0002 EVENT revision=1 reasons=Selection
+PROBE seq=0003 SNAPSHOT source=callback revision=1 plates=2 active=83 selection=none can_undo=1 can_redo=1 objects=[102:Grundkörper pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0004 SNAPSHOT source=manual revision=1 plates=2 active=83 selection=none can_undo=1 can_redo=1 objects=[102:Grundkörper pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0005 COMMAND select success
+PROBE seq=0006 EVENT revision=2 reasons=Selection
+PROBE seq=0007 SNAPSHOT source=callback revision=2 plates=2 active=83 selection=102 can_undo=1 can_redo=0 objects=[102:Grundkörper pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0008 COMMAND rename success
+PROBE seq=0009 EVENT revision=3 reasons=Contents
+PROBE seq=0010 SNAPSHOT source=callback revision=3 plates=2 active=83 selection=102 can_undo=1 can_redo=1 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0011 COMMAND undo success
+PROBE seq=0012 EVENT revision=4 reasons=Contents|History
+PROBE seq=0013 SNAPSHOT source=callback revision=4 plates=2 active=83 selection=102 can_undo=1 can_redo=1 objects=[102:Grundkörper pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0014 COMMAND redo success
+PROBE seq=0015 EVENT revision=5 reasons=Contents|History
+PROBE seq=0016 SNAPSHOT source=callback revision=5 plates=2 active=83 selection=102 can_undo=1 can_redo=1 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0017 COMMAND duplicate success object_id=234
+PROBE seq=0018 SNAPSHOT source=command revision=5 plates=2 active=83 selection=234 can_undo=1 can_redo=0 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 234:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0019 EVENT revision=6 reasons=Selection|Contents
+PROBE seq=0020 SNAPSHOT source=callback revision=6 plates=2 active=83 selection=234 can_undo=1 can_redo=0 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 234:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0021 COMMAND undo success
+PROBE seq=0022 EVENT revision=7 reasons=Selection|Contents|History
+PROBE seq=0023 SNAPSHOT source=callback revision=7 plates=2 active=83 selection=102 can_undo=1 can_redo=1 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0024 COMMAND redo success
+PROBE seq=0025 EVENT revision=8 reasons=Selection|Contents|History
+PROBE seq=0026 SNAPSHOT source=callback revision=8 plates=2 active=83 selection=234 can_undo=1 can_redo=1 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 234:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0027 COMMAND remove success
+PROBE seq=0028 EVENT revision=9 reasons=Selection|Contents
+PROBE seq=0029 SNAPSHOT source=callback revision=9 plates=2 active=83 selection=none can_undo=1 can_redo=1 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0030 COMMAND undo success
+PROBE seq=0031 EVENT revision=10 reasons=Selection|Contents|History
+PROBE seq=0032 SNAPSHOT source=callback revision=10 plates=2 active=83 selection=234 can_undo=1 can_redo=1 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 234:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0033 COMMAND select success
+PROBE seq=0034 EVENT revision=11 reasons=Selection
+PROBE seq=0035 SNAPSHOT source=callback revision=11 plates=2 active=83 selection=91 can_undo=1 can_redo=0 objects=[102:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 113:Deckel pos=(115.200,128.000,2.250) rot=(1.571,3.142,1.571); 234:Grundkörper renamed pos=(140.800,128.001,23.250) rot=(-1.571,-3.142,1.571); 91:Slider pos=(435.200,128.000,2.800) rot=(0.000,-3.142,1.571)]
+PROBE seq=0036 PROBE consumer destroyed
