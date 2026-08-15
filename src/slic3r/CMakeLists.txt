@@ -126,6 +126,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/GCodeViewer.hpp
     GUI/JusPrin/InvisibleLegacyUiSpike.cpp
     GUI/JusPrin/InvisibleLegacyUiSpike.hpp
+    GUI/JusPrin/FullWindowUiSpike.cpp
+    GUI/JusPrin/FullWindowUiSpike.hpp
     GUI/Gizmos/GizmoObjectManipulation.cpp
     GUI/Gizmos/GizmoObjectManipulation.hpp
     GUI/JusPrin/Workspace/FakeWorkspace.hpp

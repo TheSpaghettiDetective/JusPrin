@@ -49,6 +49,7 @@
 #include "../Utils/PrintHost.hpp"
 
 #include <fstream>
+#include <cstdlib>
 #include <string_view>
 
 #include "GUI_App.hpp"
@@ -64,6 +65,7 @@
 #include "Widgets/WebView.hpp"
 #include "DailyTips.hpp"
 #include "FilamentMapDialog.hpp"
+#include "JusPrin/FullWindowUiSpike.hpp"
 
 #include "DeviceCore/DevManager.h"
 
@@ -1014,6 +1016,18 @@ void MainFrame::update_layout()
     {
     case ESettingsLayout::Old:
     {
+        const char* full_window_spike = std::getenv("JUSPRIN_FULL_WINDOW_UI_SPIKE");
+        if (full_window_spike != nullptr && std::string(full_window_spike) == "1") {
+#ifndef __APPLE__
+            m_topbar->Hide();
+#endif
+            m_tabpanel->Hide();
+            wxWindow* shell = JusPrin::create_full_window_ui_spike(this, *m_plater);
+            m_main_sizer->Add(shell, 1, wxEXPAND);
+            shell->Show();
+            break;
+        }
+
         m_plater->Reparent(m_tabpanel);
         m_tabpanel->InsertPage(tp3DEditor, m_plater, _L("Prepare"), std::string("tab_3d_active"), std::string("tab_3d_active"), false);
         m_tabpanel->InsertPage(tpPreview, m_plater, _L("Preview"), std::string("tab_preview_active"), std::string("tab_preview_active"), false);

@@ -5706,6 +5706,10 @@ void Plater::priv::enable_sidebar(bool enabled)
     if (q->m_only_gcode)
         enabled = false;
 
+    const char* full_window_spike = std::getenv("JUSPRIN_FULL_WINDOW_UI_SPIKE");
+    if (full_window_spike != nullptr && std::string(full_window_spike) == "1")
+        enabled = false;
+
     sidebar_layout.is_enabled = enabled;
     update_sidebar();
 }

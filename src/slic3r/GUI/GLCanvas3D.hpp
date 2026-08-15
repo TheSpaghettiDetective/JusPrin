@@ -197,6 +197,8 @@ wxDECLARE_EVENT(EVT_GLCANVAS_ADAPTIVE_LAYER_HEIGHT_PROFILE, Event<float>);
 wxDECLARE_EVENT(EVT_GLCANVAS_SMOOTH_LAYER_HEIGHT_PROFILE, HeightProfileSmoothEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_PRINTABLE, SimpleEvent);
 
+enum class GLCanvasPresentationMode : unsigned char { OrcaClassic, JusPrin };
+
 class GLCanvas3D
 {
     static const double DefaultCameraZoomToBoxMarginFactor;
@@ -517,6 +519,7 @@ public:
 
 private:
     bool m_is_dark = false;
+    GLCanvasPresentationMode m_presentation_mode{GLCanvasPresentationMode::OrcaClassic};
     wxGLCanvas* m_canvas;
     wxGLContext* m_context;
     SceneRaycaster m_scene_raycaster;
@@ -872,6 +875,13 @@ public:
     void enable_gizmos(bool enable) { m_gizmos.set_enabled(enable); }
     void enable_selection(bool enable) { m_selection.set_enabled(enable); }
     void enable_main_toolbar(bool enable) { m_main_toolbar.set_enabled(enable); }
+    void set_presentation_mode(GLCanvasPresentationMode mode)
+    {
+        m_presentation_mode = mode;
+        set_as_dirty();
+        request_extra_frame();
+    }
+    GLCanvasPresentationMode presentation_mode() const { return m_presentation_mode; }
     //BBS: GUI refactor: GLToolbar
     void _update_select_plate_toolbar_stats_item(bool force_selected = false);
     void reset_select_plate_toolbar_selection();

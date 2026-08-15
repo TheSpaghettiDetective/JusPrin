@@ -2036,7 +2036,9 @@ void GLCanvas3D::render(bool only_init)
     _render_background();
 
     //BBS add partplater rendering logic
-    bool only_current = false, only_body = false, no_partplate = false;
+    bool only_current = false;
+    bool only_body = m_presentation_mode == GLCanvasPresentationMode::JusPrin;
+    bool no_partplate = false;
     bool show_grid = true;
     GLGizmosManager::EType gizmo_type = m_gizmos.get_current_type();
     if (!m_main_toolbar.is_enabled()) {
@@ -4201,7 +4203,9 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     const int layer_editing_object_idx = is_layers_editing_enabled() ? selected_object_idx : -1;
     const bool mouse_in_layer_editing  = layer_editing_object_idx != -1 && m_layers_editing.bar_rect_contains(*this, pos(0), pos(1));
 
-    if (!mouse_in_layer_editing && m_main_toolbar.on_mouse(evt, *this)) {
+    const bool show_orca_chrome = m_presentation_mode == GLCanvasPresentationMode::OrcaClassic;
+
+    if (show_orca_chrome && !mouse_in_layer_editing && m_main_toolbar.on_mouse(evt, *this)) {
         if (m_main_toolbar.is_any_item_pressed())
             m_gizmos.reset_all_states();
         if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp())
@@ -4211,14 +4215,14 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     }
 
     //BBS: GUI refactor: GLToolbar
-    if (!mouse_in_layer_editing && m_assemble_view_toolbar.on_mouse(evt, *this)) {
+    if (show_orca_chrome && !mouse_in_layer_editing && m_assemble_view_toolbar.on_mouse(evt, *this)) {
         if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp())
             mouse_up_cleanup();
         m_mouse.set_start_position_3D_as_invalid();
         return;
     }
 
-    if (!mouse_in_layer_editing && wxGetApp().plater()->get_collapse_toolbar().on_mouse(evt, *this)) {
+    if (show_orca_chrome && !mouse_in_layer_editing && wxGetApp().plater()->get_collapse_toolbar().on_mouse(evt, *this)) {
         if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp())
             mouse_up_cleanup();
         m_mouse.set_start_position_3D_as_invalid();
@@ -4247,7 +4251,11 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
         m_dirty = true;
     };
 
-    if (!mouse_in_layer_editing && m_gizmos.on_mouse(evt)) {
+    GLGizmoBase* current_gizmo = m_gizmos.get_current();
+    const bool gizmo_handled = show_orca_chrome ? m_gizmos.on_mouse(evt) :
+        (current_gizmo != nullptr &&
+         (current_gizmo->on_mouse(evt) || (evt.RightUp() && !is_mouse_dragging())));
+    if (!mouse_in_layer_editing && gizmo_handled) {
         if (m_gizmos.is_running()) {
             _deactivate_arrange_menu();
             _deactivate_orient_menu();
@@ -7205,6 +7213,12 @@ void GLCanvas3D::_picking_pass()
         }
         case SceneRaycaster::EType::Bed:
         {
+            if (m_presentation_mode == GLCanvasPresentationMode::JusPrin) {
+                wxGetApp().plater()->get_partplate_list().reset_hover_id();
+                m_gizmos.set_hover_id(-1);
+                break;
+            }
+
             // BBS: add plate picking logic
             int plate_hover_id = hit.raycaster_id;
             if (plate_hover_id >= 0 && plate_hover_id < PartPlateList::MAX_PLATES_COUNT * PartPlate::GRABBER_COUNT) {
@@ -8375,6 +8389,9 @@ void GLCanvas3D::_check_and_update_toolbar_icon_scale()
 void GLCanvas3D::_render_overlays()
 {
     glsafe(::glDisable(GL_DEPTH_TEST));
+
+    if (m_presentation_mode == GLCanvasPresentationMode::JusPrin)
+        return;
 
     _check_and_update_toolbar_icon_scale();
 
