@@ -2,6 +2,8 @@
 
 #include "libslic3r/Model.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
@@ -194,6 +196,10 @@ CommandResult OrcaWorkspaceAdapter::rename_object(ObjectId id, const std::string
         return CommandResult::failure(WorkspaceError::InvalidArgument, "Object name cannot be empty");
     if (!m_plater.rename_object(object->index, name))
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be renamed");
+
+    // No view supplied this name, so the legacy object list still shows the old one.
+    if (ObjectList* object_list = wxGetApp().obj_list())
+        object_list->update_name_for_items();
 
     schedule_change(WorkspaceChangeReasons::Contents);
     return CommandResult::success();

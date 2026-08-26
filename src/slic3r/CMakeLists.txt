@@ -136,6 +136,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/Workspace.hpp
     GUI/JusPrin/Workspace/WorkspaceProbe.cpp
     GUI/JusPrin/Workspace/WorkspaceProbe.hpp
+    GUI/JusPrin/Workspace/WorkspaceSelfTest.cpp
+    GUI/JusPrin/Workspace/WorkspaceSelfTest.hpp
     GUI/Gizmos/GLGizmoAssembly.cpp
     GUI/Gizmos/GLGizmoAssembly.hpp
     GUI/Gizmos/GLGizmoBase.cpp

@@ -129,6 +129,7 @@
 #include "Gizmos/GizmoObjectManipulation.hpp"
 #include "JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "JusPrin/Workspace/WorkspaceProbe.hpp"
+#include "JusPrin/Workspace/WorkspaceSelfTest.hpp"
 #include "JusPrin/InvisibleLegacyUiSpike.hpp"
 
 // BBS
@@ -5472,10 +5473,15 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
     const char* invisible_legacy_spike = std::getenv("JUSPRIN_INVISIBLE_LEGACY_UI_SPIKE");
     const bool show_workspace_spike    = workspace_spike != nullptr && std::string(workspace_spike) == "1";
     const bool show_invisible_spike    = invisible_legacy_spike != nullptr && std::string(invisible_legacy_spike) == "1";
-    if (show_workspace_spike || show_invisible_spike) {
+    const bool run_workspace_selftest  = JusPrin::Workspace::workspace_selftest_requested();
+    if (show_workspace_spike || show_invisible_spike || run_workspace_selftest) {
         q->CallAfter([this, q]() {
             workspace_adapter = std::make_unique<JusPrin::Workspace::OrcaWorkspaceAdapter>(*q);
             q->CallAfter([this, q]() {
+                if (JusPrin::Workspace::workspace_selftest_requested()) {
+                    JusPrin::Workspace::run_workspace_selftest(*q, *workspace_adapter);
+                    return;
+                }
                 const char* invisible = std::getenv("JUSPRIN_INVISIBLE_LEGACY_UI_SPIKE");
                 if (invisible != nullptr && std::string(invisible) == "1")
                     JusPrin::Workspace::show_invisible_legacy_ui_spike(q, *workspace_adapter);
@@ -14656,7 +14662,8 @@ bool Plater::rename_object(size_t obj_idx, const std::string& name)
     if (object->volumes.size() == 1)
         object->volumes.front()->name = name;
     Slic3r::save_object_mesh(*object);
-    p->sidebar->obj_list()->update_name_for_items();
+    // Model mutation only. Callers that changed the name in a view already have it
+    // displayed; callers that did not are responsible for refreshing the object list.
     return true;
 }
 
