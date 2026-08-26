@@ -14662,8 +14662,7 @@ bool Plater::rename_object(size_t obj_idx, const std::string& name)
     if (object->volumes.size() == 1)
         object->volumes.front()->name = name;
     Slic3r::save_object_mesh(*object);
-    // Model mutation only. Callers that changed the name in a view already have it
-    // displayed; callers that did not are responsible for refreshing the object list.
+    p->sidebar->obj_list()->update_name_for_items();
     return true;
 }
 
