@@ -260,7 +260,14 @@ CommandResult OrcaWorkspaceAdapter::redo()
     const WorkspaceSnapshot before = snapshot();
     m_plater.redo();
     const WorkspaceSnapshot after = snapshot();
-    schedule_change(changes_after_history(before, after));
+
+    // Plater::redo() is void and can silently do nothing for the same reason
+    // Plater::undo() can, so the result is judged from the state it left behind.
+    const WorkspaceChangeReasons reasons = changes_after_history(before, after);
+    if (reasons == WorkspaceChangeReasons::History)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Redo did not change the workspace");
+
+    schedule_change(reasons);
     return CommandResult::success();
 }
 
