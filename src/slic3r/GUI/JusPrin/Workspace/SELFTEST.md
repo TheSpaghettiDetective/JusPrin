@@ -46,8 +46,15 @@ a command, the legacy UI, and the undo stack:
 2. Rename the object through `IWorkspace::rename_object`.
 3. Check a fresh `snapshot()` reports the new name.
 4. Check the legacy `GUI_ObjectList` sidebar tree also displays the new name.
-5. Undo through `IWorkspace::undo`.
+5. Undo through `IWorkspace::undo`. The 3D editor tab is brought up first,
+   because `Plater::can_undo()` is false while the plater panel is hidden, and
+   the undo is issued in the same event-loop turn that observes it — waiting a
+   turn lets visibility flip again before `undo()` re-checks it.
 6. Check a fresh `snapshot()` reports the original name again.
+7. Check the command result matches reality: reporting success means the
+   workspace changed, reporting failure means it did not. This one is about the
+   contract rather than the scenario — a command that claims success while
+   changing nothing is a defect whatever the underlying undo managed to do.
 
 ## Reading the transcript
 

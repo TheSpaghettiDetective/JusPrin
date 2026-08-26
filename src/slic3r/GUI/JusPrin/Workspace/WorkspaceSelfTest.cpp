@@ -7,6 +7,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/ObjectDataViewModel.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
@@ -31,6 +32,7 @@ constexpr const char* kRenamedTo = "JusPrin SelfTest Renamed";
 // Ticks are event-loop turns given back to the application between steps.
 constexpr int kTickIntervalMs = 200;
 constexpr int kLoadTimeoutTicks = 100; // 20s
+constexpr int kUndoAvailableTimeoutTicks = 100; // 20s
 
 bool env_is_one(const char* name)
 {
@@ -86,6 +88,17 @@ std::string snapshot_text(const WorkspaceSnapshot& snapshot)
             out << object.id.value() << ':' << object.name;
         }
     out << ']';
+    return out.str();
+}
+
+// The material content of a snapshot: what an undo is expected to change.
+// Deliberately excludes revision, which moves on its own.
+std::string objects_text(const WorkspaceSnapshot& snapshot)
+{
+    std::ostringstream out;
+    for (const WorkspacePlate& plate : snapshot.plates)
+        for (const WorkspaceObject& object : plate.objects)
+            out << object.id.value() << ':' << object.name << ';';
     return out.str();
 }
 
@@ -214,7 +227,7 @@ private:
         case 1: step_wait_for_load(); break;
         case 2: step_rename(); break;
         case 3: step_assert_renamed(); break;
-        case 4: step_undo(); break;
+        case 4: step_wait_and_undo(); break;
         case 5: step_assert_reverted(); break;
         default: finish(); break;
         }
@@ -244,6 +257,9 @@ private:
         const WorkspaceSnapshot current = m_workspace.snapshot();
         if (count_objects(current) > 0) {
             log("SNAPSHOT source=after_load " + snapshot_text(current));
+            // Plater::can_undo() is false unless the 3D view is the shown panel,
+            // so without this the undo step is skipped on most runs.
+            m_plater.select_view_3D("3D");
             ++m_step;
             return;
         }
@@ -288,12 +304,29 @@ private:
         ++m_step;
     }
 
-    void step_undo()
+    // Plater::can_undo() also requires the plater panel to be the shown tab,
+    // which is not the case when the application is started this way. Bring the
+    // 3D editor up, then undo in the same tick the availability is observed:
+    // waiting a tick lets visibility flip again before undo() re-checks it.
+    void step_wait_and_undo()
     {
-        const WorkspaceSnapshot before = m_workspace.snapshot();
-        log("STEP undo can_undo=" + std::to_string(before.can_undo));
-        const CommandResult result = m_workspace.undo();
-        check("undo_command_succeeded", result.succeeded(), result.succeeded() ? "" : "message=" + result.message);
+        if (m_undo_ticks == 0 && !m_plater.IsShown()) {
+            if (MainFrame* frame = wxGetApp().mainframe) {
+                frame->Show();
+                frame->select_tab(static_cast<size_t>(MainFrame::tp3DEditor));
+            }
+        }
+
+        const WorkspaceSnapshot current = m_workspace.snapshot();
+        if (!current.can_undo && ++m_undo_ticks <= kUndoAvailableTimeoutTicks)
+            return;
+
+        log("STEP undo can_undo=" + std::to_string(current.can_undo) + " waited_ticks=" + std::to_string(m_undo_ticks) +
+            " plater_shown=" + std::to_string(m_plater.IsShown()) + " view3d_shown=" + std::to_string(m_plater.is_view3D_shown()));
+
+        m_before_undo = current;
+        m_undo_result = m_workspace.undo();
+        check("undo_command_succeeded", m_undo_result.succeeded(), m_undo_result.succeeded() ? "" : "message=" + m_undo_result.message);
         ++m_step;
     }
 
@@ -310,6 +343,16 @@ private:
             check("snapshot_name_reverted", object->name == m_original_name,
                   "expected=" + m_original_name + " actual=" + object->name);
         }
+        // A command result must describe what actually happened: reporting
+        // success means the workspace changed, reporting failure means it did
+        // not. Either mismatch is a defect in the adapter regardless of whether
+        // the underlying undo was able to do anything.
+        const bool state_changed = objects_text(m_before_undo) != objects_text(current);
+        const bool consistent    = m_undo_result.succeeded() == state_changed;
+        check("undo_result_matches_state", consistent,
+              std::string("reported=") + (m_undo_result.succeeded() ? "success" : "failure") +
+                  " state_changed=" + (state_changed ? "yes" : "no"));
+
         check("scenario_completed", true, "");
         ++m_step;
         finish();
@@ -333,6 +376,9 @@ private:
     std::vector<Check> m_checks;
     int m_step{0};
     int m_load_ticks{0};
+    int m_undo_ticks{0};
+    WorkspaceSnapshot m_before_undo;
+    CommandResult m_undo_result;
     ObjectId m_target_id;
     int m_target_index{-1};
     std::string m_original_name;

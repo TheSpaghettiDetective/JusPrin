@@ -240,7 +240,16 @@ CommandResult OrcaWorkspaceAdapter::undo()
     const WorkspaceSnapshot before = snapshot();
     m_plater.undo();
     const WorkspaceSnapshot after = snapshot();
-    schedule_change(changes_after_history(before, after));
+
+    // Plater::undo() returns void and leaves the model untouched when it finds
+    // no project-modifying snapshot to walk back to, so whether the undo landed
+    // has to be judged from the state it left behind. History on its own means
+    // nothing in the projection moved.
+    const WorkspaceChangeReasons reasons = changes_after_history(before, after);
+    if (reasons == WorkspaceChangeReasons::History)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Undo did not change the workspace");
+
+    schedule_change(reasons);
     return CommandResult::success();
 }
 
