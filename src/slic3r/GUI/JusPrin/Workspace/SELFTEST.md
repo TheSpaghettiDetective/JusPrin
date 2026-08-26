@@ -13,6 +13,16 @@ every check passed or 1 when any check failed.
 There is no GUI automation involved — no clicking, no synthetic input, no screenshots.
 From the outside it behaves like any other test command.
 
+## Background
+
+The adapter came out of a timeboxed spike. Its specification, native results,
+and the OrcaSlicer behaviors discovered along the way are in:
+
+- [`agent-docs/orca-workspace-adapter-spike.md`](../../../../../agent-docs/orca-workspace-adapter-spike.md)
+- [`agent-docs/orca-workspace-adapter-spike-results.md`](../../../../../agent-docs/orca-workspace-adapter-spike-results.md)
+  — section 14 covers this self test, what it found, and what is still unresolved
+- [`agent-docs/orcaslicer-idiosyncrasies-lessons-learned.md`](../../../../../agent-docs/orcaslicer-idiosyncrasies-lessons-learned.md)
+
 ## Running it
 
 ```bash

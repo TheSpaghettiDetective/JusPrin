@@ -390,3 +390,98 @@ the separate probe window.
 Session-scoped object and plate IDs may differ between runs. Match objects by
 name and use the IDs recorded by that run rather than expecting the example IDs
 in Section 6.
+
+## 14. Follow-up: adapter self test
+
+Added after the spike concluded. The spike's native evidence was produced by a
+human clicking buttons in the probe window, so none of it re-runs. The
+`workspace_contract_tests` target links neither wxWidgets nor `libslic3r_gui`
+and therefore exercises `FakeWorkspace` only; no line of `OrcaWorkspaceAdapter`
+had automated coverage.
+
+### 14.1 What was added
+
+`JUSPRIN_WORKSPACE_SELFTEST=1` starts the application normally, loads a fixture,
+drives `IWorkspace` through one scripted scenario, checks the results, writes a
+transcript in the probe's line format, and terminates the process with 0 when
+every check passed or 1 when any failed. No GUI automation is involved.
+
+| Item | Value |
+|---|---|
+| Entry point | `src/slic3r/GUI/JusPrin/Workspace/WorkspaceSelfTest.{hpp,cpp}` |
+| Fixture | `resources/jusprin/selftest/selftest_cube.stl`, a 20 mm cube committed to the repository |
+| Documentation | `src/slic3r/GUI/JusPrin/Workspace/SELFTEST.md` |
+| Runner | `src/slic3r/GUI/JusPrin/Workspace/run_selftest.sh` |
+| Upstream footprint | One include plus three lines in `Plater.cpp`, routed through the existing `JUSPRIN_WORKSPACE_SPIKE` environment block |
+| AddressSanitizer | `SLIC3R_ASAN` already exists as a CMake option; see `SELFTEST.md` for a separate instrumented build tree |
+
+The scenario is deliberately the smallest one that touches the projection, a
+command, the legacy UI, and the undo stack: load the fixture, rename an object
+through `IWorkspace::rename_object`, check a fresh `snapshot()` and the legacy
+`GUI_ObjectList` both show the new name, undo, and check the name reverted.
+
+### 14.2 Defect found and fixed — undo reported success while changing nothing
+
+`OrcaWorkspaceAdapter::undo()` ended in an unconditional
+`CommandResult::success()`. `Plater::undo()` returns `void` and leaves the model
+untouched when `Plater::priv::undo()` walks back for a project-modifying
+snapshot and reaches `snapshots.begin()`
+(`src/slic3r/GUI/Plater.cpp:11734`). The adapter reported success for an
+operation that did nothing, so a consumer would proceed as if the undo landed.
+
+The adapter already held the evidence to know better. It takes before and after
+snapshots and passes them to `changes_after_history()`, which returns `History`
+on its own when nothing in the projection moved. That result was computed and
+discarded. It now decides the command result, and the failure message is
+`Undo did not change the workspace`.
+
+A seventh check, `undo_result_matches_state`, asserts the contract rather than
+the scenario: reporting success must imply the workspace changed, and reporting
+failure must imply it did not. Before the fix it failed 3 of 3 runs with
+`reported=success state_changed=no`; after the fix it passes 3 of 3.
+
+`OrcaWorkspaceAdapter::redo()` had the identical shape and received the same
+change by symmetry. It has no reproduction: the scenario cannot reach a redoable
+state, so no check exercises that path.
+
+### 14.3 Defect found and not fixed — history availability is gated on GUI visibility
+
+`Plater::can_undo()` is
+`IsShown() && p->is_view3D_shown() && p->undo_redo_stack().has_undo_snapshot()`
+(`src/slic3r/GUI/Plater.cpp:18590`), and the adapter projects it straight into
+`WorkspaceSnapshot::can_undo`. Two consequences observed at runtime:
+
+- Started this way the application's plater panel is not the shown tab, so
+  `can_undo` was false with a rename sitting on the stack. The harness reports
+  `plater_shown=0 view3d_shown=1` in that state and now brings up the 3D editor
+  tab before the undo step.
+- Even with the tab up, `can_undo` could flip between one event-loop turn and
+  the next, so an undo issued a turn after observing availability reached a
+  different code path from run to run. The harness now issues the undo in the
+  same turn that observes it.
+
+Both are upstream behavior, left unchanged. They matter for the product
+question: an agent asking the contract whether it can undo gets an answer that
+depends on which tab is on screen.
+
+### 14.4 Unreconciled with Section 5
+
+Section 5 records undo restoring a rename and redo reapplying it, against a
+two-plate 3MF project loaded from the command line. The self test loads a bare
+STL through `Plater::load_files` and the rename is never reverted, in every run.
+
+The undo failure is therefore setup-dependent rather than a general defect, and
+the earlier characterisation of it as a plain upstream break was too strong.
+The likely difference is the snapshot history a project load leaves behind
+versus a single model import, which decides whether `Plater::priv::undo()` finds
+a project-modifying snapshot to walk back to. This was not confirmed. The
+spike's 3MF would not load through the self test: neither
+`LoadStrategy::LoadModel | AddDefaultInstances | Silence` nor passing the file
+on the command line produced any object in the projection within the twenty
+second timeout, so the spike's setup could not be reproduced from the harness.
+
+Consequently the scenario still exits 1 with `checks=7 passed=5 failed=2`. The
+two failures are `undo_command_succeeded` and `snapshot_name_reverted`, both
+downstream of the same unreconciled question. Resolving it — most likely by
+teaching the harness to load a project rather than a bare model — is the next
+step for this work, and is a prerequisite for covering `redo()` at all.

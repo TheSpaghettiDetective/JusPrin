@@ -113,6 +113,34 @@ temporary startup windows have disappeared. Production code should attach to an
 explicit project-ready signal rather than treating `CallAfter` as a readiness
 guarantee.
 
+### History availability depends on which tab is on screen
+
+`Plater::can_undo()` is `IsShown() && p->is_view3D_shown() &&
+p->undo_redo_stack().has_undo_snapshot()`, and `can_redo()` matches it. Two
+thirds of that predicate describe the GUI, not the undo stack. An application
+started without the plater panel as the shown tab reports `can_undo == false`
+with work sitting on the stack, and the value can flip between one event-loop
+turn and the next as startup settles.
+
+Any consumer projecting these into a contract is publishing a GUI state as if it
+were a workspace fact. Programmatic drivers must bring the 3D editor tab up
+first, and must issue the command in the same event-loop turn that observes
+availability; a turn's delay is enough for the answer to change before the
+command re-checks it.
+
+### Undo and redo can silently do nothing
+
+`Plater::undo()` and `Plater::redo()` return `void`. `Plater::priv::undo()`
+walks back for a snapshot that modifies the project and returns without acting
+if it reaches `snapshots.begin()`, which a session holding a single action after
+a bare model import can do. `can_undo()` uses a different and weaker test than
+that walk, so the two can disagree: the predicate says an undo is available and
+the call then does nothing.
+
+Callers cannot learn from the return value whether anything happened. They must
+compare authoritative before and after projections and report the command result
+from that comparison.
+
 ## 3. Resolved implementation problems
 
 ### Selection events arrived before the duplicate command returned
@@ -346,6 +374,28 @@ post-operation state at the advertised revision or later.
 A highlighted model or changed list row is useful manual evidence, but it does
 not replace checking the IDs, names, transforms, selection, and history flags in
 the callback snapshot.
+
+### An assertion that expects success can score a defect as a pass
+
+The adapter self test asserted that `undo()` reports success. When `undo()` was
+reporting success for an operation that changed nothing, that assertion passed
+and recorded the defect as healthy. The bug was visible only as a contradiction
+between two lines of the transcript: a command reporting success next to a state
+check showing nothing had changed.
+
+Assert the contract, not just the happy path. For every command, check that the
+reported result matches reality in both directions — success implies the
+workspace changed, failure implies it did not. Such a check is never vacuous and
+catches a lying result that an expect-success assertion rewards.
+
+### A check that cannot reach the code path is worse than no check
+
+The first version of that contract check passed while the defect was present,
+because `can_undo()` was false, `undo()` refused early, and the buggy line was
+never executed. It looked like coverage and was not.
+
+Before trusting a new check, confirm it fails when the defect is present. If it
+passes both with and without the bug, it is measuring nothing.
 
 ## 5. Checklist for future workspace changes
 
