@@ -1,0 +1,32 @@
+{
+  "brand": "JusPrin",
+  "color": {
+    "orbit": "#3A2D64",
+    "violet": "#6F4F84",
+    "bloom": "#CE84B7",
+    "ink": "#17131F",
+    "mist": "#F6F2F7",
+    "trace": "#E8DFEB",
+    "white": "#FFFFFF"
+  },
+  "gradient": {
+    "from": "#3A2D64",
+    "to": "#CE84B7",
+    "angle": 0
+  },
+  "typography": {
+    "primary": "Avenir Next",
+    "technical": "Menlo",
+    "fallback": "Arial, sans-serif"
+  },
+  "radius": {
+    "control": 12,
+    "panel": 20,
+    "feature": 24
+  },
+  "logo": {
+    "clearSpace": "25% of mark width",
+    "minDigitalMarkPx": 24,
+    "minDigitalLockupPx": 120
+  }
+}

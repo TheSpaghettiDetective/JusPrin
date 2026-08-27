@@ -1,0 +1,52 @@
+:root {
+  --jp-surface-canvas: #FFFFFF;
+  --jp-surface-subtle: #F6F2F7;
+  --jp-surface-raised: #FFFFFF;
+  --jp-text-primary: #17131F;
+  --jp-text-secondary: #5F5767;
+  --jp-border-subtle: #E8DFEB;
+  --jp-border-strong: #6F4F84;
+  --jp-action-primary: #3A2D64;
+  --jp-action-primary-hover: #4B3A77;
+  --jp-action-primary-pressed: #2B214F;
+  --jp-action-primary-text: #FFFFFF;
+  --jp-action-secondary: #FFFFFF;
+  --jp-action-secondary-hover: #F6F2F7;
+  --jp-action-secondary-pressed: #EDE7F2;
+  --jp-action-secondary-text: #17131F;
+  --jp-action-secondary-border: #E8DFEB;
+  --jp-action-danger: #FFFFFF;
+  --jp-action-danger-text: #B44757;
+  --jp-action-danger-border: #B44757;
+  --jp-action-disabled: #E4E0E6;
+  --jp-action-disabled-text: #8A838F;
+  --jp-status-success: #2D6A55;
+  --jp-status-danger: #B44757;
+  --jp-status-warning: #D49A2A;
+}
+[data-theme="dark"] {
+  --jp-surface-canvas: #17131F;
+  --jp-surface-subtle: #211B2A;
+  --jp-surface-raised: #2B2336;
+  --jp-text-primary: #F6F2F7;
+  --jp-text-secondary: #CFC5D3;
+  --jp-border-subtle: #4B3E57;
+  --jp-border-strong: #7D6A8D;
+  --jp-action-primary: #CE84B7;
+  --jp-action-primary-hover: #D99AC5;
+  --jp-action-primary-pressed: #B76CA0;
+  --jp-action-primary-text: #17131F;
+  --jp-action-secondary: #211B2A;
+  --jp-action-secondary-hover: #2B2336;
+  --jp-action-secondary-pressed: #3A3047;
+  --jp-action-secondary-text: #F6F2F7;
+  --jp-action-secondary-border: #7D6A8D;
+  --jp-action-danger: #211B2A;
+  --jp-action-danger-text: #F07A8E;
+  --jp-action-danger-border: #F07A8E;
+  --jp-action-disabled: #342C3B;
+  --jp-action-disabled-text: #857B8C;
+  --jp-status-success: #58B894;
+  --jp-status-danger: #F07A8E;
+  --jp-status-warning: #E9B960;
+}

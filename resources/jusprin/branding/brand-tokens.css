@@ -1,0 +1,13 @@
+:root {
+  --jusprin-orbit: #3A2D64;
+  --jusprin-violet: #6F4F84;
+  --jusprin-bloom: #CE84B7;
+  --jusprin-ink: #17131F;
+  --jusprin-mist: #F6F2F7;
+  --jusprin-trace: #E8DFEB;
+  --jusprin-gradient: linear-gradient(90deg, #3A2D64, #CE84B7);
+  --jusprin-font-sans: "Avenir Next", Arial, sans-serif;
+  --jusprin-font-mono: Menlo, monospace;
+  --jusprin-radius-control: 12px;
+  --jusprin-radius-panel: 20px;
+}

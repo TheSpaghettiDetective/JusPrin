@@ -40,6 +40,12 @@ ctest --test-dir ./tests/fff_print
 - Core algorithms: `src/libslic3r/` (GCode/, Fill/, Support/, Geometry/, Format/, Arachne/)
 - Printer profiles: `resources/profiles/[manufacturer].json`
 
+## JusPrin Production UI
+
+- Start with `agent-docs/jusprin/README.md` for the canonical product definition, production architecture, verification method, Orca integration guidance, and design system.
+- Experimental plans, probes, screenshots, logs, and temporary UI code remain on `jusprin-v2-poc`. Use `agent-docs/jusprin/poc-reference.md` for exact commit and path pointers; do not cherry-pick the POC wholesale.
+- Curated brand and semantic UI assets live under `resources/jusprin/`.
+
 ## Critical Constraints
 
 - **Backward compatibility required** for .3mf project files and printer profiles
