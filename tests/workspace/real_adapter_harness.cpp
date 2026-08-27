@@ -175,9 +175,17 @@ private:
 
         check(m_workspace->rename_object(m_first, "Adapter Renamed").succeeded(), "adapter_rename");
         check(find_object(m_workspace->snapshot(), m_first)->name == "Adapter Renamed", "adapter_rename_projected");
+        const std::size_t before_adapter_undo = m_changes.size();
         check(m_workspace->undo().succeeded(), "rename_undo");
+        check(m_changes.size() == before_adapter_undo + 1 &&
+                  has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
+              "adapter_undo_observed_once");
         check(find_object(m_workspace->snapshot(), m_first)->name != "Adapter Renamed", "rename_undo_projected");
+        const std::size_t before_adapter_redo = m_changes.size();
         check(m_workspace->redo().succeeded(), "rename_redo");
+        check(m_changes.size() == before_adapter_redo + 1 &&
+                  has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
+              "adapter_redo_observed_once");
         check(find_object(m_workspace->snapshot(), m_first)->name == "Adapter Renamed", "rename_redo_projected");
 
         const CommandResult duplicate = m_workspace->duplicate_object(m_first);
@@ -202,6 +210,18 @@ private:
         check(m_changes.size() == before_native_rename + 1 &&
                   has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Contents),
               "native_content_change_observed");
+        const std::size_t before_native_undo = m_changes.size();
+        m_plater->undo();
+        check(m_changes.size() == before_native_undo + 1 &&
+                  has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
+              "native_undo_observed_once");
+        check(find_object(m_workspace->snapshot(), m_second)->name != "Native Renamed", "native_undo_projected");
+        const std::size_t before_native_redo = m_changes.size();
+        m_plater->redo();
+        check(m_changes.size() == before_native_redo + 1 &&
+                  has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
+              "native_redo_observed_once");
+        check(find_object(m_workspace->snapshot(), m_second)->name == "Native Renamed", "native_redo_projected");
 
         const bool was_shown = m_plater->IsShown();
         m_plater->Show(false);

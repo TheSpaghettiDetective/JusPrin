@@ -71,6 +71,7 @@ struct ProjectStateChanged;
 using ProjectStateChangedCallback = std::function<void(const ProjectStateChanged&)>;
 class ProjectStateSubscription;
 class ProjectStateTransaction;
+class PlaterProjectState;
 class SyncAmsInfoDialog;
 class MainFrame;
 class ConfigOptionsGroup;
@@ -944,6 +945,7 @@ public:
 
 private:
     struct priv;
+    std::unique_ptr<PlaterProjectState> m_project_state;
     std::unique_ptr<priv> p;
     std::string           m_3mf_path;
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.

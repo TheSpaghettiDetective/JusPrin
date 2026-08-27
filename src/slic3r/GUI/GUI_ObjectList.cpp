@@ -1193,6 +1193,9 @@ void ObjectList::update_name_in_model(const wxDataViewItem& item) const
     if (obj_idx < 0) return;
     const int volume_id = m_objects_model->GetVolumeIdByItem(item);
 
+    // JusPrin: the object-rename snapshot, model update, single-volume rename,
+    // and mesh save moved to Plater::rename_object(). If upstream changes the
+    // snapshot label here, carry it into that command and the part rename below.
     ModelObject* obj = object(obj_idx);
     if (m_objects_model->GetItemType(item) & itObject) {
         std::string name = m_objects_model->GetName(item).ToUTF8().data();
@@ -1201,7 +1204,7 @@ void ObjectList::update_name_in_model(const wxDataViewItem& item) const
     }
 
     if (volume_id < 0) return;
-    take_snapshot("Rename Part");
+    take_snapshot(_u8L("Rename Part"));
     obj->volumes[volume_id]->name = m_objects_model->GetName(item).ToUTF8().data();
 }
 

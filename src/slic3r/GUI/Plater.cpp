@@ -4337,9 +4337,6 @@ struct Plater::priv
     Plater *q;
     Sidebar *  sidebar;
     MainFrame *main_frame;
-    ProjectStateObserverHub project_state_observers;
-    std::optional<std::pair<bool, bool>> last_project_history_availability;
-    bool project_state_ready{false};
 
     MenuFactory menus;
 
@@ -4611,10 +4608,8 @@ struct Plater::priv
         { this->take_snapshot(std::string(snapshot_name.ToUTF8().data()), snapshot_type); }*/
     int  get_active_snapshot_index();
 
-    std::optional<size_t> undo_target_time();
-    std::optional<size_t> redo_target_time();
-    bool undo();
-    bool redo();
+    void undo();
+    void redo();
     void undo_redo_to(size_t time_to_load);
 
     // BBS: backup
@@ -5173,25 +5168,16 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
         view3D_canvas->Bind(EVT_GLCANVAS_QUESTION_MARK, [](SimpleEvent&) { wxGetApp().keyboard_shortcuts(); });
         view3D_canvas->Bind(EVT_GLCANVAS_INCREASE_INSTANCES, [this](Event<int>& evt)
             { if (evt.data == 1) this->q->increase_instances(); else if (this->can_decrease_instances()) this->q->decrease_instances(); });
-        view3D_canvas->Bind(EVT_GLCANVAS_INSTANCE_MOVED, [this](SimpleEvent&) {
+        auto on_committed_transform = [this](SimpleEvent&) {
             ProjectStateTransaction project_change = this->q->project_state_transaction();
             update();
             this->q->notify_project_state_changed(ProjectStateChangeReason::Transform | ProjectStateChangeReason::Plates |
                                                   ProjectStateChangeReason::History);
-        });
+        };
+        view3D_canvas->Bind(EVT_GLCANVAS_INSTANCE_MOVED, on_committed_transform);
         view3D_canvas->Bind(EVT_GLCANVAS_FORCE_UPDATE, [this](SimpleEvent&) { update(); });
-        view3D_canvas->Bind(EVT_GLCANVAS_INSTANCE_ROTATED, [this](SimpleEvent&) {
-            ProjectStateTransaction project_change = this->q->project_state_transaction();
-            update();
-            this->q->notify_project_state_changed(ProjectStateChangeReason::Transform | ProjectStateChangeReason::Plates |
-                                                  ProjectStateChangeReason::History);
-        });
-        view3D_canvas->Bind(EVT_GLCANVAS_INSTANCE_SCALED, [this](SimpleEvent&) {
-            ProjectStateTransaction project_change = this->q->project_state_transaction();
-            update();
-            this->q->notify_project_state_changed(ProjectStateChangeReason::Transform | ProjectStateChangeReason::Plates |
-                                                  ProjectStateChangeReason::History);
-        });
+        view3D_canvas->Bind(EVT_GLCANVAS_INSTANCE_ROTATED, on_committed_transform);
+        view3D_canvas->Bind(EVT_GLCANVAS_INSTANCE_SCALED, on_committed_transform);
         // BBS
         //view3D_canvas->Bind(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, [this](Event<bool>& evt) { this->sidebar->enable_buttons(evt.data); });
         view3D_canvas->Bind(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, [this](Event<bool>& evt) { on_slice_button_status(evt.data); });
@@ -7504,8 +7490,7 @@ bool Plater::priv::delete_object_from_model(size_t obj_idx, bool refresh_immedia
     m_worker.cancel_all();
 
     if (obj->is_cut())
-        if (ObjectList* object_list = wxGetApp().obj_list())
-            object_list->invalidate_cut_info_for_object(obj_idx);
+        sidebar->obj_list()->invalidate_cut_info_for_object(obj_idx);
 
     model.delete_object(obj_idx);
     //BBS: notify partplate the instance removed
@@ -11664,16 +11649,15 @@ void Plater::priv::take_snapshot(const std::string& snapshot_name, const UndoRed
     snapshot_data.printer_technology = this->printer_technology;
     if (this->view3D->is_layers_editing_enabled())
         snapshot_data.flags |= UndoRedo::SnapshotData::VARIABLE_LAYER_EDITING_ACTIVE;
-    ObjectList* object_list = this->sidebar != nullptr ? this->sidebar->obj_list() : nullptr;
-    if (object_list != nullptr && object_list->is_selected(itSettings)) {
+    if (this->sidebar->obj_list()->is_selected(itSettings)) {
         snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_SETTINGS_ON_SIDEBAR;
-        snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
+        snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
     }
-    else if (object_list != nullptr && object_list->is_selected(itLayer)) {
+    else if (this->sidebar->obj_list()->is_selected(itLayer)) {
         snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYER_ON_SIDEBAR;
-        snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
+        snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
     }
-    else if (object_list != nullptr && object_list->is_selected(itLayerRoot))
+    else if (this->sidebar->obj_list()->is_selected(itLayerRoot))
         snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYERROOT_ON_SIDEBAR;
 
     // If SLA gizmo is active, ask it if it wants to trigger support generation
@@ -11724,82 +11708,36 @@ void Plater::priv::take_snapshot(const std::string& snapshot_name, const UndoRed
     // Save the last active preset name of a particular printer technology.
     ((this->printer_technology == ptFFF) ? m_last_fff_printer_profile_name : m_last_sla_printer_profile_name) = wxGetApp().preset_bundle->printers.get_selected_preset_name();
     BOOST_LOG_TRIVIAL(info) << "Undo / Redo snapshot taken: " << snapshot_name << ", Undo / Redo stack memory: " << Slic3r::format_memsize_MB(this->undo_redo_stack().memsize()) << log_memory_info();
-    if (project_state_ready)
-        q->notify_project_state_changed(ProjectStateChangeReason::None);
+    q->notify_project_state_changed(ProjectStateChangeReason::None);
 }
 
-std::optional<size_t> Plater::priv::undo_target_time()
+void Plater::priv::undo()
 {
-    const std::vector<UndoRedo::Snapshot>& snapshots = m_undo_redo_stack_active->snapshots();
-    auto current = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(m_undo_redo_stack_active->active_snapshot_time()));
-    if (current == snapshots.begin() || current == snapshots.end())
-        return std::nullopt;
-
-    auto target = current;
-    do {
-        --target;
-        if (target == snapshots.begin())
-            return std::nullopt;
-    } while (!snapshot_modifies_project(*target));
-
+    const std::vector<UndoRedo::Snapshot> &snapshots = this->undo_redo_stack().snapshots();
+    auto it_current = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(this->undo_redo_stack().active_snapshot_time()));
+    // BBS: undo-redo until modify record
+    while (--it_current != snapshots.begin() && !snapshot_modifies_project(*it_current));
+    if (it_current == snapshots.begin()) return;
     if (get_current_canvas3D()->get_canvas_type() == GLCanvas3D::CanvasAssembleView) {
-        if (target->snapshot_data.snapshot_type != UndoRedo::SnapshotType::GizmoAction &&
-            target->snapshot_data.snapshot_type != UndoRedo::SnapshotType::EnteringGizmo &&
-            target->snapshot_data.snapshot_type != UndoRedo::SnapshotType::LeavingGizmoNoAction &&
-            target->snapshot_data.snapshot_type != UndoRedo::SnapshotType::LeavingGizmoWithAction)
-            return std::nullopt;
+        if (it_current->snapshot_data.snapshot_type != UndoRedo::SnapshotType::GizmoAction &&
+            it_current->snapshot_data.snapshot_type != UndoRedo::SnapshotType::EnteringGizmo &&
+            it_current->snapshot_data.snapshot_type != UndoRedo::SnapshotType::LeavingGizmoNoAction &&
+            it_current->snapshot_data.snapshot_type != UndoRedo::SnapshotType::LeavingGizmoWithAction)
+            return;
     }
-    return target->timestamp;
+    this->undo_redo_to(it_current);
 }
 
-std::optional<size_t> Plater::priv::redo_target_time()
+void Plater::priv::redo()
 {
-    const std::vector<UndoRedo::Snapshot>& snapshots = m_undo_redo_stack_active->snapshots();
-    auto target = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(m_undo_redo_stack_active->active_snapshot_time()));
-    while (target != snapshots.end() && !snapshot_modifies_project(*target))
-        ++target;
-    if (target == snapshots.end() || ++target == snapshots.end())
-        return std::nullopt;
-
-    while (target != snapshots.end() && !snapshot_modifies_project(*target))
-        ++target;
-    // Stock Orca redoes to the captured top state when only selection or other
-    // non-project snapshots follow the current project-modifying snapshot.
-    if (target == snapshots.end())
-        target = std::prev(snapshots.end());
-    return target->timestamp;
-}
-
-bool Plater::priv::undo()
-{
-    const std::optional<size_t> target = undo_target_time();
-    if (!target)
-        return false;
-    ProjectStateTransaction transaction = q->project_state_transaction();
-    const size_t before = undo_redo_stack().active_snapshot_time();
-    undo_redo_to(*target);
-    const bool changed = undo_redo_stack().active_snapshot_time() != before;
-    if (changed)
-        q->notify_project_state_changed(ProjectStateChangeReason::History | ProjectStateChangeReason::Objects |
-                                        ProjectStateChangeReason::Selection | ProjectStateChangeReason::Transform |
-                                        ProjectStateChangeReason::Plates);
-    return changed;
-}
-
-bool Plater::priv::redo()
-{
-    const std::optional<size_t> target = redo_target_time();
-    if (!target)
-        return false;
-    ProjectStateTransaction transaction = q->project_state_transaction();
-    const size_t before = undo_redo_stack().active_snapshot_time();
-    undo_redo_to(*target);
-    const bool changed = undo_redo_stack().active_snapshot_time() != before;
-    if (changed)
-        q->notify_project_state_changed(ProjectStateChangeReason::History | ProjectStateChangeReason::Objects |
-                                        ProjectStateChangeReason::Selection | ProjectStateChangeReason::Transform |
-                                        ProjectStateChangeReason::Plates);
-    return changed;
+    const std::vector<UndoRedo::Snapshot> &snapshots = this->undo_redo_stack().snapshots();
+    auto it_current = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(this->undo_redo_stack().active_snapshot_time()));
+    // BBS: undo-redo until modify record
+    while (it_current != snapshots.end() && !snapshot_modifies_project(*it_current++));
+    if (it_current != snapshots.end()) {
+        while (it_current != snapshots.end() && !snapshot_modifies_project(*it_current++));
+        this->undo_redo_to(--it_current);
+    }
 }
 
 void Plater::priv::undo_redo_to(size_t time_to_load)
@@ -11827,6 +11765,9 @@ bool Plater::priv::up_to_date(bool saved, bool backup)
 
 void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator it_snapshot)
 {
+    // Declare the transaction first so its event dispatch runs after snapshot
+    // suppression has unwound and the history operation is fully committed.
+    ProjectStateTransaction project_change = q->project_state_transaction();
     // Make sure that no updating function calls take_snapshot until we are done.
     SuppressSnapshots snapshot_supressor(q);
 
@@ -11860,20 +11801,18 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
     // Flags made of Snapshot::Flags enum values.
     unsigned int new_flags = it_snapshot->snapshot_data.flags;
     UndoRedo::SnapshotData top_snapshot_data;
-    top_snapshot_data.snapshot_type = this->undo_redo_stack().snapshot(this->undo_redo_stack().active_snapshot_time()).snapshot_data.snapshot_type;
     top_snapshot_data.printer_technology = this->printer_technology;
     if (this->view3D->is_layers_editing_enabled())
         top_snapshot_data.flags |= UndoRedo::SnapshotData::VARIABLE_LAYER_EDITING_ACTIVE;
-    ObjectList* object_list = this->sidebar != nullptr ? this->sidebar->obj_list() : nullptr;
-    if (object_list != nullptr && object_list->is_selected(itSettings)) {
+    if (this->sidebar->obj_list()->is_selected(itSettings)) {
         top_snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_SETTINGS_ON_SIDEBAR;
-        top_snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
+        top_snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
     }
-    else if (object_list != nullptr && object_list->is_selected(itLayer)) {
+    else if (this->sidebar->obj_list()->is_selected(itLayer)) {
         top_snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYER_ON_SIDEBAR;
-        top_snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
+        top_snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
     }
-    else if (object_list != nullptr && object_list->is_selected(itLayerRoot))
+    else if (this->sidebar->obj_list()->is_selected(itLayerRoot))
         top_snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYERROOT_ON_SIDEBAR;
     bool   		 new_variable_layer_editing_active = (new_flags & UndoRedo::SnapshotData::VARIABLE_LAYER_EDITING_ACTIVE) != 0;
     bool         new_selected_settings_on_sidebar  = (new_flags & UndoRedo::SnapshotData::SELECTED_SETTINGS_ON_SIDEBAR) != 0;
@@ -11902,8 +11841,7 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
             wxGetApp().preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSilent);
             // load_current_presets() calls Tab::load_current_preset() -> TabPrint::update() -> Object_list::update_and_show_object_settings_item(),
             // but the Object list still keeps pointer to the old Model. Avoid a crash by removing selection first.
-            if (object_list != nullptr)
-                object_list->unselect_objects();
+            this->sidebar->obj_list()->unselect_objects();
             // Load the currently selected preset into the GUI, update the preset selection box.
             // This also switches the printer technology based on the printer technology of the active printer profile.
             wxGetApp().load_current_presets();
@@ -11952,16 +11890,17 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
             }
         }
         // set selection mode for ObjectList on sidebar
-        if (object_list != nullptr) {
-            object_list->set_selection_mode(new_selected_settings_on_sidebar  ? ObjectList::SELECTION_MODE::smSettings :
-                                            new_selected_layer_on_sidebar     ? ObjectList::SELECTION_MODE::smLayer :
-                                            new_selected_layerroot_on_sidebar ? ObjectList::SELECTION_MODE::smLayerRoot :
-                                                                                ObjectList::SELECTION_MODE::smUndef);
-            if (new_selected_settings_on_sidebar || new_selected_layer_on_sidebar)
-                object_list->set_selected_layers_range_idx(layer_range_idx);
-        }
+        this->sidebar->obj_list()->set_selection_mode(new_selected_settings_on_sidebar  ? ObjectList::SELECTION_MODE::smSettings :
+                                                      new_selected_layer_on_sidebar     ? ObjectList::SELECTION_MODE::smLayer :
+                                                      new_selected_layerroot_on_sidebar ? ObjectList::SELECTION_MODE::smLayerRoot :
+                                                                                          ObjectList::SELECTION_MODE::smUndef);
+        if (new_selected_settings_on_sidebar || new_selected_layer_on_sidebar)
+            this->sidebar->obj_list()->set_selected_layers_range_idx(layer_range_idx);
 
         this->update_after_undo_redo(snapshot_copy, temp_snapshot_was_taken);
+        q->notify_project_state_changed(ProjectStateChangeReason::History | ProjectStateChangeReason::Objects |
+                                        ProjectStateChangeReason::Selection | ProjectStateChangeReason::Transform |
+                                        ProjectStateChangeReason::Plates);
         // Enable layer editing after the Undo / Redo jump.
         if (!view3D->is_layers_editing_enabled() && this->layers_height_allowed() && new_variable_layer_editing_active)
             view3D->get_canvas3d()->force_main_toolbar_left_action(view3D->get_canvas3d()->get_main_toolbar_item_id("layersediting"));
@@ -11989,8 +11928,7 @@ void Plater::priv::update_after_undo_redo(const UndoRedo::Snapshot& snapshot, bo
         assemble_view->get_canvas3d()->get_gizmos_manager().update_after_undo_redo(snapshot) :
         this->view3D->get_canvas3d()->get_gizmos_manager().update_after_undo_redo(snapshot);
 
-    if (ObjectList* object_list = wxGetApp().obj_list())
-        object_list->update_after_undo_redo();
+    wxGetApp().obj_list()->update_after_undo_redo();
 
     if (wxGetApp().get_mode() == comSimple && model_has_advanced_features(this->model)) {
         // If the user jumped to a snapshot that require user interface with advanced features, switch to the advanced mode without asking.
@@ -12071,15 +12009,22 @@ void Sidebar::set_btn_label(const ActionButtonType btn_type, const wxString& lab
 
 // Plater / Public
 
+class PlaterProjectState
+{
+public:
+    ProjectStateObserverHub                observers;
+    std::optional<std::pair<bool, bool>>   last_history_availability;
+    bool                                   ready{false};
+};
+
 Plater::Plater(wxWindow *parent, MainFrame *main_frame)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxGetApp().get_min_size())
+    , m_project_state(std::make_unique<PlaterProjectState>())
+    , p(new priv(this, main_frame))
 {
-    // PartPlateList may report project-state changes while priv is being built.
-    // Construct it in the body so those notifications see a safely null p.
-    p = std::make_unique<priv>(this, main_frame);
     // Initialization performed in the private c-tor
-    p->project_state_ready = true;
-    p->last_project_history_availability = std::pair<bool, bool>{can_undo_project(), can_redo_project()};
+    m_project_state->ready = true;
+    m_project_state->last_history_availability = std::pair<bool, bool>{can_undo_project(), can_redo_project()};
     enable_wireframe(true);
     m_only_gcode = false;
 }
@@ -12112,29 +12057,30 @@ SLAPrint&       Plater::sla_print()         { return p->sla_print; }
 
 ProjectStateSubscription Plater::subscribe_project_state(ProjectStateChangedCallback callback)
 {
-    return p->project_state_observers.subscribe(std::move(callback));
+    return m_project_state->observers.subscribe(std::move(callback));
 }
 
 ProjectStateTransaction Plater::project_state_transaction()
 {
-    return p ? p->project_state_observers.transaction() : ProjectStateTransaction{};
+    return m_project_state->observers.transaction();
 }
 
 std::uint64_t Plater::project_state_session() const
 {
-    return p ? p->project_state_observers.project_session() : 0;
+    return m_project_state->observers.project_session();
 }
 
 void Plater::notify_project_state_changed(ProjectStateChangeReason reasons, bool project_replaced)
 {
-    if (!p || !p->project_state_ready)
+    if (!m_project_state->ready)
         return;
 
     const std::pair<bool, bool> history_availability{can_undo_project(), can_redo_project()};
-    if (!p->last_project_history_availability || *p->last_project_history_availability != history_availability)
+    if (!m_project_state->last_history_availability ||
+        *m_project_state->last_history_availability != history_availability)
         reasons |= ProjectStateChangeReason::History;
-    p->last_project_history_availability = history_availability;
-    p->project_state_observers.publish(reasons, project_replaced);
+    m_project_state->last_history_availability = history_availability;
+    m_project_state->observers.publish(reasons, project_replaced);
 }
 
 int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_name)
@@ -16659,8 +16605,18 @@ void Plater::single_snapshots_leave(SingleSnapshot *single)
 }
 void Plater::undo() { p->undo(); }
 void Plater::redo() { p->redo(); }
-bool Plater::undo_project() { return p->undo(); }
-bool Plater::redo_project() { return p->redo(); }
+bool Plater::undo_project()
+{
+    const size_t before = p->undo_redo_stack().active_snapshot_time();
+    p->undo();
+    return p->undo_redo_stack().active_snapshot_time() != before;
+}
+bool Plater::redo_project()
+{
+    const size_t before = p->undo_redo_stack().active_snapshot_time();
+    p->redo();
+    return p->undo_redo_stack().active_snapshot_time() != before;
+}
 void Plater::undo_to(int selection)
 {
     if (selection == 0) {
@@ -16669,13 +16625,7 @@ void Plater::undo_to(int selection)
     }
 
     const int idx = p->get_active_snapshot_index() - selection - 1;
-    ProjectStateTransaction transaction = project_state_transaction();
-    const size_t before = p->undo_redo_stack().active_snapshot_time();
     p->undo_redo_to(p->undo_redo_stack().snapshots()[idx].timestamp);
-    if (p->undo_redo_stack().active_snapshot_time() != before)
-        notify_project_state_changed(ProjectStateChangeReason::History | ProjectStateChangeReason::Objects |
-                                     ProjectStateChangeReason::Selection | ProjectStateChangeReason::Transform |
-                                     ProjectStateChangeReason::Plates);
 }
 void Plater::redo_to(int selection)
 {
@@ -16685,13 +16635,7 @@ void Plater::redo_to(int selection)
     }
 
     const int idx = p->get_active_snapshot_index() + selection + 1;
-    ProjectStateTransaction transaction = project_state_transaction();
-    const size_t before = p->undo_redo_stack().active_snapshot_time();
     p->undo_redo_to(p->undo_redo_stack().snapshots()[idx].timestamp);
-    if (p->undo_redo_stack().active_snapshot_time() != before)
-        notify_project_state_changed(ProjectStateChangeReason::History | ProjectStateChangeReason::Objects |
-                                     ProjectStateChangeReason::Selection | ProjectStateChangeReason::Transform |
-                                     ProjectStateChangeReason::Plates);
 }
 bool Plater::undo_redo_string_getter(const bool is_undo, int idx, const char** out_text)
 {
@@ -18362,7 +18306,11 @@ int Plater::duplicate_plate(int plate_index)
     if (plate_index == -1)
         index = p->partplate_list.get_curr_plate_index();
 
+    ProjectStateTransaction project_change = project_state_transaction();
     ret = p->partplate_list.duplicate_plate(index);
+    if (ret >= 0)
+        notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Plates |
+                                     ProjectStateChangeReason::History);
 
     //need to call update
     update();
@@ -18742,8 +18690,8 @@ bool Plater::can_copy_to_clipboard() const
 
 bool Plater::can_undo() const { return IsShown() && p->is_view3D_shown() && p->undo_redo_stack().has_undo_snapshot(); }
 bool Plater::can_redo() const { return IsShown() && p->is_view3D_shown() && p->undo_redo_stack().has_redo_snapshot(); }
-bool Plater::can_undo_project() const { return p->undo_target_time().has_value(); }
-bool Plater::can_redo_project() const { return p->redo_target_time().has_value(); }
+bool Plater::can_undo_project() const { return p->undo_redo_stack().has_undo_snapshot(); }
+bool Plater::can_redo_project() const { return p->undo_redo_stack().has_redo_snapshot(); }
 bool Plater::can_reload_from_disk() const { return p->can_reload_from_disk(); }
 //BBS
 bool Plater::can_fillcolor() const { return p->can_fillcolor(); }
