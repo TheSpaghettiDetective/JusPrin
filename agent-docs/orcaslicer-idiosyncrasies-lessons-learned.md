@@ -1,8 +1,9 @@
 # OrcaSlicer idiosyncrasies and integration lessons learned
 
-This document records lessons from building and testing the JusPrin workspace
-adapter against the real OrcaSlicer application. It is written for future agents
-who need to extend JusPrin without having access to the original spike session.
+This document records lessons from building and testing the JusPrin project-state
+adapter and full-window UI against the real OrcaSlicer application. It is written
+for future agents who need to extend JusPrin without having access to the original
+spike sessions.
 
 The central architectural rule is that OrcaSlicer's C++ model, viewport, plate
 list, and undo stack remain authoritative. JusPrin should expose those systems
@@ -11,13 +12,18 @@ OrcaSlicer behavior.
 
 ## 1. Source and scope
 
-These lessons come from two spikes on feature branch
-`codex/orca-workspace-adapter-spike`:
+These lessons began with two spikes on feature branch
+`codex/orca-workspace-adapter-spike` and now include the full-window UI work on
+branch `jusprin-v2`:
 
 - Workspace-adapter implementation commit
   `4e278e3276a91a7142615492beb58bdf71116a78`.
 - Invisible legacy UI implementation commit
   `65fc3b56e12e5be66851125cbedd8974d7eeb8c6`.
+- Full-window UI coupling spike commit
+  `462e243b46`.
+- Canvas-wrapper rebase-risk refactor commit
+  `bf7a0c1e10`.
 
 Related documents:
 
@@ -25,6 +31,8 @@ Related documents:
 - [Workspace adapter spike results](orca-workspace-adapter-spike-results.md)
 - [Invisible legacy UI prerequisite spike](orca-invisible-legacy-ui-spike.md)
 - [Invisible legacy UI spike results](orca-invisible-legacy-ui-spike-results.md)
+- [Full-window UI coupling spike](orca-full-window-ui-coupling-spike.md)
+- [Full-window UI coupling spike results](orca-full-window-ui-coupling-spike-results.md)
 
 The tested adapter surface includes workspace snapshots, object selection,
 rename, duplicate, remove, undo, redo, change notifications, and committed
@@ -397,9 +405,190 @@ never executed. It looked like coverage and was not.
 Before trusting a new check, confirm it fails when the defect is present. If it
 passes both with and without the bug, it is measuring nothing.
 
-## 5. Checklist for future workspace changes
+## 5. Rebase-risk lessons from the full-window UI spike
 
-Before adding or changing a workspace capability:
+### Optimize ownership and control flow, not diff signs
+
+A fork change is not safe merely because it adds lines instead of deleting or
+replacing upstream lines. An added condition inside a changing upstream method
+can still conflict textually. More dangerously, it can merge cleanly after
+upstream changes the surrounding control flow and then do the wrong thing.
+
+Evaluate rebase risk using all of these factors:
+
+- how often upstream changes the file and the specific function;
+- whether the fork changes upstream control flow or only calls a narrow seam;
+- whether product policy appears in an upstream-owned type;
+- whether a clean merge could hide a semantic incompatibility;
+- how difficult the incompatibility would be to detect in tests.
+
+Do not rewrite clear code into a less direct additive form merely to reduce the
+number of deleted lines reported by Git. Diff statistics are evidence about the
+change surface, not the architectural objective.
+
+### State the comparison commits for every churn measurement
+
+File-churn numbers are not reproducible unless the report names both ends of the
+comparison. The audit for this branch compared pre-spike commit `254c67ffdd`
+with upstream commit `142c63ab0e4a`.
+
+That interval contained:
+
+| Upstream-owned file | Upstream commits |
+|---|---:|
+| `Plater.cpp` | 93 |
+| `src/slic3r/CMakeLists.txt` | 44 |
+| `GLCanvas3D.cpp` | 43 |
+| `MainFrame.cpp` | 25 |
+| `Plater.hpp` | 17 |
+| `GLCanvas3D.hpp` | 9 |
+| `GUI_ObjectList.cpp` | 8 |
+| `GLGizmosManager.cpp/.hpp` combined | 3 |
+| `GLToolbar.cpp/.hpp` combined | 0 |
+
+The raw line-churn totals also depend on the exact comparison commits. Record the
+hashes instead of describing the interval only as "recent upstream" or "the last
+two months."
+
+### A fork-owned wrapper can reduce risk without reducing touched-file count
+
+The first full-window implementation added the product-specific enum
+`GLCanvasPresentationMode::JusPrin` to `GLCanvas3D`. It also made four
+product-specific decisions inside `GLCanvas3D::on_mouse()`: three toolbar-input
+conditions and a separate manual path for the active gizmo.
+
+Commit `bf7a0c1e10` replaced that design with fork-owned
+`GLCanvas3DWrapper` and product-neutral `GLCanvasPresentationOptions`. The
+wrapper selects four independent capabilities: overlay rendering, overlay input,
+plate-control rendering, and plate input. The normal Orca gizmo dispatch path is
+used again.
+
+The refactor produced these measurable results:
+
+- product-specific references in the upstream-owned GL files: reduced to zero;
+- product-specific decisions in `GLCanvas3D::on_mouse()`: reduced from four to
+  one;
+- product policy moved into a 76-line fork-owned wrapper;
+- three input decisions moved from `GLCanvas3D.cpp`, changed in 43 upstream
+  commits, into files changed in zero to three upstream commits;
+- a three-way merge simulation automatically merged every changed canvas and
+  gizmo-manager file against audited upstream.
+
+The refactor deliberately increased the upstream-owned file count from four to
+eight and grew the upstream-owned UI-spike diff from `+50/-5` to `+69/-5`.
+Those raw numbers became larger because the new generic controls live in four
+additional, much quieter files. The risk still fell because ordinary Orca
+control flow was restored and product policy moved to a fork-owned owner.
+
+### Shared native state needs one wrapper owner
+
+Not every canvas-related control belongs to one `GLCanvas3D`. Orca's collapse
+toolbar belongs to `Plater` and is shared by the Prepare and Preview canvases.
+The full-window shell constructs two canvas wrappers, so both wrappers must not
+independently save and restore that shared toolbar state.
+
+If the remaining collapse-toolbar condition is removed from
+`GLCanvas3D::on_mouse()`, use one shell-owned RAII guard for the shared toolbar.
+The guard must read and save the prior input state, disable input once, and
+restore the same value once. A setter without a corresponding getter is not
+enough to provide exact restoration.
+
+This is a general rule: a wrapper should own only state whose lifetime matches
+the wrapper. Shared state needs a single owner at the shared lifetime boundary.
+
+### Keep product startup policy out of high-churn constructors
+
+The completed development spikes currently add 26 lines to `Plater.cpp` solely
+for startup: four JusPrin includes, one adapter-lifetime member, and 21 lines of
+environment checks and delayed callbacks. `Plater.cpp` changed in 93 upstream
+commits during the audited interval.
+
+If current-HEAD reproduction of those completed spikes remains necessary, a
+fork-owned bootstrap object can reduce the upstream constructor footprint to an
+include, one lifetime member, and one construction call. If historical commits
+are sufficient for reproduction, retire the old runtime harnesses completely and
+retain their results and reproduction commit hashes in the documents.
+
+Do not leave one environment-variable branch in an upstream constructor for
+every experimental screen. One fork-owned bootstrap boundary should own all
+development-only startup policy.
+
+### Put fork source registration in a fork-owned manifest
+
+The central `src/slic3r/CMakeLists.txt` currently contains 14 JusPrin source
+entries inside Orca's main source list. That file changed in 44 upstream commits.
+A fork-owned `GUI/JusPrin/sources.cmake` can keep the explicit source list while
+reducing the central Orca file to one `include()` line.
+
+Prefer an explicit fork-owned manifest over recursive source globbing. The goal
+is to move ownership, not to make build inputs implicit.
+
+### A one-line hook may be better than eliminating a shared command
+
+`GUI_ObjectList.cpp` now calls `Plater::rename_object()` so the legacy object
+list and `OrcaWorkspaceAdapter` use the same snapshot, model update,
+single-volume update, mesh persistence, and list-refresh behavior. That call
+overlaps an upstream localization change and therefore conflicts in the current
+merge simulation.
+
+Reverting the call would remove the conflict but recreate two rename
+implementations. That exchanges a small, visible rebase conflict for long-term
+semantic divergence. Keep the one-line shared-command hook unless the shared
+command itself can move to a more authoritative owner without duplicating
+behavior.
+
+When resolving the current conflict, carry upstream's localized `_u8L()` snapshot
+label into the shared rename command. Do not describe a conflict that Git stops
+for human resolution as a silent regression.
+
+### Some remaining seams are candidates, not proven improvements
+
+The following refactorings may reduce future rebase exposure, but they have not
+been implemented or behaviorally verified:
+
+- Move duplicate and delete orchestration from the new `Plater` methods into
+  `OrcaWorkspaceAdapter` by using existing selection, deletion, snapshot, and
+  object-list APIs. This would remove 19 lines from `Plater.cpp` and two
+  declarations from `Plater.hpp`, but it must preserve cut-object warnings,
+  worker cancellation, undo, selection, plate membership, and list updates.
+- Reduce the 14-line `MainFrame.cpp` shell attachment to one fork-owned install
+  call. The function must still respect platform-specific top-bar behavior,
+  widget ownership, sizer ownership, and restoration.
+- Replace the `JUSPRIN_FULL_WINDOW_UI_SPIKE` check inside
+  `Plater::priv::enable_sidebar()` with a generic persistent sidebar-presentation
+  policy. The shell should apply and restore that policy; `Plater` should not
+  query a JusPrin environment variable whenever Orca asks to show its sidebar.
+- Remove the last collapse-toolbar input condition from
+  `GLCanvas3D::on_mouse()` only after the shared-toolbar ownership problem is
+  solved as described above.
+
+These are hypotheses until the pre-change behavior is reproduced and the same
+native workflows pass afterward. A smaller diff is not proof that the refactor
+preserved Orca behavior.
+
+### Use a three-way merge simulation as evidence, not a guarantee
+
+Against upstream `142c63ab0e4a`, the current JusPrin changes automatically
+merged in `GLCanvas3D`, `GLToolbar`, `GLGizmosManager`, `MainFrame`, `Plater`,
+and the production CMake file. The two relevant content conflicts were in
+`GUI_ObjectList.cpp` and `tests/CMakeLists.txt`.
+
+This simulation identifies today's textual conflicts. It does not prove that a
+future rebase will merge, and an automatic merge does not prove that the result
+is behaviorally correct. After every upstream rebase, run focused contract tests,
+the full native build, the real multi-plate Prepare/Preview workflow, native
+Move/Rotate input, and the flag-absent Orca UI regression check.
+
+### Preserve upstream formatting when it already converged
+
+Before reverting a whitespace-only fork difference, compare it with current
+upstream. For example, the pre-spike `Plater.hpp` lacked a final newline, while
+both current upstream and the branch now include one. Reverting that newline
+would recreate a difference rather than reduce one.
+
+## 6. Checklist for future project-state changes
+
+Before adding or changing a project-state adapter capability:
 
 - Identify the existing OrcaSlicer command owner, undo snapshot location, and
   native event source.
@@ -429,8 +618,24 @@ Before adding or changing a workspace capability:
 - Use exact visible language in every manual test instruction.
 - Separate verified behavior, inference, tooling limitations, and missing
   evidence in the final report.
+- Name the exact fork base and upstream commit used for churn and merge
+  measurements.
+- Measure function ownership and semantic coupling; do not rank risk from
+  addition/deletion counts alone.
+- Prefer fork-owned RAII wrappers that restore exact prior native state.
+- Give shared native state one wrapper owner at the shared lifetime boundary.
+- Keep product names and environment-variable policy out of upstream-owned
+  presentation types and high-churn constructors.
+- Use an explicit fork-owned CMake source manifest instead of interleaving every
+  fork source into Orca's central list.
+- Preserve one shared command path when the alternative is duplicated model,
+  history, or presentation behavior.
+- Run a three-way merge simulation, then test the merged behavior; neither step
+  substitutes for the other.
+- Compare formatting-only changes with current upstream before deciding whether
+  to keep or revert them.
 
-## 6. Known follow-up questions
+## 7. Known follow-up questions
 
 - Does the covering-window lifecycle behave consistently on Windows and Linux?
 - Do movement, resizing, maximization, restoration, display changes, and multiple
