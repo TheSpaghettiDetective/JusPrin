@@ -14,7 +14,7 @@ OrcaSlicer behavior.
 
 These lessons began with two spikes on feature branch
 `codex/orca-workspace-adapter-spike` and now include the full-window UI work on
-branch `jusprin-v2`:
+branch `jusprin-v2-poc`:
 
 - Workspace-adapter implementation commit
   `4e278e3276a91a7142615492beb58bdf71116a78`.

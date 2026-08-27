@@ -2,7 +2,7 @@
 
 ## 1. Starting commit, worktree, and build configuration
 
-- Branch: `jusprin-v2`
+- Branch: `jusprin-v2-poc`
 - Starting and final HEAD: `500c64d6eb77155c7361620dd112327334cc5ed0`
 - Starting state: the relevant workspace-adapter and invisible-legacy experiments were already committed; the supplied spike handoff document was untracked. No pre-existing production-file edit was incorporated into this spike.
 - Platform/configuration: macOS arm64, CMake/Ninja, `RelWithDebInfo`, C++17.
