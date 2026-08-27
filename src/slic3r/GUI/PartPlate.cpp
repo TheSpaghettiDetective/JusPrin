@@ -33,6 +33,7 @@
 #include "2DBed.hpp"
 #include "3DBed.hpp"
 #include "PartPlate.hpp"
+#include "ProjectState.hpp"
 #include "Camera.hpp"
 #include "GUI_Colors.hpp"
 #include "GUI_ObjectList.hpp"
@@ -4474,6 +4475,7 @@ int PartPlateList::create_plate(bool adjust_position)
 	if (m_plater) {
 		// In GUI mode
 		wxGetApp().obj_list()->on_plate_added(plate);
+		m_plater->notify_project_state_changed(ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
 	}
 
 	BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(":created a new plate %1%") % new_index;
@@ -4483,6 +4485,9 @@ int PartPlateList::create_plate(bool adjust_position)
 
 int PartPlateList::duplicate_plate(int index)
 {
+    ProjectStateTransaction project_change;
+    if (m_plater)
+        project_change = m_plater->project_state_transaction();
     // create a new plate
     int new_plate_index = create_plate(true);
     PartPlate* old_plate = NULL;
@@ -4508,6 +4513,9 @@ int PartPlateList::duplicate_plate(int index)
     new_plate->translate_all_instance(plate_to_plate_offset);
     // update the plates
     wxGetApp().obj_list()->reload_all_plates();
+    if (m_plater)
+        m_plater->notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Plates |
+                                               ProjectStateChangeReason::History);
     return new_plate_index;
 }
 
@@ -4553,6 +4561,9 @@ int PartPlateList::destroy_print(int print_index)
 //update the plate index and position after it
 int PartPlateList::delete_plate(int index)
 {
+	ProjectStateTransaction project_change;
+	if (m_plater)
+		project_change = m_plater->project_state_transaction();
 	int ret = 0;
 	PartPlate* plate = NULL;
 
@@ -4663,6 +4674,8 @@ int PartPlateList::delete_plate(int index)
 		wxGetApp().obj_list()->reload_all_plates();
 	}
 #endif
+	if (m_plater)
+		m_plater->notify_project_state_changed(ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
 	return ret;
 }
 
@@ -4760,10 +4773,14 @@ std::set<int> PartPlateList::get_extruders(bool conside_custom_gcode) const
 //select plate
 int PartPlateList::select_plate(int index)
 {
+	ProjectStateTransaction project_change;
+	if (m_plater)
+		project_change = m_plater->project_state_transaction();
 	const std::lock_guard<std::mutex> local_lock(m_plates_mutex);
 	if (m_plate_list.empty() || index >= m_plate_list.size()) {
 		return -1;
 	}
+	const bool changed = get_curr_plate_index() != index;
 
 	// BBS: erase unnecessary snapshot
 	if (get_curr_plate_index() != index && m_intialized) {
@@ -4788,6 +4805,8 @@ int PartPlateList::select_plate(int index)
 		Vec2d pos = compute_shape_position(index, m_plate_cols);
         m_plater->set_bed_position(pos);
 		//wxQueueEvent(m_plater, new SimpleEvent(EVT_GLCANVAS_PLATE_SELECT));
+		if (changed)
+			m_plater->notify_project_state_changed(ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
 	}
 
 	return 0;
@@ -4930,6 +4949,8 @@ int PartPlateList::move_plate_to_index(int old_index, int new_index)
 
 	//update the new plate index
 	m_current_plate = new_index;
+	if (m_plater)
+		m_plater->notify_project_state_changed(ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
 
 	return ret;
 }
@@ -5221,6 +5242,7 @@ int PartPlateList::notify_instance_removed(int obj_id, int instance_id)
 int PartPlateList::add_to_plate(int obj_id, int instance_id, int plate_id)
 {
 	int ret = 0, index;
+	bool changed = false;
 	PartPlate* plate = NULL;
 
 	BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": plate_id %1%, found obj_id %2%, instance_id %3%") % plate_id % obj_id % instance_id;
@@ -5231,6 +5253,7 @@ int PartPlateList::add_to_plate(int obj_id, int instance_id, int plate_id)
 		BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": found it in previous plate %1%") % index;
 		if (index != plate_id)
 		{
+			changed = true;
 			//remove it from original plate first
 			plate = m_plate_list[index];
 			plate->remove_instance(obj_id, instance_id);
@@ -5243,6 +5266,7 @@ int PartPlateList::add_to_plate(int obj_id, int instance_id, int plate_id)
 	}
 	else
 	{
+		changed = true;
 		BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": not added to plate before, add it to center");
 	}
 	plate = get_plate(plate_id);
@@ -5252,6 +5276,8 @@ int PartPlateList::add_to_plate(int obj_id, int instance_id, int plate_id)
 		return -1;
 	}
 	ret = plate->add_instance(obj_id, instance_id, true);
+	if (ret == 0 && changed && m_plater)
+		m_plater->notify_project_state_changed(ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
 
 	return ret;
 }

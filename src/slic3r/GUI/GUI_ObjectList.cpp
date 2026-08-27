@@ -1,6 +1,7 @@
 #include "libslic3r/libslic3r.h"
 #include "libslic3r/PresetBundle.hpp"
 #include "GUI_ObjectList.hpp"
+#include "ProjectState.hpp"
 #include "GUI_Factories.hpp"
 //#include "GUI_ObjectLayers.hpp"
 #include "GUI_App.hpp"
@@ -1192,22 +1193,15 @@ void ObjectList::update_name_in_model(const wxDataViewItem& item) const
     if (obj_idx < 0) return;
     const int volume_id = m_objects_model->GetVolumeIdByItem(item);
 
-    take_snapshot(volume_id < 0 ? "Rename Object" : "Rename Part");
-
     ModelObject* obj = object(obj_idx);
     if (m_objects_model->GetItemType(item) & itObject) {
         std::string name = m_objects_model->GetName(item).ToUTF8().data();
-        if (obj->name != name) {
-            obj->name = name;
-            // if object has just one volume, rename this volume too
-            if (obj->volumes.size() == 1)
-                obj->volumes[0]->name = obj->name;
-            Slic3r::save_object_mesh(*obj);
-        }
+        wxGetApp().plater()->rename_object(obj_idx, name);
         return;
     }
 
     if (volume_id < 0) return;
+    take_snapshot("Rename Part");
     obj->volumes[volume_id]->name = m_objects_model->GetName(item).ToUTF8().data();
 }
 
@@ -4237,14 +4231,11 @@ void ObjectList::delete_from_model_and_list(const ItemType type, const int obj_i
     if (!(type&(itObject|itVolume|itInstance)))
         return;
 
-    take_snapshot("Delete selected");
-
     if (type&itObject) {
         bool was_cut = object(obj_idx)->is_cut();
         // For variable layer height, the size of layer data is larger than 4
         bool vari_layer_height = (object(obj_idx)->layer_height_profile.get().size() > 4);
-        if (del_object(obj_idx)) {
-            delete_object_from_list(obj_idx);
+        if (wxGetApp().plater()->delete_object(obj_idx)) {
             if (was_cut)
                 update_lock_icons_for_model();
             if (vari_layer_height) {
@@ -4254,6 +4245,7 @@ void ObjectList::delete_from_model_and_list(const ItemType type, const int obj_i
         }
     }
     else {
+        take_snapshot("Delete selected");
         del_subobject_from_object(obj_idx, sub_obj_idx, type);
 
         type == itVolume ? delete_volume_from_list(obj_idx, sub_obj_idx) :
@@ -4266,6 +4258,7 @@ void ObjectList::delete_from_model_and_list(const std::vector<ItemForDelete>& it
     if (items_for_delete.empty())
         return;
 
+    ProjectStateTransaction project_change = wxGetApp().plater()->project_state_transaction();
     m_prevent_list_events = true;
     //BBS
     bool need_update = false;
@@ -4329,6 +4322,8 @@ void ObjectList::delete_from_model_and_list(const std::vector<ItemForDelete>& it
 
     m_prevent_list_events = true;
     part_selection_changed();
+    wxGetApp().plater()->notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Selection |
+                                                      ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
 }
 
 void ObjectList::update_lock_icons_for_model()

@@ -1,6 +1,8 @@
 #ifndef slic3r_Plater_hpp_
 #define slic3r_Plater_hpp_
 
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <vector>
 #include <boost/filesystem/path.hpp>
@@ -64,6 +66,11 @@ namespace UndoRedo {
 }
 
 namespace GUI {
+enum class ProjectStateChangeReason : std::uint32_t;
+struct ProjectStateChanged;
+using ProjectStateChangedCallback = std::function<void(const ProjectStateChanged&)>;
+class ProjectStateSubscription;
+class ProjectStateTransaction;
 class SyncAmsInfoDialog;
 class MainFrame;
 class ConfigOptionsGroup;
@@ -306,6 +313,14 @@ public:
     const SLAPrint& sla_print() const;
     SLAPrint& sla_print();
 
+    // Product-neutral, GUI-thread seam for authoritative committed project
+    // changes. Consumers observe this instead of individual presentation
+    // widgets or a shadow model.
+    ProjectStateSubscription subscribe_project_state(ProjectStateChangedCallback callback);
+    ProjectStateTransaction project_state_transaction();
+    std::uint64_t project_state_session() const;
+    void notify_project_state_changed(ProjectStateChangeReason reasons, bool project_replaced = false);
+
     int new_project(bool skip_confirm = false, bool silent = false, const wxString& project_name = wxString());
     // BBS: save & backup
     void load_project(wxString const & filename = "", wxString const & originfile = "-");
@@ -456,6 +471,10 @@ public:
     void deselect_all();
     void exit_gizmo();
     void remove(size_t obj_idx);
+    bool select_object(size_t obj_idx);
+    bool rename_object(size_t obj_idx, const std::string& name);
+    int duplicate_object(size_t obj_idx, bool take_snapshot = true);
+    bool delete_object(size_t obj_idx);
     void reset(bool apply_presets_change = false);
     void reset_with_confirm();
     //BBS: return int for various result
@@ -677,6 +696,10 @@ public:
     bool can_copy_to_clipboard() const;
     bool can_undo() const;
     bool can_redo() const;
+    bool can_undo_project() const;
+    bool can_redo_project() const;
+    bool undo_project();
+    bool redo_project();
     bool can_reload_from_disk() const;
     bool can_replace_with_stl() const;
     bool can_replace_all_with_stl() const;

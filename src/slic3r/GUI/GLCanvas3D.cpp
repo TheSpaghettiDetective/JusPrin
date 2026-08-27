@@ -1806,6 +1806,20 @@ void GLCanvas3D::enable_layers_editing(bool enable)
     set_as_dirty();
 }
 
+void GLCanvas3D::set_presentation_options(const GLCanvasPresentationOptions& options)
+{
+    if (m_presentation_options == options)
+        return;
+
+    m_presentation_options = options;
+    m_main_toolbar.set_input_enabled(options.main_toolbar_visible && options.main_toolbar_input_enabled);
+    m_assemble_view_toolbar.set_input_enabled(options.assemble_toolbar_visible && options.assemble_toolbar_input_enabled);
+    m_gizmos.set_picker_input_enabled(options.gizmo_picker_visible && options.gizmo_picker_input_enabled);
+    m_gizmos.set_active_gizmo_input_enabled(options.active_gizmo_visible && options.active_gizmo_input_enabled);
+    set_as_dirty();
+    request_extra_frame();
+}
+
 void GLCanvas3D::reset_select_plate_toolbar_selection() {
     if (m_sel_plate_toolbar.m_all_plates_stats_item)
         m_sel_plate_toolbar.m_all_plates_stats_item->selected = false;
@@ -2036,7 +2050,7 @@ void GLCanvas3D::render(bool only_init)
     _render_background();
 
     //BBS add partplater rendering logic
-    bool only_current = false, only_body = false, no_partplate = false;
+    bool only_current = false, only_body = !m_presentation_options.plate_controls_visible, no_partplate = false;
     bool show_grid = true;
     GLGizmosManager::EType gizmo_type = m_gizmos.get_current_type();
     if (!m_main_toolbar.is_enabled()) {
@@ -7205,6 +7219,11 @@ void GLCanvas3D::_picking_pass()
         }
         case SceneRaycaster::EType::Bed:
         {
+            if (!m_presentation_options.plate_controls_visible || !m_presentation_options.plate_controls_input_enabled) {
+                wxGetApp().plater()->get_partplate_list().reset_hover_id();
+                m_gizmos.set_hover_id(-1);
+                break;
+            }
             // BBS: add plate picking logic
             int plate_hover_id = hit.raycaster_id;
             if (plate_hover_id >= 0 && plate_hover_id < PartPlateList::MAX_PLATES_COUNT * PartPlate::GRABBER_COUNT) {
@@ -8381,13 +8400,17 @@ void GLCanvas3D::_render_overlays()
     _render_assemble_control();
     _render_assemble_info();
 
-    _render_separator_toolbar_right();
-    _render_separator_toolbar_left();
-    _render_main_toolbar();
+    if (m_presentation_options.main_toolbar_visible) {
+        _render_separator_toolbar_right();
+        _render_separator_toolbar_left();
+        _render_main_toolbar();
+    }
     _render_collapse_toolbar();
-    _render_assemble_view_toolbar();
+    if (m_presentation_options.assemble_toolbar_visible)
+        _render_assemble_view_toolbar();
     //BBS: GUI refactor: GLToolbar
-    _render_imgui_select_plate_toolbar();
+    if (m_presentation_options.plate_controls_visible)
+        _render_imgui_select_plate_toolbar();
     _render_return_toolbar();
     // BBS
     //_render_view_toolbar();
@@ -8395,7 +8418,8 @@ void GLCanvas3D::_render_overlays()
 
     //BBS: GUI refactor: GLToolbar
     //move gizmos behind of main
-    _render_gizmos_overlay();
+    if (m_presentation_options.gizmo_picker_visible)
+        _render_gizmos_overlay();
 
     if (m_layers_editing.last_object_id >= 0 && m_layers_editing.object_max_z() > 0.0f)
         m_layers_editing.render_overlay(*this);
@@ -8420,11 +8444,14 @@ void GLCanvas3D::_render_overlays()
                 sorted_instances.emplace_back(model_instance);
             }*/
     }
-    m_labels.render(sorted_instances);
+    if (m_presentation_options.object_labels_visible)
+        m_labels.render(sorted_instances);
 
-    _render_3d_navigator();
+    if (m_presentation_options.navigator_visible)
+        _render_3d_navigator();
 
-    _render_canvas_toolbar();
+    if (m_presentation_options.canvas_toolbar_visible)
+        _render_canvas_toolbar();
 }
 
 void GLCanvas3D::_render_style_editor()
@@ -8559,6 +8586,8 @@ void GLCanvas3D::_render_volumes_for_picking(const Camera& camera) const
 
 void GLCanvas3D::_render_current_gizmo() const
 {
+    if (!m_presentation_options.active_gizmo_visible)
+        return;
     //BBS update inv_zoom
     GLGizmoBase::INV_ZOOM = (float)wxGetApp().plater()->get_camera().get_inv_zoom();
     m_gizmos.render_current_gizmo();
@@ -9112,6 +9141,12 @@ void GLCanvas3D::_render_canvas_toolbar()
     imgui.begin(_L("Canvas Toolbar"), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |
                                            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);//
 
+    const bool input_disabled = !m_presentation_options.canvas_toolbar_input_enabled;
+    if (input_disabled) {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    }
+
     ImTextureID m_normal_id = m_gizmos.get_icon_texture_id(m_is_dark ? GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU_DARK       : GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU);
     ImTextureID m_hover_id  = m_gizmos.get_icon_texture_id(m_is_dark ? GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU_DARK_HOVER : GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU_HOVER);
 
@@ -9262,6 +9297,11 @@ void GLCanvas3D::_render_canvas_toolbar()
 
     ImGui::PopStyleColor(6);
     ImGui::PopStyleVar(6);
+
+    if (input_disabled) {
+        ImGui::PopStyleVar();
+        ImGui::PopItemFlag();
+    }
 
     imgui.end();
 }

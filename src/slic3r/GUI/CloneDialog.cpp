@@ -1,4 +1,5 @@
 #include "CloneDialog.hpp"
+#include "ProjectState.hpp"
 
 #include "GUI_App.hpp"
 #include "MainFrame.hpp"
@@ -76,12 +77,18 @@ CloneDialog::CloneDialog(wxWindow *parent)
         Refresh();
 
         Selection& sel = m_plater->canvas3D()->get_selection();
+        const int single_object_idx = sel.is_single_full_object() ? sel.get_object_idx() : -1;
+        ProjectStateTransaction project_change = m_plater->project_state_transaction();
         m_plater->take_snapshot(std::string("Selection-clone"));
         m_plater->Freeze(); // Better to stop rendering canvas while processing
-        sel.copy_to_clipboard();
+        if (single_object_idx < 0)
+            sel.copy_to_clipboard();
         for (int i = 0; i < m_count; i++) { // same method with Selection::clone()
             m_progress->SetValue(static_cast<int>(static_cast<double>(i) / m_count * 100)); // pass 0 / 100
-            sel.paste_from_clipboard();
+            if (single_object_idx >= 0)
+                m_plater->duplicate_object(static_cast<size_t>(single_object_idx), false);
+            else
+                sel.paste_from_clipboard();
 
             if (m_cancel_process) {
                 m_plater->undo();

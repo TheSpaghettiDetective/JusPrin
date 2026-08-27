@@ -633,6 +633,9 @@ std::string GLGizmosManager::get_tooltip() const
 
 bool GLGizmosManager::on_mouse_wheel(const wxMouseEvent &evt)
 {
+    if (!m_enabled || !m_active_gizmo_input_enabled)
+        return false;
+
     bool processed = false;
 
     if (/*m_current == SlaSupports || m_current == Hollow ||*/ m_current == FdmSupports || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin || m_current == BrimEars) {
@@ -753,16 +756,16 @@ bool GLGizmosManager::on_mouse(const wxMouseEvent &mouse_event)
     if (!m_enabled) return false;
 
     // tool bar wants to use event?
-    if (gizmos_toolbar_on_mouse(mouse_event)) return true;
+    if (m_picker_input_enabled && gizmos_toolbar_on_mouse(mouse_event)) return true;
 
     // current gizmo wants to use event?
-    if (m_current != Undefined &&
+    if (m_active_gizmo_input_enabled && m_current != Undefined &&
         // check if gizmo override method could be slower than simple call virtual function
         // &m_gizmos[m_current]->on_mouse != &GLGizmoBase::on_mouse &&
         m_gizmos[m_current]->on_mouse(mouse_event))
         return true;
 
-    if (mouse_event.RightUp() && m_current != EType::Undefined && !m_parent.is_mouse_dragging()) {
+    if (m_active_gizmo_input_enabled && mouse_event.RightUp() && m_current != EType::Undefined && !m_parent.is_mouse_dragging()) {
         // Prevent default right context menu in gizmos
         return true;
     }

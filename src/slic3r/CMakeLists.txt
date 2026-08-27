@@ -677,6 +677,8 @@ set(SLIC3R_GUI_SOURCES
     Utils/FileTransferUtils.hpp
 )
 
+include(GUI/JusPrin/sources.cmake)
+
 add_subdirectory(GUI/DeviceCore)
 add_subdirectory(GUI/DeviceTab)
 

@@ -120,6 +120,8 @@ private:
 
     GLCanvas3D& m_parent;
     bool m_enabled;
+    bool m_picker_input_enabled{true};
+    bool m_active_gizmo_input_enabled{true};
     std::vector<std::unique_ptr<GLGizmoBase>> m_gizmos;
     GLTexture m_icons_texture;
     bool m_icons_texture_dirty;
@@ -230,6 +232,10 @@ public:
 
     bool is_enabled() const { return m_enabled; }
     void set_enabled(bool enable) { m_enabled = enable; }
+    bool is_picker_input_enabled() const { return m_picker_input_enabled; }
+    bool is_active_gizmo_input_enabled() const { return m_active_gizmo_input_enabled; }
+    void set_picker_input_enabled(bool enable) { m_picker_input_enabled = enable; }
+    void set_active_gizmo_input_enabled(bool enable) { m_active_gizmo_input_enabled = enable; }
 
     void set_icon_dirty() { m_icons_texture_dirty = true; }
     void set_overlay_icon_size(float size);
