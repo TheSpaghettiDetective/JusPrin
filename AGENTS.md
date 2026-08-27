@@ -43,6 +43,7 @@ ctest --test-dir ./tests/fff_print
 ## JusPrin Production UI
 
 - Start with `agent-docs/jusprin/README.md` for the canonical product definition, production architecture, verification method, Orca integration guidance, and design system.
+- Before editing any file outside `src/slic3r/GUI/JusPrin/`, read `agent-docs/jusprin/fork-stewardship.md`. Every line changed in an OrcaSlicer-owned file is a line this fork re-resolves at every rebase, so those changes must be small, product-neutral, additive where possible, and accompanied by the rebase evidence that document requires.
 - Experimental plans, probes, screenshots, logs, and temporary UI code remain on `jusprin-v2-poc`. Use `agent-docs/jusprin/poc-reference.md` for exact commit and path pointers; do not cherry-pick the POC wholesale.
 - Curated brand and semantic UI assets live under `resources/jusprin/`.
 
@@ -59,5 +60,7 @@ ctest --test-dir ./tests/fff_print
 - Features gated by options must not affect existing behavior when those options are disabled.
 - Changes should follow the existing code style and architecture. Architectural changes should be justified in code comments and the PR description.
 - Add helper functions or utilities only when existing code cannot reasonably be reused. Avoid duplication.
+- Changes to OrcaSlicer-owned files must be additive where possible. Rewriting an upstream function, or reimplementing upstream behavior beside it, needs explicit justification in the PR description.
+- When an upstream line is deleted or relocated, say where it went and what a future rebase must carry into the new home.
 - Keep code concise and clear. Manually simplify AI generated bloated codes before review.
 - Include targeted tests or documented verification for behavior changes, especially in slicing logic, profiles, formats, and GUI defaults.

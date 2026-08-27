@@ -128,16 +128,16 @@ For every production area, record:
 - regression checks for the original Orca path;
 - any behavior that could not be tested and why.
 
-## Rebase discipline
+## Rebase evidence
 
-Optimize ownership and control flow, not the number of added lines. Product policy belongs in fork-owned code, while small product-neutral APIs may live in Orca-owned classes when private state requires them.
+The rules for changing upstream-owned files are in [fork stewardship](fork-stewardship.md). This section states only what a change must produce as evidence.
 
-- Keep one shell attachment in `MainFrame`.
-- Keep startup policy out of `Plater` constructors.
-- Keep one fork-owned CMake source manifest.
-- Prefer one authoritative shared command over duplicated behavior, even if the shared hook can produce an obvious merge conflict.
-- State both commits for every churn or merge comparison.
-- Use a three-way merge simulation as evidence, never as proof of semantic correctness.
-- After every upstream update, run contract tests, the full native build, the multi-plate Prepare/Check workflow, native gizmo input, and original-Orca regression checks.
+A change that touches an upstream-owned file is not finished until the handback or pull request records three things:
 
-The detailed incidents that produced these rules are in [OrcaSlicer integration guide](orca-integration-guide.md). Historical logs and spike procedures are in [POC reference](poc-reference.md).
+1. **The rebase simulation and its result**, run against current upstream with both endpoint commits named. For each conflicted file, state whether the natural resolution is correct or lossy. A lossy resolution is a defect to fix before the change lands, not a note for the person who rebases.
+2. **Every upstream line deleted or rewritten**, with where the logic went and why an additive form was not possible.
+3. **What the fork now owns** — product policy, a small neutral seam, or upstream behavior. The third needs an explicit justification.
+
+An automatic merge is evidence about today's text. It never proves that a future rebase will merge, and never proves that the merged result behaves correctly. After every upstream update, run the contract tests, the full native build, the multi-plate Prepare/Check workflow, native gizmo input, and the original-Orca regression checks.
+
+The incidents that produced these rules are in [OrcaSlicer integration guide](orca-integration-guide.md). Historical logs and spike procedures are in [POC reference](poc-reference.md).
