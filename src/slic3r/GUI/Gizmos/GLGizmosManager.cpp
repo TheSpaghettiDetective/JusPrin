@@ -46,6 +46,7 @@ const float GLGizmosManager::Default_Icons_Size = 64;
 GLGizmosManager::GLGizmosManager(GLCanvas3D& parent)
     : m_parent(parent)
     , m_enabled(false)
+    , m_overlay_input_enabled(true)
     , m_icons_texture_dirty(true)
     , m_current(Undefined)
     , m_hover(Undefined)
@@ -753,7 +754,7 @@ bool GLGizmosManager::on_mouse(const wxMouseEvent &mouse_event)
     if (!m_enabled) return false;
 
     // tool bar wants to use event?
-    if (gizmos_toolbar_on_mouse(mouse_event)) return true;
+    if (m_overlay_input_enabled && gizmos_toolbar_on_mouse(mouse_event)) return true;
 
     // current gizmo wants to use event?
     if (m_current != Undefined &&

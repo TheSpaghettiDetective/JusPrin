@@ -128,6 +128,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/JusPrin/InvisibleLegacyUiSpike.hpp
     GUI/JusPrin/FullWindowUiSpike.cpp
     GUI/JusPrin/FullWindowUiSpike.hpp
+    GUI/JusPrin/GLCanvas3DWrapper.cpp
+    GUI/JusPrin/GLCanvas3DWrapper.hpp
     GUI/Gizmos/GizmoObjectManipulation.cpp
     GUI/Gizmos/GizmoObjectManipulation.hpp
     GUI/JusPrin/Workspace/FakeWorkspace.hpp

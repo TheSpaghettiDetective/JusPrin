@@ -1806,6 +1806,16 @@ void GLCanvas3D::enable_layers_editing(bool enable)
     set_as_dirty();
 }
 
+void GLCanvas3D::set_presentation_options(const GLCanvasPresentationOptions& options)
+{
+    m_presentation_options = options;
+    m_main_toolbar.set_input_enabled(options.handle_overlay_input);
+    m_assemble_view_toolbar.set_input_enabled(options.handle_overlay_input);
+    m_gizmos.set_overlay_input_enabled(options.handle_overlay_input);
+    set_as_dirty();
+    request_extra_frame();
+}
+
 void GLCanvas3D::reset_select_plate_toolbar_selection() {
     if (m_sel_plate_toolbar.m_all_plates_stats_item)
         m_sel_plate_toolbar.m_all_plates_stats_item->selected = false;
@@ -2037,7 +2047,7 @@ void GLCanvas3D::render(bool only_init)
 
     //BBS add partplater rendering logic
     bool only_current = false;
-    bool only_body = m_presentation_mode == GLCanvasPresentationMode::JusPrin;
+    bool only_body = !m_presentation_options.render_plate_controls;
     bool no_partplate = false;
     bool show_grid = true;
     GLGizmosManager::EType gizmo_type = m_gizmos.get_current_type();
@@ -4203,9 +4213,9 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     const int layer_editing_object_idx = is_layers_editing_enabled() ? selected_object_idx : -1;
     const bool mouse_in_layer_editing  = layer_editing_object_idx != -1 && m_layers_editing.bar_rect_contains(*this, pos(0), pos(1));
 
-    const bool show_orca_chrome = m_presentation_mode == GLCanvasPresentationMode::OrcaClassic;
+    const bool handle_overlay_input = m_presentation_options.handle_overlay_input;
 
-    if (show_orca_chrome && !mouse_in_layer_editing && m_main_toolbar.on_mouse(evt, *this)) {
+    if (!mouse_in_layer_editing && m_main_toolbar.on_mouse(evt, *this)) {
         if (m_main_toolbar.is_any_item_pressed())
             m_gizmos.reset_all_states();
         if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp())
@@ -4215,14 +4225,14 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     }
 
     //BBS: GUI refactor: GLToolbar
-    if (show_orca_chrome && !mouse_in_layer_editing && m_assemble_view_toolbar.on_mouse(evt, *this)) {
+    if (!mouse_in_layer_editing && m_assemble_view_toolbar.on_mouse(evt, *this)) {
         if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp())
             mouse_up_cleanup();
         m_mouse.set_start_position_3D_as_invalid();
         return;
     }
 
-    if (show_orca_chrome && !mouse_in_layer_editing && wxGetApp().plater()->get_collapse_toolbar().on_mouse(evt, *this)) {
+    if (handle_overlay_input && !mouse_in_layer_editing && wxGetApp().plater()->get_collapse_toolbar().on_mouse(evt, *this)) {
         if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp())
             mouse_up_cleanup();
         m_mouse.set_start_position_3D_as_invalid();
@@ -4251,11 +4261,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
         m_dirty = true;
     };
 
-    GLGizmoBase* current_gizmo = m_gizmos.get_current();
-    const bool gizmo_handled = show_orca_chrome ? m_gizmos.on_mouse(evt) :
-        (current_gizmo != nullptr &&
-         (current_gizmo->on_mouse(evt) || (evt.RightUp() && !is_mouse_dragging())));
-    if (!mouse_in_layer_editing && gizmo_handled) {
+    if (!mouse_in_layer_editing && m_gizmos.on_mouse(evt)) {
         if (m_gizmos.is_running()) {
             _deactivate_arrange_menu();
             _deactivate_orient_menu();
@@ -7213,7 +7219,7 @@ void GLCanvas3D::_picking_pass()
         }
         case SceneRaycaster::EType::Bed:
         {
-            if (m_presentation_mode == GLCanvasPresentationMode::JusPrin) {
+            if (!m_presentation_options.handle_plate_input) {
                 wxGetApp().plater()->get_partplate_list().reset_hover_id();
                 m_gizmos.set_hover_id(-1);
                 break;
@@ -8390,7 +8396,7 @@ void GLCanvas3D::_render_overlays()
 {
     glsafe(::glDisable(GL_DEPTH_TEST));
 
-    if (m_presentation_mode == GLCanvasPresentationMode::JusPrin)
+    if (!m_presentation_options.render_overlays)
         return;
 
     _check_and_update_toolbar_icon_scale();

@@ -1,8 +1,8 @@
 #include "FullWindowUiSpike.hpp"
 
-#include "../GLCanvas3D.hpp"
 #include "../GLToolbar.hpp"
 #include "../Plater.hpp"
+#include "GLCanvas3DWrapper.hpp"
 #include "Workspace/OrcaWorkspaceAdapter.hpp"
 
 #include <wx/button.h>
@@ -48,6 +48,8 @@ public:
         : wxPanel(parent, wxID_ANY)
         , m_plater(plater)
         , m_workspace(std::make_unique<OrcaWorkspaceAdapter>(plater))
+        , m_prepare_canvas(*plater.get_view3D_canvas3D())
+        , m_preview_canvas(*plater.get_preview_canvas3D())
     {
         SetName("JusPrin Full Window UI Spike");
         SetBackgroundColour(shell_background);
@@ -59,8 +61,6 @@ public:
 
         m_plater.Reparent(m_center_host);
         m_plater.enable_sidebar(false);
-        m_plater.get_view3D_canvas3D()->set_presentation_mode(GLCanvasPresentationMode::JusPrin);
-        m_plater.get_preview_canvas3D()->set_presentation_mode(GLCanvasPresentationMode::JusPrin);
         m_center_sizer->Add(&m_plater, 1, wxEXPAND);
         m_plater.Show();
 
@@ -74,8 +74,6 @@ public:
     ~FullWindowUiSpike() override
     {
         m_subscription.reset();
-        m_plater.get_view3D_canvas3D()->set_presentation_mode(GLCanvasPresentationMode::OrcaClassic);
-        m_plater.get_preview_canvas3D()->set_presentation_mode(GLCanvasPresentationMode::OrcaClassic);
     }
 
 private:
@@ -194,7 +192,7 @@ private:
         transcript->SetForegroundColour(text_primary);
         right_sizer->Add(transcript, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(18));
 
-        m_status = new wxStaticText(right, wxID_ANY, "Workspace ready");
+        m_status = new wxStaticText(right, wxID_ANY, "Project ready");
         m_status->SetForegroundColour(text_secondary);
         right_sizer->Add(m_status, 0, wxEXPAND | wxALL, FromDIP(14));
 
@@ -227,20 +225,12 @@ private:
             log("command preview");
         });
         move->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
-            auto& gizmos = m_plater.get_view3D_canvas3D()->get_gizmos_manager();
-            const bool opened = gizmos.get_current_type() == GLGizmosManager::EType::Move ||
-                                gizmos.open_gizmo(GLGizmosManager::EType::Move);
-            m_plater.get_view3D_canvas3D()->set_as_dirty();
-            m_plater.get_view3D_canvas3D()->request_extra_frame();
+            const bool opened = m_prepare_canvas.activate_move_gizmo();
             refresh_workspace("move", WorkspaceChangeReasons::None);
             log(std::string("command move ") + (opened ? "active" : "unavailable"));
         });
         rotate->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
-            auto& gizmos = m_plater.get_view3D_canvas3D()->get_gizmos_manager();
-            const bool opened = gizmos.get_current_type() == GLGizmosManager::EType::Rotate ||
-                                gizmos.open_gizmo(GLGizmosManager::EType::Rotate);
-            m_plater.get_view3D_canvas3D()->set_as_dirty();
-            m_plater.get_view3D_canvas3D()->request_extra_frame();
+            const bool opened = m_prepare_canvas.activate_rotate_gizmo();
             refresh_workspace("rotate", WorkspaceChangeReasons::None);
             log(std::string("command rotate ") + (opened ? "active" : "unavailable"));
         });
@@ -284,6 +274,8 @@ private:
 
     Plater& m_plater;
     std::unique_ptr<OrcaWorkspaceAdapter> m_workspace;
+    GLCanvas3DWrapper m_prepare_canvas;
+    GLCanvas3DWrapper m_preview_canvas;
     WorkspaceSubscription m_subscription;
     wxPanel* m_center_host{nullptr};
     wxSizer* m_center_sizer{nullptr};

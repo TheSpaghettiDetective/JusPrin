@@ -33,7 +33,7 @@ The spike matches the supplied structure and approximate neutral palette, spacin
 
 `MainFrame` remains the only top-level application window. In spike mode its existing main sizer hosts one fork-owned `FullWindowUiSpike`. That panel owns the top navigation, Objects rail, center host, and right pane. The existing `Plater` is reparented into the center host; its existing `View3D`, Preview, `wxGLCanvas`, `GLCanvas3D`, model, selection, and AUI-managed views remain authoritative.
 
-The legacy tab panel, Sidebar, and ObjectList remain constructed but are excluded from the visible layout. Both real canvases receive `GLCanvasPresentationMode::JusPrin`, which suppresses stock chrome while retaining the active gizmo's native input path. Destruction restores `OrcaClassic` presentation mode.
+The legacy tab panel, Sidebar, and ObjectList remain constructed but are excluded from the visible layout. Each real canvas is held by a fork-owned `GLCanvas3DWrapper`. The wrapper applies generic `GLCanvasPresentationOptions` that suppress stock chrome and its hidden hit targets while retaining the active gizmo's native input path. Destruction restores the exact options that were present before the wrapper was created.
 
 ## 5. Ordered hard-event results
 
@@ -91,15 +91,19 @@ Reused behavior-oriented APIs and events:
 
 New seams:
 
-- `GLCanvasPresentationMode { OrcaClassic, JusPrin }` and `set_presentation_mode()` split viewport chrome visibility from the active gizmo's capability.
+- `GLCanvasPresentationOptions` and `set_presentation_options()` independently control overlay rendering, overlay hit testing, plate-control rendering, and plate-control hit testing.
+- Fork-owned `GLCanvas3DWrapper` selects the JusPrin values, restores the prior values with RAII, and owns Move/Rotate activation. No JusPrin name or policy appears in `GLCanvas3D`.
 - One environment-gated attachment in `MainFrame::update_layout()` creates the fork-owned shell.
 - One environment-gated guard in `Plater::priv::enable_sidebar()` prevents later view/load paths from remounting the legacy sidebar.
 
-The default mode initializes to `OrcaClassic`; the absent-flag path never names or constructs a fork-owned type at runtime.
+All presentation options default to enabled, preserving original Orca behavior; the absent-flag path never names or constructs a fork-owned type at runtime.
 
 ## 8. Build, test, and runtime evidence
 
 - Final clean application build: passed for target `OrcaSlicer` in `RelWithDebInfo`.
+- Wrapper refactor verification: the full `all` target and the incremental rebuild both passed in `RelWithDebInfo`.
+- Full CTest run: 199 of 200 tests passed. `Scenario: Placeholder parser coFloatsOrPercents vector access` reproducibly segfaults because this branch's `PrintConfig.cpp` defines `small_perimeter_speed` as scalar `coFloatOrPercent`, while the test requests `ConfigOptionFloatsOrPercentsNullable`. Current upstream defines that setting as `coFloatsOrPercents`; this is a branch integration mismatch outside the canvas refactor.
+- Fresh application-level verification after the wrapper refactor passed on macOS. A real three-object/two-plate project rendered in the JusPrin shell without the stock Prepare toolbar or plate controls. After selecting visible model geometry, the JusPrin `Move` button displayed Orca's native translation handles and the log recorded `command move active`. `Check Print` switched to Preview and completed real G-code generation; `ORCA` returned to Prepare. The same log recorded `command preview` and `command prepare`.
 - Workspace contract tests: 7 tests, 41 assertions, all passed via `ctest --test-dir build/arm64/tests/workspace -C RelWithDebInfo --output-on-failure`.
 - Patch hygiene: `git diff --check` passed after removal of all verification-only code.
 - Spike launch: passed with a real three-object/two-plate project.
@@ -116,25 +120,30 @@ Section 9.
 |---|---|---:|---|---|---|---|---|---|
 | `src/slic3r/GUI/JusPrin/FullWindowUiSpike.cpp` | Fork-owned | +302/−0 | Builds shell; reparents Plater; wires adapter and commands | Own the experimental surface without distributing UI code through Orca | Widget ownership/lifetime; Layout/parenting; State/selection; Command/behavior; Event ordering | Low; fork-owned | Delete component and the one MainFrame attachment | Medium |
 | `src/slic3r/GUI/JusPrin/FullWindowUiSpike.hpp` | Fork-owned | +14/−0 | Single shell factory declaration | Keep the upstream attachment limited to a factory call | Widget ownership/lifetime | Low; fork-owned | Delete with implementation | Low |
-| `src/slic3r/CMakeLists.txt` | Build registration | +2/−0 | Registers the two shell sources | Required for compilation | Build/resources | Medium; central source list | Remove two entries | Low |
+| `src/slic3r/CMakeLists.txt` | Build registration | +4/−0 | Registers the shell and canvas-wrapper sources | Required for compilation | Build/resources | Medium; central source list | Remove four entries | Low |
+| `src/slic3r/GUI/JusPrin/GLCanvas3DWrapper.cpp` | Fork-owned | New file | Applies JusPrin presentation values and activates Move/Rotate | Keep product policy out of Orca canvas code | Visibility/presentation; Input/focus; Command/behavior | Low; fork-owned | Delete with the shell | Low |
+| `src/slic3r/GUI/JusPrin/GLCanvas3DWrapper.hpp` | Fork-owned | New file | Declares the narrow existing-canvas wrapper | Give the shell one stable canvas dependency | Widget ownership/lifetime; Visibility/presentation | Low; fork-owned | Delete with the shell | Low |
 | `src/slic3r/GUI/MainFrame.cpp` | Upstream attachment point | +14/−0 | `MainFrame::update_layout()` Old-layout branch | Necessary to place the shell inside the existing main window | Widget ownership/lifetime; Layout/parenting; Visibility/presentation | High; active app-shell file | Replace with a stable shell-host factory/registration point, or remove the gated block | Medium |
 | `src/slic3r/GUI/Plater.cpp` | Upstream presentation seam | +4/−0 | `Plater::priv::enable_sidebar()` | Necessary because later view/load paths otherwise re-enable the hidden sidebar | Layout/parenting; Visibility/presentation; Event ordering | High; active central controller | Expose a persistent public sidebar-presentation policy set once by the shell | Medium |
-| `src/slic3r/GUI/GLCanvas3D.hpp` | Upstream presentation seam | +10/−0 | One declaration block: enum, state, setter/getter | Necessary to make chrome visibility independent of canvas/gizmo capability | Visibility/presentation; Input/focus; Rendering/OpenGL | High; very active header | Promote to a general presentation-options API; shell depends only on that API | High |
-| `src/slic3r/GUI/GLCanvas3D.cpp` | Upstream presentation seam | +22/−5 | `render`, `on_mouse`, `_picking_pass`, `_render_overlays` | Necessary to hide chrome and its hit targets while retaining active native gizmo input | Visibility/presentation; Input/focus; Rendering/OpenGL; Command/behavior | High; active render/input hotspot | Consolidate checks behind reusable `shows_stock_chrome()`/capability helpers | High |
+| `src/slic3r/GUI/GLCanvas3D.hpp` | Upstream presentation seam | Generic options declaration, state, setter/getter | Make rendering and input policies independently configurable | Visibility/presentation; Input/focus; Rendering/OpenGL | High; very active header | Keep the generic contract narrow and product-neutral | Medium |
+| `src/slic3r/GUI/GLCanvas3D.cpp` | Upstream presentation seam | Small checks in `render`, `on_mouse`, `_picking_pass`, and `_render_overlays`; one setter | Hide plate controls and overlays and suppress the external collapse-toolbar hit target | Visibility/presentation; Input/focus; Rendering/OpenGL | High; active render/input hotspot | Keep only decisions requiring canvas-private state here | Medium |
+| `src/slic3r/GUI/GLToolbar.cpp/.hpp` | Upstream generic input seam | One flag, setter, and early input check | Let an embedded canvas disable toolbar hit testing without disabling toolbar state | Input/focus | No upstream commits in the audited interval | Retain as a generic toolbar capability | Low |
+| `src/slic3r/GUI/Gizmos/GLGizmosManager.cpp/.hpp` | Upstream generic input seam | One flag, setter, and condition | Disable gizmo-toolbar hit testing while preserving current-gizmo input | Input/focus; Command/behavior | Three upstream commits across both files in the audited interval | Retain as a generic gizmo capability | Low |
 
 Upstream-change audit:
 
 - `MainFrame.cpp`: necessary, localized to one function plus includes, and reusable for future JusPrin screens. The default Orca function executes, but the new branch is not entered unless the exact flag value is `1`. It is a rebase hotspot. Most logic is already fork-owned; a smaller stable factory/host attachment could remove the fork include from this file.
 - `Plater.cpp`: necessary after runtime reproduction showed the sidebar returning, localized to one function, and reusable as a general persistent sidebar-visibility policy. The default function executes but the added condition is false without the flag. It is a high-churn hotspot. The decision cannot safely move wholly into the shell because later Plater paths own remounting; a public policy setter would be the smaller boundary.
-- `GLCanvas3D.hpp`: necessary, localized to one declaration block, and reusable for any embedded/minimal canvas. Default code retains `OrcaClassic`. It is a high-churn header. The state must remain with the canvas, but the JusPrin-specific enum value should become a generic presentation options value.
-- `GLCanvas3D.cpp`: necessary, localized to four related render/input functions, and reusable for embedded/minimal canvas consumers. Default execution stays behaviorally identical because `OrcaClassic` selects the prior branches. It is the highest-risk hotspot. The logic cannot move into a fork file without exposing unsafe internals; it can be contained behind generic helpers inside GLCanvas.
+- `GLCanvas3D.hpp`: necessary, localized to a product-neutral options declaration and one setter/getter pair. All defaults preserve original Orca behavior. The header remains high-churn, but it no longer names JusPrin or encodes a two-product mode.
+- `GLCanvas3D.cpp`: still contains the small checks that require canvas-private rendering and plate-picking state. Most custom mouse routing was removed from `GLCanvas3D::on_mouse()`; ordinary toolbars now reject input through `GLToolbar`, and `GLGizmosManager` suppresses only its toolbar before continuing to the active gizmo.
+- `GLToolbar.cpp/.hpp` and `GLGizmosManager.cpp/.hpp`: generic input-capability seams in substantially quieter upstream files. In the audited upstream interval, `GLCanvas3D.cpp` changed in 43 commits, versus zero for both `GLToolbar` files and three total across both gizmo-manager files.
 
 Totals:
 
-- Fork-owned production files changed: **2**
-- Upstream-owned production files changed, excluding build lists: **4**
-- Upstream-owned additions/removals: **+50/−5**
-- Separate existing upstream implementation functions modified: **6** (`render`, `on_mouse`, `_picking_pass`, `_render_overlays`, `MainFrame::update_layout`, `Plater::priv::enable_sidebar`), plus one GLCanvas header declaration block containing two accessors
+- Fork-owned production files changed: **4**
+- Upstream-owned production files changed, excluding build lists: **8**
+- Current upstream-owned additions/removals relative to the pre-spike commit: **+69/−5**
+- `GLCanvas3D` still modifies `render`, `on_mouse`, `_picking_pass`, and `_render_overlays`, but the repeated toolbar and manual gizmo-dispatch branches have moved out of `on_mouse()` into generic lower-churn input seams.
 - Direct Orca types referenced by fork-owned code: **4** (`Plater`, `GLCanvas3D`, `GLGizmosManager`, `SimpleEvent`)
 - Copied Orca behavior blocks or algorithms: **0**
 - Legacy component types kept alive for Events A-C: **8**
@@ -144,8 +153,8 @@ Totals:
 | Attempt | Expected seam | Actual dependency found | Workaround used | Architectural implication |
 |---|---|---|---|---|
 | Reparent existing Plater once and hide Sidebar | Shell controls the final layout | Later view/load paths call `enable_sidebar(true)` and remount it | Narrow exact-flag guard in `Plater::priv::enable_sidebar()` | Sidebar visibility is policy state, not a one-time layout operation |
-| Skip overlay rendering only | Invisible chrome would stop participating | Toolbar and picker hit targets can still consume visible-canvas input | Gate stock toolbar hit testing and call only the current native gizmo in JusPrin mode | Visibility and capability are entangled in `on_mouse()` |
-| Use `only_body` to hide plate action stacks | All plate chrome would disappear | Bed picker hit regions still changed hover/input state | Ignore Bed picking in JusPrin presentation mode | Render suppression must be paired with matching picking policy |
+| Skip overlay rendering only | Invisible chrome would stop participating | Toolbar and picker hit targets can still consume visible-canvas input | Disable toolbar hit testing through generic `GLToolbar` and `GLGizmosManager` controls while keeping current-gizmo input active | Visibility and capability require separate controls |
+| Use `only_body` to hide plate action stacks | All plate chrome would disappear | Bed picker hit regions still changed hover/input state | Disable Bed picking through `handle_plate_input` | Render suppression must be paired with matching picking policy |
 | Give `wxGLCanvas` an accessibility name | Easier semantic automation target | macOS accessibility state enumeration repeatedly timed out | Removed the name; verified through the containing app and real canvas pixels | Native GL canvas lacks a reliable semantic automation seam |
 | Send coordinate input to a copied app with Orca's duplicate bundle identity | Strict native visible-handle test | Computer Use could not resolve a unique window (`noWindowsAvailable`) | Used a fresh temporary app copy with a unique bundle ID, then trashed it | Test harnesses need unique application identity; no production workaround is needed |
 | Use `wxUIActionSimulator` for handle drag | OS-native-looking input from a test helper | macOS reported success but dropped cursor events | Abandoned and removed; used Computer Use against the visible native handle | Simulator success is not evidence of GL canvas input on macOS |
@@ -153,8 +162,8 @@ Totals:
 
 ## 11. Highest-risk rebase hotspots
 
-1. `GLCanvas3D::on_mouse()` is the largest risk. It interleaves toolbar hit testing, gizmo picker behavior, active gizmo input, mouse cleanup, camera input, and selection. Upstream interaction changes can conflict textually or semantically.
-2. `GLCanvas3D::_render_overlays()` and `render()` collect several unrelated overlay families. A single early return is small but depends on Orca continuing to classify all hidden chrome beneath that point, while `only_body` semantics may evolve.
+1. `GLCanvas3D::_render_overlays()` and `render()` remain the largest canvas-specific risk. The generic checks are small, but they still depend on Orca continuing to classify hidden chrome beneath `_render_overlays()` and on the meaning of `only_body` remaining appropriate for suppressing plate controls.
+2. `GLCanvas3D::on_mouse()` now has only the presentation check for the external collapse toolbar. The previous duplicated toolbar conditions and manual current-gizmo dispatch were removed. Toolbar and gizmo-manager input controls carry that policy through lower-churn generic seams.
 3. `Plater::priv::enable_sidebar()` is a central policy method reached from many workflows. The exact environment check is appropriate for a spike but should become state set through a public presentation API.
 4. `MainFrame::update_layout()` is a busy attachment point, though the spike block is localized and easy to remove.
 
@@ -162,7 +171,7 @@ Totals:
 
 Keep the overall composition: one fork-owned shell inside the existing `MainFrame`, hosting the existing `Plater`/Prepare/Preview center and using `IWorkspace` for state/history. Retain a single MainFrame shell-factory attachment.
 
-Before productionizing, replace the JusPrin-named GL enum with a generic canvas presentation-options contract that independently controls stock chrome rendering, stock chrome hit testing, plate decorations/picking, and active gizmo capability. Add a persistent public Plater sidebar-presentation policy so the shell does not rely on an environment check inside `Plater::priv`. Keep Slice and view switching as explicit behavior APIs/events; do not expose private Plater internals or mirror their state.
+The JusPrin-named GL enum has been replaced with a generic canvas presentation-options contract, and fork-owned `GLCanvas3DWrapper` now owns the product-specific values and commands. Before productionizing, add a persistent public Plater sidebar-presentation policy so the shell does not rely on an environment check inside `Plater::priv`. Keep Slice and view switching as explicit behavior APIs/events; do not expose private Plater internals or mirror their state.
 
 The smallest follow-up proof should rerun Event C through the generalized canvas contract and Event B through a stable center-view host, with the legacy flag absent as a regression check.
 

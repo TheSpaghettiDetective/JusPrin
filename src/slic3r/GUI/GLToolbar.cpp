@@ -256,6 +256,7 @@ GLToolbar::GLToolbar(GLToolbar::EType type, const std::string& name)
     : m_type(type)
     , m_name(name)
     , m_enabled(false)
+    , m_input_enabled(true)
     , m_icons_texture_dirty(true)
     , m_pressed_toggable_id(-1)
 {
@@ -551,7 +552,7 @@ void GLToolbar::render(const GLCanvas3D& parent,GLToolbarItem::EType type)
 
 bool GLToolbar::on_mouse(wxMouseEvent& evt, GLCanvas3D& parent)
 {
-    if (!m_enabled)
+    if (!m_enabled || !m_input_enabled)
         return false;
 
     const Vec2d mouse_pos((double)evt.GetX(), (double)evt.GetY());
