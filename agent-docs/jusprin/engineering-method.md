@@ -50,6 +50,18 @@ Update this ledger when evidence changes. Do not carry an old risk label forward
 
 ## Test strategy
 
+### Regression baselines and failure classification
+
+Run the closest existing test and the broadest practical baseline before changing
+an upstream-owned behavior. Record pre-existing failures by exact test name and
+failure mode so later runs can distinguish a regression from inherited state.
+
+When a broad suite fails, rerun the exact case independently before assigning a
+cause. Record repeatable failures as regressions until disproved; record a
+one-time timeout, deadlock, or infrastructure failure separately with the
+isolated rerun result. A green focused suite does not erase a new repeatable
+broad-suite failure.
+
 ### Contract tests
 
 Test strong IDs, invalid/missing/stale identifiers, command errors, subscription lifetime, event coalescing, revision behavior, and fake-workspace history without linking the GUI. Test both successful and unsuccessful commands, and assert that reported results agree with authoritative state.
@@ -59,6 +71,9 @@ Test strong IDs, invalid/missing/stale identifiers, command errors, subscription
 A fake cannot validate `Plater`, `GLCanvas3D`, plate membership, `GUI_ObjectList` dependencies, event ordering, or Orca's undo stack. Add an application-level harness that loads deterministic project fixtures and covers:
 
 - project-ready signaling rather than fixed event-loop delays;
+- a dedicated application name and bundle identity so UI automation cannot target another Orca build;
+- an isolated temporary configuration and repository-owned fixture;
+- deterministic on-bed object placement, active tab, selection, and camera-visible state before reporting readiness;
 - object and viewport selection in both directions;
 - rename, duplicate, remove, plate switch, import, undo, and redo;
 - committed native transform and exact-value transform;
@@ -74,6 +89,13 @@ The POC self-test is evidence and test-design input, not a production harness: i
 Run the complete native application with a deterministic multi-plate project. Verify the visible real canvas, camera controls, selection, native gizmos, Slice, Check print, return to Prepare, undo/redo, object pane synchronization, Agent pane persistence, resize, maximize/restore, and the unchanged legacy layout when testing a compatibility mode.
 
 Visual appearance alone is insufficient. Validate state from authoritative callbacks and pair visibility claims with screenshots or rendered evidence.
+
+Use the harness to establish deterministic application state; use UI automation
+for real pointer, keyboard, focus, and rendering checks rather than for fragile
+startup setup. For canvas policy, inventory every overlay surface and verify
+rendering and hit-testing separately. Compare a stock window with the product
+policy, then exercise selection, orbit, pan, zoom, active gizmo input, slicing,
+Preview, and restoration of the prior presentation state.
 
 ### Platform matrix
 

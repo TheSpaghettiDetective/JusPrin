@@ -50,15 +50,24 @@ should then request a fresh workspace snapshot.
 Do not place a copy of workspace state inside the notification. That creates a
 second state-delivery path and increases the risk of stale data.
 
+Coalesce events at the logical command or transaction boundary, not after an
+arbitrary event-loop delay. Union every reason produced by the transaction,
+advance the revision before delivery, and guarantee that a snapshot read inside
+the callback has the same revision as the event. Native callbacks may run before
+the command that caused them returns, so ordering must be part of the contract
+rather than an assumption made by consumers.
+
 ### Undo and redo restore state without explaining the affected area
 
-OrcaSlicer's undo stack correctly restores the project, but it does not tell the
-adapter whether an operation changed object contents, selection, transforms, or
-plates.
+OrcaSlicer's undo stack correctly restores the project, but a limited workspace
+projection cannot always show what changed. A history step may affect settings
+or other authoritative project data that the current contract does not expose.
 
-The workspace adapter solves this by taking read-only projections before and
-after OrcaSlicer performs undo or redo. The adapter reports `History` together
-with the areas whose authoritative state changed.
+Judge history availability and command success from the authoritative history
+position or an equally reliable owner-provided result. Do not infer success only
+from UI button state or from differences in a partial workspace snapshot. Report
+`History` together with conservative affected-area reasons so consumers refresh
+from the source of truth.
 
 Do not implement a second history stack in JusPrin. OrcaSlicer must continue to
 own snapshots, restoration order, selection restoration, and object identity.
@@ -74,32 +83,30 @@ When a required operation is trapped inside presentation code, expose the
 smallest behavior-oriented method from the current OrcaSlicer owner. Do not copy
 the operation into the adapter and do not simulate clicks on hidden widgets.
 
-### OrcaSlicer object IDs are useful only within an application session
+### Workspace IDs need explicit project-session scope
 
-The tested project used OrcaSlicer's in-process `ObjectID` as the basis for a
-strongly typed JusPrin `ObjectId`. Undoing and redoing a duplicated object
-restored the same ID during the running session.
+OrcaSlicer's in-process IDs are useful raw identity, but the public contract must
+not imply that they survive project replacement, reload, reset, serialization,
+or application restart. Pair public IDs with an explicit project-session
+identity and invalidate every prior-session ID when the authoritative project is
+replaced.
 
-This evidence supports stable IDs within one application session. It does not
-support persistence across application restarts, project reloads, imports, or
-file serialization. Future APIs must not imply stronger persistence guarantees.
+Resolve IDs against current authoritative state for every command. Do not retain
+model pointers or GUI indexes across mutations. Keep invalid zero IDs, unknown
+current-session IDs, and stale prior-session IDs distinguishable when callers can
+recover differently from each case.
 
-### Current object commands still require the legacy object list to exist
+### Presentation objects must not own model behavior
 
-The current rename, duplicate, and delete paths update `GUI_ObjectList` after or
-during the model operation. The workspace-adapter spike ran with OrcaSlicer's
-normal `MainFrame`, `Sidebar`, and `GUI_ObjectList` constructed and visible.
+A pane or list may render model state and refresh after a command, but its
+construction or visibility must not be required for the command to work. Put
+snapshots, model mutation, selection, plate membership, background processing,
+dirty state, and event publication on one behavior path owned near the
+authoritative Orca subsystem.
 
-The result proves that a JusPrin companion or overlay UI can use the adapter
-while the legacy UI remains operational. It does not prove that the legacy UI
-can be omitted from construction.
-
-The follow-up invisible-UI spike demonstrated a narrower migration strategy:
-keep the legacy UI constructed and event-capable, but completely cover it with
-an opaque empty JusPrin window. Every tested probe command continued to work,
-including undo and redo with stable session-scoped object identity. This proves
-concealment for the tested command surface; it still does not prove that the
-legacy UI can be omitted from construction.
+Legacy presentation and JusPrin adapters should call that same path. Treat
+presentation objects as optional observers, and avoid both copied handler logic
+and simulated input against hidden controls.
 
 ### GUI event-loop delay is not a project-ready signal
 
@@ -118,31 +125,24 @@ guarantee.
 
 ### History availability depends on which tab is on screen
 
-`Plater::can_undo()` is `IsShown() && p->is_view3D_shown() &&
-p->undo_redo_stack().has_undo_snapshot()`, and `can_redo()` matches it. Two
-thirds of that predicate describe the GUI, not the undo stack. An application
-started without the plater panel as the shown tab reports `can_undo == false`
-with work sitting on the stack, and the value can flip between one event-loop
-turn and the next as startup settles.
+Some existing availability predicates combine undo-stack state with whether the
+relevant panel is currently visible. That is valid for enabling a stock menu or
+button, but it is not a project capability.
 
-Any consumer projecting these into a contract is publishing a GUI state as if it
-were a workspace fact. Programmatic drivers must bring the 3D editor tab up
-first, and must issue the command in the same event-loop turn that observes
-availability; a turn's delay is enough for the answer to change before the
-command re-checks it.
+Keep UI affordance predicates separate from model/history capability. A typed
+workspace contract must read availability from the authoritative history owner
+without requiring a tab, sidebar, or canvas to be shown.
 
 ### Undo and redo can silently do nothing
 
-`Plater::undo()` and `Plater::redo()` return `void`. `Plater::priv::undo()`
-walks back for a snapshot that modifies the project and returns without acting
-if it reaches `snapshots.begin()`, which a session holding a single action after
-a bare model import can do. `can_undo()` uses a different and weaker test than
-that walk, so the two can disagree: the predicate says an undo is available and
-the call then does nothing.
+Availability and execution may follow different internal paths, so an operation
+can still leave the history position unchanged. Compare the authoritative
+history position before and after execution, or consume an equally reliable
+owner-provided result. Report unchanged execution as failure and emit no false
+state-change event.
 
-Callers cannot learn from the return value whether anything happened. They must
-compare authoritative before and after projections and report the command result
-from that comparison.
+Do not use a partial workspace projection for this check. A real history move
+may change authoritative project data that the projection does not yet expose.
 
 ## 3. Resolved implementation problems
 
@@ -183,29 +183,29 @@ update, single-volume-name update, and mesh-name update itself. Copying that cod
 into the adapter would create two implementations with different behavior over
 time.
 
-**Resolution:** A reusable `Plater::rename_object` entry point now owns those
-steps, and the existing object list calls the same entry point.
+**Resolution:** One behavior-oriented command at the authoritative owner now
+owns those steps, and both presentation and adapter paths call it.
 
 **Lesson for future agents:** Extract one shared command at the authoritative
 owner. Presentation code and adapter code should call the same behavior rather
-than maintaining separate copies.
+than maintaining separate copies. Any presentation refresh must be optional and
+must not own the mutation.
 
-The current rename entry point still refreshes the constructed legacy object
-list. That remaining runtime prerequisite is intentional under the amended spike
-scope and must not be confused with complete UI independence.
+### Logical transactions are safer than delayed coalescing
 
-### Delayed notifications created an observer-lifetime risk
+**Observed risk:** The POC delayed notifications until the next GUI event-loop
+turn to merge related events. That made revision timing ambiguous and allowed the
+adapter or consumer to disappear before queued work ran.
 
-**Observed risk:** The adapter delays notifications until the next GUI event-loop
-turn so it can merge related events. The adapter or consumer may be destroyed
-before that delayed callback executes.
+**Resolution:** Coalesce low-level reasons inside a logical transaction and
+deliver the committed revision at the transaction boundary. Use move-only RAII
+subscriptions and dispatch state that tolerates unsubscribe or owner destruction
+inside a callback.
 
-**Resolution:** Consumer subscriptions use RAII, which means destruction
-automatically unsubscribes them. The adapter unbinds native OrcaSlicer events and
-checks its lifetime before delayed work accesses adapter state.
-
-**Lesson for future agents:** Every delayed GUI callback needs an explicit
-lifetime strategy. Closing a window does not make queued lambdas safe.
+**Lesson for future agents:** Prefer an explicit commit boundary over a timer or
+`CallAfter` used as a batching mechanism. If delayed work is genuinely required,
+give every queued callback an explicit lifetime token; closing a window does not
+make captured objects safe.
 
 ### A parented top-level shell did not have an independent lifetime
 
