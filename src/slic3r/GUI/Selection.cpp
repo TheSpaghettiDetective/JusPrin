@@ -3337,7 +3337,22 @@ void Selection::paste_objects_from_clipboard()
 #endif /* _DEBUG */
     }
 
-    wxGetApp().obj_list()->paste_objects_into_list(object_idxs);
+    if (ObjectList* object_list = wxGetApp().obj_list()) {
+        object_list->paste_objects_into_list(object_idxs);
+    } else {
+        Plater* plater = wxGetApp().plater();
+        for (const size_t object_idx : object_idxs)
+            plater->get_partplate_list().notify_instance_update(static_cast<int>(object_idx), 0, true);
+        plater->changed_objects(object_idxs);
+
+        clear();
+        bool first = true;
+        for (const size_t object_idx : object_idxs) {
+            add_object(static_cast<unsigned int>(object_idx), first);
+            first = false;
+        }
+        plater->canvas3D()->set_as_dirty();
+    }
 
 #ifdef _DEBUG
     check_model_ids_validity(*m_model);

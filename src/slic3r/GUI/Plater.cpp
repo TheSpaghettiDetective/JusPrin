@@ -11664,15 +11664,16 @@ void Plater::priv::take_snapshot(const std::string& snapshot_name, const UndoRed
     snapshot_data.printer_technology = this->printer_technology;
     if (this->view3D->is_layers_editing_enabled())
         snapshot_data.flags |= UndoRedo::SnapshotData::VARIABLE_LAYER_EDITING_ACTIVE;
-    if (this->sidebar->obj_list()->is_selected(itSettings)) {
+    ObjectList* object_list = this->sidebar != nullptr ? this->sidebar->obj_list() : nullptr;
+    if (object_list != nullptr && object_list->is_selected(itSettings)) {
         snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_SETTINGS_ON_SIDEBAR;
-        snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
+        snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
     }
-    else if (this->sidebar->obj_list()->is_selected(itLayer)) {
+    else if (object_list != nullptr && object_list->is_selected(itLayer)) {
         snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYER_ON_SIDEBAR;
-        snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
+        snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
     }
-    else if (this->sidebar->obj_list()->is_selected(itLayerRoot))
+    else if (object_list != nullptr && object_list->is_selected(itLayerRoot))
         snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYERROOT_ON_SIDEBAR;
 
     // If SLA gizmo is active, ask it if it wants to trigger support generation
@@ -11757,11 +11758,16 @@ std::optional<size_t> Plater::priv::redo_target_time()
     auto target = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(m_undo_redo_stack_active->active_snapshot_time()));
     while (target != snapshots.end() && !snapshot_modifies_project(*target))
         ++target;
-    if (target != snapshots.end())
-        ++target;
+    if (target == snapshots.end() || ++target == snapshots.end())
+        return std::nullopt;
+
     while (target != snapshots.end() && !snapshot_modifies_project(*target))
         ++target;
-    return target == snapshots.end() ? std::nullopt : std::optional<size_t>(target->timestamp);
+    // Stock Orca redoes to the captured top state when only selection or other
+    // non-project snapshots follow the current project-modifying snapshot.
+    if (target == snapshots.end())
+        target = std::prev(snapshots.end());
+    return target->timestamp;
 }
 
 bool Plater::priv::undo()
@@ -11854,18 +11860,20 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
     // Flags made of Snapshot::Flags enum values.
     unsigned int new_flags = it_snapshot->snapshot_data.flags;
     UndoRedo::SnapshotData top_snapshot_data;
+    top_snapshot_data.snapshot_type = this->undo_redo_stack().snapshot(this->undo_redo_stack().active_snapshot_time()).snapshot_data.snapshot_type;
     top_snapshot_data.printer_technology = this->printer_technology;
     if (this->view3D->is_layers_editing_enabled())
         top_snapshot_data.flags |= UndoRedo::SnapshotData::VARIABLE_LAYER_EDITING_ACTIVE;
-    if (this->sidebar->obj_list()->is_selected(itSettings)) {
+    ObjectList* object_list = this->sidebar != nullptr ? this->sidebar->obj_list() : nullptr;
+    if (object_list != nullptr && object_list->is_selected(itSettings)) {
         top_snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_SETTINGS_ON_SIDEBAR;
-        top_snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
+        top_snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
     }
-    else if (this->sidebar->obj_list()->is_selected(itLayer)) {
+    else if (object_list != nullptr && object_list->is_selected(itLayer)) {
         top_snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYER_ON_SIDEBAR;
-        top_snapshot_data.layer_range_idx = this->sidebar->obj_list()->get_selected_layers_range_idx();
+        top_snapshot_data.layer_range_idx = object_list->get_selected_layers_range_idx();
     }
-    else if (this->sidebar->obj_list()->is_selected(itLayerRoot))
+    else if (object_list != nullptr && object_list->is_selected(itLayerRoot))
         top_snapshot_data.flags |= UndoRedo::SnapshotData::SELECTED_LAYERROOT_ON_SIDEBAR;
     bool   		 new_variable_layer_editing_active = (new_flags & UndoRedo::SnapshotData::VARIABLE_LAYER_EDITING_ACTIVE) != 0;
     bool         new_selected_settings_on_sidebar  = (new_flags & UndoRedo::SnapshotData::SELECTED_SETTINGS_ON_SIDEBAR) != 0;
@@ -11894,7 +11902,8 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
             wxGetApp().preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSilent);
             // load_current_presets() calls Tab::load_current_preset() -> TabPrint::update() -> Object_list::update_and_show_object_settings_item(),
             // but the Object list still keeps pointer to the old Model. Avoid a crash by removing selection first.
-            this->sidebar->obj_list()->unselect_objects();
+            if (object_list != nullptr)
+                object_list->unselect_objects();
             // Load the currently selected preset into the GUI, update the preset selection box.
             // This also switches the printer technology based on the printer technology of the active printer profile.
             wxGetApp().load_current_presets();
@@ -11943,12 +11952,14 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
             }
         }
         // set selection mode for ObjectList on sidebar
-        this->sidebar->obj_list()->set_selection_mode(new_selected_settings_on_sidebar  ? ObjectList::SELECTION_MODE::smSettings :
-                                                      new_selected_layer_on_sidebar     ? ObjectList::SELECTION_MODE::smLayer :
-                                                      new_selected_layerroot_on_sidebar ? ObjectList::SELECTION_MODE::smLayerRoot :
-                                                                                          ObjectList::SELECTION_MODE::smUndef);
-        if (new_selected_settings_on_sidebar || new_selected_layer_on_sidebar)
-            this->sidebar->obj_list()->set_selected_layers_range_idx(layer_range_idx);
+        if (object_list != nullptr) {
+            object_list->set_selection_mode(new_selected_settings_on_sidebar  ? ObjectList::SELECTION_MODE::smSettings :
+                                            new_selected_layer_on_sidebar     ? ObjectList::SELECTION_MODE::smLayer :
+                                            new_selected_layerroot_on_sidebar ? ObjectList::SELECTION_MODE::smLayerRoot :
+                                                                                ObjectList::SELECTION_MODE::smUndef);
+            if (new_selected_settings_on_sidebar || new_selected_layer_on_sidebar)
+                object_list->set_selected_layers_range_idx(layer_range_idx);
+        }
 
         this->update_after_undo_redo(snapshot_copy, temp_snapshot_was_taken);
         // Enable layer editing after the Undo / Redo jump.
@@ -11978,7 +11989,8 @@ void Plater::priv::update_after_undo_redo(const UndoRedo::Snapshot& snapshot, bo
         assemble_view->get_canvas3d()->get_gizmos_manager().update_after_undo_redo(snapshot) :
         this->view3D->get_canvas3d()->get_gizmos_manager().update_after_undo_redo(snapshot);
 
-    wxGetApp().obj_list()->update_after_undo_redo();
+    if (ObjectList* object_list = wxGetApp().obj_list())
+        object_list->update_after_undo_redo();
 
     if (wxGetApp().get_mode() == comSimple && model_has_advanced_features(this->model)) {
         // If the user jumped to a snapshot that require user interface with advanced features, switch to the advanced mode without asking.
@@ -14712,38 +14724,16 @@ int Plater::duplicate_object(size_t obj_idx, bool take_snapshot)
     if (take_snapshot)
         p->take_snapshot(_u8L("Duplicate Object"));
 
-    const ModelObject& source = *p->model.objects[obj_idx];
-    const BoundingBoxf3 source_box = source.instance_bounding_box(0, false);
-    Vec3d displacement = Vec3d::Zero();
-    if (GLCanvas3D* canvas = canvas3D()) {
-        const Vec3d center = source_box.center();
-        const Vec2f empty = canvas->get_nearest_empty_cell({static_cast<float>(center.x()), static_cast<float>(center.y())},
-                                                            {static_cast<float>(source_box.size().x() + 1.0),
-                                                             static_cast<float>(source_box.size().y() + 1.0)});
-        displacement = Vec3d(empty.x() - center.x(), empty.y() - center.y(), 0.0);
-    }
-
-    ModelObject* copy = p->model.add_object(source);
-    for (ModelInstance* instance : copy->instances) {
-        instance->set_offset(instance->get_offset() + displacement);
-        Geometry::Transformation assemble_transform = instance->get_transformation();
-        instance->set_assemble_transformation(assemble_transform);
-    }
+    Selection& selection = p->get_selection();
+    selection.add_object(static_cast<unsigned int>(obj_idx));
+    selection.copy_to_clipboard();
+    const size_t object_count_before = p->model.objects.size();
+    selection.paste_from_clipboard();
+    if (p->model.objects.size() != object_count_before + 1)
+        return -1;
 
     const size_t new_idx = p->model.objects.size() - 1;
-    for (size_t instance_idx = 0; instance_idx < copy->instances.size(); ++instance_idx)
-        p->partplate_list.notify_instance_update(static_cast<int>(new_idx), static_cast<int>(instance_idx), true);
-
-    if (ObjectList* object_list = wxGetApp().obj_list())
-        object_list->add_object_to_list(new_idx, false, false);
-    changed_objects({new_idx});
     p->object_list_changed();
-
-    Selection& selection = p->get_selection();
-    selection.add_object(static_cast<unsigned int>(new_idx));
-    if (ObjectList* object_list = wxGetApp().obj_list())
-        object_list->update_selections();
-    p->selection_changed();
 
     notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Selection |
                                  ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);

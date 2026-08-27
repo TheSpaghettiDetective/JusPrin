@@ -633,7 +633,7 @@ std::string GLGizmosManager::get_tooltip() const
 
 bool GLGizmosManager::on_mouse_wheel(const wxMouseEvent &evt)
 {
-    if (!m_enabled || !m_active_gizmo_input_enabled)
+    if (!m_active_gizmo_input_enabled)
         return false;
 
     bool processed = false;

@@ -4231,6 +4231,8 @@ void ObjectList::delete_from_model_and_list(const ItemType type, const int obj_i
     if (!(type&(itObject|itVolume|itInstance)))
         return;
 
+    take_snapshot("Delete selected");
+
     if (type&itObject) {
         bool was_cut = object(obj_idx)->is_cut();
         // For variable layer height, the size of layer data is larger than 4
@@ -4245,7 +4247,6 @@ void ObjectList::delete_from_model_and_list(const ItemType type, const int obj_i
         }
     }
     else {
-        take_snapshot("Delete selected");
         del_subobject_from_object(obj_idx, sub_obj_idx, type);
 
         type == itVolume ? delete_volume_from_list(obj_idx, sub_obj_idx) :

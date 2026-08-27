@@ -52,7 +52,7 @@ enum class SnapshotType : unsigned char {
 // which may be handy sometimes.
 struct SnapshotData
 {
-	SnapshotType        snapshot_type;
+	SnapshotType        snapshot_type { SnapshotType::Action };
 	PrinterTechnology 	printer_technology { ptUnknown };
 	// Bitmap of Flags (see the Flags enum).
 	unsigned int        flags { 0 };

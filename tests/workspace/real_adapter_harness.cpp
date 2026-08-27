@@ -4,6 +4,8 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Geometry.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
+#include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -118,6 +120,11 @@ private:
         }
         m_plater = plater;
 
+        verify_selection_tail_redo();
+        verify_cross_plate_duplicate();
+        verify_legacy_delete_history();
+        verify_disabled_gizmo_wheel();
+
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
@@ -208,6 +215,81 @@ private:
         selection.setup_cache();
         selection.translate(Vec3d(3.0, 0.0, 0.0), TransformationType::World);
         m_plater->canvas3D()->do_move("JusPrin integration move");
+    }
+
+    void verify_selection_tail_redo()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "redo_tail_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "redo_tail_cube_loaded");
+        check(m_plater->rename_object(0, "Redo Tail Renamed"), "redo_tail_rename_succeeds");
+        m_plater->deselect_all();
+        check(m_plater->undo_project(), "redo_tail_undo_succeeds");
+        check(m_plater->model().objects.front()->name != "Redo Tail Renamed", "redo_tail_undo_restores_name");
+        check(m_plater->redo_project(), "redo_tail_redo_succeeds");
+        check(m_plater->model().objects.front()->name == "Redo Tail Renamed", "redo_tail_redo_restores_name");
+    }
+
+    void verify_cross_plate_duplicate()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "duplicate_plate_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "duplicate_plate_cube_loaded");
+        PartPlateList& plates = m_plater->get_partplate_list();
+        check(plates.create_plate(true) == 1, "duplicate_plate_second_plate_created");
+        check(plates.select_plate(1) == 0, "duplicate_plate_second_plate_selected");
+        const int duplicate = m_plater->duplicate_object(0);
+        check(duplicate == 1, "duplicate_plate_object_created");
+        check(duplicate >= 0 && plates.get_plate(1)->contain_instance(duplicate, 0),
+              "duplicate_plate_uses_current_plate");
+    }
+
+    void verify_legacy_delete_history()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "legacy_delete_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "legacy_delete_cube_loaded");
+        check(m_plater->select_object(0), "legacy_delete_object_selected");
+        m_app.obj_list()->remove();
+        check(m_plater->model().objects.empty(), "legacy_delete_removes_object");
+
+        const char* newest = nullptr;
+        const char* previous = nullptr;
+        check(m_plater->undo_redo_string_getter(true, 0, &newest) &&
+                  std::string(newest).find("Delete Object") == 0,
+              "legacy_delete_keeps_object_snapshot");
+        check(m_plater->undo_redo_string_getter(true, 1, &previous) && std::string(previous) == "Delete selected",
+              "legacy_delete_keeps_selection_snapshot");
+    }
+
+    void verify_disabled_gizmo_wheel()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "gizmo_wheel_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "gizmo_wheel_cube_loaded");
+        check(m_plater->select_object(0), "gizmo_wheel_object_selected");
+
+        GLGizmosManager& gizmos = m_plater->canvas3D()->get_gizmos_manager();
+        check(gizmos.open_gizmo(GLGizmosManager::FdmSupports), "gizmo_wheel_painter_activated");
+        wxMouseEvent wheel(wxEVT_MOUSEWHEEL);
+        wheel.m_wheelRotation = wheel.m_wheelDelta = 120;
+        wheel.SetControlDown(true);
+        wheel.SetRawControlDown(true);
+        gizmos.set_picker_input_enabled(false);
+        check(gizmos.on_mouse_wheel(wheel), "gizmo_wheel_dispatches_when_picker_input_disabled");
+        gizmos.set_active_gizmo_input_enabled(false);
+        check(!gizmos.on_mouse_wheel(wheel), "gizmo_wheel_respects_active_input_gate");
+        gizmos.set_active_gizmo_input_enabled(true);
+        gizmos.set_picker_input_enabled(true);
+        m_plater->canvas3D()->reset_all_gizmos();
     }
 
     void setup_manual_canvas()
