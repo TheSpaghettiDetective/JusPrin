@@ -6,12 +6,16 @@ JusPrin replaces OrcaSlicer's primary presentation and workflow, while retaining
 
 ## Product composition
 
-The ordinary project window has four stable regions:
+The target project window has four stable regions:
 
 1. A compact machine and project status row.
 2. A collapsible, thin plates and objects pane.
 3. OrcaSlicer's existing Prepare or G-code Preview canvas.
 4. A fixed Agent conversation and print-plan pane.
+
+The compact plates/objects pane is deferred to a later task. The first
+production shell and Agent implementation must not depend on it; users interact
+with objects through the native canvas and Agent until the pane is added.
 
 Prepare is the persistent workspace. **Check print** temporarily replaces its center canvas with Orca's real sliced Preview. **Print** opens Send preflight and never sends immediately. Project details are a drawer, and Monitor is a separate surface that can remain visible during other work.
 
@@ -88,9 +92,14 @@ Retain a product-neutral presentation API on `GLCanvas3D` and a fork-owned RAII 
 
 Production controls should be more granular than the POC's broad `render_overlays` switch. Independently classify the stock main toolbar, gizmo picker, active gizmo handles, plate actions, object labels, layer-editing controls, navigation aids, Preview legend, and Preview sliders. Shared controls such as Plater's collapse toolbar need one owner at the shell lifetime, not one guard per canvas.
 
-### Plates and objects pane
+### Plates and objects pane (deferred)
 
-The production pane is intentionally smaller than `GUI_ObjectList`. It must:
+This pane remains part of the target product, but it is not part of the current
+production-shell or Agent-WebView task and is not a prerequisite for either.
+When it is scheduled, the production pane is intentionally smaller than
+`GUI_ObjectList`.
+
+It must:
 
 - list and switch plates;
 - list objects on the active plate;
@@ -149,9 +158,10 @@ Reuse existing painter raycasting, brush selection, clipping, facet visualizatio
 1. Establish canonical product documents, design tokens, and curated assets.
 2. Productionize the workspace contract, canonical Orca commands, observation, and real-adapter tests.
 3. Productionize the canvas presentation/controller seam.
-4. Build the production shell and compact object/plate pane.
+4. Build the production shell without a compact object/plate pane.
 5. Build the typed Agent WebView and bridge.
 6. Add the Move/Rotate presentation controller and roll out gizmo families.
 7. Add semantic annotations, Check print reporting, Send preflight, Monitor, calibration, and troubleshooting surfaces according to the product definition.
+8. Add the compact object/plate pane as a separately planned task when it is prioritized.
 
 Historical implementations and detailed proof are intentionally not copied here. See [POC reference](poc-reference.md).
