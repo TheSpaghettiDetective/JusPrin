@@ -291,8 +291,92 @@ private:
                        self->check(web_view.host().conversation().size() == conversation_size,
                                    "agent_reload_preserves_native_conversation");
                        self->check(!web_view.bridge_error_shown(), "agent_reload_clears_bridge_error");
-                       self->after_agent();
+                       self->agent_tool_propose();
                    });
+    }
+
+    // Phase 3: the mock Agent proposes duplicating the selected object; the
+    // page's Reject and Approve paths drive the native coordinator; the
+    // approved run executes through Orca's own duplicate command; and undo
+    // and redo go through Orca's history.
+    void agent_tool_propose()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(m_plater->select_object(0), "tool_target_selected");
+        m_objects_before_tool = m_plater->model().objects.size();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+
+        WebView::RunScript(web_view.webview(),
+                           "window.__jusprinTest && window.__jusprinTest.send('please duplicate the selected object')");
+        wait_until(
+            [&web_view, activities_before] {
+                const auto& activities = web_view.host().tools().activities();
+                return activities.size() > activities_before &&
+                       activities.back().state == Agent::ToolState::Pending;
+            },
+            "tool_proposal_pending", [self = shared_from_this()] { self->agent_tool_reject(); });
+    }
+
+    void agent_tool_reject()
+    {
+        AgentWebView&     web_view  = installed_shell()->agent_pane()->web_view();
+        const std::string action_id = web_view.host().tools().activities().back().action_id;
+        check(web_view.host().tools().activities().back().requires_approval, "tool_mutation_requires_approval");
+
+        WebView::RunScript(web_view.webview(),
+                           wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" + action_id +
+                                              "', 'reject')"));
+        wait_until(
+            [&web_view, action_id] {
+                const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
+                return activity != nullptr && activity->state == Agent::ToolState::Rejected;
+            },
+            "tool_rejected_via_page", [self = shared_from_this()] {
+                self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool,
+                            "tool_rejection_changes_nothing");
+                self->agent_tool_approve();
+            });
+    }
+
+    void agent_tool_approve()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+        WebView::RunScript(web_view.webview(),
+                           "window.__jusprinTest && window.__jusprinTest.send('duplicate it after all')");
+        wait_until(
+            [&web_view, activities_before] {
+                const auto& activities = web_view.host().tools().activities();
+                return activities.size() > activities_before &&
+                       activities.back().state == Agent::ToolState::Pending;
+            },
+            "tool_second_proposal_pending", [self = shared_from_this()] {
+                AgentWebView&     web_view  = installed_shell()->agent_pane()->web_view();
+                const std::string action_id = web_view.host().tools().activities().back().action_id;
+                WebView::RunScript(web_view.webview(),
+                                   wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" + action_id +
+                                                      "', 'approve')"));
+                self->wait_until(
+                    [&web_view, action_id] {
+                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
+                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded;
+                    },
+                    "tool_approved_and_succeeded", [self] { self->agent_tool_verify_undo(); });
+            });
+    }
+
+    void agent_tool_verify_undo()
+    {
+        // The approved duplicate is authoritative Orca state and one Orca
+        // history step.
+        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_duplicate_visible_in_model");
+        check(m_plater->canvas3D()->get_volumes_count() >= 3, "tool_duplicate_visible_on_canvas");
+        check(m_plater->can_undo_project(), "tool_change_is_undoable");
+        check(m_plater->undo_project(), "tool_undo_through_orca");
+        check(m_plater->model().objects.size() == m_objects_before_tool, "tool_undo_removes_duplicate");
+        check(m_plater->redo_project(), "tool_redo_through_orca");
+        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_redo_restores_duplicate");
+        after_agent();
     }
 
     void after_agent()
@@ -401,6 +485,7 @@ private:
     int                           m_failures{0};
     bool                          m_finished{false};
     std::uint64_t                 m_wait_ticks{0};
+    std::size_t                   m_objects_before_tool{0};
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};

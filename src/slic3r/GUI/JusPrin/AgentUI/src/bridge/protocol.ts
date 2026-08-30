@@ -14,7 +14,9 @@ export type PageMessageType =
   | 'state_request'
   | 'user_message'
   | 'stop_generation'
-  | 'retry_message';
+  | 'retry_message'
+  | 'tool_decision'
+  | 'tool_cancel';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -29,6 +31,7 @@ export type HostMessageType =
   | 'assistant_completed'
   | 'assistant_failed'
   | 'assistant_stopped'
+  | 'tool_activity'
   | 'bridge_error';
 
 export interface Envelope<T = unknown> {
@@ -81,11 +84,43 @@ export interface WorkspaceContext {
   history: { canUndo: boolean; canRedo: boolean };
 }
 
+// Lifecycle of one native tool action. Terminal states are 'succeeded',
+// 'failed', 'cancelled', and 'rejected'; a stale proposal arrives as
+// state 'failed' with error code 'stale_revision'.
+export type ToolStateName =
+  | 'pending'
+  | 'approved'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'rejected';
+
+export type ActionClassName = 'read_only' | 'mutation' | 'destructive';
+
+export interface ToolActivityInfo {
+  actionId: string;
+  correlationId: string; // the assistant message that proposed the action
+  server: string;
+  tool: string;
+  title: string;
+  arguments: Record<string, unknown>;
+  actionClass: ActionClassName;
+  requiresApproval: boolean;
+  sessionId: string;
+  expectedRevision: number;
+  state: ToolStateName;
+  progress: { current: number; total: number };
+  result?: Record<string, unknown>;
+  error?: { code: string; message: string };
+}
+
 export interface StatePayload {
   agent: { status: AgentStatus };
   appearance: Appearance;
   conversation: WireMessage[];
   streamingMessageId: string | null;
+  toolActivities: ToolActivityInfo[];
   context: WorkspaceContext;
 }
 

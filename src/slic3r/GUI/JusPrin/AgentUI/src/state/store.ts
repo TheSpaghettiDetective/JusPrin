@@ -9,6 +9,7 @@ import {
   Appearance,
   Envelope,
   StatePayload,
+  ToolActivityInfo,
   WireMessage,
   WorkspaceContext,
 } from '../bridge/protocol';
@@ -25,6 +26,7 @@ export interface AgentUiState {
   appearance: Appearance;
   messages: Message[];
   streamingMessageId: string | null;
+  toolActivities: ToolActivityInfo[];
   context: WorkspaceContext | null;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
@@ -38,6 +40,7 @@ export const initialState: AgentUiState = {
   appearance: 'light',
   messages: [],
   streamingMessageId: null,
+  toolActivities: [],
   context: null,
   needsResync: false,
   diagnostics: [],
@@ -97,6 +100,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         appearance: full.appearance,
         messages: full.conversation.map(fromWire),
         streamingMessageId: full.streamingMessageId,
+        toolActivities: full.toolActivities ?? [],
         context: full.context,
         needsResync: false,
       };
@@ -168,6 +172,15 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         messages: upsert(state.messages, { ...message, state: 'stopped' }),
         streamingMessageId: state.streamingMessageId === id ? null : state.streamingMessageId,
       };
+    }
+    case 'tool_activity': {
+      const activity = payload.activity as ToolActivityInfo;
+      const index = state.toolActivities.findIndex((a) => a.actionId === activity.actionId);
+      const toolActivities =
+        index < 0
+          ? [...state.toolActivities, activity]
+          : state.toolActivities.map((a, i) => (i === index ? activity : a));
+      return { ...state, toolActivities };
     }
     case 'bridge_error': {
       const code = payload.code as string;

@@ -1,0 +1,334 @@
+// State-machine, approval-policy, idempotency, staleness, and execution
+// contract tests for the ToolExecutionCoordinator against the fake
+// workspace. Every command outcome is checked in both directions: success
+// implies the workspace changed, and refusal or failure implies it did not.
+// GUI-free.
+
+#include <catch2/catch_all.hpp>
+
+#include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+
+#include <nlohmann/json.hpp>
+
+using namespace Slic3r::GUI::JusPrin;
+using namespace Slic3r::GUI::JusPrin::Agent;
+using nlohmann::json;
+
+namespace {
+
+Workspace::WorkspaceSnapshot one_plate_snapshot()
+{
+    Workspace::WorkspaceSnapshot snapshot;
+    snapshot.setup.project_name = "Coordinator Fixture";
+
+    Workspace::WorkspacePlate plate;
+    plate.id     = Workspace::PlateId(Workspace::ProjectSessionId(1), 11);
+    plate.name   = "Plate 1";
+    plate.active = true;
+
+    Workspace::WorkspaceObject cube;
+    cube.id   = Workspace::ObjectId(Workspace::ProjectSessionId(1), 21);
+    cube.name = "cube-a";
+    cube.instances.push_back({});
+    plate.objects = {cube};
+
+    snapshot.plates       = {plate};
+    snapshot.active_plate = plate.id;
+    return snapshot;
+}
+
+struct Harness
+{
+    Workspace::FakeWorkspace  workspace;
+    ToolExecutionCoordinator  coordinator;
+    std::vector<ToolActivity> events;
+
+    Harness() : workspace(one_plate_snapshot()), coordinator(workspace)
+    {
+        coordinator.set_listener([this](const ToolActivity& activity) { events.push_back(activity); });
+    }
+
+    Workspace::ObjectId cube_id() const { return workspace.snapshot().plates.at(0).objects.at(0).id; }
+
+    std::size_t object_count() const
+    {
+        std::size_t count = 0;
+        for (const Workspace::WorkspacePlate& plate : workspace.snapshot().plates)
+            count += plate.objects.size();
+        return count;
+    }
+
+    ToolRequest duplicate_cube_request(int run_ticks = 3) const
+    {
+        ToolRequest request;
+        request.tool           = "duplicate_object";
+        request.title          = "Duplicate \"cube-a\"";
+        request.arguments_json = json{{"sessionId", std::to_string(workspace.snapshot().session.value())},
+                                      {"objectId", std::to_string(cube_id().value())}}
+                                     .dump();
+        request.action_class = ActionClass::Mutation;
+        request.run_ticks    = run_ticks;
+        return request;
+    }
+
+    void pump_to_completion(const std::string& action_id, int limit = 1000)
+    {
+        while (!tool_state_terminal(coordinator.find(action_id)->state) && limit-- > 0)
+            coordinator.pump();
+    }
+
+    std::vector<ToolState> states_of(const std::string& action_id) const
+    {
+        std::vector<ToolState> states;
+        for (const ToolActivity& event : events)
+            if (event.action_id == action_id)
+                states.push_back(event.state);
+        return states;
+    }
+};
+
+} // namespace
+
+TEST_CASE("approval policy follows the handoff", "[tools][policy]")
+{
+    // Read-only actions run without approval; every durable mutation asks
+    // first; destructive actions may never use a remembered approval.
+    STATIC_CHECK(!approval_required(ActionClass::ReadOnly));
+    STATIC_CHECK(approval_required(ActionClass::Mutation));
+    STATIC_CHECK(approval_required(ActionClass::Destructive));
+    STATIC_CHECK(!remembered_approval_allowed(ActionClass::Destructive));
+    STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
+}
+
+TEST_CASE("a mutation waits for approval and then executes through the workspace", "[tools][lifecycle]")
+{
+    Harness harness;
+    const std::size_t objects_before  = harness.object_count();
+    const std::uint64_t revision_before = harness.workspace.snapshot().revision;
+
+    const ToolActivity& proposed = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2");
+    const std::string   action_id = proposed.action_id;
+    CHECK(proposed.state == ToolState::Pending);
+    CHECK(proposed.requires_approval);
+    CHECK(proposed.correlation_id == "m-2");
+    CHECK(proposed.expected_revision == revision_before);
+
+    // Proposing must not touch the project.
+    CHECK(harness.object_count() == objects_before);
+    CHECK_FALSE(harness.workspace.snapshot().can_undo);
+
+    REQUIRE(harness.coordinator.approve(action_id));
+    harness.pump_to_completion(action_id);
+
+    const ToolActivity* done = harness.coordinator.find(action_id);
+    REQUIRE(done != nullptr);
+    REQUIRE(done->state == ToolState::Succeeded);
+
+    // Success must agree with authoritative state in both directions.
+    CHECK(harness.object_count() == objects_before + 1);
+    CHECK(harness.workspace.snapshot().can_undo);
+    const json result = json::parse(done->result_json);
+    CHECK(result["revision"].get<std::uint64_t>() > revision_before);
+    CHECK(result.contains("newObjectId"));
+
+    // The lifecycle passed through every advertised state with progress.
+    const std::vector<ToolState> states = harness.states_of(action_id);
+    REQUIRE(states.size() >= 4);
+    CHECK(states.front() == ToolState::Pending);
+    CHECK(states.at(1) == ToolState::Approved);
+    CHECK(states.at(2) == ToolState::Running);
+    CHECK(states.back() == ToolState::Succeeded);
+}
+
+TEST_CASE("rejection leaves the project untouched", "[tools][lifecycle]")
+{
+    Harness harness;
+    const std::size_t objects_before = harness.object_count();
+
+    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+    REQUIRE(harness.coordinator.reject(action_id));
+    CHECK(harness.coordinator.find(action_id)->state == ToolState::Rejected);
+
+    for (int i = 0; i < 10; ++i)
+        harness.coordinator.pump();
+    CHECK(harness.object_count() == objects_before);
+    CHECK_FALSE(harness.workspace.snapshot().can_undo);
+
+    SECTION("a rejected action cannot be approved afterwards") {
+        CHECK_FALSE(harness.coordinator.approve(action_id));
+        CHECK(harness.coordinator.find(action_id)->state == ToolState::Rejected);
+        CHECK(harness.object_count() == objects_before);
+    }
+}
+
+TEST_CASE("decisions are idempotent and cannot run an action twice", "[tools][idempotency]")
+{
+    Harness harness;
+    const std::size_t objects_before = harness.object_count();
+
+    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+    REQUIRE(harness.coordinator.approve(action_id));
+    CHECK_FALSE(harness.coordinator.approve(action_id)); // duplicate approval while running
+    harness.pump_to_completion(action_id);
+    REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
+    CHECK(harness.object_count() == objects_before + 1);
+
+    // Replayed decisions after completion change nothing and execute nothing.
+    CHECK_FALSE(harness.coordinator.approve(action_id));
+    CHECK_FALSE(harness.coordinator.reject(action_id));
+    CHECK_FALSE(harness.coordinator.cancel(action_id));
+    for (int i = 0; i < 10; ++i)
+        harness.coordinator.pump();
+    CHECK(harness.object_count() == objects_before + 1);
+    CHECK(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
+}
+
+TEST_CASE("cancellation stops an action before anything durable happens", "[tools][lifecycle]")
+{
+    Harness harness;
+    const std::size_t objects_before = harness.object_count();
+
+    SECTION("while pending") {
+        const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+        REQUIRE(harness.coordinator.cancel(action_id));
+        CHECK(harness.coordinator.find(action_id)->state == ToolState::Cancelled);
+        CHECK_FALSE(harness.coordinator.approve(action_id));
+    }
+
+    SECTION("while running, before the execution tick") {
+        const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(10), "m-2").action_id;
+        REQUIRE(harness.coordinator.approve(action_id));
+        harness.coordinator.pump();
+        harness.coordinator.pump();
+        REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Running);
+        CHECK(harness.coordinator.find(action_id)->progress_current > 0);
+        REQUIRE(harness.coordinator.cancel(action_id));
+        CHECK(harness.coordinator.find(action_id)->state == ToolState::Cancelled);
+    }
+
+    for (int i = 0; i < 20; ++i)
+        harness.coordinator.pump();
+    CHECK(harness.object_count() == objects_before);
+    CHECK_FALSE(harness.workspace.snapshot().can_undo);
+}
+
+TEST_CASE("a workspace change invalidates pending proposals as stale", "[tools][stale]")
+{
+    Harness harness;
+    const std::size_t objects_before = harness.object_count();
+    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+
+    SECTION("a content change marks the proposal stale before any decision") {
+        REQUIRE(harness.workspace.rename_object(harness.cube_id(), "renamed-cube").succeeded());
+        const ToolActivity* stale = harness.coordinator.find(action_id);
+        REQUIRE(stale->state == ToolState::Failed);
+        REQUIRE(stale->error.has_value());
+        CHECK(stale->error->code == "stale_revision");
+
+        CHECK_FALSE(harness.coordinator.approve(action_id));
+        for (int i = 0; i < 10; ++i)
+            harness.coordinator.pump();
+        CHECK(harness.object_count() == objects_before);
+    }
+
+    SECTION("a selection change does not invalidate the pinned proposal") {
+        REQUIRE(harness.workspace.select_object(harness.cube_id()).succeeded());
+        CHECK(harness.coordinator.find(action_id)->state == ToolState::Pending);
+        REQUIRE(harness.coordinator.approve(action_id));
+        harness.pump_to_completion(action_id);
+        CHECK(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
+        CHECK(harness.object_count() == objects_before + 1);
+    }
+
+    SECTION("executing one approved action marks other pending proposals stale") {
+        const std::string second = harness.coordinator.propose(harness.duplicate_cube_request(), "m-4").action_id;
+        REQUIRE(harness.coordinator.approve(action_id));
+        harness.pump_to_completion(action_id);
+        REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
+        const ToolActivity* stale = harness.coordinator.find(second);
+        REQUIRE(stale->state == ToolState::Failed);
+        CHECK(stale->error->code == "stale_revision");
+        CHECK(harness.object_count() == objects_before + 1);
+    }
+}
+
+TEST_CASE("an execution failure is reported and changes nothing", "[tools][failure]")
+{
+    Harness harness;
+    const std::size_t objects_before = harness.object_count();
+
+    ToolRequest request = harness.duplicate_cube_request();
+    request.arguments_json =
+        json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())}, {"objectId", "999999999"}}.dump();
+    const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
+    REQUIRE(harness.coordinator.approve(action_id));
+    harness.pump_to_completion(action_id);
+
+    const ToolActivity* failed = harness.coordinator.find(action_id);
+    REQUIRE(failed->state == ToolState::Failed);
+    REQUIRE(failed->error.has_value());
+    CHECK(failed->error->code == "missing_object");
+    CHECK(harness.object_count() == objects_before);
+    CHECK_FALSE(harness.workspace.snapshot().can_undo);
+    // A failed execution is terminal for the action; no retry can re-run it.
+    CHECK_FALSE(harness.coordinator.approve(action_id));
+}
+
+TEST_CASE("a read-only action runs without approval", "[tools][policy]")
+{
+    Harness harness;
+    REQUIRE(harness.workspace.select_object(harness.cube_id()).succeeded());
+
+    ToolRequest request;
+    request.tool           = "inspect_selection";
+    request.title          = "Inspect the current selection";
+    request.arguments_json = "{}";
+    request.action_class   = ActionClass::ReadOnly;
+    request.run_ticks      = 1;
+
+    const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
+    const ToolActivity* started = harness.coordinator.find(action_id);
+    CHECK_FALSE(started->requires_approval);
+    CHECK(started->state == ToolState::Running);
+
+    harness.pump_to_completion(action_id);
+    const ToolActivity* done = harness.coordinator.find(action_id);
+    REQUIRE(done->state == ToolState::Succeeded);
+    const json result = json::parse(done->result_json);
+    CHECK(result["selection"] == json::array({"cube-a"}));
+    CHECK_FALSE(harness.workspace.snapshot().can_undo);
+}
+
+TEST_CASE("the executed change participates in the authoritative history", "[tools][history]")
+{
+    Harness harness;
+    const std::size_t objects_before = harness.object_count();
+
+    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+    REQUIRE(harness.coordinator.approve(action_id));
+    harness.pump_to_completion(action_id);
+    REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
+    REQUIRE(harness.object_count() == objects_before + 1);
+
+    REQUIRE(harness.workspace.undo().succeeded());
+    CHECK(harness.object_count() == objects_before);
+    REQUIRE(harness.workspace.redo().succeeded());
+    CHECK(harness.object_count() == objects_before + 1);
+}
+
+TEST_CASE("an unknown tool fails cleanly", "[tools][failure]")
+{
+    Harness harness;
+    ToolRequest request;
+    request.tool           = "launch_missiles";
+    request.title          = "Not a real tool";
+    request.arguments_json = "{}";
+    request.action_class   = ActionClass::ReadOnly;
+
+    const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
+    harness.pump_to_completion(action_id);
+    const ToolActivity* failed = harness.coordinator.find(action_id);
+    REQUIRE(failed->state == ToolState::Failed);
+    CHECK(failed->error->code == "unknown_tool");
+}

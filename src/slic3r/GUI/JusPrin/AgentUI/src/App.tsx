@@ -20,6 +20,8 @@ declare global {
     // production and never a second control path for users.
     __jusprinTest?: {
       send(text: string): void;
+      decide(actionId: string, decision: 'approve' | 'reject'): void;
+      cancelTool(actionId: string): void;
       state(): AgentUiState;
     };
   }
@@ -84,9 +86,19 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     client.send('user_message', { clientMessageId: nextClientMessageId(), text });
   };
 
+  const sendToolDecision = (actionId: string, decision: 'approve' | 'reject') => {
+    client.send('tool_decision', { actionId, decision });
+  };
+
+  const sendToolCancel = (actionId: string) => {
+    client.send('tool_cancel', { actionId });
+  };
+
   useEffect(() => {
     window.__jusprinTest = {
       send: sendMessage,
+      decide: sendToolDecision,
+      cancelTool: sendToolCancel,
       state: () => stateRef.current,
     };
     return () => {
@@ -118,7 +130,10 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       <MessageList
         messages={state.messages}
         streamingMessageId={state.streamingMessageId}
+        toolActivities={state.toolActivities}
         onRetry={(messageId) => client.send('retry_message', { messageId })}
+        onToolDecision={sendToolDecision}
+        onToolCancel={sendToolCancel}
       />
       <Composer
         disabled={unavailable}

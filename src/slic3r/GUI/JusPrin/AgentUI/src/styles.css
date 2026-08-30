@@ -117,6 +117,73 @@ body {
   color: var(--status-danger);
 }
 
+.message-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Native tool action cards */
+.tool-card {
+  align-self: stretch;
+  margin-left: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--action-primary);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.tool-card .tool-title {
+  font-weight: 700;
+}
+
+.tool-card .tool-meta {
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--text-secondary);
+}
+
+.tool-card .tool-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-card .tool-state {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+.tool-card .tool-state.done {
+  margin-top: 4px;
+  color: var(--status-success);
+}
+
+.tool-card .tool-error {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--status-danger);
+}
+
+.tool-card progress {
+  flex: 1;
+  height: 6px;
+  accent-color: var(--action-primary);
+}
+
+.tool-card.state-cancelled,
+.tool-card.state-rejected {
+  border-left-color: var(--border-subtle);
+}
+
+.tool-card.state-failed {
+  border-left-color: var(--status-danger);
+}
+
 .streaming-cursor::after {
   content: '▌';
   animation: blink 1s step-start infinite;

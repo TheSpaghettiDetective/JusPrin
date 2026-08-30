@@ -1,11 +1,16 @@
 #include "DeterministicMockAgent.hpp"
 
+#include <nlohmann/json.hpp>
+
+#include <algorithm>
+#include <cctype>
 #include <sstream>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
 
+using nlohmann::json;
 using Workspace::SelectionStatus;
 using Workspace::WorkspaceObject;
 using Workspace::WorkspacePlate;
@@ -86,8 +91,43 @@ std::string describe_workspace(const WorkspaceSnapshot& context)
     }
     }
 
-    reply << " I can explain any of this in more detail; changing the project arrives in a later JusPrin release.";
+    reply << " I can explain any of this in more detail, or duplicate the selected object for you if you ask.";
     return reply.str();
+}
+
+bool contains_word(const std::string& text, const char* word)
+{
+    std::string lowered(text);
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return lowered.find(word) != std::string::npos;
+}
+
+const WorkspaceObject* first_selected_object(const WorkspaceSnapshot& context)
+{
+    if (context.selection_status != SelectionStatus::Objects || context.selected_objects.empty())
+        return nullptr;
+    return find_object(context, context.selected_objects.front());
+}
+
+ToolRequest duplicate_request(const WorkspaceSnapshot& context, const WorkspaceObject& object, int run_ticks)
+{
+    ToolRequest request;
+    request.tool  = "duplicate_object";
+    request.title = "Duplicate \"" + object.name + "\"";
+    request.arguments_json = json{{"sessionId", std::to_string(context.session.value())},
+                                  {"objectId", std::to_string(object.id.value())}}
+                                 .dump();
+    request.action_class = ActionClass::Mutation;
+    request.run_ticks    = run_ticks;
+    return request;
+}
+
+DeterministicMockAgent::Reply select_something_first()
+{
+    DeterministicMockAgent::Reply reply;
+    reply.chunks = chunk_words("Select the object you want duplicated on the canvas first, then ask me again.");
+    return reply;
 }
 
 } // namespace
@@ -116,6 +156,50 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         for (int i = 1; i <= 30; ++i)
             text += " Step " + std::to_string(i) + " of 30 complete.";
         reply.chunks = chunk_words(text);
+        return reply;
+    }
+    if (starts_with(user_text, "/toolfail")) {
+        // A deliberately missing target: the coordinator and workspace handle
+        // the failure exactly as they would a real one — nothing here is
+        // special-cased downstream.
+        ToolRequest request;
+        request.tool  = "duplicate_object";
+        request.title = "Duplicate a no-longer-existing object";
+        request.arguments_json =
+            json{{"sessionId", std::to_string(context.session.value())}, {"objectId", "999999999"}}.dump();
+        request.action_class = ActionClass::Mutation;
+        request.run_ticks    = 3;
+        reply.chunks = chunk_words("I will try to duplicate an object that no longer exists so you can see the failure path.");
+        reply.tool   = request;
+        return reply;
+    }
+    if (starts_with(user_text, "/toolslow")) {
+        const WorkspaceObject* object = first_selected_object(context);
+        if (object == nullptr)
+            return select_something_first();
+        reply.chunks = chunk_words("Duplicating " + object->name + " slowly so you can watch the progress or cancel it.");
+        reply.tool   = duplicate_request(context, *object, 60);
+        return reply;
+    }
+    if (starts_with(user_text, "/inspect")) {
+        ToolRequest request;
+        request.tool           = "inspect_selection";
+        request.title          = "Inspect the current selection";
+        request.arguments_json = "{}";
+        request.action_class   = ActionClass::ReadOnly;
+        request.run_ticks      = 1;
+        reply.chunks = chunk_words("Inspecting the current selection; read-only actions run without approval.");
+        reply.tool   = request;
+        return reply;
+    }
+    if (contains_word(user_text, "duplicate")) {
+        const WorkspaceObject* object = first_selected_object(context);
+        if (object == nullptr)
+            return select_something_first();
+        reply.chunks = chunk_words("I can duplicate " + object->name +
+                                   " for you. Approve the action below and I will run it through OrcaSlicer's own "
+                                   "duplicate command; you can undo it afterwards.");
+        reply.tool = duplicate_request(context, *object, 3);
         return reply;
     }
     reply.chunks = chunk_words(describe_workspace(context));

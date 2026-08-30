@@ -40,6 +40,57 @@ json error_json(const AgentError& error)
     return json{{"code", error.code}, {"message", error.message}, {"retryable", error.retryable}};
 }
 
+const char* tool_state_name(ToolState state)
+{
+    switch (state) {
+    case ToolState::Pending: return "pending";
+    case ToolState::Approved: return "approved";
+    case ToolState::Running: return "running";
+    case ToolState::Succeeded: return "succeeded";
+    case ToolState::Failed: return "failed";
+    case ToolState::Cancelled: return "cancelled";
+    case ToolState::Rejected: return "rejected";
+    }
+    return "pending";
+}
+
+const char* action_class_name(ActionClass action_class)
+{
+    switch (action_class) {
+    case ActionClass::ReadOnly: return "read_only";
+    case ActionClass::Mutation: return "mutation";
+    case ActionClass::Destructive: return "destructive";
+    }
+    return "read_only";
+}
+
+json parsed_or_object(const std::string& text)
+{
+    json value = json::parse(text, nullptr, false);
+    return value.is_discarded() ? json::object() : value;
+}
+
+json activity_json(const ToolActivity& activity)
+{
+    json result{{"actionId", activity.action_id},
+                {"correlationId", activity.correlation_id},
+                {"server", activity.server},
+                {"tool", activity.tool},
+                {"title", activity.title},
+                {"arguments", parsed_or_object(activity.arguments_json)},
+                {"actionClass", action_class_name(activity.action_class)},
+                {"requiresApproval", activity.requires_approval},
+                {"sessionId", std::to_string(activity.session)},
+                {"expectedRevision", activity.expected_revision},
+                {"state", tool_state_name(activity.state)},
+                {"progress", json{{"current", activity.progress_current}, {"total", activity.progress_total}}}};
+    if (!activity.result_json.empty())
+        result["result"] = parsed_or_object(activity.result_json);
+    if (activity.error)
+        result["error"] = json{{"code", activity.error->code}, {"message", activity.error->message}};
+    return result;
+}
+
 json message_json(const ConversationMessage& message)
 {
     json result{{"id", message.id},
@@ -98,7 +149,7 @@ json context_json(const WorkspaceSnapshot& snapshot)
 } // namespace
 
 AgentHost::AgentHost(Workspace::IWorkspace& workspace, AgentAvailability availability, bool dark_appearance)
-    : m_workspace(workspace), m_availability(availability), m_dark(dark_appearance)
+    : m_workspace(workspace), m_tools(workspace), m_availability(availability), m_dark(dark_appearance)
 {
     refresh_workspace_identity();
     m_workspace_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
@@ -106,6 +157,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace, AgentAvailability availab
         m_last_revision = change.revision;
         if (m_handshake)
             send_context();
+    });
+    m_tools.set_listener([this](const ToolActivity& activity) {
+        if (m_handshake)
+            send_tool_activity(activity);
     });
 }
 
@@ -160,10 +215,15 @@ void AgentHost::send_state(const std::string& correlation_id)
     for (const ConversationMessage& message : m_conversation)
         conversation.push_back(message_json(message));
 
+    json tool_activities = json::array();
+    for (const ToolActivity& activity : m_tools.activities())
+        tool_activities.push_back(activity_json(activity));
+
     json payload{{"agent", json{{"status", availability_name(m_availability)}}},
                  {"appearance", m_dark ? "dark" : "light"},
                  {"conversation", std::move(conversation)},
                  {"streamingMessageId", m_stream ? json(m_stream->message_id) : json(nullptr)},
+                 {"toolActivities", std::move(tool_activities)},
                  {"context", context_json(snapshot)}};
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
@@ -221,6 +281,10 @@ void AgentHost::on_page_message(const std::string& envelope_json)
         handle_stop(payload);
     else if (type == Protocol::kRetryMessage)
         handle_retry(envelope_id, payload);
+    else if (type == Protocol::kToolDecision)
+        handle_tool_decision(envelope_id, payload);
+    else if (type == Protocol::kToolCancel)
+        handle_tool_cancel(envelope_id, payload);
     else
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
@@ -238,7 +302,8 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
         m_handshake = false;
         send_envelope(Protocol::kHelloReject,
                       json{{"supportedVersions", json::array({Protocol::kVersion})},
-                           {"message", "This build speaks jusprin-agent-bridge version 1 only."}}
+                           {"message", "This build speaks jusprin-agent-bridge version " +
+                                           std::to_string(Protocol::kVersion) + " only."}}
                           .dump(),
                       envelope_id);
         return;
@@ -335,6 +400,62 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
     begin_stream(*message);
 }
 
+void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    if (!payload.is_object() || !payload.contains("actionId") || !payload["actionId"].is_string() ||
+        !payload.contains("decision") || !payload["decision"].is_string()) {
+        send_bridge_error("invalid_payload", "tool_decision requires an actionId and a decision.", envelope_id);
+        return;
+    }
+    const std::string action_id = payload["actionId"].get<std::string>();
+    const std::string decision  = payload["decision"].get<std::string>();
+    if (decision != "approve" && decision != "reject") {
+        send_bridge_error("invalid_payload", "tool_decision decision must be \"approve\" or \"reject\".", envelope_id);
+        return;
+    }
+    if (m_tools.find(action_id) == nullptr) {
+        send_bridge_error("unknown_action", "No tool action \"" + action_id + "\" exists.", envelope_id);
+        return;
+    }
+
+    const bool changed = decision == "approve" ? m_tools.approve(action_id) : m_tools.reject(action_id);
+    if (!changed) {
+        // A resent decision after a reload or reconnect: acknowledge with the
+        // authoritative record instead of running anything twice.
+        if (const ToolActivity* activity = m_tools.find(action_id))
+            send_tool_activity(*activity, envelope_id);
+    }
+}
+
+void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json        payload   = json::parse(payload_json, nullptr, false);
+    const std::string action_id = payload.is_object() ? payload.value("actionId", "") : std::string();
+    if (m_tools.find(action_id) == nullptr) {
+        send_bridge_error("unknown_action", "No tool action \"" + action_id + "\" exists.", envelope_id);
+        return;
+    }
+    if (!m_tools.cancel(action_id)) {
+        // Cancelling an already-finished action is a benign race; answer with
+        // the authoritative record.
+        if (const ToolActivity* activity = m_tools.find(action_id))
+            send_tool_activity(*activity, envelope_id);
+    }
+}
+
+void AgentHost::send_tool_activity(const ToolActivity& activity, const std::string& correlation_id)
+{
+    send_envelope(Protocol::kToolActivity, json{{"activity", activity_json(activity)}}.dump(), correlation_id);
+}
+
+void AgentHost::pump_tools()
+{
+    if (!m_handshake)
+        return;
+    m_tools.pump();
+}
+
 ConversationMessage* AgentHost::find_message(const std::string& id)
 {
     for (ConversationMessage& message : m_conversation)
@@ -389,6 +510,7 @@ void AgentHost::begin_stream(ConversationMessage& assistant)
     stream.message_id = assistant.id;
     stream.chunks.assign(reply.chunks.begin(), reply.chunks.end());
     stream.error = reply.error;
+    stream.tool  = reply.tool;
     m_stream     = std::move(stream);
 
     send_envelope(Protocol::kAssistantStarted,
@@ -420,7 +542,8 @@ void AgentHost::pump_stream()
 void AgentHost::finish_stream()
 {
     ConversationMessage* message = find_message(m_stream->message_id);
-    const std::optional<AgentError> error = m_stream->error;
+    const std::optional<AgentError>  error = m_stream->error;
+    const std::optional<ToolRequest> tool  = m_stream->tool;
     m_stream.reset();
     if (message != nullptr) {
         if (error) {
@@ -430,6 +553,11 @@ void AgentHost::finish_stream()
         } else {
             message->state = MessageState::Complete;
             send_envelope(Protocol::kAssistantCompleted, json{{"messageId", message->id}}.dump());
+            // The Agent's tool request becomes a coordinator-owned activity,
+            // correlated with the reply that proposed it. The coordinator
+            // applies the approval policy from here on.
+            if (tool)
+                m_tools.propose(*tool, message->id);
         }
     }
     start_next_queued_reply();

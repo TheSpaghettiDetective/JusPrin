@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Envelope, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from '../bridge/protocol';
+import { Envelope, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload, ToolActivityInfo } from '../bridge/protocol';
 import { AgentUiState, initialState, reducer } from './store';
 
 function host(type: string, payload: unknown): Envelope {
@@ -21,6 +21,24 @@ const context = {
   history: { canUndo: false, canRedo: false },
 };
 
+function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo {
+  return {
+    actionId: 't-1',
+    correlationId: 'm-2',
+    server: 'jusprin-native',
+    tool: 'duplicate_object',
+    title: 'Duplicate "cube-a"',
+    arguments: { sessionId: '1', objectId: '21' },
+    actionClass: 'mutation',
+    requiresApproval: true,
+    sessionId: '1',
+    expectedRevision: 4,
+    state: 'pending',
+    progress: { current: 0, total: 3 },
+    ...overrides,
+  };
+}
+
 const statePayload: StatePayload = {
   agent: { status: 'ready' },
   appearance: 'dark',
@@ -29,6 +47,7 @@ const statePayload: StatePayload = {
     { id: 'm-2', role: 'assistant', state: 'complete', text: 'hello', attempt: 1, inReplyTo: 'm-1' },
   ],
   streamingMessageId: null,
+  toolActivities: [toolActivity({ state: 'succeeded', progress: { current: 3, total: 3 } })],
   context,
 };
 
@@ -40,6 +59,22 @@ describe('store reducer', () => {
     expect(state.appearance).toBe('dark');
     expect(state.context?.projectName).toBe('Fixture');
     expect(state.streamingMessageId).toBeNull();
+    expect(state.toolActivities).toHaveLength(1);
+    expect(state.toolActivities[0].state).toBe('succeeded');
+  });
+
+  it('upserts tool activities by action id as their lifecycle advances', () => {
+    let state = apply(initialState, 'tool_activity', { activity: toolActivity() });
+    expect(state.toolActivities).toHaveLength(1);
+    expect(state.toolActivities[0].state).toBe('pending');
+
+    state = apply(state, 'tool_activity', { activity: toolActivity({ state: 'running', progress: { current: 1, total: 3 } }) });
+    expect(state.toolActivities).toHaveLength(1);
+    expect(state.toolActivities[0].state).toBe('running');
+    expect(state.toolActivities[0].progress.current).toBe(1);
+
+    state = apply(state, 'tool_activity', { activity: toolActivity({ actionId: 't-2', correlationId: 'm-4' }) });
+    expect(state.toolActivities).toHaveLength(2);
   });
 
   it('streams deltas in order and completes', () => {

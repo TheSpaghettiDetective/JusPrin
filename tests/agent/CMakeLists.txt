@@ -2,8 +2,10 @@
 # compiled directly into the test so no wx or Orca GUI linkage is required.
 add_executable(agent_bridge_tests
     test_agent_bridge.cpp
+    test_tool_coordinator.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp
 )
 
 target_compile_definitions(agent_bridge_tests PRIVATE

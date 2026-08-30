@@ -7,6 +7,9 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/AgentWebView.hpp
     GUI/JusPrin/Agent/DeterministicMockAgent.cpp
     GUI/JusPrin/Agent/DeterministicMockAgent.hpp
+    GUI/JusPrin/Agent/ToolExecution.hpp
+    GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp
+    GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
     GUI/JusPrin/CanvasPresentationController.hpp
     GUI/JusPrin/Shell/AgentPane.cpp

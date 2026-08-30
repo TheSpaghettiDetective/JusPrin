@@ -8,10 +8,11 @@ import { isEnvelope, PAGE_CAPABILITIES, PROTOCOL_NAME, PROTOCOL_VERSION } from '
 describe('protocol constants', () => {
   it('derive from the shared protocol.json', () => {
     expect(PROTOCOL_NAME).toBe('jusprin-agent-bridge');
-    expect(PROTOCOL_VERSION).toBe(1);
+    expect(PROTOCOL_VERSION).toBe(2);
     expect(PROTOCOL_NAME).toBe(protocolJson.name);
     expect(PROTOCOL_VERSION).toBe(protocolJson.version);
     expect(PAGE_CAPABILITIES).toEqual(protocolJson.capabilities);
+    expect(PAGE_CAPABILITIES).toContain('tools');
   });
 
   it('page and host message type unions cover the shared lists', () => {
@@ -21,9 +22,12 @@ describe('protocol constants', () => {
       'user_message',
       'stop_generation',
       'retry_message',
+      'tool_decision',
+      'tool_cancel',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');
+    expect(protocolJson.hostMessageTypes).toContain('tool_activity');
     expect(protocolJson.hostMessageTypes).toContain('bridge_error');
   });
 });

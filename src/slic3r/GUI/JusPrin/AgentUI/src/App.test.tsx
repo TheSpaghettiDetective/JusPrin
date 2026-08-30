@@ -6,7 +6,14 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { App } from './App';
-import { Envelope, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload, WorkspaceContext } from './bridge/protocol';
+import {
+  Envelope,
+  PROTOCOL_NAME,
+  PROTOCOL_VERSION,
+  StatePayload,
+  ToolActivityInfo,
+  WorkspaceContext,
+} from './bridge/protocol';
 
 class MockHost {
   received: Envelope[] = [];
@@ -63,9 +70,36 @@ function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
     appearance: 'light',
     conversation: [],
     streamingMessageId: null,
+    toolActivities: [],
     context,
     ...overrides,
   };
+}
+
+function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo {
+  return {
+    actionId: 't-1',
+    correlationId: 'm-2',
+    server: 'jusprin-native',
+    tool: 'duplicate_object',
+    title: 'Duplicate "cube-a"',
+    arguments: { sessionId: '1', objectId: '21' },
+    actionClass: 'mutation',
+    requiresApproval: true,
+    sessionId: '1',
+    expectedRevision: 2,
+    state: 'pending',
+    progress: { current: 0, total: 3 },
+    ...overrides,
+  };
+}
+
+// A completed exchange whose assistant reply proposed the tool action.
+function proposalConversation() {
+  return [
+    { id: 'm-1', role: 'user', state: 'complete', text: 'duplicate the selected object', attempt: 1 },
+    { id: 'm-2', role: 'assistant', state: 'complete', text: 'I can duplicate cube-a for you.', attempt: 1, inReplyTo: 'm-1' },
+  ] as StatePayload['conversation'];
 }
 
 function connect(host: MockHost, statePayload: StatePayload = emptyState()) {
@@ -192,6 +226,76 @@ describe('App', () => {
   it('shows the no-transport bridge error when window.wx is absent', () => {
     render(<App getTransport={() => null} transportRetryLimit={0} />);
     expect(screen.getByTestId('bridge-error')).toBeInTheDocument();
+  });
+
+  it('renders a pending tool card and submits the approval decision', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: proposalConversation() }));
+
+    host.deliver('tool_activity', { activity: toolActivity() });
+    expect(screen.getByText('Duplicate "cube-a"')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for your approval')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Approve'));
+    const decision = host.lastOfType('tool_decision');
+    expect(decision).toBeTruthy();
+    expect(decision!.payload).toEqual({ actionId: 't-1', decision: 'approve' });
+
+    host.deliver('tool_activity', { activity: toolActivity({ state: 'running', progress: { current: 1, total: 3 } }) });
+    expect(screen.getByLabelText('Duplicate "cube-a" progress')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Cancel'));
+    const cancel = host.lastOfType('tool_cancel');
+    expect(cancel!.payload).toEqual({ actionId: 't-1' });
+
+    host.deliver('tool_activity', { activity: toolActivity({ state: 'succeeded', progress: { current: 3, total: 3 } }) });
+    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
+  });
+
+  it('submits a rejection and shows that nothing was changed', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: proposalConversation(), toolActivities: [toolActivity()] }));
+
+    await userEvent.click(screen.getByText('Reject'));
+    const decision = host.lastOfType('tool_decision');
+    expect(decision!.payload).toEqual({ actionId: 't-1', decision: 'reject' });
+
+    host.deliver('tool_activity', { activity: toolActivity({ state: 'rejected' }) });
+    expect(screen.getByText('Rejected — nothing was changed')).toBeInTheDocument();
+  });
+
+  it('explains a stale proposal distinctly from other failures', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        conversation: proposalConversation(),
+        toolActivities: [
+          toolActivity({
+            state: 'failed',
+            error: { code: 'stale_revision', message: 'The project changed after this action was proposed.' },
+          }),
+        ],
+      }),
+    );
+
+    expect(screen.getByText(/The project changed after this was proposed/)).toBeInTheDocument();
+    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
+  });
+
+  it('reconstructs tool cards from host state after a reload', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        conversation: proposalConversation(),
+        toolActivities: [toolActivity({ state: 'running', progress: { current: 2, total: 3 } })],
+      }),
+    );
+
+    expect(screen.getByLabelText('Duplicate "cube-a" progress')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
   it('updates the context header when the native selection changes', () => {

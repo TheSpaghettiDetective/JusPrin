@@ -13,12 +13,12 @@ namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace Protocol {
 
-inline constexpr int         kVersion = 1;
+inline constexpr int         kVersion = 2;
 inline constexpr const char* kName    = "jusprin-agent-bridge";
 
 inline const std::vector<std::string>& capabilities()
 {
-    static const std::vector<std::string> values{"streaming", "stop", "retry", "context", "appearance"};
+    static const std::vector<std::string> values{"streaming", "stop", "retry", "context", "appearance", "tools"};
     return values;
 }
 
@@ -28,6 +28,8 @@ inline constexpr const char* kStateRequest   = "state_request";
 inline constexpr const char* kUserMessage    = "user_message";
 inline constexpr const char* kStopGeneration = "stop_generation";
 inline constexpr const char* kRetryMessage   = "retry_message";
+inline constexpr const char* kToolDecision   = "tool_decision";
+inline constexpr const char* kToolCancel     = "tool_cancel";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -42,6 +44,7 @@ inline constexpr const char* kAssistantDelta     = "assistant_delta";
 inline constexpr const char* kAssistantCompleted = "assistant_completed";
 inline constexpr const char* kAssistantFailed    = "assistant_failed";
 inline constexpr const char* kAssistantStopped   = "assistant_stopped";
+inline constexpr const char* kToolActivity       = "tool_activity";
 inline constexpr const char* kBridgeError        = "bridge_error";
 
 } // namespace Protocol

@@ -11,6 +11,7 @@
 // re-running the handshake: every hello is answered with the complete state.
 
 #include "AgentProtocol.hpp"
+#include "ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <deque>
@@ -58,6 +59,14 @@ public:
     // tests call it directly.
     void pump_stream();
 
+    // Advances tool execution one deterministic tick while the page is
+    // connected; approved-but-unfinished actions pause with the page
+    // disconnected and resume after the next handshake, like streams do.
+    void pump_tools();
+
+    ToolExecutionCoordinator&       tools() { return m_tools; }
+    const ToolExecutionCoordinator& tools() const { return m_tools; }
+
     const std::vector<ConversationMessage>& conversation() const { return m_conversation; }
 
     // Diagnostics for the internal-connection error surface.
@@ -67,10 +76,11 @@ public:
 private:
     struct ActiveStream
     {
-        std::string               message_id;
-        std::deque<std::string>   chunks;
-        std::optional<AgentError> error;
-        int                       next_seq{0};
+        std::string                message_id;
+        std::deque<std::string>    chunks;
+        std::optional<AgentError>  error;
+        std::optional<ToolRequest> tool; // proposed when the stream completes
+        int                        next_seq{0};
     };
 
     void send_envelope(const char* type, const std::string& payload_json, const std::string& correlation_id = {});
@@ -82,6 +92,9 @@ private:
     void handle_user_message(const std::string& envelope_id, const std::string& payload_json);
     void handle_stop(const std::string& payload_json);
     void handle_retry(const std::string& envelope_id, const std::string& payload_json);
+    void handle_tool_decision(const std::string& envelope_id, const std::string& payload_json);
+    void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
+    void send_tool_activity(const ToolActivity& activity, const std::string& correlation_id = {});
 
     ConversationMessage*       find_message(const std::string& id);
     const ConversationMessage* find_message(const std::string& id) const;
@@ -92,6 +105,7 @@ private:
     void                       refresh_workspace_identity() const;
 
     Workspace::IWorkspace&           m_workspace;
+    ToolExecutionCoordinator         m_tools;
     Workspace::WorkspaceSubscription m_workspace_subscription;
 
     SendFn                m_send;

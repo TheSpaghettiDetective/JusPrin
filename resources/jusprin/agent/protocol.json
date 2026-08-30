@@ -1,13 +1,15 @@
 {
   "name": "jusprin-agent-bridge",
-  "version": 1,
-  "capabilities": ["streaming", "stop", "retry", "context", "appearance"],
+  "version": 2,
+  "capabilities": ["streaming", "stop", "retry", "context", "appearance", "tools"],
   "pageMessageTypes": [
     "hello",
     "state_request",
     "user_message",
     "stop_generation",
-    "retry_message"
+    "retry_message",
+    "tool_decision",
+    "tool_cancel"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -22,6 +24,7 @@
     "assistant_completed",
     "assistant_failed",
     "assistant_stopped",
+    "tool_activity",
     "bridge_error"
   ]
 }

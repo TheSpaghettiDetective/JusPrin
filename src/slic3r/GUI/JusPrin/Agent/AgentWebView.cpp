@@ -109,9 +109,10 @@ AgentWebView::AgentWebView(wxWindow*                parent,
     Bind(wxEVT_TIMER, [this](wxTimerEvent& event) {
         if (event.GetId() == kHandshakeTimerId)
             on_handshake_deadline(event);
-        else if (event.GetId() == kStreamTimerId)
+        else if (event.GetId() == kStreamTimerId) {
             m_host->pump_stream();
-        else
+            m_host->pump_tools();
+        } else
             event.Skip();
     });
     m_stream_timer.Start(kStreamIntervalMs);
