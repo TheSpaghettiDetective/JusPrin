@@ -136,6 +136,9 @@ private:
         const int second_plate = plates.create_plate(true);
         check(second_plate == 1, "second_fixture_plate_created");
         check(plates.add_to_plate(1, 0, second_plate) == 0, "fixture_object_moved_to_second_plate");
+        // The loader does not place the first object on a plate; center it so
+        // the fixture is deterministically on-bed with one object per plate.
+        check(plates.get_plate(0)->add_instance(0, 0, true) == 0, "fixture_object_centered_on_first_plate");
         m_plater->canvas3D()->reload_scene(true, true);
         check(m_plater->canvas3D()->get_volumes_count() >= 2, "fixture_render_volumes_loaded");
 

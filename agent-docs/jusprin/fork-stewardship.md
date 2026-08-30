@@ -140,4 +140,24 @@ Facts specific to OrcaSlicer, worth knowing before choosing where to put a seam.
 
 Some native state is shared rather than owned by one object. OrcaSlicer's collapse toolbar belongs to `Plater` and is used by both the Prepare and Preview canvases, so a per-canvas guard cannot save and restore it correctly. Shared state needs one owner at the shared lifetime boundary, and exact restoration needs a getter as well as a setter.
 
+`MainFrame`'s Notebook is cheaper to wrap than to dismantle. Dozens of
+upstream predicates — menu and shortcut enabling, `can_delete`, slice status
+updates, undo/redo gating — key off `m_tabpanel->GetSelection()`, so removing
+or reparenting the Prepare/Preview pages breaks them with no conflict and no
+error. A shell gets a tabless full-window layout for free instead: hide the
+strip via the public `GetBtnsListCtrl()` (wxBookCtrlBase gives a hidden
+controller zero size, so pages fill the client area), and the stock slice and
+print side buttons disappear with it because `ButtonsListCtrl` reparents them
+into the strip at construction. The Phase 1 production shell reached a
+19-added-line upstream footprint this way where the POC's reparenting shell
+needed edits across eight upstream files.
+
+Some stock behavior is already exposed as an event idiom rather than a
+function. Upstream itself drives plate slicing from two places with the same
+sequence — the slice button and the Cmd+R shortcut both run
+`plater->update(true, true)`, post `EVT_GLTOOLBAR_SLICE_PLATE` to the Plater,
+and select the Preview tab — so fork code may repeat that short dispatch
+without violating the shared-implementation rule; the behavior itself stays
+owned by Plater's event handler.
+
 Historical measurements and the incidents behind several of these rules are in the [OrcaSlicer integration guide](orca-integration-guide.md) and, for the spike era, in the [POC reference](poc-reference.md).

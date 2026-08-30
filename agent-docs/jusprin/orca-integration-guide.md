@@ -144,6 +144,33 @@ state-change event.
 Do not use a partial workspace projection for this check. A real history move
 may change authoritative project data that the projection does not yet expose.
 
+### A loaded object is not automatically printable
+
+Plate membership is positional: `PartPlateList` assigns instances to plates by
+where their convex hull sits, and `load_files` on a bare mesh does not place
+the object on any plate. An object can render, select, and transform correctly
+while `PartPlate::has_printable_instances()` is false — and then `reslice()`
+silently starts nothing ("background process in idle state" in the log).
+
+`PartPlate::add_instance(obj, instance, /*move_position=*/true)` is the
+existing centering path (`PartPlateList::add_to_plate` uses it). Test fixtures
+must place every object explicitly; the workspace and shell harness fixtures
+do. A second trap: the plate's outside-instance set recomputes asynchronously,
+so `has_printable_instances()` read immediately after placement can still
+report the stale value. Judge printability from the slice result, not from a
+check in the same event-loop turn as the placement.
+
+### Application teardown can re-enter destroyed owners
+
+Quitting while model volumes are loaded can crash:
+`~GLCanvas3D → reset_volumes → Selection::clear → Plater::canvas3D()` runs
+after `Plater::priv` is destroyed and dereferences null. This is inherited
+upstream behavior — crash reports with the identical signature predate the
+JusPrin shell (2026-08-28) and the stock-mode harness reproduces it with all
+fork runtime code inert. Until it is fixed in upstream teardown ordering,
+automated GUI scenarios should end on an empty project (`new_project`) before
+exiting; both harnesses do.
+
 ## 3. Resolved implementation problems
 
 ### Selection events arrived before the duplicate command returned
@@ -307,6 +334,27 @@ Commands return explicit invalid, missing, or stale errors.
 **Lesson for future agents:** Define identifier lifetime and failure semantics at
 the contract boundary. A generic Boolean failure hides information that future UI
 and Agent consumers will need.
+
+### Sibling widgets and static owners must plan for destruction order
+
+**Observed problem:** The shell's status row binds handlers on the Notebook —
+a sibling, not a parent — and the shell controller lives in a static slot
+that outlives `MainFrame`. wx destroys sibling children in unspecified order,
+so an `Unbind` in the row's destructor could run against an already-destroyed
+Notebook, and the static controller's destructor could "restore" widgets that
+no longer exist.
+
+**Resolution:** The row also binds the Notebook's `wxEVT_DESTROY` and skips
+`Unbind` once the Notebook is gone. The controller binds the frame's
+`wxEVT_DESTROY`, marks itself uninstalled, and abandons (rather than
+restores) its canvas-presentation state, so nothing touches widgets during or
+after frame teardown.
+
+**Lesson for future agents:** An event binding on any window you do not own
+needs a destruction watcher before `Unbind` is safe, and an object that
+outlives the widget tree must have an abandon path that forgets pointers
+without touching them. Restoring state is for runtime detach; teardown only
+ever abandons.
 
 ## 4. Testing and verification lessons
 
