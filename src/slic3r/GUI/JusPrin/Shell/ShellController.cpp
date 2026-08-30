@@ -60,8 +60,18 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     m_saved_collapse_toolbar_enabled = plater->get_collapse_toolbar().is_enabled();
 
     try {
+        m_workspace = std::make_unique<Workspace::OrcaWorkspaceAdapter>(*plater);
+
+        // The Agent service (the conversation provider) is a different
+        // failure from the bridge: this flag models "service unconfigured",
+        // which the page renders as a clean setup state.
+        const Agent::AgentAvailability availability =
+            (wxGetApp().app_config != nullptr && wxGetApp().app_config->get("jusprin_agent") == "0") ?
+                Agent::AgentAvailability::Unavailable :
+                Agent::AgentAvailability::Ready;
+
         m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel);
-        m_agent_pane = new AgentPane(&frame, m_theme);
+        m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, availability);
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -141,6 +151,8 @@ void ShellController::uninstall()
         m_agent_pane->Destroy();
         m_agent_pane = nullptr;
     }
+    // After the pane (and with it the Agent host) is gone.
+    m_workspace.reset();
 
     m_frame->Layout();
 }

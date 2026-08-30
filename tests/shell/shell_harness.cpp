@@ -11,6 +11,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
@@ -19,9 +20,11 @@
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
+#include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <wx/app.h>
 #include <wx/glcanvas.h>
+#include <wx/timer.h>
 
 #include <boost/filesystem.hpp>
 
@@ -63,7 +66,10 @@ Notebook* find_notebook(wxWindow* root)
 class Scenario final : public std::enable_shared_from_this<Scenario>
 {
 public:
-    Scenario(GUI_App& app, std::shared_ptr<HarnessState> state) : m_app(app), m_state(std::move(state)) {}
+    Scenario(GUI_App& app, std::shared_ptr<HarnessState> state) : m_app(app), m_state(std::move(state))
+    {
+        m_poll_handler.Bind(wxEVT_TIMER, [this](wxTimerEvent&) { poll_wait(); });
+    }
 
     void start()
     {
@@ -198,19 +204,98 @@ private:
                                PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
                                return plate != nullptr && plate->is_slice_result_valid();
                            },
-                           "slice_completes_in_preview", [self] { self->after_slice(); });
+                           "slice_completes", [self] { self->after_slice(); });
                    });
     }
 
     void after_slice()
     {
-        check(m_plater->is_preview_shown(), "check_print_shows_preview");
-        installed_shell()->status_row()->request_prepare();
-        wait_until([this] { return !m_plater->is_preview_shown(); }, "returns_to_prepare",
-                   [self = shared_from_this()] { self->after_return(); });
+        // The user flow under test: with a valid slice, Check print shows the
+        // real Preview, and Back to Prepare returns.
+        installed_shell()->status_row()->request_check_print();
+        wait_until([this] { return m_plater->is_preview_shown(); }, "check_print_shows_preview",
+                   [self = shared_from_this()] {
+                       installed_shell()->status_row()->request_prepare();
+                       self->wait_until([self] { return !self->m_plater->is_preview_shown(); }, "returns_to_prepare",
+                                        [self] { self->after_return(); });
+                   });
     }
 
     void after_return()
+    {
+        verify_agent_bridge();
+    }
+
+    // Phase 2: the packaged React page in the real WKWebView completes the
+    // versioned handshake, a scripted user message round-trips through the
+    // real script-message channel and streams to completion, native selection
+    // changes push context over the live bridge, and a reload reconstructs
+    // the page from native state.
+    void verify_agent_bridge()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.webview() != nullptr, "agent_webview_created");
+        wait_until([&web_view] { return web_view.host().handshake_complete(); }, "agent_bridge_handshake",
+                   [self = shared_from_this()] { self->agent_send_scripted_message(); });
+    }
+
+    void agent_send_scripted_message()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(!web_view.bridge_error_shown(), "agent_no_bridge_error_after_handshake");
+        check(web_view.host().availability() == Agent::AgentAvailability::Ready, "agent_service_ready");
+
+        // Drive the send through the page itself so the user path (page ->
+        // script message -> host) is what gets exercised.
+        WebView::RunScript(web_view.webview(),
+                           "window.__jusprinTest && window.__jusprinTest.send('what is on the plate?')");
+        wait_until(
+            [&web_view] {
+                const auto& conversation = web_view.host().conversation();
+                return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Complete;
+            },
+            "agent_reply_streams_to_completion", [self = shared_from_this()] { self->agent_verify_reply_and_context(); });
+    }
+
+    void agent_verify_reply_and_context()
+    {
+        AgentWebView&     web_view = installed_shell()->agent_pane()->web_view();
+        Agent::AgentHost& host     = web_view.host();
+
+        const auto& conversation = host.conversation();
+        check(conversation.size() == 2, "agent_conversation_has_exchange");
+        check(conversation.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
+        check(conversation.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
+        // The reply must describe the authoritative fixture, not canned text:
+        // the two-plate fixture and its active plate contents appear in it.
+        check(conversation.back().text.find("2 plates") != std::string::npos, "agent_reply_describes_fixture_plates");
+        check(conversation.back().text.find("is active with") != std::string::npos, "agent_reply_describes_active_plate");
+
+        // A native selection change must push fresh context over the bridge.
+        const std::uint64_t sent_before = host.messages_sent();
+        check(m_plater->select_object(1), "agent_native_selection_change");
+        wait_until([&host, sent_before] { return host.messages_sent() > sent_before; },
+                   "agent_context_pushed_on_native_selection",
+                   [self = shared_from_this()] { self->agent_verify_reload(); });
+    }
+
+    void agent_verify_reload()
+    {
+        AgentWebView& web_view          = installed_shell()->agent_pane()->web_view();
+        const std::size_t conversation_size = web_view.host().conversation().size();
+
+        web_view.reload();
+        wait_until([&web_view] { return web_view.host().handshake_complete(); }, "agent_reload_handshake",
+                   [self = shared_from_this(), conversation_size] {
+                       AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                       self->check(web_view.host().conversation().size() == conversation_size,
+                                   "agent_reload_preserves_native_conversation");
+                       self->check(!web_view.bridge_error_shown(), "agent_reload_clears_bridge_error");
+                       self->after_agent();
+                   });
+    }
+
+    void after_agent()
     {
         verify_resize();
         verify_project_replacement();
@@ -250,30 +335,43 @@ private:
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "stock_canvas_usable_after_restore");
     }
 
+    // Polls through a one-shot wxTimer rather than a self-reposting
+    // CallAfter: a pending-event spin keeps wxApp's pending queue non-empty,
+    // which starves any nested YieldFor on the stack (wx's WKWebView
+    // AddScriptMessageHandler runs script through one) and deadlocks the
+    // WebView setup this harness is waiting on.
     void wait_until(std::function<bool()> condition, std::string name, std::function<void()> then)
     {
-        if (m_state->stop)
+        m_wait_condition = std::move(condition);
+        m_wait_name      = std::move(name);
+        m_wait_then      = std::move(then);
+        poll_wait();
+    }
+
+    void poll_wait()
+    {
+        if (m_state->stop || !m_wait_condition)
             return;
-        if (condition()) {
-            check(true, name);
+        if (m_wait_condition()) {
+            check(true, m_wait_name);
+            auto then        = std::move(m_wait_then);
+            m_wait_condition = nullptr;
+            m_wait_then      = nullptr;
             then();
             return;
         }
-        if (++m_wait_ticks % 20000 == 0) {
+        if (++m_wait_ticks % 500 == 0) {
             PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
-            std::cerr << "HARNESS WAIT " << name << " preview=" << m_plater->is_preview_shown()
+            std::cerr << "HARNESS WAIT " << m_wait_name << " preview=" << m_plater->is_preview_shown()
                       << " plate=" << m_plater->get_partplate_list().get_curr_plate_index()
                       << " slice_valid=" << (plate != nullptr && plate->is_slice_result_valid()) << '\n';
         }
         if (std::chrono::steady_clock::now() >= m_state->deadline) {
-            check(false, name);
-            fail(name + " did not become true before the deadline");
+            check(false, m_wait_name);
+            fail(m_wait_name + " did not become true before the deadline");
             return;
         }
-        m_app.CallAfter([self = shared_from_this(), condition = std::move(condition), name = std::move(name),
-                         then = std::move(then)]() mutable {
-            self->wait_until(std::move(condition), std::move(name), std::move(then));
-        });
+        m_poll_timer.StartOnce(10);
     }
 
     void fail(const std::string& message)
@@ -303,6 +401,12 @@ private:
     int                           m_failures{0};
     bool                          m_finished{false};
     std::uint64_t                 m_wait_ticks{0};
+
+    wxEvtHandler          m_poll_handler;
+    wxTimer               m_poll_timer{&m_poll_handler};
+    std::function<bool()> m_wait_condition;
+    std::string           m_wait_name;
+    std::function<void()> m_wait_then;
 };
 
 void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)

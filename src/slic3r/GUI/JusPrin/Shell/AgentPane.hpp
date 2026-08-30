@@ -2,27 +2,33 @@
 
 #include "ShellTheme.hpp"
 
-#include <wx/panel.h>
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
-class wxStaticText;
+#include <wx/panel.h>
 
 namespace Slic3r::GUI::JusPrin {
 
-// Fixed right-hand region reserved for the Agent conversation. Phase 1 ships
-// no Agent, so this pane shows an honest unavailable state instead of a mock
-// conversation UI. Later phases replace the body with the Agent WebView.
+class AgentWebView;
+
+// Fixed right-hand region holding the Agent conversation. The body is the
+// packaged local React page in a wxWebView; every conversation, empty,
+// unavailable, and bridge-error state is owned by AgentWebView and the page.
 class AgentPane : public wxPanel
 {
 public:
-    AgentPane(wxWindow* parent, const ShellTheme& theme);
+    AgentPane(wxWindow*                parent,
+              const ShellTheme&        theme,
+              Workspace::IWorkspace&   workspace,
+              Agent::AgentAvailability availability);
 
     void apply_appearance(bool dark);
 
+    AgentWebView& web_view() { return *m_web_view; }
+
 private:
     const ShellTheme& m_theme;
-    wxStaticText*     m_title{nullptr};
-    wxStaticText*     m_message{nullptr};
-    wxStaticText*     m_detail{nullptr};
+    AgentWebView*     m_web_view{nullptr};
 };
 
 } // namespace Slic3r::GUI::JusPrin

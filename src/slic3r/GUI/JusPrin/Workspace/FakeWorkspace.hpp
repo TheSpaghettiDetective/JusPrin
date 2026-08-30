@@ -152,6 +152,26 @@ public:
                 WorkspaceChangeReasons::Selection | WorkspaceChangeReasons::History);
     }
 
+    // Test seam for the project/printer facts that Orca owns; the fake treats
+    // a setup change like any other committed workspace change.
+    void set_setup(WorkspaceSetup setup)
+    {
+        if (m_snapshot.setup == setup)
+            return;
+        m_snapshot.setup = std::move(setup);
+        publish(WorkspaceChangeReasons::Project);
+    }
+
+    void set_plate_sliced(PlateId id, bool sliced)
+    {
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            if (plate.id == id && plate.sliced != sliced) {
+                plate.sliced = sliced;
+                publish(WorkspaceChangeReasons::Plates);
+                return;
+            }
+    }
+
     void set_unsupported_selection()
     {
         if (m_snapshot.selection_status == SelectionStatus::Unsupported)

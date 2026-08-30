@@ -17,8 +17,8 @@ WorkspaceSnapshot sample_workspace()
     WorkspaceSnapshot snapshot;
     snapshot.session      = seed_session;
     snapshot.active_plate = PlateId(seed_session, 10);
-    snapshot.plates       = {{PlateId(seed_session, 10), "Plate 1", true, {{ObjectId(seed_session, 100), "Object A", {}}}},
-                             {PlateId(seed_session, 20), "Plate 2", false, {{ObjectId(seed_session, 200), "Object B", {}}}}};
+    snapshot.plates       = {{PlateId(seed_session, 10), "Plate 1", true, false, {{ObjectId(seed_session, 100), "Object A", {}}}},
+                             {PlateId(seed_session, 20), "Plate 2", false, false, {{ObjectId(seed_session, 200), "Object B", {}}}}};
     return snapshot;
 }
 

@@ -1,5 +1,12 @@
 list(APPEND SLIC3R_GUI_SOURCES
     GUI/ProjectState.hpp
+    GUI/JusPrin/Agent/AgentHost.cpp
+    GUI/JusPrin/Agent/AgentHost.hpp
+    GUI/JusPrin/Agent/AgentProtocol.hpp
+    GUI/JusPrin/Agent/AgentWebView.cpp
+    GUI/JusPrin/Agent/AgentWebView.hpp
+    GUI/JusPrin/Agent/DeterministicMockAgent.cpp
+    GUI/JusPrin/Agent/DeterministicMockAgent.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
     GUI/JusPrin/CanvasPresentationController.hpp
     GUI/JusPrin/Shell/AgentPane.cpp

@@ -3,6 +3,7 @@
 #include "ShellTheme.hpp"
 
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 
 #include <memory>
 
@@ -42,6 +43,7 @@ public:
 
     StatusRow* status_row() const { return m_status_row; }
     AgentPane* agent_pane() const { return m_agent_pane; }
+    Workspace::IWorkspace* workspace() const { return m_workspace.get(); }
 
     void apply_current_appearance();
 
@@ -56,6 +58,10 @@ private:
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
+
+    // The one workspace projection consumed by the Agent bridge. It must be
+    // constructed before the AgentPane and outlive it.
+    std::unique_ptr<Workspace::OrcaWorkspaceAdapter> m_workspace;
 
     bool m_installed{false};
     bool m_saved_collapse_toolbar_enabled{false};

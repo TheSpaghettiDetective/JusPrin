@@ -86,15 +86,36 @@ struct WorkspacePlate
     PlateId                      id;
     std::string                  name;
     bool                         active{false};
+    // True when this plate holds a currently valid slice result. Derived from
+    // the authoritative plate state on every snapshot, never cached.
+    bool                         sliced{false};
     std::vector<WorkspaceObject> objects;
 };
 
 enum class SelectionStatus : std::uint8_t { None, Objects, Unsupported };
 
+// Compact project and machine setup facts for consumers (the Agent context)
+// that must describe the workspace without reaching into Orca types. Values
+// are read fresh from their authoritative owners at snapshot time.
+struct WorkspaceSetup
+{
+    std::string project_name;
+    bool        project_dirty{false};
+    std::string printer_preset;
+    std::string filament_preset;
+
+    friend bool operator==(const WorkspaceSetup& lhs, const WorkspaceSetup& rhs)
+    {
+        return lhs.project_name == rhs.project_name && lhs.project_dirty == rhs.project_dirty &&
+               lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset;
+    }
+};
+
 struct WorkspaceSnapshot
 {
     ProjectSessionId            session;
     std::uint64_t               revision{0};
+    WorkspaceSetup              setup;
     std::vector<WorkspacePlate> plates;
     std::optional<PlateId>      active_plate;
     SelectionStatus             selection_status{SelectionStatus::None};

@@ -1,0 +1,231 @@
+/* Colors come exclusively from the semantic tokens applied in tokens.ts. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'HarmonyOS Sans SC', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Compact workspace context header */
+.context-summary {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+.context-summary .project {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notice {
+  margin: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.notice h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.notice p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Conversation */
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.message {
+  max-width: 92%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: var(--action-primary);
+  color: var(--action-primaryText);
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+}
+
+.message .meta {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--text-secondary);
+}
+
+.message.user .meta {
+  color: var(--action-primaryText);
+  opacity: 0.8;
+}
+
+.message .error {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--status-danger);
+}
+
+.streaming-cursor::after {
+  content: '▌';
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+button {
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--action-secondaryBorder);
+  background: var(--action-secondary);
+  color: var(--action-secondaryText);
+  cursor: pointer;
+}
+
+button:hover:enabled {
+  background: var(--action-secondaryHover);
+}
+
+button:active:enabled {
+  background: var(--action-secondaryPressed);
+}
+
+button:disabled {
+  background: var(--action-disabled);
+  color: var(--action-disabledText);
+  border-color: var(--action-disabled);
+  cursor: default;
+}
+
+button.primary {
+  background: var(--action-primary);
+  color: var(--action-primaryText);
+  border-color: var(--action-primary);
+}
+
+button.primary:hover:enabled {
+  background: var(--action-primaryHover);
+}
+
+button.primary:active:enabled {
+  background: var(--action-primaryPressed);
+}
+
+/* Composer */
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  align-items: flex-end;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  font: inherit;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  min-height: 36px;
+  max-height: 120px;
+}
+
+.composer textarea:focus {
+  border-color: var(--border-focus);
+}
+
+/* Full-pane states */
+.pane-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  gap: 8px;
+}
+
+.pane-state h1 {
+  font-size: 18px;
+  line-height: 24px;
+  margin: 0;
+}
+
+.pane-state p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.pane-state details {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+  max-width: 100%;
+}
+
+.pane-state pre {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}

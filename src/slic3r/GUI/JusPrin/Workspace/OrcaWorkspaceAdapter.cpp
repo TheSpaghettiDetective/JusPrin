@@ -1,7 +1,9 @@
 #include "OrcaWorkspaceAdapter.hpp"
 
 #include "libslic3r/Model.hpp"
+#include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
@@ -86,6 +88,14 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
     result.session  = m_session;
     result.revision = m_changes.revision();
 
+    result.setup.project_name  = m_plater.get_project_name().ToUTF8().data();
+    result.setup.project_dirty = m_plater.is_project_dirty();
+    if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr) {
+        result.setup.printer_preset = presets->printers.get_selected_preset().label(false);
+        if (!presets->filament_presets.empty())
+            result.setup.filament_preset = presets->filament_presets.front();
+    }
+
     PartPlateList& plate_list = m_plater.get_partplate_list();
     const int active_index = plate_list.get_curr_plate_index();
     result.plates.reserve(plate_list.get_plate_count());
@@ -95,6 +105,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.id     = PlateId(m_session, plate->id().id);
         projected_plate.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
         projected_plate.active = index == active_index;
+        projected_plate.sliced = plate->is_slice_result_valid();
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
             WorkspaceObject object = project_object(m_session, *objects[object_index], *plate, static_cast<int>(object_index));
