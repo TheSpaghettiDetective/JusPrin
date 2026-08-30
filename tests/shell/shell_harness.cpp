@@ -1,0 +1,407 @@
+// Runs the complete native application and verifies the Phase 1 JusPrin
+// production shell: installation, the real Prepare canvas, the Slice and
+// Check print flow, resize and project replacement, the failed-install
+// fallback, and exact restoration of the stock presentation.
+//
+// Modes:
+//   (default)  automated shell checks, exits with the result
+//   --stock    automated stock-mode checks (shell disabled via app config)
+//   --manual   installs nothing extra and leaves the app open for a human
+
+#include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/GUI_Init.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
+#include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/Notebook.hpp"
+#include "slic3r/GUI/PartPlate.hpp"
+#include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/Selection.hpp"
+
+#include <wx/app.h>
+#include <wx/glcanvas.h>
+
+#include <boost/filesystem.hpp>
+
+#include <atomic>
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <thread>
+#include <vector>
+
+namespace fs = boost::filesystem;
+
+namespace Slic3r::GUI::JusPrin {
+namespace {
+
+struct HarnessState
+{
+    enum class Mode { Shell, Stock, Manual };
+
+    std::atomic<int>  result{-1};
+    std::atomic<bool> stop{false};
+    std::shared_ptr<void> runner;
+    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(300)};
+    Mode mode{Mode::Shell};
+};
+
+Notebook* find_notebook(wxWindow* root)
+{
+    if (auto* notebook = dynamic_cast<Notebook*>(root))
+        return notebook;
+    for (wxWindow* child : root->GetChildren())
+        if (Notebook* notebook = find_notebook(child))
+            return notebook;
+    return nullptr;
+}
+
+class Scenario final : public std::enable_shared_from_this<Scenario>
+{
+public:
+    Scenario(GUI_App& app, std::shared_ptr<HarnessState> state) : m_app(app), m_state(std::move(state)) {}
+
+    void start()
+    {
+        try {
+            m_plater = m_app.plater();
+            m_frame  = m_app.mainframe;
+            check(m_plater != nullptr && m_frame != nullptr, "application_ready");
+            m_notebook = find_notebook(m_frame);
+            check(m_notebook != nullptr, "notebook_found");
+            if (m_plater == nullptr || m_frame == nullptr || m_notebook == nullptr) {
+                fail("application widgets missing");
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::Stock) {
+                verify_stock_mode();
+                finish();
+                return;
+            }
+            verify_shell_installed();
+            load_multi_plate_fixture();
+            verify_canvas_interaction();
+            begin_slice_check();
+        } catch (const std::exception& error) {
+            fail(std::string("exception: ") + error.what());
+        } catch (...) {
+            fail("unknown exception");
+        }
+    }
+
+private:
+    void check(bool condition, const std::string& name)
+    {
+        std::cerr << "HARNESS CHECK " << name << ' ' << (condition ? "PASS" : "FAIL") << '\n';
+        if (!condition)
+            ++m_failures;
+    }
+
+    void verify_stock_mode()
+    {
+        check(installed_shell() == nullptr, "stock_mode_installs_no_shell");
+        check(m_notebook->GetBtnsListCtrl()->IsShown(), "stock_mode_keeps_tab_strip");
+        check(m_plater->is_sidebar_available(), "stock_mode_keeps_sidebar_available");
+        load_multi_plate_fixture();
+        check(m_plater->canvas3D()->get_volumes_count() >= 2, "stock_mode_canvas_renders_fixture");
+        // Exiting with loaded volumes trips an inherited teardown crash in
+        // ~GLCanvas3D (Selection::clear() re-enters the destroyed Plater);
+        // see the Phase 1 handback. End on an empty project like the shell
+        // scenario does.
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "stock_mode_teardown_project");
+    }
+
+    void verify_shell_installed()
+    {
+        ShellController* shell = installed_shell();
+        check(shell != nullptr && shell->is_installed(), "shell_installed");
+        if (shell == nullptr)
+            throw std::runtime_error("shell is not installed");
+        check(shell->status_row() != nullptr && shell->status_row()->IsShown(), "status_row_shown");
+        check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
+        check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
+        check(!m_plater->is_sidebar_available(), "sidebar_marked_unavailable");
+        const GLCanvasPresentationOptions& prepare_options = m_plater->get_view3D_canvas3D()->presentation_options();
+        check(!prepare_options.main_toolbar_visible, "prepare_main_toolbar_hidden");
+        check(!prepare_options.main_toolbar_input_enabled, "prepare_main_toolbar_input_disabled");
+        check(prepare_options.gizmo_picker_visible, "gizmo_picker_still_visible");
+
+        // Later Orca paths call enable_sidebar(true); the persistent policy
+        // must keep the sidebar down until the shell releases it.
+        m_plater->enable_sidebar(true);
+        check(!wxGetApp().sidebar().IsShown(), "sidebar_stays_hidden_after_reenable_attempt");
+
+        // A second installation attempt must fail without disturbing layout.
+        ShellController second;
+        bool second_install_failed = false;
+        try {
+            second.install(*m_frame, *m_notebook, *frame_main_sizer());
+        } catch (const std::exception&) {
+            second_install_failed = true;
+        }
+        check(second_install_failed, "second_install_rejected");
+        check(installed_shell()->is_installed() && installed_shell()->status_row()->IsShown(),
+              "shell_survives_rejected_install");
+    }
+
+    wxSizer* frame_main_sizer()
+    {
+        // The harness reaches the layout through public wx state: the status
+        // row was inserted into MainFrame's inner vertical sizer.
+        return installed_shell()->status_row()->GetContainingSizer();
+    }
+
+    void load_multi_plate_fixture()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "fixture_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            false);
+        check(loaded.size() == 1, "fixture_cube_loaded");
+        check(m_plater->duplicate_object(0) == 1, "fixture_second_object");
+        PartPlateList& plates = m_plater->get_partplate_list();
+        check(plates.create_plate(true) == 1, "fixture_second_plate");
+        check(plates.add_to_plate(1, 0, 1) == 0, "fixture_object_on_second_plate");
+        // Slicing needs printable on-bed placement, so center each object on
+        // its plate through the same path add_to_plate uses. The outside-set
+        // recomputes asynchronously; slice_completes_in_preview is the
+        // printability proof.
+        check(plates.get_plate(0)->add_instance(0, 0, true) == 0, "fixture_object_centered_on_first_plate");
+        m_plater->canvas3D()->reload_scene(true, true);
+    }
+
+    void verify_canvas_interaction()
+    {
+        check(m_plater->canvas3D()->get_volumes_count() >= 2, "canvas_renders_fixture");
+        const wxSize canvas_size = m_plater->canvas3D()->get_wxglcanvas()->GetSize();
+        check(canvas_size.GetWidth() > 200 && canvas_size.GetHeight() > 200, "canvas_has_working_area");
+
+        check(m_plater->select_object(0), "canvas_selection_command");
+        check(!m_plater->canvas3D()->get_selection().is_empty(), "canvas_selection_visible");
+
+        installed_shell()->status_row()->refresh();
+        check(!m_plater->is_preview_shown(), "starts_in_prepare");
+    }
+
+    void begin_slice_check()
+    {
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] { return m_plater->is_preview_shown(); }, "slice_switches_to_preview",
+                   [self = shared_from_this()] {
+                       self->wait_until(
+                           [self] {
+                               PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
+                               return plate != nullptr && plate->is_slice_result_valid();
+                           },
+                           "slice_completes_in_preview", [self] { self->after_slice(); });
+                   });
+    }
+
+    void after_slice()
+    {
+        check(m_plater->is_preview_shown(), "check_print_shows_preview");
+        installed_shell()->status_row()->request_prepare();
+        wait_until([this] { return !m_plater->is_preview_shown(); }, "returns_to_prepare",
+                   [self = shared_from_this()] { self->after_return(); });
+    }
+
+    void after_return()
+    {
+        verify_resize();
+        verify_project_replacement();
+        verify_uninstall_restores_stock();
+        finish();
+    }
+
+    void verify_resize()
+    {
+        const wxSize original = m_frame->GetSize();
+        m_frame->SetSize(original + wxSize(120, 80));
+        m_frame->Layout();
+        StatusRow* row = installed_shell()->status_row();
+        check(row->IsShown() && row->GetSize().GetWidth() > 0, "status_row_survives_resize");
+        check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "canvas_survives_resize");
+        m_frame->SetSize(original);
+        m_frame->Layout();
+    }
+
+    void verify_project_replacement()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "replacement_project");
+        check(installed_shell() != nullptr && installed_shell()->is_installed(), "shell_survives_project_replacement");
+        check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_still_hidden_after_replacement");
+        check(!wxGetApp().sidebar().IsShown(), "sidebar_still_hidden_after_replacement");
+    }
+
+    void verify_uninstall_restores_stock()
+    {
+        detach_shell();
+        check(installed_shell() == nullptr, "shell_detached");
+        check(m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_restored");
+        check(m_plater->is_sidebar_available(), "sidebar_available_restored");
+        check(m_plater->get_view3D_canvas3D()->presentation_options().main_toolbar_visible,
+              "prepare_main_toolbar_restored");
+        m_frame->Layout();
+        check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "stock_canvas_usable_after_restore");
+    }
+
+    void wait_until(std::function<bool()> condition, std::string name, std::function<void()> then)
+    {
+        if (m_state->stop)
+            return;
+        if (condition()) {
+            check(true, name);
+            then();
+            return;
+        }
+        if (++m_wait_ticks % 20000 == 0) {
+            PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
+            std::cerr << "HARNESS WAIT " << name << " preview=" << m_plater->is_preview_shown()
+                      << " plate=" << m_plater->get_partplate_list().get_curr_plate_index()
+                      << " slice_valid=" << (plate != nullptr && plate->is_slice_result_valid()) << '\n';
+        }
+        if (std::chrono::steady_clock::now() >= m_state->deadline) {
+            check(false, name);
+            fail(name + " did not become true before the deadline");
+            return;
+        }
+        m_app.CallAfter([self = shared_from_this(), condition = std::move(condition), name = std::move(name),
+                         then = std::move(then)]() mutable {
+            self->wait_until(std::move(condition), std::move(name), std::move(then));
+        });
+    }
+
+    void fail(const std::string& message)
+    {
+        std::cerr << "HARNESS ERROR " << message << '\n';
+        ++m_failures;
+        finish();
+    }
+
+    void finish()
+    {
+        if (m_finished)
+            return;
+        m_finished = true;
+        const int result = m_failures == 0 ? 0 : 1;
+        std::cerr << "HARNESS RESULT " << (result == 0 ? "PASS" : "FAIL") << " failures=" << m_failures << '\n';
+        m_state->result = result;
+        m_state->stop = true;
+        m_app.ExitMainLoop();
+    }
+
+    GUI_App&                      m_app;
+    std::shared_ptr<HarnessState> m_state;
+    Plater*                       m_plater{nullptr};
+    MainFrame*                    m_frame{nullptr};
+    Notebook*                     m_notebook{nullptr};
+    int                           m_failures{0};
+    bool                          m_finished{false};
+    std::uint64_t                 m_wait_ticks{0};
+};
+
+void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
+{
+    if (state->stop)
+        return;
+    if (std::chrono::steady_clock::now() >= state->deadline) {
+        std::cerr << "HARNESS ERROR application did not become ready before timeout\n";
+        state->result = 1;
+        state->stop = true;
+        app.ExitMainLoop();
+        return;
+    }
+    if (app.mainframe != nullptr && app.plater() != nullptr) {
+        if (state->mode == HarnessState::Mode::Manual)
+            return;
+        auto scenario = std::make_shared<Scenario>(app, state);
+        state->runner = scenario;
+        scenario->start();
+        return;
+    }
+    app.CallAfter([&app, state] { start_when_ready(app, state); });
+}
+
+} // namespace
+} // namespace Slic3r::GUI::JusPrin
+
+int main(int argc, char** argv)
+{
+    using namespace Slic3r;
+    using namespace Slic3r::GUI;
+    using namespace Slic3r::GUI::JusPrin;
+
+    const fs::path original_directory = fs::current_path();
+    const fs::path data_directory = fs::temp_directory_path() / fs::unique_path("jusprin-shell-%%%%-%%%%-%%%%");
+    fs::create_directories(data_directory / "log");
+
+    auto state = std::make_shared<HarnessState>();
+    std::vector<char*> gui_arguments;
+    gui_arguments.reserve(static_cast<std::size_t>(argc));
+    gui_arguments.emplace_back(argv[0]);
+    for (int index = 1; index < argc; ++index) {
+        const std::string argument(argv[index]);
+        if (argument == "--stock")
+            state->mode = HarnessState::Mode::Stock;
+        else if (argument == "--manual")
+            state->mode = HarnessState::Mode::Manual;
+        else
+            gui_arguments.emplace_back(argv[index]);
+    }
+
+    {
+        std::ifstream base(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/OrcaSlicer.conf");
+        std::string   config((std::istreambuf_iterator<char>(base)), std::istreambuf_iterator<char>());
+        if (state->mode == HarnessState::Mode::Stock) {
+            const std::string anchor = "\"language\": \"en_US\",";
+            config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
+        }
+        std::ofstream out((data_directory / "OrcaSlicer.conf").string());
+        out << config;
+    }
+
+    const fs::path resources = fs::path(JUSPRIN_SOURCE_DIR) / "resources";
+    set_resources_dir(resources.string());
+    set_var_dir((resources / "images").string());
+    set_local_dir((resources / "i18n").string());
+    set_sys_shapes_dir((resources / "shapes").string());
+    set_custom_gcodes_dir((resources / "custom_gcodes").string());
+    set_data_dir(data_directory.string());
+    set_temporary_dir(data_directory.string());
+    save_main_thread_id();
+
+    std::thread installer([state] {
+        while (!state->stop && std::chrono::steady_clock::now() < state->deadline) {
+            if (auto* app = dynamic_cast<GUI_App*>(wxApp::GetInstance())) {
+                app->CallAfter([app, state] { start_when_ready(*app, state); });
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        state->result = 1;
+        state->stop = true;
+    });
+
+    GUI_InitParams params;
+    params.argc = static_cast<int>(gui_arguments.size());
+    params.argv = gui_arguments.data();
+    const int gui_result = GUI_Run(params);
+    state->stop = true;
+    installer.join();
+
+    fs::current_path(original_directory);
+    if (state->result == 0)
+        fs::remove_all(data_directory);
+    else
+        std::cerr << "HARNESS DATA DIR kept for inspection: " << data_directory.string() << '\n';
+    if (state->mode == HarnessState::Mode::Manual)
+        return gui_result;
+    if (state->result < 0)
+        return gui_result == 0 ? 1 : gui_result;
+    return state->result;
+}

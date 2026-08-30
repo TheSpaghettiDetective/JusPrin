@@ -55,6 +55,7 @@
 #include "UnsavedChangesDialog.hpp"
 #include "MsgDialog.hpp"
 #include "Notebook.hpp"
+#include "JusPrin/Shell/ShellController.hpp"
 #include "GUI_Factories.hpp"
 #include "GUI_ObjectList.hpp"
 #include "NotificationManager.hpp"
@@ -535,6 +536,9 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
     // initialize layout from config
     update_layout();
     sizer->SetSizeHints(this);
+    // JusPrin: the one shell attachment point; keeps the stock presentation
+    // whenever the fork-owned shell declines or fails to install.
+    JusPrin::attach_shell(*this, m_tabpanel, m_main_sizer);
 
     #ifdef __WXMSW__
     // SetMaximize causes the window to overlap the taskbar, due to the fact this window has wxMAXIMIZE_BOX off

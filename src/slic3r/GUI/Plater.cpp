@@ -5695,6 +5695,8 @@ void Plater::priv::enable_sidebar(bool enabled)
 {
     if (q->m_only_gcode)
         enabled = false;
+    if (!q->m_sidebar_available)
+        enabled = false;
 
     sidebar_layout.is_enabled = enabled;
     update_sidebar();
@@ -14604,6 +14606,12 @@ void Plater::show_view3D_overhang(bool show)  {  p->show_view3D_overhang(show); 
 
 bool Plater::is_sidebar_enabled() const { return p->sidebar_layout.is_enabled; }
 void Plater::enable_sidebar(bool enabled) { p->enable_sidebar(enabled); }
+
+void Plater::set_sidebar_available(bool available)
+{
+    m_sidebar_available = available;
+    p->enable_sidebar(available);
+}
 bool Plater::is_sidebar_collapsed() const { return p->sidebar_layout.is_collapsed; }
 void Plater::collapse_sidebar(bool collapse) { p->collapse_sidebar(collapse); }
 Sidebar::DockingState Plater::get_sidebar_docking_state() const { return p->get_sidebar_docking_state(); }

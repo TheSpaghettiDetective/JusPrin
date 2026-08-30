@@ -365,6 +365,11 @@ public:
     bool only_gcode_mode() { return m_only_gcode; }
     void set_only_gcode(bool only_gcode) { m_only_gcode = only_gcode; }
 
+    // Persistent sidebar presentation policy: while the sidebar is marked
+    // unavailable, later view and project-load paths must not remount it.
+    bool is_sidebar_available() const { return m_sidebar_available; }
+    void set_sidebar_available(bool available);
+
     //BBS: add only gcode mode
     bool using_exported_file() { return m_exported_file; }
     void set_using_exported_file(bool exported_file) {
@@ -957,6 +962,7 @@ private:
     wxString m_last_loaded_gcode;
     //BBS: add only gcode mode
     bool m_only_gcode { false };//just for .gcode file not for .gcode.3mf
+    bool m_sidebar_available { true };
     bool m_exported_file { false };
     bool skip_thumbnail_invalid { false };
     bool m_loading_project { false };

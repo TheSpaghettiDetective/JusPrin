@@ -60,3 +60,4 @@ add_subdirectory(sla_print)
 
 
 add_subdirectory(workspace)
+add_subdirectory(shell)

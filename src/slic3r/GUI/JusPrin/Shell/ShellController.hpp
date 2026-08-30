@@ -1,0 +1,78 @@
+#pragma once
+
+#include "ShellTheme.hpp"
+
+#include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
+
+#include <memory>
+
+class wxSizer;
+class wxBoxSizer;
+class Notebook;
+
+namespace Slic3r::GUI {
+class MainFrame;
+class Plater;
+}
+
+namespace Slic3r::GUI::JusPrin {
+
+class AgentPane;
+class StatusRow;
+
+// Installs the JusPrin production presentation inside the existing MainFrame
+// layout and can restore the stock presentation exactly. The stock widget
+// hierarchy stays constructed and functional: the Notebook keeps its pages and
+// selection flow, only its tab strip is hidden, and the Plater sidebar is held
+// hidden through Plater's sidebar-availability policy.
+class ShellController
+{
+public:
+    ShellController() = default;
+    ~ShellController();
+
+    ShellController(const ShellController&) = delete;
+    ShellController& operator=(const ShellController&) = delete;
+
+    // Throws on failure after restoring any partial change; the caller may
+    // then continue with the untouched stock presentation.
+    void install(MainFrame& frame, Notebook& tabpanel, wxSizer& main_sizer);
+    void uninstall();
+    bool is_installed() const { return m_installed; }
+
+    StatusRow* status_row() const { return m_status_row; }
+    AgentPane* agent_pane() const { return m_agent_pane; }
+
+    void apply_current_appearance();
+
+private:
+    ShellTheme m_theme;
+
+    MainFrame* m_frame{nullptr};
+    Notebook*  m_tabpanel{nullptr};
+    wxSizer*   m_main_sizer{nullptr};
+    Plater*    m_plater{nullptr};
+
+    StatusRow* m_status_row{nullptr};
+    AgentPane* m_agent_pane{nullptr};
+    wxBoxSizer* m_center_sizer{nullptr};
+
+    bool m_installed{false};
+    bool m_saved_collapse_toolbar_enabled{false};
+    CanvasPresentationController m_prepare_canvas_presentation;
+};
+
+// The one MainFrame attachment point. Decides whether the shell should be
+// installed for this session, installs it, and falls back to the untouched
+// stock presentation when installation fails. Never throws.
+void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer);
+
+// The controller installed by attach_shell, if any (used by tests and later
+// phases; returns nullptr in stock mode).
+ShellController* installed_shell();
+
+// Removes the shell installed by attach_shell and restores the stock
+// presentation. Safe to call when no shell is installed.
+void detach_shell();
+
+} // namespace Slic3r::GUI::JusPrin

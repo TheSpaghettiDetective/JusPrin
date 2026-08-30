@@ -24,12 +24,17 @@ GLCanvasPresentationOptions CanvasPresentationController::presentation_options()
 
 void CanvasPresentationController::attach(GLCanvas3D& canvas)
 {
+    attach(canvas, presentation_options());
+}
+
+void CanvasPresentationController::attach(GLCanvas3D& canvas, const GLCanvasPresentationOptions& options)
+{
     if (m_canvas == &canvas)
         return;
     detach();
     m_canvas = &canvas;
     m_previous_options = canvas.presentation_options();
-    canvas.set_presentation_options(presentation_options());
+    canvas.set_presentation_options(options);
 }
 
 void CanvasPresentationController::detach()

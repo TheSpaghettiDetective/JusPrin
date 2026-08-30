@@ -17,7 +17,15 @@ public:
     CanvasPresentationController& operator=(const CanvasPresentationController&) = delete;
 
     void attach(GLCanvas3D& canvas);
+    void attach(GLCanvas3D& canvas, const GLCanvasPresentationOptions& options);
     void detach();
+    // Forget the canvas without restoring it: for teardown paths where the
+    // canvas is already being destroyed and must not be touched again.
+    void abandon()
+    {
+        m_previous_options.reset();
+        m_canvas = nullptr;
+    }
     bool is_attached() const { return m_canvas != nullptr; }
 
     bool activate_move();
