@@ -2,6 +2,16 @@
 
 OrcaSlicer — open-source C++17 3D slicer. wxWidgets GUI, CMake build system.
 
+## Error handling discipline
+
+- Do not catch an error merely because it can be caught. Catch only when the code can recover, translate the error at an abstraction boundary, or add context that is essential for diagnosis. Logging alone is not recovery.
+- Represent expected states with normal control flow, not exceptions.
+- Never turn an invariant violation or an "impossible" state into success or a silent no-op. Fix the invalid transition at the layer that owns the decision and let unexpected failures propagate to Sentry.
+- Avoid duplicating defensive checks across layers. Keep lower-level operations strict, with their preconditions enforced by the caller that owns the workflow.
+- If concurrency makes an invalid state reachable, fix the ordering or synchronization instead of suppressing the resulting error.
+- Suppress an error only when it is genuinely expected and safely recoverable; document the reason and cover it with a test. Never broadly swallow unexpected errors.
+- Prefer removing the root cause over reducing the visibility of its symptoms. Tests should encode valid transitions and assert that invalid ones remain visible.
+
 ## Build Commands
 
 ```bash
