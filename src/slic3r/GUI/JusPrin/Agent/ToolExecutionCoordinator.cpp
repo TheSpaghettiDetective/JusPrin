@@ -63,7 +63,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
 
     ToolActivity activity;
-    activity.action_id         = "t-" + std::to_string(m_next_action_id++);
+    activity.action_id         = m_action_id_allocator ? m_action_id_allocator() : "t-" + std::to_string(m_next_action_id++);
     activity.correlation_id    = correlation_id;
     activity.server            = kServerName;
     activity.tool              = request.tool;

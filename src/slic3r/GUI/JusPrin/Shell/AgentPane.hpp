@@ -3,6 +3,7 @@
 #include "ShellTheme.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <wx/panel.h>
@@ -17,10 +18,11 @@ class AgentWebView;
 class AgentPane : public wxPanel
 {
 public:
-    AgentPane(wxWindow*                parent,
-              const ShellTheme&        theme,
-              Workspace::IWorkspace&   workspace,
-              Agent::AgentAvailability availability);
+    AgentPane(wxWindow*                  parent,
+              const ShellTheme&          theme,
+              Workspace::IWorkspace&     workspace,
+              Agent::ProjectPersistence& persistence,
+              Agent::AgentAvailability   availability);
 
     void apply_appearance(bool dark);
 

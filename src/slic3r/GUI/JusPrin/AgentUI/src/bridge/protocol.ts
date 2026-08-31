@@ -16,7 +16,11 @@ export type PageMessageType =
   | 'stop_generation'
   | 'retry_message'
   | 'tool_decision'
-  | 'tool_cancel';
+  | 'tool_cancel'
+  | 'create_conversation'
+  | 'switch_conversation'
+  | 'revert_to_revision'
+  | 'draft_update';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -32,6 +36,7 @@ export type HostMessageType =
   | 'assistant_failed'
   | 'assistant_stopped'
   | 'tool_activity'
+  | 'revision_added'
   | 'bridge_error';
 
 export interface Envelope<T = unknown> {
@@ -115,12 +120,35 @@ export interface ToolActivityInfo {
   error?: { code: string; message: string };
 }
 
+export interface ConversationInfo {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
+// One entry of the linear manufacturing-revision timeline shared by every
+// conversation. `revertible` is false when the checkpoint could not be
+// captured; `current` marks the project's present revision.
+export interface RevisionInfo {
+  id: string;
+  createdAt: string;
+  cause: string;
+  conversationId: string;
+  afterMessageId: string;
+  current: boolean;
+  revertible: boolean;
+}
+
 export interface StatePayload {
   agent: { status: AgentStatus };
   appearance: Appearance;
-  conversation: WireMessage[];
+  conversations: ConversationInfo[];
+  activeConversationId: string;
+  conversation: WireMessage[]; // messages of the active conversation
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
+  revisions: RevisionInfo[];
+  draft: string;
   context: WorkspaceContext;
 }
 

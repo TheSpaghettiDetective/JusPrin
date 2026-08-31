@@ -362,6 +362,24 @@ public:
     virtual CommandResult remove_object(ObjectId id)                            = 0;
     virtual CommandResult undo()                                                = 0;
     virtual CommandResult redo()                                                = 0;
+
+    // Directory for consumer-owned files that belong to the open project and
+    // travel inside its saved archive. The path changes when the
+    // authoritative project is replaced, so consumers must re-resolve it
+    // after every Project change rather than caching it.
+    virtual std::string auxiliary_data_dir() const = 0;
+
+    // Writes the current authoritative project (model, plates, settings) to a
+    // portable project archive at file_path, excluding auxiliary data — so an
+    // archive can serve as a manufacturing-state checkpoint or a clean copy
+    // without dragging consumer files (or other checkpoints) along.
+    virtual CommandResult export_project_archive(const std::string& file_path) = 0;
+
+    // Replaces the current authoritative project with the archive's content.
+    // This is a project replacement: the session changes, prior IDs become
+    // stale, native history is cleared, and a Project change is published.
+    virtual CommandResult restore_project_archive(const std::string& file_path) = 0;
+
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
 };
 

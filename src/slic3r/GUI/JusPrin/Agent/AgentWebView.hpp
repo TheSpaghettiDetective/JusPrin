@@ -27,6 +27,7 @@ public:
     AgentWebView(wxWindow*                        parent,
                  const ShellTheme&                theme,
                  Workspace::IWorkspace&           workspace,
+                 Agent::ProjectPersistence&       persistence,
                  Agent::AgentAvailability         availability);
     ~AgentWebView() override;
 

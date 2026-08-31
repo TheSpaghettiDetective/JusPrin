@@ -8,6 +8,7 @@
 //   --stock    automated stock-mode checks (shell disabled via app config)
 //   --manual   installs nothing extra and leaves the app open for a human
 
+#include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
@@ -49,7 +50,9 @@ struct HarnessState
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
-    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(300)};
+    // Phase 4 added real project saves, reopen, and checkpoint exports on
+    // top of two full slices; 300 s was regularly exhausted mid-flow.
+    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(600)};
     Mode mode{Mode::Shell};
 };
 
@@ -376,6 +379,140 @@ private:
         check(m_plater->model().objects.size() == m_objects_before_tool, "tool_undo_removes_duplicate");
         check(m_plater->redo_project(), "tool_redo_through_orca");
         check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_redo_restores_duplicate");
+        agent_conversations();
+    }
+
+    // Phase 4: conversations, project-owned persistence, save/reopen,
+    // Revert here, import identity, and the clean-sharing copy — all against
+    // the real application and real 3MF archives.
+    Agent::ProjectPersistence& persistence() { return *installed_shell()->persistence(); }
+
+    void agent_conversations()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(persistence().document().has_identity(), "project_document_has_identity");
+        check(persistence().document().conversations().size() == 1, "starts_with_one_conversation");
+        const std::size_t conversations_before = persistence().document().conversations().size();
+
+        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.createConversation()");
+        wait_until(
+            [this, conversations_before] {
+                return persistence().document().conversations().size() == conversations_before + 1;
+            },
+            "conversation_created_via_page", [self = shared_from_this()] {
+                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                const std::size_t messages_before = web_view.host().conversation().size();
+                self->check(messages_before == 0, "new_conversation_starts_empty");
+                WebView::RunScript(web_view.webview(),
+                                   "window.__jusprinTest && window.__jusprinTest.send('what changed so far?')");
+                self->wait_until(
+                    [&web_view] {
+                        const auto& conversation = web_view.host().conversation();
+                        return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Complete;
+                    },
+                    "second_conversation_reply_completes", [self] { self->agent_save_reopen(); });
+            });
+    }
+
+    void agent_save_reopen()
+    {
+        m_saved_project_id  = persistence().document().project_id();
+        m_saved_project_file = (fs::temp_directory_path() / fs::unique_path("jusprin-phase4-%%%%.3mf")).string();
+        // The same strategy Plater::save_project uses, silenced; the
+        // auxiliary dir (with state.json and checkpoints) is included.
+        const auto save_started = std::chrono::steady_clock::now();
+        check(m_plater->export_3mf(boost::filesystem::path(m_saved_project_file),
+                                   SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence) >= 0,
+              "project_saved_with_state");
+        m_save_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - save_started).count();
+        std::ifstream saved(m_saved_project_file, std::ios::binary);
+        const std::string saved_bytes((std::istreambuf_iterator<char>(saved)), std::istreambuf_iterator<char>());
+        m_saved_project_bytes = saved_bytes.size();
+        check(saved_bytes.find("JusPrin/state.json") != std::string::npos, "saved_archive_contains_state_json");
+        check(saved_bytes.find(".snapshot") != std::string::npos, "saved_archive_contains_checkpoints");
+
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "phase4_new_project");
+        wait_until(
+            [this] {
+                return persistence().document().has_identity() && persistence().document().project_id() != m_saved_project_id;
+            },
+            "new_project_starts_new_identity", [self = shared_from_this()] {
+                self->m_plater->load_project(wxString::FromUTF8(self->m_saved_project_file), "<silence>");
+                self->wait_until(
+                    [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
+                    "saved_state_adopted_on_reopen", [self] {
+                        self->check(self->persistence().document().conversations().size() == 2,
+                                    "saved_conversations_survive_reopen");
+                        const auto messages = self->persistence().document().messages(
+                            self->persistence().document().active_conversation_id());
+                        self->check(!messages.empty(), "saved_messages_survive_reopen");
+                        self->check(!self->persistence().document().revisions().empty(),
+                                    "saved_revisions_survive_reopen");
+                        self->agent_revert_flow();
+                    });
+            });
+    }
+
+    void agent_revert_flow()
+    {
+        const std::size_t objects_before  = m_plater->model().objects.size();
+        const std::string revision_before = persistence().document().current_revision_id();
+        check(!revision_before.empty(), "current_revision_known_after_reopen");
+
+        check(m_plater->duplicate_object(0) >= 0, "native_change_for_revert");
+        wait_until(
+            [this, revision_before] { return persistence().document().current_revision_id() != revision_before; },
+            "native_change_captured_revision", [self = shared_from_this(), objects_before, revision_before] {
+                self->check(self->m_plater->model().objects.size() == objects_before + 1, "native_change_visible");
+                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                WebView::RunScript(web_view.webview(),
+                                   wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.revert('" +
+                                                      revision_before + "')"));
+                self->wait_until(
+                    [self, revision_before] {
+                        return self->persistence().document().current_revision_id() == revision_before;
+                    },
+                    "revert_completed_via_page", [self, objects_before, revision_before] {
+                        self->check(self->m_plater->model().objects.size() == objects_before,
+                                    "revert_restores_native_state");
+                        self->check(!self->m_plater->can_redo_project(), "revert_leaves_no_redo");
+                        const auto revisions = self->persistence().document().revisions();
+                        self->check(!revisions.empty() && revisions.back().id == revision_before,
+                                    "revert_truncates_timeline");
+                        self->agent_import_and_clean_share();
+                    });
+            });
+    }
+
+    void agent_import_and_clean_share()
+    {
+        const std::string identity_before = persistence().document().project_id();
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> imported = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            false);
+        check(imported.size() == 1, "import_adds_content");
+        check(persistence().document().project_id() == identity_before, "import_keeps_project_identity");
+
+        const std::string clean_path = (fs::temp_directory_path() / fs::unique_path("jusprin-clean-%%%%.3mf")).string();
+        check(persistence().export_clean_copy(clean_path).succeeded(), "clean_copy_written");
+        std::ifstream clean(clean_path, std::ios::binary);
+        const std::string clean_bytes((std::istreambuf_iterator<char>(clean)), std::istreambuf_iterator<char>());
+        check(clean_bytes.find("3D/3dmodel.model") != std::string::npos, "clean_copy_is_a_project_archive");
+        check(clean_bytes.find("JusPrin/state.json") == std::string::npos, "clean_copy_has_no_conversation_state");
+        check(clean_bytes.find(".snapshot") == std::string::npos, "clean_copy_has_no_checkpoints");
+
+        const Agent::ProjectPersistence::CheckpointStats& stats = persistence().stats();
+        std::cerr << "HARNESS BENCH checkpoint_captures=" << stats.captures
+                  << " capture_failures=" << stats.capture_failures
+                  << " total_snapshot_bytes=" << stats.total_snapshot_bytes
+                  << " last_capture_ms=" << stats.last_capture_ms
+                  << " last_restore_ms=" << stats.last_restore_ms
+                  << " saved_project_bytes=" << m_saved_project_bytes
+                  << " save_ms=" << m_save_ms << '\n';
+        boost::system::error_code ec;
+        fs::remove(m_saved_project_file, ec);
+        fs::remove(clean_path, ec);
         after_agent();
     }
 
@@ -486,6 +623,10 @@ private:
     bool                          m_finished{false};
     std::uint64_t                 m_wait_ticks{0};
     std::size_t                   m_objects_before_tool{0};
+    std::string                   m_saved_project_id;
+    std::string                   m_saved_project_file;
+    std::size_t                   m_saved_project_bytes{0};
+    double                        m_save_ms{0.0};
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};

@@ -4,6 +4,7 @@ import { Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { ContextSummary } from './components/ContextSummary';
+import { ConversationBar } from './components/ConversationBar';
 import { MessageList } from './components/MessageList';
 import { Composer } from './components/Composer';
 import { AgentUnavailableNotice, BridgeErrorPane, ConnectingPane } from './components/Panels';
@@ -22,6 +23,10 @@ declare global {
       send(text: string): void;
       decide(actionId: string, decision: 'approve' | 'reject'): void;
       cancelTool(actionId: string): void;
+      createConversation(): void;
+      switchConversation(conversationId: string): void;
+      revert(revisionId: string): void;
+      setDraft(text: string): void;
       state(): AgentUiState;
     };
   }
@@ -32,6 +37,7 @@ export interface AppProps {
   handshakeTimeoutMs?: number;
   transportRetryMs?: number;
   transportRetryLimit?: number;
+  draftDebounceMs?: number;
 }
 
 const errorTitles: Partial<Record<ConnectionState, string>> = {
@@ -40,7 +46,7 @@ const errorTitles: Partial<Record<ConnectionState, string>> = {
   incompatible: 'This Agent panel does not match this JusPrin build',
 };
 
-export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transportRetryLimit }: AppProps) {
+export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transportRetryLimit, draftDebounceMs }: AppProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const stateRef = useRef<AgentUiState>(state);
   stateRef.current = state;
@@ -94,11 +100,19 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     client.send('tool_cancel', { actionId });
   };
 
+  const sendRevert = (revisionId: string) => {
+    client.send('revert_to_revision', { revisionId });
+  };
+
   useEffect(() => {
     window.__jusprinTest = {
       send: sendMessage,
       decide: sendToolDecision,
       cancelTool: sendToolCancel,
+      createConversation: () => client.send('create_conversation', {}),
+      switchConversation: (conversationId: string) => client.send('switch_conversation', { conversationId }),
+      revert: sendRevert,
+      setDraft: (text: string) => client.send('draft_update', { text }),
       state: () => stateRef.current,
     };
     return () => {
@@ -123,26 +137,39 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   }
 
   const unavailable = state.agentStatus === 'unavailable';
+  const streaming = state.streamingMessageId !== null;
   return (
     <div className="app">
       <ContextSummary context={state.context} />
+      <ConversationBar
+        conversations={state.conversations}
+        activeConversationId={state.activeConversationId}
+        busy={streaming}
+        onSwitch={(conversationId) => client.send('switch_conversation', { conversationId })}
+        onCreate={() => client.send('create_conversation', {})}
+      />
       {unavailable && <AgentUnavailableNotice />}
       <MessageList
         messages={state.messages}
         streamingMessageId={state.streamingMessageId}
         toolActivities={state.toolActivities}
+        revisions={state.revisions.filter((revision) => revision.conversationId === state.activeConversationId)}
         onRetry={(messageId) => client.send('retry_message', { messageId })}
         onToolDecision={sendToolDecision}
         onToolCancel={sendToolCancel}
+        onRevert={sendRevert}
       />
       <Composer
         disabled={unavailable}
         disabledReason={unavailable ? 'The Agent is not available' : undefined}
-        streaming={state.streamingMessageId !== null}
+        streaming={streaming}
+        initialText={state.draft}
         onSend={sendMessage}
         onStop={() => {
           if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
         }}
+        onDraftChange={(text) => client.send('draft_update', { text })}
+        draftDebounceMs={draftDebounceMs}
       />
     </div>
   );

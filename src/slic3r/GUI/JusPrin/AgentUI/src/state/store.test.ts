@@ -42,12 +42,22 @@ function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityIn
 const statePayload: StatePayload = {
   agent: { status: 'ready' },
   appearance: 'dark',
+  conversations: [
+    { id: 'c-1', title: 'Conversation 1', createdAt: 't' },
+    { id: 'c-2', title: 'Second', createdAt: 't' },
+  ],
+  activeConversationId: 'c-2',
   conversation: [
     { id: 'm-1', role: 'user', state: 'complete', text: 'hi', attempt: 1, clientMessageId: 'c-1' },
     { id: 'm-2', role: 'assistant', state: 'complete', text: 'hello', attempt: 1, inReplyTo: 'm-1' },
   ],
   streamingMessageId: null,
   toolActivities: [toolActivity({ state: 'succeeded', progress: { current: 3, total: 3 } })],
+  revisions: [
+    { id: 'r-1', createdAt: 't', cause: 'initial', conversationId: 'c-1', afterMessageId: '', current: false, revertible: true },
+    { id: 'r-2', createdAt: 't', cause: 'contents', conversationId: 'c-2', afterMessageId: 'm-2', current: true, revertible: true },
+  ],
+  draft: 'unfinished thought',
   context,
 };
 
@@ -61,6 +71,19 @@ describe('store reducer', () => {
     expect(state.streamingMessageId).toBeNull();
     expect(state.toolActivities).toHaveLength(1);
     expect(state.toolActivities[0].state).toBe('succeeded');
+    expect(state.conversations).toHaveLength(2);
+    expect(state.activeConversationId).toBe('c-2');
+    expect(state.revisions).toHaveLength(2);
+    expect(state.draft).toBe('unfinished thought');
+  });
+
+  it('appends revision_added events and moves the current flag', () => {
+    let state = apply(initialState, 'state', statePayload);
+    state = apply(state, 'revision_added', {
+      revision: { id: 'r-3', createdAt: 't', cause: 'transform', conversationId: 'c-2', afterMessageId: 'm-2', current: true, revertible: true },
+    });
+    expect(state.revisions).toHaveLength(3);
+    expect(state.revisions.filter((r) => r.current).map((r) => r.id)).toEqual(['r-3']);
   });
 
   it('upserts tool activities by action id as their lifecycle advances', () => {

@@ -2,10 +2,15 @@
 
 #include "Workspace.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <set>
+#include <sstream>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
@@ -132,25 +137,59 @@ public:
         return CommandResult::success();
     }
 
+    std::string auxiliary_data_dir() const override
+    {
+        if (m_auxiliary_dir.empty())
+            m_auxiliary_dir = fresh_auxiliary_dir();
+        std::filesystem::create_directories(m_auxiliary_dir);
+        return m_auxiliary_dir;
+    }
+
+    CommandResult export_project_archive(const std::string& file_path) override
+    {
+        nlohmann::json archive{{"fakeWorkspaceArchive", 1}, {"snapshot", snapshot_to_json(m_snapshot)}};
+        std::ofstream out(file_path, std::ios::binary | std::ios::trunc);
+        if (!out.is_open())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "The archive path is not writable");
+        out << archive.dump(2);
+        return out.good() ? CommandResult::success() :
+                            CommandResult::failure(WorkspaceError::UnavailableOperation, "Writing the archive failed");
+    }
+
+    CommandResult restore_project_archive(const std::string& file_path) override
+    {
+        std::ifstream in(file_path, std::ios::binary);
+        if (!in.is_open())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The archive does not exist");
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        const nlohmann::json archive = nlohmann::json::parse(buffer.str(), nullptr, false);
+        if (archive.is_discarded() || !archive.is_object() || !archive.contains("snapshot"))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The archive is not a fake workspace archive");
+        // A restore is a project replacement: new session, fresh auxiliary
+        // dir (mirroring the real adapter, whose model adopts a new backup
+        // path), cleared history.
+        replace_project(snapshot_from_json(archive["snapshot"]));
+        return CommandResult::success();
+    }
+
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override
     {
         return m_changes.subscribe(std::move(callback));
     }
 
     // Test/support seam for an authoritative project replacement. All IDs from
-    // the previous session become stale and history starts empty.
-    void replace_project(WorkspaceSnapshot replacement)
-    {
-        m_session = next_session();
-        m_undo.clear();
-        m_redo.clear();
-        m_known_object_ids.clear();
-        m_last_object_id = 0;
-        install_snapshot(std::move(replacement));
-        remember_ids();
-        publish(WorkspaceChangeReasons::Project | WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates |
-                WorkspaceChangeReasons::Selection | WorkspaceChangeReasons::History);
-    }
+    // the previous session become stale, history starts empty, and — like the
+    // real adapter — the auxiliary data dir changes with the project.
+    void replace_project(WorkspaceSnapshot replacement) { replace_project_impl(std::move(replacement), /*keep_aux_dir=*/false); }
+
+    // Test seam mirroring an in-place full reset (Delete All): the project is
+    // replaced but the auxiliary data dir stays where it was.
+    void reset_project_in_place() { replace_project_impl(WorkspaceSnapshot{}, /*keep_aux_dir=*/true); }
+
+    // Test seam for the real adapter's event-before-directory-move ordering:
+    // moves the auxiliary dir without publishing anything.
+    void move_auxiliary_dir_for_testing() { m_auxiliary_dir = fresh_auxiliary_dir(); }
 
     // Test seam for the project/printer facts that Orca owns; the fake treats
     // a setup change like any other committed workspace change.
@@ -194,6 +233,90 @@ private:
     {
         static std::uint64_t next_value = 0;
         return ProjectSessionId(++next_value);
+    }
+
+    void replace_project_impl(WorkspaceSnapshot replacement, bool keep_aux_dir)
+    {
+        m_session = next_session();
+        m_undo.clear();
+        m_redo.clear();
+        m_known_object_ids.clear();
+        m_last_object_id = 0;
+        if (!keep_aux_dir)
+            m_auxiliary_dir = fresh_auxiliary_dir();
+        install_snapshot(std::move(replacement));
+        remember_ids();
+        publish(WorkspaceChangeReasons::Project | WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates |
+                WorkspaceChangeReasons::Selection | WorkspaceChangeReasons::History);
+    }
+
+    static std::string fresh_auxiliary_dir()
+    {
+        static std::uint64_t next_dir = 0;
+        const std::filesystem::path dir = std::filesystem::temp_directory_path() /
+                                          ("jusprin-fake-workspace-" + std::to_string(++next_dir) + "-" +
+                                           std::to_string(static_cast<unsigned long long>(
+                                               reinterpret_cast<std::uintptr_t>(&next_dir))));
+        std::filesystem::create_directories(dir);
+        return dir.string();
+    }
+
+    static nlohmann::json snapshot_to_json(const WorkspaceSnapshot& snapshot)
+    {
+        nlohmann::json plates = nlohmann::json::array();
+        for (const WorkspacePlate& plate : snapshot.plates) {
+            nlohmann::json objects = nlohmann::json::array();
+            for (const WorkspaceObject& object : plate.objects) {
+                nlohmann::json instances = nlohmann::json::array();
+                for (const ObjectTransform& transform : object.instances)
+                    instances.push_back(nlohmann::json{{"position", transform.position},
+                                                       {"rotation", transform.rotation},
+                                                       {"scale", transform.scale}});
+                objects.push_back(nlohmann::json{{"id", object.id.value()}, {"name", object.name},
+                                                 {"instances", std::move(instances)}});
+            }
+            plates.push_back(nlohmann::json{{"id", plate.id.value()}, {"name", plate.name}, {"active", plate.active},
+                                            {"sliced", plate.sliced}, {"objects", std::move(objects)}});
+        }
+        return nlohmann::json{{"setup", nlohmann::json{{"projectName", snapshot.setup.project_name},
+                                                       {"printerPreset", snapshot.setup.printer_preset},
+                                                       {"filamentPreset", snapshot.setup.filament_preset}}},
+                              {"plates", std::move(plates)}};
+    }
+
+    static WorkspaceSnapshot snapshot_from_json(const nlohmann::json& value)
+    {
+        WorkspaceSnapshot snapshot;
+        snapshot.setup.project_name   = value["setup"].value("projectName", "");
+        snapshot.setup.printer_preset = value["setup"].value("printerPreset", "");
+        snapshot.setup.filament_preset = value["setup"].value("filamentPreset", "");
+        for (const nlohmann::json& plate_json : value.value("plates", nlohmann::json::array())) {
+            WorkspacePlate plate;
+            plate.id     = PlateId(ProjectSessionId(1), plate_json.value("id", std::uint64_t(0)));
+            plate.name   = plate_json.value("name", "");
+            plate.active = plate_json.value("active", false);
+            plate.sliced = plate_json.value("sliced", false);
+            for (const nlohmann::json& object_json : plate_json.value("objects", nlohmann::json::array())) {
+                WorkspaceObject object;
+                object.id   = ObjectId(ProjectSessionId(1), object_json.value("id", std::uint64_t(0)));
+                object.name = object_json.value("name", "");
+                for (const nlohmann::json& instance_json : object_json.value("instances", nlohmann::json::array())) {
+                    ObjectTransform transform;
+                    if (instance_json.contains("position"))
+                        transform.position = instance_json["position"].get<std::array<double, 3>>();
+                    if (instance_json.contains("rotation"))
+                        transform.rotation = instance_json["rotation"].get<std::array<double, 3>>();
+                    if (instance_json.contains("scale"))
+                        transform.scale = instance_json["scale"].get<std::array<double, 3>>();
+                    object.instances.push_back(transform);
+                }
+                plate.objects.push_back(std::move(object));
+            }
+            if (plate.active)
+                snapshot.active_plate = plate.id;
+            snapshot.plates.push_back(std::move(plate));
+        }
+        return snapshot;
     }
 
     void install_snapshot(WorkspaceSnapshot snapshot)
@@ -301,6 +424,7 @@ private:
     }
 
     ProjectSessionId              m_session;
+    mutable std::string           m_auxiliary_dir;
     WorkspaceSnapshot             m_snapshot;
     std::vector<WorkspaceSnapshot> m_undo;
     std::vector<WorkspaceSnapshot> m_redo;

@@ -68,9 +68,13 @@ function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
   return {
     agent: { status: 'ready' },
     appearance: 'light',
+    conversations: [{ id: 'conv-1', title: 'Conversation 1', createdAt: 't' }],
+    activeConversationId: 'conv-1',
     conversation: [],
     streamingMessageId: null,
     toolActivities: [],
+    revisions: [],
+    draft: '',
     context,
     ...overrides,
   };
@@ -296,6 +300,72 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Duplicate "cube-a" progress')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('lists conversations, switches, and creates new ones through the bridge', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        conversations: [
+          { id: 'conv-1', title: 'Conversation 1', createdAt: 't' },
+          { id: 'conv-2', title: 'Second', createdAt: 't' },
+        ],
+        activeConversationId: 'conv-1',
+      }),
+    );
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Second' }));
+    const switched = host.lastOfType('switch_conversation');
+    expect(switched!.payload).toEqual({ conversationId: 'conv-2' });
+
+    await userEvent.click(screen.getByLabelText('New conversation'));
+    expect(host.lastOfType('create_conversation')).toBeTruthy();
+  });
+
+  it('renders revision markers and requires explicit confirmation to revert', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        conversation: [{ id: 'm-1', role: 'user', state: 'complete', text: 'change it', attempt: 1 }],
+        revisions: [
+          { id: 'r-1', createdAt: 't', cause: 'initial', conversationId: 'conv-1', afterMessageId: '', current: false, revertible: true },
+          { id: 'r-2', createdAt: 't', cause: 'contents', conversationId: 'conv-1', afterMessageId: 'm-1', current: true, revertible: true },
+        ],
+      }),
+    );
+
+    expect(screen.getByTestId('revision-r-1')).toHaveTextContent('Project start');
+    expect(screen.getByTestId('revision-r-2')).toHaveTextContent('current');
+    // The current revision offers no revert control.
+    expect(screen.getAllByText('Revert here')).toHaveLength(1);
+
+    await userEvent.click(screen.getByText('Revert here'));
+    // Nothing is sent until the destructive action is explicitly confirmed.
+    expect(host.lastOfType('revert_to_revision')).toBeUndefined();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('cannot be undone');
+
+    await userEvent.click(screen.getByText('Keep everything'));
+    expect(host.lastOfType('revert_to_revision')).toBeUndefined();
+
+    await userEvent.click(screen.getByText('Revert here'));
+    await userEvent.click(screen.getByText('Revert permanently'));
+    expect(host.lastOfType('revert_to_revision')!.payload).toEqual({ revisionId: 'r-1' });
+  });
+
+  it('reports the draft to the host and restores it on reconnect', async () => {
+    render(<App getTransport={() => host.transport} draftDebounceMs={1} />);
+    connect(host, emptyState({ draft: 'recovered draft' }));
+
+    const textarea = screen.getByLabelText('Message the Agent');
+    expect(textarea).toHaveValue('recovered draft');
+
+    await userEvent.type(textarea, ' plus more');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const draft = host.lastOfType('draft_update');
+    expect(draft).toBeTruthy();
+    expect((draft!.payload as { text: string }).text).toBe('recovered draft plus more');
   });
 
   it('updates the context header when the native selection changes', () => {

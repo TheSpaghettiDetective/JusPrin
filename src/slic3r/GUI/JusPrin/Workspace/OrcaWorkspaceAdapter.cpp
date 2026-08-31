@@ -1,5 +1,6 @@
 #include "OrcaWorkspaceAdapter.hpp"
 
+#include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
@@ -7,6 +8,8 @@
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
+
+#include <boost/filesystem.hpp>
 
 #include <wx/thread.h>
 
@@ -218,6 +221,55 @@ CommandResult OrcaWorkspaceAdapter::redo()
     wxASSERT(wxIsMainThread());
     if (!m_plater.can_redo_project() || !m_plater.redo_project())
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to redo");
+    return CommandResult::success();
+}
+
+std::string OrcaWorkspaceAdapter::auxiliary_data_dir() const
+{
+    wxASSERT(wxIsMainThread());
+    // The model's auxiliary temp dir is extracted from and repacked into the
+    // project 3MF by Orca's own load/store paths, and its path changes when a
+    // project is loaded or created — resolve it fresh on every call.
+    return m_plater.model().get_auxiliary_file_temp_path();
+}
+
+CommandResult OrcaWorkspaceAdapter::export_project_archive(const std::string& file_path)
+{
+    wxASSERT(wxIsMainThread());
+    // Exporting renders plate thumbnails; before the canvas has initialized
+    // its GL state (early startup), those render calls go through unloaded
+    // function pointers and crash. Refuse honestly instead.
+    GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
+    if (canvas == nullptr || !canvas->is_initialized())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                      "The canvas is not ready to render the archive's thumbnails yet");
+    // SkipAuxiliary keeps consumer files (and earlier checkpoints) out of the
+    // archive; the remaining strategy matches an ordinary project save.
+    const SaveStrategy strategy = SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh |
+                                  SaveStrategy::SkipAuxiliary;
+    if (m_plater.export_3mf(boost::filesystem::path(file_path), strategy) < 0)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project archive could not be written");
+    return CommandResult::success();
+}
+
+CommandResult OrcaWorkspaceAdapter::restore_project_archive(const std::string& file_path)
+{
+    wxASSERT(wxIsMainThread());
+    boost::system::error_code ec;
+    if (!boost::filesystem::is_regular_file(file_path, ec) || boost::filesystem::file_size(file_path, ec) == 0)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The project archive does not exist");
+
+    // The core of Plater::load_project without its dialogs or filename
+    // bookkeeping: one coalesced project-replacement event, the stock reset
+    // and load paths, and no undo history reaching back across the boundary.
+    ProjectStateTransaction transaction = m_plater.project_state_transaction();
+    m_plater.reset(false);
+    const std::vector<boost::filesystem::path> paths{boost::filesystem::path(file_path)};
+    const std::vector<size_t> loaded =
+        m_plater.load_files(paths, LoadStrategy::LoadModel | LoadStrategy::LoadConfig | LoadStrategy::Silence);
+    m_plater.clear_undo_redo_stack_main();
+    if (loaded.empty())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project archive could not be loaded");
     return CommandResult::success();
 }
 

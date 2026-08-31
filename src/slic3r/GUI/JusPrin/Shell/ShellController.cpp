@@ -3,12 +3,14 @@
 #include "AgentPane.hpp"
 #include "StatusRow.hpp"
 
+#include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
+#include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
 #include <wx/sizer.h>
@@ -62,6 +64,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     try {
         m_workspace = std::make_unique<Workspace::OrcaWorkspaceAdapter>(*plater);
 
+        // Conversation and revision state, stored inside the project's
+        // auxiliary directory and mirrored to a per-project local recovery
+        // store under the application data dir.
+        Agent::ProjectPersistence::Config persistence_config;
+        persistence_config.recovery_root = (boost::filesystem::path(data_dir()) / "jusprin" / "recovery").string();
+        m_persistence = std::make_unique<Agent::ProjectPersistence>(*m_workspace, std::move(persistence_config));
+
         // The Agent service (the conversation provider) is a different
         // failure from the bridge: this flag models "service unconfigured",
         // which the page renders as a clean setup state.
@@ -71,7 +80,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 Agent::AgentAvailability::Ready;
 
         m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel);
-        m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, availability);
+        m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, availability);
+
+        // Adopt the currently open project once the host has registered its
+        // listeners, so the initial document reaches the pane too.
+        m_persistence->attach();
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -152,6 +165,7 @@ void ShellController::uninstall()
         m_agent_pane = nullptr;
     }
     // After the pane (and with it the Agent host) is gone.
+    m_persistence.reset();
     m_workspace.reset();
 
     m_frame->Layout();

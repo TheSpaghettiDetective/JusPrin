@@ -37,13 +37,14 @@ boost::filesystem::path agent_page_path()
 
 } // namespace
 
-AgentWebView::AgentWebView(wxWindow*                parent,
-                           const ShellTheme&        theme,
-                           Workspace::IWorkspace&   workspace,
-                           Agent::AgentAvailability availability)
+AgentWebView::AgentWebView(wxWindow*                  parent,
+                           const ShellTheme&          theme,
+                           Workspace::IWorkspace&     workspace,
+                           Agent::ProjectPersistence& persistence,
+                           Agent::AgentAvailability   availability)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
-    , m_host(std::make_unique<Agent::AgentHost>(workspace, availability, GUI_App::dark_mode()))
+    , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode()))
     , m_stream_timer(this, kStreamTimerId)
     , m_handshake_timer(this, kHandshakeTimerId)
 {

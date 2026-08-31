@@ -117,6 +117,66 @@ body {
   color: var(--status-danger);
 }
 
+/* Conversation switcher */
+.conversation-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  overflow-x: auto;
+}
+
+.conversation-bar .conversation-tab {
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-bar .conversation-tab.active {
+  border-bottom-color: var(--action-primary);
+  color: var(--text-primary);
+  background: var(--surface-selected);
+}
+
+.conversation-bar .conversation-new {
+  padding: 6px 10px;
+}
+
+/* Manufacturing revision markers */
+.revision-marker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-self: stretch;
+  padding: 4px 8px;
+  border-left: 3px solid var(--border-strong);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+.revision-marker.current {
+  border-left-color: var(--status-success);
+}
+
+.revision-marker .revision-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--status-danger);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+}
+
 .message-group {
   display: flex;
   flex-direction: column;

@@ -2,6 +2,7 @@
 
 #include "ShellTheme.hpp"
 
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 
@@ -44,6 +45,7 @@ public:
     StatusRow* status_row() const { return m_status_row; }
     AgentPane* agent_pane() const { return m_agent_pane; }
     Workspace::IWorkspace* workspace() const { return m_workspace.get(); }
+    Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
 
     void apply_current_appearance();
 
@@ -62,6 +64,9 @@ private:
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.
     std::unique_ptr<Workspace::OrcaWorkspaceAdapter> m_workspace;
+    // Project-owned conversation state and revision checkpoints; constructed
+    // after the workspace and before the pane, destroyed in reverse.
+    std::unique_ptr<Agent::ProjectPersistence> m_persistence;
 
     bool m_installed{false};
     bool m_saved_collapse_toolbar_enabled{false};

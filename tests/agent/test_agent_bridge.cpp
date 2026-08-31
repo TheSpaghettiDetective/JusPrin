@@ -8,10 +8,12 @@
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <filesystem>
 #include <fstream>
 #include <set>
 
@@ -48,16 +50,34 @@ Workspace::WorkspaceSnapshot two_object_snapshot()
     return snapshot;
 }
 
+ProjectPersistence::Config test_persistence_config()
+{
+    static int next_root = 0;
+    ProjectPersistence::Config config;
+    config.recovery_root = (std::filesystem::temp_directory_path() /
+                            ("jusprin-bridge-recovery-" + std::to_string(++next_root)))
+                               .string();
+    config.clock = []() { return "2026-08-30T00:00:00Z"; };
+    config.uuid  = []() {
+        static int next_uuid = 0;
+        return "test-" + std::to_string(++next_uuid);
+    };
+    return config;
+}
+
 struct Harness
 {
     Workspace::FakeWorkspace workspace;
+    ProjectPersistence       persistence;
     AgentHost                host;
     std::vector<json>        sent;
 
     explicit Harness(AgentAvailability availability = AgentAvailability::Ready)
-        : workspace(two_object_snapshot()), host(workspace, availability, false)
+        : workspace(two_object_snapshot()), persistence(workspace, test_persistence_config()),
+          host(workspace, persistence, availability, false)
     {
         host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
+        persistence.attach();
     }
 
     json page_envelope(const std::string& type, json payload, int version = Protocol::kVersion)
@@ -131,14 +151,17 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
     const std::set<std::string> page_types(shared["pageMessageTypes"].begin(), shared["pageMessageTypes"].end());
     CHECK(page_types == std::set<std::string>{Protocol::kHello, Protocol::kStateRequest, Protocol::kUserMessage,
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
-                                              Protocol::kToolCancel});
+                                              Protocol::kToolCancel, Protocol::kCreateConversation,
+                                              Protocol::kSwitchConversation, Protocol::kRevertToRevision,
+                                              Protocol::kDraftUpdate});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState,
                                               Protocol::kContext, Protocol::kAppearance, Protocol::kAgentStatus,
                                               Protocol::kMessageAdded, Protocol::kAssistantStarted, Protocol::kAssistantDelta,
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
-                                              Protocol::kAssistantStopped, Protocol::kToolActivity, Protocol::kBridgeError});
+                                              Protocol::kAssistantStopped, Protocol::kToolActivity, Protocol::kRevisionAdded,
+                                              Protocol::kBridgeError});
 }
 
 TEST_CASE("handshake negotiates version and reports capabilities, agent status, and state", "[agent][bridge]")
@@ -227,7 +250,7 @@ TEST_CASE("a user message streams a deterministic reply to completion", "[agent]
 
     // The native conversation is authoritative and mentions the fixture.
     REQUIRE(harness.host.conversation().size() == 2);
-    const ConversationMessage& reply = harness.host.conversation().back();
+    const ConversationMessage reply = harness.host.conversation().back();
     CHECK(reply.role == MessageRole::Assistant);
     CHECK(reply.state == MessageState::Complete);
     CHECK_THAT(reply.text, Catch::Matchers::ContainsSubstring("Fixture Project"));
@@ -594,6 +617,143 @@ TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][too
     CHECK(done["state"] == "succeeded");
     CHECK(done["result"]["selection"] == json::array({"cube-a"}));
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
+}
+
+TEST_CASE("conversations are created and switched over the bridge", "[agent][conversations]")
+{
+    Harness harness;
+    harness.handshake();
+
+    // The adopted fresh project starts with one conversation.
+    const json* initial = harness.last_of_type("state");
+    REQUIRE(initial != nullptr);
+    REQUIRE((*initial)["payload"]["conversations"].size() == 1);
+    const std::string first = (*initial)["payload"]["activeConversationId"].get<std::string>();
+
+    harness.send_user_message("hello in the first conversation", "c-c1");
+    harness.pump_all();
+
+    harness.deliver("create_conversation", json{{"title", "Second"}});
+    const json* created = harness.last_of_type("state");
+    REQUIRE((*created)["payload"]["conversations"].size() == 2);
+    const std::string second = (*created)["payload"]["activeConversationId"].get<std::string>();
+    CHECK(second != first);
+    CHECK((*created)["payload"]["conversation"].empty());
+
+    harness.send_user_message("hello in the second conversation", "c-c2");
+    harness.pump_all();
+    CHECK(harness.host.conversation().size() == 2);
+
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    const json* switched = harness.last_of_type("state");
+    CHECK((*switched)["payload"]["activeConversationId"] == first);
+    CHECK((*switched)["payload"]["conversation"][0]["text"] == "hello in the first conversation");
+
+    SECTION("switching to an unknown conversation is refused") {
+        harness.deliver("switch_conversation", json{{"conversationId", "c-999"}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_conversation");
+    }
+
+    SECTION("changing conversations is refused while a reply streams") {
+        harness.send_user_message("/slow tell me more", "c-c3");
+        REQUIRE(harness.host.stream_active());
+        harness.deliver("create_conversation", json::object());
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+        harness.deliver("switch_conversation", json{{"conversationId", second}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+        harness.pump_all();
+    }
+}
+
+TEST_CASE("the draft lives in the recovery store and clears when sent", "[agent][draft]")
+{
+    Harness harness;
+    harness.handshake();
+
+    harness.deliver("draft_update", json{{"text", "half-typed thought"}});
+    CHECK(harness.persistence.draft() == "half-typed thought");
+
+    harness.deliver("state_request");
+    CHECK((*harness.last_of_type("state"))["payload"]["draft"] == "half-typed thought");
+
+    harness.send_user_message("half-typed thought, finished", "c-d1");
+    CHECK(harness.persistence.draft().empty());
+    harness.pump_all();
+}
+
+TEST_CASE("manufacturing changes surface as revisions over the bridge", "[agent][revisions]")
+{
+    Harness harness;
+    harness.handshake();
+
+    // Adoption captured the initial revision before the handshake.
+    const json* state = harness.last_of_type("state");
+    REQUIRE((*state)["payload"]["revisions"].size() == 1);
+    CHECK((*state)["payload"]["revisions"][0]["cause"] == "initial");
+    CHECK((*state)["payload"]["revisions"][0]["current"] == true);
+
+    const Workspace::WorkspaceSnapshot before = harness.workspace.snapshot();
+    REQUIRE(harness.workspace.rename_object(before.plates[0].objects[0].id, "renamed-cube").succeeded());
+
+    const json* added = harness.last_of_type("revision_added");
+    REQUIRE(added != nullptr);
+    CHECK((*added)["payload"]["revision"]["current"] == true);
+    CHECK((*added)["payload"]["revision"]["revertible"] == true);
+
+    SECTION("selection changes do not create revisions") {
+        const std::size_t revision_events = harness.of_type("revision_added").size();
+        REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[1].id).succeeded());
+        CHECK(harness.of_type("revision_added").size() == revision_events);
+    }
+}
+
+TEST_CASE("revert here restores native state and truncates every conversation", "[agent][revert]")
+{
+    Harness harness;
+    harness.handshake();
+
+    harness.send_user_message("first message", "c-r1");
+    harness.pump_all();
+
+    // The revert target: the revision created by the first change. The first
+    // exchange happened before it and survives; everything after it goes.
+    REQUIRE(harness.workspace.rename_object(harness.workspace.snapshot().plates[0].objects[0].id, "renamed-once").succeeded());
+    const std::string target_revision = harness.persistence.document().current_revision_id();
+
+    REQUIRE(harness.workspace.rename_object(harness.workspace.snapshot().plates[0].objects[0].id, "renamed-twice").succeeded());
+    harness.send_user_message("second message, after the change", "c-r2");
+    harness.pump_all();
+    harness.deliver("create_conversation", json{{"title", "Later"}});
+    harness.send_user_message("third message in a later conversation", "c-r3");
+    harness.pump_all();
+    REQUIRE(harness.persistence.document().conversations().size() == 2);
+
+    harness.deliver("revert_to_revision", json{{"revisionId", target_revision}});
+
+    // The native project is back at the target revision's state...
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].name == "renamed-once");
+    // ...the reconstructed state was pushed...
+    const json* state = harness.last_of_type("state");
+    REQUIRE(state != nullptr);
+    // ...later editable entries are gone across every conversation: the
+    // post-change message and the whole later conversation.
+    CHECK((*state)["payload"]["conversations"].size() == 1);
+    const json& conversation = (*state)["payload"]["conversation"];
+    REQUIRE(conversation.size() == 2);
+    CHECK(conversation[0]["text"] == "first message");
+    // ...and later revisions are removed with the target current again.
+    for (const json& revision : (*state)["payload"]["revisions"])
+        CHECK(revision["current"] == (revision["id"] == target_revision));
+    CHECK(harness.persistence.document().current_revision_id() == target_revision);
+    // Native history keeps no redo path back to the removed state.
+    CHECK_FALSE(harness.workspace.snapshot().can_redo);
+
+    SECTION("reverting to an unknown revision fails without changes") {
+        const std::size_t conversation_count = harness.host.conversation().size();
+        harness.deliver("revert_to_revision", json{{"revisionId", "r-999"}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "revert_failed");
+        CHECK(harness.host.conversation().size() == conversation_count);
+    }
 }
 
 TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")

@@ -7,7 +7,9 @@ import {
   AgentErrorInfo,
   AgentStatus,
   Appearance,
+  ConversationInfo,
   Envelope,
+  RevisionInfo,
   StatePayload,
   ToolActivityInfo,
   WireMessage,
@@ -24,9 +26,13 @@ export interface AgentUiState {
   connectionDetail?: string;
   agentStatus: AgentStatus;
   appearance: Appearance;
+  conversations: ConversationInfo[];
+  activeConversationId: string;
   messages: Message[];
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
+  revisions: RevisionInfo[];
+  draft: string;
   context: WorkspaceContext | null;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
@@ -38,9 +44,13 @@ export const initialState: AgentUiState = {
   connection: 'connecting',
   agentStatus: 'ready',
   appearance: 'light',
+  conversations: [],
+  activeConversationId: '',
   messages: [],
   streamingMessageId: null,
   toolActivities: [],
+  revisions: [],
+  draft: '',
   context: null,
   needsResync: false,
   diagnostics: [],
@@ -98,9 +108,13 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         ...state,
         agentStatus: full.agent.status,
         appearance: full.appearance,
+        conversations: full.conversations ?? [],
+        activeConversationId: full.activeConversationId ?? '',
         messages: full.conversation.map(fromWire),
         streamingMessageId: full.streamingMessageId,
         toolActivities: full.toolActivities ?? [],
+        revisions: full.revisions ?? [],
+        draft: full.draft ?? '',
         context: full.context,
         needsResync: false,
       };
@@ -172,6 +186,13 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         messages: upsert(state.messages, { ...message, state: 'stopped' }),
         streamingMessageId: state.streamingMessageId === id ? null : state.streamingMessageId,
       };
+    }
+    case 'revision_added': {
+      const revision = payload.revision as RevisionInfo;
+      const cleared = state.revisions.map((r) => ({ ...r, current: false }));
+      const index = cleared.findIndex((r) => r.id === revision.id);
+      const revisions = index < 0 ? [...cleared, revision] : cleared.map((r, i) => (i === index ? revision : r));
+      return { ...state, revisions };
     }
     case 'tool_activity': {
       const activity = payload.activity as ToolActivityInfo;

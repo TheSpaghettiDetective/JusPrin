@@ -30,6 +30,14 @@ public:
 
     void set_listener(ActivityCallback listener) { m_listener = std::move(listener); }
 
+    // Action IDs default to a process-local counter; an owner with persisted
+    // state injects its own allocator so IDs stay unique across restarts.
+    void set_action_id_allocator(std::function<std::string()> allocator) { m_action_id_allocator = std::move(allocator); }
+
+    // Drops every record. For project replacement: the records belong to the
+    // previous project session and any persisted history keeps its own copy.
+    void clear() { m_activities.clear(); }
+
     // Creates a Pending record stamped with the current workspace session and
     // revision. Read-only actions are approved immediately by policy; every
     // other class waits for a user decision. Returns the new record.
@@ -63,6 +71,7 @@ private:
     Workspace::IWorkspace&           m_workspace;
     Workspace::WorkspaceSubscription m_workspace_subscription;
     ActivityCallback                 m_listener;
+    std::function<std::string()>     m_action_id_allocator;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
 };
