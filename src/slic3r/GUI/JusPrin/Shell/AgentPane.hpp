@@ -3,6 +3,7 @@
 #include "ShellTheme.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
@@ -22,7 +23,8 @@ public:
               const ShellTheme&          theme,
               Workspace::IWorkspace&     workspace,
               Agent::ProjectPersistence& persistence,
-              Agent::AgentAvailability   availability);
+              Agent::AgentAvailability   availability,
+              Agent::AgentServicePtr      agent = {});
 
     void apply_appearance(bool dark);
 

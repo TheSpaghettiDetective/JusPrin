@@ -216,6 +216,8 @@ describe('App', () => {
     );
 
     expect(screen.getByTestId('agent-unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/requires your consent to send your message/)).toBeInTheDocument();
+    expect(screen.getByText(/only the attachments you include/)).toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
     expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
   });

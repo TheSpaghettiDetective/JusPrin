@@ -1,0 +1,255 @@
+#include <catch2/catch_all.hpp>
+
+#include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+
+#include <nlohmann/json.hpp>
+
+using namespace Slic3r::GUI::JusPrin::Agent;
+namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
+using nlohmann::json;
+
+namespace {
+
+class FakeTransport final : public IAgentHttpTransport
+{
+public:
+    bool post(AgentHttpRequest request, EventFn event) override
+    {
+        requests.push_back(std::move(request));
+        callbacks.push_back(std::move(event));
+        return accept_posts;
+    }
+    void cancel() override { cancelled = true; }
+
+    void data(std::string value) { callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Data, std::move(value), {}, 0}); }
+    void complete() { callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, 200}); }
+    void error(unsigned status, std::string detail = {})
+    {
+        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, std::move(detail), status});
+    }
+
+    std::vector<AgentHttpRequest> requests;
+    std::vector<EventFn> callbacks;
+    bool cancelled{false};
+    bool accept_posts{true};
+};
+
+std::string sse(const json& event) { return "event: message\ndata: " + event.dump() + "\n\n"; }
+
+AgentRequest request_fixture()
+{
+    AgentRequest request;
+    request.request_id = "assistant-7-attempt-1";
+    request.user_text = "Duplicate the selected cube.";
+    request.workspace.session = Workspace::ProjectSessionId(41);
+    request.workspace.revision = 9;
+    request.workspace.setup.project_name = "Fixture";
+    Workspace::WorkspaceObject object;
+    object.id = Workspace::ObjectId(request.workspace.session, 72);
+    object.name = "cube";
+    Workspace::WorkspacePlate plate;
+    plate.id = Workspace::PlateId(request.workspace.session, 3);
+    plate.name = "Plate 1";
+    plate.active = true;
+    plate.objects.push_back(object);
+    request.workspace.plates.push_back(plate);
+    request.workspace.selected_objects.push_back(object.id);
+    request.conversation.push_back({"assistant", "Earlier answer"});
+    request.attachments.push_back({"att-1", "notes.txt", "text", "text/plain", "", "do not scale", "", false});
+    return request;
+}
+
+std::optional<AgentEvent> poll_until(OpenAIResponsesAgent& agent, AgentEventKind kind)
+{
+    for (int i = 0; i < 20; ++i) {
+        auto event = agent.poll();
+        if (event && event->kind == kind)
+            return event;
+    }
+    return std::nullopt;
+}
+
+} // namespace
+
+TEST_CASE("OpenAI request carries bounded native context and strict tools", "[agent][openai]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"},
+                               std::move(transport));
+
+    REQUIRE(agent.start(request_fixture()));
+    REQUIRE(fake->requests.size() == 1);
+    const AgentHttpRequest& wire = fake->requests.front();
+    CHECK(wire.authorization == "Bearer secret-key");
+    CHECK(wire.idempotency_key == "assistant-7-attempt-1-request-1");
+    CHECK(wire.body.find("secret-key") == std::string::npos);
+    const json body = json::parse(wire.body);
+    CHECK(body["model"] == "gpt-5.4-mini");
+    CHECK(body["stream"] == true);
+    CHECK(body["store"] == false);
+    CHECK(body["parallel_tool_calls"] == false);
+    REQUIRE(body["tools"].size() == 2);
+    for (const json& tool : body["tools"]) {
+        CHECK(tool["strict"] == true);
+        CHECK(tool["parameters"]["additionalProperties"] == false);
+    }
+    const std::string serialized = body["input"].dump();
+    CHECK(serialized.find("sessionId") != std::string::npos);
+    CHECK(serialized.find("72") != std::string::npos);
+    CHECK(serialized.find("do not scale") != std::string::npos);
+}
+
+TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent][openai]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    const std::string first = sse(json{{"type", "response.output_text.delta"}, {"delta", "Done"}});
+    fake->data(first.substr(0, 17));
+    CHECK_FALSE(agent.poll().has_value());
+    fake->data(first.substr(17) + sse(json{{"type", "response.completed"},
+                                          {"response", json{{"output", json::array()}}}}));
+    fake->complete();
+    const auto delta = poll_until(agent, AgentEventKind::TextDelta);
+    REQUIRE(delta);
+    CHECK(delta->text == "Done");
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    CHECK_FALSE(agent.busy());
+}
+
+TEST_CASE("OpenAI consumes a final SSE frame without a trailing delimiter", "[agent][openai]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json completed{{"type", "response.completed"}, {"response", json{{"output", json::array()}}}};
+    fake->data("event: response.completed\r\ndata: " + completed.dump());
+    fake->complete();
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    CHECK_FALSE(agent.busy());
+}
+
+TEST_CASE("OpenAI tool result continuation preserves response output", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
+    const json call{{"type", "function_call"}, {"id", "item-1"}, {"call_id", "call-9"},
+                    {"name", "duplicate_object"},
+                    {"arguments", json{{"sessionId", "41"}, {"objectId", "72"}}.dump()}};
+    fake->data(sse(json{{"type", "response.completed"},
+                        {"response", json{{"output", json::array({reasoning, call})}}}}));
+    fake->complete();
+    const auto event = poll_until(agent, AgentEventKind::ToolCall);
+    REQUIRE(event);
+    REQUIRE(event->tool);
+    CHECK(event->tool->call_id == "call-9");
+    CHECK(event->tool->request.tool == "duplicate_object");
+    CHECK(agent.busy());
+
+    REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded","result":{"objectId":"73"}})"}));
+    REQUIRE(fake->requests.size() == 2);
+    CHECK(fake->requests.back().idempotency_key == "assistant-7-attempt-1-request-2");
+    const json continuation = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(continuation.size() == 3);
+    CHECK(continuation[0] == reasoning);
+    CHECK(continuation[1] == call);
+    CHECK(continuation[2]["type"] == "function_call_output");
+    CHECK(continuation[2]["call_id"] == "call-9");
+}
+
+TEST_CASE("a late completion from the tool-call request cannot end its continuation", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    const json call{{"type", "function_call"}, {"call_id", "call-9"}, {"name", "duplicate_object"},
+                    {"arguments", json{{"sessionId", "41"}, {"objectId", "72"}}.dump()}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded"})"}));
+
+    // The first request's libcurl completion can race with page approval and
+    // arrive after the continuation has already started.
+    fake->callbacks.front()(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, 200});
+    CHECK_FALSE(agent.poll());
+    CHECK(agent.busy());
+
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array()}}}}));
+    fake->complete();
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    CHECK_FALSE(agent.busy());
+}
+
+TEST_CASE("OpenAI errors are safe and actionable", "[agent][openai][errors]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    fake->error(429, "sensitive upstream body");
+    const auto event = poll_until(agent, AgentEventKind::Failed);
+    REQUIRE(event);
+    REQUIRE(event->error);
+    CHECK(event->error->code == "rate_limited");
+    CHECK(event->error->retryable);
+    CHECK(event->error->message.find("sensitive") == std::string::npos);
+
+    REQUIRE(agent.start(request_fixture()));
+    fake->data("data: not-json\n\n");
+    const auto malformed = poll_until(agent, AgentEventKind::Failed);
+    REQUIRE(malformed);
+    CHECK(malformed->error->code == "malformed_response");
+
+    REQUIRE(agent.start(request_fixture()));
+    agent.cancel();
+    CHECK(fake->cancelled);
+    CHECK_FALSE(agent.busy());
+}
+
+TEST_CASE("OpenAI maps credential timeout and service errors", "[agent][openai][errors]")
+{
+    struct Case { unsigned status; const char* detail; const char* code; bool retryable; };
+    const Case cases[] = {{401, "body omitted", "invalid_credentials", false},
+                          {0, "Operation timed out", "timeout", true},
+                          {503, "body omitted", "service_unavailable", true}};
+    for (const Case& item : cases) {
+        auto transport = std::make_unique<FakeTransport>();
+        FakeTransport* fake = transport.get();
+        OpenAIResponsesAgent agent({"key"}, std::move(transport));
+        REQUIRE(agent.start(request_fixture()));
+        fake->error(item.status, item.detail);
+        const auto event = poll_until(agent, AgentEventKind::Failed);
+        REQUIRE(event);
+        REQUIRE(event->error);
+        CHECK(event->error->code == item.code);
+        CHECK(event->error->retryable == item.retryable);
+    }
+}
+
+TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json call{{"type", "function_call"}, {"call_id", "call-bad"}, {"name", "duplicate_object"},
+                    {"arguments", json{{"objectId", 72}}.dump()}};
+    fake->data(sse(json{{"type", "response.completed"},
+                        {"response", json{{"output", json::array({call})}}}}));
+    fake->complete();
+    const auto event = poll_until(agent, AgentEventKind::Failed);
+    REQUIRE(event);
+    REQUIRE(event->error);
+    CHECK(event->error->code == "malformed_tool_call");
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+}

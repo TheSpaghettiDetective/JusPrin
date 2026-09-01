@@ -4,6 +4,7 @@
 #include "StatusRow.hpp"
 
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -71,16 +72,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         persistence_config.recovery_root = (boost::filesystem::path(data_dir()) / "jusprin" / "recovery").string();
         m_persistence = std::make_unique<Agent::ProjectPersistence>(*m_workspace, std::move(persistence_config));
 
-        // The Agent service (the conversation provider) is a different
-        // failure from the bridge: this flag models "service unconfigured",
-        // which the page renders as a clean setup state.
-        const Agent::AgentAvailability availability =
-            (wxGetApp().app_config != nullptr && wxGetApp().app_config->get("jusprin_agent") == "0") ?
-                Agent::AgentAvailability::Unavailable :
-                Agent::AgentAvailability::Ready;
+        Agent::AgentRuntime agent = Agent::load_agent_runtime(wxGetApp().app_config);
 
         m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel);
-        m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, availability);
+        m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, agent.availability,
+                                     std::move(agent.service));
 
         // Adopt the currently open project once the host has registered its
         // listeners, so the initial document reaches the pane too.

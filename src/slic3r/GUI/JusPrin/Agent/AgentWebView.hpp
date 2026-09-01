@@ -28,7 +28,8 @@ public:
                  const ShellTheme&                theme,
                  Workspace::IWorkspace&           workspace,
                  Agent::ProjectPersistence&       persistence,
-                 Agent::AgentAvailability         availability);
+                 Agent::AgentAvailability         availability,
+                 Agent::AgentServicePtr            agent = {});
     ~AgentWebView() override;
 
     void apply_appearance(bool dark);

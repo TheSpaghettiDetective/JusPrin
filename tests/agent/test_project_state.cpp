@@ -11,8 +11,10 @@
 
 #include <nlohmann/json.hpp>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -82,9 +84,18 @@ ProjectPersistence::Config config_with_recovery(const std::string& recovery_root
 std::string unique_temp_dir(const char* label)
 {
     static int next = 0;
-    const fs::path dir = fs::temp_directory_path() / (std::string("jusprin-state-tests-") + label + "-" + std::to_string(++next));
-    fs::create_directories(dir);
-    return dir.string();
+    for (int attempt = 0; attempt < 10; ++attempt) {
+        const auto nonce = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        const fs::path dir = fs::temp_directory_path() /
+                             (std::string("jusprin-state-tests-") + label + "-" + std::to_string(nonce) + "-" +
+                              std::to_string(++next));
+        std::error_code error;
+        if (fs::create_directory(dir, error))
+            return dir.string();
+        if (error && error != std::errc::file_exists)
+            throw std::runtime_error("Unable to create a project-state test directory: " + error.message());
+    }
+    throw std::runtime_error("Unable to allocate a unique project-state test directory");
 }
 
 } // namespace

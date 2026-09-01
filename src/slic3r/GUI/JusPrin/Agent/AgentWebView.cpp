@@ -41,10 +41,12 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
                            const ShellTheme&          theme,
                            Workspace::IWorkspace&     workspace,
                            Agent::ProjectPersistence& persistence,
-                           Agent::AgentAvailability   availability)
+                           Agent::AgentAvailability   availability,
+                           Agent::AgentServicePtr      agent)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
-    , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode()))
+    , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode(),
+                                                std::move(agent)))
     , m_stream_timer(this, kStreamTimerId)
     , m_handshake_timer(this, kHandshakeTimerId)
 {

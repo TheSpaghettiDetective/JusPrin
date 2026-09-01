@@ -6,11 +6,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
@@ -294,12 +296,18 @@ private:
     static std::string fresh_auxiliary_dir()
     {
         static std::uint64_t next_dir = 0;
-        const std::filesystem::path dir = std::filesystem::temp_directory_path() /
-                                          ("jusprin-fake-workspace-" + std::to_string(++next_dir) + "-" +
-                                           std::to_string(static_cast<unsigned long long>(
-                                               reinterpret_cast<std::uintptr_t>(&next_dir))));
-        std::filesystem::create_directories(dir);
-        return dir.string();
+        for (int attempt = 0; attempt < 10; ++attempt) {
+            const auto nonce = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+            const std::filesystem::path dir =
+                std::filesystem::temp_directory_path() /
+                ("jusprin-fake-workspace-" + std::to_string(nonce) + "-" + std::to_string(++next_dir));
+            std::error_code error;
+            if (std::filesystem::create_directory(dir, error))
+                return dir.string();
+            if (error && error != std::errc::file_exists)
+                throw std::runtime_error("Unable to create a fake-workspace directory: " + error.message());
+        }
+        throw std::runtime_error("Unable to allocate a unique fake-workspace directory");
     }
 
     static nlohmann::json snapshot_to_json(const WorkspaceSnapshot& snapshot)

@@ -266,4 +266,59 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
     return reply;
 }
 
+bool DeterministicMockAgent::start(const AgentRequest& request)
+{
+    if (m_busy)
+        return false;
+
+    std::vector<AttachmentContext> attachments;
+    attachments.reserve(request.attachments.size());
+    for (const AgentAttachmentContext& source : request.attachments) {
+        AttachmentContext target;
+        target.id         = source.id;
+        target.name       = source.name;
+        target.kind       = source.kind;
+        target.summary    = source.summary;
+        target.importable = source.importable;
+        attachments.emplace_back(std::move(target));
+    }
+
+    const Reply reply = reply_for(request.user_text, request.attempt, request.workspace, attachments);
+    for (const std::string& chunk : reply.chunks)
+        m_events.emplace_back(AgentEvent::delta(chunk));
+    if (reply.error)
+        m_events.emplace_back(AgentEvent::failed(*reply.error));
+    else {
+        if (reply.tool) {
+            AgentToolCall call;
+            call.call_id      = "mock-" + request.request_id;
+            call.request      = *reply.tool;
+            call.await_result = false;
+            m_events.emplace_back(AgentEvent::tool_call(std::move(call)));
+        } else {
+            m_events.emplace_back(AgentEvent::completed());
+        }
+    }
+    m_busy = true;
+    return true;
+}
+
+void DeterministicMockAgent::cancel()
+{
+    m_events.clear();
+    m_busy = false;
+}
+
+std::optional<AgentEvent> DeterministicMockAgent::poll()
+{
+    if (m_events.empty())
+        return std::nullopt;
+    AgentEvent event = std::move(m_events.front());
+    m_events.pop_front();
+    if (event.kind == AgentEventKind::Completed || event.kind == AgentEventKind::Failed ||
+        (event.kind == AgentEventKind::ToolCall && event.tool && !event.tool->await_result))
+        m_busy = false;
+    return event;
+}
+
 } // namespace Slic3r::GUI::JusPrin::Agent

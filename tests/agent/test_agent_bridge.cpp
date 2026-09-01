@@ -8,15 +8,19 @@
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -53,11 +57,26 @@ Workspace::WorkspaceSnapshot two_object_snapshot()
 
 ProjectPersistence::Config test_persistence_config()
 {
-    static int next_root = 0;
+    static std::random_device random;
+
     ProjectPersistence::Config config;
-    config.recovery_root = (std::filesystem::temp_directory_path() /
-                            ("jusprin-bridge-recovery-" + std::to_string(++next_root)))
-                               .string();
+    for (int attempt = 0; attempt < 10; ++attempt) {
+        const auto candidate =
+            std::filesystem::temp_directory_path() /
+            ("jusprin-bridge-recovery-" +
+             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + "-" +
+             std::to_string(random()));
+        std::error_code error;
+        if (std::filesystem::create_directory(candidate, error)) {
+            config.recovery_root = candidate.string();
+            break;
+        }
+        if (error && error != std::errc::file_exists)
+            throw std::runtime_error("Unable to create a test recovery directory: " + error.message());
+    }
+    if (config.recovery_root.empty())
+        throw std::runtime_error("Unable to allocate a unique test recovery directory");
+
     config.clock = []() { return "2026-08-30T00:00:00Z"; };
     config.uuid  = []() {
         static int next_uuid = 0;
@@ -75,7 +94,15 @@ struct Harness
 
     explicit Harness(AgentAvailability availability = AgentAvailability::Ready)
         : workspace(two_object_snapshot()), persistence(workspace, test_persistence_config()),
-          host(workspace, persistence, availability, false)
+          host(workspace, persistence, availability, false, std::make_unique<DeterministicMockAgent>())
+    {
+        host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
+        persistence.attach();
+    }
+
+    explicit Harness(AgentServicePtr agent)
+        : workspace(two_object_snapshot()), persistence(workspace, test_persistence_config()),
+          host(workspace, persistence, AgentAvailability::Ready, false, std::move(agent))
     {
         host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
         persistence.attach();
@@ -133,6 +160,90 @@ struct Harness
         REQUIRE(added != nullptr);
         return (*added)["payload"]["message"]["id"].get<std::string>();
     }
+};
+
+} // namespace
+
+namespace {
+
+class ToolCallingAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return active; }
+    bool start(const AgentRequest& request) override
+    {
+        last_request = request;
+        ToolRequest tool;
+        tool.tool = "duplicate_object";
+        tool.title = "Duplicate selected object";
+        tool.action_class = ActionClass::Mutation;
+        tool.run_ticks = 1;
+        tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
+                                   {"objectId", std::to_string(request.workspace.selected_objects.front().value())}}.dump();
+        events.push_back(AgentEvent::delta("I can do that."));
+        events.push_back(AgentEvent::tool_call({"provider-call-1", std::move(tool), true}));
+        active = true;
+        return true;
+    }
+    bool continue_after_tool(const AgentToolResult& result) override
+    {
+        continuation = result;
+        events.push_back(AgentEvent::delta(" The native duplicate succeeded."));
+        events.push_back(AgentEvent::completed());
+        return true;
+    }
+    void cancel() override { active = false; events.clear(); }
+    std::optional<AgentEvent> poll() override
+    {
+        if (events.empty())
+            return std::nullopt;
+        AgentEvent event = std::move(events.front());
+        events.pop_front();
+        if (event.kind == AgentEventKind::Completed || event.kind == AgentEventKind::Failed)
+            active = false;
+        return event;
+    }
+
+    AgentRequest last_request;
+    std::optional<AgentToolResult> continuation;
+    std::deque<AgentEvent> events;
+    bool active{false};
+};
+
+class RetryingAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return active; }
+    bool start(const AgentRequest& request) override
+    {
+        requests.push_back(request);
+        active = true;
+        if (request.attempt == 1)
+            events.push_back(AgentEvent::failed({"provider_timeout", "The provider timed out.", true}));
+        else {
+            events.push_back(AgentEvent::delta("Recovered without duplicating the turn."));
+            events.push_back(AgentEvent::completed());
+        }
+        return true;
+    }
+    bool continue_after_tool(const AgentToolResult&) override { return false; }
+    void cancel() override { active = false; events.clear(); }
+    std::optional<AgentEvent> poll() override
+    {
+        if (events.empty())
+            return std::nullopt;
+        AgentEvent event = std::move(events.front());
+        events.pop_front();
+        if (event.kind == AgentEventKind::Completed || event.kind == AgentEventKind::Failed)
+            active = false;
+        return event;
+    }
+
+    std::vector<AgentRequest> requests;
+    std::deque<AgentEvent> events;
+    bool active{false};
 };
 
 } // namespace
@@ -980,4 +1091,92 @@ TEST_CASE("a sent model attachment is imported through an approved tool action",
     const ToolActivity* record = h.host.tools().find(action_id);
     REQUIRE(record != nullptr);
     CHECK(record->state == ToolState::Succeeded);
+}
+
+TEST_CASE("a provider tool call continues from the structured native result", "[agent][provider][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const std::size_t objects_before = harness.workspace.snapshot().plates[0].objects.size();
+
+    harness.send_user_message("duplicate it", "provider-c-1");
+    for (int i = 0; i < 10 && harness.host.tools().activities().empty(); ++i)
+        harness.host.pump_stream();
+    REQUIRE(harness.host.tools().activities().size() == 1);
+    const std::string action_id = harness.host.tools().activities().back().action_id;
+    CHECK(harness.host.tools().activities().back().state == ToolState::Pending);
+    CHECK(scripted->last_request.workspace.selected_objects.size() == 1);
+    CHECK(scripted->last_request.request_id == harness.persistence.document().project_id() + "-" +
+                                                   harness.persistence.document().active_conversation_id() +
+                                                   "-m-2-attempt-1");
+
+    harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
+    for (int i = 0; i < 20 && !scripted->continuation; ++i)
+        harness.host.pump_tools();
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->call_id == "provider-call-1");
+    CHECK(scripted->continuation->state == "succeeded");
+    const json result = json::parse(scripted->continuation->output_json);
+    CHECK(result["state"] == "succeeded");
+    CHECK(result.contains("workspaceRevision"));
+    CHECK(result["workspace"]["plates"][0]["objects"].size() == objects_before + 1);
+
+    for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
+        harness.host.pump_stream();
+    CHECK(harness.workspace.snapshot().plates[0].objects.size() == objects_before + 1);
+    REQUIRE(harness.host.conversation().size() == 3);
+    CHECK(harness.host.conversation().back().state == MessageState::Complete);
+    CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
+}
+
+TEST_CASE("a provider retry reuses the native message without duplicating the turn", "[agent][provider][retry]")
+{
+    auto provider = std::make_unique<RetryingAgent>();
+    RetryingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+
+    harness.send_user_message("try the provider", "provider-retry-c-1");
+    harness.pump_all();
+    REQUIRE(scripted->requests.size() == 1);
+    REQUIRE(harness.host.conversation().size() == 2);
+    REQUIRE(harness.host.conversation().back().state == MessageState::Failed);
+    const std::string assistant_id = harness.host.conversation().back().id;
+
+    harness.deliver("retry_message", json{{"messageId", assistant_id}});
+    harness.pump_all();
+    REQUIRE(scripted->requests.size() == 2);
+    CHECK(scripted->requests[0].request_id != scripted->requests[1].request_id);
+    CHECK(scripted->requests[0].request_id.find(assistant_id + "-attempt-1") != std::string::npos);
+    CHECK(scripted->requests[1].request_id.find(assistant_id + "-attempt-2") != std::string::npos);
+    REQUIRE(harness.host.conversation().size() == 2);
+    CHECK(harness.host.conversation().back().id == assistant_id);
+    CHECK(harness.host.conversation().back().attempt == 2);
+    CHECK(harness.host.conversation().back().state == MessageState::Complete);
+    CHECK(harness.host.conversation().back().text == "Recovered without duplicating the turn.");
+}
+
+TEST_CASE("provider attachment context is size bounded on a UTF-8 boundary", "[agent][provider][attachments]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+
+    std::string text(256u * 1024u - 1u, 'a');
+    text += "\xE2\x82\xACtail";
+    attach(harness, "large-text", "large.txt", text);
+    harness.deliver("user_message", json{{"clientMessageId", "bounded-c-1"},
+                                          {"text", "use the attachment"},
+                                          {"attachmentIds", json::array({"a-1"})}});
+
+    REQUIRE(scripted->last_request.attachments.size() == 1);
+    const auto& supplied = scripted->last_request.attachments.front();
+    CHECK(supplied.text.size() == 256u * 1024u - 1u);
+    CHECK(supplied.text.back() == 'a');
+    CHECK(supplied.summary.find("truncated") != std::string::npos);
 }

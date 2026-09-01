@@ -7,6 +7,16 @@
 //   (default)  automated shell checks, exits with the result
 //   --stock    automated stock-mode checks (shell disabled via app config)
 //   --manual   installs nothing extra and leaves the app open for a human
+//   --manual-live-agent
+//              leaves the isolated JusPrin shell open with the OpenAI
+//              provider enabled for hands-on testing
+//   --live-agent
+//              uses OPENAI_API_KEY and verifies live context/attachment use,
+//              reload recovery, rejection, native approval/mutation, and the
+//              model follow-ups
+//   --live-agent-unavailable
+//              selects OpenAI with consent withheld and verifies that the
+//              application stays usable without silently selecting the mock
 //   --slice-all-cold
 //              guards Slice all on a multi-plate project before the Preview
 //              canvas has ever rendered — the conditions of upstream crash
@@ -39,7 +49,9 @@
 
 #include <boost/filesystem.hpp>
 
+#include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -55,7 +67,7 @@ namespace {
 
 struct HarnessState
 {
-    enum class Mode { Shell, Stock, Manual, SliceAllCold };
+    enum class Mode { Shell, Stock, Manual, ManualLiveAgent, SliceAllCold, LiveAgent, LiveAgentUnavailable };
 
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
@@ -104,6 +116,16 @@ public:
             }
             verify_shell_installed();
             load_multi_plate_fixture();
+            if (m_state->mode == HarnessState::Mode::LiveAgent) {
+                verify_canvas_interaction();
+                verify_live_agent();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::LiveAgentUnavailable) {
+                verify_canvas_interaction();
+                verify_unavailable_agent();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::SliceAllCold) {
                 begin_slice_all_cold();
                 return;
@@ -301,6 +323,197 @@ private:
         check(web_view.webview() != nullptr, "agent_webview_created");
         wait_until([&web_view] { return web_view.host().handshake_complete(); }, "agent_bridge_handshake",
                    [self = shared_from_this()] { self->agent_send_scripted_message(); });
+    }
+
+    void verify_live_agent()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.webview() != nullptr, "live_agent_webview_created");
+        wait_until([&web_view] { return web_view.host().handshake_complete(); }, "live_agent_bridge_handshake",
+                   [self = shared_from_this()] { self->live_agent_context_and_attachment(); });
+    }
+
+    void verify_unavailable_agent()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        wait_until([&web_view] { return web_view.host().handshake_complete(); },
+                   "unconfigured_agent_bridge_handshake", [self = shared_from_this()] {
+                       AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                       self->check(web_view.host().availability() == Agent::AgentAvailability::Unavailable,
+                                   "missing_cloud_consent_is_unavailable");
+                       const std::size_t objects_before = self->m_plater->model().objects.size();
+                       WebView::RunScript(web_view.webview(),
+                                          "window.__jusprinTest && window.__jusprinTest.send('do not use the mock')");
+                       self->wait_until(
+                           [&web_view] {
+                               const auto conversation = web_view.host().conversation();
+                               return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Failed;
+                           },
+                           "unconfigured_agent_request_fails_visibly", [self, objects_before] {
+                               const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                               self->check(conversation.back().error &&
+                                               conversation.back().error->code == "agent_unavailable",
+                                           "unconfigured_agent_does_not_fall_back_to_mock");
+                               self->check(self->m_plater->model().objects.size() == objects_before &&
+                                               self->m_plater->select_object(1),
+                                           "unconfigured_agent_keeps_orca_usable");
+                               self->check(self->m_plater->new_project(true, true) != wxID_CANCEL,
+                                           "unconfigured_agent_teardown_project");
+                               self->finish();
+                           });
+                   });
+    }
+
+    void live_agent_context_and_attachment()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.host().availability() == Agent::AgentAvailability::Ready, "live_agent_service_ready");
+        check(m_plater->select_object(0), "live_agent_target_selected");
+        m_objects_before_tool = m_plater->model().objects.size();
+        const std::size_t attachments_before = persistence().document().attachments().size();
+        WebView::RunScript(
+            web_view.webview(),
+            "window.__jusprinTest && window.__jusprinTest.attach('live-context.txt', "
+            "'SnVzUHJpbiBsaXZlIHZlcmlmaWNhdGlvbiBwaHJhc2U6IGNvYmFsdCBuYXJ3aGFsLg==', 'text/plain')");
+        wait_until(
+            [this, attachments_before] { return persistence().document().attachments().size() > attachments_before; },
+            "live_agent_attachment_staged", [self = shared_from_this()] { self->live_agent_send_context_question(); });
+    }
+
+    void live_agent_send_context_question()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t messages_before = web_view.host().conversation().size();
+        WebView::RunScript(
+            web_view.webview(),
+            "window.__jusprinTest && window.__jusprinTest.send('Read the attached note and the authoritative workspace. "
+            "Reply exactly: COBALT NARWHAL | 2 plates | selected cube-a. Do not call a tool.')");
+        wait_until(
+            [&web_view, messages_before] { return web_view.host().conversation().size() >= messages_before + 2; },
+            "live_agent_context_request_started", [self = shared_from_this()] {
+                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                web_view.reload();
+                self->wait_until([&web_view] { return web_view.host().handshake_complete(); },
+                                 "live_agent_reload_during_stream", [self] { self->live_agent_verify_context(); });
+            });
+    }
+
+    void live_agent_verify_context()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        wait_until(
+            [&web_view] {
+                const auto conversation = web_view.host().conversation();
+                return !conversation.empty() && conversation.back().role == Agent::MessageRole::Assistant &&
+                       (conversation.back().state == Agent::MessageState::Complete ||
+                        conversation.back().state == Agent::MessageState::Failed);
+            },
+            "live_agent_context_reply_terminal", [self = shared_from_this()] {
+                const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                if (conversation.back().state != Agent::MessageState::Complete) {
+                    const std::string code = conversation.back().error ? conversation.back().error->code : "unknown";
+                    self->fail("live Agent context reply failed: " + code);
+                    return;
+                }
+                std::string reply = conversation.back().text;
+                std::transform(reply.begin(), reply.end(), reply.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                self->check(reply.find("cobalt narwhal") != std::string::npos,
+                            "live_agent_used_decoded_attachment");
+                self->check(reply.find("2 plates") != std::string::npos && reply.find("cube-a") != std::string::npos,
+                            "live_agent_used_native_workspace_context");
+                self->live_agent_send_mutation();
+            });
+    }
+
+    void live_agent_send_mutation()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+        WebView::RunScript(
+            web_view.webview(),
+            "window.__jusprinTest && window.__jusprinTest.send('Duplicate the currently selected object now. Use the "
+            "duplicate_object tool with the exact sessionId and objectId from the authoritative workspace context.');");
+        wait_until(
+            [&web_view, activities_before] {
+                const auto& activities = web_view.host().tools().activities();
+                return activities.size() > activities_before && activities.back().state == Agent::ToolState::Pending;
+            },
+            "live_agent_tool_proposal_pending", [self = shared_from_this()] { self->live_agent_decide(); });
+    }
+
+    void live_agent_decide()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const auto& activity = web_view.host().tools().activities().back();
+        check(activity.tool == "duplicate_object", "live_agent_proposed_typed_duplicate");
+        check(activity.requires_approval, "live_agent_cannot_bypass_native_approval");
+        m_live_action_id = activity.action_id;
+        if (!m_live_rejection_done) {
+            WebView::RunScript(web_view.webview(),
+                               wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" +
+                                                  m_live_action_id + "', 'reject')"));
+            wait_until(
+                [&web_view, this] {
+                    const Agent::ToolActivity* current = web_view.host().tools().find(m_live_action_id);
+                    const auto conversation = web_view.host().conversation();
+                    return current != nullptr && current->state == Agent::ToolState::Rejected &&
+                           !conversation.empty() && conversation.back().role == Agent::MessageRole::Assistant &&
+                           (conversation.back().state == Agent::MessageState::Complete ||
+                            conversation.back().state == Agent::MessageState::Failed);
+                },
+                "live_agent_rejection_and_followup_terminal", [self = shared_from_this()] {
+                    const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                    if (conversation.back().state != Agent::MessageState::Complete) {
+                        const std::string code = conversation.back().error ? conversation.back().error->code : "unknown";
+                        self->fail("live Agent rejection follow-up failed: " + code);
+                        return;
+                    }
+                    self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool,
+                                "live_agent_rejection_changes_nothing");
+                    self->m_live_rejection_done = true;
+                    self->live_agent_send_mutation();
+                });
+            return;
+        }
+        WebView::RunScript(web_view.webview(),
+                           wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" + m_live_action_id +
+                                              "', 'approve')"));
+        wait_until(
+            [&web_view, this] {
+                const Agent::ToolActivity* current = web_view.host().tools().find(m_live_action_id);
+                const auto conversation = web_view.host().conversation();
+                return current != nullptr && current->state == Agent::ToolState::Succeeded &&
+                       !conversation.empty() && conversation.back().role == Agent::MessageRole::Assistant &&
+                       (conversation.back().state == Agent::MessageState::Complete ||
+                        conversation.back().state == Agent::MessageState::Failed);
+            },
+            "live_agent_native_result_and_followup_terminal", [self = shared_from_this()] {
+                const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                if (conversation.back().state != Agent::MessageState::Complete) {
+                    const std::string code = conversation.back().error ? conversation.back().error->code : "unknown";
+                    self->fail("live Agent follow-up failed: " + code);
+                    return;
+                }
+                self->check(true, "live_agent_native_result_and_followup_complete");
+                self->live_agent_verify();
+            });
+    }
+
+    void live_agent_verify()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "live_agent_mutated_real_orca_model_once");
+        check(m_plater->can_undo_project(), "live_agent_mutation_is_in_orca_history");
+        const auto conversation = web_view.host().conversation();
+        check(conversation.size() >= 3 && !conversation.back().text.empty(), "live_agent_explains_structured_native_result");
+        std::size_t matching_actions = 0;
+        for (const auto& action : web_view.host().tools().activities())
+            if (action.action_id == m_live_action_id)
+                ++matching_actions;
+        check(matching_actions == 1, "live_agent_action_id_is_idempotent");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
+        finish();
     }
 
     void agent_send_scripted_message()
@@ -686,6 +899,8 @@ private:
     std::size_t                   m_objects_before_tool{0};
     std::string                   m_saved_project_id;
     std::string                   m_saved_project_file;
+    std::string                   m_live_action_id;
+    bool                          m_live_rejection_done{false};
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
 
@@ -708,7 +923,7 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
         return;
     }
     if (app.mainframe != nullptr && app.plater() != nullptr) {
-        if (state->mode == HarnessState::Mode::Manual)
+        if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent)
             return;
         auto scenario = std::make_shared<Scenario>(app, state);
         state->runner = scenario;
@@ -741,11 +956,19 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Stock;
         else if (argument == "--manual")
             state->mode = HarnessState::Mode::Manual;
+        else if (argument == "--manual-live-agent")
+            state->mode = HarnessState::Mode::ManualLiveAgent;
         else if (argument == "--slice-all-cold")
             state->mode = HarnessState::Mode::SliceAllCold;
+        else if (argument == "--live-agent")
+            state->mode = HarnessState::Mode::LiveAgent;
+        else if (argument == "--live-agent-unavailable")
+            state->mode = HarnessState::Mode::LiveAgentUnavailable;
         else
             gui_arguments.emplace_back(argv[index]);
     }
+    if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
+        wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
 
     {
         std::ifstream base(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/OrcaSlicer.conf");
@@ -753,6 +976,19 @@ int main(int argc, char** argv)
         if (state->mode == HarnessState::Mode::Stock) {
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
+        }
+        if (state->mode == HarnessState::Mode::LiveAgent ||
+            state->mode == HarnessState::Mode::ManualLiveAgent ||
+            state->mode == HarnessState::Mode::LiveAgentUnavailable) {
+            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": true,\n    \"provider\": \"mock\"\n  }";
+            const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
+                                      state->mode == HarnessState::Mode::ManualLiveAgent;
+            const std::string consent = live_enabled ? "true" : "false";
+            const std::string to = "\"jusprin_agent\": {\n    \"cloud_consent\": " + consent +
+                                   ",\n    \"enabled\": true,\n    \"model\": \"gpt-5.4-mini\",\n    \"provider\": \"openai\"\n  }";
+            const std::size_t pos = config.find(from);
+            if (pos != std::string::npos)
+                config.replace(pos, from.size(), to);
         }
         std::ofstream out((data_directory / "OrcaSlicer.conf").string());
         out << config;
@@ -792,7 +1028,7 @@ int main(int argc, char** argv)
         fs::remove_all(data_directory);
     else
         std::cerr << "HARNESS DATA DIR kept for inspection: " << data_directory.string() << '\n';
-    if (state->mode == HarnessState::Mode::Manual)
+    if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent)
         return gui_result;
     if (state->result < 0)
         return gui_result == 0 ? 1 : gui_result;

@@ -2,11 +2,17 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/ProjectState.hpp
     GUI/JusPrin/Agent/AgentHost.cpp
     GUI/JusPrin/Agent/AgentHost.hpp
+    GUI/JusPrin/Agent/AgentConfiguration.cpp
+    GUI/JusPrin/Agent/AgentConfiguration.hpp
     GUI/JusPrin/Agent/AgentProtocol.hpp
+    GUI/JusPrin/Agent/AgentService.hpp
     GUI/JusPrin/Agent/AgentWebView.cpp
     GUI/JusPrin/Agent/AgentWebView.hpp
     GUI/JusPrin/Agent/DeterministicMockAgent.cpp
     GUI/JusPrin/Agent/DeterministicMockAgent.hpp
+    GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
+    GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
+    GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp
     GUI/JusPrin/Agent/ProjectPersistence.cpp
     GUI/JusPrin/Agent/ProjectPersistence.hpp
     GUI/JusPrin/Agent/ProjectStateDocument.cpp

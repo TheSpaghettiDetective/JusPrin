@@ -1,7 +1,5 @@
 #include "AgentHost.hpp"
 
-#include "DeterministicMockAgent.hpp"
-
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -132,6 +130,8 @@ json revision_json(const RevisionInfo& revision, const std::string& current_revi
 constexpr std::size_t kMaxAttachmentBytes    = 32u * 1024u * 1024u;
 constexpr std::size_t kInlineImagePreviewCap = 256u * 1024u;
 constexpr std::size_t kTextPreviewChars      = 4000u;
+constexpr std::size_t kAgentTextContextCap   = 256u * 1024u;
+constexpr std::size_t kAgentBinaryContextCap = 10u * 1024u * 1024u;
 
 std::string to_lower(std::string s)
 {
@@ -382,8 +382,10 @@ json context_json(const WorkspaceSnapshot& snapshot)
 AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                      ProjectPersistence&    persistence,
                      AgentAvailability      availability,
-                     bool                   dark_appearance)
-    : m_workspace(workspace), m_persistence(persistence), m_tools(workspace), m_availability(availability), m_dark(dark_appearance)
+                     bool                   dark_appearance,
+                     AgentServicePtr        agent)
+    : m_workspace(workspace), m_persistence(persistence), m_tools(workspace), m_agent(std::move(agent)),
+      m_availability(availability), m_dark(dark_appearance)
 {
     refresh_workspace_identity();
     m_workspace_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
@@ -408,6 +410,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             m_persistence.commit();
         if (m_handshake)
             send_tool_activity(activity);
+        if (tool_state_terminal(activity.state))
+            continue_after_tool(activity);
     });
     m_persistence.set_document_replaced_listener([this]() { on_document_replaced(); });
     m_persistence.set_revision_listener([this](const RevisionInfo& revision) {
@@ -419,6 +423,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
 
 AgentHost::~AgentHost()
 {
+    if (m_agent)
+        m_agent->cancel();
     // The persistence object outlives this host (the shell controller owns
     // both); drop the callbacks that capture `this`.
     m_persistence.set_document_replaced_listener({});
@@ -449,8 +455,11 @@ std::vector<ConversationMessage> AgentHost::conversation() const
 
 void AgentHost::on_document_replaced()
 {
+    if (m_agent)
+        m_agent->cancel();
     m_stream.reset();
     m_queued_user_message_ids.clear();
+    m_tool_continuations.clear();
     m_tools.clear();
     if (m_handshake)
         send_state();
@@ -710,7 +719,7 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     m_persistence.set_draft({});
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump(), envelope_id);
 
-    if (m_stream) {
+    if (agent_busy()) {
         // The page disables sending while a reply streams; if a message
         // arrives anyway, answer it after the current stream finishes.
         m_queued_user_message_ids.push_back(message.id);
@@ -863,6 +872,8 @@ void AgentHost::handle_stop(const std::string& payload_json)
         return;
     ActiveStream stream = std::move(*m_stream);
     m_stream.reset();
+    if (m_agent)
+        m_agent->cancel();
     stream.message.state = MessageState::Stopped;
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
@@ -884,7 +895,7 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
                           envelope_id);
         return;
     }
-    if (m_stream) {
+    if (agent_busy()) {
         send_bridge_error("busy", "Another reply is currently streaming.", envelope_id);
         return;
     }
@@ -939,7 +950,7 @@ void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::st
 
 void AgentHost::handle_create_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_stream) {
+    if (agent_busy()) {
         send_bridge_error("busy", "Finish or stop the streaming reply before changing conversations.", envelope_id);
         return;
     }
@@ -952,7 +963,7 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_stream) {
+    if (agent_busy()) {
         send_bridge_error("busy", "Finish or stop the streaming reply before changing conversations.", envelope_id);
         return;
     }
@@ -968,7 +979,7 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_revert_to_revision(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_stream || m_tools.any_running()) {
+    if (agent_busy() || m_tools.any_running()) {
         send_bridge_error("busy", "Finish or stop the current activity before reverting.", envelope_id);
         return;
     }
@@ -1053,26 +1064,6 @@ void AgentHost::begin_reply(const std::string& user_message_id)
 
 void AgentHost::begin_stream(ConversationMessage assistant, const std::string& conversation_id)
 {
-    const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
-
-    // Give the Agent the same non-binary view of the sent attachments the host
-    // holds; models appear only as their native summary, never as bytes.
-    std::vector<DeterministicMockAgent::AttachmentContext> attachment_context;
-    if (user)
-        for (const std::string& id : user->attachment_ids)
-            if (const std::optional<AttachmentRecord> record = m_persistence.document().find_attachment(id)) {
-                DeterministicMockAgent::AttachmentContext ctx;
-                ctx.id         = record->id;
-                ctx.name       = record->original_name.empty() ? record->summary : record->original_name;
-                ctx.kind       = record->kind;
-                ctx.summary    = record->summary;
-                ctx.importable = record->kind == "model" && !record->stored_name.empty();
-                attachment_context.push_back(std::move(ctx));
-            }
-
-    const DeterministicMockAgent::Reply reply = DeterministicMockAgent::reply_for(
-        user ? user->text : std::string(), assistant.attempt, m_workspace.snapshot(), attachment_context);
-
     assistant.state = MessageState::Streaming;
     assistant.text.clear();
     assistant.error.reset();
@@ -1082,11 +1073,182 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     ActiveStream stream;
     stream.conversation_id = conversation_id;
     stream.message         = assistant;
-    stream.chunks.assign(reply.chunks.begin(), reply.chunks.end());
-    stream.error = reply.error;
-    stream.tool  = reply.tool;
-    m_stream     = std::move(stream);
+    m_stream               = std::move(stream);
 
+    send_envelope(Protocol::kAssistantStarted,
+                  json{{"messageId", assistant.id}, {"inReplyTo", assistant.in_reply_to}, {"attempt", assistant.attempt}}.dump());
+
+    if (!m_agent || !m_agent->ready() || !m_agent->start(make_agent_request(assistant, conversation_id)))
+        fail_stream(AgentError{"agent_unavailable", "The Agent service could not start this request.", true});
+}
+
+AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id) const
+{
+    const ProjectStateDocument& document = m_persistence.document();
+    AgentRequest request;
+    // Message IDs restart for each project. Scope the provider idempotency key
+    // to the durable project and conversation so a later app run cannot reuse
+    // a cached response for a different native operation.
+    request.request_id = document.project_id() + "-" + conversation_id + "-" + assistant.id + "-attempt-" +
+                         std::to_string(assistant.attempt);
+    request.attempt    = assistant.attempt;
+    request.workspace  = m_workspace.snapshot();
+
+    const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
+    if (user)
+        request.user_text = user->text;
+
+    // The provider gets bounded semantic history. The current user message is
+    // supplied separately with its attachments, and the streaming placeholder
+    // is native-only state, so neither is duplicated here.
+    for (const ConversationMessage& message : document.messages(conversation_id)) {
+        if (message.id == assistant.id || message.id == assistant.in_reply_to || message.text.empty())
+            continue;
+        AgentConversationContext entry;
+        entry.role = message.role == MessageRole::User ? "user" : "assistant";
+        entry.text = message.text;
+        request.conversation.emplace_back(std::move(entry));
+    }
+    constexpr std::size_t kHistoryMessages = 20;
+    if (request.conversation.size() > kHistoryMessages)
+        request.conversation.erase(request.conversation.begin(), request.conversation.end() - kHistoryMessages);
+
+    if (!user)
+        return request;
+
+    for (const std::string& id : user->attachment_ids) {
+        const std::optional<AttachmentRecord> record = document.find_attachment(id);
+        if (!record)
+            continue;
+
+        AgentAttachmentContext context;
+        context.id         = record->id;
+        context.name       = record->original_name.empty() ? record->summary : record->original_name;
+        context.kind       = record->kind;
+        context.mime       = record->mime;
+        context.summary    = record->summary;
+        context.importable = record->kind == "model" && !record->stored_name.empty();
+
+        if ((record->kind == "text" || record->kind == "gcode" || record->kind == "svg") &&
+            !record->stored_name.empty()) {
+            context.text = m_persistence.read_attachment_blob(record->relative_path());
+            if (context.text.size() > kAgentTextContextCap) {
+                context.text.resize(kAgentTextContextCap);
+                while (!context.text.empty() && !is_valid_utf8(context.text))
+                    context.text.pop_back();
+                context.summary += (context.summary.empty() ? "" : " ") +
+                                   std::string("Content was truncated to 256 KiB for Agent context.");
+            }
+        } else if ((record->kind == "image" || record->kind == "pdf") &&
+                   record->size_bytes <= kAgentBinaryContextCap && !record->stored_name.empty()) {
+            context.bytes = m_persistence.read_attachment_blob(record->relative_path());
+        } else if ((record->kind == "image" || record->kind == "pdf") && record->size_bytes > kAgentBinaryContextCap) {
+            context.summary += (context.summary.empty() ? "" : " ") +
+                               std::string("The file exceeds the 10 MiB live-Agent context limit.");
+        }
+        request.attachments.emplace_back(std::move(context));
+    }
+    return request;
+}
+
+void AgentHost::complete_stream()
+{
+    if (!m_stream)
+        return;
+    ActiveStream stream = std::move(*m_stream);
+    m_stream.reset();
+    stream.message.state = MessageState::Complete;
+    m_persistence.document().update_message(stream.conversation_id, stream.message);
+    m_persistence.flush();
+    send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
+    start_next_queued_reply();
+}
+
+void AgentHost::fail_stream(AgentError error)
+{
+    if (!m_stream)
+        return;
+    ActiveStream stream = std::move(*m_stream);
+    m_stream.reset();
+    stream.message.state = MessageState::Failed;
+    stream.message.error = std::move(error);
+    m_persistence.document().update_message(stream.conversation_id, stream.message);
+    m_persistence.flush();
+    send_envelope(Protocol::kAssistantFailed,
+                  json{{"messageId", stream.message.id}, {"error", error_json(*stream.message.error)}}.dump());
+    start_next_queued_reply();
+}
+
+void AgentHost::handle_agent_tool_call(AgentToolCall call)
+{
+    if (!m_stream)
+        return;
+
+    ActiveStream stream = std::move(*m_stream);
+    m_stream.reset();
+    stream.message.state = MessageState::Complete;
+    m_persistence.document().update_message(stream.conversation_id, stream.message);
+    m_persistence.flush();
+    send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
+
+    const ToolActivity& proposed = m_tools.propose(call.request, stream.message.id);
+    if (call.await_result) {
+        PendingToolContinuation continuation;
+        continuation.call_id            = std::move(call.call_id);
+        continuation.conversation_id     = stream.conversation_id;
+        continuation.user_message_id     = stream.message.in_reply_to;
+        m_tool_continuations[proposed.action_id] = std::move(continuation);
+    } else {
+        start_next_queued_reply();
+    }
+}
+
+void AgentHost::continue_after_tool(const ToolActivity& activity)
+{
+    const auto found = m_tool_continuations.find(activity.action_id);
+    if (found == m_tool_continuations.end())
+        return;
+
+    PendingToolContinuation continuation = found->second;
+    m_tool_continuations.erase(found);
+
+    const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
+    json output{{"state", tool_state_name(activity.state)},
+                {"actionId", activity.action_id},
+                {"workspaceRevision", current_workspace.revision},
+                {"workspace", context_json(current_workspace)}};
+    if (!activity.result_json.empty())
+        output["result"] = parsed_or_object(activity.result_json);
+    if (activity.error)
+        output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message}};
+
+    AgentToolResult result;
+    result.call_id     = continuation.call_id;
+    result.state       = tool_state_name(activity.state);
+    result.output_json = output.dump();
+    if (!m_agent || !m_agent->continue_after_tool(result)) {
+        begin_tool_followup(continuation);
+        fail_stream(AgentError{"agent_continuation_failed", "The Agent could not receive the native tool result.", true});
+        return;
+    }
+    begin_tool_followup(continuation);
+}
+
+void AgentHost::begin_tool_followup(const PendingToolContinuation& continuation)
+{
+    ProjectStateDocument& document = m_persistence.document();
+    ConversationMessage assistant;
+    assistant.id          = document.allocate_message_id();
+    assistant.role        = MessageRole::Assistant;
+    assistant.state       = MessageState::Streaming;
+    assistant.in_reply_to = continuation.user_message_id;
+    document.append_message(continuation.conversation_id, assistant, m_persistence.timestamp());
+    m_persistence.commit();
+
+    ActiveStream stream;
+    stream.conversation_id = continuation.conversation_id;
+    stream.message         = assistant;
+    m_stream               = std::move(stream);
     send_envelope(Protocol::kAssistantStarted,
                   json{{"messageId", assistant.id}, {"inReplyTo", assistant.in_reply_to}, {"attempt", assistant.attempt}}.dump());
 }
@@ -1096,9 +1258,12 @@ void AgentHost::pump_stream()
     if (!m_stream || !m_handshake)
         return;
 
-    if (!m_stream->chunks.empty()) {
-        const std::string chunk = std::move(m_stream->chunks.front());
-        m_stream->chunks.pop_front();
+    const std::optional<AgentEvent> next = m_agent ? m_agent->poll() : std::nullopt;
+    if (!next)
+        return;
+
+    if (next->kind == AgentEventKind::TextDelta) {
+        const std::string& chunk = next->text;
         m_stream->message.text += chunk;
         m_persistence.document().update_message(m_stream->conversation_id, m_stream->message);
         m_persistence.commit();
@@ -1106,42 +1271,27 @@ void AgentHost::pump_stream()
                       json{{"messageId", m_stream->message.id}, {"seq", m_stream->next_seq++}, {"text", chunk}}.dump());
         return;
     }
-    finish_stream();
-}
 
-void AgentHost::finish_stream()
-{
-    ActiveStream stream = std::move(*m_stream);
-    m_stream.reset();
-
-    if (stream.error) {
-        stream.message.state = MessageState::Failed;
-        stream.message.error = stream.error;
-        m_persistence.document().update_message(stream.conversation_id, stream.message);
-        m_persistence.flush();
-        send_envelope(Protocol::kAssistantFailed,
-                      json{{"messageId", stream.message.id}, {"error", error_json(*stream.error)}}.dump());
-    } else {
-        stream.message.state = MessageState::Complete;
-        m_persistence.document().update_message(stream.conversation_id, stream.message);
-        m_persistence.flush();
-        send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
-        // The Agent's tool request becomes a coordinator-owned activity,
-        // correlated with the reply that proposed it. The coordinator applies
-        // the approval policy from here on.
-        if (stream.tool)
-            m_tools.propose(*stream.tool, stream.message.id);
-    }
-    start_next_queued_reply();
+    if (next->kind == AgentEventKind::ToolCall && next->tool)
+        handle_agent_tool_call(*next->tool);
+    else if (next->kind == AgentEventKind::Failed)
+        fail_stream(next->error.value_or(AgentError{"agent_error", "The Agent request failed.", true}));
+    else if (next->kind == AgentEventKind::Completed)
+        complete_stream();
 }
 
 void AgentHost::start_next_queued_reply()
 {
-    if (m_stream || m_queued_user_message_ids.empty())
+    if (agent_busy() || m_queued_user_message_ids.empty())
         return;
     const std::string next = m_queued_user_message_ids.front();
     m_queued_user_message_ids.pop_front();
     begin_reply(next);
+}
+
+bool AgentHost::agent_busy() const
+{
+    return m_stream.has_value() || !m_tool_continuations.empty() || (m_agent && m_agent->busy());
 }
 
 void AgentHost::set_appearance(bool dark)
@@ -1160,6 +1310,16 @@ void AgentHost::set_availability(AgentAvailability availability)
     m_availability = availability;
     if (m_handshake)
         send_envelope(Protocol::kAgentStatus, json{{"status", availability_name(m_availability)}}.dump());
+}
+
+void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)
+{
+    if (agent_busy())
+        return;
+    if (m_agent)
+        m_agent->cancel();
+    m_agent = std::move(agent);
+    set_availability(availability);
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

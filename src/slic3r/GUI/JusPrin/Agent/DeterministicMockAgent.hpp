@@ -6,13 +6,13 @@
 // tool requests for the native coordinator) so the host, bridge, and page
 // cannot special-case mock behavior. GUI-free.
 
-#include "AgentProtocol.hpp"
-#include "ToolExecution.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
+#include "AgentService.hpp"
+
+#include <deque>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
-class DeterministicMockAgent
+class DeterministicMockAgent : public IAgentService
 {
 public:
     // A compact, non-binary view of one sent attachment. Model/project files
@@ -54,6 +54,17 @@ public:
     //                                     context and the selected objects.
     static Reply reply_for(const std::string& user_text, int attempt, const Workspace::WorkspaceSnapshot& context,
                            const std::vector<AttachmentContext>& attachments = {});
+
+    bool ready() const override { return true; }
+    bool busy() const override { return m_busy; }
+    bool start(const AgentRequest& request) override;
+    bool continue_after_tool(const AgentToolResult&) override { return false; }
+    void cancel() override;
+    std::optional<AgentEvent> poll() override;
+
+private:
+    std::deque<AgentEvent> m_events;
+    bool                   m_busy{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

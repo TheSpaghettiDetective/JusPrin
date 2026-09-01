@@ -44,6 +44,11 @@ export function AgentUnavailableNotice() {
         This build does not include a configured Agent service. Your conversation and project stay saved, and you can
         keep preparing, slicing, and checking prints with the canvas and the controls above.
       </p>
+      <p>
+        Enabling a cloud Agent requires your consent to send your message, the current project summary—including the
+        printer, plates, objects, and selection—and only the attachments you include. The API key stays in your
+        system credential store.
+      </p>
     </div>
   );
 }

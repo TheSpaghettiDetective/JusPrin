@@ -15,12 +15,14 @@
 // state.
 
 #include "AgentProtocol.hpp"
+#include "AgentService.hpp"
 #include "ProjectPersistence.hpp"
 #include "ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <deque>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,7 +37,8 @@ public:
     AgentHost(Workspace::IWorkspace& workspace,
               ProjectPersistence&    persistence,
               AgentAvailability      availability,
-              bool                   dark_appearance);
+              bool                   dark_appearance,
+              AgentServicePtr        agent = {});
     ~AgentHost();
 
     AgentHost(const AgentHost&) = delete;
@@ -57,6 +60,7 @@ public:
 
     void set_appearance(bool dark);
     void set_availability(AgentAvailability availability);
+    void set_agent(AgentServicePtr agent, AgentAvailability availability);
 
     bool              handshake_complete() const { return m_handshake; }
     bool              stream_active() const { return m_stream.has_value(); }
@@ -85,12 +89,16 @@ public:
 private:
     struct ActiveStream
     {
-        std::string                conversation_id;
-        ConversationMessage        message; // authoritative in-progress copy
-        std::deque<std::string>    chunks;
-        std::optional<AgentError>  error;
-        std::optional<ToolRequest> tool; // proposed when the stream completes
-        int                        next_seq{0};
+        std::string         conversation_id;
+        ConversationMessage message; // authoritative in-progress copy
+        int                 next_seq{0};
+    };
+
+    struct PendingToolContinuation
+    {
+        std::string call_id;
+        std::string conversation_id;
+        std::string user_message_id;
     };
 
     void send_envelope(const char* type, const std::string& payload_json, const std::string& correlation_id = {});
@@ -118,13 +126,20 @@ private:
     std::optional<ConversationMessage> find_stored_message(const std::string& id, std::string* conversation_id = nullptr) const;
     void begin_reply(const std::string& user_message_id);
     void begin_stream(ConversationMessage assistant, const std::string& conversation_id);
-    void finish_stream();
+    AgentRequest make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id) const;
+    void complete_stream();
+    void fail_stream(AgentError error);
+    void handle_agent_tool_call(AgentToolCall call);
+    void continue_after_tool(const ToolActivity& activity);
+    void begin_tool_followup(const PendingToolContinuation& continuation);
     void start_next_queued_reply();
     void refresh_workspace_identity() const;
+    bool agent_busy() const;
 
     Workspace::IWorkspace&           m_workspace;
     ProjectPersistence&              m_persistence;
     ToolExecutionCoordinator         m_tools;
+    AgentServicePtr                  m_agent;
     Workspace::WorkspaceSubscription m_workspace_subscription;
 
     SendFn                m_send;
@@ -135,6 +150,7 @@ private:
 
     std::optional<ActiveStream> m_stream;
     std::deque<std::string>     m_queued_user_message_ids;
+    std::map<std::string, PendingToolContinuation> m_tool_continuations;
 
     std::uint64_t m_next_envelope_id{1};
     std::uint64_t m_messages_sent{0};
