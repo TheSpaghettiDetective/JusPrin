@@ -243,6 +243,20 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (m_extension_executor) {
+        ExtensionResult result = m_extension_executor(activity);
+        if (result.handled) {
+            if (result.error) {
+                fail(activity, std::move(result.error->code), std::move(result.error->message));
+                return;
+            }
+            activity.result_json = std::move(result.result_json);
+            activity.state       = ToolState::Succeeded;
+            notify(activity);
+            return;
+        }
+    }
+
     fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");
 }
 

@@ -231,6 +231,46 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         reply.tool   = request;
         return reply;
     }
+    if (starts_with(user_text, "/build")) {
+        ToolRequest request;
+        request.tool           = "record_build";
+        request.title          = "Record a build of the sliced active plate";
+        request.arguments_json = json{{"slicerVersion", "JusPrin deterministic Phase 6"},
+                                      {"configurationProvenance", "Active printer, process, filament, plate, objects, instances, and transforms"},
+                                      {"printTimeSeconds", 3720.0},
+                                      {"filamentMm", 1842.5},
+                                      {"materialGrams", 14.7},
+                                      {"materialCost", 0.44},
+                                      {"layerCount", 124}}
+                                         .dump();
+        request.action_class = ActionClass::Mutation;
+        request.run_ticks    = 2;
+        reply.chunks = chunk_words("I can preserve the active plate's revision, settings, slice statistics, and immutable hashes as a build record.");
+        reply.tool   = request;
+        return reply;
+    }
+    if (starts_with(user_text, "/export")) {
+        ToolRequest request;
+        request.tool           = "record_export_copy";
+        request.title          = "Record an exported G-code copy";
+        request.arguments_json = json{{"destination", "Phase 6 demo.gcode"}}.dump();
+        request.action_class   = ActionClass::Destructive;
+        request.run_ticks      = 2;
+        reply.chunks = chunk_words("I can add a verified external-copy record linked to the latest build.");
+        reply.tool   = request;
+        return reply;
+    }
+    if (starts_with(user_text, "/print")) {
+        ToolRequest request;
+        request.tool           = "record_physical_print";
+        request.title          = "Record a completed physical print";
+        request.arguments_json = json{{"outcome", "completed"}}.dump();
+        request.action_class   = ActionClass::Destructive;
+        request.run_ticks      = 3;
+        reply.chunks = chunk_words("I can add a completed physical-print fact linked to the latest build. This ledger entry will survive project Revert.");
+        reply.tool   = request;
+        return reply;
+    }
     // A sent model attachment is imported through Orca's own importer, as an
     // approved manufacturing change. This mirrors what a future MCP agent would
     // propose; the host resolves the opaque attachment ID to a file path.

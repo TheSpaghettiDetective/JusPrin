@@ -48,6 +48,11 @@ public:
     //                                     progress run for cancellation tests;
     //   text starting with "/inspect"  -> read-only selection inspection that
     //                                     runs without approval by policy;
+    //   text starting with "/build"    -> records the sliced active plate;
+    //   text starting with "/export"   -> records a verified exported copy of
+    //                                     the latest build;
+    //   text starting with "/print"    -> records a completed physical print
+    //                                     in the non-revertible ledger;
     //   text containing "duplicate"    -> proposes duplicating the selected
     //                                     object (approval required);
     //   anything else                  -> a streamed summary of the workspace

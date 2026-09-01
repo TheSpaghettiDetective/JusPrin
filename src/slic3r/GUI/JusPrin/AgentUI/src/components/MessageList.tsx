@@ -5,11 +5,12 @@
 // markers of this conversation render where they happened.
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { AttachmentInfo, RevisionInfo, ToolActivityInfo } from '../bridge/protocol';
+import { AttachmentInfo, BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, RevisionInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
 import { RevisionMarker } from './RevisionMarker';
 import { ToolActivityCard } from './ToolActivityCard';
+import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 
 interface Props {
   messages: Message[];
@@ -17,6 +18,9 @@ interface Props {
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[]; // already filtered to this conversation
+  builds: BuildInfo[];
+  exportedCopies: ExportedCopyInfo[];
+  physicalPrints: PhysicalPrintInfo[];
   onRetry: (messageId: string) => void;
   onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
@@ -29,6 +33,9 @@ export function MessageList({
   streamingMessageId,
   toolActivities,
   revisions,
+  builds,
+  exportedCopies,
+  physicalPrints,
   onRetry,
   onToolDecision,
   onToolCancel,
@@ -48,11 +55,20 @@ export function MessageList({
   useLayoutEffect(() => {
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, revisions, followBottom]);
+  }, [messages, toolActivities, revisions, builds, exportedCopies, physicalPrints, followBottom]);
 
   const markersAfter = (messageId: string) => revisions.filter((r) => r.afterMessageId === messageId);
   const leadingMarkers = revisions.filter(
     (r) => r.afterMessageId === '' || !messages.some((m) => m.id === r.afterMessageId),
+  );
+  const history: ManufacturingHistoryEntry[] = [
+    ...builds.map((record) => ({ kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
+    ...exportedCopies.map((record) => ({ kind: 'copy' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
+    ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
+  ].sort((a, b) => a.seq - b.seq);
+  const historyAfter = (messageId: string) => history.filter((entry) => entry.afterMessageId === messageId);
+  const leadingHistory = history.filter(
+    (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
   );
 
   return (
@@ -60,6 +76,7 @@ export function MessageList({
       {leadingMarkers.map((revision) => (
         <RevisionMarker key={revision.id} revision={revision} onRevert={onRevert} />
       ))}
+      {leadingHistory.map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
       {messages.length === 0 && (
         <div className="notice">
           <h2>Ask the Agent about your print</h2>
@@ -108,6 +125,7 @@ export function MessageList({
           {markersAfter(message.id).map((revision) => (
             <RevisionMarker key={revision.id} revision={revision} onRevert={onRevert} />
           ))}
+          {historyAfter(message.id).map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
         </div>
       ))}
     </div>

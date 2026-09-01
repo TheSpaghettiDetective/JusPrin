@@ -1,7 +1,7 @@
-// Runs the complete native application and verifies the Phase 1 JusPrin
-// production shell: installation, the real Prepare canvas, the Slice and
-// Check print flow, resize and project replacement, the failed-install
-// fallback, and exact restoration of the stock presentation.
+// Runs the complete native application and verifies the production JusPrin
+// shell through Phase 6: installation, Prepare/Slice/Check print, the typed
+// Agent bridge and tools, persistence/Revert, manufacturing history, resize
+// and project replacement, fallback, and restoration of stock presentation.
 //
 // Modes:
 //   (default)  automated shell checks, exits with the result
@@ -722,40 +722,170 @@ private:
                         self->check(!messages.empty(), "saved_messages_survive_reopen");
                         self->check(!self->persistence().document().revisions().empty(),
                                     "saved_revisions_survive_reopen");
-                        self->agent_revert_flow();
+                        self->agent_phase6_history();
                     });
             });
     }
 
-    void agent_revert_flow()
+    // Phase 6: record one real sliced plate as a deterministic build, then an
+    // exported copy and completed physical print through the same page ->
+    // Agent -> approval coordinator path. Change manufacturing input, confirm
+    // derived staleness, and Revert past the print: editable history goes away
+    // while the factual print ledger remains.
+    void agent_phase6_history()
     {
-        const std::size_t objects_before  = m_plater->model().objects.size();
-        const std::string revision_before = persistence().document().current_revision_id();
-        check(!revision_before.empty(), "current_revision_known_after_reopen");
-
-        check(m_plater->duplicate_object(0) >= 0, "native_change_for_revert");
+        m_phase6_objects_before  = m_plater->model().objects.size();
+        m_phase6_target_revision = persistence().document().current_revision_id();
+        check(!m_phase6_target_revision.empty(), "phase6_target_revision_known");
+        check(m_plater->duplicate_object(0) >= 0, "phase6_manufacturing_change_before_build");
         wait_until(
-            [this, revision_before] { return persistence().document().current_revision_id() != revision_before; },
-            "native_change_captured_revision", [self = shared_from_this(), objects_before, revision_before] {
-                self->check(self->m_plater->model().objects.size() == objects_before + 1, "native_change_visible");
+            [this] { return persistence().document().current_revision_id() != m_phase6_target_revision; },
+            "phase6_source_revision_captured", [self = shared_from_this()] {
+                installed_shell()->status_row()->request_slice();
+                self->wait_until(
+                    [self] {
+                        PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
+                        return plate != nullptr && plate->is_slice_result_valid();
+                    },
+                    "phase6_active_plate_sliced", [self] { self->phase6_propose_build(); });
+            });
+    }
+
+    void phase6_propose_build()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/build')");
+        wait_until(
+            [&web_view, activities_before] {
+                const auto& activities = web_view.host().tools().activities();
+                return activities.size() > activities_before && activities.back().tool == "record_build" &&
+                       activities.back().state == Agent::ToolState::Pending;
+            },
+            "phase6_build_proposal_pending", [self = shared_from_this()] {
+                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                const std::string action_id = web_view.host().tools().activities().back().action_id;
+                WebView::RunScript(web_view.webview(),
+                                   wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" + action_id +
+                                                      "', 'approve')"));
+                self->wait_until(
+                    [self, &web_view, action_id] {
+                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
+                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
+                               self->persistence().document().builds().size() == 1;
+                    },
+                    "phase6_build_recorded", [self] { self->phase6_propose_export(); });
+            });
+    }
+
+    void phase6_propose_export()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/export')");
+        wait_until(
+            [&web_view, activities_before] {
+                const auto& activities = web_view.host().tools().activities();
+                return activities.size() > activities_before && activities.back().tool == "record_export_copy" &&
+                       activities.back().state == Agent::ToolState::Pending;
+            },
+            "phase6_export_proposal_pending", [self = shared_from_this()] {
+                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                const std::string action_id = web_view.host().tools().activities().back().action_id;
+                WebView::RunScript(web_view.webview(),
+                                   wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" + action_id +
+                                                      "', 'approve')"));
+                self->wait_until(
+                    [self, &web_view, action_id] {
+                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
+                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
+                               self->persistence().document().exported_copies().size() == 1;
+                    },
+                    "phase6_export_recorded", [self] { self->phase6_propose_print(); });
+            });
+    }
+
+    void phase6_propose_print()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/print')");
+        wait_until(
+            [&web_view, activities_before] {
+                const auto& activities = web_view.host().tools().activities();
+                return activities.size() > activities_before && activities.back().tool == "record_physical_print" &&
+                       activities.back().state == Agent::ToolState::Pending;
+            },
+            "phase6_print_proposal_pending", [self = shared_from_this()] {
+                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+                const std::string action_id = web_view.host().tools().activities().back().action_id;
+                WebView::RunScript(web_view.webview(),
+                                   wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.decide('" + action_id +
+                                                      "', 'approve')"));
+                self->wait_until(
+                    [self, &web_view, action_id] {
+                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
+                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
+                               self->persistence().document().physical_prints().size() == 1;
+                    },
+                    "phase6_physical_print_recorded", [self] { self->phase6_verify_and_revert(); });
+            });
+    }
+
+    void phase6_verify_and_revert()
+    {
+        const Agent::BuildRecord build = persistence().document().builds().front();
+        const Agent::ExportedCopyRecord copy = persistence().document().exported_copies().front();
+        const Agent::PhysicalPrintRecord print = persistence().document().physical_prints().front();
+        check(build.manufacturing_input_hash.size() == 64 && build.output_hash.size() == 64,
+              "phase6_build_has_sha256_provenance");
+        check(build.revision_id == print.revision_id && build.plate_name == print.plate_name,
+              "phase6_print_keeps_revision_and_plate");
+        check(!print.printer.empty() && !print.material.empty() && !print.started_at.empty() && !print.ended_at.empty(),
+              "phase6_print_keeps_setup_and_times");
+        check(print.outcome == "completed" && print.gcode_hash == build.output_hash,
+              "phase6_print_keeps_outcome_and_gcode_hash");
+        check(print.statistics.layer_count == 124 && copy.expected_output_hash == build.output_hash &&
+                  copy.observed_output_hash == build.output_hash,
+              "phase6_stats_and_export_checksum_survive");
+
+        check(m_plater->duplicate_object(0) >= 0, "phase6_change_after_build");
+        wait_until(
+            [self = shared_from_this(), input_hash = build.manufacturing_input_hash, plate_index = build.plate_index] {
+                const auto current = Agent::manufacturing_input_hash(self->installed_workspace_snapshot(), plate_index);
+                return current && *current != input_hash;
+            },
+            "phase6_old_build_becomes_stale", [self = shared_from_this()] {
                 AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
                 WebView::RunScript(web_view.webview(),
                                    wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.revert('" +
-                                                      revision_before + "')"));
+                                                      self->m_phase6_target_revision + "')"));
                 self->wait_until(
-                    [self, revision_before] {
-                        return self->persistence().document().current_revision_id() == revision_before;
-                    },
-                    "revert_completed_via_page", [self, objects_before, revision_before] {
-                        self->check(self->m_plater->model().objects.size() == objects_before,
-                                    "revert_restores_native_state");
-                        self->check(!self->m_plater->can_redo_project(), "revert_leaves_no_redo");
-                        const auto revisions = self->persistence().document().revisions();
-                        self->check(!revisions.empty() && revisions.back().id == revision_before,
-                                    "revert_truncates_timeline");
-                        self->agent_import_and_clean_share();
-                    });
+                    [self] { return self->persistence().document().current_revision_id() == self->m_phase6_target_revision; },
+                    "phase6_revert_completed", [self] { self->phase6_verify_retention(); });
             });
+    }
+
+    Workspace::WorkspaceSnapshot installed_workspace_snapshot() const
+    {
+        return installed_shell()->workspace()->snapshot();
+    }
+
+    void phase6_verify_retention()
+    {
+        check(m_plater->model().objects.size() == m_phase6_objects_before,
+              "phase6_revert_restores_native_state");
+        check(!m_plater->can_redo_project(), "phase6_revert_leaves_no_redo");
+        check(persistence().document().builds().empty() && persistence().document().exported_copies().empty(),
+              "phase6_revert_removes_later_editable_history");
+        const auto prints = persistence().document().physical_prints();
+        check(prints.size() == 1, "phase6_physical_print_survives_revert");
+        check(!prints.empty() && !persistence().document().find_revision(prints.front().revision_id).has_value(),
+              "phase6_print_source_timeline_removed");
+        check(!prints.empty() && prints.front().outcome == "completed" && prints.front().gcode_hash.size() == 64 &&
+                  prints.front().statistics.layer_count == 124,
+              "phase6_surviving_print_facts_exact");
+        agent_import_and_clean_share();
     }
 
     void agent_import_and_clean_share()
@@ -897,6 +1027,8 @@ private:
     bool                          m_finished{false};
     std::uint64_t                 m_wait_ticks{0};
     std::size_t                   m_objects_before_tool{0};
+    std::size_t                   m_phase6_objects_before{0};
+    std::string                   m_phase6_target_revision;
     std::string                   m_saved_project_id;
     std::string                   m_saved_project_file;
     std::string                   m_live_action_id;

@@ -23,12 +23,24 @@ public:
     // Invoked after every observable activity change with the updated record.
     using ActivityCallback = std::function<void(const ToolActivity&)>;
 
+    struct ExtensionResult
+    {
+        bool                     handled{false};
+        std::string              result_json;
+        std::optional<ToolError> error;
+    };
+    // Typed native extensions still execute inside this coordinator and its
+    // approval/state machine. The host uses this for durable manufacturing
+    // records; future MCP adapters use the same seam, never a WebView path.
+    using ExtensionExecutor = std::function<ExtensionResult(const ToolActivity&)>;
+
     explicit ToolExecutionCoordinator(Workspace::IWorkspace& workspace);
 
     ToolExecutionCoordinator(const ToolExecutionCoordinator&) = delete;
     ToolExecutionCoordinator& operator=(const ToolExecutionCoordinator&) = delete;
 
     void set_listener(ActivityCallback listener) { m_listener = std::move(listener); }
+    void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
 
     // Action IDs default to a process-local counter; an owner with persisted
     // state injects its own allocator so IDs stay unique across restarts.
@@ -79,6 +91,7 @@ private:
     Workspace::IWorkspace&           m_workspace;
     Workspace::WorkspaceSubscription m_workspace_subscription;
     ActivityCallback                 m_listener;
+    ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;
     std::vector<ToolActivity>        m_activities;

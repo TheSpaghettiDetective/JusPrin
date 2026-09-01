@@ -8,8 +8,11 @@ import {
   AgentStatus,
   Appearance,
   AttachmentInfo,
+  BuildInfo,
   ConversationInfo,
   Envelope,
+  ExportedCopyInfo,
+  PhysicalPrintInfo,
   RevisionInfo,
   StatePayload,
   ToolActivityInfo,
@@ -33,6 +36,9 @@ export interface AgentUiState {
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[];
+  builds: BuildInfo[];
+  exportedCopies: ExportedCopyInfo[];
+  physicalPrints: PhysicalPrintInfo[];
   draft: string;
   // Staged (composer) and sent (history) attachments, keyed by id in the UI.
   attachments: AttachmentInfo[];
@@ -53,6 +59,9 @@ export const initialState: AgentUiState = {
   streamingMessageId: null,
   toolActivities: [],
   revisions: [],
+  builds: [],
+  exportedCopies: [],
+  physicalPrints: [],
   draft: '',
   attachments: [],
   context: null,
@@ -118,6 +127,9 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         streamingMessageId: full.streamingMessageId,
         toolActivities: full.toolActivities ?? [],
         revisions: full.revisions ?? [],
+        builds: full.builds ?? [],
+        exportedCopies: full.exportedCopies ?? [],
+        physicalPrints: full.physicalPrints ?? [],
         draft: full.draft ?? '',
         attachments: full.attachments ?? [],
         context: full.context,

@@ -10,7 +10,8 @@
     "tools",
     "conversations",
     "revisions",
-    "attachments"
+    "attachments",
+    "manufacturing_history"
   ],
   "pageMessageTypes": [
     "hello",

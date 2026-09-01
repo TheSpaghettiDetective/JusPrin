@@ -641,6 +641,58 @@ deterministic Agent and typed records for reproducible presentation and
 persistence verification, and repeat the Phase 5.1 live-Agent workflow as a
 credentialed smoke test.
 
+Phase 6 verification evidence (2026-09-01):
+
+- the deterministic Agent now proposes typed build, exported-copy, and
+  physical-print records through the existing approval coordinator. Builds
+  retain project/revision/plate, printer/material, slicer/configuration,
+  warning, SHA-256, and slice-statistic facts; exported-copy verification and
+  build staleness are derived from hashes rather than persisted flags;
+- the project document is schema version 2. Revert removes later builds,
+  exported copies, recovery draft text, and every unsent staged/error
+  attachment. The separate physical-print ledger survives with its immutable
+  facts and derives the exact `Project timeline removed` label when its source
+  revision no longer exists;
+- the Agent pane renders the three records as semantic timeline articles with
+  status text, definition lists, full selectable hashes, narrow-width wrapping,
+  reduced-motion behavior, and repository semantic light/dark tokens. Existing
+  UI tests continue to cover keyboard submission, IME composition, streaming,
+  attachment selection, and bridge appearance changes;
+- production changes are confined to `src/slic3r/GUI/JusPrin/` and the committed
+  `resources/jusprin/agent/` bundle. Supporting changes are in the repository
+  Agent and native-shell tests. No OrcaSlicer-owned production file was edited,
+  so there is no upstream rebase patch to carry;
+- `ctest --test-dir build/arm64/tests/agent --output-on-failure -j4`: 79 of 79
+  passed. This includes SHA-256 known-answer/canonical-input tests, record
+  round-trip and non-persisted-derived-field tests, Revert retention tests, the
+  staged-attachment/draft reproductions, and the deterministic native
+  coordinator workflow;
+- `ctest --test-dir build/arm64/tests/workspace --output-on-failure -j4`: 14 of
+  14 passed. `npm test -- --run`: 43 of 43 passed. `npm run build`: passed and
+  regenerated the single-file Agent resource;
+- the repository-wide `ctest --test-dir build/arm64 --output-on-failure -j8`
+  run passed 285 of 286 tests. The sole failure was the already-documented
+  `Scenario: Placeholder parser coFloatsOrPercents vector access` SIGSEGV in
+  `test_placeholder_parser.cpp`; it ran first, before the Phase 6 tests, and no
+  Phase 6 file touches that subsystem;
+- the macOS arm64 `JusPrinShellHarness` app passed its complete default workflow
+  with zero failures: an authoritative `PartPlate` became slice-valid, the page
+  approved build/export/print proposals through WKWebView, a later Orca model
+  duplication made the build stale, and Revert restored the earlier native
+  object count with no redo while removing the build/copy and retaining the
+  print's exact setup, times, outcome, hashes, and statistics. The clean-share,
+  resize, project-replacement, detach, and restored-stock-canvas checks also
+  passed;
+- the same app passed `--stock` with zero failures and `--slice-all-cold` with
+  zero failures. The known placeholder-parser SIGSEGV and the Metal zero-texture
+  diagnostic are recorded as inherited failures/output, not Phase 6
+  regressions;
+- Windows and Linux validation were intentionally skipped at the user's
+  direction, so no cross-platform release claim is made. A fresh Phase 5.1
+  live-service smoke could not run because this process had no
+  `OPENAI_API_KEY`; the credentialed passing run recorded immediately above
+  remains the live-Agent evidence for this branch.
+
 ## Design requirements
 
 Use the [JusPrin v2 Figma design](https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=0-1)

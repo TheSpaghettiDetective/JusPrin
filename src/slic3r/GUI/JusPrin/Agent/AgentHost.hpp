@@ -121,6 +121,7 @@ private:
     void send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id = {});
     std::string attachment_preview_data_url(const AttachmentRecord& record) const;
     void send_tool_activity(const ToolActivity& activity, const std::string& correlation_id = {});
+    ToolExecutionCoordinator::ExtensionResult execute_manufacturing_tool(const ToolActivity& activity);
     void on_document_replaced();
 
     std::optional<ConversationMessage> find_stored_message(const std::string& id, std::string* conversation_id = nullptr) const;

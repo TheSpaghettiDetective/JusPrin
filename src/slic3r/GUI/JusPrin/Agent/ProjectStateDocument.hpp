@@ -1,8 +1,9 @@
 #pragma once
 
 // The portable, versioned semantic state of a JusPrin project: conversations,
-// their messages and tool activity records, and the linear manufacturing
-// revision timeline. Serialized as Auxiliaries/JusPrin/state.json inside the
+// their messages and tool activity records, the linear editable revision and
+// build timeline, and the non-revertible physical-print ledger. Serialized as
+// Auxiliaries/JusPrin/state.json inside the
 // project archive and mirrored to the local recovery store.
 //
 // The document is backed by one JSON tree that is edited in place, so
@@ -12,6 +13,7 @@
 // across every conversation, which is what Revert here truncates. GUI-free.
 
 #include "AgentProtocol.hpp"
+#include "ManufacturingHistory.hpp"
 #include "ToolExecution.hpp"
 
 #include <nlohmann/json.hpp>
@@ -72,7 +74,7 @@ struct AttachmentRecord
 class ProjectStateDocument
 {
 public:
-    static constexpr int kSchemaVersion = 1;
+    static constexpr int kSchemaVersion = 2;
 
     enum class LoadResult { Loaded, Migrated, Corrupt };
 
@@ -134,6 +136,19 @@ public:
     // not staged are ignored; returns the IDs that were actually sent.
     std::vector<std::string> mark_attachments_sent(const std::vector<std::string>& attachment_ids);
 
+    // -- Manufacturing history --------------------------------------------
+    // Add-only immutable records. Builds and copies belong to the editable
+    // revision timeline; physical prints belong to the separate factual
+    // ledger and are never removed by Revert.
+    std::string add_build(BuildRecord record, const std::string& timestamp);
+    std::string add_exported_copy(ExportedCopyRecord record, const std::string& timestamp);
+    std::string add_physical_print(PhysicalPrintRecord record, const std::string& timestamp);
+    std::vector<BuildRecord>         builds() const;
+    std::vector<ExportedCopyRecord>  exported_copies() const;
+    std::vector<PhysicalPrintRecord> physical_prints() const;
+    std::optional<BuildRecord>       find_build(const std::string& build_id) const;
+    std::optional<BuildRecord>       latest_build() const;
+
     // -- Revisions ----------------------------------------------------------
     // The id add_revision will assign next — lets a caller name the snapshot
     // file before recording the revision entry.
@@ -160,8 +175,9 @@ public:
         std::vector<std::string> removed_attachment_dirs;
         std::vector<std::string> kept_attachment_dirs;
     };
-    // Removes every entry (messages, activities, revisions) with seq greater
-    // than the revision's across all conversations, and makes it current.
+    // Removes every editable entry (messages, activities, revisions, builds,
+    // exported copies, composer state) with seq greater than the revision's
+    // across all conversations, and makes it current. Physical prints remain.
     std::optional<TruncateResult> revert_to_revision(const std::string& revision_id);
 
     // Raw access for tests and serialization helpers.

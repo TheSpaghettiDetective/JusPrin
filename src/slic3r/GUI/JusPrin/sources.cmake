@@ -10,6 +10,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/AgentWebView.hpp
     GUI/JusPrin/Agent/DeterministicMockAgent.cpp
     GUI/JusPrin/Agent/DeterministicMockAgent.hpp
+    GUI/JusPrin/Agent/ManufacturingHistory.cpp
+    GUI/JusPrin/Agent/ManufacturingHistory.hpp
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp

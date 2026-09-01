@@ -74,6 +74,9 @@ function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
     streamingMessageId: null,
     toolActivities: [],
     revisions: [],
+    builds: [],
+    exportedCopies: [],
+    physicalPrints: [],
     draft: '',
     context,
     ...overrides,
@@ -137,6 +140,42 @@ describe('App', () => {
     expect(screen.getByText('Two cubes.')).toBeInTheDocument();
     expect(screen.getByTestId('context-summary')).toHaveTextContent('Two Cubes');
     expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-a');
+  });
+
+  it('renders build copy and retained physical-print facts with derived statuses', () => {
+    const hash = 'a'.repeat(64);
+    const statistics = { printTimeSeconds: 3720, filamentMm: 1842.5, materialGrams: 14.7, materialCost: 0.44, layerCount: 124 };
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        builds: [{
+          id: 'b-1', seq: 10, createdAt: '2026-08-30T00:00:00Z', projectId: 'project-1', revisionId: 'r-2',
+          conversationId: 'conv-1', afterMessageId: '', plateIndex: 0, plateName: 'Plate 1',
+          printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
+          slicerVersion: 'JusPrin deterministic Phase 6', configurationProvenance: 'A very long configuration provenance value that must wrap at narrow widths',
+          statistics, warnings: ['A deterministic warning'], stale: true,
+        }],
+        exportedCopies: [{
+          id: 'e-1', seq: 11, createdAt: '2026-08-30T00:00:00Z', buildId: 'b-1', conversationId: 'conv-1',
+          afterMessageId: '', destination: '/a/very/long/path/that/must/not/overflow/phase-six-demo.gcode',
+          expectedOutputHash: hash, observedOutputHash: hash, verified: true, modified: false,
+        }],
+        physicalPrints: [{
+          id: 'p-1', seq: 12, startedAt: '2026-08-30T00:00:00Z', endedAt: '2026-08-30T01:02:00Z',
+          outcome: 'completed', failure: '', buildId: 'b-1', projectId: 'project-1', revisionId: 'r-2',
+          conversationId: 'conv-1', afterMessageId: 'removed-message', plateIndex: 0, plateName: 'Plate 1',
+          printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
+          gcodeHash: hash, statistics, timelineRemoved: true,
+        }],
+      }),
+    );
+
+    expect(screen.getByLabelText('Build b-1')).toHaveTextContent('Stale');
+    expect(screen.getByLabelText('Exported copy e-1')).toHaveTextContent('Checksum verified');
+    expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Project timeline removed');
+    expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Test Printer 0.4');
+    expect(screen.getAllByTitle(hash).length).toBeGreaterThanOrEqual(6);
   });
 
   it('sends a user message on Enter and streams the reply with stop support', async () => {

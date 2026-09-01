@@ -12,7 +12,8 @@
 //  - manufacturing changes reported by the workspace produce revision
 //    checkpoints through IWorkspace::export_project_archive;
 //  - Revert here restores a checkpoint through the workspace and atomically
-//    truncates every conversation's later entries, keeping no redo branch.
+//    truncates every editable later entry, keeping no redo branch, while the
+//    separate physical-print ledger remains factual and non-revertible.
 //
 // Project boundaries follow the auxiliary directory: it changes whenever the
 // authoritative project is replaced by a load or a new project, and stays

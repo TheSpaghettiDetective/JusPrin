@@ -185,6 +185,96 @@ AttachmentRecord read_attachment(const json& entry)
     return record;
 }
 
+json statistics_json(const SliceStatistics& statistics)
+{
+    return json{{"printTimeSeconds", statistics.print_time_seconds},
+                {"filamentMm", statistics.filament_mm},
+                {"materialGrams", statistics.material_grams},
+                {"materialCost", statistics.material_cost},
+                {"layerCount", statistics.layer_count}};
+}
+
+SliceStatistics read_statistics(const json& entry)
+{
+    SliceStatistics statistics;
+    if (!entry.is_object())
+        return statistics;
+    statistics.print_time_seconds = entry.value("printTimeSeconds", 0.0);
+    statistics.filament_mm        = entry.value("filamentMm", 0.0);
+    statistics.material_grams     = entry.value("materialGrams", 0.0);
+    statistics.material_cost      = entry.value("materialCost", 0.0);
+    statistics.layer_count        = entry.value("layerCount", std::uint64_t(0));
+    return statistics;
+}
+
+BuildRecord read_build(const json& entry)
+{
+    BuildRecord record;
+    record.id                       = entry.value("id", "");
+    record.seq                      = entry.value("seq", std::uint64_t(0));
+    record.created_at               = entry.value("createdAt", "");
+    record.project_id               = entry.value("projectId", "");
+    record.revision_id              = entry.value("revisionId", "");
+    record.conversation_id          = entry.value("conversationId", "");
+    record.after_message_id         = entry.value("afterMessageId", "");
+    record.plate_index              = entry.value("plateIndex", std::size_t(0));
+    record.plate_name               = entry.value("plateName", "");
+    record.printer                  = entry.value("printer", "");
+    record.material                 = entry.value("material", "");
+    record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
+    record.output_hash              = entry.value("outputHash", "");
+    record.slicer_version           = entry.value("slicerVersion", "");
+    record.configuration_provenance = entry.value("configurationProvenance", "");
+    if (entry.contains("statistics"))
+        record.statistics = read_statistics(entry["statistics"]);
+    if (entry.contains("warnings") && entry["warnings"].is_array())
+        for (const json& warning : entry["warnings"])
+            if (warning.is_string())
+                record.warnings.push_back(warning.get<std::string>());
+    return record;
+}
+
+ExportedCopyRecord read_exported_copy(const json& entry)
+{
+    ExportedCopyRecord record;
+    record.id                   = entry.value("id", "");
+    record.seq                  = entry.value("seq", std::uint64_t(0));
+    record.created_at           = entry.value("createdAt", "");
+    record.build_id             = entry.value("buildId", "");
+    record.conversation_id      = entry.value("conversationId", "");
+    record.after_message_id     = entry.value("afterMessageId", "");
+    record.destination          = entry.value("destination", "");
+    record.expected_output_hash = entry.value("expectedOutputHash", "");
+    record.observed_output_hash = entry.value("observedOutputHash", "");
+    return record;
+}
+
+PhysicalPrintRecord read_physical_print(const json& entry)
+{
+    PhysicalPrintRecord record;
+    record.id                       = entry.value("id", "");
+    record.seq                      = entry.value("seq", std::uint64_t(0));
+    record.started_at               = entry.value("startedAt", "");
+    record.ended_at                 = entry.value("endedAt", "");
+    record.outcome                  = entry.value("outcome", "");
+    record.failure                  = entry.value("failure", "");
+    record.build_id                 = entry.value("buildId", "");
+    record.project_id               = entry.value("projectId", "");
+    record.revision_id              = entry.value("revisionId", "");
+    record.conversation_id          = entry.value("conversationId", "");
+    record.after_message_id         = entry.value("afterMessageId", "");
+    record.plate_index              = entry.value("plateIndex", std::size_t(0));
+    record.plate_name               = entry.value("plateName", "");
+    record.printer                  = entry.value("printer", "");
+    record.material                 = entry.value("material", "");
+    record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
+    record.output_hash              = entry.value("outputHash", "");
+    record.gcode_hash               = entry.value("gcodeHash", "");
+    if (entry.contains("statistics"))
+        record.statistics = read_statistics(entry["statistics"]);
+    return record;
+}
+
 void write_activity_fields(json& entry, const ToolActivity& activity)
 {
     entry["actionId"]         = activity.action_id;
@@ -255,13 +345,18 @@ json fresh_document()
                 {"project", json{{"projectId", ""}, {"lineageId", ""}, {"createdAt", ""}}},
                 {"counters", json{{"nextSeq", std::uint64_t(1)}, {"nextMessage", std::uint64_t(1)},
                                   {"nextAction", std::uint64_t(1)}, {"nextConversation", std::uint64_t(1)},
-                                  {"nextRevision", std::uint64_t(1)}, {"nextAttachment", std::uint64_t(1)}}},
+                                  {"nextRevision", std::uint64_t(1)}, {"nextAttachment", std::uint64_t(1)},
+                                  {"nextBuild", std::uint64_t(1)}, {"nextExport", std::uint64_t(1)},
+                                  {"nextPrint", std::uint64_t(1)}}},
                 {"activeConversationId", ""},
                 {"currentRevisionId", ""},
                 {"conversations", json::array()},
                 {"toolActivities", json::array()},
                 {"attachments", json::array()},
-                {"revisions", json::array()}};
+                {"revisions", json::array()},
+                {"builds", json::array()},
+                {"exportedCopies", json::array()},
+                {"physicalPrints", json::array()}};
 }
 
 } // namespace
@@ -565,6 +660,122 @@ std::vector<std::string> ProjectStateDocument::mark_attachments_sent(const std::
     return sent;
 }
 
+std::string ProjectStateDocument::add_build(BuildRecord record, const std::string& timestamp)
+{
+    const std::uint64_t number = m_doc["counters"].value("nextBuild", std::uint64_t(1));
+    m_doc["counters"]["nextBuild"] = number + 1;
+    record.id = "b-" + std::to_string(number);
+    json entry{{"id", record.id},
+               {"seq", next_seq()},
+               {"createdAt", timestamp},
+               {"projectId", record.project_id},
+               {"revisionId", record.revision_id},
+               {"conversationId", record.conversation_id},
+               {"afterMessageId", record.after_message_id},
+               {"plateIndex", record.plate_index},
+               {"plateName", record.plate_name},
+               {"printer", record.printer},
+               {"material", record.material},
+               {"manufacturingInputHash", record.manufacturing_input_hash},
+               {"outputHash", record.output_hash},
+               {"slicerVersion", record.slicer_version},
+               {"configurationProvenance", record.configuration_provenance},
+               {"statistics", statistics_json(record.statistics)},
+               {"warnings", record.warnings}};
+    m_doc["builds"].push_back(std::move(entry));
+    touch();
+    return record.id;
+}
+
+std::string ProjectStateDocument::add_exported_copy(ExportedCopyRecord record, const std::string& timestamp)
+{
+    const std::uint64_t number = m_doc["counters"].value("nextExport", std::uint64_t(1));
+    m_doc["counters"]["nextExport"] = number + 1;
+    record.id = "e-" + std::to_string(number);
+    m_doc["exportedCopies"].push_back(json{{"id", record.id},
+                                           {"seq", next_seq()},
+                                           {"createdAt", timestamp},
+                                           {"buildId", record.build_id},
+                                           {"conversationId", record.conversation_id},
+                                           {"afterMessageId", record.after_message_id},
+                                           {"destination", record.destination},
+                                           {"expectedOutputHash", record.expected_output_hash},
+                                           {"observedOutputHash", record.observed_output_hash}});
+    touch();
+    return record.id;
+}
+
+std::string ProjectStateDocument::add_physical_print(PhysicalPrintRecord record, const std::string& timestamp)
+{
+    const std::uint64_t number = m_doc["counters"].value("nextPrint", std::uint64_t(1));
+    m_doc["counters"]["nextPrint"] = number + 1;
+    record.id = "p-" + std::to_string(number);
+    if (record.started_at.empty())
+        record.started_at = timestamp;
+    if (record.ended_at.empty())
+        record.ended_at = timestamp;
+    m_doc["physicalPrints"].push_back(json{{"id", record.id},
+                                           {"seq", next_seq()},
+                                           {"startedAt", record.started_at},
+                                           {"endedAt", record.ended_at},
+                                           {"outcome", record.outcome},
+                                           {"failure", record.failure},
+                                           {"buildId", record.build_id},
+                                           {"projectId", record.project_id},
+                                           {"revisionId", record.revision_id},
+                                           {"conversationId", record.conversation_id},
+                                           {"afterMessageId", record.after_message_id},
+                                           {"plateIndex", record.plate_index},
+                                           {"plateName", record.plate_name},
+                                           {"printer", record.printer},
+                                           {"material", record.material},
+                                           {"manufacturingInputHash", record.manufacturing_input_hash},
+                                           {"outputHash", record.output_hash},
+                                           {"gcodeHash", record.gcode_hash},
+                                           {"statistics", statistics_json(record.statistics)}});
+    touch();
+    return record.id;
+}
+
+std::vector<BuildRecord> ProjectStateDocument::builds() const
+{
+    std::vector<BuildRecord> result;
+    for (const json& entry : m_doc["builds"])
+        result.push_back(read_build(entry));
+    return result;
+}
+
+std::vector<ExportedCopyRecord> ProjectStateDocument::exported_copies() const
+{
+    std::vector<ExportedCopyRecord> result;
+    for (const json& entry : m_doc["exportedCopies"])
+        result.push_back(read_exported_copy(entry));
+    return result;
+}
+
+std::vector<PhysicalPrintRecord> ProjectStateDocument::physical_prints() const
+{
+    std::vector<PhysicalPrintRecord> result;
+    for (const json& entry : m_doc["physicalPrints"])
+        result.push_back(read_physical_print(entry));
+    return result;
+}
+
+std::optional<BuildRecord> ProjectStateDocument::find_build(const std::string& build_id) const
+{
+    for (const json& entry : m_doc["builds"])
+        if (entry.value("id", "") == build_id)
+            return read_build(entry);
+    return std::nullopt;
+}
+
+std::optional<BuildRecord> ProjectStateDocument::latest_build() const
+{
+    if (m_doc["builds"].empty())
+        return std::nullopt;
+    return read_build(m_doc["builds"].back());
+}
+
 bool ProjectStateDocument::normalize_interrupted_state()
 {
     bool changed = false;
@@ -685,9 +896,30 @@ std::optional<ProjectStateDocument::TruncateResult> ProjectStateDocument::revert
                                    [cutoff](const json& entry) { return entry.value("seq", std::uint64_t(0)) > cutoff; }),
                     revisions.end());
 
-    // Attachments: drop any created after the cutoff, plus any sent attachment
-    // whose owning message the truncation removed. Staged attachments are
-    // current composer working state and survive the revert.
+    // Builds and exported copies are editable timeline entries. A copy also
+    // disappears if its source build no longer exists after truncation.
+    json& builds = m_doc["builds"];
+    builds.erase(std::remove_if(builds.begin(), builds.end(),
+                                [cutoff](const json& entry) {
+                                    return entry.value("seq", std::uint64_t(0)) > cutoff;
+                                }),
+                 builds.end());
+    std::set<std::string> kept_build_ids;
+    for (const json& entry : builds)
+        kept_build_ids.insert(entry.value("id", ""));
+    json& copies = m_doc["exportedCopies"];
+    copies.erase(std::remove_if(copies.begin(), copies.end(),
+                                [cutoff, &kept_build_ids](const json& entry) {
+                                    return entry.value("seq", std::uint64_t(0)) > cutoff ||
+                                           kept_build_ids.find(entry.value("buildId", "")) == kept_build_ids.end();
+                                }),
+                 copies.end());
+    // physicalPrints is intentionally untouched: it is a factual ledger, not
+    // recoverable editable project state.
+
+    // Attachments: keep only sent blobs still owned by a surviving message.
+    // Staged/error records are unsent composer working state and a destructive
+    // Revert discards them regardless of when they were staged.
     std::set<std::string> referenced;
     for (const json& conversation : conversations)
         for (const json& message : conversation["messages"])
@@ -699,8 +931,9 @@ std::optional<ProjectStateDocument::TruncateResult> ProjectStateDocument::revert
     for (const json& entry : attachments) {
         const AttachmentRecord record = read_attachment(entry);
         const std::uint64_t    seq    = entry.value("seq", std::uint64_t(0));
+        const bool unsent             = record.state != "sent";
         const bool orphaned_sent      = record.state == "sent" && referenced.find(record.id) == referenced.end();
-        if (seq > cutoff || orphaned_sent)
+        if (seq > cutoff || unsent || orphaned_sent)
             result.removed_attachment_dirs.push_back(record.relative_dir());
         else
             result.kept_attachment_dirs.push_back(record.relative_dir());
@@ -709,9 +942,10 @@ std::optional<ProjectStateDocument::TruncateResult> ProjectStateDocument::revert
                                      [cutoff, &referenced](const json& entry) {
                                          const std::string state = entry.value("state", "");
                                          const std::string id    = entry.value("id", "");
+                                         const bool unsent = state != "sent";
                                          const bool orphaned_sent =
                                              state == "sent" && referenced.find(id) == referenced.end();
-                                         return entry.value("seq", std::uint64_t(0)) > cutoff || orphaned_sent;
+                                         return entry.value("seq", std::uint64_t(0)) > cutoff || unsent || orphaned_sent;
                                      }),
                       attachments.end());
 

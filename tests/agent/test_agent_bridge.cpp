@@ -731,6 +731,62 @@ TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][too
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
+TEST_CASE("deterministic build export and physical print records use the native coordinator",
+          "[agent][history][revert]")
+{
+    Harness harness;
+    harness.handshake();
+    const std::string target_revision = harness.persistence.document().current_revision_id();
+    harness.workspace.set_plate_sliced(harness.workspace.snapshot().plates[0].id, true);
+
+    auto run_record_tool = [&harness](const std::string& command, const std::string& client_id) {
+        harness.send_user_message(command, client_id);
+        harness.pump_all();
+        const json proposed = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
+        REQUIRE(proposed["state"] == "pending");
+        const std::string action_id = proposed["actionId"].get<std::string>();
+        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
+        pump_tools_to_completion(harness);
+        REQUIRE((*harness.last_of_type("tool_activity"))["payload"]["activity"]["state"] == "succeeded");
+    };
+
+    run_record_tool("/build", "c-history-build");
+    run_record_tool("/export", "c-history-export");
+    run_record_tool("/print", "c-history-print");
+
+    const json* recorded = harness.last_of_type("state");
+    REQUIRE(recorded != nullptr);
+    REQUIRE((*recorded)["payload"]["builds"].size() == 1);
+    REQUIRE((*recorded)["payload"]["exportedCopies"].size() == 1);
+    REQUIRE((*recorded)["payload"]["physicalPrints"].size() == 1);
+    const json build = (*recorded)["payload"]["builds"][0];
+    CHECK(build["stale"] == false);
+    CHECK(build["manufacturingInputHash"].get<std::string>().size() == 64);
+    CHECK(build["outputHash"].get<std::string>().size() == 64);
+    CHECK(build["statistics"]["layerCount"] == 124);
+    CHECK((*recorded)["payload"]["exportedCopies"][0]["verified"] == true);
+    CHECK((*recorded)["payload"]["physicalPrints"][0]["outcome"] == "completed");
+    CHECK((*recorded)["payload"]["physicalPrints"][0]["printer"] == "Test Printer 0.4 nozzle");
+    CHECK((*recorded)["payload"]["physicalPrints"][0]["material"] == "Generic PLA");
+
+    // A later manufacturing change changes the canonical current input hash;
+    // staleness is derived at bridge time, not persisted in the build.
+    REQUIRE(harness.workspace.duplicate_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    harness.deliver("state_request");
+    CHECK((*harness.last_of_type("state"))["payload"]["builds"][0]["stale"] == true);
+
+    harness.deliver("revert_to_revision", json{{"revisionId", target_revision}});
+    const json* reverted = harness.last_of_type("state");
+    REQUIRE(reverted != nullptr);
+    CHECK((*reverted)["payload"]["builds"].empty());
+    CHECK((*reverted)["payload"]["exportedCopies"].empty());
+    REQUIRE((*reverted)["payload"]["physicalPrints"].size() == 1);
+    const json surviving_print = (*reverted)["payload"]["physicalPrints"][0];
+    CHECK(surviving_print["timelineRemoved"] == true);
+    CHECK(surviving_print["outputHash"] == build["outputHash"]);
+    CHECK(surviving_print["statistics"]["layerCount"] == 124);
+}
+
 TEST_CASE("conversations are created and switched over the bridge", "[agent][conversations]")
 {
     Harness harness;

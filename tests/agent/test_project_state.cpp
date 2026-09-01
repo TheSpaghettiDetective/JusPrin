@@ -197,6 +197,123 @@ TEST_CASE("an older schema is migrated and keeps its content", "[project-state][
     CHECK(document.conversations().size() == 1);
 }
 
+TEST_CASE("manufacturing hashes ignore presentation state and change with manufacturing input",
+          "[project-state][history][hash]")
+{
+    Workspace::WorkspaceSnapshot snapshot = small_snapshot();
+    const std::string original = *manufacturing_input_hash(snapshot, 0);
+    CHECK(original.size() == 64);
+    CHECK(sha256_hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    CHECK(deterministic_output_hash("input", "ab", "c") !=
+          deterministic_output_hash("input", "a", "bc"));
+
+    snapshot.setup.project_dirty = true;
+    snapshot.plates[0].objects[0].name = "display name only";
+    CHECK(manufacturing_input_hash(snapshot, 0) == original);
+
+    snapshot.plates[0].objects[0].instances[0].position[0] = 12.5;
+    CHECK(manufacturing_input_hash(snapshot, 0) != original);
+    CHECK_FALSE(manufacturing_input_hash(snapshot, 99).has_value());
+}
+
+TEST_CASE("build copy and print records serialize with immutable provenance", "[project-state][history]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    const std::string conversation = document.active_conversation_id();
+    const std::string revision = document.add_revision("initial", "revisions/r-1.snapshot", conversation, kT);
+
+    BuildRecord build;
+    build.project_id = document.project_id();
+    build.revision_id = revision;
+    build.conversation_id = conversation;
+    build.plate_index = 0;
+    build.plate_name = "Plate 1";
+    build.printer = "JusPrin One";
+    build.material = "PLA Matte";
+    build.manufacturing_input_hash = sha256_hex("input");
+    build.output_hash = sha256_hex("gcode");
+    build.slicer_version = "JusPrin deterministic";
+    build.configuration_provenance = "printer + process + filament presets";
+    build.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
+    build.warnings = {"Long warning text remains semantic and serializable."};
+    const std::string build_id = document.add_build(build, kT);
+
+    ExportedCopyRecord copy;
+    copy.build_id = build_id;
+    copy.conversation_id = conversation;
+    copy.destination = "/tmp/phase-six.gcode";
+    copy.expected_output_hash = build.output_hash;
+    copy.observed_output_hash = build.output_hash;
+    document.add_exported_copy(copy, kT);
+
+    PhysicalPrintRecord print;
+    print.build_id = build_id;
+    print.project_id = document.project_id();
+    print.revision_id = revision;
+    print.conversation_id = conversation;
+    print.plate_name = build.plate_name;
+    print.printer = build.printer;
+    print.material = build.material;
+    print.outcome = "completed";
+    print.manufacturing_input_hash = build.manufacturing_input_hash;
+    print.output_hash = build.output_hash;
+    print.gcode_hash = build.output_hash;
+    print.statistics = build.statistics;
+    document.add_physical_print(print, kT);
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(reloaded.builds().size() == 1);
+    REQUIRE(reloaded.exported_copies().size() == 1);
+    REQUIRE(reloaded.physical_prints().size() == 1);
+    CHECK(reloaded.builds()[0].manufacturing_input_hash == build.manufacturing_input_hash);
+    CHECK(reloaded.builds()[0].statistics.layer_count == 88);
+    CHECK(reloaded.exported_copies()[0].expected_output_hash == build.output_hash);
+    CHECK(reloaded.physical_prints()[0].printer == "JusPrin One");
+    CHECK(reloaded.physical_prints()[0].gcode_hash == build.output_hash);
+    const json persisted = json::parse(reloaded.dump());
+    CHECK_FALSE(persisted["builds"][0].contains("stale"));
+    CHECK_FALSE(persisted["physicalPrints"][0].contains("timelineRemoved"));
+}
+
+TEST_CASE("revert removes later builds and copies but retains the physical print ledger",
+          "[project-state][history][revert]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    const std::string conversation = document.active_conversation_id();
+    const std::string target = document.add_revision("initial", "revisions/r-1.snapshot", conversation, kT);
+    const std::string later = document.add_revision("contents", "", conversation, kT); // no recoverable later snapshot
+
+    BuildRecord build;
+    build.project_id = document.project_id();
+    build.revision_id = later;
+    build.conversation_id = conversation;
+    build.manufacturing_input_hash = sha256_hex("later input");
+    build.output_hash = sha256_hex("later gcode");
+    const std::string build_id = document.add_build(build, kT);
+    ExportedCopyRecord copy;
+    copy.build_id = build_id;
+    copy.expected_output_hash = build.output_hash;
+    document.add_exported_copy(copy, kT);
+    PhysicalPrintRecord print;
+    print.build_id = build_id;
+    print.project_id = document.project_id();
+    print.revision_id = later;
+    print.outcome = "completed";
+    print.output_hash = build.output_hash;
+    print.gcode_hash = build.output_hash;
+    document.add_physical_print(print, kT);
+
+    REQUIRE(document.revert_to_revision(target).has_value());
+    CHECK(document.builds().empty());
+    CHECK(document.exported_copies().empty());
+    REQUIRE(document.physical_prints().size() == 1);
+    CHECK(document.physical_prints()[0].revision_id == later);
+    CHECK_FALSE(document.find_revision(later).has_value());
+}
+
 TEST_CASE("revert truncates later entries across conversations", "[project-state][revert]")
 {
     ProjectStateDocument document;
@@ -572,7 +689,7 @@ TEST_CASE("staged attachments can be removed but sent ones are durable", "[proje
     CHECK(reloaded.messages(reloaded.active_conversation_id())[0].attachment_ids == std::vector<std::string>{a2});
 }
 
-TEST_CASE("revert keeps staged and referenced attachments but drops orphans", "[project-state][attachments][revert]")
+TEST_CASE("revert keeps referenced attachments but drops composer attachments", "[project-state][attachments][revert]")
 {
     ProjectStateDocument document;
     document.initialize_identity("p-1", "l-1", kT);
@@ -605,18 +722,41 @@ TEST_CASE("revert keeps staged and referenced attachments but drops orphans", "[
 
     const auto result = document.revert_to_revision(target);
     REQUIRE(result.has_value());
-    // Kept: a1 (sent, still referenced) and a3 (staged). Dropped: a4 (sent, its
-    // message truncated) and a2 (created after the target). IDs come from the
-    // monotonic allocator, so compare against the variables, not literals.
-    CHECK(result->kept_attachment_dirs ==
-          std::vector<std::string>{"attachments/" + a1, "attachments/" + a3});
+    // Kept: a1 (sent and still referenced). Dropped: a3 (unsent composer
+    // state), a4 (sent by the truncated message), and a2 (created after the
+    // target). IDs come from the monotonic allocator, so compare against the
+    // variables, not literals.
+    CHECK(result->kept_attachment_dirs == std::vector<std::string>{"attachments/" + a1});
     CHECK(result->removed_attachment_dirs ==
-          std::vector<std::string>{"attachments/" + a4, "attachments/" + a2});
+          std::vector<std::string>{"attachments/" + a3, "attachments/" + a4, "attachments/" + a2});
 
     std::vector<std::string> remaining;
     for (const AttachmentRecord& record : document.attachments())
         remaining.push_back(record.id);
-    CHECK(remaining == std::vector<std::string>{a1, a3});
+    CHECK(remaining == std::vector<std::string>{a1});
+}
+
+TEST_CASE("a successful revert clears unsent recovery state", "[persistence][attachments][revert]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+    const std::string target = persistence.document().current_revision_id();
+
+    const std::string staged = persistence.document().allocate_attachment_id();
+    persistence.document().add_attachment(staged_attachment(staged, "unsent.txt", "text"), kT);
+    REQUIRE(persistence.write_attachment_blob("attachments/" + staged + "/unsent.txt", "UNSENT"));
+    persistence.set_draft("half-written prompt");
+    persistence.commit();
+    persistence.flush();
+    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "later").succeeded());
+
+    REQUIRE(persistence.revert_to_revision(target).ok);
+    CHECK(persistence.draft().empty());
+    CHECK_FALSE(persistence.document().find_attachment(staged).has_value());
+    CHECK_FALSE(fs::exists(fs::path(persistence.jusprin_data_dir()) / "attachments" / staged));
+    const json recovery_meta = json::parse(read_text(fs::path(persistence.recovery_dir()) / "recovery.json"));
+    CHECK(recovery_meta["draft"] == "");
 }
 
 TEST_CASE("attachment blobs are written under the project and cleaned up", "[persistence][attachments]")

@@ -57,6 +57,9 @@ const statePayload: StatePayload = {
     { id: 'r-1', createdAt: 't', cause: 'initial', conversationId: 'c-1', afterMessageId: '', current: false, revertible: true },
     { id: 'r-2', createdAt: 't', cause: 'contents', conversationId: 'c-2', afterMessageId: 'm-2', current: true, revertible: true },
   ],
+  builds: [],
+  exportedCopies: [],
+  physicalPrints: [],
   draft: 'unfinished thought',
   context,
 };

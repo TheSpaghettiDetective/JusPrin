@@ -179,6 +179,72 @@ export interface RevisionInfo {
   revertible: boolean;
 }
 
+export interface SliceStatisticsInfo {
+  printTimeSeconds: number;
+  filamentMm: number;
+  materialGrams: number;
+  materialCost: number;
+  layerCount: number;
+}
+
+export interface BuildInfo {
+  id: string;
+  seq: number;
+  createdAt: string;
+  projectId: string;
+  revisionId: string;
+  conversationId: string;
+  afterMessageId: string;
+  plateIndex: number;
+  plateName: string;
+  printer: string;
+  material: string;
+  manufacturingInputHash: string;
+  outputHash: string;
+  slicerVersion: string;
+  configurationProvenance: string;
+  statistics: SliceStatisticsInfo;
+  warnings: string[];
+  stale: boolean; // derived by the host from the current same-plate input hash
+}
+
+export interface ExportedCopyInfo {
+  id: string;
+  seq: number;
+  createdAt: string;
+  buildId: string;
+  conversationId: string;
+  afterMessageId: string;
+  destination: string;
+  expectedOutputHash: string;
+  observedOutputHash: string;
+  verified: boolean; // derived by checksum comparison
+  modified: boolean; // derived by checksum comparison
+}
+
+export interface PhysicalPrintInfo {
+  id: string;
+  seq: number;
+  startedAt: string;
+  endedAt: string;
+  outcome: 'completed' | 'failed' | 'cancelled';
+  failure: string;
+  buildId: string;
+  projectId: string;
+  revisionId: string;
+  conversationId: string;
+  afterMessageId: string;
+  plateIndex: number;
+  plateName: string;
+  printer: string;
+  material: string;
+  manufacturingInputHash: string;
+  outputHash: string;
+  gcodeHash: string;
+  statistics: SliceStatisticsInfo;
+  timelineRemoved: boolean; // derived from revision retention, never persisted
+}
+
 export interface StatePayload {
   agent: { status: AgentStatus };
   appearance: Appearance;
@@ -188,6 +254,9 @@ export interface StatePayload {
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[];
+  builds: BuildInfo[];
+  exportedCopies: ExportedCopyInfo[];
+  physicalPrints: PhysicalPrintInfo[];
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;

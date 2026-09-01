@@ -25,7 +25,7 @@ inline const std::vector<std::string>& capabilities()
 {
     static const std::vector<std::string> values{"streaming", "stop",          "retry",     "context",
                                                  "appearance", "tools",         "conversations",
-                                                 "revisions",  "attachments"};
+                                                 "revisions",  "attachments", "manufacturing_history"};
     return values;
 }
 

@@ -7,6 +7,7 @@ add_executable(agent_bridge_tests
     test_tool_coordinator.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ManufacturingHistory.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp
@@ -20,6 +21,6 @@ target_include_directories(agent_bridge_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/deps_src
 )
-target_link_libraries(agent_bridge_tests PRIVATE Catch2WithMain nlohmann_json)
+target_link_libraries(agent_bridge_tests PRIVATE Catch2WithMain nlohmann_json OpenSSL::Crypto)
 
 orcaslicer_discover_tests(agent_bridge_tests)

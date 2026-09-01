@@ -468,6 +468,10 @@ ProjectPersistence::RevertResult ProjectPersistence::revert_to_revision(const st
         }
     fs::remove_all(scratch, ec);
 
+    // A Revert restores an earlier durable project state. Composer text is
+    // recovery-only working state, so carrying it across would resurrect work
+    // the user explicitly discarded.
+    m_draft.clear();
     m_dirty = true;
     flush();
     m_in_revert = false;
