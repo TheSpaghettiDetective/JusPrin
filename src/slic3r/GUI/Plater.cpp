@@ -14587,7 +14587,7 @@ void Plater::remove(size_t obj_idx) { p->remove(obj_idx); }
 // JusPrin fork additions that need Plater::priv. Grouped in this one block on
 // purpose: every separate insertion site in this file is an independent
 // rebase-conflict draw. Their priv-free counterparts are in
-// JusPrin/PlaterProjectState.cpp.
+// JusPrin/Workspace/PlaterProjectState.cpp.
 
 bool Plater::select_object(size_t obj_idx)
 {
