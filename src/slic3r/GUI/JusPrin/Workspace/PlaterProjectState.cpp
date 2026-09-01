@@ -3,8 +3,9 @@
 // fork's insertion footprint inside the upstream-owned Plater.cpp small; the
 // priv-dependent parts of the seam remain there in one grouped block.
 
+#include "PlaterProjectState.hpp"
+
 #include "slic3r/GUI/Plater.hpp"
-#include "slic3r/GUI/ProjectState.hpp"
 
 #include <utility>
 

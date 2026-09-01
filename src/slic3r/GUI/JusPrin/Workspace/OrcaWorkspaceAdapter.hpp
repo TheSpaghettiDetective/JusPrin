@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Workspace.hpp"
-#include "slic3r/GUI/ProjectState.hpp"
+#include "ProjectState.hpp"
 
 #include <set>
 

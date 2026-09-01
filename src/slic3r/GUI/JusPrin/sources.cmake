@@ -16,7 +16,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
     GUI/JusPrin/CanvasPresentationController.hpp
-    GUI/JusPrin/PlaterProjectState.cpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
     GUI/JusPrin/Shell/ShellController.cpp
@@ -28,5 +27,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/FakeWorkspace.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
+    GUI/JusPrin/Workspace/PlaterProjectState.cpp
+    GUI/JusPrin/Workspace/PlaterProjectState.hpp
+    GUI/JusPrin/Workspace/ProjectState.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
 )

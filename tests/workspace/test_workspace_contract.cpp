@@ -1,7 +1,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
-#include "slic3r/GUI/ProjectState.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 
 #include <memory>
 #include <type_traits>

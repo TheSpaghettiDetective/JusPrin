@@ -2,7 +2,7 @@
 
 #include "ShellTheme.hpp"
 
-#include "slic3r/GUI/ProjectState.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 
 #include <wx/panel.h>
 
