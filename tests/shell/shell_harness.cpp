@@ -10,6 +10,9 @@
 //   --manual-live-agent
 //              leaves the isolated JusPrin shell open with the OpenAI
 //              provider enabled for hands-on testing
+//   --manual-unconfigured
+//              leaves the isolated JusPrin shell open with no Agent service
+//              configured at all -- the dock's not-set-up empty state
 //   --live-agent
 //              uses OPENAI_API_KEY and verifies live context/attachment use,
 //              reload recovery, rejection, native approval/mutation, and the
@@ -67,7 +70,16 @@ namespace {
 
 struct HarnessState
 {
-    enum class Mode { Shell, Stock, Manual, ManualLiveAgent, SliceAllCold, LiveAgent, LiveAgentUnavailable };
+    enum class Mode {
+        Shell,
+        Stock,
+        Manual,
+        ManualLiveAgent,
+        ManualUnconfigured,
+        SliceAllCold,
+        LiveAgent,
+        LiveAgentUnavailable
+    };
 
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
@@ -147,6 +159,18 @@ private:
             ++m_failures;
     }
 
+    // Every label rendered by the status row, joined. Read by walking the
+    // widget tree so the row needs no test-only accessor.
+    static wxString status_row_labels(wxWindow* window)
+    {
+        wxString text;
+        if (auto* label = dynamic_cast<wxStaticText*>(window))
+            text += label->GetLabel() + "\n";
+        for (wxWindow* child : window->GetChildren())
+            text += status_row_labels(child);
+        return text;
+    }
+
     void verify_stock_mode()
     {
         check(installed_shell() == nullptr, "stock_mode_installs_no_shell");
@@ -168,6 +192,8 @@ private:
         if (shell == nullptr)
             throw std::runtime_error("shell is not installed");
         check(shell->status_row() != nullptr && shell->status_row()->IsShown(), "status_row_shown");
+        check(status_row_labels(shell->status_row()).Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
+              "status_row_shows_empty_print_count");
         check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
         check(!m_plater->is_sidebar_available(), "sidebar_marked_unavailable");
@@ -337,31 +363,68 @@ private:
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         wait_until([&web_view] { return web_view.host().handshake_complete(); },
-                   "unconfigured_agent_bridge_handshake", [self = shared_from_this()] {
-                       AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-                       self->check(web_view.host().availability() == Agent::AgentAvailability::Unavailable,
-                                   "missing_cloud_consent_is_unavailable");
-                       const std::size_t objects_before = self->m_plater->model().objects.size();
-                       WebView::RunScript(web_view.webview(),
-                                          "window.__jusprinTest && window.__jusprinTest.send('do not use the mock')");
-                       self->wait_until(
-                           [&web_view] {
-                               const auto conversation = web_view.host().conversation();
-                               return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Failed;
-                           },
-                           "unconfigured_agent_request_fails_visibly", [self, objects_before] {
-                               const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
-                               self->check(conversation.back().error &&
-                                               conversation.back().error->code == "agent_unavailable",
-                                           "unconfigured_agent_does_not_fall_back_to_mock");
-                               self->check(self->m_plater->model().objects.size() == objects_before &&
-                                               self->m_plater->select_object(1),
-                                           "unconfigured_agent_keeps_orca_usable");
-                               self->check(self->m_plater->new_project(true, true) != wxID_CANCEL,
-                                           "unconfigured_agent_teardown_project");
-                               self->finish();
-                           });
+                   "unconfigured_agent_bridge_handshake",
+                   [self = shared_from_this()] { self->verify_not_set_up_empty_state(); });
+    }
+
+    // What the packaged page actually renders in the dock before anything is
+    // delegated: the offer replaces the conversation chrome, its one action is
+    // inert until Agent setup ships, and the ask box stays put and disabled.
+    // The page reports the answer back over the bridge's draft message, which
+    // the host stores where this harness can read it.
+    void verify_not_set_up_empty_state()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.host().availability() == Agent::AgentAvailability::Unavailable,
+              "missing_cloud_consent_is_unavailable");
+        WebView::RunScript(
+            web_view.webview(),
+            "(function () {"
+            "  var q = function (s) { return document.querySelector(s); };"
+            "  var setup = q('[data-testid=\"agent-not-configured\"] button.primary');"
+            "  var ask = q('.composer textarea');"
+            "  window.__jusprinTest && window.__jusprinTest.setDraft(["
+            "    q('[data-testid=\"agent-not-configured\"]') ? 'offer' : 'no-offer',"
+            "    q('[data-testid=\"agent-not-configured-header\"]') ? 'header' : 'no-header',"
+            "    q('[data-testid=\"context-summary\"]') ? 'chrome' : 'no-chrome',"
+            "    setup && setup.disabled ? 'setup-inert' : 'setup-live',"
+            "    ask && ask.disabled ? 'ask-inert' : 'ask-live'"
+            "  ].join('|'));"
+            "})()");
+        wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
+                   "not_set_up_state_reported", [self = shared_from_this()] {
+                       self->check(self->persistence().draft() ==
+                                       "offer|header|no-chrome|setup-inert|ask-inert",
+                                   "not_set_up_dock_is_one_inert_offer");
+                       if (self->persistence().draft() != "offer|header|no-chrome|setup-inert|ask-inert")
+                           std::cerr << "HARNESS DETAIL dock state was " << self->persistence().draft() << '\n';
+                       self->unconfigured_agent_refuses_to_answer();
                    });
+    }
+
+    void unconfigured_agent_refuses_to_answer()
+    {
+        auto           self         = shared_from_this();
+        AgentWebView&  web_view     = installed_shell()->agent_pane()->web_view();
+        const std::size_t objects_before = m_plater->model().objects.size();
+        WebView::RunScript(web_view.webview(),
+                           "window.__jusprinTest && window.__jusprinTest.send('do not use the mock')");
+        wait_until(
+            [&web_view] {
+                const auto conversation = web_view.host().conversation();
+                return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Failed;
+            },
+            "unconfigured_agent_request_fails_visibly", [self, objects_before] {
+                const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                self->check(conversation.back().error && conversation.back().error->code == "agent_unavailable",
+                            "unconfigured_agent_does_not_fall_back_to_mock");
+                self->check(self->m_plater->model().objects.size() == objects_before &&
+                                self->m_plater->select_object(1),
+                            "unconfigured_agent_keeps_orca_usable");
+                self->check(self->m_plater->new_project(true, true) != wxID_CANCEL,
+                            "unconfigured_agent_teardown_project");
+                self->finish();
+            });
     }
 
     void live_agent_context_and_attachment()
@@ -834,6 +897,9 @@ private:
 
     void phase6_verify_and_revert()
     {
+        check(status_row_labels(installed_shell()->status_row())
+                  .Contains(wxString::FromUTF8("Prints \xC2\xB7 1")),
+              "status_row_print_count_follows_the_ledger");
         const Agent::BuildRecord build = persistence().document().builds().front();
         const Agent::ExportedCopyRecord copy = persistence().document().exported_copies().front();
         const Agent::PhysicalPrintRecord print = persistence().document().physical_prints().front();
@@ -1055,7 +1121,8 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
         return;
     }
     if (app.mainframe != nullptr && app.plater() != nullptr) {
-        if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent)
+        if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
+            state->mode == HarnessState::Mode::ManualUnconfigured)
             return;
         auto scenario = std::make_shared<Scenario>(app, state);
         state->runner = scenario;
@@ -1090,6 +1157,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Manual;
         else if (argument == "--manual-live-agent")
             state->mode = HarnessState::Mode::ManualLiveAgent;
+        else if (argument == "--manual-unconfigured")
+            state->mode = HarnessState::Mode::ManualUnconfigured;
         else if (argument == "--slice-all-cold")
             state->mode = HarnessState::Mode::SliceAllCold;
         else if (argument == "--live-agent")
@@ -1108,6 +1177,15 @@ int main(int argc, char** argv)
         if (state->mode == HarnessState::Mode::Stock) {
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
+        }
+        if (state->mode == HarnessState::Mode::ManualUnconfigured) {
+            // No provider, no key, no consent: exactly what a fresh install
+            // looks like before anyone sets an Agent up.
+            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": true,\n    \"provider\": \"mock\"\n  }";
+            const std::string to   = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
+            const std::size_t pos  = config.find(from);
+            if (pos != std::string::npos)
+                config.replace(pos, from.size(), to);
         }
         if (state->mode == HarnessState::Mode::LiveAgent ||
             state->mode == HarnessState::Mode::ManualLiveAgent ||
@@ -1160,7 +1238,8 @@ int main(int argc, char** argv)
         fs::remove_all(data_directory);
     else
         std::cerr << "HARNESS DATA DIR kept for inspection: " << data_directory.string() << '\n';
-    if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent)
+    if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
+        state->mode == HarnessState::Mode::ManualUnconfigured)
         return gui_result;
     if (state->result < 0)
         return gui_result == 0 ? 1 : gui_result;

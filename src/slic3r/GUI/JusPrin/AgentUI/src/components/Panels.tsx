@@ -52,3 +52,35 @@ export function AgentUnavailableNotice() {
     </div>
   );
 }
+
+// The dock before any Agent service is configured. Connecting an Agent
+// changes nothing about the print, so this state offers exactly one thing and
+// leaves the ask box where it always is, inert — the dock keeps its shape
+// whether or not an Agent is ever set up. It replaces the conversation
+// chrome only while the conversation is empty; history carried in from a
+// previously configured session stays visible behind the banner above.
+export function AgentNotConfiguredHeader() {
+  return (
+    <div className="agent-header" data-testid="agent-not-configured-header">
+      <span className="agent-title">Agent</span>
+      <span className="agent-badge">NOT SET UP</span>
+    </div>
+  );
+}
+
+export function AgentNotConfiguredPane() {
+  return (
+    <div className="pane-state" data-testid="agent-not-configured">
+      <h1>No agent connected</h1>
+      <p>
+        An agent turns what you want — <em>“make it strong, it’ll bear weight”</em> — into the hundreds of
+        settings underneath, and shows you what it changed.
+      </p>
+      <p>Until then JusPrin slices from the preset, exactly as it always has.</p>
+      <button className="primary" disabled title="Agent setup arrives in a later JusPrin release">
+        Set up the agent
+      </button>
+      <p className="footnote">Registered JusPrin account, your own key, or a model on this machine.</p>
+    </div>
+  );
+}

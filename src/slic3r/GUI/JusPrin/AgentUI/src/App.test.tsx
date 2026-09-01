@@ -261,6 +261,23 @@ describe('App', () => {
     expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
   });
 
+  it('offers the one setup action and nothing else when no Agent is configured and the chat is empty', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+
+    expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
+    expect(screen.getByText('No agent connected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeDisabled();
+    expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
+    // The conversation chrome and the consent banner give way to the offer.
+    expect(screen.queryByTestId('agent-unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('context-summary')).not.toBeInTheDocument();
+    // The ask box stays in place, inert.
+    const composer = screen.getByLabelText('Message the Agent');
+    expect(composer).toBeDisabled();
+    expect(composer).toHaveAttribute('placeholder', 'ask, or steer this chat\u2026');
+  });
+
   it('shows the internal bridge error with retry when the host rejects the protocol version', () => {
     render(<App getTransport={() => host.transport} />);
     host.deliver('hello_reject', { supportedVersions: [99], message: 'version 99 only' });

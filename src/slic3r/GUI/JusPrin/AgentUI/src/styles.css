@@ -601,3 +601,35 @@ button.primary:active:enabled {
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+
+.pane-state .footnote {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Dock header shown in place of the conversation chrome while no Agent
+   service is configured; same row metrics as .conversation-bar. */
+.agent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+}
+
+.agent-header .agent-title {
+  flex: 1;
+  font-weight: 700;
+}
+
+.agent-header .agent-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+}

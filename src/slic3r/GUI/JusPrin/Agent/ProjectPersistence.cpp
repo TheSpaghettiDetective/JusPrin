@@ -252,8 +252,15 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
 
     m_dirty = true;
     flush();
+    notify_document_replaced();
+}
+
+void ProjectPersistence::notify_document_replaced()
+{
     if (m_document_replaced)
         m_document_replaced();
+    // A replaced document brings a different manufacturing ledger with it.
+    notify_ledger_changed();
 }
 
 void ProjectPersistence::start_fresh_identity()
@@ -267,8 +274,7 @@ void ProjectPersistence::start_fresh_identity()
     m_initial_capture_pending = m_document.revisions().back().snapshot_file.empty();
     m_dirty = true;
     flush();
-    if (m_document_replaced)
-        m_document_replaced();
+    notify_document_replaced();
 }
 
 void ProjectPersistence::retry_initial_capture()
@@ -475,8 +481,7 @@ ProjectPersistence::RevertResult ProjectPersistence::revert_to_revision(const st
     m_dirty = true;
     flush();
     m_in_revert = false;
-    if (m_document_replaced)
-        m_document_replaced();
+    notify_document_replaced();
     return {true, {}};
 }
 

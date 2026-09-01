@@ -1208,6 +1208,7 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
     record.statistics               = build->statistics;
     const std::string id = document.add_physical_print(std::move(record), m_persistence.timestamp());
     m_persistence.flush();
+    m_persistence.notify_ledger_changed();
     result.result_json = json{{"physicalPrintId", id}, {"buildId", build->id}, {"recorded", true}}.dump();
     return result;
 }

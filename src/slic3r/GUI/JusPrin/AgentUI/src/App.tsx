@@ -7,7 +7,13 @@ import { ContextSummary } from './components/ContextSummary';
 import { ConversationBar } from './components/ConversationBar';
 import { MessageList } from './components/MessageList';
 import { Composer } from './components/Composer';
-import { AgentUnavailableNotice, BridgeErrorPane, ConnectingPane } from './components/Panels';
+import {
+  AgentNotConfiguredHeader,
+  AgentNotConfiguredPane,
+  AgentUnavailableNotice,
+  BridgeErrorPane,
+  ConnectingPane,
+} from './components/Panels';
 
 let clientMessageCounter = 0;
 function nextClientMessageId(): string {
@@ -194,35 +200,49 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   }
 
   const unavailable = state.agentStatus === 'unavailable';
+  // Nothing has been delegated yet, so the dock's whole surface becomes the
+  // one offer. A conversation carried in from a previously configured session
+  // keeps its history and gets the banner above it instead.
+  const notConfigured = unavailable && state.messages.length === 0;
   const streaming = state.streamingMessageId !== null;
   return (
     <div className="app">
-      <ContextSummary context={state.context} />
-      <ConversationBar
-        conversations={state.conversations}
-        activeConversationId={state.activeConversationId}
-        busy={streaming}
-        onSwitch={(conversationId) => client.send('switch_conversation', { conversationId })}
-        onCreate={() => client.send('create_conversation', {})}
-      />
-      {unavailable && <AgentUnavailableNotice />}
-      <MessageList
-        messages={state.messages}
-        attachments={state.attachments}
-        streamingMessageId={state.streamingMessageId}
-        toolActivities={state.toolActivities}
-        revisions={state.revisions.filter((revision) => revision.conversationId === state.activeConversationId)}
-        builds={state.builds}
-        exportedCopies={state.exportedCopies}
-        physicalPrints={state.physicalPrints}
-        onRetry={(messageId) => client.send('retry_message', { messageId })}
-        onToolDecision={sendToolDecision}
-        onToolCancel={sendToolCancel}
-        onRevert={sendRevert}
-      />
+      {notConfigured ? (
+        <AgentNotConfiguredHeader />
+      ) : (
+        <>
+          <ContextSummary context={state.context} />
+          <ConversationBar
+            conversations={state.conversations}
+            activeConversationId={state.activeConversationId}
+            busy={streaming}
+            onSwitch={(conversationId) => client.send('switch_conversation', { conversationId })}
+            onCreate={() => client.send('create_conversation', {})}
+          />
+        </>
+      )}
+      {unavailable && !notConfigured && <AgentUnavailableNotice />}
+      {notConfigured ? (
+        <AgentNotConfiguredPane />
+      ) : (
+        <MessageList
+          messages={state.messages}
+          attachments={state.attachments}
+          streamingMessageId={state.streamingMessageId}
+          toolActivities={state.toolActivities}
+          revisions={state.revisions.filter((revision) => revision.conversationId === state.activeConversationId)}
+          builds={state.builds}
+          exportedCopies={state.exportedCopies}
+          physicalPrints={state.physicalPrints}
+          onRetry={(messageId) => client.send('retry_message', { messageId })}
+          onToolDecision={sendToolDecision}
+          onToolCancel={sendToolCancel}
+          onRevert={sendRevert}
+        />
+      )}
       <Composer
         disabled={unavailable}
-        disabledReason={unavailable ? 'The Agent is not available' : undefined}
+        disabledReason={notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
         streaming={streaming}
         initialText={state.draft}
         attachments={stagedAttachments}

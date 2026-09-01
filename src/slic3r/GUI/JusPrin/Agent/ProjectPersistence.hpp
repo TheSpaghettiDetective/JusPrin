@@ -69,6 +69,17 @@ public:
     void set_document_replaced_listener(std::function<void()> listener) { m_document_replaced = std::move(listener); }
     void set_revision_listener(std::function<void(const RevisionInfo&)> listener) { m_revision_added = std::move(listener); }
 
+    // Fired when the manufacturing ledger gains an entry or the document is
+    // replaced. Deliberately a separate slot from the two Agent-owned
+    // listeners above so shell surfaces outside the Agent pane -- the status
+    // row's print count -- can observe the ledger without competing for them.
+    void set_ledger_listener(std::function<void()> listener) { m_ledger_changed = std::move(listener); }
+    void notify_ledger_changed() const
+    {
+        if (m_ledger_changed)
+            m_ledger_changed();
+    }
+
     // Marks the document changed; flush() writes state.json to the project's
     // auxiliary dir and the recovery mirror. The owner calls flush_if_dirty()
     // from its pacing timer so streaming deltas coalesce.
@@ -123,6 +134,7 @@ public:
     std::string recovery_dir() const; // empty when disabled or no identity
 
 private:
+    void notify_document_replaced();
     void on_workspace_changed(const Workspace::WorkspaceChanged& change);
     bool heal_if_directory_moved();
     void adopt_current_project(bool in_place_reset);
@@ -140,6 +152,7 @@ private:
 
     std::function<void()>                         m_document_replaced;
     std::function<void(const RevisionInfo&)>      m_revision_added;
+    std::function<void()>                         m_ledger_changed;
 
     std::string m_attached_aux_dir;
     std::string m_draft;

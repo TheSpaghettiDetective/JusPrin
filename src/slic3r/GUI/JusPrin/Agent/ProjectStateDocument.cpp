@@ -761,6 +761,11 @@ std::vector<PhysicalPrintRecord> ProjectStateDocument::physical_prints() const
     return result;
 }
 
+std::size_t ProjectStateDocument::physical_print_count() const
+{
+    return m_doc["physicalPrints"].size();
+}
+
 std::optional<BuildRecord> ProjectStateDocument::find_build(const std::string& build_id) const
 {
     for (const json& entry : m_doc["builds"])

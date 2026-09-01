@@ -17,16 +17,25 @@ namespace Slic3r::GUI {
 class Plater;
 }
 
+namespace Slic3r::GUI::JusPrin::Agent {
+class ProjectPersistence;
+}
+
 namespace Slic3r::GUI::JusPrin {
 
-// Compact top row of the JusPrin shell: project identity, a pointer to the
-// configured printer/material state, and the Slice / Check print flow. It
+// Compact top row of the JusPrin shell: project identity, the count of
+// physical prints recorded for this project, a pointer to the configured
+// printer/material state, and the Slice / Check print flow. It
 // renders authoritative Orca state and drives the same event paths as the
 // stock controls; it owns no project state of its own.
 class StatusRow : public wxPanel
 {
 public:
-    StatusRow(wxWindow* parent, const ShellTheme& theme, Plater& plater, Notebook& tabpanel);
+    StatusRow(wxWindow*                  parent,
+              const ShellTheme&          theme,
+              Plater&                    plater,
+              Notebook&                  tabpanel,
+              Agent::ProjectPersistence& persistence);
     ~StatusRow() override;
 
     void apply_appearance(bool dark);
@@ -43,12 +52,15 @@ private:
     void on_tab_changed(wxBookCtrlEvent& event);
     void on_tabpanel_destroyed(wxWindowDestroyEvent& event);
 
-    const ShellTheme& m_theme;
-    Plater&           m_plater;
-    Notebook&         m_tabpanel;
+    const ShellTheme&          m_theme;
+    Plater&                    m_plater;
+    Notebook&                  m_tabpanel;
+    Agent::ProjectPersistence& m_persistence;
 
     wxStaticText* m_project_name{nullptr};
     wxStaticText* m_dirty_marker{nullptr};
+    StaticBox*    m_prints_chip{nullptr};
+    wxStaticText* m_prints_summary{nullptr};
     StaticBox*    m_setup_chip{nullptr};
     wxStaticText* m_setup_summary{nullptr};
     Button*       m_slice_button{nullptr};

@@ -146,6 +146,9 @@ public:
     std::vector<BuildRecord>         builds() const;
     std::vector<ExportedCopyRecord>  exported_copies() const;
     std::vector<PhysicalPrintRecord> physical_prints() const;
+    // Ledger size without materializing every record; the shell's status row
+    // reads this on every project change.
+    std::size_t                      physical_print_count() const;
     std::optional<BuildRecord>       find_build(const std::string& build_id) const;
     std::optional<BuildRecord>       latest_build() const;
 

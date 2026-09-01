@@ -1,6 +1,7 @@
 #include "StatusRow.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/Event.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -28,11 +29,16 @@ const wxEventTypeTag<wxBookCtrlEvent>& page_changed_event() { return wxEVT_NOTEB
 
 } // namespace
 
-StatusRow::StatusRow(wxWindow* parent, const ShellTheme& theme, Plater& plater, Notebook& tabpanel)
+StatusRow::StatusRow(wxWindow*                  parent,
+                     const ShellTheme&          theme,
+                     Plater&                    plater,
+                     Notebook&                  tabpanel,
+                     Agent::ProjectPersistence& persistence)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_plater(plater)
     , m_tabpanel(tabpanel)
+    , m_persistence(persistence)
 {
     auto* sizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -43,6 +49,17 @@ StatusRow::StatusRow(wxWindow* parent, const ShellTheme& theme, Plater& plater, 
     m_dirty_marker = new wxStaticText(this, wxID_ANY, wxString::FromUTF8("\xE2\x80\xA2"));
     m_dirty_marker->SetFont(Label::Head_14);
     m_dirty_marker->SetToolTip(_L("Unsaved changes"));
+
+    // Physical prints recorded for this project, in the same quiet chip
+    // treatment as the setup pointer beside it.
+    m_prints_chip = new StaticBox(this);
+    m_prints_chip->SetCornerRadius(FromDIP(4));
+    m_prints_summary = new wxStaticText(m_prints_chip, wxID_ANY, wxEmptyString);
+    m_prints_summary->SetFont(Label::Body_12);
+    auto* prints_sizer = new wxBoxSizer(wxHORIZONTAL);
+    prints_sizer->Add(m_prints_summary, 1, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, FromDIP(10));
+    m_prints_chip->SetSizer(prints_sizer);
+    m_prints_chip->SetMinSize(wxSize(-1, FromDIP(28)));
 
     // Setup pointer styled as the design's toolbar chip: printer, material,
     // and active plate in a quiet bordered container on the right.
@@ -81,6 +98,8 @@ StatusRow::StatusRow(wxWindow* parent, const ShellTheme& theme, Plater& plater, 
     sizer->AddSpacer(FromDIP(8));
     sizer->Add(m_print_button, 0, wxALIGN_CENTER_VERTICAL | wxTOP | wxBOTTOM, FromDIP(8));
     sizer->AddStretchSpacer(1);
+    sizer->Add(m_prints_chip, 0, wxALIGN_CENTER_VERTICAL | wxTOP | wxBOTTOM, FromDIP(8));
+    sizer->AddSpacer(FromDIP(8));
     sizer->Add(m_setup_chip, 0, wxALIGN_CENTER_VERTICAL | wxTOP | wxBOTTOM, FromDIP(8));
     sizer->AddSpacer(FromDIP(16));
     SetSizer(sizer);
@@ -100,6 +119,11 @@ StatusRow::StatusRow(wxWindow* parent, const ShellTheme& theme, Plater& plater, 
 
     m_project_state_subscription = m_plater.subscribe_project_state(
         [this](const ProjectStateChanged&) { refresh(); });
+    // A recorded print and a replaced document both change the print count
+    // without publishing a project-state change, so the ledger is observed
+    // separately. Persistence outlives this row in both teardown orders, and
+    // the destructor clears the slot.
+    m_persistence.set_ledger_listener([this]() { refresh(); });
     m_tabpanel.Bind(page_changed_event(), &StatusRow::on_tab_changed, this);
     // The tab panel and this row are siblings, so wx may destroy either one
     // first at shutdown; only unbind while the tab panel still exists.
@@ -108,6 +132,7 @@ StatusRow::StatusRow(wxWindow* parent, const ShellTheme& theme, Plater& plater, 
 
 StatusRow::~StatusRow()
 {
+    m_persistence.set_ledger_listener(nullptr);
     if (m_tabpanel_alive) {
         m_tabpanel.Unbind(wxEVT_DESTROY, &StatusRow::on_tabpanel_destroyed, this);
         m_tabpanel.Unbind(page_changed_event(), &StatusRow::on_tab_changed, this);
@@ -134,6 +159,7 @@ void StatusRow::apply_appearance(bool dark)
     SetBackgroundColour(palette.surface_canvas);
     m_project_name->SetForegroundColour(palette.text_primary);
     m_dirty_marker->SetForegroundColour(palette.status_warning);
+    m_prints_summary->SetForegroundColour(palette.text_secondary);
     m_setup_summary->SetForegroundColour(palette.text_secondary);
 
     m_slice_button->SetBackgroundColor(StateColor(
@@ -158,8 +184,11 @@ void StatusRow::apply_appearance(bool dark)
             std::pair<wxColour, int>(palette.action_secondary_text, StateColor::Normal)));
     }
 
-    m_setup_chip->SetBackgroundColor(palette.surface_subtle);
-    m_setup_chip->SetBorderColor(palette.border_subtle);
+    for (StaticBox* chip : {m_prints_chip, m_setup_chip}) {
+        chip->SetBackgroundColor(palette.surface_subtle);
+        chip->SetBorderColor(palette.border_subtle);
+    }
+    m_prints_summary->SetBackgroundColour(palette.surface_subtle);
     m_setup_summary->SetBackgroundColour(palette.surface_subtle);
 
     Refresh();
@@ -172,6 +201,12 @@ void StatusRow::refresh()
         project_name = _L("Untitled");
     m_project_name->SetLabel(project_name);
     m_dirty_marker->Show(m_plater.is_project_dirty());
+
+    // Same middot separator idiom as the setup chip below; the label is
+    // concatenated so the translated word stays free of non-ASCII source bytes.
+    const int prints = static_cast<int>(m_persistence.document().physical_print_count());
+    m_prints_summary->SetLabel(_L("Prints") + wxString::FromUTF8(" \xC2\xB7 ") + wxString::Format("%d", prints));
+    m_prints_chip->SetMinSize(wxSize(m_prints_summary->GetBestSize().GetWidth() + FromDIP(20), FromDIP(28)));
 
     const PresetBundle* presets = wxGetApp().preset_bundle;
     wxString summary;
