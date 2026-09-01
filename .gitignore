@@ -44,6 +44,7 @@ test.js
 /.cache/
 .clangd
 internal_docs/
+agent-docs/jusprin/agent-webview-bridge-handoff.md
 *.flatpak
 /flatpak-repo/
 # Python bytecode
