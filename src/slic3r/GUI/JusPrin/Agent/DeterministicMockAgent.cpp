@@ -130,11 +130,50 @@ DeterministicMockAgent::Reply select_something_first()
     return reply;
 }
 
+std::string kind_phrase(const std::string& kind)
+{
+    if (kind == "image")
+        return "an image";
+    if (kind == "svg")
+        return "an SVG";
+    if (kind == "pdf")
+        return "a PDF";
+    if (kind == "gcode")
+        return "G-code";
+    if (kind == "model")
+        return "a 3D model";
+    if (kind == "text")
+        return "a text file";
+    return "a file";
+}
+
+// A sentence acknowledging what the user attached, proving the Agent received
+// the decoded context (and only a native summary for models).
+std::string describe_attachments(const std::vector<DeterministicMockAgent::AttachmentContext>& attachments)
+{
+    if (attachments.empty())
+        return {};
+    std::ostringstream out;
+    out << "You attached ";
+    for (std::size_t i = 0; i < attachments.size(); ++i) {
+        const auto& a = attachments[i];
+        if (i > 0)
+            out << (i + 1 == attachments.size() ? " and " : ", ");
+        out << a.name << " (" << kind_phrase(a.kind) << ")";
+    }
+    out << ". ";
+    for (const auto& a : attachments)
+        if (a.kind == "model" && !a.summary.empty())
+            out << a.summary << " ";
+    return out.str();
+}
+
 } // namespace
 
 DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::string&                  user_text,
                                                                 int                                 attempt,
-                                                                const Workspace::WorkspaceSnapshot& context)
+                                                                const Workspace::WorkspaceSnapshot& context,
+                                                                const std::vector<AttachmentContext>& attachments)
 {
     Reply reply;
     if (starts_with(user_text, "/fail")) {
@@ -192,6 +231,27 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         reply.tool   = request;
         return reply;
     }
+    // A sent model attachment is imported through Orca's own importer, as an
+    // approved manufacturing change. This mirrors what a future MCP agent would
+    // propose; the host resolves the opaque attachment ID to a file path.
+    for (const AttachmentContext& attachment : attachments) {
+        if (!attachment.importable)
+            continue;
+        ToolRequest request;
+        request.tool           = "import_model";
+        request.title          = "Import \"" + attachment.name + "\" into the project";
+        request.arguments_json = json{{"sessionId", std::to_string(context.session.value())},
+                                      {"attachmentId", attachment.id}}
+                                     .dump();
+        request.action_class = ActionClass::Mutation;
+        request.run_ticks    = 3;
+        reply.chunks         = chunk_words(describe_attachments(attachments) +
+                                   "Approve the import below and I will add it to the project through OrcaSlicer's own "
+                                   "importer; you can undo it afterwards.");
+        reply.tool           = request;
+        return reply;
+    }
+
     if (contains_word(user_text, "duplicate")) {
         const WorkspaceObject* object = first_selected_object(context);
         if (object == nullptr)
@@ -202,7 +262,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         reply.tool = duplicate_request(context, *object, 3);
         return reply;
     }
-    reply.chunks = chunk_words(describe_workspace(context));
+    reply.chunks = chunk_words(describe_attachments(attachments) + describe_workspace(context));
     return reply;
 }
 

@@ -201,6 +201,34 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (activity.tool == "import_model") {
+        const json arguments = json::parse(activity.arguments_json, nullptr, false);
+        const std::string attachment_id =
+            arguments.is_object() ? arguments.value("attachmentId", std::string()) : std::string();
+        if (attachment_id.empty()) {
+            fail(activity, "invalid_arguments", "The import action does not identify an attachment.");
+            return;
+        }
+        const std::string path = m_attachment_path_resolver ? m_attachment_path_resolver(attachment_id) : std::string();
+        if (path.empty()) {
+            fail(activity, "unavailable_operation", "The attached model is no longer available to import.");
+            return;
+        }
+        const Workspace::CommandResult result = m_workspace.import_model(path);
+        if (!result.succeeded()) {
+            fail(activity, workspace_error_code(result.error), result.message);
+            return;
+        }
+        const Workspace::WorkspaceSnapshot after = m_workspace.snapshot();
+        json result_json{{"revision", after.revision}, {"imported", true}};
+        if (result.object_id)
+            result_json["newObjectId"] = std::to_string(result.object_id->value());
+        activity.result_json = result_json.dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (activity.tool == "inspect_selection") {
         const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
         json names = json::array();

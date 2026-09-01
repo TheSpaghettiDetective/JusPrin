@@ -8,13 +8,14 @@ import { isEnvelope, PAGE_CAPABILITIES, PROTOCOL_NAME, PROTOCOL_VERSION } from '
 describe('protocol constants', () => {
   it('derive from the shared protocol.json', () => {
     expect(PROTOCOL_NAME).toBe('jusprin-agent-bridge');
-    expect(PROTOCOL_VERSION).toBe(3);
+    expect(PROTOCOL_VERSION).toBe(1);
     expect(PROTOCOL_NAME).toBe(protocolJson.name);
     expect(PROTOCOL_VERSION).toBe(protocolJson.version);
     expect(PAGE_CAPABILITIES).toEqual(protocolJson.capabilities);
     expect(PAGE_CAPABILITIES).toContain('tools');
     expect(PAGE_CAPABILITIES).toContain('conversations');
     expect(PAGE_CAPABILITIES).toContain('revisions');
+    expect(PAGE_CAPABILITIES).toContain('attachments');
   });
 
   it('page and host message type unions cover the shared lists', () => {
@@ -30,12 +31,15 @@ describe('protocol constants', () => {
       'switch_conversation',
       'revert_to_revision',
       'draft_update',
+      'attach_file',
+      'remove_attachment',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');
     expect(protocolJson.hostMessageTypes).toContain('tool_activity');
     expect(protocolJson.hostMessageTypes).toContain('revision_added');
     expect(protocolJson.hostMessageTypes).toContain('bridge_error');
+    expect(protocolJson.hostMessageTypes).toContain('attachment_updated');
   });
 });
 

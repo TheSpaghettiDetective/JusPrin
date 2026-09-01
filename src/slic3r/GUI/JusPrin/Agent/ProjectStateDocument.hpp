@@ -41,6 +41,34 @@ struct RevisionInfo
     std::string   after_message_id; // last message at capture time (may be empty)
 };
 
+// Metadata for one attachment. The blob lives under
+// <JusPrin data dir>/attachments/<id>/<stored_name>; this record is the
+// portable, saved description of it. `state` is "staged" while the attachment
+// sits in the composer and "sent" once a durable user message owns it.
+struct AttachmentRecord
+{
+    std::string   id;            // "a-<n>", also the blob subdirectory name
+    std::uint64_t seq{0};
+    std::string   client_id;     // page-supplied stable ID, for resend dedup
+    std::string   original_name; // display name as chosen by the user
+    std::string   stored_name;   // sanitized file name written to disk
+    std::string   kind;          // text|image|svg|pdf|gcode|model|unsupported
+    std::string   mime;
+    std::uint64_t size_bytes{0};
+    std::string   source;        // picker|drop|clipboard|project
+    std::string   state;         // staged|sent|error
+    std::string   preview_text;  // decoded text preview (may be truncated)
+    std::string   preview_data_url; // small image thumbnail data URL
+    std::string   summary;       // native, non-binary model summary
+    std::string   content_hash;  // opaque content hash, when computed
+    std::optional<AgentError> error;
+
+    // Relative (to the JusPrin data dir) directory holding the blob.
+    std::string relative_dir() const { return "attachments/" + id; }
+    // Relative path of the blob itself.
+    std::string relative_path() const { return relative_dir() + "/" + stored_name; }
+};
+
 class ProjectStateDocument
 {
 public:
@@ -75,6 +103,7 @@ public:
     // -- Messages -----------------------------------------------------------
     std::string allocate_message_id();
     std::string allocate_action_id();
+    std::string allocate_attachment_id();
 
     void append_message(const std::string& conversation_id, const ConversationMessage& message, const std::string& timestamp);
     bool update_message(const std::string& conversation_id, const ConversationMessage& message);
@@ -89,6 +118,21 @@ public:
     // Marks every non-terminal stored state (a crash mid-run) cancelled and
     // every streaming message stopped; returns whether anything changed.
     bool normalize_interrupted_state();
+
+    // -- Attachments --------------------------------------------------------
+    // Records are added while staged and flipped to "sent" when a user message
+    // adopts them. add/update preserve unknown fields written by other builds.
+    void add_attachment(const AttachmentRecord& record, const std::string& timestamp);
+    bool update_attachment(const AttachmentRecord& record);
+    std::vector<AttachmentRecord> attachments() const;
+    std::optional<AttachmentRecord> find_attachment(const std::string& attachment_id) const;
+    std::optional<AttachmentRecord> find_attachment_by_client_id(const std::string& client_id) const;
+    // Removes a staged attachment record; returns its relative_dir for blob
+    // cleanup, or nullopt when it does not exist or is not staged.
+    std::optional<std::string> remove_staged_attachment(const std::string& attachment_id);
+    // Flips the given staged attachments to "sent". IDs that are missing or
+    // not staged are ignored; returns the IDs that were actually sent.
+    std::vector<std::string> mark_attachments_sent(const std::vector<std::string>& attachment_ids);
 
     // -- Revisions ----------------------------------------------------------
     // The id add_revision will assign next — lets a caller name the snapshot
@@ -110,6 +154,11 @@ public:
     {
         std::vector<std::string> removed_snapshot_files;
         std::vector<std::string> kept_snapshot_files;
+        // Attachment blob directories (relative to the JusPrin data dir) that
+        // the truncation orphaned or preserved; the storage layer deletes the
+        // former and copies the latter forward across a project replacement.
+        std::vector<std::string> removed_attachment_dirs;
+        std::vector<std::string> kept_attachment_dirs;
     };
     // Removes every entry (messages, activities, revisions) with seq greater
     // than the revision's across all conversations, and makes it current.

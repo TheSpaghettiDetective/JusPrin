@@ -273,6 +273,33 @@ CommandResult OrcaWorkspaceAdapter::restore_project_archive(const std::string& f
     return CommandResult::success();
 }
 
+CommandResult OrcaWorkspaceAdapter::import_model(const std::string& file_path)
+{
+    wxASSERT(wxIsMainThread());
+    boost::system::error_code ec;
+    if (!boost::filesystem::is_regular_file(file_path, ec) || boost::filesystem::file_size(file_path, ec) == 0)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
+
+    const std::size_t before = m_plater.model().objects.size();
+    {
+        // One coalesced, undoable manufacturing change: the snapshot's History
+        // change and the importer's Objects change commit as a single workspace
+        // revision. LoadModel is the additive, geometry-only strategy — it adds
+        // objects to the current project rather than replacing it. (Transaction
+        // nesting is supported; restore_project_archive relies on it too.)
+        ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        m_plater.take_snapshot("Import model");
+        m_plater.load_files(std::vector<boost::filesystem::path>{boost::filesystem::path(file_path)},
+                            LoadStrategy::LoadModel);
+    }
+    if (m_plater.model().objects.size() <= before)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The model could not be imported");
+
+    const ObjectId new_id(m_session, m_plater.model().objects.back()->id().id);
+    m_known_object_ids.insert(new_id.value());
+    return CommandResult::success(new_id);
+}
+
 WorkspaceSubscription OrcaWorkspaceAdapter::subscribe(WorkspaceChangedCallback callback)
 {
     wxASSERT(wxIsMainThread());

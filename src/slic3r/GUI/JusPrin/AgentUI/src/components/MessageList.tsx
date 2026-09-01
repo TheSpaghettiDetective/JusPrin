@@ -5,13 +5,15 @@
 // markers of this conversation render where they happened.
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { RevisionInfo, ToolActivityInfo } from '../bridge/protocol';
+import { AttachmentInfo, RevisionInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
+import { AttachmentChip } from './AttachmentChip';
 import { RevisionMarker } from './RevisionMarker';
 import { ToolActivityCard } from './ToolActivityCard';
 
 interface Props {
   messages: Message[];
+  attachments: AttachmentInfo[];
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[]; // already filtered to this conversation
@@ -23,6 +25,7 @@ interface Props {
 
 export function MessageList({
   messages,
+  attachments,
   streamingMessageId,
   toolActivities,
   revisions,
@@ -31,6 +34,7 @@ export function MessageList({
   onToolCancel,
   onRevert,
 }: Props) {
+  const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
   const listRef = useRef<HTMLDivElement>(null);
   const [followBottom, setFollowBottom] = useState(true);
 
@@ -68,7 +72,17 @@ export function MessageList({
       {messages.map((message) => (
         <div key={message.id} className="message-group">
           <div className={`message ${message.role}`}>
-            <span className={message.id === streamingMessageId ? 'streaming-cursor' : undefined}>{message.text}</span>
+            {message.text && (
+              <span className={message.id === streamingMessageId ? 'streaming-cursor' : undefined}>{message.text}</span>
+            )}
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="message-attachments">
+                {message.attachments.map((id) => {
+                  const attachment = attachmentsById.get(id);
+                  return attachment ? <AttachmentChip key={id} attachment={attachment} /> : null;
+                })}
+              </div>
+            )}
             {message.state === 'failed' && message.error && (
               <div className="error">
                 {message.error.message}

@@ -15,6 +15,17 @@ namespace Slic3r::GUI::JusPrin::Agent {
 class DeterministicMockAgent
 {
 public:
+    // A compact, non-binary view of one sent attachment. Model/project files
+    // reach the Agent only through `summary`, never as decoded bytes.
+    struct AttachmentContext
+    {
+        std::string id;
+        std::string name;
+        std::string kind;
+        std::string summary;
+        bool        importable{false}; // a file-based model that can be imported
+    };
+
     struct Reply
     {
         // Streamed in order; on error the stream fails after the chunks.
@@ -41,7 +52,8 @@ public:
     //                                     object (approval required);
     //   anything else                  -> a streamed summary of the workspace
     //                                     context and the selected objects.
-    static Reply reply_for(const std::string& user_text, int attempt, const Workspace::WorkspaceSnapshot& context);
+    static Reply reply_for(const std::string& user_text, int attempt, const Workspace::WorkspaceSnapshot& context,
+                           const std::vector<AttachmentContext>& attachments = {});
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

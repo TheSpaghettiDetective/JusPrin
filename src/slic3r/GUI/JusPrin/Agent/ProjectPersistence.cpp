@@ -418,6 +418,18 @@ ProjectPersistence::RevertResult ProjectPersistence::revert_to_revision(const st
             kept_files.push_back(revision.snapshot_file);
     }
 
+    // Attachment blobs live under the same soon-to-be-replaced directory. Copy
+    // every current blob dir aside; after truncation only the survivors are
+    // copied back, which drops orphaned ones without a separate delete.
+    for (const AttachmentRecord& attachment : m_document.attachments()) {
+        const fs::path source = old_dir / fs::path(attachment.relative_dir());
+        if (!fs::is_directory(source, ec))
+            continue;
+        const fs::path staged = scratch / fs::path(attachment.relative_dir());
+        fs::create_directories(staged.parent_path(), ec);
+        fs::copy(source, staged, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+    }
+
     m_in_revert = true;
     const auto started = std::chrono::steady_clock::now();
     const Workspace::CommandResult restored =
@@ -433,7 +445,8 @@ ProjectPersistence::RevertResult ProjectPersistence::revert_to_revision(const st
 
     // The native project is now at the target revision; truncate the
     // document only after that success so a failed restore changes nothing.
-    m_document.revert_to_revision(revision_id);
+    const std::optional<ProjectStateDocument::TruncateResult> truncated =
+        m_document.revert_to_revision(revision_id);
     m_document.normalize_interrupted_state();
 
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();
@@ -442,6 +455,17 @@ ProjectPersistence::RevertResult ProjectPersistence::revert_to_revision(const st
     for (const std::string& file : kept_files)
         fs::copy_file(scratch / fs::path(file).filename(), new_dir / fs::path(file),
                       fs::copy_options::overwrite_existing, ec);
+    // Restore only the attachment blobs the truncation kept; orphaned ones are
+    // simply never copied back into the fresh directory.
+    if (truncated)
+        for (const std::string& dir : truncated->kept_attachment_dirs) {
+            const fs::path staged = scratch / fs::path(dir);
+            if (!fs::is_directory(staged, ec))
+                continue;
+            const fs::path destination = new_dir / fs::path(dir);
+            fs::create_directories(destination.parent_path(), ec);
+            fs::copy(staged, destination, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+        }
     fs::remove_all(scratch, ec);
 
     m_dirty = true;
@@ -455,6 +479,33 @@ ProjectPersistence::RevertResult ProjectPersistence::revert_to_revision(const st
 Workspace::CommandResult ProjectPersistence::export_clean_copy(const std::string& file_path)
 {
     return m_workspace.export_project_archive(file_path);
+}
+
+std::string ProjectPersistence::attachments_dir() const
+{
+    return (fs::path(jusprin_data_dir()) / "attachments").string();
+}
+
+bool ProjectPersistence::write_attachment_blob(const std::string& relative_path, const std::string& bytes)
+{
+    if (!m_attached)
+        return false;
+    return write_file(fs::path(jusprin_data_dir()) / fs::path(relative_path), bytes);
+}
+
+std::string ProjectPersistence::read_attachment_blob(const std::string& relative_path) const
+{
+    if (!m_attached || relative_path.empty())
+        return {};
+    return read_file(fs::path(jusprin_data_dir()) / fs::path(relative_path));
+}
+
+void ProjectPersistence::remove_attachment_dir(const std::string& relative_dir)
+{
+    if (!m_attached || relative_dir.empty())
+        return;
+    std::error_code ec;
+    fs::remove_all(fs::path(jusprin_data_dir()) / fs::path(relative_dir), ec);
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

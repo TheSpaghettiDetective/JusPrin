@@ -7,6 +7,7 @@ import {
   AgentErrorInfo,
   AgentStatus,
   Appearance,
+  AttachmentInfo,
   ConversationInfo,
   Envelope,
   RevisionInfo,
@@ -33,6 +34,8 @@ export interface AgentUiState {
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[];
   draft: string;
+  // Staged (composer) and sent (history) attachments, keyed by id in the UI.
+  attachments: AttachmentInfo[];
   context: WorkspaceContext | null;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
@@ -51,6 +54,7 @@ export const initialState: AgentUiState = {
   toolActivities: [],
   revisions: [],
   draft: '',
+  attachments: [],
   context: null,
   needsResync: false,
   diagnostics: [],
@@ -115,6 +119,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         toolActivities: full.toolActivities ?? [],
         revisions: full.revisions ?? [],
         draft: full.draft ?? '',
+        attachments: full.attachments ?? [],
         context: full.context,
         needsResync: false,
       };
@@ -202,6 +207,15 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
           ? [...state.toolActivities, activity]
           : state.toolActivities.map((a, i) => (i === index ? activity : a));
       return { ...state, toolActivities };
+    }
+    case 'attachment_updated': {
+      const attachment = payload.attachment as AttachmentInfo;
+      const index = state.attachments.findIndex((a) => a.id === attachment.id);
+      const attachments =
+        index < 0
+          ? [...state.attachments, attachment]
+          : state.attachments.map((a, i) => (i === index ? attachment : a));
+      return { ...state, attachments };
     }
     case 'bridge_error': {
       const code = payload.code as string;

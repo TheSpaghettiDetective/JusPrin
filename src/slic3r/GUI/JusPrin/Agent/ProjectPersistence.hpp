@@ -87,6 +87,20 @@ public:
     };
     RevertResult revert_to_revision(const std::string& revision_id);
 
+    // -- Attachment blobs ---------------------------------------------------
+    // Blobs live under <JusPrin data dir>/attachments/<id>/<name>. The host
+    // owns the semantic record; persistence owns only the bytes on disk.
+    std::string attachments_dir() const;
+    // Writes bytes to <JusPrin data dir>/relative_path (attachment paths are
+    // caller-sanitized). Returns false when the write fails.
+    bool write_attachment_blob(const std::string& relative_path, const std::string& bytes);
+    // Reads an attachment blob back (empty when missing); used to rebuild image
+    // previews after a reload without persisting them in state.json.
+    std::string read_attachment_blob(const std::string& relative_path) const;
+    // Removes an attachment's blob directory (relative to the JusPrin data
+    // dir); used when a staged attachment is discarded.
+    void remove_attachment_dir(const std::string& relative_dir);
+
     // A clean-sharing copy: the project without conversations, revision
     // history, or any other auxiliary content.
     Workspace::CommandResult export_clean_copy(const std::string& file_path);

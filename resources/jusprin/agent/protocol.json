@@ -1,6 +1,6 @@
 {
   "name": "jusprin-agent-bridge",
-  "version": 3,
+  "version": 1,
   "capabilities": [
     "streaming",
     "stop",
@@ -9,7 +9,8 @@
     "appearance",
     "tools",
     "conversations",
-    "revisions"
+    "revisions",
+    "attachments"
   ],
   "pageMessageTypes": [
     "hello",
@@ -22,7 +23,9 @@
     "create_conversation",
     "switch_conversation",
     "revert_to_revision",
-    "draft_update"
+    "draft_update",
+    "attach_file",
+    "remove_attachment"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -39,6 +42,7 @@
     "assistant_stopped",
     "tool_activity",
     "revision_added",
-    "bridge_error"
+    "bridge_error",
+    "attachment_updated"
   ]
 }

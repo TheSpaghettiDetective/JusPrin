@@ -173,6 +173,47 @@ public:
         return CommandResult::success();
     }
 
+    CommandResult import_model(const std::string& file_path) override
+    {
+        std::ifstream in(file_path, std::ios::binary);
+        if (!in.is_open())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
+
+        // Add one object named after the file to the active plate (or the first
+        // plate). This is an additive manufacturing change, not a replacement.
+        std::string name = std::filesystem::path(file_path).stem().string();
+        if (name.empty())
+            name = "Imported model";
+
+        save_undo();
+        const ObjectId new_id(m_session, ++m_last_object_id);
+        WorkspaceObject object;
+        object.id   = new_id;
+        object.name = name;
+        object.instances.push_back({});
+        WorkspacePlate* target = nullptr;
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            if (plate.active) {
+                target = &plate;
+                break;
+            }
+        if (target == nullptr && !m_snapshot.plates.empty())
+            target = &m_snapshot.plates.front();
+        if (target == nullptr) {
+            WorkspacePlate plate;
+            plate.id     = PlateId(m_session, ++m_last_object_id);
+            plate.name   = "Plate 1";
+            plate.active = true;
+            m_snapshot.plates.push_back(plate);
+            m_snapshot.active_plate = plate.id;
+            target                  = &m_snapshot.plates.back();
+        }
+        target->objects.push_back(object);
+        m_known_object_ids.insert(new_id);
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success(new_id);
+    }
+
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override
     {
         return m_changes.subscribe(std::move(callback));

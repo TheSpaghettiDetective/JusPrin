@@ -299,11 +299,118 @@ button.primary:active:enabled {
 /* Composer */
 .composer {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 12px;
   border-top: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
+}
+
+.composer.dragging {
+  outline: 2px dashed var(--border-focus);
+  outline-offset: -4px;
+}
+
+.composer-row {
+  display: flex;
+  gap: 8px;
   align-items: flex-end;
+}
+
+.composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attach-button {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.attach-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+
+.attachment-chip.errored {
+  border-color: var(--status-danger);
+}
+
+.attachment-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+.attachment-kind {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+.attachment-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.attachment-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.attachment-error {
+  font-size: 10px;
+  color: var(--status-danger);
+}
+
+.attachment-remove {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .composer textarea {

@@ -5,6 +5,10 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <array>
+#include <cctype>
+#include <filesystem>
+#include <set>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -53,6 +57,8 @@ json message_json(const ConversationMessage& message)
         result["inReplyTo"] = message.in_reply_to;
     if (message.error)
         result["error"] = error_json(*message.error);
+    if (!message.attachment_ids.empty())
+        result["attachments"] = message.attachment_ids;
     return result;
 }
 
@@ -118,6 +124,220 @@ json revision_json(const RevisionInfo& revision, const std::string& current_revi
                 {"revertible", !revision.snapshot_file.empty()}};
 }
 
+// --- Attachments ---------------------------------------------------------
+
+// Byte caps: reject anything larger than the total cap; only inline an image
+// preview data URL when the blob is within the preview cap; truncate text
+// previews to keep state.json small.
+constexpr std::size_t kMaxAttachmentBytes    = 32u * 1024u * 1024u;
+constexpr std::size_t kInlineImagePreviewCap = 256u * 1024u;
+constexpr std::size_t kTextPreviewChars      = 4000u;
+
+std::string to_lower(std::string s)
+{
+    for (char& c : s)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+std::string extension_of(const std::string& name)
+{
+    const auto dot = name.find_last_of('.');
+    if (dot == std::string::npos)
+        return {};
+    return to_lower(name.substr(dot + 1));
+}
+
+// Reduces a user-supplied name to one safe path component: basename only, no
+// traversal, printable ASCII, length-capped. Never returns an empty string.
+std::string sanitize_filename(const std::string& name)
+{
+    std::string base = name;
+    const auto   slash = base.find_last_of("/\\");
+    if (slash != std::string::npos)
+        base = base.substr(slash + 1);
+    std::string out;
+    for (char c : base) {
+        const unsigned char u = static_cast<unsigned char>(c);
+        if (std::isalnum(u) || c == '.' || c == '-' || c == '_' || c == ' ')
+            out += c;
+        else
+            out += '_';
+    }
+    std::size_t i = 0;
+    while (i < out.size() && out[i] == '.') // no leading dots => no "." or ".."
+        ++i;
+    out = out.substr(i);
+    if (out.empty())
+        out = "file";
+    if (out.size() > 128) // keep the extension tail, which is the informative end
+        out = out.substr(out.size() - 128);
+    return out;
+}
+
+const std::set<std::string>& text_extensions()
+{
+    static const std::set<std::string> v{
+        "txt", "md",  "markdown", "csv", "tsv", "log",  "json", "yaml", "yml", "xml", "ini", "cfg",  "conf",
+        "toml", "c",  "cc",       "cpp", "cxx", "h",    "hpp",  "hxx",  "py",  "js",  "mjs", "ts",   "tsx",
+        "jsx",  "sh", "bash",     "zsh", "rs",  "go",   "java", "kt",   "cs",  "rb",  "php", "css",  "scss",
+        "html", "htm", "sql",     "rst", "tex", "properties"};
+    return v;
+}
+
+const std::set<std::string>& model_extensions()
+{
+    static const std::set<std::string> v{"stl", "obj",  "3mf",  "step", "stp", "amf",
+                                         "oltp", "drc", "ply", "usd",  "usda", "usdc", "usdz", "abc"};
+    return v;
+}
+
+std::string strip_data_url_prefix(const std::string& data)
+{
+    // Accept both a bare base64 payload and a full "data:...;base64,<payload>".
+    const auto marker = data.find(";base64,");
+    if (marker != std::string::npos)
+        return data.substr(marker + 8);
+    return data;
+}
+
+bool base64_decode(const std::string& in, std::string& out)
+{
+    static const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    static const auto table = [] {
+        std::array<int, 256> t{};
+        t.fill(-1);
+        for (int i = 0; i < 64; ++i)
+            t[static_cast<unsigned char>(chars[i])] = i;
+        return t;
+    }();
+    int val = 0, valb = -8;
+    out.clear();
+    for (unsigned char c : in) {
+        if (c == '=')
+            break;
+        if (c == '\n' || c == '\r' || c == ' ' || c == '\t')
+            continue;
+        const int decoded = table[c];
+        if (decoded == -1)
+            return false;
+        val = (val << 6) + decoded;
+        valb += 6;
+        if (valb >= 0) {
+            out.push_back(static_cast<char>((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    return true;
+}
+
+std::string base64_encode(const std::string& in)
+{
+    static const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    int         val = 0, valb = -6;
+    for (unsigned char c : in) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            out.push_back(chars[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6)
+        out.push_back(chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (out.size() % 4)
+        out.push_back('=');
+    return out;
+}
+
+bool is_valid_utf8(const std::string& s)
+{
+    std::size_t i = 0;
+    const auto  n = s.size();
+    while (i < n) {
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        std::size_t         extra = 0;
+        if (c < 0x80)
+            extra = 0;
+        else if ((c >> 5) == 0x6)
+            extra = 1;
+        else if ((c >> 4) == 0xE)
+            extra = 2;
+        else if ((c >> 3) == 0x1E)
+            extra = 3;
+        else
+            return false;
+        if (i + extra >= n && extra > 0)
+            return false;
+        for (std::size_t k = 1; k <= extra; ++k)
+            if ((static_cast<unsigned char>(s[i + k]) >> 6) != 0x2)
+                return false;
+        i += extra + 1;
+    }
+    return true;
+}
+
+const char* image_mime_for(const std::string& ext)
+{
+    if (ext == "png")
+        return "image/png";
+    if (ext == "jpg" || ext == "jpeg")
+        return "image/jpeg";
+    if (ext == "gif")
+        return "image/gif";
+    if (ext == "webp")
+        return "image/webp";
+    return "application/octet-stream";
+}
+
+struct AttachmentClassification
+{
+    std::string kind;
+    std::string mime;
+};
+
+// Maps a file name (and optional page-provided MIME) to the host's kind. Model
+// and project files reach the Agent as native summaries, not decoded bytes.
+AttachmentClassification classify_attachment(const std::string& name, const std::string& provided_mime)
+{
+    const std::string ext = extension_of(name);
+    if (ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "webp")
+        return {"image", image_mime_for(ext)};
+    if (ext == "svg")
+        return {"svg", "image/svg+xml"};
+    if (ext == "pdf")
+        return {"pdf", "application/pdf"};
+    if (ext == "gcode" || ext == "g" || ext == "gco")
+        return {"gcode", "text/x.gcode"};
+    if (text_extensions().count(ext))
+        return {"text", provided_mime.empty() ? "text/plain" : provided_mime};
+    if (model_extensions().count(ext))
+        return {"model", "model/3mf"};
+    return {"unsupported", provided_mime};
+}
+
+// The saved, persisted fields of an attachment (no volatile image data URL).
+json attachment_json(const AttachmentRecord& record)
+{
+    json result{{"id", record.id},
+                {"name", record.original_name},
+                {"kind", record.kind},
+                {"mime", record.mime},
+                {"sizeBytes", record.size_bytes},
+                {"source", record.source},
+                {"state", record.state}};
+    if (!record.client_id.empty())
+        result["clientId"] = record.client_id;
+    if (!record.preview_text.empty())
+        result["previewText"] = record.preview_text;
+    if (!record.summary.empty())
+        result["summary"] = record.summary;
+    if (record.error)
+        result["error"] = json{{"code", record.error->code}, {"message", record.error->message}};
+    return result;
+}
+
 json context_json(const WorkspaceSnapshot& snapshot)
 {
     json plates = json::array();
@@ -173,6 +393,13 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             send_context();
     });
     m_tools.set_action_id_allocator([this]() { return m_persistence.document().allocate_action_id(); });
+    m_tools.set_attachment_path_resolver([this](const std::string& attachment_id) -> std::string {
+        const std::optional<AttachmentRecord> record = m_persistence.document().find_attachment(attachment_id);
+        if (!record || record->kind != "model" || record->stored_name.empty())
+            return {};
+        return (std::filesystem::path(m_persistence.jusprin_data_dir()) / std::filesystem::path(record->relative_path()))
+            .string();
+    });
     m_tools.set_listener([this](const ToolActivity& activity) {
         m_persistence.document().upsert_activity(activity, m_persistence.timestamp());
         if (tool_state_terminal(activity.state))
@@ -289,6 +516,15 @@ void AgentHost::send_state(const std::string& correlation_id)
     for (const RevisionInfo& revision : document.revisions())
         revisions.push_back(revision_json(revision, document.current_revision_id()));
 
+    json attachments = json::array();
+    for (const AttachmentRecord& record : document.attachments()) {
+        json entry = attachment_json(record);
+        const std::string preview = attachment_preview_data_url(record);
+        if (!preview.empty())
+            entry["previewDataUrl"] = preview;
+        attachments.push_back(std::move(entry));
+    }
+
     json payload{{"agent", json{{"status", availability_name(m_availability)}}},
                  {"appearance", m_dark ? "dark" : "light"},
                  {"conversations", std::move(conversations)},
@@ -298,6 +534,7 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"toolActivities", std::move(tool_activities)},
                  {"revisions", std::move(revisions)},
                  {"draft", m_persistence.draft()},
+                 {"attachments", std::move(attachments)},
                  {"context", context_json(snapshot)}};
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
@@ -367,6 +604,10 @@ void AgentHost::on_page_message(const std::string& envelope_json)
         handle_revert_to_revision(envelope_id, payload);
     else if (type == Protocol::kDraftUpdate)
         handle_draft_update(payload);
+    else if (type == Protocol::kAttachFile)
+        handle_attach_file(envelope_id, payload);
+    else if (type == Protocol::kRemoveAttachment)
+        handle_remove_attachment(envelope_id, payload);
     else
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
@@ -413,12 +654,24 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
 {
     const json payload = json::parse(payload_json, nullptr, false);
     if (!payload.is_object() || !payload.contains("clientMessageId") || !payload["clientMessageId"].is_string() ||
-        !payload.contains("text") || !payload["text"].is_string() || payload["text"].get<std::string>().empty()) {
-        send_bridge_error("invalid_payload", "user_message requires a clientMessageId and non-empty text.", envelope_id);
+        !payload.contains("text") || !payload["text"].is_string()) {
+        send_bridge_error("invalid_payload", "user_message requires a clientMessageId and text.", envelope_id);
         return;
     }
     const std::string client_id = payload["clientMessageId"].get<std::string>();
     const std::string text      = payload["text"].get<std::string>();
+
+    std::vector<std::string> requested_attachments;
+    if (payload.contains("attachmentIds") && payload["attachmentIds"].is_array())
+        for (const json& id : payload["attachmentIds"])
+            if (id.is_string())
+                requested_attachments.push_back(id.get<std::string>());
+
+    // A message must carry text or at least one attachment.
+    if (text.empty() && requested_attachments.empty()) {
+        send_bridge_error("invalid_payload", "A message needs text or an attachment.", envelope_id);
+        return;
+    }
 
     ProjectStateDocument& document = m_persistence.document();
 
@@ -431,6 +684,15 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
         return;
     }
 
+    // Only attachments the host actually holds as staged can be sent; unknown
+    // or already-sent IDs are dropped rather than trusted.
+    std::vector<std::string> sent_attachments;
+    for (const std::string& id : requested_attachments) {
+        const std::optional<AttachmentRecord> record = document.find_attachment(id);
+        if (record && record->state == "staged")
+            sent_attachments.push_back(id);
+    }
+
     const std::string conversation_id = document.active_conversation_id();
     ConversationMessage message;
     message.id                = document.allocate_message_id();
@@ -438,7 +700,9 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     message.state             = MessageState::Complete;
     message.text              = text;
     message.client_message_id = client_id;
+    message.attachment_ids    = sent_attachments;
     document.append_message(conversation_id, message, m_persistence.timestamp());
+    document.mark_attachments_sent(sent_attachments);
     // The outgoing message is durable before any reply work starts.
     m_persistence.flush();
     // Sending cleared the composer; the draft it held is no longer working
@@ -453,6 +717,141 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
         return;
     }
     begin_reply(message.id);
+}
+
+std::string AgentHost::attachment_preview_data_url(const AttachmentRecord& record) const
+{
+    if (record.kind != "image" || record.stored_name.empty() || record.size_bytes > kInlineImagePreviewCap)
+        return {};
+    const std::string bytes = m_persistence.read_attachment_blob(record.relative_path());
+    if (bytes.empty())
+        return {};
+    return "data:" + record.mime + ";base64," + base64_encode(bytes);
+}
+
+void AgentHost::send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id)
+{
+    json entry = attachment_json(record);
+    const std::string preview = attachment_preview_data_url(record);
+    if (!preview.empty())
+        entry["previewDataUrl"] = preview;
+    send_envelope(Protocol::kAttachmentUpdated, json{{"attachment", std::move(entry)}}.dump(), correlation_id);
+}
+
+void AgentHost::handle_attach_file(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    if (!payload.is_object()) {
+        send_bridge_error("invalid_payload", "attach_file requires an object payload.", envelope_id);
+        return;
+    }
+    const std::string client_id = payload.value("clientAttachmentId", "");
+    const std::string name      = payload.value("name", "");
+    std::string       source    = payload.value("source", "picker");
+    if (source != "picker" && source != "drop" && source != "clipboard" && source != "project")
+        source = "picker";
+    if (name.empty() && source != "project") {
+        send_bridge_error("invalid_payload", "attach_file requires a file name.", envelope_id);
+        return;
+    }
+
+    ProjectStateDocument& document = m_persistence.document();
+
+    // A lost acknowledgement can make the page resend the same file; the stable
+    // client ID makes that idempotent rather than a duplicate attachment.
+    if (const std::optional<AttachmentRecord> existing = document.find_attachment_by_client_id(client_id)) {
+        send_attachment_updated(*existing, envelope_id);
+        return;
+    }
+
+    AttachmentRecord record;
+    record.id            = document.allocate_attachment_id();
+    record.client_id     = client_id;
+    record.original_name = name;
+    record.source        = source;
+    record.state         = "staged";
+
+    if (source == "project") {
+        // A reference to an item already in the open project: the Agent sees a
+        // native summary, and there is no blob to store or decode.
+        record.kind    = payload.value("refKind", "model");
+        record.summary = payload.value("label", name.empty() ? std::string("Project item") : name);
+        document.add_attachment(record, m_persistence.timestamp());
+        m_persistence.commit();
+        m_persistence.flush();
+        send_attachment_updated(record, envelope_id);
+        return;
+    }
+
+    const AttachmentClassification classification = classify_attachment(name, payload.value("mime", ""));
+    record.kind        = classification.kind;
+    record.mime        = classification.mime;
+    record.stored_name = sanitize_filename(name);
+
+    std::string bytes;
+    if (!base64_decode(strip_data_url_prefix(payload.value("dataBase64", "")), bytes)) {
+        record.state = "error";
+        record.error = AgentError{"unreadable", "The file could not be read."};
+        document.add_attachment(record, m_persistence.timestamp());
+        m_persistence.commit();
+        m_persistence.flush();
+        send_attachment_updated(record, envelope_id);
+        return;
+    }
+
+    if (bytes.size() > kMaxAttachmentBytes) {
+        record.state = "error";
+        record.error = AgentError{"too_large", "This file is too large to attach."};
+    } else if (record.kind == "unsupported") {
+        record.state = "error";
+        record.error = AgentError{"unsupported_type", "This file type can't be read by the Agent."};
+    } else if ((record.kind == "text" || record.kind == "gcode" || record.kind == "svg") && !is_valid_utf8(bytes)) {
+        record.state = "error";
+        record.error = AgentError{"not_text", "This file is not readable UTF-8 text."};
+    } else if (!m_persistence.write_attachment_blob(record.relative_path(), bytes)) {
+        record.state = "error";
+        record.error = AgentError{"store_failed", "The attachment could not be stored."};
+    } else {
+        record.size_bytes = bytes.size();
+        if (record.kind == "text" || record.kind == "gcode" || record.kind == "svg") {
+            record.preview_text = bytes.size() > kTextPreviewChars ? bytes.substr(0, kTextPreviewChars) : bytes;
+        } else if (record.kind == "model") {
+            // Models reach the Agent as a native summary, never as bytes. The
+            // authoritative import happens when the message is sent (Phase 5
+            // import seam); this is the pre-import description.
+            record.summary = "3D model \"" + name + "\" (" + std::to_string(bytes.size()) +
+                             " bytes), ready to import into the project.";
+        }
+        // Images and PDFs are stored as-is; images get an inline preview built
+        // on demand from the blob, so nothing large is kept in state.json.
+    }
+
+    document.add_attachment(record, m_persistence.timestamp());
+    m_persistence.commit();
+    m_persistence.flush();
+    send_attachment_updated(record, envelope_id);
+}
+
+void AgentHost::handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    const std::string id = payload.is_object() ? payload.value("attachmentId", "") : std::string();
+    if (id.empty()) {
+        send_bridge_error("invalid_payload", "remove_attachment requires an attachmentId.", envelope_id);
+        return;
+    }
+    ProjectStateDocument& document = m_persistence.document();
+    const std::optional<std::string> removed_dir = document.remove_staged_attachment(id);
+    if (!removed_dir) {
+        // Already gone or a sent (durable) attachment; report current state so
+        // the page reconciles rather than assuming a removal that did not run.
+        send_state(envelope_id);
+        return;
+    }
+    m_persistence.remove_attachment_dir(*removed_dir);
+    m_persistence.commit();
+    m_persistence.flush();
+    send_state(envelope_id);
 }
 
 void AgentHost::handle_stop(const std::string& payload_json)
@@ -655,8 +1054,24 @@ void AgentHost::begin_reply(const std::string& user_message_id)
 void AgentHost::begin_stream(ConversationMessage assistant, const std::string& conversation_id)
 {
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
-    const DeterministicMockAgent::Reply reply =
-        DeterministicMockAgent::reply_for(user ? user->text : std::string(), assistant.attempt, m_workspace.snapshot());
+
+    // Give the Agent the same non-binary view of the sent attachments the host
+    // holds; models appear only as their native summary, never as bytes.
+    std::vector<DeterministicMockAgent::AttachmentContext> attachment_context;
+    if (user)
+        for (const std::string& id : user->attachment_ids)
+            if (const std::optional<AttachmentRecord> record = m_persistence.document().find_attachment(id)) {
+                DeterministicMockAgent::AttachmentContext ctx;
+                ctx.id         = record->id;
+                ctx.name       = record->original_name.empty() ? record->summary : record->original_name;
+                ctx.kind       = record->kind;
+                ctx.summary    = record->summary;
+                ctx.importable = record->kind == "model" && !record->stored_name.empty();
+                attachment_context.push_back(std::move(ctx));
+            }
+
+    const DeterministicMockAgent::Reply reply = DeterministicMockAgent::reply_for(
+        user ? user->text : std::string(), assistant.attempt, m_workspace.snapshot(), attachment_context);
 
     assistant.state = MessageState::Streaming;
     assistant.text.clear();

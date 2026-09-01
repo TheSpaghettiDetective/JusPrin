@@ -167,3 +167,35 @@ describe('store reducer', () => {
     expect(state.messages).toHaveLength(0);
   });
 });
+
+describe('attachments reducer', () => {
+  const staged = {
+    id: 'a-1',
+    name: 'notes.txt',
+    kind: 'text' as const,
+    mime: 'text/plain',
+    sizeBytes: 5,
+    source: 'picker' as const,
+    state: 'staged' as const,
+    previewText: 'hello',
+  };
+
+  it('adds then updates an attachment in place on attachment_updated', () => {
+    const added = apply(initialState, 'attachment_updated', { attachment: staged });
+    expect(added.attachments).toHaveLength(1);
+    expect(added.attachments[0].previewText).toBe('hello');
+
+    const sent = apply(added, 'attachment_updated', { attachment: { ...staged, state: 'sent' } });
+    expect(sent.attachments).toHaveLength(1);
+    expect(sent.attachments[0].state).toBe('sent');
+  });
+
+  it('replaces attachments from a full state payload', () => {
+    const withOne = apply(initialState, 'attachment_updated', { attachment: staged });
+    const replaced = apply(withOne, 'state', {
+      ...statePayload,
+      attachments: [{ ...staged, id: 'a-2', name: 'other.txt' }],
+    });
+    expect(replaced.attachments.map((a) => a.id)).toEqual(['a-2']);
+  });
+});

@@ -13,13 +13,19 @@ namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace Protocol {
 
-inline constexpr int         kVersion = 3;
+// The page and host ship in the same build, so this only guards a page/host
+// mismatch at runtime — which cannot happen pre-release. It stays 1 through
+// development (additive features are negotiated via the capabilities list
+// below) and bumps only after go-live, on a breaking change to an existing
+// message's shape.
+inline constexpr int         kVersion = 1;
 inline constexpr const char* kName    = "jusprin-agent-bridge";
 
 inline const std::vector<std::string>& capabilities()
 {
-    static const std::vector<std::string> values{"streaming", "stop",  "retry",         "context",
-                                                 "appearance", "tools", "conversations", "revisions"};
+    static const std::vector<std::string> values{"streaming", "stop",          "retry",     "context",
+                                                 "appearance", "tools",         "conversations",
+                                                 "revisions",  "attachments"};
     return values;
 }
 
@@ -35,6 +41,8 @@ inline constexpr const char* kCreateConversation = "create_conversation";
 inline constexpr const char* kSwitchConversation = "switch_conversation";
 inline constexpr const char* kRevertToRevision   = "revert_to_revision";
 inline constexpr const char* kDraftUpdate        = "draft_update";
+inline constexpr const char* kAttachFile         = "attach_file";
+inline constexpr const char* kRemoveAttachment   = "remove_attachment";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -52,6 +60,7 @@ inline constexpr const char* kAssistantStopped   = "assistant_stopped";
 inline constexpr const char* kToolActivity       = "tool_activity";
 inline constexpr const char* kRevisionAdded      = "revision_added";
 inline constexpr const char* kBridgeError        = "bridge_error";
+inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
 
 } // namespace Protocol
 
@@ -80,6 +89,7 @@ struct ConversationMessage
     std::string               in_reply_to;       // assistant messages: the user message ID
     std::optional<AgentError> error;
     int                       attempt{1};
+    std::vector<std::string>  attachment_ids;    // user messages: sent attachment IDs
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

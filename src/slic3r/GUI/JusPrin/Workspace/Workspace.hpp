@@ -380,6 +380,13 @@ public:
     // stale, native history is cleared, and a Project change is published.
     virtual CommandResult restore_project_archive(const std::string& file_path) = 0;
 
+    // Imports a model or project file's geometry into the CURRENT project,
+    // adding objects rather than replacing the project. It is a single
+    // undoable manufacturing change: the session is unchanged, prior IDs stay
+    // valid, revision advances, and a Contents change is published. On success
+    // object_id is the first added object (when one can be identified).
+    virtual CommandResult import_model(const std::string& file_path) = 0;
+
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
 };
 

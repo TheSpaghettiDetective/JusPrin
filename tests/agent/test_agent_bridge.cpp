@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <sstream>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -153,7 +154,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
                                               Protocol::kToolCancel, Protocol::kCreateConversation,
                                               Protocol::kSwitchConversation, Protocol::kRevertToRevision,
-                                              Protocol::kDraftUpdate});
+                                              Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState,
@@ -161,7 +162,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMessageAdded, Protocol::kAssistantStarted, Protocol::kAssistantDelta,
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity, Protocol::kRevisionAdded,
-                                              Protocol::kBridgeError});
+                                              Protocol::kBridgeError, Protocol::kAttachmentUpdated});
 }
 
 TEST_CASE("handshake negotiates version and reports capabilities, agent status, and state", "[agent][bridge]")
@@ -765,4 +766,218 @@ TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")
     harness.host.set_appearance(true);
     REQUIRE(harness.last_of_type("appearance") != nullptr);
     CHECK((*harness.last_of_type("appearance"))["payload"]["appearance"] == "dark");
+}
+
+namespace {
+
+// Minimal base64 encoder for building attach_file payloads in tests.
+std::string b64(const std::string& in)
+{
+    static const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    int         val = 0, valb = -6;
+    for (unsigned char c : in) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            out.push_back(chars[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6)
+        out.push_back(chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (out.size() % 4)
+        out.push_back('=');
+    return out;
+}
+
+json attach(Harness& h, const std::string& client_id, const std::string& name, const std::string& bytes,
+            const std::string& mime = "", const std::string& source = "picker")
+{
+    json payload{{"clientAttachmentId", client_id}, {"name", name}, {"source", source}, {"dataBase64", b64(bytes)}};
+    if (!mime.empty())
+        payload["mime"] = mime;
+    h.deliver("attach_file", payload);
+    const json* updated = h.last_of_type("attachment_updated");
+    REQUIRE(updated != nullptr);
+    return (*updated)["payload"]["attachment"];
+}
+
+} // namespace
+
+TEST_CASE("a text attachment is staged, decoded, and previewed", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    const json a = attach(h, "ca-1", "notes.txt", "hello world");
+    CHECK(a["id"] == "a-1");
+    CHECK(a["kind"] == "text");
+    CHECK(a["state"] == "staged");
+    CHECK(a["name"] == "notes.txt");
+    CHECK(a["previewText"] == "hello world");
+    // The blob is on disk under the project's auxiliary directory.
+    CHECK(std::filesystem::is_regular_file(
+        std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt"));
+}
+
+TEST_CASE("an image attachment gets an inline preview data URL", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    const json a = attach(h, "ca-img", "pic.png", std::string("\x89PNG\r\n", 6), "image/png");
+    CHECK(a["kind"] == "image");
+    CHECK(a["state"] == "staged");
+    REQUIRE(a.contains("previewDataUrl"));
+    CHECK(a["previewDataUrl"].get<std::string>().rfind("data:image/png;base64,", 0) == 0);
+    // The large data URL is not persisted in state.json; it is rebuilt on demand.
+    std::ifstream     in(h.persistence.state_file_path());
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const json on_disk = json::parse(ss.str());
+    CHECK_FALSE(on_disk["attachments"][0].contains("previewDataUrl"));
+}
+
+TEST_CASE("an unsupported binary attachment is rejected visibly", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    const json a = attach(h, "ca-bin", "firmware.bin", std::string("\x00\x01\x02\x03", 4));
+    CHECK(a["kind"] == "unsupported");
+    CHECK(a["state"] == "error");
+    CHECK(a["error"]["code"] == "unsupported_type");
+}
+
+TEST_CASE("resending the same client attachment id is idempotent", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    attach(h, "ca-dup", "a.txt", "one");
+    attach(h, "ca-dup", "a.txt", "one");
+    CHECK(h.persistence.document().attachments().size() == 1);
+}
+
+TEST_CASE("a project-reference attachment carries a summary and no blob", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    h.deliver("attach_file", json{{"clientAttachmentId", "ca-ref"},
+                                  {"source", "project"},
+                                  {"refKind", "model"},
+                                  {"label", "cube-a (on Plate 1)"}});
+    const json* updated = h.last_of_type("attachment_updated");
+    REQUIRE(updated != nullptr);
+    const json a = (*updated)["payload"]["attachment"];
+    CHECK(a["kind"] == "model");
+    CHECK(a["summary"] == "cube-a (on Plate 1)");
+    CHECK(a["state"] == "staged");
+}
+
+TEST_CASE("a message carries staged attachments and the mock acknowledges them", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    attach(h, "ca-1", "notes.txt", "hello world");
+    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"}, {"attachmentIds", json::array({"a-1"})}});
+
+    const json* added = h.last_of_type("message_added");
+    REQUIRE(added != nullptr);
+    CHECK((*added)["payload"]["message"]["attachments"] == json::array({"a-1"}));
+    // The attachment is now durable history, not staged working state.
+    REQUIRE(h.persistence.document().find_attachment("a-1").has_value());
+    CHECK(h.persistence.document().find_attachment("a-1")->state == "sent");
+
+    h.pump_all();
+    const json* completed = h.last_of_type("assistant_completed");
+    REQUIRE(completed != nullptr);
+    // The streamed reply names the attachment, proving the context reached the Agent.
+    const std::vector<ConversationMessage> conversation =
+        h.persistence.document().messages(h.persistence.document().active_conversation_id());
+    REQUIRE(conversation.size() >= 2);
+    CHECK(conversation.back().text.find("notes.txt") != std::string::npos);
+}
+
+TEST_CASE("an attachment-only message is accepted but an empty one is not", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    attach(h, "ca-1", "notes.txt", "hello");
+
+    SECTION("text may be empty when an attachment is present") {
+        h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", ""}, {"attachmentIds", json::array({"a-1"})}});
+        CHECK(h.last_of_type("message_added") != nullptr);
+    }
+    SECTION("a message with neither text nor attachment is refused") {
+        const std::size_t before = h.of_type("bridge_error").size();
+        h.deliver("user_message", json{{"clientMessageId", "c-2"}, {"text", ""}});
+        REQUIRE(h.of_type("bridge_error").size() == before + 1);
+        CHECK(h.of_type("bridge_error").back()["payload"]["code"] == "invalid_payload");
+    }
+}
+
+TEST_CASE("removing a staged attachment deletes its record and blob", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    attach(h, "ca-1", "notes.txt", "hello");
+    const auto blob = std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt";
+    REQUIRE(std::filesystem::is_regular_file(blob));
+
+    h.deliver("remove_attachment", json{{"attachmentId", "a-1"}});
+    CHECK(h.persistence.document().attachments().empty());
+    CHECK_FALSE(std::filesystem::exists(blob));
+    const json* state = h.last_of_type("state");
+    REQUIRE(state != nullptr);
+    CHECK((*state)["payload"]["attachments"].empty());
+}
+
+TEST_CASE("reload reconstructs staged attachments from native state", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    attach(h, "ca-1", "notes.txt", "hello world");
+
+    // The page reloads: a fresh handshake must rebuild the staged attachment
+    // (with its decoded preview) from authoritative native state.
+    h.host.reset_page();
+    h.handshake();
+    h.deliver("state_request");
+    const json* state = h.last_of_type("state");
+    REQUIRE(state != nullptr);
+    const json attachments = (*state)["payload"]["attachments"];
+    REQUIRE(attachments.size() == 1);
+    CHECK(attachments[0]["id"] == "a-1");
+    CHECK(attachments[0]["previewText"] == "hello world");
+}
+
+TEST_CASE("a sent model attachment is imported through an approved tool action", "[agent][attachments][import]")
+{
+    Harness h;
+    h.handshake();
+
+    // Attach a model file; it is stored but reaches the Agent only as a summary.
+    const json a = attach(h, "ca-model", "widget.stl", "solid s\nendsolid s\n");
+    CHECK(a["kind"] == "model");
+    REQUIRE(a.contains("summary"));
+
+    const std::size_t objects_before = h.workspace.snapshot().plates.at(0).objects.size();
+
+    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "add this"}, {"attachmentIds", json::array({"a-1"})}});
+    h.pump_all(); // finish the streamed reply, which proposes the import
+
+    const json* activity = h.last_of_type("tool_activity");
+    REQUIRE(activity != nullptr);
+    const std::string action_id = (*activity)["payload"]["activity"]["actionId"].get<std::string>();
+    CHECK((*activity)["payload"]["activity"]["tool"] == "import_model");
+    CHECK((*activity)["payload"]["activity"]["requiresApproval"] == true);
+
+    // Approve; the coordinator resolves the attachment to its blob and imports
+    // it through the workspace, adding one object.
+    h.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
+    for (int i = 0; i < 100 && h.host.tools().any_running(); ++i)
+        h.host.pump_tools();
+
+    CHECK(h.workspace.snapshot().plates.at(0).objects.size() == objects_before + 1);
+    const ToolActivity* record = h.host.tools().find(action_id);
+    REQUIRE(record != nullptr);
+    CHECK(record->state == ToolState::Succeeded);
 }

@@ -473,3 +473,200 @@ TEST_CASE("a clean-sharing copy carries no JusPrin state", "[persistence][clean-
     CHECK(content.find("conversations") == std::string::npos);
     CHECK(content.find(persistence.document().project_id()) == std::string::npos);
 }
+
+namespace {
+
+// Builds a staged attachment record with the fields the host would populate.
+AttachmentRecord staged_attachment(const std::string& id, const std::string& name, const std::string& kind)
+{
+    AttachmentRecord record;
+    record.id            = id;
+    record.original_name = name;
+    record.stored_name   = name;
+    record.kind          = kind;
+    record.mime          = "application/octet-stream";
+    record.size_bytes    = 4;
+    record.source        = "picker";
+    record.state         = "staged";
+    return record;
+}
+
+} // namespace
+
+TEST_CASE("attachment records round-trip and preserve unknown fields", "[project-state][attachments]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p-1", "l-1", kT);
+
+    const std::string a1 = document.allocate_attachment_id();
+    AttachmentRecord  one = staged_attachment(a1, "notes.txt", "text");
+    one.preview_text      = "hello world";
+    document.add_attachment(one, kT);
+    const std::string a2 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a2, "photo.png", "image"), kT);
+
+    CHECK(a1 == "a-1");
+    CHECK(a2 == "a-2");
+    REQUIRE(document.attachments().size() == 2);
+    REQUIRE(document.find_attachment(a1).has_value());
+    CHECK(document.find_attachment(a1)->preview_text == "hello world");
+    CHECK(document.find_attachment(a1)->relative_path() == "attachments/a-1/notes.txt");
+
+    // A newer build added a field this build does not know; it must survive.
+    json raw                                 = json::parse(document.dump());
+    raw["attachments"][0]["futureAttachFlag"] = 7;
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(raw.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(reloaded.attachments().size() == 2);
+    CHECK(reloaded.attachments()[1].kind == "image");
+
+    // Update flips state and preserves the unknown field.
+    AttachmentRecord edited = reloaded.find_attachment(a1).value();
+    edited.state            = "sent";
+    REQUIRE(reloaded.update_attachment(edited));
+    const json round = json::parse(reloaded.dump());
+    CHECK(round["attachments"][0]["futureAttachFlag"] == 7);
+    CHECK(round["attachments"][0]["state"] == "sent");
+}
+
+TEST_CASE("staged attachments can be removed but sent ones are durable", "[project-state][attachments]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p-1", "l-1", kT);
+    const std::string a1 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a1, "a.txt", "text"), kT);
+
+    // A staged attachment can be discarded; its blob directory is reported.
+    const std::optional<std::string> dir = document.remove_staged_attachment(a1);
+    REQUIRE(dir.has_value());
+    CHECK(*dir == "attachments/a-1");
+    CHECK(document.attachments().empty());
+
+    // A sent attachment is history and cannot be removed this way.
+    const std::string a2 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a2, "b.txt", "text"), kT);
+    const std::string message_id = document.allocate_message_id();
+    ConversationMessage message   = user_message(message_id, "see attached", "c-1");
+    message.attachment_ids        = {a2};
+    document.append_message(document.active_conversation_id(), message, kT);
+    CHECK(document.mark_attachments_sent({a2}) == std::vector<std::string>{a2});
+    CHECK_FALSE(document.remove_staged_attachment(a2).has_value());
+    CHECK(document.find_attachment(a2)->state == "sent");
+
+    // The reference survives a round-trip on the message.
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(reloaded.messages(reloaded.active_conversation_id()).size() == 1);
+    CHECK(reloaded.messages(reloaded.active_conversation_id())[0].attachment_ids == std::vector<std::string>{a2});
+}
+
+TEST_CASE("revert keeps staged and referenced attachments but drops orphans", "[project-state][attachments][revert]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p-1", "l-1", kT);
+    const std::string conversation = document.active_conversation_id();
+
+    // Before the revision target: a1 sent-and-still-referenced, a3 staged and
+    // never sent, a4 staged now but sent by a later (removed) message.
+    const std::string a1 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a1, "a1.txt", "text"), kT);
+    const std::string a3 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a3, "a3.txt", "text"), kT);
+    const std::string a4 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a4, "a4.txt", "text"), kT);
+
+    ConversationMessage kept = user_message(document.allocate_message_id(), "keep", "c-1");
+    kept.attachment_ids      = {a1};
+    document.append_message(conversation, kept, kT);
+    document.mark_attachments_sent({a1});
+
+    const std::string target = document.add_revision("initial", "revisions/r-1.snapshot", conversation, kT);
+
+    // After the target: a2 created and sent, plus the message that also sends a4.
+    const std::string a2 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a2, "a2.txt", "text"), kT);
+    ConversationMessage later = user_message(document.allocate_message_id(), "later", "c-2");
+    later.attachment_ids      = {a2, a4};
+    document.append_message(conversation, later, kT);
+    document.mark_attachments_sent({a2, a4});
+    document.add_revision("contents", "revisions/r-2.snapshot", conversation, kT);
+
+    const auto result = document.revert_to_revision(target);
+    REQUIRE(result.has_value());
+    // Kept: a1 (sent, still referenced) and a3 (staged). Dropped: a4 (sent, its
+    // message truncated) and a2 (created after the target). IDs come from the
+    // monotonic allocator, so compare against the variables, not literals.
+    CHECK(result->kept_attachment_dirs ==
+          std::vector<std::string>{"attachments/" + a1, "attachments/" + a3});
+    CHECK(result->removed_attachment_dirs ==
+          std::vector<std::string>{"attachments/" + a4, "attachments/" + a2});
+
+    std::vector<std::string> remaining;
+    for (const AttachmentRecord& record : document.attachments())
+        remaining.push_back(record.id);
+    CHECK(remaining == std::vector<std::string>{a1, a3});
+}
+
+TEST_CASE("attachment blobs are written under the project and cleaned up", "[persistence][attachments]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+
+    REQUIRE(persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello"));
+    const fs::path blob = fs::path(persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt";
+    REQUIRE(fs::is_regular_file(blob));
+    CHECK(read_text(blob) == "hello");
+    // Blobs live only in the project's auxiliary dir, not the recovery mirror.
+    CHECK_FALSE(fs::exists(fs::path(persistence.recovery_dir()) / "attachments" / "a-1" / "notes.txt"));
+
+    persistence.remove_attachment_dir("attachments/a-1");
+    CHECK_FALSE(fs::exists(blob));
+}
+
+TEST_CASE("revert copies kept attachment blobs forward and drops orphaned ones", "[persistence][attachments][revert]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+    ProjectStateDocument& document = persistence.document();
+
+    // A sent attachment that will survive a revert to the revision after it.
+    const std::string a1 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a1, "keep.txt", "text"), kT);
+    REQUIRE(persistence.write_attachment_blob("attachments/" + a1 + "/keep.txt", "KEEP"));
+    ConversationMessage m1 = user_message(document.allocate_message_id(), "keep", "c-1");
+    m1.attachment_ids      = {a1};
+    document.append_message(document.active_conversation_id(), m1, kT);
+    document.mark_attachments_sent({a1});
+    persistence.commit();
+    persistence.flush();
+
+    // A manufacturing change captures the revision we will revert to.
+    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "r2").succeeded());
+    const std::string target = persistence.document().revisions().back().id;
+
+    // A later attachment that the revert must orphan.
+    const std::string a2 = document.allocate_attachment_id();
+    document.add_attachment(staged_attachment(a2, "drop.txt", "text"), kT);
+    REQUIRE(persistence.write_attachment_blob("attachments/" + a2 + "/drop.txt", "DROP"));
+    ConversationMessage m2 = user_message(document.allocate_message_id(), "later", "c-2");
+    m2.attachment_ids      = {a2};
+    document.append_message(document.active_conversation_id(), m2, kT);
+    document.mark_attachments_sent({a2});
+    persistence.commit();
+    persistence.flush();
+    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "r3").succeeded());
+
+    const ProjectPersistence::RevertResult reverted = persistence.revert_to_revision(target);
+    REQUIRE(reverted.ok);
+
+    // The kept blob now lives under the replacement project's auxiliary dir;
+    // the orphaned one was never copied forward.
+    const fs::path new_dir = fs::path(persistence.jusprin_data_dir());
+    CHECK(read_text(new_dir / "attachments" / a1 / "keep.txt") == "KEEP");
+    CHECK_FALSE(fs::exists(new_dir / "attachments" / a2 / "drop.txt"));
+    CHECK(persistence.document().find_attachment(a1).has_value());
+    CHECK_FALSE(persistence.document().find_attachment(a2).has_value());
+}

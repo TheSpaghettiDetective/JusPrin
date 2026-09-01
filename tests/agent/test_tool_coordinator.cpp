@@ -11,6 +11,9 @@
 
 #include <nlohmann/json.hpp>
 
+#include <filesystem>
+#include <fstream>
+
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
 using nlohmann::json;
@@ -331,4 +334,62 @@ TEST_CASE("an unknown tool fails cleanly", "[tools][failure]")
     const ToolActivity* failed = harness.coordinator.find(action_id);
     REQUIRE(failed->state == ToolState::Failed);
     CHECK(failed->error->code == "unknown_tool");
+}
+
+TEST_CASE("import_model resolves an attachment ID and adds an object", "[tools][import]")
+{
+    Harness harness;
+
+    // A stand-in for the stored blob the host would have written.
+    const std::filesystem::path model =
+        std::filesystem::temp_directory_path() / "jusprin-coordinator-import.stl";
+    std::ofstream(model, std::ios::binary) << "solid cube\nendsolid cube\n";
+    harness.coordinator.set_attachment_path_resolver(
+        [&](const std::string& id) { return id == "a-1" ? model.string() : std::string(); });
+
+    ToolRequest request;
+    request.tool           = "import_model";
+    request.title          = "Import model";
+    request.arguments_json = json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
+                                  {"attachmentId", "a-1"}}
+                                 .dump();
+    request.action_class = ActionClass::Mutation;
+    request.run_ticks    = 2;
+
+    const std::size_t   before   = harness.object_count();
+    const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
+    CHECK(proposed.requires_approval);
+    REQUIRE(harness.coordinator.approve(proposed.action_id));
+    harness.pump_to_completion(proposed.action_id);
+
+    CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Succeeded);
+    CHECK(harness.object_count() == before + 1);
+    const json result = json::parse(harness.coordinator.find(proposed.action_id)->result_json);
+    CHECK(result["imported"] == true);
+
+    std::filesystem::remove(model);
+}
+
+TEST_CASE("import_model fails when the attachment can no longer be resolved", "[tools][import]")
+{
+    Harness harness;
+    harness.coordinator.set_attachment_path_resolver([](const std::string&) { return std::string(); });
+
+    ToolRequest request;
+    request.tool           = "import_model";
+    request.title          = "Import model";
+    request.arguments_json = json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
+                                  {"attachmentId", "a-404"}}
+                                 .dump();
+    request.action_class = ActionClass::Mutation;
+    request.run_ticks    = 1;
+
+    const std::size_t   before   = harness.object_count();
+    const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
+    REQUIRE(harness.coordinator.approve(proposed.action_id));
+    harness.pump_to_completion(proposed.action_id);
+
+    CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Failed);
+    CHECK(harness.coordinator.find(proposed.action_id)->error->code == "unavailable_operation");
+    CHECK(harness.object_count() == before);
 }

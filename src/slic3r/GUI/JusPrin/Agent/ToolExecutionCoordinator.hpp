@@ -34,6 +34,14 @@ public:
     // state injects its own allocator so IDs stay unique across restarts.
     void set_action_id_allocator(std::function<std::string()> allocator) { m_action_id_allocator = std::move(allocator); }
 
+    // Resolves an attachment ID to the absolute path of its stored blob. The
+    // owner (which holds project storage) provides this so import arguments
+    // stay opaque IDs — no machine-specific path is persisted or shown.
+    void set_attachment_path_resolver(std::function<std::string(const std::string&)> resolver)
+    {
+        m_attachment_path_resolver = std::move(resolver);
+    }
+
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
     void clear() { m_activities.clear(); }
@@ -72,6 +80,7 @@ private:
     Workspace::WorkspaceSubscription m_workspace_subscription;
     ActivityCallback                 m_listener;
     std::function<std::string()>     m_action_id_allocator;
+    std::function<std::string(const std::string&)> m_attachment_path_resolver;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
 };

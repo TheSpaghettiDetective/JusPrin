@@ -1,7 +1,7 @@
 // Deterministic conversation and interaction tests: a scripted mock host
 // plays the native side of the bridge while the real page runs in jsdom.
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
@@ -389,5 +389,105 @@ describe('App', () => {
     };
     host.deliver('context', { context: changed });
     expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-b');
+  });
+});
+
+describe('App attachments', () => {
+  let host: MockHost;
+
+  beforeEach(() => {
+    host = new MockHost();
+  });
+
+  const stagedText = {
+    id: 'a-1',
+    name: 'notes.txt',
+    kind: 'text' as const,
+    mime: 'text/plain',
+    sizeBytes: 5,
+    source: 'picker' as const,
+    state: 'staged' as const,
+    previewText: 'hello',
+  };
+
+  it('renders a staged attachment and includes it when sending', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+
+    host.deliver('attachment_updated', { attachment: stagedText });
+    expect(screen.getByText('notes.txt')).toBeInTheDocument();
+
+    // A message may be sent with the attachment even when the text is empty.
+    const textarea = screen.getByLabelText('Message the Agent');
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    const sent = host.lastOfType('user_message');
+    expect(sent).toBeTruthy();
+    expect((sent!.payload as { attachmentIds: string[] }).attachmentIds).toEqual(['a-1']);
+  });
+
+  it('shows a rejected attachment error', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('attachment_updated', {
+      attachment: {
+        id: 'a-9',
+        name: 'firmware.bin',
+        kind: 'unsupported',
+        mime: '',
+        sizeBytes: 4,
+        source: 'picker',
+        state: 'error',
+        error: { code: 'unsupported_type', message: "This file type can't be read by the Agent." },
+      },
+    });
+    expect(screen.getByText("This file type can't be read by the Agent.")).toBeInTheDocument();
+  });
+
+  it('removes a staged attachment through the bridge', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('attachment_updated', { attachment: stagedText });
+
+    await userEvent.click(screen.getByLabelText('Remove notes.txt'));
+    const removed = host.lastOfType('remove_attachment');
+    expect(removed).toBeTruthy();
+    expect((removed!.payload as { attachmentId: string }).attachmentId).toBe('a-1');
+  });
+
+  it('renders a sent attachment on its message', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'look', attempt: 1, attachments: ['a-1'] },
+        ],
+        attachments: [{ ...stagedText, state: 'sent' }],
+      }),
+    );
+    // The chip appears inside the transcript, not the composer.
+    expect(screen.getByText('look')).toBeInTheDocument();
+    expect(screen.getByText('notes.txt')).toBeInTheDocument();
+  });
+
+  it('reads a picked file and sends attach_file', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['hello world'], 'notes.txt', { type: 'text/plain' });
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    // FileReader is async; wait for the attach_file envelope to arrive.
+    await vi.waitFor(() => {
+      const attached = host.lastOfType('attach_file');
+      expect(attached).toBeTruthy();
+      const payload = attached!.payload as { name: string; source: string; dataBase64: string };
+      expect(payload.name).toBe('notes.txt');
+      expect(payload.source).toBe('picker');
+      expect(payload.dataBase64).toContain('base64,');
+    });
   });
 });

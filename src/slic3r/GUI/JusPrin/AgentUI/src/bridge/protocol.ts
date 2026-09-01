@@ -20,7 +20,9 @@ export type PageMessageType =
   | 'create_conversation'
   | 'switch_conversation'
   | 'revert_to_revision'
-  | 'draft_update';
+  | 'draft_update'
+  | 'attach_file'
+  | 'remove_attachment';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -37,7 +39,8 @@ export type HostMessageType =
   | 'assistant_stopped'
   | 'tool_activity'
   | 'revision_added'
-  | 'bridge_error';
+  | 'bridge_error'
+  | 'attachment_updated';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -70,6 +73,43 @@ export interface WireMessage {
   clientMessageId?: string;
   inReplyTo?: string;
   error?: AgentErrorInfo;
+  attachments?: string[]; // sent attachment IDs, resolved against StatePayload.attachments
+}
+
+// How a file entered the composer.
+export type AttachmentSource = 'picker' | 'drop' | 'clipboard' | 'project';
+
+// The host's classification of an attachment. Model/project files go through
+// Orca's native importer and reach the Agent as a native summary, never as
+// decoded bytes; unknown/unsupported binaries are rejected visibly.
+export type AttachmentKind =
+  | 'text'
+  | 'image'
+  | 'svg'
+  | 'pdf'
+  | 'gcode'
+  | 'model'
+  | 'unsupported';
+
+// Lifecycle of one attachment. 'staged' is in the composer but not yet sent;
+// 'sent' belongs to a durable user message; 'error' failed to decode/store.
+export type AttachmentState = 'staged' | 'sent' | 'error';
+
+export interface AttachmentInfo {
+  id: string;
+  name: string; // original file name (display only)
+  kind: AttachmentKind;
+  mime: string;
+  sizeBytes: number;
+  source: AttachmentSource;
+  state: AttachmentState;
+  // Host-decoded preview, present where the kind supports it and the blob is
+  // within the inline cap. Reconstructed from native state after a reload.
+  previewText?: string; // text/gcode/svg source, truncated
+  previewDataUrl?: string; // image thumbnails
+  // A native, non-binary description of an imported model for Agent context.
+  summary?: string;
+  error?: { code: string; message: string };
 }
 
 export interface WorkspaceContext {
@@ -149,6 +189,7 @@ export interface StatePayload {
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[];
   draft: string;
+  attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
 }
 

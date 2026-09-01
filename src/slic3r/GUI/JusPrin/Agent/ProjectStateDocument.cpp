@@ -1,6 +1,7 @@
 #include "ProjectStateDocument.hpp"
 
 #include <algorithm>
+#include <set>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -102,6 +103,10 @@ void write_message_fields(json& entry, const ConversationMessage& message)
                               {"retryable", message.error->retryable}};
     else
         entry.erase("error");
+    if (!message.attachment_ids.empty())
+        entry["attachments"] = message.attachment_ids;
+    else
+        entry.erase("attachments");
 }
 
 ConversationMessage read_message(const json& entry)
@@ -117,7 +122,67 @@ ConversationMessage read_message(const json& entry)
     if (entry.contains("error") && entry["error"].is_object())
         message.error = AgentError{entry["error"].value("code", ""), entry["error"].value("message", ""),
                                    entry["error"].value("retryable", false)};
+    if (entry.contains("attachments") && entry["attachments"].is_array())
+        for (const json& id : entry["attachments"])
+            if (id.is_string())
+                message.attachment_ids.push_back(id.get<std::string>());
     return message;
+}
+
+void write_attachment_fields(json& entry, const AttachmentRecord& record)
+{
+    entry["id"]           = record.id;
+    if (!record.client_id.empty())
+        entry["clientId"] = record.client_id;
+    entry["originalName"] = record.original_name;
+    entry["storedName"]   = record.stored_name;
+    entry["kind"]         = record.kind;
+    entry["mime"]         = record.mime;
+    entry["sizeBytes"]    = record.size_bytes;
+    entry["source"]       = record.source;
+    entry["state"]        = record.state;
+    if (!record.preview_text.empty())
+        entry["previewText"] = record.preview_text;
+    else
+        entry.erase("previewText");
+    if (!record.preview_data_url.empty())
+        entry["previewDataUrl"] = record.preview_data_url;
+    else
+        entry.erase("previewDataUrl");
+    if (!record.summary.empty())
+        entry["summary"] = record.summary;
+    else
+        entry.erase("summary");
+    if (!record.content_hash.empty())
+        entry["contentHash"] = record.content_hash;
+    else
+        entry.erase("contentHash");
+    if (record.error)
+        entry["error"] = json{{"code", record.error->code}, {"message", record.error->message}};
+    else
+        entry.erase("error");
+}
+
+AttachmentRecord read_attachment(const json& entry)
+{
+    AttachmentRecord record;
+    record.id               = entry.value("id", "");
+    record.seq              = entry.value("seq", std::uint64_t(0));
+    record.client_id        = entry.value("clientId", "");
+    record.original_name    = entry.value("originalName", "");
+    record.stored_name      = entry.value("storedName", "");
+    record.kind             = entry.value("kind", "unsupported");
+    record.mime             = entry.value("mime", "");
+    record.size_bytes       = entry.value("sizeBytes", std::uint64_t(0));
+    record.source           = entry.value("source", "picker");
+    record.state            = entry.value("state", "staged");
+    record.preview_text     = entry.value("previewText", "");
+    record.preview_data_url = entry.value("previewDataUrl", "");
+    record.summary          = entry.value("summary", "");
+    record.content_hash     = entry.value("contentHash", "");
+    if (entry.contains("error") && entry["error"].is_object())
+        record.error = AgentError{entry["error"].value("code", ""), entry["error"].value("message", ""), false};
+    return record;
 }
 
 void write_activity_fields(json& entry, const ToolActivity& activity)
@@ -190,11 +255,12 @@ json fresh_document()
                 {"project", json{{"projectId", ""}, {"lineageId", ""}, {"createdAt", ""}}},
                 {"counters", json{{"nextSeq", std::uint64_t(1)}, {"nextMessage", std::uint64_t(1)},
                                   {"nextAction", std::uint64_t(1)}, {"nextConversation", std::uint64_t(1)},
-                                  {"nextRevision", std::uint64_t(1)}}},
+                                  {"nextRevision", std::uint64_t(1)}, {"nextAttachment", std::uint64_t(1)}}},
                 {"activeConversationId", ""},
                 {"currentRevisionId", ""},
                 {"conversations", json::array()},
                 {"toolActivities", json::array()},
+                {"attachments", json::array()},
                 {"revisions", json::array()}};
 }
 
@@ -331,6 +397,14 @@ std::string ProjectStateDocument::allocate_action_id()
     return "t-" + std::to_string(number);
 }
 
+std::string ProjectStateDocument::allocate_attachment_id()
+{
+    const std::uint64_t number = m_doc["counters"].value("nextAttachment", std::uint64_t(1));
+    m_doc["counters"]["nextAttachment"] = number + 1;
+    touch();
+    return "a-" + std::to_string(number);
+}
+
 void ProjectStateDocument::append_message(const std::string&         conversation_id,
                                           const ConversationMessage& message,
                                           const std::string&         timestamp)
@@ -412,6 +486,83 @@ std::vector<ToolActivity> ProjectStateDocument::activities() const
     for (const json& entry : m_doc["toolActivities"])
         result.push_back(read_activity(entry));
     return result;
+}
+
+void ProjectStateDocument::add_attachment(const AttachmentRecord& record, const std::string& timestamp)
+{
+    json entry;
+    write_attachment_fields(entry, record);
+    entry["seq"]       = next_seq();
+    entry["createdAt"] = timestamp;
+    m_doc["attachments"].push_back(std::move(entry));
+    touch();
+}
+
+bool ProjectStateDocument::update_attachment(const AttachmentRecord& record)
+{
+    for (json& entry : m_doc["attachments"])
+        if (entry.value("id", "") == record.id) {
+            write_attachment_fields(entry, record);
+            touch();
+            return true;
+        }
+    return false;
+}
+
+std::vector<AttachmentRecord> ProjectStateDocument::attachments() const
+{
+    std::vector<AttachmentRecord> result;
+    for (const json& entry : m_doc["attachments"])
+        result.push_back(read_attachment(entry));
+    return result;
+}
+
+std::optional<AttachmentRecord> ProjectStateDocument::find_attachment(const std::string& attachment_id) const
+{
+    for (const json& entry : m_doc["attachments"])
+        if (entry.value("id", "") == attachment_id)
+            return read_attachment(entry);
+    return std::nullopt;
+}
+
+std::optional<AttachmentRecord> ProjectStateDocument::find_attachment_by_client_id(const std::string& client_id) const
+{
+    if (client_id.empty())
+        return std::nullopt;
+    for (const json& entry : m_doc["attachments"])
+        if (entry.value("clientId", "") == client_id)
+            return read_attachment(entry);
+    return std::nullopt;
+}
+
+std::optional<std::string> ProjectStateDocument::remove_staged_attachment(const std::string& attachment_id)
+{
+    json& attachments = m_doc["attachments"];
+    for (auto it = attachments.begin(); it != attachments.end(); ++it)
+        if (it->value("id", "") == attachment_id) {
+            if (it->value("state", "") != "staged" && it->value("state", "") != "error")
+                return std::nullopt; // a sent attachment is durable history
+            const std::string dir = read_attachment(*it).relative_dir();
+            attachments.erase(it);
+            touch();
+            return dir;
+        }
+    return std::nullopt;
+}
+
+std::vector<std::string> ProjectStateDocument::mark_attachments_sent(const std::vector<std::string>& attachment_ids)
+{
+    std::vector<std::string> sent;
+    for (const std::string& id : attachment_ids)
+        for (json& entry : m_doc["attachments"])
+            if (entry.value("id", "") == id && entry.value("state", "") == "staged") {
+                entry["state"] = "sent";
+                sent.push_back(id);
+                break;
+            }
+    if (!sent.empty())
+        touch();
+    return sent;
 }
 
 bool ProjectStateDocument::normalize_interrupted_state()
@@ -533,6 +684,37 @@ std::optional<ProjectStateDocument::TruncateResult> ProjectStateDocument::revert
     revisions.erase(std::remove_if(revisions.begin(), revisions.end(),
                                    [cutoff](const json& entry) { return entry.value("seq", std::uint64_t(0)) > cutoff; }),
                     revisions.end());
+
+    // Attachments: drop any created after the cutoff, plus any sent attachment
+    // whose owning message the truncation removed. Staged attachments are
+    // current composer working state and survive the revert.
+    std::set<std::string> referenced;
+    for (const json& conversation : conversations)
+        for (const json& message : conversation["messages"])
+            if (message.contains("attachments") && message["attachments"].is_array())
+                for (const json& id : message["attachments"])
+                    if (id.is_string())
+                        referenced.insert(id.get<std::string>());
+    json& attachments = m_doc["attachments"];
+    for (const json& entry : attachments) {
+        const AttachmentRecord record = read_attachment(entry);
+        const std::uint64_t    seq    = entry.value("seq", std::uint64_t(0));
+        const bool orphaned_sent      = record.state == "sent" && referenced.find(record.id) == referenced.end();
+        if (seq > cutoff || orphaned_sent)
+            result.removed_attachment_dirs.push_back(record.relative_dir());
+        else
+            result.kept_attachment_dirs.push_back(record.relative_dir());
+    }
+    attachments.erase(std::remove_if(attachments.begin(), attachments.end(),
+                                     [cutoff, &referenced](const json& entry) {
+                                         const std::string state = entry.value("state", "");
+                                         const std::string id    = entry.value("id", "");
+                                         const bool orphaned_sent =
+                                             state == "sent" && referenced.find(id) == referenced.end();
+                                         return entry.value("seq", std::uint64_t(0)) > cutoff || orphaned_sent;
+                                     }),
+                      attachments.end());
+
     m_doc["currentRevisionId"] = revision_id;
 
     // The active conversation may have been created after the cutoff.
