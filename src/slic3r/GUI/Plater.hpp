@@ -314,6 +314,10 @@ public:
     const SLAPrint& sla_print() const;
     SLAPrint& sla_print();
 
+    // --- JusPrin fork additions, kept in this one block on purpose: every
+    // separate insertion site in this header is an independent
+    // rebase-conflict draw. ---
+
     // Product-neutral, GUI-thread seam for authoritative committed project
     // changes. Consumers observe this instead of individual presentation
     // widgets or a shadow model.
@@ -321,6 +325,27 @@ public:
     ProjectStateTransaction project_state_transaction();
     std::uint64_t project_state_session() const;
     void notify_project_state_changed(ProjectStateChangeReason reasons, bool project_replaced = false);
+
+    // Persistent sidebar presentation policy: while the sidebar is marked
+    // unavailable, later view and project-load paths must not remount it.
+    bool is_sidebar_available() const { return m_sidebar_available; }
+    void set_sidebar_available(bool available);
+
+    // Behavior-oriented object commands for the workspace adapter; they run
+    // through Orca's own selection, snapshot, and history paths.
+    bool select_object(size_t obj_idx);
+    bool rename_object(size_t obj_idx, const std::string& name);
+    int duplicate_object(size_t obj_idx, bool take_snapshot = true);
+    bool delete_object(size_t obj_idx);
+
+    // History availability and motion reported from the authoritative undo
+    // stack, independent of widget visibility (unlike can_undo/can_redo).
+    bool can_undo_project() const;
+    bool can_redo_project() const;
+    bool undo_project();
+    bool redo_project();
+
+    // --- End of the grouped JusPrin fork additions. ---
 
     int new_project(bool skip_confirm = false, bool silent = false, const wxString& project_name = wxString());
     // BBS: save & backup
@@ -364,11 +389,6 @@ public:
     bool is_gcode_3mf() { return m_exported_file; }
     bool only_gcode_mode() { return m_only_gcode; }
     void set_only_gcode(bool only_gcode) { m_only_gcode = only_gcode; }
-
-    // Persistent sidebar presentation policy: while the sidebar is marked
-    // unavailable, later view and project-load paths must not remount it.
-    bool is_sidebar_available() const { return m_sidebar_available; }
-    void set_sidebar_available(bool available);
 
     //BBS: add only gcode mode
     bool using_exported_file() { return m_exported_file; }
@@ -477,10 +497,6 @@ public:
     void deselect_all();
     void exit_gizmo();
     void remove(size_t obj_idx);
-    bool select_object(size_t obj_idx);
-    bool rename_object(size_t obj_idx, const std::string& name);
-    int duplicate_object(size_t obj_idx, bool take_snapshot = true);
-    bool delete_object(size_t obj_idx);
     void reset(bool apply_presets_change = false);
     void reset_with_confirm();
     //BBS: return int for various result
@@ -702,10 +718,6 @@ public:
     bool can_copy_to_clipboard() const;
     bool can_undo() const;
     bool can_redo() const;
-    bool can_undo_project() const;
-    bool can_redo_project() const;
-    bool undo_project();
-    bool redo_project();
     bool can_reload_from_disk() const;
     bool can_replace_with_stl() const;
     bool can_replace_all_with_stl() const;
@@ -950,7 +962,12 @@ public:
 
 private:
     struct priv;
+    // JusPrin: m_project_state MUST stay declared before p. priv's
+    // constructor can fire callbacks that reach notify_project_state_changed,
+    // and members construct in declaration order; moving this below p makes
+    // those callbacks dereference a null unique_ptr with no compile error.
     std::unique_ptr<PlaterProjectState> m_project_state;
+    bool m_sidebar_available { true };
     std::unique_ptr<priv> p;
     std::string           m_3mf_path;
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.
@@ -962,7 +979,6 @@ private:
     wxString m_last_loaded_gcode;
     //BBS: add only gcode mode
     bool m_only_gcode { false };//just for .gcode file not for .gcode.3mf
-    bool m_sidebar_available { true };
     bool m_exported_file { false };
     bool skip_thumbnail_invalid { false };
     bool m_loading_project { false };

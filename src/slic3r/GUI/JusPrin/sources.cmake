@@ -16,6 +16,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
     GUI/JusPrin/CanvasPresentationController.hpp
+    GUI/JusPrin/PlaterProjectState.cpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
     GUI/JusPrin/Shell/ShellController.cpp

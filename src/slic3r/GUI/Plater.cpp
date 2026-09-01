@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <numeric>
 #include <limits>
-#include <optional>
-#include <utility>
 #include <vector>
 #include <string>
 #include <regex>
@@ -12011,14 +12009,6 @@ void Sidebar::set_btn_label(const ActionButtonType btn_type, const wxString& lab
 
 // Plater / Public
 
-class PlaterProjectState
-{
-public:
-    ProjectStateObserverHub                observers;
-    std::optional<std::pair<bool, bool>>   last_history_availability;
-    bool                                   ready{false};
-};
-
 Plater::Plater(wxWindow *parent, MainFrame *main_frame)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxGetApp().get_min_size())
     , m_project_state(std::make_unique<PlaterProjectState>())
@@ -12056,34 +12046,6 @@ const Print&    Plater::fff_print() const   { return p->fff_print; }
 Print&          Plater::fff_print()         { return p->fff_print; }
 const SLAPrint& Plater::sla_print() const   { return p->sla_print; }
 SLAPrint&       Plater::sla_print()         { return p->sla_print; }
-
-ProjectStateSubscription Plater::subscribe_project_state(ProjectStateChangedCallback callback)
-{
-    return m_project_state->observers.subscribe(std::move(callback));
-}
-
-ProjectStateTransaction Plater::project_state_transaction()
-{
-    return m_project_state->observers.transaction();
-}
-
-std::uint64_t Plater::project_state_session() const
-{
-    return m_project_state->observers.project_session();
-}
-
-void Plater::notify_project_state_changed(ProjectStateChangeReason reasons, bool project_replaced)
-{
-    if (!m_project_state->ready)
-        return;
-
-    const std::pair<bool, bool> history_availability{can_undo_project(), can_redo_project()};
-    if (!m_project_state->last_history_availability ||
-        *m_project_state->last_history_availability != history_availability)
-        reasons |= ProjectStateChangeReason::History;
-    m_project_state->last_history_availability = history_availability;
-    m_project_state->observers.publish(reasons, project_replaced);
-}
 
 int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_name)
 {
@@ -14606,12 +14568,6 @@ void Plater::show_view3D_overhang(bool show)  {  p->show_view3D_overhang(show); 
 
 bool Plater::is_sidebar_enabled() const { return p->sidebar_layout.is_enabled; }
 void Plater::enable_sidebar(bool enabled) { p->enable_sidebar(enabled); }
-
-void Plater::set_sidebar_available(bool available)
-{
-    m_sidebar_available = available;
-    p->enable_sidebar(available);
-}
 bool Plater::is_sidebar_collapsed() const { return p->sidebar_layout.is_collapsed; }
 void Plater::collapse_sidebar(bool collapse) { p->collapse_sidebar(collapse); }
 Sidebar::DockingState Plater::get_sidebar_docking_state() const { return p->get_sidebar_docking_state(); }
@@ -14627,6 +14583,11 @@ void Plater::deselect_all() { p->deselect_all(); }
 void Plater::exit_gizmo() { p->exit_gizmo(); }
 
 void Plater::remove(size_t obj_idx) { p->remove(obj_idx); }
+
+// JusPrin fork additions that need Plater::priv. Grouped in this one block on
+// purpose: every separate insertion site in this file is an independent
+// rebase-conflict draw. Their priv-free counterparts are in
+// JusPrin/PlaterProjectState.cpp.
 
 bool Plater::select_object(size_t obj_idx)
 {
@@ -14708,6 +14669,31 @@ bool Plater::delete_object(size_t obj_idx)
                                  ProjectStateChangeReason::Plates | ProjectStateChangeReason::History);
     return true;
 }
+
+void Plater::set_sidebar_available(bool available)
+{
+    m_sidebar_available = available;
+    p->enable_sidebar(available);
+}
+
+bool Plater::can_undo_project() const { return p->undo_redo_stack().has_undo_snapshot(); }
+bool Plater::can_redo_project() const { return p->undo_redo_stack().has_redo_snapshot(); }
+
+bool Plater::undo_project()
+{
+    const size_t before = p->undo_redo_stack().active_snapshot_time();
+    p->undo();
+    return p->undo_redo_stack().active_snapshot_time() != before;
+}
+
+bool Plater::redo_project()
+{
+    const size_t before = p->undo_redo_stack().active_snapshot_time();
+    p->redo();
+    return p->undo_redo_stack().active_snapshot_time() != before;
+}
+
+// End of the grouped JusPrin fork additions.
 
 void Plater::reset(bool apply_presets_change)
 {
@@ -16613,18 +16599,6 @@ void Plater::single_snapshots_leave(SingleSnapshot *single)
 }
 void Plater::undo() { p->undo(); }
 void Plater::redo() { p->redo(); }
-bool Plater::undo_project()
-{
-    const size_t before = p->undo_redo_stack().active_snapshot_time();
-    p->undo();
-    return p->undo_redo_stack().active_snapshot_time() != before;
-}
-bool Plater::redo_project()
-{
-    const size_t before = p->undo_redo_stack().active_snapshot_time();
-    p->redo();
-    return p->undo_redo_stack().active_snapshot_time() != before;
-}
 void Plater::undo_to(int selection)
 {
     if (selection == 0) {
@@ -18698,8 +18672,6 @@ bool Plater::can_copy_to_clipboard() const
 
 bool Plater::can_undo() const { return IsShown() && p->is_view3D_shown() && p->undo_redo_stack().has_undo_snapshot(); }
 bool Plater::can_redo() const { return IsShown() && p->is_view3D_shown() && p->undo_redo_stack().has_redo_snapshot(); }
-bool Plater::can_undo_project() const { return p->undo_redo_stack().has_undo_snapshot(); }
-bool Plater::can_redo_project() const { return p->undo_redo_stack().has_redo_snapshot(); }
 bool Plater::can_reload_from_disk() const { return p->can_reload_from_disk(); }
 //BBS
 bool Plater::can_fillcolor() const { return p->can_fillcolor(); }

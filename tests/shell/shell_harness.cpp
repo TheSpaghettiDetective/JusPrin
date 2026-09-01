@@ -7,6 +7,15 @@
 //   (default)  automated shell checks, exits with the result
 //   --stock    automated stock-mode checks (shell disabled via app config)
 //   --manual   installs nothing extra and leaves the app open for a human
+//   --slice-all-cold
+//              guards Slice all on a multi-plate project before the Preview
+//              canvas has ever rendered — the conditions of upstream crash
+//              #15116 (null all-plates stats item; fixed upstream by
+//              83723e2a7b). Observed 2026-08-31: it PASSES on this tree
+//              because the startup color-mode sync also runs
+//              _init_select_plate_toolbar on the Preview canvas before any
+//              render. Kept as a guard in case that incidental init path
+//              changes; run it alongside the default and --stock modes.
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
@@ -16,6 +25,7 @@
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
+#include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
@@ -45,14 +55,15 @@ namespace {
 
 struct HarnessState
 {
-    enum class Mode { Shell, Stock, Manual };
+    enum class Mode { Shell, Stock, Manual, SliceAllCold };
 
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
     // Phase 4 added real project saves, reopen, and checkpoint exports on
-    // top of two full slices; 300 s was regularly exhausted mid-flow.
-    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(600)};
+    // top of two full slices; 300 s was regularly exhausted mid-flow. The
+    // warm Slice-all scenario adds up to two more plate slices.
+    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(900)};
     Mode mode{Mode::Shell};
 };
 
@@ -93,6 +104,10 @@ public:
             }
             verify_shell_installed();
             load_multi_plate_fixture();
+            if (m_state->mode == HarnessState::Mode::SliceAllCold) {
+                begin_slice_all_cold();
+                return;
+            }
             verify_canvas_interaction();
             begin_slice_check();
         } catch (const std::exception& error) {
@@ -226,7 +241,53 @@ private:
 
     void after_return()
     {
-        verify_agent_bridge();
+        begin_slice_all_warm();
+    }
+
+    bool all_nonempty_plates_sliced()
+    {
+        for (PartPlate* plate : m_plater->get_partplate_list().get_nonempty_plate_list())
+            if (plate == nullptr || !plate->is_slice_result_valid())
+                return false;
+        return true;
+    }
+
+    // Slice all with the Preview canvas already initialized by the earlier
+    // single-plate slice. Guards the interaction between the shell's hidden
+    // plate toolbar and upstream's all-plates stats item (see 83723e2a7b):
+    // the same menu dispatch must slice every nonempty plate without crashing.
+    void begin_slice_all_warm()
+    {
+        wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_ALL));
+        wait_until([this] { return all_nonempty_plates_sliced(); }, "slice_all_completes_all_plates",
+                   [self = shared_from_this()] {
+                       // Restore the deterministic pre-scenario state the
+                       // later phases assume: first plate active, Prepare
+                       // shown. on_action_slice_all switches the shown panel
+                       // to Preview directly without moving the Notebook tab,
+                       // so the tab still reads Prepare; re-align the tab to
+                       // Preview first or the Prepare selection is a no-op
+                       // that fires no page-changed event.
+                       self->m_plater->select_plate(0);
+                       installed_shell()->status_row()->request_check_print();
+                       installed_shell()->status_row()->request_prepare();
+                       self->wait_until([self] { return !self->m_plater->is_preview_shown(); },
+                                        "slice_all_returns_to_prepare", [self] { self->verify_agent_bridge(); });
+                   });
+    }
+
+    // Opt-in --slice-all-cold: same dispatch, but before the Preview canvas
+    // has ever rendered. See the mode comment at the top of this file.
+    void begin_slice_all_cold()
+    {
+        check(!m_plater->is_preview_shown(), "cold_starts_in_prepare");
+        check(m_plater->get_partplate_list().get_nonempty_plate_list().size() > 1, "cold_fixture_has_multiple_plates");
+        wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_ALL));
+        wait_until([this] { return all_nonempty_plates_sliced(); }, "cold_slice_all_completes_all_plates",
+                   [self = shared_from_this()] {
+                       self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "cold_teardown_project");
+                       self->finish();
+                   });
     }
 
     // Phase 2: the packaged React page in the real WKWebView completes the
@@ -680,6 +741,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Stock;
         else if (argument == "--manual")
             state->mode = HarnessState::Mode::Manual;
+        else if (argument == "--slice-all-cold")
+            state->mode = HarnessState::Mode::SliceAllCold;
         else
             gui_arguments.emplace_back(argv[index]);
     }

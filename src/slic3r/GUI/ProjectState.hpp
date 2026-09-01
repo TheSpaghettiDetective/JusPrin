@@ -4,6 +4,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -198,6 +199,18 @@ private:
     }
 
     std::shared_ptr<State> m_state;
+};
+
+// The state Plater holds for its project-state seam. Defined here (not in
+// Plater.cpp) so the seam's priv-free member functions can live in the
+// fork-owned JusPrin/PlaterProjectState.cpp translation unit while Plater.cpp
+// still sees the complete type for construction and destruction.
+class PlaterProjectState
+{
+public:
+    ProjectStateObserverHub              observers;
+    std::optional<std::pair<bool, bool>> last_history_availability;
+    bool                                 ready{false};
 };
 
 } // namespace Slic3r::GUI
