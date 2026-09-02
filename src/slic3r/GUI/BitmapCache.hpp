@@ -42,6 +42,9 @@ public:
 	// And makes replases befor parsing
 	// replace_map containes old_value->new_value
 	static NSVGimage* nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const std::map<std::string, std::string>& replaces);
+	// Extra color substitutions applied by every load_svg after the built-in
+	// ones; empty by default. Lets a product build retint the icon set once.
+	static void SetColorReplaces(const std::map<std::string, std::string>& replaces);
 	// Load svg from resources/icons. bitmap_key is given without the .svg suffix. SVG will be rasterized to provided height/width.
     wxBitmap* 		load_svg(const std::string &bitmap_key, unsigned width = 0, unsigned height = 0, const bool grayscale = false, const bool dark_mode = false, const std::string& new_color = "", const float scale_in_center = 0.f);
     //Load background image of semi transparent material with color,

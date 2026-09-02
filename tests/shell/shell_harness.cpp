@@ -32,6 +32,7 @@
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
+#include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -1270,7 +1271,7 @@ int main(int argc, char** argv)
     }
 
     {
-        std::ifstream base(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/OrcaSlicer.conf");
+        std::ifstream base(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/harness.conf");
         std::string   config((std::istreambuf_iterator<char>(base)), std::istreambuf_iterator<char>());
         if (state->mode == HarnessState::Mode::Stock) {
             const std::string anchor = "\"language\": \"en_US\",";
@@ -1298,7 +1299,7 @@ int main(int argc, char** argv)
             if (pos != std::string::npos)
                 config.replace(pos, from.size(), to);
         }
-        std::ofstream out((data_directory / "OrcaSlicer.conf").string());
+        std::ofstream out((data_directory / (std::string(SLIC3R_APP_KEY) + ".conf")).string());
         out << config;
     }
 

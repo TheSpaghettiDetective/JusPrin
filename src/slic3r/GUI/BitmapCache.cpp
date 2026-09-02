@@ -270,6 +270,10 @@ wxBitmap* BitmapCache::load_png(const std::string &bitmap_name, unsigned width, 
     return this->insert(bitmap_key, wxImage_to_wxBitmap_with_alpha(std::move(image)));
 }
 
+static std::map<std::string, std::string> s_color_replaces;
+
+void BitmapCache::SetColorReplaces(const std::map<std::string, std::string>& replaces) { s_color_replaces = replaces; }
+
 NSVGimage* BitmapCache::nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const std::map<std::string, std::string>& replaces)
 {
     std::string str;
@@ -346,6 +350,9 @@ wxBitmap* BitmapCache::load_svg(const std::string &bitmap_name, unsigned target_
 
     if (strstr(bitmap_name.c_str(), "toggle_on") != NULL && dark_mode) // ORCA only replace color of toggle button
         replaces["#009688"] = "#00675b";
+
+    for (const auto& replace : s_color_replaces)
+        replaces[replace.first] = replace.second;
 
     if (!new_color.empty())
         replaces["\"#009688\""] = "\"" + new_color + "\"";

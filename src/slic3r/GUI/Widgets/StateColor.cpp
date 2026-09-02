@@ -187,8 +187,20 @@ std::map<wxColour, wxColour> const & StateColor::GetDarkMap()
 
 void StateColor::SetDarkMode(bool dark) { gDarkMode = dark; }
 
+static std::map<wxColour, wxColour> gColorOverrides;
+
+void StateColor::SetColorOverrides(std::vector<std::pair<wxColour, wxColour>> const &overrides)
+{
+    gColorOverrides.clear();
+    for (auto const &entry : overrides) gColorOverrides[entry.first] = entry.second;
+}
+
 inline wxColour darkModeColorFor2(wxColour const &color)
 {
+    if (!gColorOverrides.empty()) {
+        auto iter = gColorOverrides.find(color);
+        if (iter != gColorOverrides.end()) return iter->second;
+    }
     if (!gDarkMode)
         return color;
     auto iter = gDarkColors.find(color);

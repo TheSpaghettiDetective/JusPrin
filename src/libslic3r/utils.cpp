@@ -216,6 +216,8 @@ const std::string& var_dir()
     return g_var_dir;
 }
 
+static std::string g_var_overlay_dir;
+
 std::string var(const std::string &file_name)
 {
     boost::system::error_code ec;
@@ -223,8 +225,19 @@ std::string var(const std::string &file_name)
        return file_name;
     }
 
+    if (!g_var_overlay_dir.empty()) {
+        auto overlay = (boost::filesystem::path(g_var_overlay_dir) / file_name).make_preferred();
+        if (boost::filesystem::exists(overlay, ec))
+            return overlay.string();
+    }
+
     auto file = (boost::filesystem::path(g_var_dir) / file_name).make_preferred();
     return file.string();
+}
+
+void set_var_overlay_dir(const std::string &dir)
+{
+    g_var_overlay_dir = dir;
 }
 
 static std::string g_resources_dir;
