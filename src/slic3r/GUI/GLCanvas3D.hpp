@@ -200,43 +200,6 @@ wxDECLARE_EVENT(EVT_GLCANVAS_PRINTABLE, SimpleEvent);
 // Product-neutral presentation capabilities. Rendering and input are separate
 // so hidden stock controls never retain clickable regions, while a shell may
 // hide the gizmo picker and keep an active native gizmo fully interactive.
-struct GLCanvasPresentationOptions
-{
-    bool main_toolbar_visible{true};
-    bool main_toolbar_input_enabled{true};
-    bool assemble_toolbar_visible{true};
-    bool assemble_toolbar_input_enabled{true};
-    bool gizmo_picker_visible{true};
-    bool gizmo_picker_input_enabled{true};
-    bool active_gizmo_visible{true};
-    bool active_gizmo_input_enabled{true};
-    bool plate_controls_visible{true};
-    bool plate_controls_input_enabled{true};
-    bool canvas_toolbar_visible{true};
-    bool canvas_toolbar_input_enabled{true};
-    bool object_labels_visible{true};
-    bool navigator_visible{true};
-
-    friend bool operator==(const GLCanvasPresentationOptions& lhs, const GLCanvasPresentationOptions& rhs)
-    {
-        return lhs.main_toolbar_visible == rhs.main_toolbar_visible &&
-               lhs.main_toolbar_input_enabled == rhs.main_toolbar_input_enabled &&
-               lhs.assemble_toolbar_visible == rhs.assemble_toolbar_visible &&
-               lhs.assemble_toolbar_input_enabled == rhs.assemble_toolbar_input_enabled &&
-               lhs.gizmo_picker_visible == rhs.gizmo_picker_visible &&
-               lhs.gizmo_picker_input_enabled == rhs.gizmo_picker_input_enabled &&
-               lhs.active_gizmo_visible == rhs.active_gizmo_visible &&
-               lhs.active_gizmo_input_enabled == rhs.active_gizmo_input_enabled &&
-               lhs.plate_controls_visible == rhs.plate_controls_visible &&
-               lhs.plate_controls_input_enabled == rhs.plate_controls_input_enabled &&
-               lhs.canvas_toolbar_visible == rhs.canvas_toolbar_visible &&
-               lhs.canvas_toolbar_input_enabled == rhs.canvas_toolbar_input_enabled &&
-               lhs.object_labels_visible == rhs.object_labels_visible &&
-               lhs.navigator_visible == rhs.navigator_visible;
-    }
-    friend bool operator!=(const GLCanvasPresentationOptions& lhs, const GLCanvasPresentationOptions& rhs) { return !(lhs == rhs); }
-};
-
 class GLCanvas3D
 {
     static const double DefaultCameraZoomToBoxMarginFactor;
@@ -557,7 +520,11 @@ public:
 
 private:
     bool m_is_dark = false;
-    GLCanvasPresentationOptions m_presentation_options;
+    // JusPrin: when true, the whole legacy canvas-overlay layer (toolbars,
+    // gizmo picker, plate controls, navigator, canvas menu) and the per-plate
+    // corner icons are suppressed so the fork's own UI owns the canvas. The
+    // active gizmo is deliberately left rendering and interactive.
+    bool m_legacy_overlays_hidden{false};
     wxGLCanvas* m_canvas;
     wxGLContext* m_context;
     SceneRaycaster m_scene_raycaster;
@@ -913,8 +880,8 @@ public:
     void enable_gizmos(bool enable) { m_gizmos.set_enabled(enable); }
     void enable_selection(bool enable) { m_selection.set_enabled(enable); }
     void enable_main_toolbar(bool enable) { m_main_toolbar.set_enabled(enable); }
-    void set_presentation_options(const GLCanvasPresentationOptions& options);
-    const GLCanvasPresentationOptions& presentation_options() const { return m_presentation_options; }
+    void set_legacy_overlays_hidden(bool hidden);
+    bool legacy_overlays_hidden() const { return m_legacy_overlays_hidden; }
     //BBS: GUI refactor: GLToolbar
     void _update_select_plate_toolbar_stats_item(bool force_selected = false);
     void reset_select_plate_toolbar_selection();

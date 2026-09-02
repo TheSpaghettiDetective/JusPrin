@@ -97,14 +97,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // owner for the shell's lifetime.
         plater->get_collapse_toolbar().set_enabled(false);
 
-        // Hide only the stock main toolbar on the Prepare canvas; the gizmo
-        // picker and plate controls stay until their shell replacements ship.
+        // Hide the whole legacy canvas-overlay layer on the Prepare canvas
+        // (main toolbar, gizmo picker, plate controls, navigator, canvas menu)
+        // and the per-plate corner icons; the fork's own UI owns the canvas.
+        // The active gizmo stays interactive so shell controls can drive it.
         // Add-model remains available through File > Import and drag-drop.
         if (GLCanvas3D* prepare_canvas = plater->get_view3D_canvas3D()) {
-            GLCanvasPresentationOptions options = prepare_canvas->presentation_options();
-            options.main_toolbar_visible       = false;
-            options.main_toolbar_input_enabled = false;
-            m_prepare_canvas_presentation.attach(*prepare_canvas, options);
+            m_prepare_canvas_presentation.attach(*prepare_canvas);
         }
 
         // The controller outlives the frame (it lives in a static slot), so

@@ -367,21 +367,17 @@ private:
                   "committed_move_has_transform_reason");
 
             GLCanvas3D& canvas = *m_plater->canvas3D();
-            const GLCanvasPresentationOptions stock = canvas.presentation_options();
+            const bool stock_hidden = canvas.legacy_overlays_hidden();
             CanvasPresentationController controller(canvas);
-            const GLCanvasPresentationOptions policy = canvas.presentation_options();
-            check(!policy.main_toolbar_visible && !policy.main_toolbar_input_enabled, "policy_hides_main_toolbar_and_input");
-            check(!policy.gizmo_picker_visible && !canvas.get_gizmos_manager().is_picker_input_enabled(),
-                  "policy_hides_gizmo_picker_and_input");
-            check(policy.active_gizmo_visible && canvas.get_gizmos_manager().is_active_gizmo_input_enabled(),
+            check(canvas.legacy_overlays_hidden(), "policy_hides_legacy_overlays");
+            check(!canvas.get_gizmos_manager().is_picker_input_enabled(),
+                  "policy_hides_gizmo_picker_input");
+            check(canvas.get_gizmos_manager().is_active_gizmo_input_enabled(),
                   "policy_keeps_active_gizmo_input");
-            check(!policy.plate_controls_visible && !policy.plate_controls_input_enabled, "policy_hides_plate_controls_and_input");
-            check(!policy.canvas_toolbar_visible && !policy.canvas_toolbar_input_enabled,
-                  "policy_hides_canvas_toolbar_and_input");
             check(controller.activate_move(), "controller_activates_move");
             check(controller.activate_rotate(), "controller_activates_rotate");
             controller.detach();
-            check(canvas.presentation_options() == stock, "controller_restores_stock_options");
+            check(canvas.legacy_overlays_hidden() == stock_hidden, "controller_restores_stock_overlays");
 
             const ProjectSessionId old_session = m_workspace->snapshot().session;
             const ObjectId old_id = m_first;

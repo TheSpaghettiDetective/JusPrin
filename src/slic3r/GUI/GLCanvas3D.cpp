@@ -1806,16 +1806,21 @@ void GLCanvas3D::enable_layers_editing(bool enable)
     set_as_dirty();
 }
 
-void GLCanvas3D::set_presentation_options(const GLCanvasPresentationOptions& options)
+void GLCanvas3D::set_legacy_overlays_hidden(bool hidden)
 {
-    if (m_presentation_options == options)
-        return;
+    // Re-assert input gating on every call rather than only on a state change:
+    // the toolbar/gizmo-picker input flags are separate mutable state, so a
+    // second attach to an already-hidden canvas must still (re)silence them.
+    // The active gizmo is intentionally left interactive so the fork's own
+    // controls can drive it.
+    const bool input_enabled = !hidden;
+    m_main_toolbar.set_input_enabled(input_enabled);
+    m_assemble_view_toolbar.set_input_enabled(input_enabled);
+    m_gizmos.set_picker_input_enabled(input_enabled);
 
-    m_presentation_options = options;
-    m_main_toolbar.set_input_enabled(options.main_toolbar_visible && options.main_toolbar_input_enabled);
-    m_assemble_view_toolbar.set_input_enabled(options.assemble_toolbar_visible && options.assemble_toolbar_input_enabled);
-    m_gizmos.set_picker_input_enabled(options.gizmo_picker_visible && options.gizmo_picker_input_enabled);
-    m_gizmos.set_active_gizmo_input_enabled(options.active_gizmo_visible && options.active_gizmo_input_enabled);
+    if (m_legacy_overlays_hidden == hidden)
+        return;
+    m_legacy_overlays_hidden = hidden;
     set_as_dirty();
     request_extra_frame();
 }
@@ -2051,7 +2056,7 @@ void GLCanvas3D::render(bool only_init)
 
     //BBS add partplater rendering logic
     bool only_current = false, only_body = false, no_partplate = false;
-    if (!m_presentation_options.plate_controls_visible)
+    if (m_legacy_overlays_hidden)
         only_body = true;
     bool show_grid = true;
     GLGizmosManager::EType gizmo_type = m_gizmos.get_current_type();
@@ -2140,7 +2145,8 @@ void GLCanvas3D::render(bool only_init)
         _render_fxaa_pass(static_cast<unsigned int>(cnv_size.get_width()), static_cast<unsigned int>(cnv_size.get_height()));
 
     // draw overlays
-    _render_overlays();
+    if (!m_legacy_overlays_hidden)
+        _render_overlays();
 
     const int current_fps = m_render_stats.get_fps_and_reset_if_needed();
     if (_is_fps_overlay_enabled())
@@ -7221,7 +7227,7 @@ void GLCanvas3D::_picking_pass()
         }
         case SceneRaycaster::EType::Bed:
         {
-            if (!m_presentation_options.plate_controls_visible || !m_presentation_options.plate_controls_input_enabled) {
+            if (m_legacy_overlays_hidden) {
                 wxGetApp().plater()->get_partplate_list().reset_hover_id();
                 m_gizmos.set_hover_id(-1);
                 break;
@@ -8402,17 +8408,13 @@ void GLCanvas3D::_render_overlays()
     _render_assemble_control();
     _render_assemble_info();
 
-    if (m_presentation_options.main_toolbar_visible) {
-        _render_separator_toolbar_right();
-        _render_separator_toolbar_left();
-        _render_main_toolbar();
-    }
+    _render_separator_toolbar_right();
+    _render_separator_toolbar_left();
+    _render_main_toolbar();
     _render_collapse_toolbar();
-    if (m_presentation_options.assemble_toolbar_visible)
-        _render_assemble_view_toolbar();
+    _render_assemble_view_toolbar();
     //BBS: GUI refactor: GLToolbar
-    if (m_presentation_options.plate_controls_visible)
-        _render_imgui_select_plate_toolbar();
+    _render_imgui_select_plate_toolbar();
     _render_return_toolbar();
     // BBS
     //_render_view_toolbar();
@@ -8420,8 +8422,7 @@ void GLCanvas3D::_render_overlays()
 
     //BBS: GUI refactor: GLToolbar
     //move gizmos behind of main
-    if (m_presentation_options.gizmo_picker_visible)
-        _render_gizmos_overlay();
+    _render_gizmos_overlay();
 
     if (m_layers_editing.last_object_id >= 0 && m_layers_editing.object_max_z() > 0.0f)
         m_layers_editing.render_overlay(*this);
@@ -8446,14 +8447,11 @@ void GLCanvas3D::_render_overlays()
                 sorted_instances.emplace_back(model_instance);
             }*/
     }
-    if (m_presentation_options.object_labels_visible)
-        m_labels.render(sorted_instances);
+    m_labels.render(sorted_instances);
 
-    if (m_presentation_options.navigator_visible)
-        _render_3d_navigator();
+    _render_3d_navigator();
 
-    if (m_presentation_options.canvas_toolbar_visible)
-        _render_canvas_toolbar();
+    _render_canvas_toolbar();
 }
 
 void GLCanvas3D::_render_style_editor()
@@ -8588,8 +8586,6 @@ void GLCanvas3D::_render_volumes_for_picking(const Camera& camera) const
 
 void GLCanvas3D::_render_current_gizmo() const
 {
-    if (!m_presentation_options.active_gizmo_visible)
-        return;
     //BBS update inv_zoom
     GLGizmoBase::INV_ZOOM = (float)wxGetApp().plater()->get_camera().get_inv_zoom();
     m_gizmos.render_current_gizmo();
@@ -9143,12 +9139,6 @@ void GLCanvas3D::_render_canvas_toolbar()
     imgui.begin(_L("Canvas Toolbar"), ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove |
                                            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);//
 
-    const bool input_disabled = !m_presentation_options.canvas_toolbar_input_enabled;
-    if (input_disabled) {
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-    }
-
     ImTextureID m_normal_id = m_gizmos.get_icon_texture_id(m_is_dark ? GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU_DARK       : GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU);
     ImTextureID m_hover_id  = m_gizmos.get_icon_texture_id(m_is_dark ? GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU_DARK_HOVER : GLGizmosManager::MENU_ICON_NAME::IC_CANVAS_MENU_HOVER);
 
@@ -9299,11 +9289,6 @@ void GLCanvas3D::_render_canvas_toolbar()
 
     ImGui::PopStyleColor(6);
     ImGui::PopStyleVar(6);
-
-    if (input_disabled) {
-        ImGui::PopStyleVar();
-        ImGui::PopItemFlag();
-    }
 
     imgui.end();
 }

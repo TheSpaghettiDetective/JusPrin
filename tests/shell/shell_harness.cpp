@@ -197,10 +197,8 @@ private:
         check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
         check(!m_plater->is_sidebar_available(), "sidebar_marked_unavailable");
-        const GLCanvasPresentationOptions& prepare_options = m_plater->get_view3D_canvas3D()->presentation_options();
-        check(!prepare_options.main_toolbar_visible, "prepare_main_toolbar_hidden");
-        check(!prepare_options.main_toolbar_input_enabled, "prepare_main_toolbar_input_disabled");
-        check(prepare_options.gizmo_picker_visible, "gizmo_picker_still_visible");
+        // The shell hides the entire legacy canvas-overlay layer on Prepare.
+        check(m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(), "prepare_legacy_overlays_hidden");
 
         // Later Orca paths call enable_sidebar(true); the persistent policy
         // must keep the sidebar down until the shell releases it.
@@ -1103,8 +1101,8 @@ private:
         check(installed_shell() == nullptr, "shell_detached");
         check(m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_restored");
         check(m_plater->is_sidebar_available(), "sidebar_available_restored");
-        check(m_plater->get_view3D_canvas3D()->presentation_options().main_toolbar_visible,
-              "prepare_main_toolbar_restored");
+        check(!m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(),
+              "prepare_legacy_overlays_restored");
         m_frame->Layout();
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "stock_canvas_usable_after_restore");
     }
