@@ -26,9 +26,14 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     ShellPalette palette;
     palette.surface_canvas          = parse_color(mode_tokens, "surface", "canvas");
     palette.surface_subtle          = parse_color(mode_tokens, "surface", "subtle");
+    palette.surface_raised          = parse_color(mode_tokens, "surface", "raised");
+    palette.surface_selected        = parse_color(mode_tokens, "surface", "selected");
     palette.text_primary            = parse_color(mode_tokens, "text", "primary");
     palette.text_secondary          = parse_color(mode_tokens, "text", "secondary");
+    palette.text_on_action          = parse_color(mode_tokens, "text", "onAction");
     palette.border_subtle           = parse_color(mode_tokens, "border", "subtle");
+    palette.border_strong           = parse_color(mode_tokens, "border", "strong");
+    palette.border_focus            = parse_color(mode_tokens, "border", "focus");
     palette.action_primary          = parse_color(mode_tokens, "action", "primary");
     palette.action_primary_hover    = parse_color(mode_tokens, "action", "primaryHover");
     palette.action_primary_pressed  = parse_color(mode_tokens, "action", "primaryPressed");
@@ -41,6 +46,8 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     palette.action_disabled         = parse_color(mode_tokens, "action", "disabled");
     palette.action_disabled_text    = parse_color(mode_tokens, "action", "disabledText");
     palette.status_warning          = parse_color(mode_tokens, "status", "warning");
+    palette.status_success          = parse_color(mode_tokens, "status", "success");
+    palette.status_danger           = parse_color(mode_tokens, "status", "danger");
     return palette;
 }
 

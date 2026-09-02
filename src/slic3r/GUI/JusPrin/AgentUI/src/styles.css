@@ -1,5 +1,22 @@
 /* Colors come exclusively from the semantic tokens applied in tokens.ts. */
 
+/* The product font ships with OrcaSlicer, but it is registered as a private
+   font of the native process and WKWebView renders in a separate process
+   that cannot see it. A Latin subset is embedded so the Agent page uses the
+   same face as the native shell; CJK text falls through to the system font. */
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  font-weight: 400;
+  font-style: normal;
+  src: url('./fonts/HarmonyOS_Sans_SC_Regular_latin.woff') format('woff');
+}
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  font-weight: 700;
+  font-style: normal;
+  src: url('./fonts/HarmonyOS_Sans_SC_Bold_latin.woff') format('woff');
+}
+
 * {
   box-sizing: border-box;
 }

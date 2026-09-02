@@ -120,6 +120,7 @@
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
+#include "JusPrin/Brand/BrandPalette.hpp"
 #include "Widgets/Label.hpp"
 #include "Widgets/ProgressDialog.hpp"
 
@@ -2379,6 +2380,7 @@ void GUI_App::init_app_config()
 {
 	// Profiles for the alpha are stored into the PrusaSlicer-alpha directory to not mix with the current release.
     SetAppName(SLIC3R_APP_KEY);
+    SetAppDisplayName(SLIC3R_APP_NAME); // menu bar and Hide/Quit items show the product name, not the config key
 //	SetAppName(SLIC3R_APP_KEY "-alpha");
 //  SetAppName(SLIC3R_APP_KEY "-beta");
 //	SetAppDisplayName(SLIC3R_APP_NAME);
@@ -3747,6 +3749,7 @@ void GUI_App::init_label_colours()
 #endif
     m_color_window_default          = is_dark_mode ? wxColour(43, 43, 43)   : wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
     StateColor::SetDarkMode(is_dark_mode);
+    JusPrin::apply_brand_palette(); // JusPrin: retint the shared color tables for this mode
 }
 
 void GUI_App::update_label_colours_from_appconfig()

@@ -1,6 +1,7 @@
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Thread.hpp"
 #include "libslic3r/Utils.hpp"
+#include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Geometry.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
@@ -501,8 +502,8 @@ int main(int argc, char** argv)
     const fs::path original_directory = fs::current_path();
     const fs::path data_directory = fs::temp_directory_path() / fs::unique_path("jusprin-workspace-%%%%-%%%%-%%%%");
     fs::create_directories(data_directory / "log");
-    fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/jusprin/OrcaSlicer.conf",
-                  data_directory / "OrcaSlicer.conf", fs::copy_option::overwrite_if_exists);
+    fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/jusprin/harness.conf",
+                  data_directory / (std::string(SLIC3R_APP_KEY) + ".conf"), fs::copy_option::overwrite_if_exists);
 
     const fs::path resources = fs::path(JUSPRIN_SOURCE_DIR) / "resources";
     set_resources_dir(resources.string());

@@ -4,6 +4,8 @@
 #include <wx/colour.h>
 
 #include <map>
+#include <utility>
+#include <vector>
 
 class StateColor
 {
@@ -31,6 +33,10 @@ public:
     static double LAB_Delta_E(const wxColour& c1, const wxColour& c2);
 
     static void SetDarkMode(bool dark);
+
+    // Colors substituted before the dark-mode remap, in both modes; empty by
+    // default. Lets a product build retint the shared widget palette once.
+    static void SetColorOverrides(std::vector<std::pair<wxColour, wxColour>> const &overrides);
 
     static std::map<wxColour, wxColour> const & GetDarkMap();
     static wxColour darkModeColorFor(wxColour const &color);

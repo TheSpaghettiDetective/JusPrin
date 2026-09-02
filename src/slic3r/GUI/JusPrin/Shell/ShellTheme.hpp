@@ -13,9 +13,14 @@ struct ShellPalette
 {
     wxColour surface_canvas;
     wxColour surface_subtle;
+    wxColour surface_raised;
+    wxColour surface_selected;
     wxColour text_primary;
     wxColour text_secondary;
+    wxColour text_on_action;
     wxColour border_subtle;
+    wxColour border_strong;
+    wxColour border_focus;
     wxColour action_primary;
     wxColour action_primary_hover;
     wxColour action_primary_pressed;
@@ -28,6 +33,8 @@ struct ShellPalette
     wxColour action_disabled;
     wxColour action_disabled_text;
     wxColour status_warning;
+    wxColour status_success;
+    wxColour status_danger;
 };
 
 class ShellTheme

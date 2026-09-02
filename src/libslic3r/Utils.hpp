@@ -97,6 +97,9 @@ extern size_t total_physical_memory();
 
 // Set a path with GUI resource files.
 void set_var_dir(const std::string &path);
+// Optional directory searched before var_dir(); a file with the same name there
+// replaces the stock resource. Empty by default.
+void set_var_overlay_dir(const std::string &path);
 // Return a full path to the GUI resource files.
 const std::string& var_dir();
 // Return a full resource path for a file_name.

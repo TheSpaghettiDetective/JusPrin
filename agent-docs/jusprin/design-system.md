@@ -129,6 +129,60 @@ Every interactive component must define normal, hover, pressed, disabled, focuse
 - Light secondary text measures 6.89:1 on White.
 - Dark secondary text measures 10.95:1 on Ink.
 
+## Runtime application in the native app
+
+The token file is applied to the running application in three layers. All
+three read `resources/jusprin/ui/design-tokens.json`; none of them carries a
+color literal of its own, and the whole layer touches OrcaSlicer code in only
+three small, additive seams plus one attachment point.
+
+1. **Fork-owned surfaces** (`src/slic3r/GUI/JusPrin/Shell/*`, the React Agent
+   page) resolve colors through `ShellTheme` and `tokens.ts` directly.
+2. **Retained OrcaSlicer surfaces** are retinted through the color tables
+   OrcaSlicer already routes its colors through, installed once per appearance
+   mode by `JusPrin/Brand/BrandPalette.cpp` from the end of
+   `GUI_App::init_label_colours`:
+   - `StateColor::SetColorOverrides` maps OrcaSlicer's brand and surface
+     literals (teal family, grays, whites, text grays) to semantic tokens before
+     OrcaSlicer's own dark-mode remap runs. Every widget built on `StateColor`
+     switches at once.
+   - `BitmapCache::SetColorReplaces` rewrites the teal in the SVG icon set to
+     the action color at load time, and the monochrome brand mark to the text
+     color.
+   - The ImGui panels, the canvas selection rectangle, and the About dialog
+     are left alone in source: those surfaces are slated to be hidden or
+     replaced, so editing them would be divergence with no lasting value.
+   - The mapping table in `BrandPalette.cpp` is the reviewed teal-to-purple
+     decision. Extend it there; never add a purple literal to an OrcaSlicer file.
+   - Widgets that paint the teal without going through `StateColor` (hyperlinks,
+     the settings tab underline, notification accents, Bambu-only dialogs) are
+     deliberately left teal; the cost of editing them in busy upstream files
+     outweighs surfaces JusPrin rarely or never shows.
+3. **Identity** comes from two data-only mechanisms:
+   - `resources/jusprin/overlay/images/` holds the splash, About and horizontal
+     lockups, monochrome mark, wizard watermark, and window icons under
+     OrcaSlicer's own asset names. `Slic3r::var()` checks that directory
+     first, so no logo call site is edited. See the README there.
+   - `Brand/brand_catalogs.py` builds `resources/i18n/<lang>/<app key>.mo`
+     from upstream's `.po` files with the product name substituted, plus an
+     English catalog for the source strings, so every language reads "JusPrin"
+     without touching a string or macro in upstream code. Attribution strings
+     in About are excluded by the script.
+   - The generic printer profiles' plate texture,
+     `resources/profiles/Custom/orcaslicer_bed_texture.svg`, is overwritten
+     with the JusPrin lockup; the file name stays because five profiles
+     reference it.
+
+`tests/brand/test_brand_tokens.cpp` fails the build if a token edit breaks the
+contrast rules above or removes a token from one mode only.
+
+Known gaps, all deliberate: ImGui panels and canvas notifications keep the
+teal accent; the first-run setup wizard (an OrcaSlicer HTML page) is
+Orca-branded until JusPrin's own onboarding replaces it; the About dialog
+links to the OrcaSlicer website; vendor printer profiles other than the
+generic ones keep their own plate textures; dark mode and the Preview canvas
+were not visually verified.
+
 ## Design handoff requirements
 
 Every high-fidelity product frame must:
