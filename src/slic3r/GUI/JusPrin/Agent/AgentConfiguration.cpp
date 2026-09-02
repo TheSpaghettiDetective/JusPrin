@@ -14,19 +14,27 @@ namespace Slic3r::GUI::JusPrin::Agent {
 namespace {
 
 constexpr const char* kSection = "jusprin_agent";
-constexpr const char* kSecretService = "JusPrin Agent OpenAI";
-constexpr const char* kSecretUser = "openai_api_key";
 
-std::string configured_key()
+// Earlier builds stored the single OpenAI key under these exact names; the
+// OpenAI provider keeps them so an already-configured machine keeps working.
+std::string secret_service_for(const std::string& provider)
 {
-    if (const char* key = std::getenv("OPENAI_API_KEY"); key != nullptr && *key != '\0')
-        return key;
+    return provider == "openai" ? "JusPrin Agent OpenAI" : "JusPrin Agent " + provider;
+}
+
+std::string secret_user_for(const std::string& provider) { return provider + "_api_key"; }
+
+std::string configured_key(const std::string& provider)
+{
+    if (provider == "openai")
+        if (const char* key = std::getenv("OPENAI_API_KEY"); key != nullptr && *key != '\0')
+            return key;
     wxSecretStore store = wxSecretStore::GetDefault();
     if (!store.IsOk())
         return {};
     wxString username;
     wxSecretValue value;
-    if (!store.Load(kSecretService, username, value) || !value.IsOk())
+    if (!store.Load(secret_service_for(provider), username, value) || !value.IsOk())
         return {};
     return std::string(static_cast<const char*>(value.GetData()), value.GetSize());
 }
@@ -41,9 +49,10 @@ bool configured_true(const AppConfig* config, const char* key)
 
 } // namespace
 
-AgentRuntime load_agent_runtime(const AppConfig* config)
+AgentRuntime load_agent_runtime(AppConfig* config)
 {
     AgentRuntime runtime;
+    runtime.setup = make_agent_setup(config);
     runtime.provider = config == nullptr ? std::string() : config->get(kSection, "provider");
     if (runtime.provider.empty())
         runtime.provider = "openai";
@@ -67,7 +76,7 @@ AgentRuntime load_agent_runtime(const AppConfig* config)
     }
 
     OpenAIResponsesConfig openai;
-    openai.api_key = configured_key();
+    openai.api_key = configured_key(runtime.provider);
     if (config != nullptr && !config->get(kSection, "model").empty())
         openai.model = config->get(kSection, "model");
     if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
@@ -89,20 +98,46 @@ AgentRuntime load_agent_runtime(const AppConfig* config)
     return runtime;
 }
 
-bool save_openai_api_key(const std::string& key)
+bool save_provider_api_key(const std::string& provider, const std::string& key)
 {
-    if (key.empty())
+    if (provider.empty() || key.empty())
         return false;
     wxSecretStore store = wxSecretStore::GetDefault();
     if (!store.IsOk())
         return false;
-    return store.Save(kSecretService, kSecretUser, wxSecretValue(wxString::FromUTF8(key)));
+    return store.Save(secret_service_for(provider), secret_user_for(provider), wxSecretValue(wxString::FromUTF8(key)));
 }
 
-bool delete_openai_api_key()
+bool delete_provider_api_key(const std::string& provider)
 {
     wxSecretStore store = wxSecretStore::GetDefault();
-    return store.IsOk() && store.Delete(kSecretService);
+    return store.IsOk() && store.Delete(secret_service_for(provider));
+}
+
+AgentSetupServicePtr make_agent_setup(AppConfig* config)
+{
+    // Committing is the only part of setup that touches the machine, so it
+    // lives here rather than in the GUI-free probe. Reaching this point means
+    // the user read what the dock says about the provider billing them and
+    // about the key staying on this machine, and chose to continue: that is
+    // the cloud consent load_agent_runtime() requires on the next launch.
+    auto commit = [config](const SetupCredentials& credentials) {
+        if (!save_provider_api_key(credentials.provider, credentials.api_key))
+            return false;
+        if (config == nullptr)
+            return false;
+        config->set(kSection, "provider", credentials.provider);
+        config->set(kSection, "enabled", "true");
+        config->set(kSection, "cloud_consent", "true");
+        if (!credentials.model.empty())
+            config->set(kSection, "model", credentials.model);
+        return true;
+    };
+    std::string endpoint_override;
+    if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
+        endpoint_override = endpoint;
+    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit),
+                                              std::move(endpoint_override));
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

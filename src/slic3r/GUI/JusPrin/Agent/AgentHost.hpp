@@ -16,6 +16,7 @@
 
 #include "AgentProtocol.hpp"
 #include "AgentService.hpp"
+#include "AgentSetup.hpp"
 #include "ProjectPersistence.hpp"
 #include "ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
@@ -38,7 +39,8 @@ public:
               ProjectPersistence&    persistence,
               AgentAvailability      availability,
               bool                   dark_appearance,
-              AgentServicePtr        agent = {});
+              AgentServicePtr        agent = {},
+              AgentSetupServicePtr   setup = {});
     ~AgentHost();
 
     AgentHost(const AgentHost&) = delete;
@@ -74,6 +76,11 @@ public:
     // Advances tool execution one deterministic tick while the page is
     // connected, and gives dirty document state its throttled flush.
     void pump_tools();
+
+    // Releases a finished credential check. A verified credential is
+    // persisted and its already-connected service installed here, so setup
+    // succeeding and the Agent becoming available are one step.
+    void pump_setup();
 
     ToolExecutionCoordinator&       tools() { return m_tools; }
     const ToolExecutionCoordinator& tools() const { return m_tools; }
@@ -118,6 +125,13 @@ private:
     void handle_draft_update(const std::string& payload_json);
     void handle_attach_file(const std::string& envelope_id, const std::string& payload_json);
     void handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json);
+    void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
+    void handle_setup_cancel();
+    void send_setup_status(const std::string&               phase,
+                           const std::string&               correlation_id = {},
+                           std::optional<int>               elapsed_ms     = std::nullopt,
+                           const std::optional<AgentError>& error          = std::nullopt,
+                           const std::string&               warning        = {});
     void send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id = {});
     std::string attachment_preview_data_url(const AttachmentRecord& record) const;
     void send_tool_activity(const ToolActivity& activity, const std::string& correlation_id = {});
@@ -141,6 +155,7 @@ private:
     ProjectPersistence&              m_persistence;
     ToolExecutionCoordinator         m_tools;
     AgentServicePtr                  m_agent;
+    AgentSetupServicePtr             m_setup;
     Workspace::WorkspaceSubscription m_workspace_subscription;
 
     SendFn                m_send;
@@ -150,6 +165,9 @@ private:
     bool              m_handshake{false};
 
     std::optional<ActiveStream> m_stream;
+    // The credentials of the check currently in flight, kept so a verified
+    // key can be persisted without the page re-sending the secret.
+    std::optional<SetupCredentials> m_setup_pending;
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
 

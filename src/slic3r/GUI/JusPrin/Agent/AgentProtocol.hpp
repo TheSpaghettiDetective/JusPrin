@@ -23,9 +23,10 @@ inline constexpr const char* kName    = "jusprin-agent-bridge";
 
 inline const std::vector<std::string>& capabilities()
 {
-    static const std::vector<std::string> values{"streaming", "stop",          "retry",     "context",
-                                                 "appearance", "tools",         "conversations",
-                                                 "revisions",  "attachments", "manufacturing_history"};
+    static const std::vector<std::string> values{"streaming",   "stop",        "retry",
+                                                 "context",     "appearance",  "tools",
+                                                 "conversations", "revisions", "attachments",
+                                                 "manufacturing_history", "agent_setup"};
     return values;
 }
 
@@ -43,6 +44,8 @@ inline constexpr const char* kRevertToRevision   = "revert_to_revision";
 inline constexpr const char* kDraftUpdate        = "draft_update";
 inline constexpr const char* kAttachFile         = "attach_file";
 inline constexpr const char* kRemoveAttachment   = "remove_attachment";
+inline constexpr const char* kSetupCheckKey      = "setup_check_key";
+inline constexpr const char* kSetupCancel        = "setup_cancel";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -61,6 +64,7 @@ inline constexpr const char* kToolActivity       = "tool_activity";
 inline constexpr const char* kRevisionAdded      = "revision_added";
 inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
+inline constexpr const char* kSetupStatus        = "setup_status";
 
 } // namespace Protocol
 

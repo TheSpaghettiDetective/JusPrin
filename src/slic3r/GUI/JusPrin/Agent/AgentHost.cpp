@@ -459,9 +459,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                      ProjectPersistence&    persistence,
                      AgentAvailability      availability,
                      bool                   dark_appearance,
-                     AgentServicePtr        agent)
+                     AgentServicePtr        agent,
+                     AgentSetupServicePtr   setup)
     : m_workspace(workspace), m_persistence(persistence), m_tools(workspace), m_agent(std::move(agent)),
-      m_availability(availability), m_dark(dark_appearance)
+      m_setup(std::move(setup)), m_availability(availability), m_dark(dark_appearance)
 {
     refresh_workspace_identity();
     m_workspace_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
@@ -713,6 +714,10 @@ void AgentHost::on_page_message(const std::string& envelope_json)
         handle_attach_file(envelope_id, payload);
     else if (type == Protocol::kRemoveAttachment)
         handle_remove_attachment(envelope_id, payload);
+    else if (type == Protocol::kSetupCheckKey)
+        handle_setup_check_key(envelope_id, payload);
+    else if (type == Protocol::kSetupCancel)
+        handle_setup_cancel();
     else
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
@@ -1211,6 +1216,105 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
     m_persistence.notify_ledger_changed();
     result.result_json = json{{"physicalPrintId", id}, {"buildId", build->id}, {"recorded", true}}.dump();
     return result;
+}
+
+void AgentHost::send_setup_status(const std::string&               phase,
+                                  const std::string&               correlation_id,
+                                  std::optional<int>               elapsed_ms,
+                                  const std::optional<AgentError>& error,
+                                  const std::string&               warning)
+{
+    json payload{{"phase", phase}};
+    if (m_setup_pending)
+        payload["provider"] = m_setup_pending->provider;
+    if (elapsed_ms)
+        payload["elapsedMs"] = *elapsed_ms;
+    if (error)
+        payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
+    if (!warning.empty())
+        payload["warning"] = warning;
+    send_envelope(Protocol::kSetupStatus, payload.dump(), correlation_id);
+}
+
+void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json)
+{
+    if (!m_setup) {
+        send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
+        return;
+    }
+    const json payload = json::parse(payload_json, nullptr, false);
+    if (!payload.is_object()) {
+        send_bridge_error("invalid_payload", "setup_check_key requires an object payload.", envelope_id);
+        return;
+    }
+
+    SetupCredentials credentials;
+    credentials.provider = payload.value("provider", "");
+    credentials.api_key  = payload.value("apiKey", "");
+    credentials.model    = payload.value("model", "");
+    credentials.endpoint = payload.value("endpoint", "");
+
+    if (credentials.api_key.empty()) {
+        send_bridge_error("invalid_payload", "setup_check_key requires an apiKey.", envelope_id);
+        return;
+    }
+    if (m_setup->busy()) {
+        send_bridge_error("setup_busy", "A credential check is already running.", envelope_id);
+        return;
+    }
+
+    // The pending credentials outlive the request so a verified key can be
+    // persisted without the page holding or re-sending the secret.
+    m_setup_pending = credentials;
+    if (!m_setup->start_check(credentials)) {
+        const AgentError error{"unsupported_provider",
+                               "This build cannot verify a key for that provider yet.", false};
+        send_setup_status("error", envelope_id, std::nullopt, error);
+        m_setup_pending.reset();
+        return;
+    }
+    send_setup_status("checking", envelope_id);
+}
+
+void AgentHost::handle_setup_cancel()
+{
+    if (!m_setup || !m_setup->busy())
+        return; // Cancelling a finished check is a benign race.
+    m_setup->cancel();
+    m_setup_pending.reset();
+    send_setup_status("idle");
+}
+
+void AgentHost::pump_setup()
+{
+    if (!m_setup)
+        return;
+    std::optional<SetupOutcome> outcome = m_setup->poll();
+    if (!outcome)
+        return;
+
+    if (!outcome->ok) {
+        send_setup_status("error", {}, outcome->elapsed_ms, outcome->error);
+        m_setup_pending.reset();
+        return;
+    }
+
+    // The provider answered, so the credentials are good. Persisting them can
+    // still fail on a machine with no usable credential store; the Agent works
+    // for this session either way, and the user is told which one happened
+    // rather than discovering it at the next launch.
+    std::string warning;
+    if (m_setup_pending && !m_setup->commit(*m_setup_pending))
+        warning = "This key could not be saved to the system credential store, so it will have to be entered again "
+                  "next time JusPrin starts.";
+
+    send_setup_status("verified", {}, outcome->elapsed_ms, std::nullopt, warning);
+    m_setup_pending.reset();
+    // set_agent refuses an installation while a turn is in flight. Setup is
+    // only reachable with no service configured, and an unconfigured host
+    // rejects user messages before any stream or tool continuation starts, so
+    // there is nothing here for it to refuse.
+    set_agent(std::move(outcome->service), AgentAvailability::Ready);
 }
 
 void AgentHost::pump_tools()

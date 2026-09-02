@@ -22,7 +22,9 @@ export type PageMessageType =
   | 'revert_to_revision'
   | 'draft_update'
   | 'attach_file'
-  | 'remove_attachment';
+  | 'remove_attachment'
+  | 'setup_check_key'
+  | 'setup_cancel';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -40,7 +42,8 @@ export type HostMessageType =
   | 'tool_activity'
   | 'revision_added'
   | 'bridge_error'
-  | 'attachment_updated';
+  | 'attachment_updated'
+  | 'setup_status';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -110,6 +113,19 @@ export interface AttachmentInfo {
   // A native, non-binary description of an imported model for Agent context.
   summary?: string;
   error?: { code: string; message: string };
+}
+
+// Where a credential check has got to. 'verified' means the provider
+// answered and the Agent is being connected; 'warning' is set when the key
+// worked but could not be written to the machine's credential store.
+export type SetupPhase = 'idle' | 'checking' | 'verified' | 'error';
+
+export interface SetupStatusPayload {
+  phase: SetupPhase;
+  provider?: string;
+  elapsedMs?: number;
+  error?: AgentErrorInfo;
+  warning?: string;
 }
 
 export interface WorkspaceContext {

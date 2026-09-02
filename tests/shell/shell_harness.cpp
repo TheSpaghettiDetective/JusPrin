@@ -368,8 +368,8 @@ private:
     }
 
     // What the packaged page actually renders in the dock before anything is
-    // delegated: the offer replaces the conversation chrome, its one action is
-    // inert until Agent setup ships, and the ask box stays put and disabled.
+    // delegated: the offer replaces the conversation chrome, its one action
+    // opens setup, and the ask box stays put and disabled.
     // The page reports the answer back over the bridge's draft message, which
     // the host stores where this harness can read it.
     void verify_not_set_up_empty_state()
@@ -394,12 +394,95 @@ private:
         wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
                    "not_set_up_state_reported", [self = shared_from_this()] {
                        self->check(self->persistence().draft() ==
-                                       "offer|header|no-chrome|setup-inert|ask-inert",
-                                   "not_set_up_dock_is_one_inert_offer");
-                       if (self->persistence().draft() != "offer|header|no-chrome|setup-inert|ask-inert")
+                                       "offer|header|no-chrome|setup-live|ask-inert",
+                                   "not_set_up_dock_is_one_live_offer");
+                       if (self->persistence().draft() != "offer|header|no-chrome|setup-live|ask-inert")
                            std::cerr << "HARNESS DETAIL dock state was " << self->persistence().draft() << '\n';
-                       self->unconfigured_agent_refuses_to_answer();
+                       self->verify_setup_opens_the_chooser();
                    });
+    }
+
+    // The setup flow in the real WKWebView. Each step clicks, then reports
+    // from a timeout so React has re-rendered before the page is asked what
+    // it now shows; chaining clicks inside one script would read the previous
+    // screen.
+    void verify_setup_opens_the_chooser()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        persistence().set_draft({});
+        WebView::RunScript(web_view.webview(),
+                           "(function () {"
+                           "  document.querySelector('[data-testid=\"agent-not-configured\"] button.primary').click();"
+                           "  setTimeout(function () {"
+                           "    window.__jusprinTest.setDraft("
+                           "      document.querySelector('[data-testid=\"setup-chooser\"]') ? 'chooser' : 'no-chooser');"
+                           "  }, 0);"
+                           "})()");
+        wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
+                   "setup_chooser_reported", [self = shared_from_this()] {
+                       self->check(self->persistence().draft() == "chooser", "offer_action_opens_setup");
+                       self->verify_setup_reaches_the_key_screen();
+                   });
+    }
+
+    void verify_setup_reaches_the_key_screen()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        persistence().set_draft({});
+        WebView::RunScript(
+            web_view.webview(),
+            "(function () {"
+            "  document.querySelector('[data-testid=\"setup-row-api-key\"]').click();"
+            "  setTimeout(function () {"
+            "    var screen = document.querySelector('[data-testid=\"setup-api-key\"]');"
+            "    var live = [];"
+            "    document.querySelectorAll('[data-testid=\"setup-api-key\"] .setup-tab').forEach("
+            "      function (tab) { if (!tab.disabled) live.push(tab.textContent); });"
+            "    window.__jusprinTest.setDraft("
+            "      (screen ? 'key-screen' : 'no-key-screen') + '|' + live.join(','));"
+            "  }, 0);"
+            "})()");
+        wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
+                   "setup_key_screen_reported", [self = shared_from_this()] {
+                       self->check(self->persistence().draft() == "key-screen|OpenAI",
+                                   "key_screen_offers_only_verifiable_providers");
+                       if (self->persistence().draft() != "key-screen|OpenAI")
+                           std::cerr << "HARNESS DETAIL key screen was " << self->persistence().draft() << '\n';
+                       self->verify_setup_key_check_round_trips();
+                   });
+    }
+
+    // A key check driven from the page, over the real script-message channel,
+    // through the real host and HTTP transport. JUSPRIN_OPENAI_ENDPOINT points
+    // at a closed local port for this run, so the whole path is exercised and
+    // the failure the user sees is a real one, with no external service
+    // involved.
+    void verify_setup_key_check_round_trips()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        persistence().set_draft({});
+        WebView::RunScript(web_view.webview(),
+                           "window.__jusprinTest.checkKey('openai', 'sk-harness-not-a-real-key')");
+        wait_until([self = shared_from_this()] { return self->persistence().draft() == "setup-error"; },
+                   "setup_key_check_reports_failure",
+                   [self = shared_from_this()] {
+                       // An unreachable provider must leave nothing configured.
+                       self->check(installed_shell()->agent_pane()->web_view().host().availability() ==
+                                       Agent::AgentAvailability::Unavailable,
+                                   "unreachable_provider_does_not_configure_the_agent");
+                       self->unconfigured_agent_refuses_to_answer();
+                   },
+                   [self = shared_from_this()] { self->poll_setup_error(); });
+    }
+
+    void poll_setup_error()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        WebView::RunScript(web_view.webview(),
+                           "(function () {"
+                           "  if (document.querySelector('[data-testid=\"setup-error\"]'))"
+                           "    window.__jusprinTest.setDraft('setup-error');"
+                           "})()");
     }
 
     void unconfigured_agent_refuses_to_answer()
@@ -1031,11 +1114,18 @@ private:
     // which starves any nested YieldFor on the stack (wx's WKWebView
     // AddScriptMessageHandler runs script through one) and deadlocks the
     // WebView setup this harness is waiting on.
-    void wait_until(std::function<bool()> condition, std::string name, std::function<void()> then)
+    // each_tick runs before every re-test of the condition. It exists for
+    // states that only the page can report: the tick asks the page, the page
+    // answers over the bridge, and the condition sees the answer.
+    void wait_until(std::function<bool()> condition,
+                    std::string           name,
+                    std::function<void()> then,
+                    std::function<void()> each_tick = {})
     {
         m_wait_condition = std::move(condition);
         m_wait_name      = std::move(name);
         m_wait_then      = std::move(then);
+        m_wait_each_tick = std::move(each_tick);
         poll_wait();
     }
 
@@ -1048,9 +1138,12 @@ private:
             auto then        = std::move(m_wait_then);
             m_wait_condition = nullptr;
             m_wait_then      = nullptr;
+            m_wait_each_tick = nullptr;
             then();
             return;
         }
+        if (m_wait_each_tick)
+            m_wait_each_tick();
         if (++m_wait_ticks % 500 == 0) {
             PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
             std::cerr << "HARNESS WAIT " << m_wait_name << " preview=" << m_plater->is_preview_shown()
@@ -1107,6 +1200,7 @@ private:
     std::function<bool()> m_wait_condition;
     std::string           m_wait_name;
     std::function<void()> m_wait_then;
+    std::function<void()> m_wait_each_tick;
 };
 
 void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
@@ -1170,6 +1264,12 @@ int main(int argc, char** argv)
     }
     if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
         wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
+    if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
+        // The setup key check in this scenario must exercise the real host,
+        // page, and HTTP transport without reaching a real provider. A closed
+        // local port gives a genuine connection failure to surface.
+        wxSetEnv("JUSPRIN_OPENAI_ENDPOINT", "http://127.0.0.1:1/v1/responses");
+    }
 
     {
         std::ifstream base(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/OrcaSlicer.conf");

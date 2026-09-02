@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
@@ -14,6 +14,7 @@ import {
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
+import { ConnectedBanner, DEFAULT_PROVIDER, SetupApiKey, SetupChooser } from './components/Setup';
 
 let clientMessageCounter = 0;
 function nextClientMessageId(): string {
@@ -48,6 +49,8 @@ declare global {
       switchConversation(conversationId: string): void;
       revert(revisionId: string): void;
       setDraft(text: string): void;
+      openSetup(): void;
+      checkKey(provider: string, apiKey: string): void;
       attach(name: string, dataBase64: string, mime?: string): void;
       removeAttachment(attachmentId: string): void;
       state(): AgentUiState;
@@ -73,6 +76,14 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   const [state, dispatch] = useReducer(reducer, initialState);
   const stateRef = useRef<AgentUiState>(state);
   stateRef.current = state;
+
+  // Which setup screen the dock is showing. This is page-local on purpose:
+  // the host cares which credentials it was asked to check, not which panel
+  // is on screen, so navigating setup costs no bridge traffic.
+  const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey'>('offer');
+  // The one-time confirmation after setup succeeds. The page knows what it
+  // just submitted, so this needs nothing from the host.
+  const [connected, setConnected] = useState<{ provider: string; warning?: string } | null>(null);
 
   const client = useMemo(() => {
     const created: BridgeClient = new BridgeClient({
@@ -158,6 +169,29 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     client.send('revert_to_revision', { revisionId });
   };
 
+  const checkKey = (provider: string, apiKey: string) => {
+    client.send('setup_check_key', { provider, apiKey });
+  };
+
+  const cancelCheck = () => {
+    client.send('setup_cancel', {});
+  };
+
+  useEffect(() => {
+    if (state.setup.phase !== 'verified') return;
+    // The host installs the verified service right after saying so, so the
+    // dock is about to become a working chat; carry the confirmation across.
+    // The key screen stays up until that happens, so the round-trip the check
+    // measured is actually readable rather than flashing past.
+    setConnected({ provider: state.setup.provider ?? DEFAULT_PROVIDER, warning: state.setup.warning });
+  }, [state.setup.phase, state.setup.provider, state.setup.warning]);
+
+  useEffect(() => {
+    // A connected Agent replaces the setup surface entirely; if the dock ever
+    // returns to being unconfigured it starts from the offer, not mid-flow.
+    if (state.agentStatus === 'ready') setSetupScreen('offer');
+  }, [state.agentStatus]);
+
   useEffect(() => {
     window.__jusprinTest = {
       send: sendMessage,
@@ -167,6 +201,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       switchConversation: (conversationId: string) => client.send('switch_conversation', { conversationId }),
       revert: sendRevert,
       setDraft: (text: string) => client.send('draft_update', { text }),
+      openSetup: () => setSetupScreen('chooser'),
+      checkKey,
       attach: (name: string, dataBase64: string, mime?: string) =>
         client.send('attach_file', {
           clientAttachmentId: nextClientAttachmentId(),
@@ -205,6 +241,45 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // keeps its history and gets the banner above it instead.
   const notConfigured = unavailable && state.messages.length === 0;
   const streaming = state.streamingMessageId !== null;
+
+  // The dock body is one of three things: the conversation, the offer, or a
+  // setup screen. Setup replaces the body rather than covering it, so backing
+  // out returns to exactly what was there before.
+  const body = () => {
+    if (!notConfigured)
+      return (
+        <MessageList
+          messages={state.messages}
+          attachments={state.attachments}
+          streamingMessageId={state.streamingMessageId}
+          toolActivities={state.toolActivities}
+          revisions={state.revisions.filter((revision) => revision.conversationId === state.activeConversationId)}
+          builds={state.builds}
+          exportedCopies={state.exportedCopies}
+          physicalPrints={state.physicalPrints}
+          onRetry={(messageId) => client.send('retry_message', { messageId })}
+          onToolDecision={sendToolDecision}
+          onToolCancel={sendToolCancel}
+          onRevert={sendRevert}
+        />
+      );
+    if (setupScreen === 'chooser')
+      return <SetupChooser onUseApiKey={() => setSetupScreen('apiKey')} onDismiss={() => setSetupScreen('offer')} />;
+    if (setupScreen === 'apiKey')
+      return (
+        <SetupApiKey
+          setup={state.setup}
+          onCheck={checkKey}
+          onCancel={cancelCheck}
+          onBack={() => {
+            cancelCheck();
+            setSetupScreen('chooser');
+          }}
+        />
+      );
+    return <AgentNotConfiguredPane onSetUp={() => setSetupScreen('chooser')} />;
+  };
+
   return (
     <div className="app">
       {notConfigured ? (
@@ -222,24 +297,14 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         </>
       )}
       {unavailable && !notConfigured && <AgentUnavailableNotice />}
-      {notConfigured ? (
-        <AgentNotConfiguredPane />
-      ) : (
-        <MessageList
-          messages={state.messages}
-          attachments={state.attachments}
-          streamingMessageId={state.streamingMessageId}
-          toolActivities={state.toolActivities}
-          revisions={state.revisions.filter((revision) => revision.conversationId === state.activeConversationId)}
-          builds={state.builds}
-          exportedCopies={state.exportedCopies}
-          physicalPrints={state.physicalPrints}
-          onRetry={(messageId) => client.send('retry_message', { messageId })}
-          onToolDecision={sendToolDecision}
-          onToolCancel={sendToolCancel}
-          onRevert={sendRevert}
+      {!notConfigured && connected && (
+        <ConnectedBanner
+          provider={connected.provider}
+          warning={connected.warning}
+          onDismiss={() => setConnected(null)}
         />
       )}
+      {body()}
       <Composer
         disabled={unavailable}
         disabledReason={notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}

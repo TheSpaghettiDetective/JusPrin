@@ -29,7 +29,8 @@ public:
                  Workspace::IWorkspace&           workspace,
                  Agent::ProjectPersistence&       persistence,
                  Agent::AgentAvailability         availability,
-                 Agent::AgentServicePtr            agent = {});
+                 Agent::AgentServicePtr            agent = {},
+                 Agent::AgentSetupServicePtr       setup = {});
     ~AgentWebView() override;
 
     void apply_appearance(bool dark);

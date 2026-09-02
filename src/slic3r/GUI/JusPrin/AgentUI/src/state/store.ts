@@ -14,6 +14,7 @@ import {
   ExportedCopyInfo,
   PhysicalPrintInfo,
   RevisionInfo,
+  SetupStatusPayload,
   StatePayload,
   ToolActivityInfo,
   WireMessage,
@@ -43,6 +44,9 @@ export interface AgentUiState {
   // Staged (composer) and sent (history) attachments, keyed by id in the UI.
   attachments: AttachmentInfo[];
   context: WorkspaceContext | null;
+  // Progress of a credential check. The host owns it; the page only mirrors
+  // it, so a reload cannot leave a check looking live when it is not.
+  setup: SetupStatusPayload;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
   needsResync: boolean;
@@ -65,6 +69,7 @@ export const initialState: AgentUiState = {
   draft: '',
   attachments: [],
   context: null,
+  setup: { phase: 'idle' },
   needsResync: false,
   diagnostics: [],
 };
@@ -133,6 +138,9 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         draft: full.draft ?? '',
         attachments: full.attachments ?? [],
         context: full.context,
+        // A full state answers a fresh handshake; any check that was in
+        // flight before belonged to the previous page.
+        setup: { phase: 'idle' },
         needsResync: false,
       };
     }
@@ -142,6 +150,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, appearance: payload.appearance as Appearance };
     case 'agent_status':
       return { ...state, agentStatus: payload.status as AgentStatus };
+    case 'setup_status':
+      return { ...state, setup: envelope.payload as SetupStatusPayload };
     case 'message_added': {
       const message = fromWire(payload.message as WireMessage);
       return { ...state, messages: upsert(state.messages, message) };

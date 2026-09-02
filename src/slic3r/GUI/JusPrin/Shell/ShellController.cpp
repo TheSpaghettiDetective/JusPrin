@@ -76,7 +76,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel, *m_persistence);
         m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, agent.availability,
-                                     std::move(agent.service));
+                                     std::move(agent.service), std::move(agent.setup));
 
         // Adopt the currently open project once the host has registered its
         // listeners, so the initial document reaches the pane too.

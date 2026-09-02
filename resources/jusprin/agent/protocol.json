@@ -11,7 +11,8 @@
     "conversations",
     "revisions",
     "attachments",
-    "manufacturing_history"
+    "manufacturing_history",
+    "agent_setup"
   ],
   "pageMessageTypes": [
     "hello",
@@ -26,7 +27,9 @@
     "revert_to_revision",
     "draft_update",
     "attach_file",
-    "remove_attachment"
+    "remove_attachment",
+    "setup_check_key",
+    "setup_cancel"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -44,6 +47,7 @@
     "tool_activity",
     "revision_added",
     "bridge_error",
-    "attachment_updated"
+    "attachment_updated",
+    "setup_status"
   ]
 }

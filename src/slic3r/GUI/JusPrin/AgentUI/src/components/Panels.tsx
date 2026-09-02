@@ -68,7 +68,7 @@ export function AgentNotConfiguredHeader() {
   );
 }
 
-export function AgentNotConfiguredPane() {
+export function AgentNotConfiguredPane({ onSetUp }: { onSetUp: () => void }) {
   return (
     <div className="pane-state" data-testid="agent-not-configured">
       <h1>No agent connected</h1>
@@ -77,7 +77,7 @@ export function AgentNotConfiguredPane() {
         settings underneath, and shows you what it changed.
       </p>
       <p>Until then JusPrin slices from the preset, exactly as it always has.</p>
-      <button className="primary" disabled title="Agent setup arrives in a later JusPrin release">
+      <button className="primary" onClick={onSetUp}>
         Set up the agent
       </button>
       <p className="footnote">Registered JusPrin account, your own key, or a model on this machine.</p>

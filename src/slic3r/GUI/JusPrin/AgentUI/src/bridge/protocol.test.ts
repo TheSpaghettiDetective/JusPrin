@@ -33,6 +33,8 @@ describe('protocol constants', () => {
       'draft_update',
       'attach_file',
       'remove_attachment',
+      'setup_check_key',
+      'setup_cancel',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

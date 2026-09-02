@@ -12,14 +12,16 @@ AgentPane::AgentPane(wxWindow*                  parent,
                      Workspace::IWorkspace&     workspace,
                      Agent::ProjectPersistence& persistence,
                      Agent::AgentAvailability   availability,
-                     Agent::AgentServicePtr      agent)
+                     Agent::AgentServicePtr      agent,
+                     Agent::AgentSetupServicePtr setup)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
 {
     SetMinSize(wxSize(FromDIP(320), -1));
 
     auto* sizer = new wxBoxSizer(wxVERTICAL);
-    m_web_view = new AgentWebView(this, theme, workspace, persistence, availability, std::move(agent));
+    m_web_view = new AgentWebView(this, theme, workspace, persistence, availability, std::move(agent),
+                                  std::move(setup));
     sizer->Add(m_web_view, 1, wxEXPAND);
     SetSizer(sizer);
 

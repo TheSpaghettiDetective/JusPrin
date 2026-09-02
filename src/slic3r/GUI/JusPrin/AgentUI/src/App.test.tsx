@@ -267,7 +267,7 @@ describe('App', () => {
 
     expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
     expect(screen.getByText('No agent connected')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeEnabled();
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
     // The conversation chrome and the consent banner give way to the offer.
     expect(screen.queryByTestId('agent-unavailable')).not.toBeInTheDocument();
@@ -547,5 +547,127 @@ describe('App attachments', () => {
       expect(payload.source).toBe('picker');
       expect(payload.dataBase64).toContain('base64,');
     });
+  });
+});
+
+describe('App agent setup', () => {
+  let host: MockHost;
+
+  beforeEach(() => {
+    host = new MockHost();
+  });
+
+  function openApiKeyScreen() {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    fireEvent.click(screen.getByTestId('setup-row-api-key'));
+  }
+
+  it('walks from the offer to the three ways of connecting an Agent', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+
+    expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
+    expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
+    // The two paths this build cannot complete are visible but inert rather
+    // than leading nowhere.
+    expect(screen.getByRole('button', { name: 'Continue with JusPrin' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Run a model on this machine/ })).toBeDisabled();
+    // Nothing is asked of the host merely by looking at the options.
+    expect(host.received.filter((e) => e.type.startsWith('setup_'))).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close setup' }));
+    expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
+  });
+
+  it('offers only the providers this build can verify, and defaults to one of them', () => {
+    openApiKeyScreen();
+
+    expect(screen.getByRole('tab', { name: 'OpenAI' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'OpenAI' })).toBeEnabled();
+    expect(screen.getByRole('tab', { name: 'Anthropic' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Other…' })).toBeDisabled();
+  });
+
+  it('sends the key to the host and reports the round trip it measured', async () => {
+    openApiKeyScreen();
+
+    // An empty field cannot be submitted.
+    expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'sk-test-key');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+
+    const sent = host.lastOfType('setup_check_key');
+    expect(sent).toBeTruthy();
+    expect(sent!.payload).toEqual({ provider: 'openai', apiKey: 'sk-test-key' });
+
+    host.deliver('setup_status', { phase: 'checking', provider: 'openai' });
+    expect(screen.getByText('Checking…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
+
+    host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 812 });
+    expect(screen.getByTestId('setup-verified')).toHaveTextContent('replied in 0.8 s');
+  });
+
+  it('turns into a working chat once the host reports the Agent ready', () => {
+    openApiKeyScreen();
+    host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 500 });
+    host.deliver('agent_status', { status: 'ready' });
+
+    // The setup surface gives way to the conversation, with a one-time note
+    // of how the Agent got connected.
+    expect(screen.queryByTestId('setup-api-key')).not.toBeInTheDocument();
+    expect(screen.getByTestId('setup-connected')).toHaveTextContent('your own OpenAI key');
+    expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByTestId('setup-connected')).not.toBeInTheDocument();
+  });
+
+  it('says when a working key could not be stored', () => {
+    openApiKeyScreen();
+    host.deliver('setup_status', {
+      phase: 'verified',
+      provider: 'openai',
+      elapsedMs: 500,
+      warning: 'This key could not be saved to the system credential store.',
+    });
+    host.deliver('agent_status', { status: 'ready' });
+
+    expect(screen.getByTestId('setup-connected')).toHaveTextContent('could not be saved');
+  });
+
+  it('keeps the user on the key screen when the provider rejects the key', async () => {
+    openApiKeyScreen();
+    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'sk-wrong');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+
+    host.deliver('setup_status', {
+      phase: 'error',
+      provider: 'openai',
+      error: { code: 'invalid_credentials', message: 'The OpenAI API key was rejected.', retryable: false },
+    });
+
+    expect(screen.getByTestId('setup-error')).toHaveTextContent('The OpenAI API key was rejected.');
+    expect(screen.getByTestId('setup-api-key')).toBeInTheDocument();
+    // The key is still there to correct, and can be resubmitted.
+    expect(screen.getByRole('button', { name: 'Check key' })).toBeEnabled();
+  });
+
+  it('abandons a check when the user cancels or backs out', async () => {
+    openApiKeyScreen();
+    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'sk-slow');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    host.deliver('setup_status', { phase: 'checking', provider: 'openai' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('setup_cancel')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
+    expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
   });
 });

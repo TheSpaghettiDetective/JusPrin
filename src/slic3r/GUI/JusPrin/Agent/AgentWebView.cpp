@@ -42,11 +42,12 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
                            Workspace::IWorkspace&     workspace,
                            Agent::ProjectPersistence& persistence,
                            Agent::AgentAvailability   availability,
-                           Agent::AgentServicePtr      agent)
+                           Agent::AgentServicePtr      agent,
+                           Agent::AgentSetupServicePtr setup)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode(),
-                                                std::move(agent)))
+                                                std::move(agent), std::move(setup)))
     , m_stream_timer(this, kStreamTimerId)
     , m_handshake_timer(this, kHandshakeTimerId)
 {
@@ -115,6 +116,7 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
         else if (event.GetId() == kStreamTimerId) {
             m_host->pump_stream();
             m_host->pump_tools();
+            m_host->pump_setup();
         } else
             event.Skip();
     });

@@ -9,6 +9,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
 
@@ -103,6 +104,15 @@ struct Harness
     explicit Harness(AgentServicePtr agent)
         : workspace(two_object_snapshot()), persistence(workspace, test_persistence_config()),
           host(workspace, persistence, AgentAvailability::Ready, false, std::move(agent))
+    {
+        host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
+        persistence.attach();
+    }
+
+    // An unconfigured dock: no Agent service, but a setup service to reach one.
+    explicit Harness(AgentSetupServicePtr setup)
+        : workspace(two_object_snapshot()), persistence(workspace, test_persistence_config()),
+          host(workspace, persistence, AgentAvailability::Unavailable, false, AgentServicePtr{}, std::move(setup))
     {
         host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
         persistence.attach();
@@ -265,7 +275,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
                                               Protocol::kToolCancel, Protocol::kCreateConversation,
                                               Protocol::kSwitchConversation, Protocol::kRevertToRevision,
-                                              Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment});
+                                              Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
+                                              Protocol::kSetupCheckKey, Protocol::kSetupCancel});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState,
@@ -273,6 +284,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMessageAdded, Protocol::kAssistantStarted, Protocol::kAssistantDelta,
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity, Protocol::kRevisionAdded,
+                                              Protocol::kSetupStatus,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated});
 }
 
@@ -1235,4 +1247,221 @@ TEST_CASE("provider attachment context is size bounded on a UTF-8 boundary", "[a
     CHECK(supplied.text.size() == 256u * 1024u - 1u);
     CHECK(supplied.text.back() == 'a');
     CHECK(supplied.summary.find("truncated") != std::string::npos);
+}
+
+namespace {
+
+// Stands in for a real provider check: the test decides when the answer
+// arrives and what it is, so the host's half of setup is exercised without a
+// network.
+class ScriptedSetup final : public IAgentSetupService
+{
+public:
+    bool busy() const override { return m_busy; }
+
+    bool start_check(const SetupCredentials& credentials) override
+    {
+        if (!accept_checks)
+            return false;
+        started.push_back(credentials);
+        m_busy = true;
+        return true;
+    }
+
+    void cancel() override
+    {
+        m_busy = false;
+        m_pending.reset();
+        ++cancels;
+    }
+
+    std::optional<SetupOutcome> poll() override
+    {
+        if (!m_pending)
+            return std::nullopt;
+        SetupOutcome outcome = std::move(*m_pending);
+        m_pending.reset();
+        m_busy = false;
+        return outcome;
+    }
+
+    bool commit(const SetupCredentials& credentials) override
+    {
+        committed.push_back(credentials);
+        return commit_succeeds;
+    }
+
+    void answer_verified(int elapsed_ms = 800)
+    {
+        SetupOutcome outcome;
+        outcome.ok         = true;
+        outcome.elapsed_ms = elapsed_ms;
+        outcome.service    = std::make_unique<DeterministicMockAgent>();
+        m_pending          = std::move(outcome);
+    }
+
+    void answer_rejected()
+    {
+        SetupOutcome outcome;
+        outcome.error = AgentError{"invalid_credentials", "The OpenAI API key was rejected.", false};
+        m_pending     = std::move(outcome);
+    }
+
+    std::vector<SetupCredentials> started;
+    std::vector<SetupCredentials> committed;
+    bool                          accept_checks{true};
+    bool                          commit_succeeds{true};
+    int                           cancels{0};
+
+private:
+    std::optional<SetupOutcome> m_pending;
+    bool                        m_busy{false};
+};
+
+json check_key_payload(const std::string& key = "sk-test-key")
+{
+    return json{{"provider", "openai"}, {"apiKey", key}};
+}
+
+} // namespace
+
+TEST_CASE("a verified key stores the credential and connects the Agent in one step", "[agent][setup]")
+{
+    auto    setup = std::make_shared<ScriptedSetup>();
+    Harness harness(setup);
+    harness.handshake();
+    REQUIRE(harness.host.availability() == AgentAvailability::Unavailable);
+
+    harness.deliver("setup_check_key", check_key_payload());
+    const json* checking = harness.last_of_type("setup_status");
+    REQUIRE(checking != nullptr);
+    CHECK((*checking)["payload"]["phase"] == "checking");
+    CHECK((*checking)["payload"]["provider"] == "openai");
+    REQUIRE(setup->started.size() == 1);
+    CHECK(setup->started.front().api_key == "sk-test-key");
+    // Nothing changes until the provider actually answers.
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+
+    setup->answer_verified(812);
+    harness.host.pump_setup();
+
+    const json* verified = harness.last_of_type("setup_status");
+    REQUIRE(verified != nullptr);
+    CHECK((*verified)["payload"]["phase"] == "verified");
+    CHECK((*verified)["payload"]["elapsedMs"] == 812);
+    CHECK_FALSE((*verified)["payload"].contains("warning"));
+
+    // The key the page sent is what gets stored; the page never re-sends it.
+    REQUIRE(setup->committed.size() == 1);
+    CHECK(setup->committed.front().api_key == "sk-test-key");
+
+    CHECK(harness.host.availability() == AgentAvailability::Ready);
+    CHECK((*harness.last_of_type("agent_status"))["payload"]["status"] == "ready");
+
+    // The dock is genuinely usable now, not merely reported as ready.
+    harness.send_user_message("hello", "c-after-setup");
+    harness.pump_all();
+    REQUIRE(harness.last_of_type("assistant_completed") != nullptr);
+}
+
+TEST_CASE("a rejected key reports the reason and leaves the Agent unconfigured", "[agent][setup]")
+{
+    auto    setup = std::make_shared<ScriptedSetup>();
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", check_key_payload("sk-wrong"));
+    setup->answer_rejected();
+    harness.host.pump_setup();
+
+    const json* status = harness.last_of_type("setup_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "error");
+    CHECK((*status)["payload"]["error"]["code"] == "invalid_credentials");
+    CHECK(setup->committed.empty());
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+}
+
+TEST_CASE("a verified key that cannot be stored still connects and says so", "[agent][setup]")
+{
+    auto setup             = std::make_shared<ScriptedSetup>();
+    setup->commit_succeeds = false;
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", check_key_payload());
+    setup->answer_verified();
+    harness.host.pump_setup();
+
+    const json* status = harness.last_of_type("setup_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "verified");
+    // The Agent works for this session; the user is told it will not survive
+    // a restart rather than finding out at the next launch.
+    REQUIRE((*status)["payload"].contains("warning"));
+    CHECK(harness.host.availability() == AgentAvailability::Ready);
+}
+
+TEST_CASE("a provider this build cannot verify fails visibly instead of hanging", "[agent][setup]")
+{
+    auto setup           = std::make_shared<ScriptedSetup>();
+    setup->accept_checks = false;
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", json{{"provider", "anthropic"}, {"apiKey", "sk-ant-test"}});
+
+    const json* status = harness.last_of_type("setup_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "error");
+    CHECK((*status)["payload"]["error"]["code"] == "unsupported_provider");
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+}
+
+TEST_CASE("setup rejects an empty key and a second concurrent check", "[agent][setup]")
+{
+    auto    setup = std::make_shared<ScriptedSetup>();
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", ""}});
+    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+    CHECK(setup->started.empty());
+
+    harness.deliver("setup_check_key", check_key_payload());
+    harness.deliver("setup_check_key", check_key_payload("sk-second"));
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
+    CHECK(setup->started.size() == 1);
+}
+
+TEST_CASE("cancelling a check returns the dock to its offer", "[agent][setup]")
+{
+    auto    setup = std::make_shared<ScriptedSetup>();
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", check_key_payload());
+    harness.deliver("setup_cancel");
+
+    CHECK(setup->cancels == 1);
+    CHECK((*harness.last_of_type("setup_status"))["payload"]["phase"] == "idle");
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+
+    // A check can start again afterwards.
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+    harness.deliver("setup_check_key", check_key_payload("sk-again"));
+    REQUIRE(setup->started.size() == 2);
+}
+
+TEST_CASE("a build with no setup service says so rather than accepting the key", "[agent][setup]")
+{
+    Harness harness(AgentAvailability::Unavailable);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", check_key_payload());
+    const json* error = harness.last_of_type("bridge_error");
+    REQUIRE(error != nullptr);
+    CHECK((*error)["payload"]["code"] == "setup_unavailable");
+    CHECK(harness.last_of_type("setup_status") == nullptr);
 }
