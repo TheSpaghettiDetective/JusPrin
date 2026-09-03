@@ -52,16 +52,12 @@ struct ToolError
     std::string message;
 };
 
-// What an Agent asks the coordinator to run. run_ticks paces deterministic
-// progress: the coordinator reports progress on each pump and executes the
-// native command on the final tick.
+// Untrusted call data supplied by an adapter. The coordinator resolves title,
+// action class, validation, and implementation from the registry.
 struct ToolRequest
 {
     std::string tool;
-    std::string title;          // user-facing description of the concrete action
     std::string arguments_json; // typed arguments, serialized
-    ActionClass action_class{ActionClass::ReadOnly};
-    int         run_ticks{1};
 };
 
 struct ToolActivity

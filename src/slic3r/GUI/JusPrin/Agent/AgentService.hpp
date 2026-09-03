@@ -55,6 +55,9 @@ struct AgentToolCall
     // response. The deterministic mock keeps its historical one-message
     // behavior and sets this false.
     bool await_result{true};
+    // Deterministic mock/test pacing. This is deliberately outside the
+    // untrusted ToolRequest and is not part of any public tool contract.
+    int test_run_ticks{1};
 };
 
 struct AgentToolResult

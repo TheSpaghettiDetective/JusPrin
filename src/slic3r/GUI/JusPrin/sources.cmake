@@ -24,6 +24,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolExecution.hpp
     GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp
     GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp
+    GUI/JusPrin/Agent/ToolRegistry.cpp
+    GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Brand/BrandPalette.cpp
     GUI/JusPrin/Brand/BrandPalette.hpp
     GUI/JusPrin/CanvasPresentationController.cpp

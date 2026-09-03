@@ -479,10 +479,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         return (std::filesystem::path(m_persistence.jusprin_data_dir()) / std::filesystem::path(record->relative_path()))
             .string();
     });
-    m_tools.set_extension_executor([this](const ToolActivity& activity) {
-        return execute_manufacturing_tool(activity);
+    m_tools.set_extension_executor([this](ToolHandler handler, const ToolActivity& activity) {
+        return execute_manufacturing_tool(handler, activity);
     });
-    m_tools.set_listener([this](const ToolActivity& activity) {
+    m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
         m_persistence.document().upsert_activity(activity, m_persistence.timestamp());
         if (tool_state_terminal(activity.state))
             m_persistence.flush();
@@ -1106,12 +1106,10 @@ void AgentHost::send_tool_activity(const ToolActivity& activity, const std::stri
     send_envelope(Protocol::kToolActivity, json{{"activity", activity_json(activity)}}.dump(), correlation_id);
 }
 
-ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(const ToolActivity& activity)
+ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(ToolHandler handler,
+                                                                                const ToolActivity& activity)
 {
     ToolExecutionCoordinator::ExtensionResult result;
-    if (activity.tool != "record_build" && activity.tool != "record_export_copy" &&
-        activity.tool != "record_physical_print")
-        return result;
     result.handled = true;
 
     const json arguments = json::parse(activity.arguments_json, nullptr, false);
@@ -1124,7 +1122,7 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const std::string conversation = document.conversation_of_message(activity.correlation_id);
 
-    if (activity.tool == "record_build") {
+    if (handler == ToolHandler::RecordBuild) {
         std::size_t plate_index = 0;
         if (snapshot.active_plate)
             for (std::size_t i = 0; i < snapshot.plates.size(); ++i)
@@ -1179,7 +1177,7 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
         return result;
     }
 
-    if (activity.tool == "record_export_copy") {
+    if (handler == ToolHandler::RecordExportCopy) {
         ExportedCopyRecord record;
         record.build_id             = build->id;
         record.conversation_id      = conversation;
@@ -1503,7 +1501,8 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     m_persistence.flush();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
-    const ToolActivity& proposed = m_tools.propose(call.request, stream.message.id);
+    const ToolActivity& proposed =
+        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks});
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);

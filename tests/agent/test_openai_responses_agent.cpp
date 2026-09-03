@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -90,10 +91,18 @@ TEST_CASE("OpenAI request carries bounded native context and strict tools", "[ag
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
     REQUIRE(body["tools"].size() == 2);
+    std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         CHECK(tool["strict"] == true);
         CHECK(tool["parameters"]["additionalProperties"] == false);
+        const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
+        REQUIRE(definition != nullptr);
+        emitted_names.push_back(definition->name);
+        CHECK(has_exposure(definition->exposure, ToolExposure::InApp));
+        CHECK(tool["description"] == definition->description);
+        CHECK(tool["parameters"] == definition->input_schema);
     }
+    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -118,6 +127,35 @@ TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent]
     CHECK(delta->text == "Done");
     REQUIRE(poll_until(agent, AgentEventKind::Completed));
     CHECK_FALSE(agent.busy());
+}
+
+TEST_CASE("OpenAI exposes attachment import only when its registered availability is satisfied",
+          "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.attachments.push_back({"model-1", "part.stl", "model", "model/stl", "", "", "", true});
+    REQUIRE(agent.start(request));
+
+    const json tools = json::parse(fake->requests.front().body)["tools"];
+    std::vector<std::string> names;
+    for (const json& tool : tools)
+        names.push_back(tool["name"].get<std::string>());
+    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection"});
+
+    const json call{{"type", "function_call"},
+                    {"call_id", "call-import"},
+                    {"name", "import_model"},
+                    {"arguments", json{{"sessionId", "41"}, {"attachmentId", "model-1"}}.dump()}};
+    fake->data(sse(json{{"type", "response.completed"},
+                        {"response", json{{"output", json::array({call})}}}}));
+    fake->complete();
+    const auto event = poll_until(agent, AgentEventKind::ToolCall);
+    REQUIRE(event);
+    REQUIRE(event->tool);
+    CHECK(event->tool->request.tool == "import_model");
 }
 
 TEST_CASE("OpenAI consumes a final SSE frame without a trailing delimiter", "[agent][openai]")

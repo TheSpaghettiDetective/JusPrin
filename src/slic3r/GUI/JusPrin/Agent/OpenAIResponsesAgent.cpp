@@ -1,4 +1,5 @@
 #include "OpenAIResponsesAgent.hpp"
+#include "ToolRegistry.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -59,62 +60,25 @@ json workspace_json(const Workspace::WorkspaceSnapshot& workspace)
                 {"plates", std::move(plates)}};
 }
 
-json strict_tool(const char* name, const char* description, json properties, json required)
+bool available_in_app(const ToolDefinition& definition, bool allow_import)
 {
-    return json{{"type", "function"}, {"name", name}, {"description", description}, {"strict", true},
-                {"parameters", json{{"type", "object"}, {"properties", std::move(properties)},
-                                    {"required", std::move(required)}, {"additionalProperties", false}}}};
+    return has_exposure(definition.exposure, ToolExposure::InApp) &&
+           (definition.availability == ToolAvailability::Always || allow_import);
 }
 
 json tools_for(bool allow_import)
 {
-    json tools = json::array({
-        strict_tool("duplicate_object", "Propose duplicating one existing object in the current project.",
-                    json{{"sessionId", json{{"type", "string"}}}, {"objectId", json{{"type", "string"}}}},
-                    json::array({"sessionId", "objectId"})),
-        strict_tool("inspect_selection", "Read the current selection without changing the project.", json::object(), json::array())
-    });
-    if (allow_import)
-        tools.push_back(strict_tool("import_model", "Propose importing one attached model into the current project.",
-                                   json{{"sessionId", json{{"type", "string"}}},
-                                        {"attachmentId", json{{"type", "string"}}}},
-                                   json::array({"sessionId", "attachmentId"})));
-    return tools;
-}
-
-ToolRequest tool_request(const json& item)
-{
-    ToolRequest request;
-    request.tool = item.value("name", "");
-    request.arguments_json = item.value("arguments", "{}");
-    request.run_ticks = 3;
-    if (request.tool == "duplicate_object") {
-        request.title = "Duplicate project object";
-        request.action_class = ActionClass::Mutation;
-    } else if (request.tool == "import_model") {
-        request.title = "Import attached model";
-        request.action_class = ActionClass::Mutation;
-    } else if (request.tool == "inspect_selection") {
-        request.title = "Inspect current selection";
-        request.action_class = ActionClass::ReadOnly;
-        request.run_ticks = 1;
+    json tools = json::array();
+    for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
+        if (!available_in_app(definition, allow_import))
+            continue;
+        tools.push_back(json{{"type", "function"},
+                             {"name", definition.name},
+                             {"description", definition.description},
+                             {"strict", true},
+                             {"parameters", definition.input_schema}});
     }
-    return request;
-}
-
-bool valid_tool_arguments(const ToolRequest& request, const json& arguments)
-{
-    if (!arguments.is_object())
-        return false;
-    if (request.tool == "inspect_selection")
-        return arguments.empty();
-    if (request.tool == "duplicate_object")
-        return arguments.size() == 2 && arguments.contains("sessionId") && arguments["sessionId"].is_string() &&
-               arguments.contains("objectId") && arguments["objectId"].is_string();
-    if (request.tool == "import_model")
-        return arguments.size() == 2 && arguments.contains("sessionId") && arguments["sessionId"].is_string() &&
-               arguments.contains("attachmentId") && arguments["attachmentId"].is_string();
-    return false;
+    return tools;
 }
 
 } // namespace
@@ -283,13 +247,17 @@ void OpenAIResponsesAgent::finish_response(const json& response)
         if (!item.is_object() || item.value("type", "") != "function_call")
             continue;
         const std::string call_id = item.value("call_id", "");
-        ToolRequest request = tool_request(item);
-        const json arguments = json::parse(request.arguments_json, nullptr, false);
-        if (call_id.empty() || request.tool.empty() || arguments.is_discarded() ||
-            !valid_tool_arguments(request, arguments)) {
+        ToolRequest request{item.value("name", ""), item.value("arguments", "{}")};
+        const ToolDefinition* definition = ToolRegistry::instance().find(request.tool);
+        const bool available = definition != nullptr && available_in_app(*definition, m_allow_import);
+        ToolValidationResult validation;
+        if (available)
+            validation = ToolRegistry::instance().validate_call(*definition, request.arguments_json);
+        if (call_id.empty() || !available || !validation.valid()) {
             fail(AgentError{"malformed_tool_call", "The Agent returned an invalid tool proposal.", false});
             return;
         }
+        request.arguments_json = std::move(validation.arguments_json);
         m_pending_call_id = call_id;
         m_waiting_for_tool = true;
         AgentToolCall call{call_id, std::move(request), true};

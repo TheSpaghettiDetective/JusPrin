@@ -9,13 +9,59 @@
 // pump(), so tests can drive it without timers.
 
 #include "ToolExecution.hpp"
+#include "ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
+#include <cstdint>
 #include <functional>
+#include <map>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin::Agent {
+
+class ToolActivitySubscription
+{
+public:
+    ToolActivitySubscription() = default;
+    ToolActivitySubscription(const ToolActivitySubscription&) = delete;
+    ToolActivitySubscription& operator=(const ToolActivitySubscription&) = delete;
+    ToolActivitySubscription(ToolActivitySubscription&& other) noexcept : m_unsubscribe(std::move(other.m_unsubscribe)) {}
+    ToolActivitySubscription& operator=(ToolActivitySubscription&& other) noexcept
+    {
+        if (this != &other) {
+            reset();
+            m_unsubscribe = std::move(other.m_unsubscribe);
+        }
+        return *this;
+    }
+    ~ToolActivitySubscription() { reset(); }
+
+    void reset()
+    {
+        if (m_unsubscribe) {
+            auto unsubscribe = std::move(m_unsubscribe);
+            unsubscribe();
+        }
+    }
+
+    explicit operator bool() const { return static_cast<bool>(m_unsubscribe); }
+
+private:
+    explicit ToolActivitySubscription(std::function<void()> unsubscribe) : m_unsubscribe(std::move(unsubscribe)) {}
+    std::function<void()> m_unsubscribe;
+
+    friend class ToolExecutionCoordinator;
+};
+
+// Pump pacing belongs to deterministic test presentation, not to an adapter's
+// untrusted ToolRequest or to public tool metadata.
+struct ToolExecutionPacing
+{
+    int ticks{1};
+};
 
 class ToolExecutionCoordinator
 {
@@ -32,14 +78,16 @@ public:
     // Typed native extensions still execute inside this coordinator and its
     // approval/state machine. The host uses this for durable manufacturing
     // records; future MCP adapters use the same seam, never a WebView path.
-    using ExtensionExecutor = std::function<ExtensionResult(const ToolActivity&)>;
+    using ExtensionExecutor = std::function<ExtensionResult(ToolHandler, const ToolActivity&)>;
 
-    explicit ToolExecutionCoordinator(Workspace::IWorkspace& workspace);
+    explicit ToolExecutionCoordinator(Workspace::IWorkspace& workspace,
+                                      const ToolRegistry& registry = ToolRegistry::instance());
+    ~ToolExecutionCoordinator();
 
     ToolExecutionCoordinator(const ToolExecutionCoordinator&) = delete;
     ToolExecutionCoordinator& operator=(const ToolExecutionCoordinator&) = delete;
 
-    void set_listener(ActivityCallback listener) { m_listener = std::move(listener); }
+    ToolActivitySubscription subscribe(ActivityCallback listener);
     void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
 
     // Action IDs default to a process-local counter; an owner with persisted
@@ -61,7 +109,8 @@ public:
     // Creates a Pending record stamped with the current workspace session and
     // revision. Read-only actions are approved immediately by policy; every
     // other class waits for a user decision. Returns the new record.
-    const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id);
+    const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
+                                ToolExecutionPacing pacing = {});
 
     // User decisions. Each returns true only when it changed the record's
     // state, so a resent decision (reconnect, reload) can never run an action
@@ -88,9 +137,17 @@ private:
     void          notify(const ToolActivity& activity);
     void          invalidate_pending(const Workspace::WorkspaceChanged& change);
 
+    struct ObserverState
+    {
+        std::uint64_t                             next_id{1};
+        bool                                      alive{true};
+        std::map<std::uint64_t, ActivityCallback> observers;
+    };
+
     Workspace::IWorkspace&           m_workspace;
+    const ToolRegistry&               m_registry;
     Workspace::WorkspaceSubscription m_workspace_subscription;
-    ActivityCallback                 m_listener;
+    std::shared_ptr<ObserverState>    m_observers;
     ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;

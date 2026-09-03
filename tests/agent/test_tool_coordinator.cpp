@@ -46,10 +46,11 @@ struct Harness
     Workspace::FakeWorkspace  workspace;
     ToolExecutionCoordinator  coordinator;
     std::vector<ToolActivity> events;
+    ToolActivitySubscription  subscription;
 
     Harness() : workspace(one_plate_snapshot()), coordinator(workspace)
     {
-        coordinator.set_listener([this](const ToolActivity& activity) { events.push_back(activity); });
+        subscription = coordinator.subscribe([this](const ToolActivity& activity) { events.push_back(activity); });
     }
 
     Workspace::ObjectId cube_id() const { return workspace.snapshot().plates.at(0).objects.at(0).id; }
@@ -62,16 +63,13 @@ struct Harness
         return count;
     }
 
-    ToolRequest duplicate_cube_request(int run_ticks = 3) const
+    ToolRequest duplicate_cube_request() const
     {
         ToolRequest request;
         request.tool           = "duplicate_object";
-        request.title          = "Duplicate \"cube-a\"";
         request.arguments_json = json{{"sessionId", std::to_string(workspace.snapshot().session.value())},
                                       {"objectId", std::to_string(cube_id().value())}}
                                      .dump();
-        request.action_class = ActionClass::Mutation;
-        request.run_ticks    = run_ticks;
         return request;
     }
 
@@ -102,6 +100,71 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(approval_required(ActionClass::Destructive));
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::Destructive));
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
+}
+
+TEST_CASE("coordinator policy comes from the registry", "[tools][policy][registry]")
+{
+    Harness harness;
+    const ToolActivity& duplicate = harness.coordinator.propose(harness.duplicate_cube_request(), "hostile-caller");
+    CHECK(duplicate.action_class == ActionClass::Mutation);
+    CHECK(duplicate.requires_approval);
+    CHECK(duplicate.title == ToolRegistry::instance().find("duplicate_object")->title);
+
+    const ToolActivity& inspect = harness.coordinator.propose(ToolRequest{"inspect_selection", "{}"}, "read-caller");
+    CHECK(inspect.action_class == ActionClass::ReadOnly);
+    CHECK_FALSE(inspect.requires_approval);
+}
+
+TEST_CASE("coordinator rejects hostile call metadata before proposal execution", "[tools][policy][registry]")
+{
+    Harness harness;
+    ToolRequest request = harness.duplicate_cube_request();
+    json arguments = json::parse(request.arguments_json);
+    arguments["actionClass"] = "read_only";
+    request.arguments_json = arguments.dump();
+
+    const ToolActivity& rejected = harness.coordinator.propose(request, "hostile-caller");
+    CHECK(rejected.action_class == ActionClass::Mutation);
+    CHECK(rejected.requires_approval);
+    CHECK(rejected.state == ToolState::Failed);
+    REQUIRE(rejected.error);
+    CHECK(rejected.error->code == "invalid_arguments");
+    CHECK(harness.object_count() == 1);
+}
+
+TEST_CASE("activity subscriptions coexist and unsubscribe independently", "[tools][subscriptions]")
+{
+    Workspace::FakeWorkspace workspace(one_plate_snapshot());
+    ToolExecutionCoordinator coordinator(workspace);
+    std::vector<ToolState> first;
+    std::vector<ToolState> second;
+    int self_notifications = 0;
+    ToolActivitySubscription first_subscription =
+        coordinator.subscribe([&](const ToolActivity& activity) { first.push_back(activity.state); });
+    ToolActivitySubscription second_subscription =
+        coordinator.subscribe([&](const ToolActivity& activity) { second.push_back(activity.state); });
+    ToolActivitySubscription self_subscription;
+    self_subscription = coordinator.subscribe([&](const ToolActivity&) {
+        ++self_notifications;
+        self_subscription.reset();
+    });
+
+    const ToolActivity& proposed = coordinator.propose(ToolRequest{"inspect_selection", "{}"}, "m-1");
+    const std::string action_id = proposed.action_id;
+    while (!tool_state_terminal(coordinator.find(action_id)->state))
+        coordinator.pump();
+    CHECK(first == second);
+    REQUIRE(first.back() == ToolState::Succeeded);
+    CHECK(self_notifications == 1);
+
+    const std::size_t first_before = first.size();
+    first_subscription.reset();
+    const ToolActivity& next = coordinator.propose(ToolRequest{"inspect_selection", "{}"}, "m-2");
+    const std::string next_id = next.action_id;
+    while (!tool_state_terminal(coordinator.find(next_id)->state))
+        coordinator.pump();
+    CHECK(first.size() == first_before);
+    CHECK(second.size() > first.size());
 }
 
 TEST_CASE("a mutation waits for approval and then executes through the workspace", "[tools][lifecycle]")
@@ -200,7 +263,8 @@ TEST_CASE("cancellation stops an action before anything durable happens", "[tool
     }
 
     SECTION("while running, before the execution tick") {
-        const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(10), "m-2").action_id;
+        const std::string action_id =
+            harness.coordinator.propose(harness.duplicate_cube_request(), "m-2", ToolExecutionPacing{10}).action_id;
         REQUIRE(harness.coordinator.approve(action_id));
         harness.coordinator.pump();
         harness.coordinator.pump();
@@ -285,10 +349,7 @@ TEST_CASE("a read-only action runs without approval", "[tools][policy]")
 
     ToolRequest request;
     request.tool           = "inspect_selection";
-    request.title          = "Inspect the current selection";
     request.arguments_json = "{}";
-    request.action_class   = ActionClass::ReadOnly;
-    request.run_ticks      = 1;
 
     const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
     const ToolActivity* started = harness.coordinator.find(action_id);
@@ -325,9 +386,7 @@ TEST_CASE("an unknown tool fails cleanly", "[tools][failure]")
     Harness harness;
     ToolRequest request;
     request.tool           = "launch_missiles";
-    request.title          = "Not a real tool";
     request.arguments_json = "{}";
-    request.action_class   = ActionClass::ReadOnly;
 
     const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
     harness.pump_to_completion(action_id);
@@ -349,12 +408,9 @@ TEST_CASE("import_model resolves an attachment ID and adds an object", "[tools][
 
     ToolRequest request;
     request.tool           = "import_model";
-    request.title          = "Import model";
     request.arguments_json = json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
                                   {"attachmentId", "a-1"}}
                                  .dump();
-    request.action_class = ActionClass::Mutation;
-    request.run_ticks    = 2;
 
     const std::size_t   before   = harness.object_count();
     const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
@@ -377,12 +433,9 @@ TEST_CASE("import_model fails when the attachment can no longer be resolved", "[
 
     ToolRequest request;
     request.tool           = "import_model";
-    request.title          = "Import model";
     request.arguments_json = json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
                                   {"attachmentId", "a-404"}}
                                  .dump();
-    request.action_class = ActionClass::Mutation;
-    request.run_ticks    = 1;
 
     const std::size_t   before   = harness.object_count();
     const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");

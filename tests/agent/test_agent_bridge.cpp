@@ -186,9 +186,6 @@ public:
         last_request = request;
         ToolRequest tool;
         tool.tool = "duplicate_object";
-        tool.title = "Duplicate selected object";
-        tool.action_class = ActionClass::Mutation;
-        tool.run_ticks = 1;
         tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
                                    {"objectId", std::to_string(request.workspace.selected_objects.front().value())}}.dump();
         events.push_back(AgentEvent::delta("I can do that."));

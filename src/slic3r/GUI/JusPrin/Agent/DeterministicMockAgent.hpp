@@ -35,6 +35,7 @@ public:
         // successfully. The coordinator, not the Agent, applies the approval
         // policy and executes through the workspace contract.
         std::optional<ToolRequest> tool;
+        int                        tool_run_ticks{1};
     };
 
     // Deterministic scenarios, documented for tests and manual scripts:

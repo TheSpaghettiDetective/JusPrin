@@ -51,32 +51,71 @@ std::optional<Workspace::ObjectId> parse_object_argument(const std::string& argu
 
 } // namespace
 
-ToolExecutionCoordinator::ToolExecutionCoordinator(Workspace::IWorkspace& workspace) : m_workspace(workspace)
+ToolExecutionCoordinator::ToolExecutionCoordinator(Workspace::IWorkspace& workspace, const ToolRegistry& registry)
+    : m_workspace(workspace), m_registry(registry), m_observers(std::make_shared<ObserverState>())
 {
     m_workspace_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
         invalidate_pending(change);
     });
 }
 
-const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id)
+ToolExecutionCoordinator::~ToolExecutionCoordinator()
+{
+    m_observers->alive = false;
+    m_observers->observers.clear();
+}
+
+ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback listener)
+{
+    const std::uint64_t id = m_observers->next_id++;
+    m_observers->observers.emplace(id, std::move(listener));
+    std::weak_ptr<ObserverState> weak_state = m_observers;
+    return ToolActivitySubscription([weak_state, id]() {
+        if (auto state = weak_state.lock())
+            state->observers.erase(id);
+    });
+}
+
+const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
+                                                      ToolExecutionPacing pacing)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
+    const ToolDefinition* definition = m_registry.find(request.tool);
 
     ToolActivity activity;
     activity.action_id         = m_action_id_allocator ? m_action_id_allocator() : "t-" + std::to_string(m_next_action_id++);
     activity.correlation_id    = correlation_id;
     activity.server            = kServerName;
     activity.tool              = request.tool;
-    activity.title             = request.title;
     activity.arguments_json    = request.arguments_json;
-    activity.action_class      = request.action_class;
-    activity.requires_approval = approval_required(request.action_class);
     activity.session           = snapshot.session.value();
     activity.expected_revision = snapshot.revision;
-    activity.progress_total    = request.run_ticks > 0 ? request.run_ticks : 1;
+    activity.progress_total    = pacing.ticks > 0 ? pacing.ticks : 1;
+
+    if (definition != nullptr) {
+        activity.title             = definition->title;
+        activity.action_class      = definition->action_class;
+        activity.requires_approval = approval_required(definition->action_class);
+    } else {
+        activity.title = "Unknown tool request";
+    }
 
     m_activities.emplace_back(std::move(activity));
     ToolActivity& stored = m_activities.back();
+
+    if (definition == nullptr) {
+        fail(stored, "unknown_tool", "This build has no tool named \"" + request.tool + "\".");
+        return stored;
+    }
+
+    ToolValidationResult validation = m_registry.validate_call(*definition, request.arguments_json);
+    if (!validation.valid()) {
+        fail(stored, validation.error->code, validation.error->message);
+        return stored;
+    }
+    stored.arguments_json = std::move(validation.arguments_json);
+    stored.title = m_registry.approval_title(*definition, stored.arguments_json);
+
     notify(stored);
     if (!stored.requires_approval)
         start_running(stored);
@@ -177,7 +216,13 @@ void ToolExecutionCoordinator::start_running(ToolActivity& activity)
 
 void ToolExecutionCoordinator::execute(ToolActivity& activity)
 {
-    if (activity.tool == "duplicate_object") {
+    const ToolDefinition* definition = m_registry.find(activity.tool);
+    if (definition == nullptr) {
+        fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");
+        return;
+    }
+
+    if (definition->handler == ToolHandler::DuplicateObject) {
         const std::optional<Workspace::ObjectId> id = parse_object_argument(activity.arguments_json);
         if (!id) {
             fail(activity, "invalid_arguments", "The action arguments do not identify an object.");
@@ -201,7 +246,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    if (activity.tool == "import_model") {
+    if (definition->handler == ToolHandler::ImportModel) {
         const json arguments = json::parse(activity.arguments_json, nullptr, false);
         const std::string attachment_id =
             arguments.is_object() ? arguments.value("attachmentId", std::string()) : std::string();
@@ -229,7 +274,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    if (activity.tool == "inspect_selection") {
+    if (definition->handler == ToolHandler::InspectSelection) {
         const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
         json names = json::array();
         for (Workspace::ObjectId selected : snapshot.selected_objects)
@@ -243,8 +288,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    if (m_extension_executor) {
-        ExtensionResult result = m_extension_executor(activity);
+    if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
+        definition->handler == ToolHandler::RecordPhysicalPrint) {
+        if (!m_extension_executor) {
+            fail(activity, "execution_failed", "The registered tool executor is unavailable.");
+            return;
+        }
+        ExtensionResult result = m_extension_executor(definition->handler, activity);
         if (result.handled) {
             if (result.error) {
                 fail(activity, std::move(result.error->code), std::move(result.error->message));
@@ -255,9 +305,11 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             notify(activity);
             return;
         }
+        fail(activity, "execution_failed", "The registered tool executor did not handle the request.");
+        return;
     }
 
-    fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");
+    fail(activity, "execution_failed", "The registered tool has no executable handler.");
 }
 
 void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, std::string message)
@@ -269,8 +321,23 @@ void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, st
 
 void ToolExecutionCoordinator::notify(const ToolActivity& activity)
 {
-    if (m_listener)
-        m_listener(activity);
+    std::shared_ptr<ObserverState> state = m_observers;
+    std::vector<std::uint64_t> ids;
+    ids.reserve(state->observers.size());
+    for (const auto& observer : state->observers)
+        ids.push_back(observer.first);
+
+    // Look each observer up immediately before invocation so callbacks may
+    // safely unsubscribe themselves or another observer during dispatch.
+    for (const std::uint64_t id : ids) {
+        if (!state->alive)
+            break;
+        const auto observer = state->observers.find(id);
+        if (observer == state->observers.end())
+            continue;
+        ActivityCallback callback = observer->second;
+        callback(activity);
+    }
 }
 
 void ToolExecutionCoordinator::invalidate_pending(const Workspace::WorkspaceChanged& change)

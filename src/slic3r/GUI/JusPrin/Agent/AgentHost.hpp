@@ -135,7 +135,8 @@ private:
     void send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id = {});
     std::string attachment_preview_data_url(const AttachmentRecord& record) const;
     void send_tool_activity(const ToolActivity& activity, const std::string& correlation_id = {});
-    ToolExecutionCoordinator::ExtensionResult execute_manufacturing_tool(const ToolActivity& activity);
+    ToolExecutionCoordinator::ExtensionResult execute_manufacturing_tool(ToolHandler handler,
+                                                                         const ToolActivity& activity);
     void on_document_replaced();
 
     std::optional<ConversationMessage> find_stored_message(const std::string& id, std::string* conversation_id = nullptr) const;
@@ -154,6 +155,7 @@ private:
     Workspace::IWorkspace&           m_workspace;
     ProjectPersistence&              m_persistence;
     ToolExecutionCoordinator         m_tools;
+    ToolActivitySubscription         m_tool_activity_subscription;
     AgentServicePtr                  m_agent;
     AgentSetupServicePtr             m_setup;
     Workspace::WorkspaceSubscription m_workspace_subscription;

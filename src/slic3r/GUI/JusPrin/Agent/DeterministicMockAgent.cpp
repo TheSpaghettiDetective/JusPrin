@@ -110,16 +110,13 @@ const WorkspaceObject* first_selected_object(const WorkspaceSnapshot& context)
     return find_object(context, context.selected_objects.front());
 }
 
-ToolRequest duplicate_request(const WorkspaceSnapshot& context, const WorkspaceObject& object, int run_ticks)
+ToolRequest duplicate_request(const WorkspaceSnapshot& context, const WorkspaceObject& object)
 {
     ToolRequest request;
-    request.tool  = "duplicate_object";
-    request.title = "Duplicate \"" + object.name + "\"";
+    request.tool = "duplicate_object";
     request.arguments_json = json{{"sessionId", std::to_string(context.session.value())},
                                   {"objectId", std::to_string(object.id.value())}}
                                  .dump();
-    request.action_class = ActionClass::Mutation;
-    request.run_ticks    = run_ticks;
     return request;
 }
 
@@ -202,14 +199,12 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         // the failure exactly as they would a real one — nothing here is
         // special-cased downstream.
         ToolRequest request;
-        request.tool  = "duplicate_object";
-        request.title = "Duplicate a no-longer-existing object";
+        request.tool = "duplicate_object";
         request.arguments_json =
             json{{"sessionId", std::to_string(context.session.value())}, {"objectId", "999999999"}}.dump();
-        request.action_class = ActionClass::Mutation;
-        request.run_ticks    = 3;
         reply.chunks = chunk_words("I will try to duplicate an object that no longer exists so you can see the failure path.");
-        reply.tool   = request;
+        reply.tool           = request;
+        reply.tool_run_ticks = 3;
         return reply;
     }
     if (starts_with(user_text, "/toolslow")) {
@@ -217,16 +212,14 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         if (object == nullptr)
             return select_something_first();
         reply.chunks = chunk_words("Duplicating " + object->name + " slowly so you can watch the progress or cancel it.");
-        reply.tool   = duplicate_request(context, *object, 60);
+        reply.tool           = duplicate_request(context, *object);
+        reply.tool_run_ticks = 60;
         return reply;
     }
     if (starts_with(user_text, "/inspect")) {
         ToolRequest request;
         request.tool           = "inspect_selection";
-        request.title          = "Inspect the current selection";
         request.arguments_json = "{}";
-        request.action_class   = ActionClass::ReadOnly;
-        request.run_ticks      = 1;
         reply.chunks = chunk_words("Inspecting the current selection; read-only actions run without approval.");
         reply.tool   = request;
         return reply;
@@ -234,7 +227,6 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
     if (starts_with(user_text, "/build")) {
         ToolRequest request;
         request.tool           = "record_build";
-        request.title          = "Record a build of the sliced active plate";
         request.arguments_json = json{{"slicerVersion", "JusPrin deterministic Phase 6"},
                                       {"configurationProvenance", "Active printer, process, filament, plate, objects, instances, and transforms"},
                                       {"printTimeSeconds", 3720.0},
@@ -243,32 +235,27 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
                                       {"materialCost", 0.44},
                                       {"layerCount", 124}}
                                          .dump();
-        request.action_class = ActionClass::Mutation;
-        request.run_ticks    = 2;
         reply.chunks = chunk_words("I can preserve the active plate's revision, settings, slice statistics, and immutable hashes as a build record.");
-        reply.tool   = request;
+        reply.tool           = request;
+        reply.tool_run_ticks = 2;
         return reply;
     }
     if (starts_with(user_text, "/export")) {
         ToolRequest request;
         request.tool           = "record_export_copy";
-        request.title          = "Record an exported G-code copy";
         request.arguments_json = json{{"destination", "Phase 6 demo.gcode"}}.dump();
-        request.action_class   = ActionClass::Destructive;
-        request.run_ticks      = 2;
         reply.chunks = chunk_words("I can add a verified external-copy record linked to the latest build.");
-        reply.tool   = request;
+        reply.tool           = request;
+        reply.tool_run_ticks = 2;
         return reply;
     }
     if (starts_with(user_text, "/print")) {
         ToolRequest request;
         request.tool           = "record_physical_print";
-        request.title          = "Record a completed physical print";
         request.arguments_json = json{{"outcome", "completed"}}.dump();
-        request.action_class   = ActionClass::Destructive;
-        request.run_ticks      = 3;
         reply.chunks = chunk_words("I can add a completed physical-print fact linked to the latest build. This ledger entry will survive project Revert.");
-        reply.tool   = request;
+        reply.tool           = request;
+        reply.tool_run_ticks = 3;
         return reply;
     }
     // A sent model attachment is imported through Orca's own importer, as an
@@ -279,12 +266,9 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
             continue;
         ToolRequest request;
         request.tool           = "import_model";
-        request.title          = "Import \"" + attachment.name + "\" into the project";
         request.arguments_json = json{{"sessionId", std::to_string(context.session.value())},
                                       {"attachmentId", attachment.id}}
                                      .dump();
-        request.action_class = ActionClass::Mutation;
-        request.run_ticks    = 3;
         reply.chunks         = chunk_words(describe_attachments(attachments) +
                                    "Approve the import below and I will add it to the project through OrcaSlicer's own "
                                    "importer; you can undo it afterwards.");
@@ -299,7 +283,8 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         reply.chunks = chunk_words("I can duplicate " + object->name +
                                    " for you. Approve the action below and I will run it through OrcaSlicer's own "
                                    "duplicate command; you can undo it afterwards.");
-        reply.tool = duplicate_request(context, *object, 3);
+        reply.tool           = duplicate_request(context, *object);
+        reply.tool_run_ticks = 3;
         return reply;
     }
     reply.chunks = chunk_words(describe_attachments(attachments) + describe_workspace(context));
@@ -331,9 +316,10 @@ bool DeterministicMockAgent::start(const AgentRequest& request)
     else {
         if (reply.tool) {
             AgentToolCall call;
-            call.call_id      = "mock-" + request.request_id;
-            call.request      = *reply.tool;
-            call.await_result = false;
+            call.call_id        = "mock-" + request.request_id;
+            call.request        = *reply.tool;
+            call.await_result   = false;
+            call.test_run_ticks = reply.tool_run_ticks;
             m_events.emplace_back(AgentEvent::tool_call(std::move(call)));
         } else {
             m_events.emplace_back(AgentEvent::completed());
