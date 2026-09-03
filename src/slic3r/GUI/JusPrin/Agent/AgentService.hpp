@@ -39,6 +39,8 @@ struct AgentConversationContext
 
 struct AgentRequest
 {
+    enum class Purpose { Reply, ConversationTitle };
+    Purpose                              purpose{Purpose::Reply};
     std::string                           request_id;
     std::string                           user_text;
     int                                   attempt{1};

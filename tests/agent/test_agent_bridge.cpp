@@ -184,6 +184,12 @@ public:
     bool start(const AgentRequest& request) override
     {
         last_request = request;
+        if (request.purpose == AgentRequest::Purpose::ConversationTitle) {
+            events.push_back(AgentEvent::delta("Duplicate selected object"));
+            events.push_back(AgentEvent::completed());
+            active = true;
+            return true;
+        }
         ToolRequest tool;
         tool.tool = "duplicate_object";
         tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
@@ -227,7 +233,10 @@ public:
     {
         requests.push_back(request);
         active = true;
-        if (request.attempt == 1)
+        if (request.purpose == AgentRequest::Purpose::ConversationTitle) {
+            events.push_back(AgentEvent::delta("Provider retry discussion"));
+            events.push_back(AgentEvent::completed());
+        } else if (request.attempt == 1)
             events.push_back(AgentEvent::failed({"provider_timeout", "The provider timed out.", true}));
         else {
             events.push_back(AgentEvent::delta("Recovered without duplicating the turn."));
@@ -271,12 +280,12 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
     CHECK(page_types == std::set<std::string>{Protocol::kHello, Protocol::kStateRequest, Protocol::kUserMessage,
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
                                               Protocol::kToolCancel, Protocol::kCreateConversation,
-                                              Protocol::kSwitchConversation, Protocol::kRevertToRevision,
+                                              Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation, Protocol::kRevertToRevision,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
-    CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState,
+    CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
                                               Protocol::kContext, Protocol::kAppearance, Protocol::kAgentStatus,
                                               Protocol::kMessageAdded, Protocol::kAssistantStarted, Protocol::kAssistantDelta,
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
@@ -1213,7 +1222,8 @@ TEST_CASE("a provider retry reuses the native message without duplicating the tu
 
     harness.deliver("retry_message", json{{"messageId", assistant_id}});
     harness.pump_all();
-    REQUIRE(scripted->requests.size() == 2);
+    REQUIRE(scripted->requests.size() == 3);
+    CHECK(scripted->requests.back().purpose == AgentRequest::Purpose::ConversationTitle);
     CHECK(scripted->requests[0].request_id != scripted->requests[1].request_id);
     CHECK(scripted->requests[0].request_id.find(assistant_id + "-attempt-1") != std::string::npos);
     CHECK(scripted->requests[1].request_id.find(assistant_id + "-attempt-2") != std::string::npos);
@@ -1461,4 +1471,98 @@ TEST_CASE("a build with no setup service says so rather than accepting the key",
     REQUIRE(error != nullptr);
     CHECK((*error)["payload"]["code"] == "setup_unavailable");
     CHECK(harness.last_of_type("setup_status") == nullptr);
+}
+
+TEST_CASE("chat titles are metadata and user renames win over generation", "[agent][bridge][conversations]")
+{
+    Harness harness;
+    harness.handshake();
+    const auto id = harness.persistence.document().active_conversation_id();
+    harness.send_user_message("Help print a backpack frame", "title-user");
+    harness.pump_all();
+    REQUIRE(harness.host.conversation().size() == 2);
+    SECTION("a completed title is persisted and sent without a transcript message") {
+        for (int i = 0; i < 5; ++i) harness.host.pump_stream();
+        CHECK(harness.persistence.document().conversations().front().title == "Print setup discussion");
+        CHECK(harness.host.conversation().size() == 2);
+        const auto* update = harness.last_of_type("conversations_updated");
+        REQUIRE(update);
+        CHECK((*update)["payload"]["conversations"][0]["title"] == "Print setup discussion");
+        harness.host.reset_page();
+        harness.handshake();
+        CHECK((*harness.last_of_type("state"))["payload"]["conversations"][0]["title"] == "Print setup discussion");
+    }
+    SECTION("rename interrupts a title in progress and survives later exchanges") {
+        harness.deliver("rename_conversation", json{{"conversationId", id}, {"title", "My backpack"}});
+        for (int i = 0; i < 5; ++i) harness.host.pump_stream();
+        harness.send_user_message("What material?", "title-followup");
+        harness.pump_all();
+        for (int i = 0; i < 5; ++i) harness.host.pump_stream();
+        CHECK(harness.persistence.document().conversations().front().title == "My backpack");
+        CHECK(harness.host.conversation().size() == 4);
+    }
+    SECTION("a new user turn interrupts metadata generation") {
+        harness.send_user_message("What material?", "title-followup");
+        CHECK(harness.host.stream_active());
+        harness.pump_all();
+        for (int i = 0; i < 5; ++i) harness.host.pump_stream();
+        CHECK(harness.host.conversation().size() == 4);
+        CHECK(harness.persistence.document().conversations().front().title == "Print setup discussion");
+    }
+}
+
+TEST_CASE("chat deletion validates state and cannot affect another project", "[agent][bridge][conversations]")
+{
+    Harness harness;
+    harness.handshake();
+    const auto id = harness.persistence.document().active_conversation_id();
+    harness.send_user_message("Print this frame", "delete-user");
+    harness.deliver("delete_conversation", json{{"conversationId", id}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+    CHECK(harness.persistence.document().conversations().size() == 1);
+    harness.pump_all();
+    const auto revision = harness.workspace.snapshot().revision;
+    harness.deliver("delete_conversation", json{{"conversationId", id}});
+    REQUIRE(harness.persistence.document().conversations().size() == 1);
+    CHECK(harness.persistence.document().active_conversation_id() != id);
+    CHECK(harness.host.conversation().empty());
+    CHECK(harness.workspace.snapshot().revision == revision);
+    harness.deliver("rename_conversation", json{{"conversationId", id}, {"title", "Old chat"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "rename_failed");
+    harness.deliver("delete_conversation", json{{"conversationId", "another-project-chat"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_conversation");
+    CHECK(harness.persistence.document().conversations().size() == 1);
+}
+
+TEST_CASE("a title failure stays separate from a successful conversation", "[agent][bridge][conversations]")
+{
+    class FailingTitleAgent : public DeterministicMockAgent {
+    public:
+        bool start(const AgentRequest& request) override
+        {
+            fail_title = request.purpose == AgentRequest::Purpose::ConversationTitle;
+            return DeterministicMockAgent::start(request);
+        }
+        std::optional<AgentEvent> poll() override
+        {
+            if (fail_title) {
+                fail_title = false;
+                cancel();
+                return AgentEvent::failed({"provider_timeout", "Title request timed out", true});
+            }
+            return DeterministicMockAgent::poll();
+        }
+        bool fail_title{false};
+    };
+    Harness harness(std::make_unique<FailingTitleAgent>());
+    harness.handshake();
+    harness.send_user_message("Help with my print", "title-failure");
+    harness.pump_all();
+    harness.host.pump_stream();
+    CHECK(harness.host.conversation().size() == 2);
+    CHECK(harness.host.conversation().back().state == MessageState::Complete);
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "title_generation_failed");
+    harness.deliver("rename_conversation", json{{"conversationId", harness.persistence.document().active_conversation_id()},
+                                              {"title", "My print"}});
+    CHECK(harness.persistence.document().conversations().front().title == "My print");
 }

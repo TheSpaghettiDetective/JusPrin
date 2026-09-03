@@ -19,6 +19,8 @@ export type PageMessageType =
   | 'tool_cancel'
   | 'create_conversation'
   | 'switch_conversation'
+  | 'rename_conversation'
+  | 'delete_conversation'
   | 'revert_to_revision'
   | 'draft_update'
   | 'attach_file'
@@ -30,6 +32,7 @@ export type HostMessageType =
   | 'hello_ack'
   | 'hello_reject'
   | 'state'
+  | 'conversations_updated'
   | 'context'
   | 'appearance'
   | 'agent_status'
@@ -180,6 +183,8 @@ export interface ConversationInfo {
   id: string;
   title: string;
   createdAt: string;
+  updatedAt?: string;
+  preview?: string;
 }
 
 // One entry of the linear manufacturing-revision timeline shared by every
@@ -262,6 +267,7 @@ export interface PhysicalPrintInfo {
 }
 
 export interface StatePayload {
+  conversationBusy?: boolean;
   agent: { status: AgentStatus };
   appearance: Appearance;
   conversations: ConversationInfo[];

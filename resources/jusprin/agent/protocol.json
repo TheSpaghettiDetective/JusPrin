@@ -12,7 +12,8 @@
     "revisions",
     "attachments",
     "manufacturing_history",
-    "agent_setup"
+    "agent_setup",
+    "conversation_management"
   ],
   "pageMessageTypes": [
     "hello",
@@ -24,6 +25,8 @@
     "tool_cancel",
     "create_conversation",
     "switch_conversation",
+    "rename_conversation",
+    "delete_conversation",
     "revert_to_revision",
     "draft_update",
     "attach_file",
@@ -35,6 +38,7 @@
     "hello_ack",
     "hello_reject",
     "state",
+    "conversations_updated",
     "context",
     "appearance",
     "agent_status",

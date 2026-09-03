@@ -1,6 +1,8 @@
 #include "ToolExecutionCoordinator.hpp"
 
 #include <nlohmann/json.hpp>
+#include <algorithm>
+#include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -188,6 +190,19 @@ bool ToolExecutionCoordinator::any_running() const
         if (activity.state == ToolState::Running)
             return true;
     return false;
+}
+
+void ToolExecutionCoordinator::forget_terminal_activities(const std::vector<std::string>& message_ids)
+{
+    const auto belongs_to_chat = [&](const ToolActivity& activity) {
+        return std::find(message_ids.begin(), message_ids.end(), activity.correlation_id) != message_ids.end();
+    };
+    for (const auto& activity : m_activities)
+        if (belongs_to_chat(activity) && !tool_state_terminal(activity.state))
+            throw std::logic_error("Cannot forget an in-flight tool activity");
+    m_activities.erase(std::remove_if(m_activities.begin(), m_activities.end(), [&](const ToolActivity& activity) {
+        return belongs_to_chat(activity);
+    }), m_activities.end());
 }
 
 const ToolActivity* ToolExecutionCoordinator::find(const std::string& action_id) const

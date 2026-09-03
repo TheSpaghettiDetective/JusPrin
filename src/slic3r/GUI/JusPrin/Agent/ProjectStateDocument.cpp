@@ -414,14 +414,36 @@ void ProjectStateDocument::initialize_identity(const std::string& project_id,
     m_doc["project"]["projectId"] = project_id;
     m_doc["project"]["lineageId"] = lineage_id;
     m_doc["project"]["createdAt"] = timestamp;
-    create_conversation("Conversation 1", timestamp);
+    create_conversation({}, timestamp);
 }
 
 std::vector<ConversationInfo> ProjectStateDocument::conversations() const
 {
     std::vector<ConversationInfo> result;
-    for (const json& entry : m_doc["conversations"])
-        result.push_back(ConversationInfo{entry.value("id", ""), entry.value("title", ""), entry.value("createdAt", "")});
+    for (const json& entry : m_doc["conversations"]) {
+        ConversationInfo info{entry.value("id", ""), entry.value("title", ""), entry.value("createdAt", "")};
+        info.updated_at = info.created_at;
+        info.activity_seq = entry.value("seq", std::uint64_t{0});
+        for (const json& message : entry["messages"]) {
+            info.updated_at = message.value("createdAt", info.updated_at);
+            info.activity_seq = message.value("seq", info.activity_seq);
+            const std::string text = message.value("text", "");
+            if (!text.empty())
+                info.preview = text;
+            else if (message.contains("attachments") && !message["attachments"].empty())
+                info.preview = "Attachment";
+        }
+        // Bound bridge metadata without splitting a UTF-8 code point.
+        if (info.preview.size() > 512) {
+            std::size_t end = 512;
+            while ((static_cast<unsigned char>(info.preview[end]) & 0xc0) == 0x80) --end;
+            info.preview.resize(end);
+        }
+        result.push_back(std::move(info));
+    }
+    std::stable_sort(result.begin(), result.end(), [](const auto& a, const auto& b) {
+        return a.activity_seq > b.activity_seq;
+    });
     return result;
 }
 
@@ -434,7 +456,8 @@ std::string ProjectStateDocument::create_conversation(const std::string& title, 
     const std::string id = "c-" + std::to_string(number);
     m_doc["conversations"].push_back(json{{"id", id},
                                           {"seq", next_seq()},
-                                          {"title", title.empty() ? "Conversation " + std::to_string(number) : title},
+                                          {"title", title.empty() ? "New chat" : title},
+                                          {"titleSource", title.empty() ? "default" : "manual"},
                                           {"createdAt", timestamp},
                                           {"messages", json::array()}});
     m_doc["activeConversationId"] = id;
@@ -451,6 +474,74 @@ bool ProjectStateDocument::set_active_conversation(const std::string& conversati
     m_doc["activeConversationId"] = conversation_id;
     touch();
     return true;
+}
+
+bool ProjectStateDocument::needs_conversation_title(const std::string& conversation_id) const
+{
+    const json* conversation = conversation_json(conversation_id);
+    if (!conversation) return false;
+    if (conversation->contains("titleSource"))
+        return (*conversation)["titleSource"] == "default";
+    // Older projects used numbered placeholder titles and had no source flag.
+    const std::string id = conversation->value("id", "");
+    return id.rfind("c-", 0) == 0 && conversation->value("title", "") == "Conversation " + id.substr(2);
+}
+
+bool ProjectStateDocument::rename_conversation(const std::string& conversation_id, const std::string& title, bool generated)
+{
+    json* conversation = conversation_json(conversation_id);
+    if (!conversation || (generated && !needs_conversation_title(conversation_id))) return false;
+    const auto first = title.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return false;
+    std::string cleaned = title.substr(first, title.find_last_not_of(" \t\r\n") - first + 1);
+    const auto characters = std::count_if(cleaned.begin(), cleaned.end(), [](unsigned char byte) {
+        return (byte & 0xc0) != 0x80;
+    });
+    if (characters > 120 || cleaned.find_first_of("\r\n") != std::string::npos) return false;
+    (*conversation)["title"] = std::move(cleaned);
+    (*conversation)["titleSource"] = generated ? "generated" : "manual";
+    touch();
+    return true;
+}
+
+std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversation(const std::string& conversation_id,
+                                                                                const std::string& timestamp)
+{
+    const json* conversation = conversation_json(conversation_id);
+    if (!conversation) return std::nullopt;
+    std::set<std::string> message_ids;
+    std::set<std::string> attachment_ids;
+    for (const json& message : (*conversation)["messages"]) {
+        message_ids.insert(message.value("id", ""));
+        for (const auto& id : message.value("attachments", json::array()))
+            attachment_ids.insert(id.get<std::string>());
+    }
+    auto& chats = m_doc["conversations"];
+    chats.erase(std::remove_if(chats.begin(), chats.end(), [&](const json& entry) {
+        return entry.value("id", "") == conversation_id;
+    }), chats.end());
+    auto& activities = m_doc["toolActivities"];
+    activities.erase(std::remove_if(activities.begin(), activities.end(), [&](const json& entry) {
+        return message_ids.count(entry.value("correlationId", "")) != 0;
+    }), activities.end());
+    for (const json& chat : chats)
+        for (const json& message : chat["messages"])
+            for (const auto& id : message.value("attachments", json::array()))
+                attachment_ids.erase(id.get<std::string>());
+    std::vector<std::string> removed_dirs;
+    auto& attachments = m_doc["attachments"];
+    attachments.erase(std::remove_if(attachments.begin(), attachments.end(), [&](const json& entry) {
+        const std::string id = entry.value("id", "");
+        if (!attachment_ids.count(id) || entry.value("state", "") == "staged") return false;
+        removed_dirs.push_back("attachments/" + id);
+        return true;
+    }), attachments.end());
+    if (chats.empty())
+        create_conversation({}, timestamp);
+    else if (active_conversation_id() == conversation_id)
+        m_doc["activeConversationId"] = conversations().front().id;
+    touch();
+    return removed_dirs;
 }
 
 nlohmann::json* ProjectStateDocument::conversation_json(const std::string& conversation_id)

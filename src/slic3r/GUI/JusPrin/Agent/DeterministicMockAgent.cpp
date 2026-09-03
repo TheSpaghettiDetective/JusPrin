@@ -295,6 +295,12 @@ bool DeterministicMockAgent::start(const AgentRequest& request)
 {
     if (m_busy)
         return false;
+    if (request.purpose == AgentRequest::Purpose::ConversationTitle) {
+        m_events.emplace_back(AgentEvent::delta("Print setup discussion"));
+        m_events.emplace_back(AgentEvent::completed());
+        m_busy = true;
+        return true;
+    }
 
     std::vector<AttachmentContext> attachments;
     attachments.reserve(request.attachments.size());

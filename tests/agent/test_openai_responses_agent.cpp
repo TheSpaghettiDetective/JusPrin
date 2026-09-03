@@ -129,6 +129,29 @@ TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent]
     CHECK_FALSE(agent.busy());
 }
 
+TEST_CASE("automatic chat titles use the configured model without tools or workspace data", "[agent][openai][conversations]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    auto* fake = transport.get();
+    OpenAIResponsesAgent agent({"secret-key", "configured-model"}, std::move(transport));
+    auto request = request_fixture();
+    request.purpose = AgentRequest::Purpose::ConversationTitle;
+    request.conversation = {{"user", "Help me print a backpack frame"}, {"assistant", "Use five walls."}};
+    REQUIRE(agent.start(request));
+    const auto body = json::parse(fake->requests.back().body);
+    CHECK(body["model"] == "configured-model");
+    CHECK(body["store"] == false);
+    CHECK_FALSE(body.contains("tools"));
+    CHECK(body["input"].size() == 2);
+    CHECK(body.dump().find("sessionId") == std::string::npos);
+    CHECK(body.dump().find("notes.txt") == std::string::npos);
+    fake->data(sse(json{{"type", "response.output_text.delta"}, {"delta", "Backpack frame print"}}) +
+               sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array()}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::TextDelta));
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    CHECK_FALSE(agent.busy());
+}
+
 TEST_CASE("OpenAI exposes attachment import only when its registered availability is satisfied",
           "[agent][openai][tools]")
 {

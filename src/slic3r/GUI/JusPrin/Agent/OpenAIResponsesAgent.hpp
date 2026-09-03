@@ -95,6 +95,7 @@ private:
     bool                                  m_waiting_for_tool{false};
     bool                                  m_terminal_seen{false};
     bool                                  m_allow_import{false};
+    bool                                  m_title_request{false};
 };
 
 std::unique_ptr<IAgentHttpTransport> make_openai_http_transport();

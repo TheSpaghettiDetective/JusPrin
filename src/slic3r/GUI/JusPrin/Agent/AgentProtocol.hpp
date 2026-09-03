@@ -26,7 +26,7 @@ inline const std::vector<std::string>& capabilities()
     static const std::vector<std::string> values{"streaming",   "stop",        "retry",
                                                  "context",     "appearance",  "tools",
                                                  "conversations", "revisions", "attachments",
-                                                 "manufacturing_history", "agent_setup"};
+                                                 "manufacturing_history", "agent_setup", "conversation_management"};
     return values;
 }
 
@@ -40,6 +40,9 @@ inline constexpr const char* kToolDecision       = "tool_decision";
 inline constexpr const char* kToolCancel         = "tool_cancel";
 inline constexpr const char* kCreateConversation = "create_conversation";
 inline constexpr const char* kSwitchConversation = "switch_conversation";
+inline constexpr const char* kRenameConversation = "rename_conversation";
+inline constexpr const char* kDeleteConversation = "delete_conversation";
+inline constexpr const char* kConversationsUpdated = "conversations_updated";
 inline constexpr const char* kRevertToRevision   = "revert_to_revision";
 inline constexpr const char* kDraftUpdate        = "draft_update";
 inline constexpr const char* kAttachFile         = "attach_file";

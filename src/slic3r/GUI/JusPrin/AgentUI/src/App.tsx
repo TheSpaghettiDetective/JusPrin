@@ -4,7 +4,7 @@ import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { ContextSummary } from './components/ContextSummary';
-import { ConversationBar } from './components/ConversationBar';
+import { ChatHeader, ChatList } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { Composer } from './components/Composer';
 import {
@@ -47,6 +47,8 @@ declare global {
       cancelTool(actionId: string): void;
       createConversation(): void;
       switchConversation(conversationId: string): void;
+      renameConversation(conversationId: string, title: string): void;
+      deleteConversation(conversationId: string): void;
       revert(revisionId: string): void;
       setDraft(text: string): void;
       openSetup(): void;
@@ -81,6 +83,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // the host cares which credentials it was asked to check, not which panel
   // is on screen, so navigating setup costs no bridge traffic.
   const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey'>('offer');
+  const [view, setView] = useState<'chat' | 'list' | 'setup'>('chat');
+  const [commandError, setCommandError] = useState<string | null>(null);
+  const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
   const [connected, setConnected] = useState<{ provider: string; warning?: string } | null>(null);
@@ -94,7 +99,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       onConnectionChange: (connection, detail) => dispatch({ kind: 'connection', state: connection, detail }),
       onEnvelope: (envelope: Envelope) => {
         if (envelope.type === 'bridge_error') {
-          const payload = envelope.payload as { code?: string };
+          const payload = envelope.payload as { code?: string; message?: string };
+          setCommandError(payload.message ?? 'The action could not be completed.');
           // The host restarts after a reload on its side; if it forgot us,
           // simply shake hands again.
           if (payload.code === 'handshake_required') created.retry();
@@ -114,6 +120,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
 
   useEffect(() => {
     if (state.needsResync) {
@@ -184,7 +192,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     // The key screen stays up until that happens, so the round-trip the check
     // measured is actually readable rather than flashing past.
     setConnected({ provider: state.setup.provider ?? DEFAULT_PROVIDER, warning: state.setup.warning });
-  }, [state.setup.phase, state.setup.provider, state.setup.warning]);
+    if (state.agentStatus === 'ready') setView('chat');
+  }, [state.setup.phase, state.setup.provider, state.setup.warning, state.agentStatus]);
 
   useEffect(() => {
     // A connected Agent replaces the setup surface entirely; if the dock ever
@@ -199,6 +208,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       cancelTool: sendToolCancel,
       createConversation: () => client.send('create_conversation', {}),
       switchConversation: (conversationId: string) => client.send('switch_conversation', { conversationId }),
+      renameConversation: (conversationId, title) => client.send('rename_conversation', { conversationId, title }),
+      deleteConversation: (conversationId) => client.send('delete_conversation', { conversationId }),
       revert: sendRevert,
       setDraft: (text: string) => client.send('draft_update', { text }),
       openSetup: () => setSetupScreen('chooser'),
@@ -241,14 +252,34 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // keeps its history and gets the banner above it instead.
   const notConfigured = unavailable && state.messages.length === 0;
   const streaming = state.streamingMessageId !== null;
+  const busy = streaming || state.conversationBusy;
+  const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
+  const pendingAction = state.toolActivities.some((activity) =>
+    state.messages.some((message) => message.id === activity.correlationId) &&
+    ['pending', 'approved', 'running'].includes(activity.state));
+  const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
+  const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); };
+
+  const errorNotice = commandError && <div className="chat-error" role="alert">
+    <span>{commandError}</span><button aria-label="Dismiss error" onClick={() => setCommandError(null)}>×</button>
+  </div>;
+
+  const chatList = <ChatList conversations={state.conversations} activeId={state.activeConversationId} busy={busy}
+      onSwitch={(conversationId) => {
+        if (conversationId !== state.activeConversationId) client.send('switch_conversation', { conversationId });
+        setView('chat');
+      }} onCreate={createChat} onConfigure={() => {
+        setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
+      }} />;
 
   // The dock body is one of three things: the conversation, the offer, or a
   // setup screen. Setup replaces the body rather than covering it, so backing
   // out returns to exactly what was there before.
   const body = () => {
-    if (!notConfigured)
+    if (!notConfigured && view !== 'setup')
       return (
         <MessageList
+          key={`messages-${state.context?.sessionId}-${state.activeConversationId}`}
           messages={state.messages}
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
@@ -264,7 +295,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         />
       );
     if (setupScreen === 'chooser')
-      return <SetupChooser onUseApiKey={() => setSetupScreen('apiKey')} onDismiss={() => setSetupScreen('offer')} />;
+      return <SetupChooser onUseApiKey={() => setSetupScreen('apiKey')} onDismiss={closeSetup} />;
     if (setupScreen === 'apiKey')
       return (
         <SetupApiKey
@@ -282,18 +313,19 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
 
   return (
     <div className="app">
-      {notConfigured ? (
+      {errorNotice}
+      {view === 'list' && chatList}
+      <div className="chat-content" hidden={view === 'list'}>
+      {notConfigured && state.conversations.length === 1 && view !== 'setup' ? (
         <AgentNotConfiguredHeader />
       ) : (
         <>
-          <ContextSummary context={state.context} />
-          <ConversationBar
-            conversations={state.conversations}
-            activeConversationId={state.activeConversationId}
-            busy={streaming}
-            onSwitch={(conversationId) => client.send('switch_conversation', { conversationId })}
-            onCreate={() => client.send('create_conversation', {})}
-          />
+          <ChatHeader key={`header-${state.context?.sessionId}-${state.activeConversationId}`} title={activeChat?.title || 'New chat'} busy={busy || pendingAction}
+            onBack={() => { if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
+            onCreate={createChat}
+            onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
+            onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }} />
+          {view === 'chat' && !notConfigured && <ContextSummary context={state.context} />}
         </>
       )}
       {unavailable && !notConfigured && <AgentUnavailableNotice />}
@@ -305,7 +337,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         />
       )}
       {body()}
-      <Composer
+      <div hidden={view === 'setup'}><Composer
+        key={`composer-${state.context?.sessionId}-${state.activeConversationId}`}
         disabled={unavailable}
         disabledReason={notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
         streaming={streaming}
@@ -319,7 +352,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         onRemoveAttachment={removeAttachment}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
-      />
+      /></div>
+      </div>
     </div>
   );
 }

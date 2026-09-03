@@ -399,12 +399,92 @@ describe('App', () => {
       }),
     );
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Second' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    expect(screen.queryByRole('log')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Open chat: Second' }));
     const switched = host.lastOfType('switch_conversation');
     expect(switched!.payload).toEqual({ conversationId: 'conv-2' });
 
-    await userEvent.click(screen.getByLabelText('New conversation'));
+    await userEvent.click(screen.getByLabelText('New chat'));
     expect(host.lastOfType('create_conversation')).toBeTruthy();
+  });
+
+  it('offers Rename above Delete and preserves messages when a title changes', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: proposalConversation() }));
+    await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Rename', 'Delete']);
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toHaveFocus();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    const input = screen.getByRole('textbox', { name: 'Chat title' });
+    expect(input).toHaveFocus();
+    await userEvent.clear(input);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await userEvent.type(input, 'My backpack frame{Enter}');
+    expect(host.lastOfType('rename_conversation')?.payload).toEqual({ conversationId: 'conv-1', title: 'My backpack frame' });
+    host.deliver('conversations_updated', { conversations: [{ id: 'conv-1', title: 'My backpack frame', createdAt: 't', preview: 'Five walls' }], busy: false });
+    expect(screen.getByRole('heading', { name: 'My backpack frame' })).toBeInTheDocument();
+    expect(screen.getByText('duplicate the selected object')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chat actions' })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    expect(screen.getByRole('button', { name: 'Open chat: My backpack frame' })).toHaveTextContent('Five walls');
+  });
+
+  it('requires confirmation to delete a chat and returns to the list', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    expect(host.lastOfType('delete_conversation')).toBeUndefined();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(host.lastOfType('delete_conversation')?.payload).toEqual({ conversationId: 'conv-1' });
+    host.deliver('state', emptyState({ activeConversationId: 'conv-2', conversations: [{ id: 'conv-2', title: 'New chat', createdAt: 't' }] }));
+    expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open chat: Conversation 1' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open chat: New chat' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'New chat' }));
+    expect(host.lastOfType('create_conversation')).toBeTruthy();
+  });
+
+  it('keeps a draft when browsing chats and opens configuration for a connected agent', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message the Agent' }), 'Unsaved thought');
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open chat: Conversation 1' }));
+    expect(screen.getByRole('textbox', { name: 'Message the Agent' })).toHaveValue('Unsaved thought');
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    await userEvent.click(screen.getByRole('button', { name: /Configure Agent/ }));
+    expect(screen.getByTestId('setup-chooser')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Close setup' }));
+    expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
+  });
+
+  it('disables changing chats while a tool continuation is pending and surfaces rejected actions', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversationBusy: true }));
+    expect(screen.getByRole('button', { name: 'New chat' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeEnabled();
+    host.deliver('bridge_error', { code: 'busy', message: 'Resolve pending actions before deleting this chat.' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Resolve pending actions');
+  });
+
+  it('replaces the chat list when the native project changes', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    host.deliver('state', emptyState({ context: { ...context, sessionId: 'other-project' }, conversations: [{ id: 'other', title: 'Other project chat', createdAt: 't' }], activeConversationId: 'other' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    expect(screen.queryByRole('button', { name: 'Open chat: Conversation 1' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open chat: Other project chat' })).toBeInTheDocument();
   });
 
   it('renders revision markers and requires explicit confirmation to revert', async () => {

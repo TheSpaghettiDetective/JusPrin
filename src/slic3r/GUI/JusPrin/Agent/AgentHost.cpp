@@ -13,6 +13,15 @@ namespace Slic3r::GUI::JusPrin::Agent {
 namespace {
 
 using nlohmann::json;
+
+json conversation_list_json(const ProjectStateDocument& document)
+{
+    json result = json::array();
+    for (const ConversationInfo& info : document.conversations())
+        result.push_back(json{{"id", info.id}, {"title", info.title}, {"createdAt", info.created_at},
+                              {"updatedAt", info.updated_at}, {"preview", info.preview}});
+    return result;
+}
 using Workspace::SelectionStatus;
 using Workspace::WorkspaceSnapshot;
 
@@ -539,6 +548,7 @@ std::vector<ConversationMessage> AgentHost::conversation() const
 
 void AgentHost::on_document_replaced()
 {
+    m_title.reset();
     if (m_agent)
         m_agent->cancel();
     m_stream.reset();
@@ -582,9 +592,7 @@ void AgentHost::send_state(const std::string& correlation_id)
     const ProjectStateDocument& document = m_persistence.document();
     const std::string active = document.active_conversation_id();
 
-    json conversations = json::array();
-    for (const ConversationInfo& info : document.conversations())
-        conversations.push_back(json{{"id", info.id}, {"title", info.title}, {"createdAt", info.created_at}});
+    json conversations = conversation_list_json(document);
 
     json conversation = json::array();
     for (const ConversationMessage& message : document.messages(active))
@@ -634,6 +642,7 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"activeConversationId", active},
                  {"conversation", std::move(conversation)},
                  {"streamingMessageId", m_stream ? json(m_stream->message.id) : json(nullptr)},
+                 {"conversationBusy", m_stream.has_value() || !m_tool_continuations.empty()},
                  {"toolActivities", std::move(tool_activities)},
                  {"revisions", std::move(revisions)},
                  {"draft", m_persistence.draft()},
@@ -651,6 +660,13 @@ void AgentHost::send_context()
     m_last_session  = snapshot.session.value();
     m_last_revision = snapshot.revision;
     send_envelope(Protocol::kContext, json{{"context", context_json(snapshot)}}.dump());
+}
+
+void AgentHost::send_conversations()
+{
+    send_envelope(Protocol::kConversationsUpdated,
+                  json{{"conversations", conversation_list_json(m_persistence.document())},
+                       {"busy", m_stream.has_value() || !m_tool_continuations.empty()}}.dump());
 }
 
 void AgentHost::on_page_message(const std::string& envelope_json)
@@ -706,6 +722,10 @@ void AgentHost::on_page_message(const std::string& envelope_json)
         handle_create_conversation(envelope_id, payload);
     else if (type == Protocol::kSwitchConversation)
         handle_switch_conversation(envelope_id, payload);
+    else if (type == Protocol::kRenameConversation)
+        handle_rename_conversation(envelope_id, payload);
+    else if (type == Protocol::kDeleteConversation)
+        handle_delete_conversation(envelope_id, payload);
     else if (type == Protocol::kRevertToRevision)
         handle_revert_to_revision(envelope_id, payload);
     else if (type == Protocol::kDraftUpdate)
@@ -762,6 +782,10 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
 
 void AgentHost::handle_user_message(const std::string& envelope_id, const std::string& payload_json)
 {
+    if (m_setup_pending) {
+        send_bridge_error("setup_busy", "Finish or cancel Agent configuration before sending a message.", envelope_id);
+        return;
+    }
     const json payload = json::parse(payload_json, nullptr, false);
     if (!payload.is_object() || !payload.contains("clientMessageId") || !payload["clientMessageId"].is_string() ||
         !payload.contains("text") || !payload["text"].is_string()) {
@@ -820,6 +844,7 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     m_persistence.set_draft({});
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump(), envelope_id);
 
+    cancel_conversation_title();
     if (agent_busy()) {
         // The page disables sending while a reply streams; if a message
         // arrives anyway, answer it after the current stream finishes.
@@ -827,6 +852,7 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
         return;
     }
     begin_reply(message.id);
+    send_conversations();
 }
 
 std::string AgentHost::attachment_preview_data_url(const AttachmentRecord& record) const
@@ -980,10 +1006,12 @@ void AgentHost::handle_stop(const std::string& payload_json)
     m_persistence.flush();
     send_envelope(Protocol::kAssistantStopped, json{{"messageId", stream.message.id}}.dump());
     start_next_queued_reply();
+    send_conversations();
 }
 
 void AgentHost::handle_retry(const std::string& envelope_id, const std::string& payload_json)
 {
+    cancel_conversation_title();
     const json payload = json::parse(payload_json, nullptr, false);
     const std::string message_id = payload.is_object() ? payload.value("messageId", "") : std::string();
 
@@ -996,7 +1024,7 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
                           envelope_id);
         return;
     }
-    if (agent_busy()) {
+    if (agent_busy() || m_setup_pending) {
         send_bridge_error("busy", "Another reply is currently streaming.", envelope_id);
         return;
     }
@@ -1051,6 +1079,7 @@ void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::st
 
 void AgentHost::handle_create_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
+    cancel_conversation_title();
     if (agent_busy()) {
         send_bridge_error("busy", "Finish or stop the streaming reply before changing conversations.", envelope_id);
         return;
@@ -1064,6 +1093,7 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
+    cancel_conversation_title();
     if (agent_busy()) {
         send_bridge_error("busy", "Finish or stop the streaming reply before changing conversations.", envelope_id);
         return;
@@ -1078,8 +1108,56 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
     send_state(envelope_id);
 }
 
+void AgentHost::handle_rename_conversation(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    if (!payload.is_object() || !payload.contains("title") || !payload["title"].is_string() ||
+        !payload.contains("conversationId") || !payload["conversationId"].is_string()) {
+        send_bridge_error("invalid_payload", "Rename requires a chat and a title.", envelope_id);
+        return;
+    }
+    const std::string id = payload["conversationId"].get<std::string>();
+    if (!is_valid_utf8(payload["title"].get<std::string>()) ||
+        !m_persistence.document().rename_conversation(id, payload["title"].get<std::string>())) {
+        send_bridge_error("rename_failed", "Use a non-empty, single-line title of at most 120 characters for an existing chat.",
+                          envelope_id);
+        return;
+    }
+    if (m_title && m_title->conversation_id == id) cancel_conversation_title();
+    m_persistence.flush();
+    send_conversations();
+}
+
+void AgentHost::handle_delete_conversation(const std::string& envelope_id, const std::string& payload_json)
+{
+    cancel_conversation_title();
+    const json payload = json::parse(payload_json, nullptr, false);
+    const std::string id = payload.is_object() ? payload.value("conversationId", "") : std::string();
+    std::vector<std::string> message_ids;
+    for (const auto& message : m_persistence.document().messages(id)) message_ids.push_back(message.id);
+    const auto belongs_to_chat = [&](const ToolActivity& activity) {
+        return std::find(message_ids.begin(), message_ids.end(), activity.correlation_id) != message_ids.end();
+    };
+    if (agent_busy() || std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [&](const auto& activity) {
+            return belongs_to_chat(activity) && !tool_state_terminal(activity.state);
+        })) {
+        send_bridge_error("busy", "Finish or stop the reply and resolve pending actions before deleting this chat.", envelope_id);
+        return;
+    }
+    const auto removed = m_persistence.document().delete_conversation(id, m_persistence.timestamp());
+    if (!removed) {
+        send_bridge_error("unknown_conversation", "This chat no longer exists.", envelope_id);
+        return;
+    }
+    m_tools.forget_terminal_activities(message_ids);
+    m_persistence.flush();
+    for (const auto& directory : *removed) m_persistence.remove_attachment_dir(directory);
+    send_state(envelope_id);
+}
+
 void AgentHost::handle_revert_to_revision(const std::string& envelope_id, const std::string& payload_json)
 {
+    cancel_conversation_title();
     if (agent_busy() || m_tools.any_running()) {
         send_bridge_error("busy", "Finish or stop the current activity before reverting.", envelope_id);
         return;
@@ -1236,6 +1314,11 @@ void AgentHost::send_setup_status(const std::string&               phase,
 
 void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json)
 {
+    cancel_conversation_title();
+    if (agent_busy()) {
+        send_bridge_error("busy", "Finish or stop the current reply before configuring the Agent.", envelope_id);
+        return;
+    }
     if (!m_setup) {
         send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
         return;
@@ -1308,10 +1391,8 @@ void AgentHost::pump_setup()
 
     send_setup_status("verified", {}, outcome->elapsed_ms, std::nullopt, warning);
     m_setup_pending.reset();
-    // set_agent refuses an installation while a turn is in flight. Setup is
-    // only reachable with no service configured, and an unconfigured host
-    // rejects user messages before any stream or tool continuation starts, so
-    // there is nothing here for it to refuse.
+    // Configuration starts only between turns; messages and retries stay
+    // blocked while the credential check is pending.
     set_agent(std::move(outcome->service), AgentAvailability::Ready);
 }
 
@@ -1472,6 +1553,8 @@ void AgentHost::complete_stream()
     m_persistence.flush();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
     start_next_queued_reply();
+    send_conversations();
+    start_conversation_title(stream.conversation_id);
 }
 
 void AgentHost::fail_stream(AgentError error)
@@ -1487,6 +1570,7 @@ void AgentHost::fail_stream(AgentError error)
     send_envelope(Protocol::kAssistantFailed,
                   json{{"messageId", stream.message.id}, {"error", error_json(*stream.message.error)}}.dump());
     start_next_queued_reply();
+    send_conversations();
 }
 
 void AgentHost::handle_agent_tool_call(AgentToolCall call)
@@ -1512,6 +1596,7 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     } else {
         start_next_queued_reply();
     }
+    send_conversations();
 }
 
 void AgentHost::continue_after_tool(const ToolActivity& activity)
@@ -1566,6 +1651,10 @@ void AgentHost::begin_tool_followup(const PendingToolContinuation& continuation)
 
 void AgentHost::pump_stream()
 {
+    if (m_title && m_handshake) {
+        pump_conversation_title();
+        return;
+    }
     if (!m_stream || !m_handshake)
         return;
 
@@ -1589,6 +1678,62 @@ void AgentHost::pump_stream()
         fail_stream(next->error.value_or(AgentError{"agent_error", "The Agent request failed.", true}));
     else if (next->kind == AgentEventKind::Completed)
         complete_stream();
+}
+
+void AgentHost::start_conversation_title(const std::string& conversation_id)
+{
+    const auto& document = m_persistence.document();
+    if (agent_busy() || !m_agent || !document.needs_conversation_title(conversation_id)) return;
+    AgentRequest request;
+    request.purpose = AgentRequest::Purpose::ConversationTitle;
+    request.request_id = document.project_id() + "-" + conversation_id + "-title-" + std::to_string(document.doc_revision());
+    // Only the first completed exchange is needed. No workspace, files, tools,
+    // or title-generation output enter the conversation's message history.
+    bool has_reply = false;
+    for (const auto& message : document.messages(conversation_id)) {
+        if (message.role == MessageRole::User && !request.conversation.empty()) break;
+        if (message.state != MessageState::Complete) continue;
+        std::string text = message.text;
+        if (text.size() > 4096) {
+            text.resize(4096);
+            while (!text.empty() && !is_valid_utf8(text)) text.pop_back();
+        }
+        request.conversation.push_back({message.role == MessageRole::User ? "user" : "assistant", std::move(text)});
+        has_reply = has_reply || message.role == MessageRole::Assistant;
+    }
+    if (!has_reply) return;
+    if (!m_agent->start(request)) {
+        send_bridge_error("title_generation_failed", "The automatic chat title could not be generated. You can rename the chat.");
+        return;
+    }
+    m_title = PendingTitle{conversation_id, {}};
+}
+
+void AgentHost::cancel_conversation_title()
+{
+    if (!m_title) return;
+    m_agent->cancel();
+    m_title.reset();
+}
+
+void AgentHost::pump_conversation_title()
+{
+    const auto event = m_agent->poll();
+    if (!event) return;
+    if (event->kind == AgentEventKind::TextDelta) {
+        m_title->text += event->text;
+        if (m_title->text.size() <= 2048) return;
+    } else if (event->kind == AgentEventKind::Completed && is_valid_utf8(m_title->text) &&
+               m_persistence.document().rename_conversation(m_title->conversation_id, m_title->text, true)) {
+        m_title.reset();
+        m_persistence.flush();
+        send_conversations();
+        return;
+    }
+    // The reply remains usable when this optional metadata request fails;
+    // report that failure separately so it is visible and manually recoverable.
+    cancel_conversation_title();
+    send_bridge_error("title_generation_failed", "The automatic chat title could not be generated. You can rename the chat.");
 }
 
 void AgentHost::start_next_queued_reply()
@@ -1625,6 +1770,7 @@ void AgentHost::set_availability(AgentAvailability availability)
 
 void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)
 {
+    cancel_conversation_title();
     if (agent_busy())
         return;
     if (m_agent)

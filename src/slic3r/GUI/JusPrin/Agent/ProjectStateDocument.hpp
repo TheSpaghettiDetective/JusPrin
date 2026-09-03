@@ -30,6 +30,9 @@ struct ConversationInfo
     std::string id;
     std::string title;
     std::string created_at;
+    std::string updated_at;
+    std::string preview;
+    std::uint64_t activity_seq{0};
 };
 
 struct RevisionInfo
@@ -101,6 +104,12 @@ public:
     std::string                   active_conversation_id() const;
     std::string create_conversation(const std::string& title, const std::string& timestamp); // returns id, makes it active
     bool        set_active_conversation(const std::string& conversation_id);
+    bool        needs_conversation_title(const std::string& conversation_id) const;
+    bool        rename_conversation(const std::string& conversation_id, const std::string& title, bool generated = false);
+    // Erases chat content and returns orphaned attachment directories. Project
+    // revisions/builds/physical prints retain their historical conversation IDs.
+    std::optional<std::vector<std::string>> delete_conversation(const std::string& conversation_id,
+                                                               const std::string& timestamp);
 
     // -- Messages -----------------------------------------------------------
     std::string allocate_message_id();

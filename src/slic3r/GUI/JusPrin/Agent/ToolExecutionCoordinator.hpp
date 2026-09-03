@@ -105,6 +105,8 @@ public:
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
     void clear() { m_activities.clear(); }
+    // Chat deletion may forget completed records, never in-flight work.
+    void forget_terminal_activities(const std::vector<std::string>& message_ids);
 
     // Creates a Pending record stamped with the current workspace session and
     // revision. Read-only actions are approved immediately by policy; every

@@ -446,3 +446,16 @@ TEST_CASE("import_model fails when the attachment can no longer be resolved", "[
     CHECK(harness.coordinator.find(proposed.action_id)->error->code == "unavailable_operation");
     CHECK(harness.object_count() == before);
 }
+
+TEST_CASE("chat deletion forgets only terminal activities", "[tools][conversations]")
+{
+    Harness harness;
+    const auto first = harness.coordinator.propose(harness.duplicate_cube_request(), "chat-message").action_id;
+    CHECK_THROWS_AS(harness.coordinator.forget_terminal_activities({"chat-message"}), std::logic_error);
+    REQUIRE(harness.coordinator.reject(first));
+    const auto other = harness.coordinator.propose(harness.duplicate_cube_request(), "other-chat").action_id;
+    harness.coordinator.forget_terminal_activities({"chat-message"});
+    CHECK(harness.coordinator.find(first) == nullptr);
+    REQUIRE(harness.coordinator.find(other));
+    CHECK(harness.coordinator.find(other)->state == ToolState::Pending);
+}

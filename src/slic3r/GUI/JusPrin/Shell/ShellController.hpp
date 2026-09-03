@@ -7,6 +7,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 
 #include <memory>
+#include <wx/event.h>
 
 class wxSizer;
 class wxBoxSizer;
@@ -27,7 +28,7 @@ class StatusRow;
 // hierarchy stays constructed and functional: the Notebook keeps its pages and
 // selection flow, only its tab strip is hidden, and the Plater sidebar is held
 // hidden through Plater's sidebar-availability policy.
-class ShellController
+class ShellController : public wxEvtHandler
 {
 public:
     ShellController() = default;
@@ -50,6 +51,8 @@ public:
     void apply_current_appearance();
 
 private:
+    void on_frame_destroy(wxWindowDestroyEvent& event);
+
     ShellTheme m_theme;
 
     MainFrame* m_frame{nullptr};

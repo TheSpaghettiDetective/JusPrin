@@ -140,6 +140,91 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     }
 }
 
+TEST_CASE("chat metadata follows activity and manual titles survive reload", "[project-state][conversations]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const auto first = document.active_conversation_id();
+    const auto second = document.create_conversation({}, kT);
+    CHECK(document.conversations().front().id == second);
+    document.append_message(first, user_message(document.allocate_message_id(), "Backpack frame", "first"),
+                            "2026-09-03T12:00:00Z");
+    CHECK(document.conversations().front().id == first);
+    CHECK(document.conversations().front().preview == "Backpack frame");
+    CHECK(document.conversations().front().updated_at == "2026-09-03T12:00:00Z");
+    REQUIRE(document.rename_conversation(first, "Backpack frame print", true));
+    CHECK_FALSE(document.needs_conversation_title(first));
+    REQUIRE(document.rename_conversation(first, "  My frame  "));
+    CHECK_FALSE(document.rename_conversation(first, "Automatic overwrite", true));
+    CHECK_FALSE(document.rename_conversation(first, " \t "));
+    CHECK_FALSE(document.rename_conversation(first, "two\nlines"));
+    CHECK_FALSE(document.rename_conversation(first, std::string(121, 'x')));
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.conversations().front().title == "My frame");
+    CHECK_FALSE(loaded.needs_conversation_title(first));
+    CHECK(loaded.needs_conversation_title(second));
+
+    SECTION("numbered titles from older projects remain eligible") {
+        auto legacy = json::parse(document.dump());
+        for (auto& chat : legacy["conversations"]) {
+            chat.erase("titleSource");
+            chat["title"] = "Conversation " + chat["id"].get<std::string>().substr(2);
+        }
+        REQUIRE(loaded.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
+        CHECK(loaded.needs_conversation_title(first));
+    }
+}
+
+TEST_CASE("deleting chats removes their content and preserves manufacturing history", "[project-state][conversations]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const auto first = document.active_conversation_id();
+    AttachmentRecord attachment;
+    attachment.id = document.allocate_attachment_id();
+    attachment.state = "sent";
+    attachment.stored_name = "notes.txt";
+    document.add_attachment(attachment, kT);
+    auto message = user_message(document.allocate_message_id(), "delete these notes", "client-1");
+    message.attachment_ids = {attachment.id};
+    document.append_message(first, message, kT);
+    ToolActivity activity;
+    activity.action_id = document.allocate_action_id();
+    activity.correlation_id = message.id;
+    activity.state = ToolState::Succeeded;
+    document.upsert_activity(activity, kT);
+    document.add_revision("Keep model history", "snapshot.3mf", first, kT);
+    BuildRecord build;
+    build.conversation_id = first;
+    document.add_build(build, kT);
+    PhysicalPrintRecord print;
+    print.conversation_id = first;
+    document.add_physical_print(print, kT);
+    const auto second = document.create_conversation("Keep this chat", kT);
+    REQUIRE(document.set_active_conversation(first));
+    const auto removed = document.delete_conversation(first, kT);
+    REQUIRE(removed);
+    CHECK(*removed == std::vector<std::string>{attachment.relative_dir()});
+    CHECK(document.active_conversation_id() == second);
+    CHECK(document.messages(first).empty());
+    CHECK(document.attachments().empty());
+    CHECK(document.activities().empty());
+    CHECK(document.revisions().size() == 1);
+    CHECK(document.builds().size() == 1);
+    CHECK(document.physical_prints().size() == 1);
+    CHECK_FALSE(document.delete_conversation(first, kT));
+    REQUIRE(document.delete_conversation(second, kT));
+    REQUIRE(document.conversations().size() == 1);
+    CHECK(document.conversations().front().title == "New chat");
+    CHECK(document.active_conversation_id() != first);
+    CHECK(document.active_conversation_id() != second);
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.messages(first).empty());
+    CHECK(loaded.builds().size() == 1);
+}
+
 TEST_CASE("unknown fields survive a load-edit-save cycle", "[project-state][schema]")
 {
     ProjectStateDocument document;

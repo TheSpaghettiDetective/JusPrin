@@ -106,15 +106,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             m_prepare_canvas_presentation.attach(*prepare_canvas);
         }
 
-        // The controller outlives the frame (it lives in a static slot), so
-        // stop touching widgets once the frame starts tearing them down.
-        frame.Bind(wxEVT_DESTROY, [this](wxWindowDestroyEvent& event) {
-            if (event.GetWindow() == m_frame) {
-                m_installed = false;
-                m_prepare_canvas_presentation.abandon();
-            }
-            event.Skip();
-        });
+        // The frame may outlive a runtime detach, so use a tracked event sink
+        // and disconnect it when uninstalling the controller.
+        frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
 
         m_installed = true;
         apply_current_appearance();
@@ -127,11 +121,21 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     }
 }
 
+void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
+{
+    if (event.GetWindow() == m_frame) {
+        m_installed = false;
+        m_prepare_canvas_presentation.abandon();
+    }
+    event.Skip();
+}
+
 void ShellController::uninstall()
 {
     if (!m_installed)
         return;
     m_installed = false;
+    m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
 
     m_prepare_canvas_presentation.detach();
     m_plater->get_collapse_toolbar().set_enabled(m_saved_collapse_toolbar_enabled);

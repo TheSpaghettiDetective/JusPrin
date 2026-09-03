@@ -112,6 +112,7 @@ private:
     void send_bridge_error(const std::string& code, const std::string& message, const std::string& correlation_id = {});
     void send_state(const std::string& correlation_id = {});
     void send_context();
+    void send_conversations();
 
     void handle_hello(const std::string& envelope_id, const std::string& payload_json);
     void handle_user_message(const std::string& envelope_id, const std::string& payload_json);
@@ -121,6 +122,8 @@ private:
     void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
     void handle_create_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json);
+    void handle_rename_conversation(const std::string& envelope_id, const std::string& payload_json);
+    void handle_delete_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_revert_to_revision(const std::string& envelope_id, const std::string& payload_json);
     void handle_draft_update(const std::string& payload_json);
     void handle_attach_file(const std::string& envelope_id, const std::string& payload_json);
@@ -151,6 +154,9 @@ private:
     void start_next_queued_reply();
     void refresh_workspace_identity() const;
     bool agent_busy() const;
+    void start_conversation_title(const std::string& conversation_id);
+    void cancel_conversation_title();
+    void pump_conversation_title();
 
     Workspace::IWorkspace&           m_workspace;
     ProjectPersistence&              m_persistence;
@@ -167,6 +173,8 @@ private:
     bool              m_handshake{false};
 
     std::optional<ActiveStream> m_stream;
+    struct PendingTitle { std::string conversation_id; std::string text; };
+    std::optional<PendingTitle> m_title;
     // The credentials of the check currently in flight, kept so a verified
     // key can be persisted without the page re-sending the secret.
     std::optional<SetupCredentials> m_setup_pending;

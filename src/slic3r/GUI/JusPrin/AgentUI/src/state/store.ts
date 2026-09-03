@@ -35,6 +35,7 @@ export interface AgentUiState {
   activeConversationId: string;
   messages: Message[];
   streamingMessageId: string | null;
+  conversationBusy: boolean;
   toolActivities: ToolActivityInfo[];
   revisions: RevisionInfo[];
   builds: BuildInfo[];
@@ -61,6 +62,7 @@ export const initialState: AgentUiState = {
   activeConversationId: '',
   messages: [],
   streamingMessageId: null,
+  conversationBusy: false,
   toolActivities: [],
   revisions: [],
   builds: [],
@@ -130,6 +132,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         activeConversationId: full.activeConversationId ?? '',
         messages: full.conversation.map(fromWire),
         streamingMessageId: full.streamingMessageId,
+        conversationBusy: full.conversationBusy ?? full.streamingMessageId !== null,
         toolActivities: full.toolActivities ?? [],
         revisions: full.revisions ?? [],
         builds: full.builds ?? [],
@@ -146,6 +149,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
     }
     case 'context':
       return { ...state, context: payload.context as WorkspaceContext };
+    case 'conversations_updated':
+      return { ...state, conversations: payload.conversations as ConversationInfo[], conversationBusy: payload.busy as boolean };
     case 'appearance':
       return { ...state, appearance: payload.appearance as Appearance };
     case 'agent_status':

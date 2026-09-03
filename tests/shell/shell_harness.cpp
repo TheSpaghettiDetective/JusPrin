@@ -829,8 +829,38 @@ private:
                         const auto& conversation = web_view.host().conversation();
                         return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Complete;
                     },
-                    "second_conversation_reply_completes", [self] { self->agent_save_reopen(); });
+                    "second_conversation_reply_completes", [self] { self->agent_manage_chats(); });
             });
+    }
+
+    void agent_manage_chats()
+    {
+        const auto id = persistence().document().active_conversation_id();
+        wait_until([this, id] { return !persistence().document().needs_conversation_title(id); },
+                   "chat_title_generated_after_exchange", [self = shared_from_this(), id] {
+            auto& view = installed_shell()->agent_pane()->web_view();
+            WebView::RunScript(view.webview(), wxString::FromUTF8(
+                "window.__jusprinTest.renameConversation('" + id + "', 'Backpack frame test')"));
+            self->wait_until([self] { return self->persistence().document().conversations().front().title == "Backpack frame test"; },
+                             "chat_renamed_via_page", [self, id] {
+                const auto revision = installed_shell()->workspace()->snapshot().revision;
+                auto& view = installed_shell()->agent_pane()->web_view();
+                WebView::RunScript(view.webview(), "window.__jusprinTest.createConversation()");
+                self->wait_until([self] { return self->persistence().document().conversations().size() == 3; },
+                                 "disposable_chat_created", [self, id, revision] {
+                    const auto disposable = self->persistence().document().active_conversation_id();
+                    auto& view = installed_shell()->agent_pane()->web_view();
+                    WebView::RunScript(view.webview(), wxString::FromUTF8(
+                        "window.__jusprinTest.deleteConversation('" + disposable + "')"));
+                    self->wait_until([self] { return self->persistence().document().conversations().size() == 2; },
+                                     "chat_deleted_via_page", [self, id, revision] {
+                        self->check(self->persistence().document().active_conversation_id() == id, "deletion_returns_to_recent_chat");
+                        self->check(installed_shell()->workspace()->snapshot().revision == revision, "chat_management_preserves_model");
+                        self->agent_save_reopen();
+                    });
+                });
+            });
+        });
     }
 
     void agent_save_reopen()
@@ -862,6 +892,8 @@ private:
                     "saved_state_adopted_on_reopen", [self] {
                         self->check(self->persistence().document().conversations().size() == 2,
                                     "saved_conversations_survive_reopen");
+                        self->check(self->persistence().document().conversations().front().title == "Backpack frame test",
+                                    "renamed_chat_survives_project_reopen");
                         const auto messages = self->persistence().document().messages(
                             self->persistence().document().active_conversation_id());
                         self->check(!messages.empty(), "saved_messages_survive_reopen");
