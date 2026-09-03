@@ -8,6 +8,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { AttachmentInfo, BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, RevisionInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
+import { MarkdownMessage } from './MarkdownMessage';
 import { RevisionMarker } from './RevisionMarker';
 import { ToolActivityCard } from './ToolActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
@@ -89,9 +90,12 @@ export function MessageList({
       {messages.map((message) => (
         <div key={message.id} className="message-group">
           <div className={`message ${message.role}`}>
-            {message.text && (
-              <span className={message.id === streamingMessageId ? 'streaming-cursor' : undefined}>{message.text}</span>
-            )}
+            {message.text &&
+              (message.role === 'assistant' ? (
+                <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
+              ) : (
+                <span>{message.text}</span>
+              ))}
             {message.attachments && message.attachments.length > 0 && (
               <div className="message-attachments">
                 {message.attachments.map((id) => {
