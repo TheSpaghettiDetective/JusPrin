@@ -142,6 +142,32 @@ describe('App', () => {
     expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-a');
   });
 
+  it('renders assistant Markdown while keeping user input literal', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(
+      host,
+      emptyState({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: '**literal user text**', attempt: 1 },
+          {
+            id: 'm-2',
+            role: 'assistant',
+            state: 'complete',
+            text: '### Recommended settings\n\nUse **four walls**.\n\n- Gyroid infill\n- Add a brim',
+            attempt: 1,
+            inReplyTo: 'm-1',
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByText('**literal user text**')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Recommended settings' })).toBeInTheDocument();
+    expect(screen.getByText('four walls').tagName).toBe('STRONG');
+    expect(screen.getByRole('list')).toHaveTextContent('Gyroid infill');
+    expect(screen.getByRole('list')).toHaveTextContent('Add a brim');
+  });
+
   it('renders build copy and retained physical-print facts with derived statuses', () => {
     const hash = 'a'.repeat(64);
     const statistics = { printTimeSeconds: 3720, filamentMm: 1842.5, materialGrams: 14.7, materialCost: 0.44, layerCount: 124 };
