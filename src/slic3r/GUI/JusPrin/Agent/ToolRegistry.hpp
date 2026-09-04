@@ -46,6 +46,10 @@ enum class ToolHandler : std::uint8_t {
     ImportModel,
     InspectSelection,
     WorkspaceInspect,
+    SettingsSearch,
+    SettingsGet,
+    SettingsPreviewPatch,
+    SettingsApplyPatch,
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint

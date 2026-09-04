@@ -49,7 +49,7 @@ def call(endpoint, method, params=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url", help="URL shown by the native MCP connection button")
-    parser.add_argument("--duplicate-object-id", help="Request a duplicate; approve or reject it inside JusPrin")
+    parser.add_argument("--changes", help='JSON process patch, e.g. {"wall_loops":4}; approve or reject in JusPrin')
     args = parser.parse_args()
     endpoint = urlsplit(args.url)
     if (endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or
@@ -59,13 +59,23 @@ def main():
         print(json.dumps(call(endpoint, method), indent=2))
     workspace = call(endpoint, "tools/call", {"name": "workspace_inspect"})
     print(json.dumps(workspace, indent=2))
-    print(json.dumps(call(endpoint, "tools/call", {"name": "inspect_selection"}), indent=2))
-    if args.duplicate_object_id:
-        session = workspace["result"]["structuredContent"]["sessionId"]
-        print("Approve or reject the proposed duplicate in the JusPrin Agent panel.")
+    print(json.dumps(call(endpoint, "tools/call", {
+        "name": "settings_search", "arguments": {"query": "infill"},
+    }), indent=2))
+    print(json.dumps(call(endpoint, "tools/call", {
+        "name": "settings_get", "arguments": {"keys": ["layer_height", "sparse_infill_density"]},
+    }), indent=2))
+    if args.changes:
+        changes = json.loads(args.changes)
+        preview = call(endpoint, "tools/call", {"name": "settings_preview_patch", "arguments": {"changes": changes}})
+        print(json.dumps(preview, indent=2))
+        content = preview["result"]["structuredContent"]
+        if not content.get("valid"):
+            return
+        print("Approve or reject the process-settings patch in the JusPrin Agent panel.")
         print(json.dumps(call(endpoint, "tools/call", {
-            "name": "duplicate_object",
-            "arguments": {"sessionId": session, "objectId": args.duplicate_object_id},
+            "name": "settings_apply_patch",
+            "arguments": {"changes": changes, "expectedSessionId": content["sessionId"], "expectedRevision": content["revision"]},
         }), indent=2))
 
 

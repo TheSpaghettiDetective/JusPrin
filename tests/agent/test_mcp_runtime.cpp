@@ -31,11 +31,11 @@ struct RuntimeHarness
     Agent::ToolExecutionCoordinator coordinator{workspace};
     McpDirectory directory;
     Mcp::McpRuntime runtime{workspace, coordinator, directory.path()};
-    json duplicate() const {
+    json settings_patch() const {
         const auto snapshot = workspace.snapshot();
-        return request("tools/call", {{"name", "duplicate_object"},
-            {"arguments", {{"sessionId", std::to_string(snapshot.session.value())},
-                           {"objectId", std::to_string(snapshot.plates[0].objects[0].id.value())}}}});
+        return request("tools/call", {{"name", "settings_apply_patch"},
+            {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+                           {"changes", {{"wall_loops", "4"}}}}}});
     }
     void pump() { runtime.poll(); coordinator.pump(); }
     bool finish(Client& client) { return wait_for([&] { return client.done(); }, [&] { pump(); }); }
@@ -59,8 +59,8 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     auto tools = list.messages()[0]["result"]["tools"];
     CHECK(list.messages()[0]["result"]["ttlMs"] == 0);
     CHECK(list.messages()[0]["result"]["cacheScope"] == "private");
-    REQUIRE(tools.size() == 3);
-    CHECK(tools[2]["name"] == "workspace_inspect");
+    REQUIRE(tools.size() == 7);
+    CHECK(tools.back()["name"] == "workspace_inspect");
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));
     CHECK_FALSE(inspect.streaming());
@@ -76,25 +76,27 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
     RuntimeHarness h;
     std::vector<Agent::ToolState> states;
     auto observer = h.coordinator.subscribe([&](const Agent::ToolActivity& activity) { states.push_back(activity.state); });
-    Client client(h.runtime.server(), h.duplicate());
+    Client client(h.runtime.server(), h.settings_patch());
     REQUIRE(h.pending());
     const auto id = h.coordinator.activities().back().action_id;
     CHECK(h.coordinator.find(id)->state == Agent::ToolState::Pending);
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     CHECK_FALSE(client.done());
     SECTION("approve") {
         CHECK(h.coordinator.approve(id));
         REQUIRE(h.finish(client));
-        CHECK(h.workspace.snapshot().plates[0].objects.size() == 2);
+        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
         CHECK(client.messages().back()["result"]["isError"] == false);
         CHECK(states.back() == Agent::ToolState::Succeeded);
-        REQUIRE(h.workspace.undo().succeeded());
-        CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+        const Workspace::SettingsPatch inverse{{{"wall_loops", "2"}}};
+        Workspace::SettingsPreview applied;
+        REQUIRE(h.workspace.apply_settings(inverse, Workspace::settings_confirmation(h.workspace.preview_settings(inverse)), applied).succeeded());
+        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     }
     SECTION("reject") {
         CHECK(h.coordinator.reject(id));
         REQUIRE(h.finish(client));
-        CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
         CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "approval_rejected");
         CHECK(states.back() == Agent::ToolState::Rejected);
     }
@@ -102,13 +104,13 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
         CHECK(h.coordinator.cancel(id));
         REQUIRE(h.finish(client));
         CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "cancelled");
-        CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     }
     SECTION("stale") {
         REQUIRE(h.workspace.rename_object(h.workspace.snapshot().plates[0].objects[0].id, "Changed").succeeded());
         REQUIRE(h.finish(client));
         CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "stale_workspace");
-        CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     }
     CHECK(client.streaming());
     const auto messages = client.messages();
@@ -120,30 +122,30 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
 TEST_CASE("MCP disconnect cancels pending native proposals", "[mcp][network][cancellation]")
 {
     RuntimeHarness h;
-    Client client(h.runtime.server(), h.duplicate());
+    Client client(h.runtime.server(), h.settings_patch());
     REQUIRE(h.pending());
     const auto id = h.coordinator.activities().back().action_id;
     client.close();
     REQUIRE(wait_for([&] { return h.coordinator.find(id)->state == Agent::ToolState::Cancelled; }, [&] { h.pump(); }));
     CHECK_FALSE(h.coordinator.approve(id));
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
 }
 
 TEST_CASE("MCP exposure and schema failures cannot reach a native mutation", "[mcp][network]")
 {
     RuntimeHarness h;
-    const std::string name = GENERATE("import_model", "record_build", "missing", "duplicate_object");
+    const std::string name = GENERATE("import_model", "record_build", "missing", "settings_apply_patch");
     Client client(h.runtime.server(), request("tools/call", {{"name", name}, {"arguments", {{"actionClass", "read_only"}}}}));
     REQUIRE(h.finish(client));
     auto response = client.messages().back();
-    if (name == "duplicate_object") {
+    if (name == "settings_apply_patch") {
         CHECK(response["result"]["isError"] == true);
         CHECK(response["result"]["structuredContent"]["error"]["code"] == "invalid_arguments");
     } else {
         CHECK(response["error"]["code"] == -32602);
         CHECK(response["error"]["data"]["code"] == "unknown_tool");
     }
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
 }
 
 TEST_CASE("MCP uses the configured port when it is free", "[mcp][network]")
@@ -170,7 +172,7 @@ TEST_CASE("MCP startup collisions and shutdown have bounded lifetimes", "[mcp][n
     Client fallback(second, request("server/discover"));
     REQUIRE(wait_for([&] { return fallback.done(); }, [] {}));
     CHECK(fallback.wire.find("HTTP/1.1 200") == 0);
-    Client pending(server, request("tools/call", {{"name", "duplicate_object"}, {"arguments", json::object()}}));
+    Client pending(server, request("tools/call", {{"name", "settings_apply_patch"}, {"arguments", json::object()}}));
     REQUIRE(wait_for([&] { pending.poll(); return pending.streaming(); }, [] {}));
     const auto start = std::chrono::steady_clock::now();
     server.stop();
@@ -189,8 +191,8 @@ TEST_CASE("MCP bounded concurrency and timeouts leave the GUI unblocked", "[mcp]
     options.max_connections = 2;
     options.request_timeout = std::chrono::milliseconds(100);
     Mcp::McpServer server(options);
-    Client first(server, request("tools/call", {{"name", "duplicate_object"}}));
-    Client second(server, request("tools/call", {{"name", "duplicate_object"}}));
+    Client first(server, request("tools/call", {{"name", "settings_apply_patch"}}));
+    Client second(server, request("tools/call", {{"name", "settings_apply_patch"}}));
     REQUIRE(wait_for([&] { first.poll(); second.poll(); return first.streaming() && second.streaming(); }, [] {}));
     Client excess(server, request("tools/list"));
     REQUIRE(wait_for([&] { return excess.done(); }, [] {}));
@@ -209,9 +211,9 @@ TEST_CASE("MCP runtime shutdown cancels pending and approved work before destruc
     McpDirectory directory;
     auto runtime = std::make_unique<Mcp::McpRuntime>(workspace, coordinator, directory.path());
     const auto snapshot = workspace.snapshot();
-    Client client(runtime->server(), request("tools/call", {{"name", "duplicate_object"},
-        {"arguments", {{"sessionId", std::to_string(snapshot.session.value())},
-                       {"objectId", std::to_string(snapshot.plates[0].objects[0].id.value())}}}}));
+    Client client(runtime->server(), request("tools/call", {{"name", "settings_apply_patch"},
+        {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+                       {"changes", {{"wall_loops", "4"}}}}}}));
     REQUIRE(wait_for([&] { return !coordinator.activities().empty(); }, [&] { runtime->poll(); }));
     const auto id = coordinator.activities().back().action_id;
     const bool approved = GENERATE(false, true);
@@ -219,7 +221,7 @@ TEST_CASE("MCP runtime shutdown cancels pending and approved work before destruc
     runtime.reset();
     CHECK(coordinator.find(id)->state == Agent::ToolState::Cancelled);
     coordinator.pump();
-    CHECK(workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(workspace.read_settings({"wall_loops"}).items[0].value == "2");
     REQUIRE(wait_for([&] { return client.done(); }, [] {}));
 }
 
@@ -249,7 +251,7 @@ TEST_CASE("MCP host survives page reset and persists the same activity", "[mcp][
     McpDirectory directory;
     host.start_mcp(directory.path().u8string());
     host.reset_page();
-    Client client(host.mcp()->server(), request("tools/call", {{"name", "inspect_selection"}}));
+    Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_get"}, {"arguments", {{"keys", {"wall_loops"}}}}}));
     REQUIRE(wait_for([&] { return client.done(); }, [&] { host.pump_tools(); }));
     CHECK_FALSE(host.handshake_complete());
     CHECK(client.messages()[0]["result"]["isError"] == false);
@@ -294,13 +296,13 @@ TEST_CASE("MCP project replacement completes the request before records are clea
     McpDirectory directory;
     host.start_mcp(directory.path().u8string());
     const auto snapshot = workspace.snapshot();
-    Client client(host.mcp()->server(), request("tools/call", {{"name", "duplicate_object"},
-        {"arguments", {{"sessionId", std::to_string(snapshot.session.value())},
-                       {"objectId", std::to_string(snapshot.plates[0].objects[0].id.value())}}}}));
+    Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_apply_patch"},
+        {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+                       {"changes", {{"wall_loops", "4"}}}}}}));
     REQUIRE(wait_for([&] { return !host.tools().activities().empty(); }, [&] { host.pump_tools(); }));
     workspace.replace_project(fixture());
     REQUIRE(wait_for([&] { return client.done(); }, [&] { host.pump_tools(); }));
     CHECK(client.messages().back()["result"]["isError"] == true);
-    CHECK(workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(workspace.read_settings({"wall_loops"}).items[0].value == "2");
     CHECK(host.tools().activities().empty());
 }

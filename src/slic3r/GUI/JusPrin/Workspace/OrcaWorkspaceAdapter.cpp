@@ -1,4 +1,5 @@
 #include "OrcaWorkspaceAdapter.hpp"
+#include "OrcaSettings.hpp"
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Model.hpp"
@@ -59,6 +60,8 @@ WorkspaceChangeReasons workspace_reasons(ProjectStateChangeReason reasons)
         result |= WorkspaceChangeReasons::Plates;
     if (contains(ProjectStateChangeReason::Project))
         result |= WorkspaceChangeReasons::Project;
+    if (contains(ProjectStateChangeReason::Settings))
+        result |= WorkspaceChangeReasons::Settings;
     return result;
 }
 
@@ -95,6 +98,10 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
     result.setup.project_dirty = m_plater.is_project_dirty();
     if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr) {
         result.setup.printer_preset = presets->printers.get_selected_preset().label(false);
+        if (presets->printers.get_edited_preset().printer_technology() == ptFFF) {
+            result.setup.process_preset = presets->prints.get_edited_preset().name;
+            result.setup.process_preset_dirty = !presets->prints.current_dirty_options().empty();
+        }
         if (!presets->filament_presets.empty())
             result.setup.filament_preset = presets->filament_presets.front();
     }
@@ -349,6 +356,176 @@ void OrcaWorkspaceAdapter::remember_current_ids() const
 {
     for (const ModelObject* object : m_plater.model().objects)
         m_known_object_ids.insert(object->id().id);
+}
+
+SettingsSearchResult OrcaWorkspaceAdapter::search_settings(const SettingsQuery& query) const
+{
+    wxASSERT(wxIsMainThread());
+    if (!process_settings_available()) {
+        SettingsSearchResult result;
+        result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+        return result;
+    }
+    return search_setting_definitions(process_definitions(), query);
+}
+
+SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::string>& keys) const
+{
+    wxASSERT(wxIsMainThread());
+    SettingsReadResult result;
+    if (keys.empty() || keys.size() > 32) {
+        result.error = SettingIssue{"", "invalid_arguments", "Read 1 to 32 setting keys."};
+        return result;
+    }
+    if (!process_settings_available()) {
+        result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+        return result;
+    }
+    auto& prints = wxGetApp().preset_bundle->prints;
+    const auto& config = prints.get_edited_preset().config;
+    const auto dirty = prints.current_dirty_options();
+    const auto system = prints.current_different_from_parent_options();
+    for (const auto& key : keys) {
+        if (!has_process_setting(key)) {
+            result.unknown_keys.push_back(key);
+            result.issues.push_back(missing_process_setting(key));
+            continue;
+        }
+        const auto* value = config.option(key);
+        if (!value) throw std::logic_error("Process preset is missing its defined option: " + key);
+        result.items.push_back({key, value->serialize(), std::find(dirty.begin(), dirty.end(), key) != dirty.end(),
+            std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key)});
+    }
+    return result;
+}
+
+SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patch) const
+{
+    wxASSERT(wxIsMainThread());
+    SettingsPreview result;
+    if (!process_settings_available()) {
+        result.issues.push_back({"", "workspace_unavailable", "No active FFF process preset."});
+        return result;
+    }
+    const auto& preset = wxGetApp().preset_bundle->prints.get_edited_preset();
+    const auto& current = preset.config;
+    result.process_preset = preset.name;
+    if (patch.changes.empty() || patch.changes.size() > 32) {
+        result.issues.push_back({"", "invalid_arguments", "A patch must contain 1 to 32 settings."});
+        return result;
+    }
+    DynamicPrintConfig next = current;
+    for (const auto& [key, text] : patch.changes) {
+        if (!has_process_setting(key)) {
+            result.issues.push_back(missing_process_setting(key));
+            continue;
+        }
+        const auto def = setting_definition(key);
+        if (!def.writable) {
+            result.issues.push_back({key, "unsupported_setting_mutation", "This process setting is read-only."});
+            continue;
+        }
+        const auto invalid = [&result, &def, setting_key = key](std::string message) {
+            result.issues.push_back({setting_key, "invalid_setting_value", std::move(message), def.enum_values, {}, def.min, def.max});
+        };
+        if (!complete_setting_number(text, print_config_def.get(key)->type)) {
+            invalid("Expected a complete finite " + def.type + " value.");
+            continue;
+        }
+        try {
+            next.set_deserialize_strict(key, text);
+        } catch (const BadOptionValueException& error) {
+            invalid(error.what());
+            continue;
+        }
+        const auto* option = next.option(key);
+        const auto* definition = print_config_def.get(key);
+        if (definition->type == coEnum) {
+            if (!definition->has_enum_value(option->serialize())) invalid("Value is not in the allowed enum values.");
+        } else if (!definition->is_value_valid(definition->type == coInt ?
+                   static_cast<double>(next.opt_int(key)) : static_cast<const ConfigOptionFloat*>(option)->value)) {
+            invalid("Value is outside the setting's bounds.");
+        }
+    }
+    if (!result.issues.empty()) return result;
+    check_process_dialogs(next, result);
+    if (!result.issues.empty()) return result;
+
+    const DynamicPrintConfig requested = next;
+    predict_process_normalization(next);
+    for (const auto& key : requested.diff(next)) {
+        result.dependencies.push_back({key, current.option(key)->serialize(), next.option(key)->serialize()});
+        result.warnings.push_back({key, "normalized_dependency", "Orca will normalize " + key + " to " + next.option(key)->serialize() + "."});
+    }
+
+    auto full = wxGetApp().preset_bundle->full_config();
+    full.apply(next);
+    FullPrintConfig validation_config;
+    validation_config.apply(full, true);
+    for (const auto& [key, message] : Slic3r::validate(validation_config)) {
+        auto& issues = patch.changes.count(key) ? result.issues : result.warnings;
+        issues.push_back({key, "incompatible_settings", message});
+    }
+    for (const auto& [key, text] : patch.changes) {
+        const std::string before = current.option(key)->serialize(), after = next.option(key)->serialize();
+        if (before != after) result.changes.push_back({key, before, after});
+        else result.warnings.push_back({key, "unchanged", "The setting already has this value."});
+    }
+    // With no explicit change Tab::load_config does not run its normalizer.
+    if (result.changes.empty()) {
+        result.dependencies.clear();
+        result.warnings.erase(std::remove_if(result.warnings.begin(), result.warnings.end(), [](const auto& issue) {
+            return issue.code == "normalized_dependency";
+        }), result.warnings.end());
+    }
+    result.valid = result.issues.empty();
+    return result;
+}
+
+CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+                                                  SettingsPreview& applied)
+{
+    wxASSERT(wxIsMainThread());
+    if (!process_settings_available())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
+    auto transaction = m_plater.project_state_transaction();
+    const auto& config = wxGetApp().preset_bundle->prints.get_edited_preset().config;
+    for (const auto& change : confirmed)
+        if (!config.option(change.key) || config.option(change.key)->serialize() != change.before)
+            return CommandResult::failure(WorkspaceError::StaleSettings, "A confirmed setting changed. Read and preview again.");
+    applied = preview_settings(patch);
+    if (!applied.valid)
+        return CommandResult::failure(WorkspaceError::InvalidSettings, "The settings patch is invalid.");
+    const auto actual = settings_confirmation(applied);
+    if (actual.size() != confirmed.size() || !std::equal(actual.begin(), actual.end(), confirmed.begin(),
+        [](const auto& a, const auto& b) { return a.key == b.key && a.before == b.before && a.after == b.after; }))
+        return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the approved preview.");
+    if (applied.changes.empty())
+        return CommandResult::failure(WorkspaceError::NoChange, "All requested values are unchanged.");
+    DynamicPrintConfig diff;
+    for (const auto& change : applied.changes)
+        diff.set_deserialize_strict(change.key, change.after);
+    const DynamicPrintConfig before = config;
+    // The existing owner updates the preset, its controls, dirty state and
+    // slicing. Never imitate this path with direct writes or notifications.
+    wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff);
+    // Preserve an honest result if a future Orca normalizer introduces a
+    // secondary rewrite not yet covered by the prediction audit.
+    for (const auto& key : before.diff(config)) {
+        const auto has_key = [&key](const auto& changes) {
+            return std::any_of(changes.begin(), changes.end(), [&key](const auto& change) { return change.key == key; });
+        };
+        if (!has_key(applied.changes) && !has_key(applied.dependencies))
+            applied.dependencies.push_back({key, before.option(key)->serialize(), config.option(key)->serialize()});
+    }
+    for (auto* changes : {&applied.changes, &applied.dependencies})
+        for (auto& change : *changes) {
+            const std::string actual_value = config.option(change.key)->serialize();
+            if (actual_value != change.after || changes == &applied.dependencies)
+                applied.warnings.push_back({change.key, "normalized", "Orca normalized this setting to " + actual_value + "."});
+            change.after = actual_value;
+        }
+    return CommandResult::success();
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

@@ -103,11 +103,14 @@ struct WorkspaceSetup
     bool        project_dirty{false};
     std::string printer_preset;
     std::string filament_preset;
+    std::string process_preset;
+    bool        process_preset_dirty{false};
 
     friend bool operator==(const WorkspaceSetup& lhs, const WorkspaceSetup& rhs)
     {
         return lhs.project_name == rhs.project_name && lhs.project_dirty == rhs.project_dirty &&
-               lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset;
+               lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset &&
+               lhs.process_preset == rhs.process_preset && lhs.process_preset_dirty == rhs.process_preset_dirty;
     }
 };
 
@@ -132,7 +135,9 @@ enum class WorkspaceError : std::uint8_t {
     UnsupportedSelection,
     UnavailableOperation,
     InvalidArgument,
-    NoChange
+    NoChange,
+    InvalidSettings,
+    StaleSettings
 };
 
 struct CommandResult
@@ -161,7 +166,8 @@ enum class WorkspaceChangeReasons : std::uint32_t {
     History   = 1u << 2,
     Transform = 1u << 3,
     Plates    = 1u << 4,
-    Project   = 1u << 5
+    Project   = 1u << 5,
+    Settings  = 1u << 6
 };
 
 constexpr WorkspaceChangeReasons operator|(WorkspaceChangeReasons lhs, WorkspaceChangeReasons rhs)
@@ -345,6 +351,56 @@ private:
     std::shared_ptr<State> m_state;
 };
 
+struct SettingDefinition
+{
+    std::string key, type, label, category, description, unit;
+    std::optional<double> min, max;
+    std::vector<std::string> enum_values, enum_labels;
+    bool writable{false};
+};
+
+struct SettingValue
+{
+    std::string key, value;
+    bool differs_from_preset{false}, differs_from_system{false};
+    SettingDefinition definition;
+};
+
+struct SettingIssue
+{
+    std::string key, code, message;
+    std::vector<std::string> allowed, suggestions;
+    std::optional<double> min, max;
+};
+
+struct SettingsQuery { std::string text; std::size_t limit{10}; std::string cursor; };
+struct SettingsSearchResult
+{
+    std::vector<SettingDefinition> items;
+    std::string next_cursor;
+    bool truncated{false};
+    std::optional<SettingIssue> error;
+};
+struct SettingsReadResult
+{
+    std::vector<SettingValue> items;
+    std::vector<std::string> unknown_keys;
+    std::vector<SettingIssue> issues;
+    std::optional<SettingIssue> error;
+};
+struct SettingsPatch { std::map<std::string, std::string> changes; };
+struct SettingChange { std::string key, before, after; };
+struct SettingsPreview
+{
+    bool valid{false};
+    std::vector<SettingChange> changes;
+    std::vector<SettingIssue> issues, warnings;
+    std::string process_preset;
+    // Predicted secondary changes are approved and read back alongside the
+    // explicit patch. They are never accepted as extra writable input keys.
+    std::vector<SettingChange> dependencies;
+};
+
 class IWorkspace
 {
 public:
@@ -362,6 +418,11 @@ public:
     virtual CommandResult remove_object(ObjectId id)                            = 0;
     virtual CommandResult undo()                                                = 0;
     virtual CommandResult redo()                                                = 0;
+    virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
+    virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
+    virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
+    virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+                                         SettingsPreview& applied) = 0;
 
     // Directory for consumer-owned files that belong to the open project and
     // travel inside its saved archive. The path changes when the

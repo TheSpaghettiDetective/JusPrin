@@ -54,6 +54,7 @@ struct ToolError
 {
     std::string code;
     std::string message;
+    std::string details_json{"{}"};
 };
 
 // Untrusted call data supplied by an adapter. The coordinator resolves title,

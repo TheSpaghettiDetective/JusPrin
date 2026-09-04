@@ -241,7 +241,7 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
         if (activity.state == ToolState::Rejected) { code = "approval_rejected"; message = "The user rejected this action in JusPrin."; }
         else if (activity.state == ToolState::Cancelled) { code = "cancelled"; message = "The action was cancelled."; }
         else if (activity.error) { code = activity.error->code; message = activity.error->message; }
-        json details = json::object();
+        json details = activity.error ? json::parse(activity.error->details_json) : json::object();
         if (code == "stale_revision" || code == "stale_id") {
             std::string expected_session = std::to_string(activity.session);
             if (code == "stale_id") {

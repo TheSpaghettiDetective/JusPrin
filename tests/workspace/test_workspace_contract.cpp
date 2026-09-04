@@ -53,6 +53,115 @@ static_assert(!std::is_convertible_v<std::uint64_t, PlateId>);
 static_assert(!std::is_convertible_v<std::uint64_t, ObjectId>);
 static_assert(!std::is_copy_constructible_v<WorkspaceSubscription>);
 
+TEST_CASE("Process settings search is bounded, deterministic, and supplies correction metadata", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    const auto first = workspace.search_settings({"", 3, ""});
+    REQUIRE(first.items.size() == 3);
+    REQUIRE(first.truncated);
+    REQUIRE(first.next_cursor == "offset:3");
+    const auto second = workspace.search_settings({"", 3, first.next_cursor});
+    REQUIRE(first.items.back().key < second.items.front().key);
+    REQUIRE(workspace.search_settings({"wall_loops"}).items.front().key == "wall_loops");
+    REQUIRE(workspace.search_settings({"", 26}).error->code == "invalid_arguments");
+    REQUIRE(workspace.search_settings({"", 1, "offset:-1"}).error->code == "invalid_arguments");
+    REQUIRE(workspace.search_settings({"", 1, "offset:9999999999999999999999"}).error->code == "invalid_arguments");
+    REQUIRE(workspace.search_settings({"", 1, "offset:1x"}).error->code == "invalid_arguments");
+    const auto read = workspace.read_settings({"layer_heigt", "nozzle_diameter", "spiral_mode"});
+    REQUIRE(read.issues[0].code == "unknown_setting");
+    REQUIRE(read.issues[0].suggestions.front() == "layer_height");
+    REQUIRE(read.issues[1].code == "unsupported_scope");
+    REQUIRE_FALSE(read.items[0].definition.writable);
+}
+
+TEST_CASE("Process settings validate whole patches without changing the workspace", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    unsigned events = 0;
+    auto subscription = workspace.subscribe([&](const auto&) { ++events; });
+    const auto before = workspace.snapshot();
+    for (const auto& patch : std::vector<SettingsPatch>{
+             {{{"layer_height", "NaN"}}}, {{{"layer_height", "0.4"}}}, {{{"wall_loops", "1.5"}}},
+             {{{"sparse_infill_pattern", "invalid"}}}, {{{"notes", "no"}}},
+             {{{"wall_loops", "4"}, {"brim_width", "-1"}}}}) {
+        const auto preview = workspace.preview_settings(patch);
+        REQUIRE_FALSE(preview.valid);
+        REQUIRE_FALSE(preview.issues.empty());
+        SettingsPreview applied;
+        REQUIRE(workspace.apply_settings(patch, {}, applied).error == WorkspaceError::InvalidSettings);
+    }
+    const auto bounds = workspace.preview_settings({{{"layer_height", "0.4"}}});
+    REQUIRE(bounds.issues.front().max == 0.3);
+    const auto enums = workspace.preview_settings({{{"sparse_infill_pattern", "invalid"}}});
+    REQUIRE(enums.issues.front().allowed == std::vector<std::string>{"grid", "gyroid", "line"});
+    REQUIRE(workspace.read_settings({"wall_loops"}).items.front().value == "2");
+    REQUIRE(workspace.snapshot().revision == before.revision);
+    REQUIRE(events == 0);
+}
+
+TEST_CASE("Process settings batches are atomic and reversible outside project Undo", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    std::vector<WorkspaceChanged> events;
+    auto subscription = workspace.subscribe([&](const auto& event) {
+        events.push_back(event);
+        REQUIRE(workspace.snapshot().revision == event.revision);
+        REQUIRE(workspace.read_settings({"wall_loops"}).items.front().value == (events.size() == 1 ? "4" : "2"));
+    });
+    const auto before = workspace.snapshot();
+    const SettingsPatch patch{{{"wall_loops", "4"}, {"sparse_infill_density", "25"}}};
+    const auto preview = workspace.preview_settings(patch);
+    REQUIRE(preview.valid);
+    REQUIRE(preview.changes[0].after == "25%");
+    REQUIRE(events.empty());
+    SettingsPreview applied;
+    REQUIRE(workspace.apply_settings(patch, settings_confirmation(preview), applied).succeeded());
+    REQUIRE(workspace.snapshot().revision == before.revision + 1);
+    REQUIRE(events.size() == 1);
+    REQUIRE(events.front().reasons == WorkspaceChangeReasons::Settings);
+    REQUIRE(workspace.snapshot().setup.process_preset_dirty);
+    REQUIRE(workspace.snapshot().can_undo == before.can_undo);
+    REQUIRE(workspace.snapshot().can_redo == before.can_redo);
+    SettingsPatch inverse;
+    for (const auto& change : applied.changes)
+        inverse.changes[change.key] = change.before;
+    const auto undo_preview = workspace.preview_settings(inverse);
+    REQUIRE(workspace.apply_settings(inverse, settings_confirmation(undo_preview), applied).succeeded());
+    REQUIRE_FALSE(workspace.snapshot().setup.process_preset_dirty);
+    REQUIRE(events.size() == 2);
+    const auto unchanged = workspace.preview_settings(inverse);
+    REQUIRE(unchanged.changes.empty());
+    REQUIRE(unchanged.warnings.front().code == "unchanged");
+    REQUIRE(workspace.apply_settings(inverse, {}, applied).error == WorkspaceError::NoChange);
+    REQUIRE(events.size() == 2);
+}
+
+TEST_CASE("Settings apply enforces confirmed values and reports dependent normalization", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    const SettingsPatch patch{{{"wall_loops", "4"}}};
+    auto confirmed = settings_confirmation(workspace.preview_settings(patch));
+    workspace.set_setting_for_testing("wall_loops", "3", false);
+    SettingsPreview applied;
+    const auto before = workspace.snapshot();
+    REQUIRE(workspace.apply_settings(patch, confirmed, applied).error == WorkspaceError::StaleSettings);
+    REQUIRE(workspace.snapshot().revision == before.revision);
+    REQUIRE(workspace.read_settings({"wall_loops"}).items.front().value == "3");
+
+    workspace.set_setting_for_testing("spiral_mode", "1");
+    REQUIRE(workspace.preview_settings(patch).issues.front().code == "incompatible_settings");
+    workspace.set_setting_for_testing("spiral_mode", "0");
+    workspace.set_setting_for_testing("fill_multiline", "3");
+    const SettingsPatch multiline{{{"sparse_infill_pattern", "line"}}};
+    const auto preview = workspace.preview_settings(multiline);
+    REQUIRE(preview.valid);
+    REQUIRE(preview.dependencies.front().key == "fill_multiline");
+    REQUIRE(preview.warnings.front().code == "normalized_dependency");
+    REQUIRE(workspace.apply_settings(multiline, settings_confirmation(preview), applied).succeeded());
+    REQUIRE(workspace.read_settings({"fill_multiline"}).items.front().value == "1");
+    REQUIRE(applied.warnings.back().code == "normalized");
+}
+
 TEST_CASE("Workspace identifiers are strong, ordered, and session scoped", "[workspace]")
 {
     REQUIRE(PlateId(ProjectSessionId(1), 1) != PlateId(ProjectSessionId(1), 2));

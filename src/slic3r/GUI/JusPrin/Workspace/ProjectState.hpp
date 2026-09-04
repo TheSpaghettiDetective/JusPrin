@@ -20,7 +20,8 @@ enum class ProjectStateChangeReason : std::uint32_t {
     History   = 1u << 2,
     Transform = 1u << 3,
     Plates    = 1u << 4,
-    Project   = 1u << 5
+    Project   = 1u << 5,
+    Settings  = 1u << 6
 };
 
 constexpr ProjectStateChangeReason operator|(ProjectStateChangeReason lhs, ProjectStateChangeReason rhs)

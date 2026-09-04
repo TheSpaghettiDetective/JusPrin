@@ -55,11 +55,11 @@ struct Harness
         CHECK(wait(0)["result"]["protocolVersion"] == version);
         send({{"jsonrpc", "2.0"}, {"method", "notifications/initialized"}});
     }
-    json duplicate(int id, bool modern = false) {
+    json settings_patch(int id, bool modern = false) {
         const auto snapshot = workspace.snapshot();
-        auto call = rpc(id, "tools/call", {{"name", "duplicate_object"},
-            {"arguments", {{"sessionId", std::to_string(snapshot.session.value())},
-                           {"objectId", std::to_string(snapshot.plates[0].objects[0].id.value())}}},
+        auto call = rpc(id, "tools/call", {{"name", "settings_apply_patch"},
+            {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+                           {"changes", {{"wall_loops", "4"}}}}},
             {"_meta", {{"progressToken", id}}}});
         if (modern) {
             call["params"]["_meta"]["io.modelcontextprotocol/protocolVersion"] = Mcp::kProtocolVersion;
@@ -80,7 +80,7 @@ TEST_CASE("MCP bridge offline legacy catalog is projected for each negotiated ve
     h.initialize(version);
     h.send(rpc(1, "tools/list"));
     const auto listed = h.wait(1)["result"];
-    CHECK(listed["tools"].size() == 3);
+    CHECK(listed["tools"].size() == 7);
     CHECK_FALSE(listed.contains("ttlMs")); CHECK_FALSE(listed.contains("cacheScope"));
     CHECK_FALSE(listed.contains("resultType"));
     CHECK(listed["tools"][0].contains("outputSchema") == (version != "2025-03-26"));
@@ -111,18 +111,20 @@ TEST_CASE("MCP bridge forwards native approval rejection and results in both era
     const bool modern = GENERATE(false, true);
     const bool approve = GENERATE(false, true);
     if (!modern) h.initialize();
-    h.send(h.duplicate(1, modern)); h.pending();
+    h.send(h.settings_patch(1, modern)); h.pending();
     CHECK_FALSE(h.has(1));
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     const auto id = h.coordinator.activities().back().action_id;
     if (approve) REQUIRE(h.coordinator.approve(id)); else REQUIRE(h.coordinator.reject(id));
     const auto result = h.wait(1)["result"];
     CHECK(result["isError"] == !approve);
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == (approve ? 2 : 1));
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == (approve ? "4" : "2"));
     if (!approve) CHECK(result["structuredContent"]["error"]["code"] == "approval_rejected");
     else {
-        REQUIRE(h.workspace.undo().succeeded());
-        CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+        const Workspace::SettingsPatch inverse{{{"wall_loops", "2"}}};
+        Workspace::SettingsPreview applied;
+        REQUIRE(h.workspace.apply_settings(inverse, Workspace::settings_confirmation(h.workspace.preview_settings(inverse)), applied).succeeded());
+        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     }
 }
 
@@ -131,19 +133,19 @@ TEST_CASE("MCP bridge client cancellation closes the native call without a termi
     Harness h; h.start();
     const bool modern = GENERATE(false, true);
     if (!modern) h.initialize();
-    h.send(h.duplicate(1, modern)); h.pending();
+    h.send(h.settings_patch(1, modern)); h.pending();
     const auto id = h.coordinator.activities().back().action_id;
     h.send({{"jsonrpc", "2.0"}, {"method", "notifications/cancelled"}, {"params", {{"requestId", 1}}}});
     REQUIRE(JusPrinTest::wait_for([&] { return h.coordinator.find(id)->state == Agent::ToolState::Cancelled; }, [&] { h.pump(); }));
     h.send(rpc(2, "ping")); h.wait(2);
     CHECK_FALSE(h.has(1));
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
 }
 
 TEST_CASE("MCP bridge ignores malformed cancellation notifications", "[mcp][bridge]")
 {
     Harness h; h.start(); h.initialize();
-    h.send(h.duplicate(1)); h.pending();
+    h.send(h.settings_patch(1)); h.pending();
     const auto id = h.coordinator.activities().back().action_id;
     h.send({{"method", "notifications/cancelled"}, {"params", {{"requestId", 1}}}});
     h.send(rpc(2, "ping")); h.wait(2);
@@ -154,7 +156,7 @@ TEST_CASE("MCP bridge ignores malformed cancellation notifications", "[mcp][brid
 TEST_CASE("MCP bridge does not retry a call whose connection is lost and reconnects after restart", "[mcp][bridge]")
 {
     Harness h; h.start(); h.initialize();
-    h.send(h.duplicate(1)); h.pending();
+    h.send(h.settings_patch(1)); h.pending();
     h.runtime.reset();
     CHECK(h.wait(1)["result"]["structuredContent"]["error"]["code"] == "connection_lost");
     h.send(rpc(2, "tools/call", {{"name", "workspace_inspect"}}));
@@ -168,15 +170,15 @@ TEST_CASE("MCP bridge does not retry a call whose connection is lost and reconne
 TEST_CASE("MCP bridge bounds concurrency and shutdown cancels all pending approvals", "[mcp][bridge]")
 {
     Harness h; h.start(); h.initialize();
-    for (int i = 1; i <= 16; ++i) { h.send(h.duplicate(i)); h.pending(i); }
-    h.send(h.duplicate(17));
+    for (int i = 1; i <= 16; ++i) { h.send(h.settings_patch(i)); h.pending(i); }
+    h.send(h.settings_patch(17));
     CHECK(h.wait(17)["error"]["code"] == -32000);
     h.bridge.stop();
     REQUIRE(JusPrinTest::wait_for([&] {
         for (const auto& activity : h.coordinator.activities()) if (activity.state != Agent::ToolState::Cancelled) return false;
         return true;
     }, [&] { h.pump(); }));
-    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
 }
 
 TEST_CASE("MCP bridge March batches collect responses and do not answer notifications", "[mcp][bridge]")

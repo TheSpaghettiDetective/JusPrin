@@ -72,7 +72,7 @@ std::optional<AgentEvent> poll_until(OpenAIResponsesAgent& agent, AgentEventKind
 
 } // namespace
 
-TEST_CASE("OpenAI request carries bounded native context and strict tools", "[agent][openai]")
+TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness", "[agent][openai]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -90,10 +90,11 @@ TEST_CASE("OpenAI request carries bounded native context and strict tools", "[ag
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    REQUIRE(body["tools"].size() == 2);
+    REQUIRE(body["tools"].size() == 6);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
-        CHECK(tool["strict"] == true);
+        const std::string name = tool["name"];
+        CHECK(tool["strict"] == (name == "duplicate_object" || name == "inspect_selection" || name == "settings_get"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
         REQUIRE(definition != nullptr);
@@ -102,7 +103,7 @@ TEST_CASE("OpenAI request carries bounded native context and strict tools", "[ag
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection"});
+    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -166,7 +167,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection"});
+    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},
@@ -194,7 +195,7 @@ TEST_CASE("OpenAI consumes a final SSE frame without a trailing delimiter", "[ag
     CHECK_FALSE(agent.busy());
 }
 
-TEST_CASE("OpenAI tool result continuation preserves response output", "[agent][openai][tools]")
+TEST_CASE("OpenAI tool continuation retains user context and every prior tool result", "[agent][openai][tools]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -219,11 +220,27 @@ TEST_CASE("OpenAI tool result continuation preserves response output", "[agent][
     REQUIRE(fake->requests.size() == 2);
     CHECK(fake->requests.back().idempotency_key == "assistant-7-attempt-1-request-2");
     const json continuation = json::parse(fake->requests.back().body)["input"];
-    REQUIRE(continuation.size() == 3);
-    CHECK(continuation[0] == reasoning);
-    CHECK(continuation[1] == call);
-    CHECK(continuation[2]["type"] == "function_call_output");
-    CHECK(continuation[2]["call_id"] == "call-9");
+    const json initial = json::parse(fake->requests.front().body)["input"];
+    REQUIRE(continuation.size() == initial.size() + 3);
+    for (std::size_t i = 0; i < initial.size(); ++i) CHECK(continuation[i] == initial[i]);
+    CHECK(continuation[initial.size()] == reasoning);
+    CHECK(continuation[initial.size() + 1] == call);
+    CHECK(continuation.back()["type"] == "function_call_output");
+    CHECK(continuation.back()["call_id"] == "call-9");
+
+    const json next_call{{"type", "function_call"}, {"call_id", "call-10"}, {"name", "settings_get"},
+                         {"arguments", R"({"keys":["wall_loops"]})"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", {{"output", json::array({next_call})}}}}));
+    const auto next_event = poll_until(agent, AgentEventKind::ToolCall);
+    REQUIRE(next_event);
+    REQUIRE(next_event->tool);
+    CHECK(next_event->tool->call_id == "call-10");
+    REQUIRE(agent.continue_after_tool({"call-10", "succeeded", R"({"items":[{"key":"wall_loops","value":"2"}]})"}));
+    const json third_input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(third_input.size() == continuation.size() + 2);
+    for (std::size_t i = 0; i < continuation.size(); ++i) CHECK(third_input[i] == continuation[i]);
+    CHECK(third_input[continuation.size()] == next_call);
+    CHECK(third_input.back()["call_id"] == "call-10");
 }
 
 TEST_CASE("a late completion from the tool-call request cannot end its continuation", "[agent][openai][tools]")

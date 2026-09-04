@@ -75,6 +75,31 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     if (!arguments.is_object())
         return false;
 
+    if (definition.handler == ToolHandler::SettingsSearch)
+        return has_only(arguments, {"query", "limit", "cursor"}) && arguments.contains("query") &&
+               arguments["query"].is_string() && optional_string(arguments, "cursor") &&
+               (!arguments.contains("limit") || (arguments["limit"].is_number_unsigned() &&
+                 arguments["limit"].get<std::uint64_t>() >= 1 && arguments["limit"].get<std::uint64_t>() <= 25));
+    if (definition.handler == ToolHandler::SettingsGet) {
+        if (!has_only(arguments, {"keys"}) || !arguments.contains("keys") || !arguments["keys"].is_array() ||
+            arguments["keys"].empty() || arguments["keys"].size() > 32)
+            return false;
+        return std::all_of(arguments["keys"].begin(), arguments["keys"].end(), [](const auto& key) { return key.is_string(); });
+    }
+    if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
+        const bool apply = definition.handler == ToolHandler::SettingsApplyPatch;
+        if (!(apply ? has_only(arguments, {"changes", "expectedSessionId", "expectedRevision"}) : has_only(arguments, {"changes"})) ||
+            !arguments.contains("changes") || !arguments["changes"].is_object() || arguments["changes"].empty() ||
+            arguments["changes"].size() > 32)
+            return false;
+        if (apply && (!arguments.contains("expectedSessionId") || !is_unsigned_string(arguments["expectedSessionId"]) ||
+                      !arguments.contains("expectedRevision") || !arguments["expectedRevision"].is_number_unsigned()))
+            return false;
+        return std::all_of(arguments["changes"].begin(), arguments["changes"].end(), [](const auto& value) {
+            return value.is_string() || value.is_number() || value.is_boolean();
+        });
+    }
+
     if (definition.handler == ToolHandler::InspectSelection || definition.handler == ToolHandler::WorkspaceInspect)
         return arguments.empty();
 
@@ -141,7 +166,58 @@ std::vector<ToolDefinition> make_definitions()
     selection_summary["properties"]["status"] = string_schema();
     selection_summary["required"].push_back("status");
 
+    const auto array_schema = [](json item, std::size_t limit = kToolListLimit) {
+        return json{{"type", "array"}, {"items", std::move(item)}, {"maxItems", limit}};
+    };
+    const auto settings_output = [&](json fields, json required) {
+        fields["processPreset"] = string_schema();
+        fields["sessionId"] = id;
+        fields["revision"] = revision;
+        fields["truncated"] = boolean_schema();
+        for (const auto* key : {"processPreset", "sessionId", "revision", "truncated"}) required.push_back(key);
+        return object_schema(std::move(fields), std::move(required));
+    };
+    const json setting_def = object_schema({{"key", id}, {"type", id}, {"label", id}, {"category", id},
+        {"description", id}, {"unit", id}, {"min", number_schema()}, {"max", number_schema()},
+        {"enumValues", array_schema(id)}, {"enumLabels", array_schema(id)}, {"writable", boolean_schema()},
+        {"truncated", boolean_schema()}},
+        {"key", "type", "label", "category", "description", "unit", "enumValues", "enumLabels", "writable", "truncated"});
+    const json issue = object_schema({{"key", id}, {"code", id}, {"message", id}, {"allowed", array_schema(id)},
+        {"suggestions", array_schema(id)}, {"min", number_schema()}, {"max", number_schema()}, {"truncated", boolean_schema()}},
+        {"key", "code", "message", "allowed", "suggestions", "truncated"});
+    const json change = object_schema({{"key", id}, {"before", id}, {"after", id}}, {"key", "before", "after"});
+    const json changes_input{{"type", "object"}, {"minProperties", 1}, {"maxProperties", 32},
+        {"additionalProperties", {{"type", json::array({"string", "number", "boolean"})}}}};
+    const json patch_output = settings_output({{"valid", boolean_schema()}, {"changes", array_schema(change)},
+        {"dependencies", array_schema(change)}, {"issues", array_schema(issue)}, {"warnings", array_schema(issue)}},
+        {"valid", "changes", "dependencies", "issues", "warnings"});
+
     std::vector<ToolDefinition> definitions{
+        {"settings_search", "Search process settings",
+         "Find a page of process settings by key, label, or description. Requires an active FFF process preset. A page is not the full writable list; read known keys directly with settings_get or follow nextCursor.",
+         object_schema({{"query", id}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id}}, {"query"}),
+         settings_output({{"items", array_schema(setting_def, 25)}, {"nextCursor", id}}, {"items", "nextCursor"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsSearch},
+        {"settings_get", "Read process settings",
+         "Read current process values and their preset origin. Requires an active FFF process preset; read before proposing a patch.",
+         object_schema({{"keys", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 32}}}}, {"keys"}),
+         settings_output({{"items", array_schema(object_schema({{"key", id}, {"value", id}, {"type", id}, {"label", id},
+             {"unit", id}, {"differsFromPreset", boolean_schema()}, {"differsFromSystem", boolean_schema()}, {"writable", boolean_schema()}},
+             {"key", "value", "type", "label", "unit", "differsFromPreset", "differsFromSystem", "writable"}), 32)},
+             {"unknownKeys", array_schema(issue, 32)}}, {"items", "unknownKeys"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsGet},
+        {"settings_preview_patch", "Preview process settings",
+         "Validate an atomic process-settings patch without changing the workspace. Requires an active FFF process preset; use the returned sessionId and revision when applying.",
+         object_schema({{"changes", changes_input}}, {"changes"}), patch_output,
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
+        {"settings_apply_patch", "Change process settings",
+         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview. Waits for approval in JusPrin; project Undo does not undo this change.",
+         object_schema({{"changes", changes_input}, {"expectedSessionId", id}, {"expectedRevision", revision}},
+                       {"changes", "expectedSessionId", "expectedRevision"}),
+         settings_output({{"applied", boolean_schema()}, {"changes", array_schema(change)}, {"normalized", array_schema(id)},
+             {"processPresetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},
+             {"applied", "changes", "normalized", "processPresetDirty", "projectUndo"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
         {"duplicate_object",
          "Duplicate project object",
          "Propose duplicating one existing object in the current project.",
@@ -305,14 +381,29 @@ std::vector<std::reference_wrapper<const ToolDefinition>> ToolRegistry::exposed(
 ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definition,
                                                  const std::string&    arguments_json) const
 {
-    const json arguments = json::parse(arguments_json, nullptr, false);
+    json arguments = json::parse(arguments_json, nullptr, false);
     if (arguments.is_discarded() || !valid_arguments(definition, arguments))
         return {{}, ToolError{"invalid_arguments", "The tool arguments do not match the registered contract."}};
+    if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch)
+        for (auto& value : arguments["changes"])
+            if (!value.is_string()) value = value.is_boolean() ? (value.get<bool>() ? "1" : "0") : value.dump();
     return {arguments.dump(), std::nullopt};
 }
 
-std::string ToolRegistry::approval_title(const ToolDefinition& definition, const std::string&) const
+std::string ToolRegistry::approval_title(const ToolDefinition& definition, const std::string& arguments_json) const
 {
+    if (definition.handler == ToolHandler::SettingsApplyPatch) {
+        const auto arguments = json::parse(arguments_json);
+        std::string title = "Change " + std::to_string(arguments.at("changes").size()) + " process settings: ";
+        bool first = true;
+        for (const auto& item : arguments.at("changes").items()) {
+            if (!first) title += ", ";
+            title += item.key();
+            first = false;
+        }
+        if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";
+        return title;
+    }
     return definition.title;
 }
 

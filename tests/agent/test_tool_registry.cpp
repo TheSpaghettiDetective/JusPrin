@@ -1,6 +1,8 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
 
 #include <algorithm>
 #include <set>
@@ -63,9 +65,9 @@ TEST_CASE("tool registry definitions are unique deterministic and schema-backed"
 TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][exposure]")
 {
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::InApp)) ==
-          std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection"});
+          std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
-          std::vector<std::string>{"duplicate_object", "inspect_selection", "workspace_inspect"});
+          std::vector<std::string>{"duplicate_object", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
           std::vector<std::string>{"record_build", "record_export_copy", "record_physical_print"});
 
@@ -90,4 +92,30 @@ TEST_CASE("tool registry is the argument validation boundary", "[tools][registry
     const ToolDefinition& inspect = *ToolRegistry::instance().find("inspect_selection");
     CHECK(ToolRegistry::instance().validate_call(inspect, "{}").valid());
     CHECK_FALSE(ToolRegistry::instance().validate_call(inspect, json{{"extra", true}}.dump()).valid());
+}
+
+TEST_CASE("Settings schemas validate canonical results and argument decoding is shape-only", "[tools][settings]")
+{
+    using namespace Slic3r::GUI::JusPrin::Workspace;
+    const auto& registry = ToolRegistry::instance();
+    FakeWorkspace workspace;
+    auto snapshot = workspace.snapshot();
+    CHECK(registry.validate_output(*registry.find("settings_search"), settings_search_result(workspace.search_settings({""}), snapshot)));
+    CHECK(registry.validate_output(*registry.find("settings_get"), settings_read_result(workspace.read_settings({"layer_height", "bad"}), snapshot)));
+    for (auto value : {"0.25", "invalid"}) {
+        auto preview = workspace.preview_settings({{{"layer_height", value}}});
+        CHECK(registry.validate_output(*registry.find("settings_preview_patch"), settings_preview_result(preview, snapshot)));
+        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, snapshot, false)));
+    }
+    const auto& preview_tool = *registry.find("settings_preview_patch");
+    const auto decoded = registry.validate_call(preview_tool, R"({"changes":{"unknown":true,"wall_loops":4,"layer_height":0.25}})");
+    REQUIRE(decoded.valid());
+    CHECK(json::parse(decoded.arguments_json)["changes"] == json{{"unknown", "1"}, {"wall_loops", "4"}, {"layer_height", "0.25"}});
+    CHECK_FALSE(registry.validate_call(preview_tool, R"({"changes":{}})").valid());
+    CHECK_FALSE(registry.validate_call(preview_tool, R"({"changes":{"wall_loops":null}})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("settings_apply_patch"), R"({"changes":{"wall_loops":4}})").valid());
+    auto unsupported = preview_tool;
+    unsupported.output_schema["maximum"] = 1;
+    CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, snapshot)), std::logic_error);
+    CHECK(registry.approval_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
 }

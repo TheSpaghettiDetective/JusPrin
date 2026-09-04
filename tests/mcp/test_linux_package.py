@@ -68,7 +68,7 @@ class LinuxPackageTests(unittest.TestCase):
         self.assertEqual(child.initialize()["result"]["protocolVersion"], "2025-06-18")
         child.send(request(1, "tools/list"))
         self.assertEqual({tool["name"] for tool in child.receive()["result"]["tools"]},
-                         {"duplicate_object", "inspect_selection", "workspace_inspect"})
+                         {"duplicate_object", "inspect_selection", "workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch"})
         child.send(request(2, "tools/call", {"name": "workspace_inspect", "arguments": {}}))
         self.assertEqual(child.receive()["result"]["structuredContent"]["error"]["code"],
                          "workspace_unavailable")
@@ -129,7 +129,7 @@ class LinuxPackageTests(unittest.TestCase):
         self.assertEqual(child.initialize()["result"]["protocolVersion"], "2025-06-18")
         child.send(request(1, "tools/list"))
         self.assertEqual({tool["name"] for tool in child.receive()["result"]["tools"]},
-                         {"duplicate_object", "inspect_selection", "workspace_inspect"})
+                         {"duplicate_object", "inspect_selection", "workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch"})
         child.send(request(2, "tools/call", {"name": "workspace_inspect", "arguments": {}}))
         self.assertEqual(child.receive()["result"]["structuredContent"]["error"]["code"],
                          "workspace_unavailable")

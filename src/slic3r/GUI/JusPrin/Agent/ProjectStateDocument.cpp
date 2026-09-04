@@ -293,7 +293,8 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     if (!activity.result_json.empty())
         entry["result"] = activity.result_json;
     if (activity.error)
-        entry["error"] = json{{"code", activity.error->code}, {"message", activity.error->message}};
+        entry["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
+                                {"details", json::parse(activity.error->details_json)}};
     else
         entry.erase("error");
 }
@@ -327,7 +328,8 @@ ToolActivity read_activity(const json& entry)
     }
     activity.result_json = entry.value("result", "");
     if (entry.contains("error") && entry["error"].is_object())
-        activity.error = ToolError{entry["error"].value("code", ""), entry["error"].value("message", "")};
+        activity.error = ToolError{entry["error"].value("code", ""), entry["error"].value("message", ""),
+                                   entry["error"].value("details", json::object()).dump()};
     return activity;
 }
 

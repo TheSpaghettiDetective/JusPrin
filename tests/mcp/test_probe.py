@@ -38,7 +38,7 @@ class ProbeTests(unittest.TestCase):
             endpoint = urlsplit(f"http://127.0.0.1:{server.server_port}/mcp")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                for method, params in (("server/discover", {}), ("tools/call", {"name": "inspect_selection"})):
+                for method, params in (("server/discover", {}), ("tools/call", {"name": "workspace_inspect"})):
                     self.assertEqual(probe.call(endpoint, method, params)["result"]["resultType"], "complete")
             self.assertIn("Pending", output.getvalue())
             self.assertEqual(len(received), 2)
@@ -46,7 +46,7 @@ class ProbeTests(unittest.TestCase):
                 self.assertEqual(headers["Mcp-Method"], body["method"])
                 self.assertEqual(headers["MCP-Protocol-Version"], body["params"]["_meta"]["io.modelcontextprotocol/protocolVersion"])
                 self.assertNotIn("Authorization", headers)
-            self.assertEqual(received[1][0]["Mcp-Name"], "inspect_selection")
+            self.assertEqual(received[1][0]["Mcp-Name"], "workspace_inspect")
         finally:
             server.shutdown()
             worker.join()

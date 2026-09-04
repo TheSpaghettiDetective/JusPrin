@@ -135,7 +135,7 @@ private:
     ToolActivity* find_mutable(const std::string& action_id);
     void          start_running(ToolActivity& activity);
     void          execute(ToolActivity& activity);
-    void          fail(ToolActivity& activity, std::string code, std::string message);
+    void          fail(ToolActivity& activity, std::string code, std::string message, std::string details_json = "{}");
     void          notify(const ToolActivity& activity);
     void          invalidate_pending(const Workspace::WorkspaceChanged& change);
 

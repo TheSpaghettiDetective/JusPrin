@@ -7,6 +7,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
@@ -100,6 +101,71 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(approval_required(ActionClass::Destructive));
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::Destructive));
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
+}
+
+TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")
+{
+    Harness h;
+    auto request = [&](json changes) {
+        const auto snapshot = h.workspace.snapshot();
+        return ToolRequest{"settings_apply_patch", json{{"changes", changes}, {"expectedSessionId", std::to_string(snapshot.session.value())},
+                                                       {"expectedRevision", snapshot.revision}}.dump()};
+    };
+    auto bad = h.coordinator.propose(request({{"wall_loops", 4}, {"brim_width", -1}}), "bad");
+    REQUIRE(bad.state == ToolState::Failed);
+    REQUIRE(bad.error->code == "invalid_setting_value");
+    REQUIRE(json::parse(bad.error->details_json)["issues"][0]["key"] == "brim_width");
+    REQUIRE(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
+    REQUIRE(h.states_of(bad.action_id) == std::vector<ToolState>{ToolState::Failed});
+
+    auto pending = h.coordinator.propose(request({{"wall_loops", 4}}), "pending");
+    REQUIRE(pending.state == ToolState::Pending);
+    REQUIRE(json::parse(pending.arguments_json)["confirmedChanges"][0] == json{{"key", "wall_loops"}, {"before", "2"}, {"after", "4"}});
+    REQUIRE(pending.title == "Change 1 process settings: wall_loops");
+    SECTION("reject") { REQUIRE(h.coordinator.reject(pending.action_id)); }
+    SECTION("cancel") { REQUIRE(h.coordinator.cancel(pending.action_id)); }
+    SECTION("setting event") {
+        h.workspace.set_setting_for_testing("brim_width", "7");
+        REQUIRE(h.coordinator.find(pending.action_id)->error->code == "stale_revision");
+    }
+    SECTION("replacement") {
+        h.workspace.replace_project(one_plate_snapshot());
+        REQUIRE(h.coordinator.find(pending.action_id)->error->code == "stale_revision");
+    }
+    SECTION("unannounced edit") {
+        h.workspace.set_setting_for_testing("wall_loops", "3", false);
+        REQUIRE(h.coordinator.approve(pending.action_id));
+        h.pump_to_completion(pending.action_id);
+        REQUIRE(h.coordinator.find(pending.action_id)->error->code == "stale_workspace");
+        REQUIRE(h.workspace.read_settings({"wall_loops"}).items[0].value == "3");
+        return;
+    }
+    REQUIRE(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
+}
+
+TEST_CASE("Settings tools share terminal activities across adapters and return atomic results", "[tools][settings][mcp]")
+{
+    Harness h;
+    std::vector<ToolActivity> external;
+    auto sub = h.coordinator.subscribe([&](const auto& a) { if (tool_state_terminal(a.state)) external.push_back(a); });
+    const auto initial = h.workspace.snapshot();
+    const auto read_id = h.coordinator.propose({"settings_get", R"({"keys":["wall_loops","sparse_infill_density"]})"}, "read").action_id;
+    h.pump_to_completion(read_id);
+    REQUIRE(h.coordinator.find(read_id)->state == ToolState::Succeeded);
+    const auto apply_id = h.coordinator.propose({"settings_apply_patch", json{{"changes", {{"wall_loops", 4}, {"sparse_infill_density", "25%"}}},
+        {"expectedSessionId", std::to_string(initial.session.value())}, {"expectedRevision", initial.revision}}.dump()}, "mcp", {}, ToolSource::Mcp).action_id;
+    REQUIRE(h.coordinator.approve(apply_id));
+    h.pump_to_completion(apply_id);
+    const auto activity = *h.coordinator.find(apply_id);
+    REQUIRE(activity.state == ToolState::Succeeded);
+    const auto result = json::parse(activity.result_json);
+    REQUIRE(result["applied"] == true);
+    REQUIRE(result["changes"].size() == 2);
+    REQUIRE(result["projectUndo"] == false);
+    REQUIRE(result["processPresetDirty"] == true);
+    REQUIRE(result["revision"] == initial.revision + 1);
+    REQUIRE(external.back().result_json == h.events.back().result_json);
+    REQUIRE(Mcp::activity_result(activity, h.workspace.snapshot())["structuredContent"] == result);
 }
 
 TEST_CASE("approved mutation cannot execute after a content change", "[tools][stale][mcp]")

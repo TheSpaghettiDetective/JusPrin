@@ -9,12 +9,16 @@
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
+#include "libslic3r/PresetBundle.hpp"
+#include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
 
 #include <wx/app.h>
+#include <wx/modalhook.h>
 
 #include <boost/filesystem.hpp>
 
@@ -104,6 +108,138 @@ public:
     }
 
 private:
+    void verify_process_settings()
+    {
+        struct DialogProbe : wxModalDialogHook {
+            int count{0};
+            int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
+        } dialogs;
+        dialogs.Register();
+        auto* tab = m_app.get_tab(Preset::TYPE_PRINT);
+        auto& prints = m_app.preset_bundle->prints;
+        const DynamicPrintConfig original = prints.get_edited_preset().config;
+        const auto start = m_workspace->snapshot();
+        const auto revision = start.revision;
+        auto search = m_workspace->search_settings({"layer_height"});
+        check(!search.error && search.items.front().key == "layer_height", "settings_real_metadata_search");
+        check(search.items.front().description == print_config_def.get("layer_height")->tooltip, "settings_metadata_owned_by_orca");
+        for (const auto& key : Preset::print_options()) {
+            if (!print_config_def.get(key)) continue;
+            const auto read = m_workspace->read_settings({key});
+            check(read.items.size() == 1 && read.items[0].value == original.option(key)->serialize(), "settings_read_definition_" + key);
+        }
+        const auto unknown = m_workspace->read_settings({"layer_heigt", "nozzle_diameter"});
+        check(unknown.issues.size() == 2 && unknown.issues[0].code == "unknown_setting" &&
+              unknown.issues[1].code == "unsupported_scope", "settings_real_unknown_and_scope");
+        SettingsPatch patch{{{"layer_height", "0.16"}, {"wall_loops", "4"}, {"sparse_infill_density", "25%"},
+            {"sparse_infill_pattern", "gyroid"}, {"top_shell_layers", "7"}, {"bottom_shell_layers", "6"}, {"brim_width", "8"}}};
+        const auto preview = m_workspace->preview_settings(patch);
+        for (const auto& issue : preview.issues) std::cerr << "SETTINGS ISSUE " << issue.key << ' ' << issue.message << '\n';
+        check(preview.valid, "settings_real_preview_valid");
+        check(current_values_equal(original, prints.get_edited_preset().config), "settings_preview_does_not_mutate");
+        check(m_workspace->snapshot().revision == revision, "settings_preview_publishes_no_event");
+        SettingsPreview applied;
+        const auto before_events = m_changes.size();
+        const auto result = m_workspace->apply_settings(patch, settings_confirmation(preview), applied);
+        check(result.succeeded(), "settings_apply_before_process_page_shown");
+        check(m_changes.size() == before_events + 1 && m_changes.back().reasons == WorkspaceChangeReasons::Settings,
+            "settings_batch_one_event");
+        check(m_workspace->snapshot().revision == revision + 1, "settings_batch_one_revision");
+        check(m_workspace->snapshot().setup.process_preset_dirty && tab->current_preset_is_dirty(), "settings_preset_dirty_indicator");
+        check(m_workspace->snapshot().can_undo == start.can_undo && m_workspace->snapshot().can_redo == start.can_redo, "settings_outside_project_undo");
+        for (const auto& change : applied.changes)
+            check(prints.get_edited_preset().config.option(change.key)->serialize() == change.after, "settings_real_value_" + change.key);
+        SettingsPatch inverse;
+        for (const auto& change : applied.changes) inverse.changes[change.key] = change.before;
+        check(m_workspace->apply_settings(inverse, settings_confirmation(m_workspace->preview_settings(inverse)), applied).succeeded(), "settings_inverse_applies");
+        check(current_values_equal(original, prints.get_edited_preset().config), "settings_inverse_restores_every_key");
+
+        for (const auto& value : {"0", "999", "0.2junk", "NaN"}) {
+            const SettingsPatch invalid{{{"layer_height", value}, {"wall_loops", "4"}}};
+            const auto preview_bad = m_workspace->preview_settings(invalid);
+            check(!preview_bad.valid && preview_bad.issues.front().code == "invalid_setting_value", "settings_reject_invalid_height_" + std::string(value));
+            check(m_workspace->apply_settings(invalid, {}, applied).error == WorkspaceError::InvalidSettings, "settings_invalid_batch_atomic");
+            check(current_values_equal(original, prints.get_edited_preset().config), "settings_invalid_batch_changes_nothing");
+        }
+        check(m_workspace->preview_settings({{{"sparse_infill_density", "101%"}}}).issues.front().code == "invalid_setting_value",
+              "settings_percent_bounds_use_percent_units");
+        auto& config = prints.get_edited_preset().config;
+        auto& printer = m_app.preset_bundle->printers.get_edited_preset().config;
+        const auto old_max = printer.option("max_layer_height")->clone();
+        printer.set_key_value("max_layer_height", new ConfigOptionFloats({0.3}));
+        const SettingsPatch maximum{{{"layer_height", "0.3"}}};
+        check(m_workspace->preview_settings(maximum).valid, "settings_accept_printer_maximum");
+        check(m_workspace->apply_settings(maximum, settings_confirmation(m_workspace->preview_settings(maximum)), applied).succeeded(), "settings_apply_printer_maximum");
+        tab->load_config(original);
+        printer.set_key_value("max_layer_height", old_max);
+
+        config.set_deserialize_strict("seam_slope_type", "external");
+        config.set_deserialize_strict("seam_slope_start_height", "0.18");
+        const SettingsPatch scarf{{{"layer_height", "0.16"}}};
+        check(!m_workspace->preview_settings(scarf).valid, "settings_scarf_conflict_is_blocking");
+        check(m_workspace->apply_settings(scarf, {}, applied).error == WorkspaceError::InvalidSettings, "settings_scarf_apply_no_dialog");
+        config.set_deserialize_strict("seam_slope_start_height", "150%");
+        check(!m_workspace->preview_settings(scarf).valid, "settings_percent_scarf_at_or_above_layer_is_blocking");
+        config = original;
+        config.set_deserialize_strict("spiral_mode", "1");
+        for (const auto& key : {"wall_loops", "top_shell_layers", "sparse_infill_density"}) {
+            const SettingsPatch spiral{{{key, "3"}}};
+            check(!m_workspace->preview_settings(spiral).valid, "settings_spiral_conflict_" + std::string(key));
+            check(m_workspace->apply_settings(spiral, {}, applied).error == WorkspaceError::InvalidSettings, "settings_spiral_apply_no_dialog");
+        }
+        config = original;
+        for (const auto& fixture : std::vector<SettingsPatch>{
+                 {{{"ironing_spacing", "0.01"}}}, {{{"support_ironing_spacing", "0.01"}}},
+                 {{{"initial_layer_print_height", "0"}}}, {{{"xy_hole_compensation", "3"}}},
+                 {{{"xy_contour_compensation", "3"}}}, {{{"elefant_foot_compensation", "2"}}},
+                 {{{"infill_lock_depth", "1"}, {"skin_infill_depth", "0.5"}}}}) {
+            config = original;
+            for (const auto& item : fixture.changes) config.set_deserialize_strict(item.first, item.second);
+            const DynamicPrintConfig before_invalid = config;
+            const SettingsPatch change{{{"wall_loops", "4"}}};
+            const auto refusal = m_workspace->preview_settings(change);
+            check(!refusal.valid && refusal.issues.front().code == "incompatible_settings", "settings_preexisting_dialog_guard_" + fixture.changes.begin()->first);
+            check(m_workspace->apply_settings(change, {}, applied).error == WorkspaceError::InvalidSettings &&
+                  current_values_equal(before_invalid, config), "settings_preexisting_dialog_guard_is_atomic");
+        }
+        config = original;
+        const auto support_gap = config.option("support_top_z_distance")->serialize();
+        check(m_workspace->apply_settings(scarf, settings_confirmation(m_workspace->preview_settings(scarf)), applied).succeeded(), "settings_height_with_support_gap");
+        check(config.option("support_top_z_distance")->serialize() == support_gap, "settings_compiled_out_support_gap_rule_does_not_write");
+        tab->load_config(original);
+        // Exercise the active settings page and its real field, then a silent
+        // dependency through Orca's normalizer.
+        tab->activate_option("sparse_infill_pattern", "Strength");
+        config.set_deserialize_strict("fill_multiline", "3");
+        const SettingsPatch multiline{{{"sparse_infill_pattern", "line"}, {"sparse_infill_density", "25%"}}};
+        const auto prediction = m_workspace->preview_settings(multiline);
+        check(prediction.valid && std::any_of(prediction.dependencies.begin(), prediction.dependencies.end(), [](const auto& c) {
+            return c.key == "fill_multiline" && c.after == "1";
+        }), "settings_multiline_reset_predicted");
+        check(m_workspace->apply_settings(multiline, settings_confirmation(prediction), applied).succeeded(), "settings_multiline_apply");
+        check(config.opt_int("fill_multiline") == 1, "settings_multiline_actual_reset");
+        check(std::any_of(applied.warnings.begin(), applied.warnings.end(), [](const auto& issue) {
+            return issue.key == "fill_multiline" && issue.code == "normalized";
+        }), "settings_multiline_actual_reported");
+        tab->activate_option("wall_loops", "Strength");
+        const SettingsPatch walls{{{"wall_loops", "4"}}};
+        const auto confirmed = settings_confirmation(m_workspace->preview_settings(walls));
+        DynamicPrintConfig gui_edit;
+        gui_edit.set_deserialize_strict("wall_loops", "5");
+        const auto before_gui_edit = m_changes.size();
+        tab->load_config(gui_edit);
+        check(m_changes.size() == before_gui_edit + 1 && has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Settings), "settings_gui_edit_one_revision");
+        check(m_workspace->apply_settings(walls, confirmed, applied).error == WorkspaceError::StaleSettings, "settings_gui_edit_invalidates_confirmed_values");
+        auto* field = tab->get_field("wall_loops");
+        check(field && boost::any_cast<int>(field->get_value()) == 5, "settings_native_field_matches_value");
+        tab->on_roll_back_value(false);
+        check(!m_workspace->snapshot().setup.process_preset_dirty, "settings_native_revert_clears_dirty");
+        tab->load_config(original);
+        check(dialogs.count == 0, "settings_no_modal_dialog_reached");
+    }
+
+    static bool current_values_equal(const DynamicPrintConfig& a, const DynamicPrintConfig& b) { return a.diff(b).empty(); }
+
     void check(bool condition, const std::string& name)
     {
         std::cerr << "HARNESS CHECK " << name << ' ' << (condition ? "PASS" : "FAIL") << '\n';
@@ -152,6 +288,7 @@ private:
         });
 
         const WorkspaceSnapshot initial = m_workspace->snapshot();
+        verify_process_settings();
         check(initial.plates.size() >= 2, "initial_snapshot_has_multiple_plates");
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");
         check(object_count(initial) == 2, "initial_snapshot_has_two_objects");

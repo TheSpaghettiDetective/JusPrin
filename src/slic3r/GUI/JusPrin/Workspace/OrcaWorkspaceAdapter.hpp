@@ -27,6 +27,11 @@ public:
     CommandResult remove_object(ObjectId id) override;
     CommandResult undo() override;
     CommandResult redo() override;
+    SettingsSearchResult search_settings(const SettingsQuery& query) const override;
+    SettingsReadResult read_settings(const std::vector<std::string>& keys) const override;
+    SettingsPreview preview_settings(const SettingsPatch& patch) const override;
+    CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+                                 SettingsPreview& applied) override;
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;
     CommandResult restore_project_archive(const std::string& file_path) override;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Workspace.hpp"
+#include "FakeSettings.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -32,8 +33,63 @@ public:
         result.revision          = m_changes.revision();
         result.can_undo          = !m_undo.empty();
         result.can_redo          = !m_redo.empty();
+        result.setup.process_preset = m_settings_available ? "Fixture process" : "";
+        result.setup.process_preset_dirty = m_settings.values != m_settings.preset_values;
         return result;
     }
+
+    SettingsSearchResult search_settings(const SettingsQuery& query) const override
+    {
+        if (!m_settings_available) {
+            SettingsSearchResult result;
+            result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+            return result;
+        }
+        return search_setting_definitions(m_settings.definitions, query);
+    }
+
+    SettingsReadResult read_settings(const std::vector<std::string>& keys) const override
+    {
+        if (!m_settings_available) {
+            SettingsReadResult result;
+            result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+            return result;
+        }
+        return m_settings.read(keys);
+    }
+
+    SettingsPreview preview_settings(const SettingsPatch& patch) const override
+    {
+        if (!m_settings_available) {
+            SettingsPreview result;
+            result.issues.push_back({"", "workspace_unavailable", "No active FFF process preset."});
+            return result;
+        }
+        return m_settings.preview(patch);
+    }
+
+    CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+                                 SettingsPreview& applied) override
+    {
+        if (!m_settings_available)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
+        const auto result = m_settings.apply(patch, confirmed, applied);
+        if (result.succeeded()) {
+            for (auto& plate : m_snapshot.plates)
+                plate.sliced = false;
+            publish(WorkspaceChangeReasons::Settings);
+        }
+        return result;
+    }
+
+    // Fixture-only seams for pre-existing dependencies and an unannounced edit.
+    void set_setting_for_testing(const std::string& key, std::string value, bool notify = true)
+    {
+        m_settings.values.at(key) = std::move(value);
+        if (notify)
+            publish(WorkspaceChangeReasons::Settings);
+    }
+    void set_settings_available_for_testing(bool available) { m_settings_available = available; }
 
     CommandResult select_object(ObjectId id) override
     {
@@ -480,6 +536,8 @@ private:
     std::set<ObjectId>             m_known_object_ids;
     std::uint64_t                  m_last_object_id{0};
     WorkspaceChangeHub             m_changes;
+    FakeSettings                   m_settings;
+    bool                           m_settings_available{true};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

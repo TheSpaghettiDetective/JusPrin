@@ -86,7 +86,7 @@ private:
     std::deque<QueuedHttpEvent>           m_http_events;
     std::deque<AgentEvent>                m_events;
     std::string                           m_sse_buffer;
-    nlohmann::json                        m_prior_output{nlohmann::json::array()};
+    nlohmann::json                        m_input_history{nlohmann::json::array()};
     std::string                           m_pending_call_id;
     std::string                           m_request_id;
     unsigned                              m_request_sequence{0};

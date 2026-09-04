@@ -14,6 +14,132 @@ std::string label(const std::string& text, bool& truncated)
 }
 }
 
+namespace {
+json strings(const std::vector<std::string>& values, bool& truncated)
+{
+    json items = json::array();
+    for (const auto& value : values) {
+        if (items.size() == kToolListLimit) { truncated = true; break; }
+        items.push_back(label(value, truncated));
+    }
+    return items;
+}
+
+json settings_context(const Workspace::WorkspaceSnapshot& snapshot, bool& truncated)
+{
+    return {{"processPreset", label(snapshot.setup.process_preset, truncated)},
+            {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+}
+
+json changes_result(const std::vector<Workspace::SettingChange>& changes, bool& truncated)
+{
+    json items = json::array();
+    for (const auto& change : changes) {
+        if (items.size() == kToolListLimit) { truncated = true; break; }
+        items.push_back({{"key", change.key}, {"before", change.before}, {"after", change.after}});
+    }
+    return items;
+}
+
+json issues_result(const std::vector<Workspace::SettingIssue>& issues, bool& truncated)
+{
+    json items = json::array();
+    for (const auto& issue : issues) {
+        if (items.size() == kToolListLimit) { truncated = true; break; }
+        auto item = setting_issue_result(issue);
+        truncated = truncated || item["truncated"].get<bool>();
+        items.push_back(std::move(item));
+    }
+    return items;
+}
+}
+
+json setting_issue_result(const Workspace::SettingIssue& issue)
+{
+    bool truncated = false;
+    json result{{"key", label(issue.key, truncated)}, {"code", issue.code}, {"message", label(issue.message, truncated)},
+                {"allowed", strings(issue.allowed, truncated)}, {"suggestions", strings(issue.suggestions, truncated)}};
+    if (issue.min) result["min"] = *issue.min;
+    if (issue.max) result["max"] = *issue.max;
+    result["truncated"] = truncated;
+    return result;
+}
+
+json settings_search_result(const Workspace::SettingsSearchResult& search, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    bool truncated = search.truncated;
+    auto result = settings_context(snapshot, truncated);
+    result["items"] = json::array();
+    for (const auto& def : search.items) {
+        if (result["items"].size() == 25) { truncated = true; break; }
+        bool item_truncated = false;
+        json item{{"key", def.key}, {"type", def.type}, {"label", label(def.label, item_truncated)},
+            {"category", label(def.category, item_truncated)}, {"description", label(def.description, item_truncated)},
+            {"unit", label(def.unit, item_truncated)}, {"writable", def.writable},
+            {"enumValues", strings(def.enum_values, item_truncated)}, {"enumLabels", strings(def.enum_labels, item_truncated)}};
+        if (def.min) item["min"] = *def.min;
+        if (def.max) item["max"] = *def.max;
+        item["truncated"] = item_truncated;
+        truncated = truncated || item_truncated;
+        result["items"].push_back(std::move(item));
+    }
+    result["nextCursor"] = search.next_cursor;
+    result["truncated"] = truncated;
+    return result;
+}
+
+json settings_read_result(const Workspace::SettingsReadResult& read, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    bool truncated = false;
+    auto result = settings_context(snapshot, truncated);
+    result["items"] = json::array();
+    for (const auto& value : read.items) {
+        if (result["items"].size() == 32) { truncated = true; break; }
+        // Canonical values must remain round-trippable; only presentation text
+        // is shortened. The read count and transport request bounds cap calls.
+        result["items"].push_back({{"key", value.key}, {"value", value.value}, {"type", value.definition.type},
+            {"label", label(value.definition.label, truncated)}, {"unit", label(value.definition.unit, truncated)},
+            {"differsFromPreset", value.differs_from_preset}, {"differsFromSystem", value.differs_from_system},
+            {"writable", value.definition.writable}});
+    }
+    result["unknownKeys"] = issues_result(read.issues, truncated);
+    result["truncated"] = truncated;
+    return result;
+}
+
+json settings_preview_result(const Workspace::SettingsPreview& preview, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    bool truncated = false;
+    auto result = settings_context(snapshot, truncated);
+    result["valid"] = preview.valid;
+    result["changes"] = changes_result(preview.changes, truncated);
+    result["dependencies"] = changes_result(preview.dependencies, truncated);
+    result["issues"] = issues_result(preview.issues, truncated);
+    result["warnings"] = issues_result(preview.warnings, truncated);
+    result["truncated"] = truncated;
+    return result;
+}
+
+json settings_apply_result(const Workspace::SettingsPreview& applied, const Workspace::WorkspaceSnapshot& snapshot, bool changed)
+{
+    bool truncated = false;
+    auto result = settings_context(snapshot, truncated);
+    auto changes = applied.changes;
+    changes.insert(changes.end(), applied.dependencies.begin(), applied.dependencies.end());
+    result["applied"] = changed;
+    result["changes"] = changes_result(changes, truncated);
+    result["normalized"] = json::array();
+    for (const auto& issue : applied.warnings)
+        if (issue.code == "normalized") {
+            if (result["normalized"].size() == kToolListLimit) { truncated = true; break; }
+            result["normalized"].push_back(issue.key);
+        }
+    result["processPresetDirty"] = snapshot.setup.process_preset_dirty;
+    result["projectUndo"] = false;
+    result["truncated"] = truncated;
+    return result;
+}
+
 json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot)
 {
     bool truncated = false;

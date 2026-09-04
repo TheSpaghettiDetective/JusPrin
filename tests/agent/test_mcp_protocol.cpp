@@ -1,4 +1,5 @@
 #include <catch2/catch_all.hpp>
+#include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
 
 using namespace Slic3r::GUI::JusPrin;
@@ -75,8 +76,8 @@ TEST_CASE("MCP rejects malformed envelopes metadata and mismatched headers", "[m
 
 TEST_CASE("MCP decodes mirrored name headers before comparison", "[mcp][protocol]")
 {
-    auto http = fixture("tools/call", {{"name", "inspect_selection"}, {"arguments", json::object()}});
-    http.headers["mcp-name"] = "=?base64?aW5zcGVjdF9zZWxlY3Rpb24=?=";
+    auto http = fixture("tools/call", {{"name", "workspace_inspect"}, {"arguments", json::object()}});
+    http.headers["mcp-name"] = "=?base64?d29ya3NwYWNlX2luc3BlY3Q=?=";
     CHECK(parse(http).request.has_value());
     http.headers["mcp-name"] = "=?base64?not!base64?=";
     CHECK(parse(http).error.body["error"]["code"] == -32020);
@@ -130,13 +131,13 @@ TEST_CASE("MCP discovery and paged catalog are registry projections", "[mcp][reg
 TEST_CASE("MCP terminal results preserve structured content and error identity", "[mcp][protocol]")
 {
     Agent::ToolActivity activity;
-    activity.tool = "inspect_selection";
+    activity.tool = "workspace_inspect";
     activity.action_id = "a-1";
     activity.state = Agent::ToolState::Succeeded;
-    activity.result_json = R"({"selection":["cube"],"revision":4})";
     Workspace::WorkspaceSnapshot snapshot;
     snapshot.session = Workspace::ProjectSessionId(7);
     snapshot.revision = 4;
+    activity.result_json = Agent::workspace_inspection(snapshot).dump();
     auto result = Mcp::activity_result(activity, snapshot);
     CHECK_FALSE(result["isError"].get<bool>());
     CHECK(json::parse(result["content"][0]["text"].get<std::string>()) == result["structuredContent"]);

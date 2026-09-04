@@ -16914,6 +16914,7 @@ void Plater::on_config_change(const DynamicPrintConfig &config)
         update_title_dirty_status();
         p->schedule_auto_reslice_if_needed();
     }
+    notify_project_state_changed(ProjectStateChangeReason::Settings);
 }
 
 void Plater::update_flush_volume_matrix(size_t old_nozzle_size, size_t new_nozzle_size)

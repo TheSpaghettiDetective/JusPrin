@@ -66,6 +66,21 @@ bool available_in_app(const ToolDefinition& definition, bool allow_import)
            (definition.availability == ToolAvailability::Always || allow_import);
 }
 
+bool has_closed_required_objects(const json& schema)
+{
+    if (schema.value("type", json()) == "object") {
+        if (schema.value("additionalProperties", json()) != false)
+            return false;
+        const auto properties = schema.value("properties", json::object());
+        const auto required = schema.value("required", json::array());
+        for (const auto& property : properties.items())
+            if (std::find(required.begin(), required.end(), property.key()) == required.end() ||
+                !has_closed_required_objects(property.value()))
+                return false;
+    }
+    return !schema.contains("items") || has_closed_required_objects(schema["items"]);
+}
+
 json tools_for(bool allow_import)
 {
     json tools = json::array();
@@ -75,7 +90,10 @@ json tools_for(bool allow_import)
         tools.push_back(json{{"type", "function"},
                              {"name", definition.name},
                              {"description", definition.description},
-                             {"strict", true},
+                             // OpenAI strict mode cannot express optional
+                             // fields or dynamic maps. Preserve the registry
+                             // schema; native validation still owns acceptance.
+                             {"strict", has_closed_required_objects(definition.input_schema)},
                              {"parameters", definition.input_schema}});
     }
     return tools;
@@ -150,7 +168,7 @@ bool OpenAIResponsesAgent::start(const AgentRequest& request)
 {
     if (!ready() || m_busy)
         return false;
-    m_prior_output = json::array();
+    m_input_history = json::array();
     m_pending_call_id.clear();
     m_waiting_for_tool = false;
     m_request_id = request.request_id;
@@ -165,7 +183,7 @@ bool OpenAIResponsesAgent::continue_after_tool(const AgentToolResult& result)
 {
     if (!m_busy || !m_waiting_for_tool || result.call_id != m_pending_call_id)
         return false;
-    json input = m_prior_output;
+    json input = m_input_history;
     input.push_back(json{{"type", "function_call_output"}, {"call_id", result.call_id}, {"output", result.output_json}});
     m_waiting_for_tool = false;
     m_pending_call_id.clear();
@@ -181,6 +199,9 @@ bool OpenAIResponsesAgent::post(json input)
     request.url = m_config.endpoint;
     request.authorization = "Bearer " + m_config.api_key;
     request.idempotency_key = m_request_id + "-request-" + std::to_string(++m_request_sequence);
+    // store:false requests are stateless. Retain the complete turn input,
+    // including user context and earlier tool results, for each continuation.
+    m_input_history = input;
     request.body = request_body(std::move(input)).dump();
     const std::uint64_t generation = ++m_http_generation;
     if (!m_transport->post(std::move(request), [this, generation](AgentHttpEvent event) {
@@ -245,14 +266,15 @@ void OpenAIResponsesAgent::finish_response(const json& response)
         fail(AgentError{"malformed_response", "The Agent service response did not contain valid output.", false});
         return;
     }
-    m_prior_output = response["output"];
+    const auto& output = response["output"];
+    m_input_history.insert(m_input_history.end(), output.begin(), output.end());
     if (m_config.usage_listener && response.contains("usage") && response["usage"].is_object()) {
         const json& usage = response["usage"];
         m_config.usage_listener(usage.value("input_tokens", std::uint64_t{0}),
                                 usage.value("output_tokens", std::uint64_t{0}),
                                 usage.value("total_tokens", std::uint64_t{0}));
     }
-    for (const json& item : m_prior_output) {
+    for (const json& item : output) {
         if (!item.is_object() || item.value("type", "") != "function_call")
             continue;
         const std::string call_id = item.value("call_id", "");

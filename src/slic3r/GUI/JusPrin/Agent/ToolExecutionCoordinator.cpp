@@ -1,5 +1,6 @@
 #include "ToolExecutionCoordinator.hpp"
 #include "ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -20,7 +21,7 @@ constexpr const char* kServerName = "jusprin-native";
 // selected afterwards cannot alter what an approval would execute.
 constexpr WorkspaceChangeReasons kInvalidatingReasons = WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Transform |
                                                         WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History |
-                                                        WorkspaceChangeReasons::Project;
+                                                        WorkspaceChangeReasons::Project | WorkspaceChangeReasons::Settings;
 
 const char* workspace_error_code(WorkspaceError error)
 {
@@ -33,6 +34,8 @@ const char* workspace_error_code(WorkspaceError error)
     case WorkspaceError::UnavailableOperation: return "unavailable_operation";
     case WorkspaceError::InvalidArgument: return "invalid_argument";
     case WorkspaceError::NoChange: return "no_change";
+    case WorkspaceError::InvalidSettings: return "invalid_settings";
+    case WorkspaceError::StaleSettings: return "stale_workspace";
     }
     return "unknown";
 }
@@ -50,6 +53,17 @@ std::optional<Workspace::ObjectId> parse_object_argument(const std::string& argu
     } catch (const std::exception&) {
         return std::nullopt;
     }
+}
+
+Workspace::SettingsPatch settings_patch(const json& arguments)
+{
+    return {arguments.at("changes").get<std::map<std::string, std::string>>()};
+}
+
+json stale_settings_details(const json& arguments, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    return {{"expectedSessionId", arguments.at("expectedSessionId")}, {"expectedRevision", arguments.at("expectedRevision")},
+            {"currentSessionId", std::to_string(snapshot.session.value())}, {"currentRevision", snapshot.revision}};
 }
 
 } // namespace
@@ -119,6 +133,24 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     }
     stored.arguments_json = std::move(validation.arguments_json);
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
+
+    if (definition->handler == ToolHandler::SettingsApplyPatch) {
+        auto arguments = json::parse(stored.arguments_json);
+        if (arguments["expectedSessionId"] != std::to_string(snapshot.session.value()) || arguments["expectedRevision"] != snapshot.revision) {
+            fail(stored, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(arguments, snapshot).dump());
+            return stored;
+        }
+        const auto preview = m_workspace.preview_settings(settings_patch(arguments));
+        if (!preview.valid) {
+            const auto& issue = preview.issues.at(0);
+            fail(stored, issue.code, issue.message, settings_preview_result(preview, snapshot).dump());
+            return stored;
+        }
+        arguments["confirmedChanges"] = json::array();
+        for (const auto& change : Workspace::settings_confirmation(preview))
+            arguments["confirmedChanges"].push_back({{"key", change.key}, {"before", change.before}, {"after", change.after}});
+        stored.arguments_json = arguments.dump();
+    }
 
     notify(stored);
     if (!stored.requires_approval)
@@ -315,6 +347,75 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (definition->handler == ToolHandler::SettingsSearch) {
+        const auto args = json::parse(activity.arguments_json);
+        const auto result = m_workspace.search_settings({args.at("query").get<std::string>(), args.value("limit", std::size_t(10)), args.value("cursor", "")});
+        if (result.error) {
+            fail(activity, result.error->code, result.error->message, setting_issue_result(*result.error).dump());
+            return;
+        }
+        activity.result_json = settings_search_result(result, m_workspace.snapshot()).dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::SettingsGet) {
+        const auto args = json::parse(activity.arguments_json);
+        const auto result = m_workspace.read_settings(args.at("keys").get<std::vector<std::string>>());
+        if (result.error) {
+            fail(activity, result.error->code, result.error->message, setting_issue_result(*result.error).dump());
+            return;
+        }
+        activity.result_json = settings_read_result(result, m_workspace.snapshot()).dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::SettingsPreviewPatch) {
+        const auto result = m_workspace.preview_settings(settings_patch(json::parse(activity.arguments_json)));
+        if (!result.issues.empty() && result.issues.front().code == "workspace_unavailable") {
+            fail(activity, result.issues.front().code, result.issues.front().message);
+            return;
+        }
+        activity.result_json = settings_preview_result(result, m_workspace.snapshot()).dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::SettingsApplyPatch) {
+        const auto args = json::parse(activity.arguments_json);
+        const auto before = m_workspace.snapshot();
+        if (args.at("expectedSessionId") != std::to_string(before.session.value()) || args.at("expectedRevision") != before.revision) {
+            fail(activity, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(args, before).dump());
+            return;
+        }
+        std::vector<Workspace::SettingChange> confirmed;
+        for (const auto& change : args.at("confirmedChanges"))
+            confirmed.push_back({change.at("key"), change.at("before"), change.at("after")});
+        Workspace::SettingsPreview applied;
+        const auto result = m_workspace.apply_settings(settings_patch(args), confirmed, applied);
+        if (result.error == WorkspaceError::StaleSettings) {
+            fail(activity, "stale_workspace", result.message, stale_settings_details(args, m_workspace.snapshot()).dump());
+            return;
+        }
+        if (result.error == WorkspaceError::InvalidSettings) {
+            const auto& issue = applied.issues.at(0);
+            fail(activity, issue.code, issue.message, settings_preview_result(applied, m_workspace.snapshot()).dump());
+            return;
+        }
+        if (!result.succeeded() && result.error != WorkspaceError::NoChange) {
+            fail(activity, workspace_error_code(result.error), result.message);
+            return;
+        }
+        activity.result_json = settings_apply_result(applied, m_workspace.snapshot(), result.succeeded()).dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
         definition->handler == ToolHandler::RecordPhysicalPrint) {
         if (!m_extension_executor) {
@@ -339,10 +440,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     fail(activity, "execution_failed", "The registered tool has no executable handler.");
 }
 
-void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, std::string message)
+void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, std::string message, std::string details_json)
 {
     activity.state = ToolState::Failed;
-    activity.error = ToolError{std::move(code), std::move(message)};
+    activity.error = ToolError{std::move(code), std::move(message), std::move(details_json)};
     notify(activity);
 }
 

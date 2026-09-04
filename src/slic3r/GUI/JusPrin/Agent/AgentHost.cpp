@@ -118,7 +118,8 @@ json activity_json(const ToolActivity& activity)
     if (!activity.result_json.empty())
         result["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
-        result["error"] = json{{"code", activity.error->code}, {"message", activity.error->message}};
+        result["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
+                                {"details", json::parse(activity.error->details_json)}};
     return result;
 }
 
@@ -1631,7 +1632,8 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     if (!activity.result_json.empty())
         output["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
-        output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message}};
+        output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
+                                {"details", json::parse(activity.error->details_json)}};
 
     AgentToolResult result;
     result.call_id     = continuation.call_id;

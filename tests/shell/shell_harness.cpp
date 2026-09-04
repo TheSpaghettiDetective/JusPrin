@@ -25,6 +25,7 @@
 //                 uses this harness as a fixture, never edits client config
 //   --manual-mcp <fixture-directory>
 //                 leaves a two-plate native fixture open for real MCP clients;
+//                 exposes Orca's sidebar for native-edit/stale-revision checks;
 //                 reuse the directory to test restarts without reconfiguration
 //   --live-agent-unavailable
 //              selects OpenAI with consent withheld and verifies that the
@@ -58,6 +59,8 @@
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
+#include "slic3r/GUI/Tab.hpp"
+#include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <wx/app.h>
@@ -164,13 +167,20 @@ public:
             load_multi_plate_fixture();
             if (m_state->mode == HarnessState::Mode::ManualMcp) {
                 verify_canvas_interaction();
-                std::cerr << "HARNESS MCP FIXTURE READY failures=" << m_failures
-                          << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
+                prepare_mcp_slice([self = shared_from_this()] {
+                    // Real-client tests need a native setting edit while the
+                    // shell's rendered external approval cards remain live.
+                    self->m_plater->set_sidebar_available(true);
+                    self->m_plater->collapse_sidebar(false);
+                    self->check(self->m_plater->sidebar().IsShown(), "mcp_fixture_native_sidebar_visible");
+                    std::cerr << "HARNESS MCP FIXTURE READY failures=" << self->m_failures
+                              << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
+                });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::Mcp) {
                 verify_canvas_interaction();
-                begin_mcp();
+                prepare_mcp_slice([self = shared_from_this()] { self->begin_mcp(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::LiveAgent) {
@@ -775,8 +785,94 @@ private:
               nlohmann::json::parse(inspected->result_json)["selection"].size() == 1, "live_agent_shared_selection_result");
         check(installed_shell()->workspace()->undo().succeeded(), "live_agent_native_undo_executes");
         check(m_plater->model().objects.size() == m_objects_before_tool, "live_agent_native_undo_restores_object_count");
-        check(m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
-        finish();
+        m_settings_original = nlohmann::json::object();
+        for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
+            m_settings_original[item.key] = item.value;
+        m_settings_patch = {{"layer_height", "0.16"}, {"sparse_infill_density", "25%"}};
+        live_agent_settings(0);
+    }
+
+    void live_agent_settings(int stage)
+    {
+        auto& view = installed_shell()->agent_pane()->web_view();
+        const auto first_activity = view.host().tools().activities().size();
+        const auto first_message = view.host().conversation().size();
+        const auto changes = stage == 2 ? m_settings_original : m_settings_patch;
+        const std::string prompt = "Test process settings using all four settings tools. First settings_search for infill, "
+            "then settings_get for layer_height and sparse_infill_density, then settings_preview_patch with changes=" +
+            changes.dump() + ". If valid, call settings_apply_patch with those same changes and the session/revision from "
+            "that preview. Wait for approval in JusPrin. After the terminal result, explain it briefly and stop. "
+            "Do not retry a rejected call or use other mutation tools.";
+        WebView::RunScript(view.webview(), wxString::FromUTF8("window.__jusprinTest.send(" + nlohmann::json(prompt).dump() + ")"));
+        wait_until([first_activity, first_message] {
+            const auto& host = installed_shell()->agent_pane()->web_view().host();
+            const auto& activities = host.tools().activities();
+            const auto messages = host.conversation();
+            return (activities.size() > first_activity && activities.back().requires_approval &&
+                    activities.back().state == Agent::ToolState::Pending) ||
+                (messages.size() > first_message && messages.back().role == Agent::MessageRole::Assistant &&
+                 (messages.back().state == Agent::MessageState::Complete || messages.back().state == Agent::MessageState::Failed));
+        }, "live_settings_proposal_or_terminal", [self = shared_from_this(), stage, first_activity] {
+            auto& view = installed_shell()->agent_pane()->web_view();
+            const auto& activities = view.host().tools().activities();
+            if (activities.size() <= first_activity || activities.back().state != Agent::ToolState::Pending ||
+                activities.back().tool != "settings_apply_patch") {
+                self->fail("Live settings turn did not produce the expected approval proposal");
+                return;
+            }
+            for (const auto* name : {"settings_search", "settings_get", "settings_preview_patch"})
+                self->check(std::any_of(activities.begin() + first_activity, activities.end(), [name](const auto& action) {
+                    return action.tool == name && action.state == Agent::ToolState::Succeeded;
+                }), std::string("live_agent_called_") + name);
+            const std::string id = activities.back().action_id;
+            self->check(activities.back().requires_approval, "live_settings_requires_approval");
+            // Measure the decision against the state the proposal actually
+            // confirmed, after the model's read/preview requests have finished.
+            const auto before = installed_shell()->workspace()->snapshot();
+            const auto arguments = nlohmann::json::parse(activities.back().arguments_json);
+            self->check(arguments["expectedRevision"] == before.revision, "live_settings_proposal_revision_current");
+            self->wait_until([id] {
+                const auto& host = installed_shell()->agent_pane()->web_view().host();
+                const auto* action = host.tools().find(id);
+                const auto messages = host.conversation();
+                return action && Agent::tool_state_terminal(action->state) && !messages.empty() &&
+                    messages.back().role == Agent::MessageRole::Assistant &&
+                    (messages.back().state == Agent::MessageState::Complete || messages.back().state == Agent::MessageState::Failed);
+            }, "live_settings_result_and_followup", [self, stage, id, before] {
+                const auto& host = installed_shell()->agent_pane()->web_view().host();
+                const auto* action = host.tools().find(id);
+                self->check(host.conversation().back().state == Agent::MessageState::Complete, "live_settings_followup_complete");
+                const auto after = installed_shell()->workspace()->snapshot();
+                self->check(after.can_undo == before.can_undo, "live_settings_preserves_project_undo");
+                if (stage == 0) {
+                    self->check(action->state == Agent::ToolState::Rejected, "live_settings_rejected");
+                    self->check(after.revision == before.revision, "live_settings_rejection_preserves_revision");
+                } else {
+                    self->check(action->state == Agent::ToolState::Succeeded, "live_settings_applied");
+                    if (action->state != Agent::ToolState::Succeeded) { self->fail("Live settings apply failed"); return; }
+                    const auto result = nlohmann::json::parse(action->result_json);
+                    self->check(result["applied"] == true && result["changes"].size() == 2 && result["projectUndo"] == false,
+                                "live_settings_structured_batch_result");
+                    self->check(result["processPresetDirty"] == (stage == 1), "live_settings_dirty_and_inverse");
+                }
+                const auto expected = stage == 1 ? self->m_settings_patch : self->m_settings_original;
+                for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
+                    self->check(item.value == expected[item.key], "live_settings_native_value_" + item.key);
+                if (stage < 2) self->live_agent_settings(stage + 1);
+                else {
+                    self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
+                    self->finish();
+                }
+            }, [id, stage] { click_rendered_tool_decision(id, stage != 0); });
+        });
+    }
+
+    static void click_rendered_tool_decision(const std::string& id, bool approve)
+    {
+        const std::string script = "(() => { const b = Array.from(document.querySelectorAll('[data-testid=\"tool-" + id +
+            "\"] button')).find(b => b.textContent.trim() === '" + (approve ? "Approve" : "Reject") +
+            "'); if (b && b.getClientRects().length && !b.disabled) b.click(); })()";
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), wxString::FromUTF8(script));
     }
 
     void mcp_wait(std::function<void()> next)
@@ -795,6 +891,18 @@ private:
         const auto messages = m_mcp_client->messages();
         if (messages.empty() || !messages.back().contains("result")) throw std::runtime_error("No MCP tool result");
         return messages.back()["result"];
+    }
+
+    void prepare_mcp_slice(std::function<void()> next)
+    {
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] {
+            const auto* plate = m_plater->get_partplate_list().get_curr_plate();
+            return plate && plate->is_slice_result_valid();
+        }, "mcp_fixture_has_real_slice", [self = shared_from_this(), next] {
+            installed_shell()->status_row()->request_prepare();
+            self->wait_until([self] { return !self->m_plater->is_preview_shown(); }, "mcp_fixture_prepare", next);
+        });
     }
 
     void begin_mcp()
@@ -823,12 +931,36 @@ private:
                 else
                     self->check(result["ttlMs"] == 0 && result["cacheScope"] == "private", "mcp_real_catalog_cache_policy");
                 const auto tools = result["tools"];
-                self->check(tools.size() == 3 && tools[0]["name"] == "duplicate_object" && tools[1]["name"] == "inspect_selection" &&
-                            tools[2]["name"] == "workspace_inspect", "mcp_real_registry_catalog");
+                self->check(tools.size() == 7 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];
                     self->check(result["plateCount"] == 2 && result["objectCount"] == self->m_objects_before_tool, "mcp_real_workspace_snapshot");
+                    self->mcp_settings_reads();
+                });
+            });
+        });
+    }
+
+    void mcp_settings_reads()
+    {
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_search"}, {"arguments", {{"query", "infill"}}}}));
+        mcp_wait([self = shared_from_this()] {
+            self->check(!self->mcp_result()["structuredContent"]["items"].empty(), "mcp_settings_search_results");
+            self->mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_get"},
+                {"arguments", {{"keys", {"layer_height", "sparse_infill_density"}}}}}));
+            self->mcp_wait([self] {
+                const auto result = self->mcp_result()["structuredContent"];
+                self->m_settings_original = nlohmann::json::object();
+                for (const auto& item : result["items"])
+                    self->m_settings_original[item["key"].get<std::string>()] = item["value"];
+                self->check(self->m_settings_original.size() == 2, "mcp_settings_get_two_values");
+                self->m_settings_patch = {{"layer_height", "0.16"}, {"sparse_infill_density", "25%"}};
+                self->mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_preview_patch"},
+                    {"arguments", {{"changes", self->m_settings_patch}}}}));
+                self->mcp_wait([self] {
+                    const auto preview = self->mcp_result()["structuredContent"];
+                    self->check(preview["valid"] == true && preview["changes"].size() == 2, "mcp_settings_preview_two_changes");
                     self->mcp_mutation(0);
                 });
             });
@@ -838,44 +970,38 @@ private:
     void mcp_mutation(int scenario)
     {
         const auto snapshot = installed_shell()->workspace()->snapshot();
-        const auto object = snapshot.plates[0].objects[0].id;
-        mcp_request(JusPrinTest::request("tools/call", {{"name", "duplicate_object"},
-            {"arguments", {{"sessionId", std::to_string(snapshot.session.value())}, {"objectId", std::to_string(object.value())}}}}));
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_apply_patch"},
+            {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+                           {"changes", scenario == 2 ? m_settings_original : m_settings_patch}}}}));
         wait_until([this] {
             m_mcp_client->poll();
             const auto& activities = installed_shell()->agent_pane()->web_view().host().tools().activities();
-            return !activities.empty() && activities.back().tool == "duplicate_object" && activities.back().state == Agent::ToolState::Pending &&
-                   m_mcp_client->streaming();
-        }, "mcp_native_approval_pending", [self = shared_from_this(), scenario, object] {
+            return !activities.empty() && activities.back().tool == "settings_apply_patch" &&
+                   activities.back().state == Agent::ToolState::Pending && m_mcp_client->streaming();
+        }, "mcp_native_approval_pending", [self = shared_from_this(), scenario] {
             auto& view = installed_shell()->agent_pane()->web_view();
             const auto id = view.host().tools().activities().back().action_id;
-            self->check(self->m_mcp_client->streaming(), self->m_state->mcp_bridge ? "mcp_bridge_relays_native_progress" :
-                                                                                 "mcp_mutation_uses_request_scoped_sse");
-            self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool, "mcp_pending_does_not_mutate");
-            if (scenario == 2) {
-                self->check(installed_shell()->workspace()->rename_object(object, "mcp-stale-fixture").succeeded(), "mcp_intervening_native_edit");
-            } else if (scenario == 3) {
+            self->check(self->m_mcp_client->streaming(), "mcp_settings_progress_stream");
+            self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool, "mcp_settings_preserve_objects");
+            if (scenario == 3) {
+                auto* tab = self->m_app.get_tab(Preset::TYPE_PRINT);
+                tab->activate_option("wall_loops", "Strength");
+                auto* field = tab->get_field("wall_loops");
+                if (!field) throw std::runtime_error("Missing wall_loops field");
+                field->set_value(boost::any(5), false);
+                field->field_changed();
+                self->mcp_verify_mutation(scenario);
+            } else if (scenario == 4) {
                 self->m_mcp_client->close();
                 self->wait_until([id] {
                     const auto* activity = installed_shell()->agent_pane()->web_view().host().tools().find(id);
                     return activity && activity->state == Agent::ToolState::Cancelled;
                 }, "mcp_disconnect_cancels_native_proposal", [self] { self->mcp_teardown(); });
-                return;
-            } else {
-                if (scenario == 0) {
-                    self->mcp_click_decision(scenario, id);
-                    return;
-                }
-                // Reload with an outstanding network call; the same native
-                // activity must reappear and the existing approval UI decides.
+            } else if (scenario == 1) {
                 view.reload();
                 self->wait_until([] { return installed_shell()->agent_pane()->web_view().host().handshake_complete(); },
-                    "mcp_webview_reload_reconnects", [self, scenario, id] {
-                        self->mcp_click_decision(scenario, id);
-                    });
-                return;
-            }
-            self->mcp_verify_mutation(scenario);
+                    "mcp_webview_reload_reconnects", [self, scenario, id] { self->mcp_click_decision(scenario, id); });
+            } else self->mcp_click_decision(scenario, id);
         });
     }
 
@@ -889,10 +1015,7 @@ private:
         }, "mcp_visible_approval_button_activated", [self = shared_from_this(), scenario] {
             self->mcp_verify_mutation(scenario);
         }, [scenario, id] {
-            const std::string script = "(() => { const b = Array.from(document.querySelectorAll('[data-testid=\"tool-" + id +
-                "\"] button')).find(b => b.textContent.trim() === '" + (scenario == 0 ? "Reject" : "Approve") +
-                "'); if (b && b.getClientRects().length && !b.disabled) b.click(); })()";
-            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), wxString::FromUTF8(script));
+            click_rendered_tool_decision(id, scenario != 0);
         });
     }
 
@@ -900,15 +1023,24 @@ private:
     {
         mcp_wait([self = shared_from_this(), scenario] {
             const auto result = self->mcp_result();
-            if (scenario == 1) {
-                self->check(result["isError"] == false, "mcp_approved_result_succeeded");
-                self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool + 1, "mcp_approved_real_object_created_once");
-                self->check(installed_shell()->workspace()->undo().succeeded(), "mcp_native_undo_executes");
+            if (scenario == 1 || scenario == 2) {
+                const auto content = result["structuredContent"];
+                self->check(result["isError"] == false && content["applied"] == true && content["changes"].size() == 2,
+                            "mcp_approved_settings_batch_succeeded");
+                self->check(content["projectUndo"] == false, "mcp_settings_explain_project_undo");
+                if (scenario == 1) {
+                    self->check(content["processPresetDirty"] == true, "mcp_settings_mark_preset_dirty");
+                    self->wait_until([self] { return !self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid(); },
+                        "mcp_settings_invalidate_real_slice", [self] { self->mcp_mutation(2); });
+                    return;
+                }
             } else {
                 self->check(result["isError"] == true && result["structuredContent"]["error"]["code"] ==
-                            (scenario == 0 ? "approval_rejected" : "stale_workspace"), "mcp_native_refusal_is_structured");
+                            (scenario == 0 ? "approval_rejected" : "stale_workspace"), "mcp_settings_refusal_is_structured");
             }
-            self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool, "mcp_authoritative_count_restored_or_unchanged");
+            const auto values = installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"});
+            for (const auto& item : values.items)
+                self->check(item.value == self->m_settings_original[item.key], "mcp_settings_restored_or_unchanged_" + item.key);
             self->mcp_mutation(scenario + 1);
         });
     }
@@ -919,7 +1051,7 @@ private:
         // Hold one approved action across a page reset with no handshake.
         auto& view = installed_shell()->agent_pane()->web_view();
         view.host().reset_page();
-        mcp_request(JusPrinTest::request("tools/call", {{"name", "inspect_selection"}}));
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_get"}, {"arguments", {{"keys", {"wall_loops"}}}}}));
         mcp_wait([self = shared_from_this()] {
             self->check(self->mcp_result()["isError"] == false, "mcp_read_during_missing_handshake");
             self->m_mcp_client.reset();
@@ -1483,6 +1615,7 @@ private:
     int                           m_failures{0};
     bool                          m_finished{false};
     std::uint64_t                 m_wait_ticks{0};
+    nlohmann::json                m_settings_original, m_settings_patch;
     std::size_t                   m_objects_before_tool{0};
     std::size_t                   m_phase6_objects_before{0};
     std::string                   m_phase6_target_revision;
