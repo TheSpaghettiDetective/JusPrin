@@ -45,6 +45,7 @@ enum class ToolHandler : std::uint8_t {
     DuplicateObject,
     ImportModel,
     InspectSelection,
+    WorkspaceInspect,
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint
@@ -84,6 +85,7 @@ public:
     std::vector<std::reference_wrapper<const ToolDefinition>> exposed(ToolExposure exposure) const;
 
     ToolValidationResult validate_call(const ToolDefinition& definition, const std::string& arguments_json) const;
+    bool validate_output(const ToolDefinition& definition, const nlohmann::json& result) const;
     std::string approval_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
 
 private:

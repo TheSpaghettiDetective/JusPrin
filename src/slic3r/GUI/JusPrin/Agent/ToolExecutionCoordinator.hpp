@@ -112,7 +112,7 @@ public:
     // revision. Read-only actions are approved immediately by policy; every
     // other class waits for a user decision. Returns the new record.
     const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
-                                ToolExecutionPacing pacing = {});
+                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent);
 
     // User decisions. Each returns true only when it changed the record's
     // state, so a resent decision (reconnect, reload) can never run an action
@@ -155,6 +155,7 @@ private:
     std::function<std::string(const std::string&)> m_attachment_path_resolver;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
+    std::uint64_t                    m_last_invalidating_revision{0};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

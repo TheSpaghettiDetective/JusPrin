@@ -4,6 +4,7 @@
 // and project replacement, fallback, and restoration of stock presentation.
 //
 // Modes:
+//   --dark-ui / --light-ui  macOS process-only appearance for visual checks
 //   (default)  automated shell checks, exits with the result
 //   --stock    automated stock-mode checks (shell disabled via app config)
 //   --manual   installs nothing extra and leaves the app open for a human
@@ -17,6 +18,14 @@
 //              uses OPENAI_API_KEY and verifies live context/attachment use,
 //              reload recovery, rejection, native approval/mutation, and the
 //              model follow-ups
+//   --mcp     real TCP discovery/read, approval/rejection, stale proposal,
+//              disconnect, reload, and native undo using the shared runtime
+//   --mcp-bridge  same native scenario through a persistent stdio subprocess
+//   --mcp-setup   native setup-command lifetime, output and argument checks;
+//                 uses this harness as a fixture, never edits client config
+//   --manual-mcp <fixture-directory>
+//                 leaves a two-plate native fixture open for real MCP clients;
+//                 reuse the directory to test restarts without reconfiguration
 //   --live-agent-unavailable
 //              selects OpenAI with consent withheld and verifies that the
 //              application stays usable without silently selecting the mock
@@ -36,7 +45,11 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
+#include "../agent/mcp_test_client.hpp"
+#include "mcp_stdio_client.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
@@ -49,6 +62,9 @@
 
 #include <wx/app.h>
 #include <wx/glcanvas.h>
+#include <wx/dialog.h>
+#include <wx/process.h>
+#include <wx/stdpaths.h>
 #include <wx/timer.h>
 
 #include <boost/filesystem.hpp>
@@ -57,14 +73,20 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <csignal>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
 
 namespace fs = boost::filesystem;
+
+#ifdef __APPLE__
+void set_harness_appearance(bool dark);
+#endif
 
 namespace Slic3r::GUI::JusPrin {
 namespace {
@@ -79,6 +101,9 @@ struct HarnessState
         ManualUnconfigured,
         SliceAllCold,
         LiveAgent,
+        Mcp,
+        McpSetup,
+        ManualMcp,
         LiveAgentUnavailable
     };
 
@@ -90,6 +115,9 @@ struct HarnessState
     // warm Slice-all scenario adds up to two more plate slices.
     std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(900)};
     Mode mode{Mode::Shell};
+    bool mcp_bridge{false};
+    std::optional<bool> dark_appearance;
+    std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
 Notebook* find_notebook(wxWindow* root)
@@ -128,7 +156,23 @@ public:
                 return;
             }
             verify_shell_installed();
+            if (m_state->mode == HarnessState::Mode::McpSetup) {
+                verify_mcp_setup();
+                finish();
+                return;
+            }
             load_multi_plate_fixture();
+            if (m_state->mode == HarnessState::Mode::ManualMcp) {
+                verify_canvas_interaction();
+                std::cerr << "HARNESS MCP FIXTURE READY failures=" << m_failures
+                          << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::Mcp) {
+                verify_canvas_interaction();
+                begin_mcp();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::LiveAgent) {
                 verify_canvas_interaction();
                 verify_live_agent();
@@ -153,6 +197,69 @@ public:
     }
 
 private:
+    void verify_mcp_setup()
+    {
+        const std::string executable = wxStandardPaths::Get().GetExecutablePath().ToUTF8().data();
+        const std::string literal = "Kenny's 打印 path; $NOT_EXPANDED";
+        const auto success = run_mcp_setup_command(m_frame, {executable, "--setup-child", "success", literal});
+        check(success.success && success.diagnostic.find(literal) != std::string::npos, "mcp_setup_literal_arguments");
+        const auto failure = run_mcp_setup_command(m_frame, {executable, "--setup-child", "failure", literal});
+        check(!failure.success && failure.diagnostic.find("code 7") != std::string::npos &&
+              failure.diagnostic.find("fixture stderr") != std::string::npos, "mcp_setup_cli_failure_visible");
+        const auto large = run_mcp_setup_command(m_frame, {executable, "--setup-child", "large", literal});
+        check(large.success && large.diagnostic.size() <= 65600, "mcp_setup_output_bounded_without_deadlock");
+        wxEvtHandler events;
+        wxTimer cancel(&events);
+        bool attempted_cancel = false;
+        events.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+            for (auto* window : wxTopLevelWindows) {
+                auto* dialog = dynamic_cast<wxDialog*>(window);
+                if (dialog && dialog->GetTitle() == "Connecting AI tool") {
+                    attempted_cancel = true;
+                    wxCommandEvent event(wxEVT_BUTTON, wxID_CANCEL);
+                    dialog->GetEventHandler()->ProcessEvent(event);
+                }
+            }
+        });
+        cancel.StartOnce(100);
+        const auto started = std::chrono::steady_clock::now();
+        const auto delayed = run_mcp_setup_command(m_frame, {executable, "--setup-child", "delayed", literal});
+        check(attempted_cancel, "mcp_setup_cancel_event_exercised");
+        check(delayed.success && std::chrono::steady_clock::now() - started >= std::chrono::milliseconds(800),
+              "mcp_setup_monitor_outlives_child_after_cancel_event");
+
+        std::vector<std::string> timeout_modes{"timeout"};
+#ifndef _WIN32
+        // Windows terminates a process directly; it has no POSIX TERM/KILL escalation.
+        timeout_modes.push_back("ignore-term");
+#endif
+        for (const auto& mode : timeout_modes) {
+            wxEvtHandler heartbeat_events;
+            wxTimer heartbeat(&heartbeat_events);
+            int ticks = 0;
+            heartbeat_events.Bind(wxEVT_TIMER, [&](wxTimerEvent&) { ++ticks; });
+            heartbeat.Start(50);
+            const auto timeout_started = std::chrono::steady_clock::now();
+            const auto result = run_mcp_setup_command(m_frame, {executable, "--setup-child", mode, literal});
+            heartbeat.Stop();
+            const auto elapsed = std::chrono::steady_clock::now() - timeout_started;
+            check(!result.success && result.diagnostic.find("Setup timed out") != std::string::npos &&
+                  result.diagnostic.find("config may have changed") != std::string::npos,
+                  "mcp_setup_" + mode + "_reports_uncertain_config");
+            check(elapsed >= std::chrono::seconds(mode == "timeout" ? 30 : 32) &&
+                  elapsed < std::chrono::seconds(45), "mcp_setup_" + mode + "_bounded_termination");
+            check(ticks > 100, "mcp_setup_" + mode + "_event_loop_responsive");
+            const auto marker = result.diagnostic.find("fixture pid ");
+            check(marker != std::string::npos, "mcp_setup_" + mode + "_child_started");
+            if (marker != std::string::npos) {
+                const auto child_pid = std::stol(result.diagnostic.substr(marker + 12));
+                check(!wxProcess::Exists(child_pid), "mcp_setup_" + mode + "_child_reaped");
+            }
+        }
+        const auto recovered = run_mcp_setup_command(m_frame, {executable, "--setup-child", "success", literal});
+        check(recovered.success, "mcp_setup_succeeds_after_timeouts");
+    }
+
     void check(bool condition, const std::string& name)
     {
         std::cerr << "HARNESS CHECK " << name << ' ' << (condition ? "PASS" : "FAIL") << '\n';
@@ -196,6 +303,7 @@ private:
         check(status_row_labels(shell->status_row()).Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
               "status_row_shows_empty_print_count");
         check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
+        check(shell->agent_pane()->web_view().host().mcp() != nullptr, "shell_starts_mcp_automatically");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
         check(!m_plater->is_sidebar_available(), "sidebar_marked_unavailable");
         // The shell hides the entire legacy canvas-overlay layer on Prepare.
@@ -657,8 +765,167 @@ private:
             if (action.action_id == m_live_action_id)
                 ++matching_actions;
         check(matching_actions == 1, "live_agent_action_id_is_idempotent");
+        const auto selected = installed_shell()->workspace()->snapshot().plates[0].objects[0].id;
+        const auto selection = installed_shell()->workspace()->select_object(selected);
+        check(selection.succeeded() || selection.error == Workspace::WorkspaceError::NoChange, "live_agent_native_selection");
+        const auto inspect_id = web_view.host().tools().propose({"inspect_selection", "{}"}, "live-selection-proof").action_id;
+        web_view.host().pump_tools();
+        const auto* inspected = web_view.host().tools().find(inspect_id);
+        check(inspected && inspected->state == Agent::ToolState::Succeeded &&
+              nlohmann::json::parse(inspected->result_json)["selection"].size() == 1, "live_agent_shared_selection_result");
+        check(installed_shell()->workspace()->undo().succeeded(), "live_agent_native_undo_executes");
+        check(m_plater->model().objects.size() == m_objects_before_tool, "live_agent_native_undo_restores_object_count");
         check(m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
         finish();
+    }
+
+    void mcp_wait(std::function<void()> next)
+    {
+        wait_until([this] { return m_mcp_client->done(); }, "mcp_response_complete", std::move(next));
+    }
+
+    void mcp_request(nlohmann::json request)
+    {
+        if (!m_mcp_client) m_mcp_client = std::make_unique<JusPrinTest::NativeMcpClient>(m_state->bridge);
+        m_mcp_client->request(installed_shell()->agent_pane()->web_view().host().mcp()->server(), std::move(request));
+    }
+
+    nlohmann::json mcp_result() const
+    {
+        const auto messages = m_mcp_client->messages();
+        if (messages.empty() || !messages.back().contains("result")) throw std::runtime_error("No MCP tool result");
+        return messages.back()["result"];
+    }
+
+    void begin_mcp()
+    {
+        auto& view = installed_shell()->agent_pane()->web_view();
+        check(view.host().mcp() != nullptr, "mcp_started_without_launch_option");
+        const auto discovery = Mcp::read_discovery(view.host().mcp()->discovery_path());
+        check(discovery.has_value(), "mcp_discovery_file_published");
+        check(discovery && discovery->url == view.host().mcp()->server().url(), "mcp_discovery_file_matches_listener");
+        check(discovery && discovery->app_version == Mcp::mcp_build_version(), "mcp_discovery_file_build_version");
+        if (m_state->mcp_bridge)
+            m_state->bridge = std::make_shared<JusPrinTest::StdioClient>(JUSPRIN_MCP_BRIDGE_PATH,
+                                                                       view.host().mcp()->discovery_path().u8string());
+        m_objects_before_tool = m_plater->model().objects.size();
+        mcp_request(JusPrinTest::request("server/discover"));
+        mcp_wait([self = shared_from_this()] {
+            self->check(self->mcp_result()["supportedVersions"] == nlohmann::json::array({Mcp::kProtocolVersion}), "mcp_real_discovery");
+            self->check(self->mcp_result()["ttlMs"] == 0 && self->mcp_result()["cacheScope"] == "private",
+                        "mcp_real_discovery_cache_policy");
+            self->mcp_request(JusPrinTest::request("tools/list"));
+            self->mcp_wait([self] {
+                const auto result = self->mcp_result();
+                if (self->m_state->mcp_bridge)
+                    self->check(!result.contains("ttlMs") && !result.contains("cacheScope") && !result.contains("resultType"),
+                                "mcp_legacy_catalog_omits_modern_cache_fields");
+                else
+                    self->check(result["ttlMs"] == 0 && result["cacheScope"] == "private", "mcp_real_catalog_cache_policy");
+                const auto tools = result["tools"];
+                self->check(tools.size() == 3 && tools[0]["name"] == "duplicate_object" && tools[1]["name"] == "inspect_selection" &&
+                            tools[2]["name"] == "workspace_inspect", "mcp_real_registry_catalog");
+                self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
+                self->mcp_wait([self] {
+                    const auto result = self->mcp_result()["structuredContent"];
+                    self->check(result["plateCount"] == 2 && result["objectCount"] == self->m_objects_before_tool, "mcp_real_workspace_snapshot");
+                    self->mcp_mutation(0);
+                });
+            });
+        });
+    }
+
+    void mcp_mutation(int scenario)
+    {
+        const auto snapshot = installed_shell()->workspace()->snapshot();
+        const auto object = snapshot.plates[0].objects[0].id;
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "duplicate_object"},
+            {"arguments", {{"sessionId", std::to_string(snapshot.session.value())}, {"objectId", std::to_string(object.value())}}}}));
+        wait_until([this] {
+            m_mcp_client->poll();
+            const auto& activities = installed_shell()->agent_pane()->web_view().host().tools().activities();
+            return !activities.empty() && activities.back().tool == "duplicate_object" && activities.back().state == Agent::ToolState::Pending &&
+                   m_mcp_client->streaming();
+        }, "mcp_native_approval_pending", [self = shared_from_this(), scenario, object] {
+            auto& view = installed_shell()->agent_pane()->web_view();
+            const auto id = view.host().tools().activities().back().action_id;
+            self->check(self->m_mcp_client->streaming(), self->m_state->mcp_bridge ? "mcp_bridge_relays_native_progress" :
+                                                                                 "mcp_mutation_uses_request_scoped_sse");
+            self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool, "mcp_pending_does_not_mutate");
+            if (scenario == 2) {
+                self->check(installed_shell()->workspace()->rename_object(object, "mcp-stale-fixture").succeeded(), "mcp_intervening_native_edit");
+            } else if (scenario == 3) {
+                self->m_mcp_client->close();
+                self->wait_until([id] {
+                    const auto* activity = installed_shell()->agent_pane()->web_view().host().tools().find(id);
+                    return activity && activity->state == Agent::ToolState::Cancelled;
+                }, "mcp_disconnect_cancels_native_proposal", [self] { self->mcp_teardown(); });
+                return;
+            } else {
+                if (scenario == 0) {
+                    self->mcp_click_decision(scenario, id);
+                    return;
+                }
+                // Reload with an outstanding network call; the same native
+                // activity must reappear and the existing approval UI decides.
+                view.reload();
+                self->wait_until([] { return installed_shell()->agent_pane()->web_view().host().handshake_complete(); },
+                    "mcp_webview_reload_reconnects", [self, scenario, id] {
+                        self->mcp_click_decision(scenario, id);
+                    });
+                return;
+            }
+            self->mcp_verify_mutation(scenario);
+        });
+    }
+
+    void mcp_click_decision(int scenario, const std::string& id)
+    {
+        // Exercise the rendered button, not the decision hook: MCP requests
+        // have no chat message, and a hidden/missing card must fail this test.
+        wait_until([id] {
+            const auto* activity = installed_shell()->agent_pane()->web_view().host().tools().find(id);
+            return activity && activity->state != Agent::ToolState::Pending;
+        }, "mcp_visible_approval_button_activated", [self = shared_from_this(), scenario] {
+            self->mcp_verify_mutation(scenario);
+        }, [scenario, id] {
+            const std::string script = "(() => { const b = Array.from(document.querySelectorAll('[data-testid=\"tool-" + id +
+                "\"] button')).find(b => b.textContent.trim() === '" + (scenario == 0 ? "Reject" : "Approve") +
+                "'); if (b && b.getClientRects().length && !b.disabled) b.click(); })()";
+            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), wxString::FromUTF8(script));
+        });
+    }
+
+    void mcp_verify_mutation(int scenario)
+    {
+        mcp_wait([self = shared_from_this(), scenario] {
+            const auto result = self->mcp_result();
+            if (scenario == 1) {
+                self->check(result["isError"] == false, "mcp_approved_result_succeeded");
+                self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool + 1, "mcp_approved_real_object_created_once");
+                self->check(installed_shell()->workspace()->undo().succeeded(), "mcp_native_undo_executes");
+            } else {
+                self->check(result["isError"] == true && result["structuredContent"]["error"]["code"] ==
+                            (scenario == 0 ? "approval_rejected" : "stale_workspace"), "mcp_native_refusal_is_structured");
+            }
+            self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool, "mcp_authoritative_count_restored_or_unchanged");
+            self->mcp_mutation(scenario + 1);
+        });
+    }
+
+    void mcp_teardown()
+    {
+        check(m_plater->model().objects.size() == m_objects_before_tool, "mcp_disconnect_changes_nothing");
+        // Hold one approved action across a page reset with no handshake.
+        auto& view = installed_shell()->agent_pane()->web_view();
+        view.host().reset_page();
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "inspect_selection"}}));
+        mcp_wait([self = shared_from_this()] {
+            self->check(self->mcp_result()["isError"] == false, "mcp_read_during_missing_handshake");
+            self->m_mcp_client.reset();
+            self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "mcp_teardown_project");
+            self->finish();
+        });
     }
 
     void agent_send_scripted_message()
@@ -1223,6 +1490,7 @@ private:
     std::string                   m_saved_project_file;
     std::string                   m_live_action_id;
     bool                          m_live_rejection_done{false};
+    std::unique_ptr<JusPrinTest::NativeMcpClient> m_mcp_client;
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
 
@@ -1246,6 +1514,9 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
         return;
     }
     if (app.mainframe != nullptr && app.plater() != nullptr) {
+#ifdef __APPLE__
+        if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
+#endif
         if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
             state->mode == HarnessState::Mode::ManualUnconfigured)
             return;
@@ -1262,13 +1533,27 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 
 int main(int argc, char** argv)
 {
+    // A real subprocess for setup tests, with no GUI or external configuration.
+    if (argc == 4 && std::string(argv[1]) == "--setup-child") {
+        const std::string mode(argv[2]);
+        if (mode == "timeout" || mode == "ignore-term") {
+            if (mode == "ignore-term") std::signal(SIGTERM, SIG_IGN);
+            std::cout << "fixture pid " << wxGetProcessId() << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(45));
+            return 0; // The timeout test must terminate us before this fallback.
+        }
+        if (mode == "delayed") std::this_thread::sleep_for(std::chrono::milliseconds(800));
+        if (mode == "large") std::cout << std::string(256 * 1024, 'x');
+        std::cout << argv[3] << '\n';
+        std::cerr << "fixture stderr\n";
+        return mode == "failure" ? 7 : 0;
+    }
     using namespace Slic3r;
     using namespace Slic3r::GUI;
     using namespace Slic3r::GUI::JusPrin;
 
     const fs::path original_directory = fs::current_path();
-    const fs::path data_directory = fs::temp_directory_path() / fs::unique_path("jusprin-shell-%%%%-%%%%-%%%%");
-    fs::create_directories(data_directory / "log");
+    fs::path data_directory = fs::temp_directory_path() / fs::unique_path("jusprin-shell-%%%%-%%%%-%%%%");
 
     auto state = std::make_shared<HarnessState>();
     std::vector<char*> gui_arguments;
@@ -1276,7 +1561,15 @@ int main(int argc, char** argv)
     gui_arguments.emplace_back(argv[0]);
     for (int index = 1; index < argc; ++index) {
         const std::string argument(argv[index]);
-        if (argument == "--stock")
+        if (argument == "--dark-ui" || argument == "--light-ui") {
+#ifdef __APPLE__
+            state->dark_appearance = argument == "--dark-ui";
+#else
+            std::cerr << "Appearance overrides are supported only by the macOS harness\n";
+            return 2;
+#endif
+        }
+        else if (argument == "--stock")
             state->mode = HarnessState::Mode::Stock;
         else if (argument == "--manual")
             state->mode = HarnessState::Mode::Manual;
@@ -1288,11 +1581,31 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::SliceAllCold;
         else if (argument == "--live-agent")
             state->mode = HarnessState::Mode::LiveAgent;
+        else if (argument == "--mcp")
+            state->mode = HarnessState::Mode::Mcp;
+        else if (argument == "--mcp-setup")
+            state->mode = HarnessState::Mode::McpSetup;
+        else if (argument == "--manual-mcp") {
+            if (++index == argc) {
+                std::cerr << "--manual-mcp requires a dedicated fixture directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::ManualMcp;
+            data_directory = fs::absolute(argv[index]);
+        }
+        else if (argument == "--mcp-bridge") {
+            state->mode = HarnessState::Mode::Mcp;
+            state->mcp_bridge = true;
+        }
         else if (argument == "--live-agent-unavailable")
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
         else
             gui_arguments.emplace_back(argv[index]);
     }
+#ifdef __APPLE__
+    if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
+#endif
+    fs::create_directories(data_directory / "log");
     if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
         wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
@@ -1364,13 +1677,30 @@ int main(int argc, char** argv)
     state->stop = true;
     installer.join();
 
+    if (state->mode == HarnessState::Mode::Mcp) {
+        const bool removed = !fs::exists(data_directory / "jusprin" / "mcp.json");
+        std::cerr << "HARNESS CHECK mcp_discovery_removed_after_app_shutdown " << (removed ? "PASS" : "FAIL") << '\n';
+        if (!removed) state->result = 1;
+        if (state->bridge) {
+            state->bridge->request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
+            const bool responded = JusPrinTest::wait_for([&] { return state->bridge->done(); }, [] {});
+            const auto messages = state->bridge->messages();
+            const bool offline = responded && !messages.empty() && messages.back().contains("result") &&
+                messages.back()["result"]["structuredContent"]["error"]["code"] == "workspace_unavailable";
+            std::cerr << "HARNESS CHECK mcp_bridge_survives_app_shutdown_and_reports_offline " << (offline ? "PASS" : "FAIL") << '\n';
+            const bool clean = state->bridge->shutdown();
+            std::cerr << "HARNESS CHECK mcp_bridge_eof_exit_zero " << (clean ? "PASS" : "FAIL") << '\n';
+            if (!offline || !clean) state->result = 1;
+        }
+    }
+
     fs::current_path(original_directory);
     if (state->result == 0)
         fs::remove_all(data_directory);
     else
         std::cerr << "HARNESS DATA DIR kept for inspection: " << data_directory.string() << '\n';
     if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
-        state->mode == HarnessState::Mode::ManualUnconfigured)
+        state->mode == HarnessState::Mode::ManualUnconfigured || state->mode == HarnessState::Mode::ManualMcp)
         return gui_result;
     if (state->result < 0)
         return gui_result == 0 ? 1 : gui_result;

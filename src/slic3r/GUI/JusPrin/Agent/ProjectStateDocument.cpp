@@ -278,6 +278,7 @@ PhysicalPrintRecord read_physical_print(const json& entry)
 void write_activity_fields(json& entry, const ToolActivity& activity)
 {
     entry["actionId"]         = activity.action_id;
+    entry["source"]           = activity.source == ToolSource::Mcp ? "mcp" : "agent";
     entry["correlationId"]    = activity.correlation_id;
     entry["server"]           = activity.server;
     entry["tool"]             = activity.tool;
@@ -302,6 +303,11 @@ ToolActivity read_activity(const json& entry)
     ToolActivity activity;
     activity.action_id         = entry.value("actionId", "");
     activity.correlation_id    = entry.value("correlationId", "");
+    // Older records predate the explicit source field. Only that migration
+    // uses the old adapter prefix; new records carry their native source.
+    const auto source = entry.value("source", activity.correlation_id.rfind("mcp-", 0) == 0 ? "mcp" : "agent");
+    if (source != "mcp" && source != "agent") throw std::invalid_argument("Unknown tool activity source");
+    activity.source = source == "mcp" ? ToolSource::Mcp : ToolSource::Agent;
     activity.server            = entry.value("server", "");
     activity.tool              = entry.value("tool", "");
     activity.title             = entry.value("title", "");

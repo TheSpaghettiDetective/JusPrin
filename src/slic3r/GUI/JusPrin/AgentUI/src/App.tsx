@@ -6,6 +6,7 @@ import { applyAppearance } from './tokens';
 import { ContextSummary } from './components/ContextSummary';
 import { ChatHeader, ChatList } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
+import { ToolActivityCard } from './components/ToolActivityCard';
 import { Composer } from './components/Composer';
 import {
   AgentNotConfiguredHeader,
@@ -254,6 +255,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   const streaming = state.streamingMessageId !== null;
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
+  const externalActions = state.toolActivities.filter((activity) => activity.source === 'mcp' && activity.requiresApproval);
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
     ['pending', 'approved', 'running'].includes(activity.state));
@@ -314,6 +316,11 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   return (
     <div className="app">
       {errorNotice}
+      {externalActions.length > 0 && <section className="external-actions" aria-label="External AI tools">
+        <h2>External AI tools</h2>
+        {externalActions.map((activity) => <ToolActivityCard key={activity.actionId} activity={activity}
+          onDecision={sendToolDecision} onCancel={sendToolCancel} />)}
+      </section>}
       {view === 'list' && chatList}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'setup' ? (

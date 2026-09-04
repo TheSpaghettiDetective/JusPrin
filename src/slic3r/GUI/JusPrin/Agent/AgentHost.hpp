@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+namespace Slic3r::GUI::JusPrin::Mcp { class McpRuntime; }
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 class AgentHost
@@ -73,8 +75,8 @@ public:
     // tests call it directly.
     void pump_stream();
 
-    // Advances tool execution one deterministic tick while the page is
-    // connected, and gives dirty document state its throttled flush.
+    // Advances native execution while the page is connected or MCP is enabled,
+    // drains the MCP mailbox, and gives dirty state its throttled flush.
     void pump_tools();
 
     // Releases a finished credential check. A verified credential is
@@ -85,6 +87,9 @@ public:
     ToolExecutionCoordinator&       tools() { return m_tools; }
     const ToolExecutionCoordinator& tools() const { return m_tools; }
     ProjectPersistence&             persistence() { return m_persistence; }
+    // Opt-in local adapter; its lifetime is independent of the page handshake.
+    void start_mcp(const std::string& discovery_path);
+    const Mcp::McpRuntime* mcp() const { return m_mcp.get(); }
 
     // The active conversation's messages, straight from the document.
     std::vector<ConversationMessage> conversation() const;
@@ -162,6 +167,7 @@ private:
     ProjectPersistence&              m_persistence;
     ToolExecutionCoordinator         m_tools;
     ToolActivitySubscription         m_tool_activity_subscription;
+    std::unique_ptr<Mcp::McpRuntime>   m_mcp;
     AgentServicePtr                  m_agent;
     AgentSetupServicePtr             m_setup;
     Workspace::WorkspaceSubscription m_workspace_subscription;

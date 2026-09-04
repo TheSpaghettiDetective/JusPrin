@@ -19,15 +19,10 @@ namespace Slic3r::GUI::JusPrin {
 
 namespace {
 
-// Streaming cadence. The host emits one delta per tick; ticks with no active
-// stream are no-ops.
-constexpr int kStreamIntervalMs = 33;
-
 // How long the page may take to load and complete the hello handshake before
 // the internal-connection error is shown.
 constexpr int kHandshakeDeadlineMs = 20000;
 
-constexpr int kStreamTimerId    = wxID_HIGHEST + 1801;
 constexpr int kHandshakeTimerId = wxID_HIGHEST + 1802;
 
 boost::filesystem::path agent_page_path()
@@ -48,7 +43,6 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     , m_theme(theme)
     , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode(),
                                                 std::move(agent), std::move(setup)))
-    , m_stream_timer(this, kStreamTimerId)
     , m_handshake_timer(this, kHandshakeTimerId)
 {
     auto* sizer = new wxBoxSizer(wxVERTICAL);
@@ -113,21 +107,15 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     Bind(wxEVT_TIMER, [this](wxTimerEvent& event) {
         if (event.GetId() == kHandshakeTimerId)
             on_handshake_deadline(event);
-        else if (event.GetId() == kStreamTimerId) {
-            m_host->pump_stream();
-            m_host->pump_tools();
-            m_host->pump_setup();
-        } else
+        else
             event.Skip();
     });
-    m_stream_timer.Start(kStreamIntervalMs);
 
     apply_appearance(GUI_App::dark_mode());
 }
 
 AgentWebView::~AgentWebView()
 {
-    m_stream_timer.Stop();
     m_handshake_timer.Stop();
     // The webview outlives this frame's teardown callbacks in wx's child
     // destruction order; drop the transport first so the host cannot run

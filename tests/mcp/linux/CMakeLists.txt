@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.16)
+project(JusPrinMcpLinuxContractTests LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include(GNUInstallDirs)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
+add_library(nlohmann_json INTERFACE)
+target_include_directories(nlohmann_json INTERFACE "${CMAKE_SOURCE_DIR}/deps_src")
+configure_file("${JUSPRIN_VERSION_HEADER}" "${CMAKE_BINARY_DIR}/src/libslic3r/libslic3r_version.h" COPYONLY)
+
+# Only a location anchor for the production helper target's bundle expression.
+# This fixture is not the Orca GUI, and no test may count it as a native app.
+add_executable(OrcaSlicer "${CMAKE_SOURCE_DIR}/tests/mcp/linux/location_anchor.cpp")
+add_subdirectory(src/slic3r/GUI/JusPrin/Mcp/Bridge)
+add_subdirectory(tests/catch2)
+enable_testing()
+function(orcaslicer_discover_tests target)
+    add_test(NAME ${target} COMMAND ${target} --order rand --warn NoAssertions)
+endfunction()
+add_subdirectory(tests/agent)

@@ -5,6 +5,7 @@
 
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -30,8 +31,20 @@ std::unique_ptr<ShellController>& shell_slot()
 
 } // namespace
 
+ShellController::ShellController()
+{
+    Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+        if (!m_agent_pane) return;
+        auto& host = m_agent_pane->web_view().host();
+        host.pump_stream();
+        host.pump_tools();
+        host.pump_setup();
+    }, m_runtime_timer.GetId());
+}
+
 ShellController::~ShellController()
 {
+    m_runtime_timer.Stop();
     if (m_installed)
         uninstall();
 }
@@ -76,11 +89,16 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel, *m_persistence);
         m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, agent.availability,
-                                     std::move(agent.service), std::move(agent.setup));
+                                     std::move(agent.service), std::move(agent.setup),
+                                     (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
 
         // Adopt the currently open project once the host has registered its
         // listeners, so the initial document reaches the pane too.
         m_persistence->attach();
+
+        // One shell-owned pump continues throughout WebView page reloads.
+        // The page handshake gates delivery, not native MCP execution.
+        m_runtime_timer.Start(33);
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -124,6 +142,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
 {
     if (event.GetWindow() == m_frame) {
+        m_runtime_timer.Stop();
         m_installed = false;
         m_prepare_canvas_presentation.abandon();
     }
@@ -132,6 +151,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
 
 void ShellController::uninstall()
 {
+    m_runtime_timer.Stop();
     if (!m_installed)
         return;
     m_installed = false;

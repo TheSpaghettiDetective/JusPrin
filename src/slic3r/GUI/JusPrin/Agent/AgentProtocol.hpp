@@ -5,6 +5,7 @@
 // package is resources/jusprin/agent/protocol.json; the contract tests assert
 // that these constants and that file agree. This header is GUI-free.
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>

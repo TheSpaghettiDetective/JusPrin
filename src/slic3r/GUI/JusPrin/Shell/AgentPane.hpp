@@ -25,8 +25,9 @@ public:
               Workspace::IWorkspace&     workspace,
               Agent::ProjectPersistence& persistence,
               Agent::AgentAvailability   availability,
-              Agent::AgentServicePtr      agent = {},
-              Agent::AgentSetupServicePtr setup = {});
+              Agent::AgentServicePtr      agent,
+              Agent::AgentSetupServicePtr setup,
+              const std::string& discovery_path);
 
     void apply_appearance(bool dark);
 

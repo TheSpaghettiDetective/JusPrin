@@ -228,6 +228,10 @@ echo -n "[9/9] Generating Linux app..."
     # built with -g makes those helper paths unusable on Fedora and vice versa,
     # so rely on the host WebKitGTK runtime instead of copying the helper stack.
 
+    if [ -n "@SLIC3R_PACKAGE_EXTRA_SCRIPT@" ]; then
+        sh "@SLIC3R_PACKAGE_EXTRA_SCRIPT@" "$ORIGINAL_BINARY_LOCATION" "$APPDIR"
+    fi
+
     mapfile -d '' BUNDLE_TARGETS < <(find "$BIN_DIR" "$LIB_DIR" "$LIBEXEC_DIR" -type f -print0 2>/dev/null)
     bundle_dependency_closure "$PRIVATE_LIB_DIR" "${BUNDLE_TARGETS[@]}"
 
@@ -356,6 +360,10 @@ cat << EOF >@SLIC3R_APP_CMD@
 #!/bin/bash
 DIR=\$(dirname "\$(readlink -f "\$0")")
 export APPDIR="\${APPDIR:-\$DIR}"
+
+if [ -f "\$DIR/libexec/launch-extra" ]; then
+    . "\$DIR/libexec/launch-extra"
+fi
 
 # FIXME: OrcaSlicer segfault workarounds
 # 1) OrcaSlicer will segfault on systems where locale info is not as expected (i.e. Holo-ISO arch-based distro)

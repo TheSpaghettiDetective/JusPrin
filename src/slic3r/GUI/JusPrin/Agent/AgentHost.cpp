@@ -1,4 +1,5 @@
 #include "AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -102,6 +103,7 @@ json parsed_or_object(const std::string& text)
 json activity_json(const ToolActivity& activity)
 {
     json result{{"actionId", activity.action_id},
+                {"source", activity.source == ToolSource::Mcp ? "mcp" : "agent"},
                 {"correlationId", activity.correlation_id},
                 {"server", activity.server},
                 {"tool", activity.tool},
@@ -516,12 +518,23 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
 
 AgentHost::~AgentHost()
 {
+    m_mcp.reset();
     if (m_agent)
         m_agent->cancel();
     // The persistence object outlives this host (the shell controller owns
     // both); drop the callbacks that capture `this`.
     m_persistence.set_document_replaced_listener({});
     m_persistence.set_revision_listener({});
+}
+
+void AgentHost::start_mcp(const std::string& discovery_path)
+{
+    if (!m_mcp) {
+        Mcp::ServerOptions options;
+        options.port = Mcp::kPreferredPort;
+        options.fallback_to_ephemeral = true;
+        m_mcp = std::make_unique<Mcp::McpRuntime>(m_workspace, m_tools, std::filesystem::u8path(discovery_path), options);
+    }
 }
 
 void AgentHost::set_send(SendFn send)
@@ -549,6 +562,7 @@ std::vector<ConversationMessage> AgentHost::conversation() const
 void AgentHost::on_document_replaced()
 {
     m_title.reset();
+    if (m_mcp) m_mcp->detach_calls();
     if (m_agent)
         m_agent->cancel();
     m_stream.reset();
@@ -1401,7 +1415,8 @@ void AgentHost::pump_tools()
     // A parked project boundary (Project event delivered before the new
     // directory was in place) resolves here, once per timer tick.
     m_persistence.resolve_pending_boundary();
-    if (m_handshake)
+    if (m_mcp) m_mcp->poll();
+    if (m_handshake || m_mcp)
         m_tools.pump();
     // Streaming deltas and progress mark the document dirty without forcing a
     // write each; this pump gives them their throttled flush.

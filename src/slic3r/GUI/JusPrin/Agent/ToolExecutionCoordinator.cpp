@@ -1,4 +1,5 @@
 #include "ToolExecutionCoordinator.hpp"
+#include "ToolResults.hpp"
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -79,7 +80,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 }
 
 const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
-                                                      ToolExecutionPacing pacing)
+                                                      ToolExecutionPacing pacing, ToolSource source)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -87,6 +88,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     ToolActivity activity;
     activity.action_id         = m_action_id_allocator ? m_action_id_allocator() : "t-" + std::to_string(m_next_action_id++);
     activity.correlation_id    = correlation_id;
+    activity.source            = source;
     activity.server            = kServerName;
     activity.tool              = request.tool;
     activity.arguments_json    = request.arguments_json;
@@ -231,6 +233,15 @@ void ToolExecutionCoordinator::start_running(ToolActivity& activity)
 
 void ToolExecutionCoordinator::execute(ToolActivity& activity)
 {
+    // Approval and the execution tick are separate GUI events. Recheck the
+    // last content/history change here; selection-only changes still cannot
+    // redirect a proposal pinned to an object ID and do not invalidate it.
+    if (activity.requires_approval &&
+        (m_workspace.snapshot().session.value() != activity.session ||
+         m_last_invalidating_revision > activity.expected_revision)) {
+        fail(activity, "stale_revision", "The project changed before this action could execute. Propose it again.");
+        return;
+    }
     const ToolDefinition* definition = m_registry.find(activity.tool);
     if (definition == nullptr) {
         fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");
@@ -291,13 +302,14 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
 
     if (definition->handler == ToolHandler::InspectSelection) {
         const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
-        json names = json::array();
-        for (Workspace::ObjectId selected : snapshot.selected_objects)
-            for (const Workspace::WorkspacePlate& plate : snapshot.plates)
-                for (const Workspace::WorkspaceObject& object : plate.objects)
-                    if (object.id == selected)
-                        names.push_back(object.name);
-        activity.result_json = json{{"selection", std::move(names)}, {"revision", snapshot.revision}}.dump();
+        activity.result_json = selection_inspection(snapshot).dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::WorkspaceInspect) {
+        activity.result_json = workspace_inspection(m_workspace.snapshot()).dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
         return;
@@ -357,11 +369,11 @@ void ToolExecutionCoordinator::notify(const ToolActivity& activity)
 
 void ToolExecutionCoordinator::invalidate_pending(const Workspace::WorkspaceChanged& change)
 {
-    // Only Pending proposals go stale eagerly. A Running action re-validates
-    // naturally at execution: its pinned target either still resolves or the
-    // workspace command reports the stale/missing error.
+    // Pending proposals fail eagerly. Approved/running proposals recheck this
+    // revision at execution, without invalidating a command on its own event.
     if ((change.reasons & kInvalidatingReasons) == WorkspaceChangeReasons::None)
         return;
+    m_last_invalidating_revision = change.revision;
     for (ToolActivity& activity : m_activities) {
         if (activity.state != ToolState::Pending)
             continue;

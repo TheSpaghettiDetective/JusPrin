@@ -1,9 +1,11 @@
 #include "ToolRegistry.hpp"
+#include "ToolResults.hpp"
 
 #include <algorithm>
 #include <array>
 #include <charconv>
 #include <set>
+#include <stdexcept>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -73,7 +75,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     if (!arguments.is_object())
         return false;
 
-    if (definition.handler == ToolHandler::InspectSelection)
+    if (definition.handler == ToolHandler::InspectSelection || definition.handler == ToolHandler::WorkspaceInspect)
         return arguments.empty();
 
     if (definition.handler == ToolHandler::DuplicateObject)
@@ -125,6 +127,19 @@ std::vector<ToolDefinition> make_definitions()
 {
     const json revision = integer_schema();
     const json id       = string_schema();
+    const auto list_schema = [](json item) {
+        return object_schema({{"items", {{"type", "array"}, {"items", std::move(item)}, {"maxItems", kToolListLimit}}},
+                               {"truncated", boolean_schema()}}, {"items", "truncated"});
+    };
+    const json object_summary = object_schema({{"objectId", id}, {"name", string_schema()}, {"instanceCount", revision}},
+                                               {"objectId", "name", "instanceCount"});
+    const json plate_summary = object_schema({{"plateId", id}, {"name", string_schema()}, {"active", boolean_schema()},
+                                              {"sliced", boolean_schema()}, {"objectCount", revision},
+                                              {"objects", list_schema(object_summary)}},
+                                              {"plateId", "name", "active", "sliced", "objectCount", "objects"});
+    json selection_summary = list_schema(id);
+    selection_summary["properties"]["status"] = string_schema();
+    selection_summary["required"].push_back("status");
 
     std::vector<ToolDefinition> definitions{
         {"duplicate_object",
@@ -152,12 +167,25 @@ std::vector<ToolDefinition> make_definitions()
          "Inspect the current selection",
          "Read the current selection without changing the project.",
          object_schema(json::object()),
-         object_schema(json{{"selection", string_array_schema()}, {"revision", revision}},
+         object_schema(json{{"selection", string_array_schema()}, {"revision", revision}, {"truncated", boolean_schema()}},
                        json::array({"selection", "revision"})),
          ActionClass::ReadOnly,
          ToolExposure::InApp | ToolExposure::Mcp,
          ToolAvailability::Always,
          ToolHandler::InspectSelection},
+        {"workspace_inspect",
+         "Inspect the live workspace",
+         "Read a bounded summary of the open project, plates and objects, setup names, selection IDs, and native history. IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+         object_schema(json::object()),
+         object_schema({{"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
+                         {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
+                         {"filamentPreset", string_schema()}, {"activePlateId", id},
+                         {"plateCount", revision}, {"objectCount", revision}, {"plates", list_schema(plate_summary)},
+                         {"selection", selection_summary}, {"truncated", boolean_schema()},
+                         {"history", object_schema({{"canUndo", boolean_schema()}, {"canRedo", boolean_schema()}}, {"canUndo", "canRedo"})}},
+                         {"sessionId", "revision", "projectName", "projectDirty", "printerPreset", "filamentPreset", "activePlateId",
+                          "plateCount", "objectCount", "plates", "selection", "truncated", "history"}),
+         ActionClass::ReadOnly, ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::WorkspaceInspect},
         {"record_build",
          "Record a build of the sliced active plate",
          "Record the sliced active plate in the JusPrin manufacturing history.",
@@ -212,6 +240,37 @@ std::vector<ToolDefinition> make_definitions()
 
 } // namespace
 
+namespace {
+// Validate the small, closed schema vocabulary the immutable registry uses.
+// This is not a validator for client-supplied schemas (none are accepted).
+// Unsupported schema keywords are programmer errors, never silently ignored.
+bool matches_schema(const json& value, const json& schema)
+{
+    static const std::set<std::string> supported{"type", "properties", "required", "additionalProperties", "items", "minimum", "maxItems"};
+    for (const auto& item : schema.items())
+        if (!supported.count(item.key())) throw std::logic_error("Unsupported canonical tool schema keyword: " + item.key());
+    const std::string type = schema.at("type");
+    if (type == "object") {
+        if (!value.is_object()) return false;
+        for (const auto& required : schema.at("required"))
+            if (!value.contains(required.get<std::string>())) return false;
+        for (const auto& item : value.items()) {
+            const auto& properties = schema.at("properties");
+            if (!properties.contains(item.key()) || !matches_schema(item.value(), properties.at(item.key()))) return false;
+        }
+    } else if (type == "array") {
+        if (!value.is_array() || value.size() > schema.value("maxItems", kToolListLimit)) return false;
+        for (const auto& item : value) if (!matches_schema(item, schema.at("items"))) return false;
+    } else if (type == "string") return value.is_string();
+    else if (type == "boolean") return value.is_boolean();
+    else if (type == "integer" || type == "number")
+        return (type == "integer" ? value.is_number_integer() : value.is_number()) &&
+               (!schema.contains("minimum") || value.get<double>() >= schema["minimum"].get<double>());
+    else throw std::logic_error("Unsupported canonical tool schema type: " + type);
+    return true;
+}
+}
+
 const ToolRegistry& ToolRegistry::instance()
 {
     static const ToolRegistry registry;
@@ -219,6 +278,11 @@ const ToolRegistry& ToolRegistry::instance()
 }
 
 ToolRegistry::ToolRegistry() : m_definitions(make_definitions()) {}
+
+bool ToolRegistry::validate_output(const ToolDefinition& definition, const json& result) const
+{
+    return matches_schema(result, definition.output_schema);
+}
 
 const ToolDefinition* ToolRegistry::find(std::string_view name) const
 {

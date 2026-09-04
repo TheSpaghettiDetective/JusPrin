@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <wx/event.h>
+#include <wx/timer.h>
 
 class wxSizer;
 class wxBoxSizer;
@@ -31,7 +32,7 @@ class StatusRow;
 class ShellController : public wxEvtHandler
 {
 public:
-    ShellController() = default;
+    ShellController();
     ~ShellController();
 
     ShellController(const ShellController&) = delete;
@@ -54,6 +55,7 @@ private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
 
     ShellTheme m_theme;
+    wxTimer m_runtime_timer{this};
 
     MainFrame* m_frame{nullptr};
     Notebook*  m_tabpanel{nullptr};

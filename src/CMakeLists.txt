@@ -124,6 +124,8 @@ else ()
     add_executable(OrcaSlicer OrcaSlicer.cpp OrcaSlicer.hpp)
 endif ()
 
+add_subdirectory(slic3r/GUI/JusPrin/Mcp/Bridge)
+
 if (MINGW)
     target_link_options(OrcaSlicer PUBLIC "-Wl,-allow-multiple-definition")
     set_target_properties(OrcaSlicer PROPERTIES PREFIX "")

@@ -341,6 +341,30 @@ describe('App', () => {
     expect(screen.queryByText('Approve')).not.toBeInTheDocument();
   });
 
+  it.each(['ready', 'unavailable'] as const)('shows external MCP approvals without a chat message when Agent is %s', async (status) => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status } }));
+    const activity = { ...toolActivity({ correlationId: 'mcp-42' }), source: 'mcp' as const };
+    host.deliver('tool_activity', { activity });
+    expect(screen.getByRole('region', { name: 'External AI tools' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Reject' }));
+    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'reject' });
+    host.deliver('tool_activity', { activity: { ...activity, state: 'rejected' } });
+    expect(screen.getByText('Rejected — nothing was changed')).toBeVisible();
+  });
+
+  it('restores external approvals across reload and keeps them visible outside the chat view', async () => {
+    render(<App getTransport={() => host.transport} />);
+    const activity = { ...toolActivity({ correlationId: 'mcp-42' }), source: 'mcp' as const };
+    connect(host, emptyState({ toolActivities: [activity, toolActivity({ actionId: 'other-chat', correlationId: 'other-message' })] }));
+    expect(screen.queryByTestId('tool-other-chat')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'approve' });
+  });
+
   it('submits a rejection and shows that nothing was changed', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ conversation: proposalConversation(), toolActivities: [toolActivity()] }));

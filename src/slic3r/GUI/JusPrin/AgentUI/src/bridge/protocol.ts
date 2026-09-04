@@ -164,7 +164,8 @@ export type ActionClassName = 'read_only' | 'mutation' | 'destructive';
 
 export interface ToolActivityInfo {
   actionId: string;
-  correlationId: string; // the assistant message that proposed the action
+  correlationId: string; // assistant message or external adapter request
+  source?: 'agent' | 'mcp'; // absent in older native builds: in-app Agent
   server: string;
   tool: string;
   title: string;

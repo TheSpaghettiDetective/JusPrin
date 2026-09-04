@@ -56,7 +56,6 @@ private:
     wxStaticText* m_error_title{nullptr};
     wxStaticText* m_error_detail{nullptr};
 
-    wxTimer  m_stream_timer;
     wxTimer  m_handshake_timer;
     wxString m_page_url;
     wxString m_last_load_error;

@@ -26,12 +26,27 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp
     GUI/JusPrin/Agent/ToolRegistry.cpp
     GUI/JusPrin/Agent/ToolRegistry.hpp
+    GUI/JusPrin/Agent/ToolResults.cpp
+    GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Mcp/McpProtocol.cpp
+    GUI/JusPrin/Mcp/McpProtocol.hpp
+    GUI/JusPrin/Mcp/McpServer.cpp
+    GUI/JusPrin/Mcp/McpServer.hpp
+    GUI/JusPrin/Mcp/McpRuntime.cpp
+    GUI/JusPrin/Mcp/McpRuntime.hpp
+    GUI/JusPrin/Mcp/McpDiscoveryFile.cpp
+    GUI/JusPrin/Mcp/McpDiscoveryFile.hpp
     GUI/JusPrin/Brand/BrandPalette.cpp
     GUI/JusPrin/Brand/BrandPalette.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
     GUI/JusPrin/CanvasPresentationController.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
+    GUI/JusPrin/Shell/McpConnectionDialog.cpp
+    GUI/JusPrin/Shell/McpConnectionDialog.hpp
+    GUI/JusPrin/Mcp/McpConnections.hpp
+    GUI/JusPrin/Mcp/McpConfigFile.cpp
+    GUI/JusPrin/Mcp/McpConfigFile.hpp
     GUI/JusPrin/Shell/ShellController.cpp
     GUI/JusPrin/Shell/ShellController.hpp
     GUI/JusPrin/Shell/ShellTheme.cpp

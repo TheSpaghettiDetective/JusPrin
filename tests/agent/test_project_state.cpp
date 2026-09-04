@@ -131,6 +131,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     CHECK(reloaded.client_message_lookup("c-2").has_value());
     REQUIRE(reloaded.activities().size() == 1);
     CHECK(reloaded.activities()[0].state == ToolState::Succeeded);
+    CHECK(reloaded.activities()[0].source == ToolSource::Agent);
     REQUIRE(reloaded.revisions().size() == 1);
     CHECK(reloaded.current_revision_id() == reloaded.revisions()[0].id);
 
@@ -138,6 +139,28 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
         const std::string next_id = reloaded.allocate_message_id();
         CHECK(next_id == "m-3");
     }
+}
+
+TEST_CASE("external tool activity source survives storage and legacy records migrate", "[project-state][schema][mcp]")
+{
+    ProjectStateDocument document;
+    ToolActivity activity;
+    activity.action_id = document.allocate_action_id();
+    activity.correlation_id = "mcp-42";
+    activity.source = ToolSource::Mcp;
+    activity.state = ToolState::Rejected;
+    document.upsert_activity(activity, kT);
+    ProjectStateDocument restored;
+    REQUIRE(restored.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(restored.activities().size() == 1);
+    CHECK(restored.activities()[0].source == ToolSource::Mcp);
+    auto legacy = nlohmann::json::parse(document.dump());
+    legacy["toolActivities"][0].erase("source");
+    REQUIRE(restored.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(restored.activities()[0].source == ToolSource::Mcp);
+    legacy["toolActivities"][0]["correlationId"] = "m-42";
+    REQUIRE(restored.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(restored.activities()[0].source == ToolSource::Agent);
 }
 
 TEST_CASE("chat metadata follows activity and manual titles survive reload", "[project-state][conversations]")

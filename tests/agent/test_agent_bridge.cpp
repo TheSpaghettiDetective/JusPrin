@@ -4,10 +4,11 @@
 // reconstruction, and workspace context propagation including project-session
 // invalidation. GUI-free.
 
+// Keep the protocol first: it must compile without incidental standard-library includes.
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
-#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"

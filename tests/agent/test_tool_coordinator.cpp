@@ -102,6 +102,19 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
 }
 
+TEST_CASE("approved mutation cannot execute after a content change", "[tools][stale][mcp]")
+{
+    Harness harness;
+    const auto id = harness.coordinator.propose(harness.duplicate_cube_request(), "mcp-race").action_id;
+    REQUIRE(harness.coordinator.approve(id));
+    REQUIRE(harness.workspace.rename_object(harness.cube_id(), "Edited after approval").succeeded());
+    harness.coordinator.pump();
+    REQUIRE(harness.coordinator.find(id)->state == ToolState::Failed);
+    CHECK(harness.object_count() == 1);
+    REQUIRE(harness.coordinator.find(id)->error.has_value());
+    CHECK(harness.coordinator.find(id)->error->code == "stale_revision");
+}
+
 TEST_CASE("coordinator policy comes from the registry", "[tools][policy][registry]")
 {
     Harness harness;

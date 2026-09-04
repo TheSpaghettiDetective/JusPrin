@@ -31,6 +31,10 @@ constexpr bool tool_state_terminal(ToolState state)
 // export.
 enum class ActionClass : std::uint8_t { ReadOnly, Mutation, Destructive };
 
+// Assigned by the native adapter, never by untrusted tool arguments. External
+// requests belong to the project, not to an in-app conversation message.
+enum class ToolSource : std::uint8_t { Agent, Mcp };
+
 // The first production release asks for approval before every durable
 // project mutation; read-only actions run without approval.
 constexpr bool approval_required(ActionClass action_class)
@@ -63,7 +67,7 @@ struct ToolRequest
 struct ToolActivity
 {
     std::string   action_id;      // coordinator-assigned, stable across reloads
-    std::string   correlation_id; // the assistant message that proposed the action
+    std::string   correlation_id; // assistant message or adapter request correlation
     std::string   server;
     std::string   tool;
     std::string   title;
@@ -77,6 +81,7 @@ struct ToolActivity
     int           progress_total{1};
     std::string   result_json; // structured result when Succeeded
     std::optional<ToolError> error;
+    ToolSource source{ToolSource::Agent};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent
