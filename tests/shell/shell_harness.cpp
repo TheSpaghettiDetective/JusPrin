@@ -931,7 +931,7 @@ private:
                 else
                     self->check(result["ttlMs"] == 0 && result["cacheScope"] == "private", "mcp_real_catalog_cache_policy");
                 const auto tools = result["tools"];
-                self->check(tools.size() == 7 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
+                self->check(tools.size() == 5 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];

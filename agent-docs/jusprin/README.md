@@ -11,6 +11,7 @@ Read these documents in order:
 5. [Fork stewardship](fork-stewardship.md) — required before changing any OrcaSlicer-owned file: where a seam belongs, why additive beats rewritten, how to leave a conflict that resolves correctly, and what evidence a change must record.
 6. [Design system](design-system.md) — brand behavior, semantic UI tokens, typography, spacing, accessibility, and asset rules.
 7. [POC reference](poc-reference.md) — exact pointers to the spike-only documents, code, commits, logs, screenshots, and generated brand artifacts left on `jusprin-v2-poc`.
+8. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, approval and verification requirements.
 
 ## Governing decisions
 

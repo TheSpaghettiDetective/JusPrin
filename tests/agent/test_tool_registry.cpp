@@ -67,7 +67,7 @@ TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::InApp)) ==
           std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
-          std::vector<std::string>{"duplicate_object", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
+          std::vector<std::string>{"settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
           std::vector<std::string>{"record_build", "record_export_copy", "record_physical_print"});
 

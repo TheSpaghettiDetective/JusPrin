@@ -1,6 +1,6 @@
 # Guide for adding JusPrin tools
 
-**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The process-settings tools discussed as future examples below are not implemented.
+**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The five-tool MCP catalog includes workspace inspection and the verified process-settings workflow.
 
 JusPrin has one tool system with multiple adapters. New capabilities are added to the shared registry, executed by `ToolExecutionCoordinator`, and implemented through the typed live-workspace boundary; the OpenAI and MCP adapters only translate that contract to their wire formats. This guide keeps the catalog small, honest, safe to evolve, and driven by real printing tasks rather than an abstract feature inventory.
 
@@ -57,7 +57,7 @@ Deterministic workflow machinery can be a tool. Examples include generating Orca
 
 ## Prefer extending nouns over multiplying verbs
 
-For a future process-settings implementation, prefer a few stable operations over searchable data. These names illustrate the intended design, not the current catalog:
+The implemented process-settings workflow uses four stable operations over searchable data:
 
 ```text
 settings_search → settings_get → settings_preview_patch → settings_apply_patch
@@ -184,14 +184,14 @@ Expected invalid states use structured control flow, not thrown exceptions. An e
 
 Current MCP errors include `invalid_arguments`, `approval_rejected`, `cancelled`, `workspace_unavailable` and `stale_workspace`. The MCP adapter normalizes native `stale_revision`/`stale_id` to `stale_workspace` with expected/current session and revision details, and `unavailable_operation` to `workspace_unavailable`. Transport-level protocol errors are separate JSON-RPC errors. Do not require identical spelling across the native and MCP error boundaries.
 
-For new capabilities, useful error designs include (the settings examples are not implemented):
+The settings tools implement the following bounded correction details:
 
-- unknown setting: canonical `unknown_setting`, original key, and a short `did_you_mean` list;
-- invalid enum: key, received value, and valid values;
-- out of range: key, received value, inclusive bounds, and unit;
+- unknown setting: canonical `unknown_setting`, original key, and a short `suggestions` list;
+- invalid enum: key, diagnostic message, and valid values in `allowed`;
+- out of range: key, diagnostic message, and `min`/`max` bounds; units are available from setting metadata;
 - incompatible settings: conflicting keys and Orca's reason;
 - stale call: expected and current session/revision, plus instruction to read again;
-- unavailable operation: missing project, plate, selection, technology, or sliced result;
+- unavailable operation: no active FFF process preset;
 - rejected approval: terminal `approval_rejected`, not a generic execution failure.
 
 Unexpected invariant failures must remain visible to diagnostics and Sentry. Catch at an abstraction boundary only to recover, translate a known error, or add essential context.
@@ -280,15 +280,23 @@ Current registry, in deterministic name order. `Internal` entries are native man
 
 | Tool | Added for eval/task | Action | Exposure | Scope | Owner | Output bound |
 |---|---|---|---|---|---|---|
-| `duplicate_object` | Duplicate a project object | mutation | both | one explicit session-scoped object ID, not necessarily selected | `IWorkspace::duplicate_object` | revision and optional new object ID |
+| `duplicate_object` | Duplicate a project object | mutation | in-app | one explicit session-scoped object ID, not necessarily selected | `IWorkspace::duplicate_object` | revision and optional new object ID |
 | `import_model` | Add a user attachment | mutation | in-app | current document; importable attachment required | `IWorkspace::import_model` | revision, imported flag and optional new object ID |
-| `inspect_selection` | Explain selected geometry | read-only | both | current selection | workspace snapshot | at most 64 names, each at most 256 UTF-8 bytes; revision and conditional truncation flag |
+| `inspect_selection` | Explain selected geometry | read-only | in-app | current selection | workspace snapshot | at most 64 names, each at most 256 UTF-8 bytes; revision and conditional truncation flag |
 | `record_build` | Record a sliced plate | mutation | Internal | manufacturing history | coordinator's history recorder | build ID and recorded flag |
 | `record_export_copy` | Record a verified G-code export | destructive | Internal | manufacturing history | coordinator's history recorder | exported-copy ID and build ID |
 | `record_physical_print` | Record a completed print fact | destructive | Internal | manufacturing history; does not start a printer | coordinator's history recorder | physical-print ID, build ID and recorded flag |
+| `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | preview session/revision and confirmed before/after values | `IWorkspace::apply_settings` through `Tab::load_config` | bounded actual changes/normalization, revision, dirty flag and `projectUndo: false` |
+| `settings_get` | Read current values and preset origin | read-only | both | 1–32 process keys | `IWorkspace::read_settings` using the edited process preset | at most 32 values and unknown-key issues; canonical values are preserved |
+| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | active FFF process preset; seven writable keys | `IWorkspace::preview_settings` using a clone and Orca validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
+| `settings_search` | Find a process setting without loading its full catalog | read-only | both | active FFF process preset | `IWorkspace::search_settings` using Orca definitions | 1–25 matches; deterministic cursor paging and bounded metadata |
 | `workspace_inspect` | External client needs current project context | read-only | MCP | current document | `IWorkspace::snapshot` | at most 16 plates, 64 objects across returned plates and 64 selected IDs; labels at most 256 UTF-8 bytes; totals and truncation flags |
 
-Only `duplicate_object`, `inspect_selection`, and `workspace_inspect` are MCP-visible. There are no process-setting values in `workspace_inspect`, no `settings_*` handlers, and no MCP attachment-import contract. Future settings tools need typed workspace queries/commands, native validation and approved atomic application, preservation of preset dirty/reset behavior, and tests before exposure. Do not promise that ordinary project Undo reverses preset edits.
+Only `workspace_inspect`, `settings_search`, `settings_get`, `settings_preview_patch`, and `settings_apply_patch` are MCP-visible. `duplicate_object` and `inspect_selection` remain in-app fixtures pending an in-app eval; they are not callable over MCP. There is no MCP attachment-import contract.
+
+Settings search/read cover the active FFF process preset. The write allowlist is `layer_height`, `wall_loops`, `sparse_infill_density`, `sparse_infill_pattern`, `top_shell_layers`, `bottom_shell_layers`, and `brim_width`. Apply takes `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use Orca preset revert or a previewed inverse patch to restore values; ordinary project Undo does not reverse preset edits.
+
+The OpenAI adapter preserves the registry schemas and uses non-strict function calling for optional arguments or dynamic patch maps, which OpenAI strict mode cannot express. Native registry validation remains authoritative. Stateless Responses continuations retain user context and all prior tool results; the live multi-tool regression covers this path.
 
 Update the actual table when implementation changes names, limits, or ownership. The source registry remains authoritative; this table explains why the surface exists.
 

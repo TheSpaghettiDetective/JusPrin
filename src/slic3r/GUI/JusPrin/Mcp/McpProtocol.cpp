@@ -181,7 +181,7 @@ Reply discovery(const Request& request)
                                          {"capabilities", {{"tools", {{"listChanged", false}}}}},
                                          {"ttlMs", 0},
                                          {"cacheScope", "private"},
-                                         {"instructions", "Inspect the live JusPrin workspace before choosing object IDs. Mutations wait for approval in the JusPrin Agent panel. A workspace_unavailable error means you should open JusPrin and a project. Closing a response cancels pending work."}})};
+                                         {"instructions", "Inspect the live workspace, search or read process settings, then preview a patch. Apply with the sessionId and revision from that preview and wait for approval in the JusPrin Agent panel. After stale_workspace, read and preview again. Project Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable error means you should open JusPrin and a project. Closing a response cancels pending work."}})};
 }
 
 Reply list_tools(const Request& request, std::size_t page_size)

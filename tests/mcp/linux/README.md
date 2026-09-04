@@ -45,7 +45,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
 ```
 
 The test uses extraction mode, requiring no FUSE device or privileged container.
-It checks legacy initialization, the real three-tool catalog, discovery of a
+It checks legacy initialization, the real five-tool catalog, discovery of a
 controlled HTTP peer, and offline results before/after the peer's lifetime.
 Other tests verify ordinary GUI-argument forwarding with a stub, paths with
 spaces/Unicode, and failure when packaging cannot find the helper.
