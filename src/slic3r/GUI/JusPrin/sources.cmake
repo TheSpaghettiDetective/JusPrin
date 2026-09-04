@@ -45,6 +45,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/McpConnectionDialog.cpp
     GUI/JusPrin/Shell/McpConnectionDialog.hpp
     GUI/JusPrin/Mcp/McpConnections.hpp
+    GUI/JusPrin/Mcp/McpCatalog.cpp
+    GUI/JusPrin/Mcp/McpCatalog.hpp
     GUI/JusPrin/Mcp/McpConfigFile.cpp
     GUI/JusPrin/Mcp/McpConfigFile.hpp
     GUI/JusPrin/Shell/ShellController.cpp

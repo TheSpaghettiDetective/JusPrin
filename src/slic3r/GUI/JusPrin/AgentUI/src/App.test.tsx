@@ -705,8 +705,7 @@ describe('App agent setup', () => {
     // The two paths this build cannot complete are visible but inert rather
     // than leading nowhere.
     expect(screen.getByRole('button', { name: 'Continue with JusPrin' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Run a model on this machine/ })).toBeDisabled();
-    // Nothing is asked of the host merely by looking at the options.
+    expect(screen.getByRole('button', { name: /Connect an AI tool you already use/ })).toBeEnabled();
     expect(host.received.filter((e) => e.type.startsWith('setup_'))).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Close setup' }));
@@ -799,5 +798,78 @@ describe('App agent setup', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
     expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
+  });
+
+  it('opens the local AI tool catalog and connects a file-based client', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    fireEvent.click(screen.getByTestId('setup-row-connect-tool'));
+
+    expect(screen.getByTestId('setup-local-tools')).toBeInTheDocument();
+    expect(host.lastOfType('mcp_catalog')).toBeTruthy();
+
+    host.deliver('mcp_catalog', {
+      helperPresent: true,
+      liveUrl: 'http://127.0.0.1:9/mcp',
+      tools: [
+        { id: 'claude', name: 'Claude Code', detected: false, cli: true, text: 'claude mcp add -- discovery' },
+        {
+          id: 'cursor',
+          name: 'Cursor',
+          detected: true,
+          cli: false,
+          text: '{"mcpServers":{"jusprin":{"command":"/tmp/jusprin-mcp","args":["--discovery","/tmp/mcp.json"]}}}',
+          configPath: '/tmp/mcp.json',
+        },
+      ],
+    });
+    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    expect(host.lastOfType('mcp_preview')?.payload).toMatchObject({ toolId: 'cursor' });
+    host.deliver('mcp_preview', {
+      toolId: 'cursor',
+      path: '/tmp/mcp.json',
+      previous: '{}',
+      next: '{"command":"/tmp/jusprin-mcp","args":["--discovery","/tmp/mcp.json"]}',
+      root: 'mcpServers',
+    });
+    expect(screen.getByTestId('setup-local-review')).toBeInTheDocument();
+    expect(screen.getByText('/tmp/mcp.json')).toBeInTheDocument();
+    expect(screen.queryByText(/http:\/\/127.0.0.1/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    expect(host.lastOfType('mcp_connect')?.payload).toMatchObject({ toolId: 'cursor' });
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'cursor' });
+    expect(screen.getByTestId('setup-local-saving')).toBeInTheDocument();
+    host.deliver('mcp_status', { phase: 'saved', toolId: 'cursor', backup: '/tmp/mcp.json.bak' });
+    expect(screen.getByTestId('setup-local-saved')).toBeInTheDocument();
+    expect(screen.getByText(/Backup:/)).toBeInTheDocument();
+  });
+
+  it('copies a CLI command instead of embedding a loopback URL', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    fireEvent.click(screen.getByTestId('setup-row-connect-tool'));
+    host.deliver('mcp_catalog', {
+      helperPresent: true,
+      tools: [
+        {
+          id: 'claude',
+          name: 'Claude Code',
+          detected: true,
+          cli: true,
+          text: "claude mcp add --scope user --transport stdio jusprin -- '/tmp/jusprin-mcp' --discovery '/tmp/mcp.json'",
+        },
+      ],
+    });
+    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
+    expect(screen.getByText(/--discovery/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalled();
+    expect(await screen.findByTestId('setup-local-manual')).toBeInTheDocument();
   });
 });

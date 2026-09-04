@@ -130,6 +130,80 @@ McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::st
     return {exit_code == 0, "Client CLI exited with code " + std::to_string(exit_code) + ".\n" + output};
 }
 
+void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& arguments,
+                             std::function<void(McpSetupResult)> done)
+{
+    if (arguments.empty()) {
+        done({false, "Missing setup executable"});
+        return;
+    }
+    struct Watch : wxEvtHandler {
+        wxProcess process;
+        wxTimer timer;
+        std::function<void(McpSetupResult)> done;
+        std::string output;
+        std::chrono::steady_clock::time_point started;
+        long pid{0};
+        bool timed_out{false};
+        bool finished{false};
+        Watch(wxWindow*, std::function<void(McpSetupResult)> complete)
+            : process(this), timer(this), done(std::move(complete)), started(std::chrono::steady_clock::now())
+        {}
+        void drain()
+        {
+            for (auto* stream : {process.GetInputStream(), process.GetErrorStream()}) {
+                while (stream && stream->CanRead()) {
+                    char buffer[4096];
+                    stream->Read(buffer, sizeof buffer);
+                    const auto size = stream->LastRead();
+                    if (!size) break;
+                    if (output.size() < 65536) output.append(buffer, std::min(size, 65536 - output.size()));
+                }
+            }
+        }
+        void finish(McpSetupResult result)
+        {
+            if (finished) return;
+            finished = true;
+            timer.Stop();
+            auto complete = std::move(done);
+            complete(std::move(result));
+            CallAfter([this] { delete this; });
+        }
+    };
+    auto* watch = new Watch(parent, std::move(done));
+    std::vector<wxString> values;
+    for (const auto& value : arguments) values.push_back(wxString::FromUTF8(value));
+    std::vector<const wchar_t*> argv;
+    for (const auto& value : values) argv.push_back(value.wc_str());
+    argv.push_back(nullptr);
+    watch->pid = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, &watch->process);
+    if (watch->pid <= 0) {
+        watch->finish({false, "Could not start the client CLI. Use Copy or check its installation."});
+        return;
+    }
+    watch->process.CloseOutput();
+    watch->Bind(wxEVT_TIMER, [watch](wxTimerEvent&) {
+        watch->drain();
+        const auto elapsed = std::chrono::steady_clock::now() - watch->started;
+        if (!watch->timed_out && elapsed > std::chrono::seconds(30)) {
+            watch->timed_out = true;
+            wxProcess::Kill(watch->pid, wxSIGTERM);
+        } else if (watch->timed_out && elapsed > std::chrono::seconds(32))
+            wxProcess::Kill(watch->pid, wxSIGKILL);
+    });
+    watch->Bind(wxEVT_END_PROCESS, [watch](wxProcessEvent& event) {
+        if (event.GetPid() != watch->pid) { event.Skip(); return; }
+        watch->drain();
+        if (watch->timed_out)
+            watch->finish({false, "Setup timed out; the client config may have changed. Inspect it before trying again.\n" + watch->output});
+        else
+            watch->finish({event.GetExitCode() == 0,
+                           "Client CLI exited with code " + std::to_string(event.GetExitCode()) + ".\n" + watch->output});
+    });
+    watch->timer.Start(30);
+}
+
 void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const std::string& discovery_path,
                                 const std::string& live_url, const std::string& startup_error)
 {

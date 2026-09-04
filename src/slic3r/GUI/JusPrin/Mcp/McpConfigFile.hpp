@@ -11,6 +11,8 @@ struct ConfigEdit
     std::optional<std::string> before;
     std::string after;
     std::string preview;
+    nlohmann::json previous;
+    nlohmann::json next;
 };
 
 // Preserve bytes outside the JusPrin entry, including JSONC comments. Preparing

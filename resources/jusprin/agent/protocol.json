@@ -13,7 +13,8 @@
     "attachments",
     "manufacturing_history",
     "agent_setup",
-    "conversation_management"
+    "conversation_management",
+    "mcp_setup"
   ],
   "pageMessageTypes": [
     "hello",
@@ -32,7 +33,10 @@
     "attach_file",
     "remove_attachment",
     "setup_check_key",
-    "setup_cancel"
+    "setup_cancel",
+    "mcp_catalog",
+    "mcp_preview",
+    "mcp_connect"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -52,6 +56,9 @@
     "revision_added",
     "bridge_error",
     "attachment_updated",
-    "setup_status"
+    "setup_status",
+    "mcp_catalog",
+    "mcp_preview",
+    "mcp_status"
   ]
 }

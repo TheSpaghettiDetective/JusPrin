@@ -11,6 +11,7 @@ struct ConnectionEntry
     std::string id, name, text;
     bool cli{false};
     std::vector<std::string> arguments;
+    std::string subtitle;
 };
 
 // All paths are literal arguments, never interpolated shell fragments. Windows
@@ -43,7 +44,7 @@ inline std::vector<ConnectionEntry> connection_entries(const std::string& bridge
         {"codex", "Codex", "codex mcp add jusprin -- " + invocation, true,
             std::move(codex)},
         {"desktop", "Claude Desktop", desktop},
-        {"cowork", "Cowork (local sessions)", desktop},
+        {"cowork", "Cowork", desktop, false, {}, "local sessions"},
         {"cursor", "Cursor", desktop},
         {"code", "VS Code", json{{"servers", {{"jusprin", vscode}}}}.dump(2)}
     };

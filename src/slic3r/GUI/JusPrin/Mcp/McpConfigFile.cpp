@@ -157,6 +157,8 @@ ConfigEdit prepare_json_connection(const fs::path& path, const std::string& root
     if (json::parse(jsonc(edit.after)) != expected)
         throw std::runtime_error("Client configuration has ambiguous duplicate keys. No changes made.");
     const auto previous = original.contains(root) && original[root].contains("jusprin") ? original[root]["jusprin"] : json();
+    edit.previous = previous;
+    edit.next = server;
     if (previous == server) edit.after = source;
     edit.preview = "File: " + path.u8string() + "\n\nPrevious JusPrin entry:\n" + previous.dump(2) +
         "\n\nNew JusPrin entry:\n" + server.dump(2) +

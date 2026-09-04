@@ -19,9 +19,11 @@
 #include "AgentSetup.hpp"
 #include "ProjectPersistence.hpp"
 #include "ToolExecutionCoordinator.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <optional>
@@ -91,6 +93,21 @@ public:
     void start_mcp(const std::string& discovery_path);
     const Mcp::McpRuntime* mcp() const { return m_mcp.get(); }
 
+    struct McpConnectSettings
+    {
+        std::string helper_path;
+        std::string launcher_path;
+        std::vector<std::string> launch_arguments;
+        std::string startup_error;
+        std::filesystem::path home;
+        std::filesystem::path config_home;
+        bool windows{false};
+    };
+    using McpCliDone = std::function<void(bool success, std::string diagnostic)>;
+    using McpCliRunner = std::function<void(const std::vector<std::string>& arguments, McpCliDone done)>;
+    void configure_mcp_connect(McpConnectSettings settings);
+    void set_mcp_cli_runner(McpCliRunner runner);
+
     // The active conversation's messages, straight from the document.
     std::vector<ConversationMessage> conversation() const;
 
@@ -135,6 +152,12 @@ private:
     void handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_cancel();
+    void handle_mcp_catalog(const std::string& envelope_id);
+    void handle_mcp_preview(const std::string& envelope_id, const std::string& payload_json);
+    void handle_mcp_connect(const std::string& envelope_id, const std::string& payload_json);
+    void send_mcp_status(const std::string& phase, const std::string& tool_id, const std::string& correlation_id = {},
+                         const std::string& backup = {}, const std::optional<AgentError>& error = std::nullopt,
+                         const std::string& diagnostic = {});
     void send_setup_status(const std::string&               phase,
                            const std::string&               correlation_id = {},
                            std::optional<int>               elapsed_ms     = std::nullopt,
@@ -184,6 +207,12 @@ private:
     // The credentials of the check currently in flight, kept so a verified
     // key can be persisted without the page re-sending the secret.
     std::optional<SetupCredentials> m_setup_pending;
+    McpConnectSettings              m_mcp_connect;
+    McpCliRunner                    m_mcp_cli;
+    std::string                     m_mcp_discovery_path;
+    std::string                     m_mcp_edit_tool;
+    std::optional<Mcp::ConfigEdit>  m_mcp_edit;
+    bool                            m_mcp_busy{false};
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
 

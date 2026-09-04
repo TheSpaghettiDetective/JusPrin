@@ -913,6 +913,10 @@ button.primary.wide {
   width: 100%;
 }
 
+button.wide {
+  width: 100%;
+}
+
 .setup-eyebrow {
   margin: 8px 0 0;
   font-size: 10px;
@@ -1033,4 +1037,215 @@ button.primary.wide {
 
 .setup-banner-text {
   flex: 1;
+}
+
+.pane-state.setup-local {
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 16px;
+  align-self: stretch;
+}
+
+.pane-state.setup-local h1 {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+.pane-state.setup-local p {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.setup-tool-list {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.setup-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.setup-tool-row:last-child {
+  border-bottom: none;
+}
+
+.setup-tool-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--action-primary);
+}
+
+.setup-tool-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.setup-tool-name {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.setup-tool-sub {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.setup-detected,
+.setup-missing {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.setup-detected {
+  color: var(--status-success);
+}
+
+.setup-missing {
+  color: var(--text-secondary);
+}
+
+.setup-command {
+  width: 100%;
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+button.link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--action-primary);
+}
+
+button.link:hover:enabled,
+button.link:active:enabled {
+  background: transparent;
+  color: var(--action-primaryHover);
+}
+
+.setup-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.setup-path {
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.setup-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.setup-diff-before,
+.setup-diff-after {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.setup-diff-after {
+  border-left: 3px solid var(--status-success);
+}
+
+.setup-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  overflow: hidden;
+}
+
+.setup-progress span {
+  display: block;
+  height: 100%;
+  background: var(--status-danger);
+}
+
+.setup-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--status-success);
+}
+
+.setup-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--status-success);
+}
+
+.setup-expect {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.setup-error {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--status-danger);
+  border-radius: 6px;
+  color: var(--status-danger);
+}
+
+.setup-error p {
+  margin: 4px 0 0;
+  color: var(--status-danger);
+}
+
+.setup-error-inline {
+  color: var(--status-danger);
+}
+
+.setup-actions-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
 }

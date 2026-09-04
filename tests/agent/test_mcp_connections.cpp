@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include "slic3r/GUI/JusPrin/Mcp/McpConnections.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
 #include "mcp_test_directory.hpp"
 #include <fstream>
@@ -26,6 +27,8 @@ TEST_CASE("MCP connection entries carry literal Unicode and space paths", "[mcp]
     }
     CHECK(json::parse(entries[5].text)["servers"]["jusprin"]["type"] == "stdio");
     CHECK(entries[2].text == entries[3].text);
+    CHECK(entries[3].name == "Cowork");
+    CHECK(entries[3].subtitle == "local sessions");
 }
 
 TEST_CASE("MCP copied shell commands quote metacharacters without expansion", "[mcp][connections]")
@@ -172,3 +175,28 @@ TEST_CASE("MCP setup refuses symlink replacement and preserves file permissions"
     CHECK(contents(target) == "{}");
 }
 #endif
+
+TEST_CASE("MCP catalog detects config files and keeps discovery args", "[mcp][connections]")
+{
+    namespace fs = std::filesystem;
+    JusPrinTest::McpDirectory directory;
+    const auto home = directory.root / "home";
+    const auto config_home = directory.root / "config";
+    fs::create_directories(home / ".cursor");
+    std::ofstream(home / ".cursor" / "mcp.json") << "{}\n";
+    const auto helper = directory.root / "jusprin-mcp";
+    { std::ofstream(helper) << "x\n"; }
+    fs::permissions(helper, fs::perms::owner_read | fs::perms::owner_write | fs::perms::owner_exec);
+    Mcp::CatalogPaths paths;
+    paths.home = home;
+    paths.config_home = config_home;
+    const auto items = Mcp::make_catalog(helper.u8string(), (directory.root / "mcp.json").u8string(), paths);
+    REQUIRE(items.size() == 6);
+    CHECK(items[4].entry.id == "cursor");
+    CHECK(items[4].detected);
+    CHECK(items[4].json_root == "mcpServers");
+    CHECK(items[5].json_root == "servers");
+    const auto value = json::parse(items[4].entry.text);
+    CHECK(value["mcpServers"]["jusprin"]["command"] == helper.u8string());
+    CHECK_FALSE(value["mcpServers"]["jusprin"].contains("url"));
+}

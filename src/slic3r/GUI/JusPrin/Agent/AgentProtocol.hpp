@@ -27,7 +27,8 @@ inline const std::vector<std::string>& capabilities()
     static const std::vector<std::string> values{"streaming",   "stop",        "retry",
                                                  "context",     "appearance",  "tools",
                                                  "conversations", "revisions", "attachments",
-                                                 "manufacturing_history", "agent_setup", "conversation_management"};
+                                                 "manufacturing_history", "agent_setup", "conversation_management",
+                                                 "mcp_setup"};
     return values;
 }
 
@@ -50,6 +51,9 @@ inline constexpr const char* kAttachFile         = "attach_file";
 inline constexpr const char* kRemoveAttachment   = "remove_attachment";
 inline constexpr const char* kSetupCheckKey      = "setup_check_key";
 inline constexpr const char* kSetupCancel        = "setup_cancel";
+inline constexpr const char* kMcpCatalog         = "mcp_catalog";
+inline constexpr const char* kMcpPreview         = "mcp_preview";
+inline constexpr const char* kMcpConnect         = "mcp_connect";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -69,6 +73,7 @@ inline constexpr const char* kRevisionAdded      = "revision_added";
 inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
 inline constexpr const char* kSetupStatus        = "setup_status";
+inline constexpr const char* kMcpStatus          = "mcp_status";
 
 } // namespace Protocol
 

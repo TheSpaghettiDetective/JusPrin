@@ -3,6 +3,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/Widgets/Label.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
@@ -45,6 +46,11 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
                                                 std::move(agent), std::move(setup)))
     , m_handshake_timer(this, kHandshakeTimerId)
 {
+    m_host->set_mcp_cli_runner([this](const std::vector<std::string>& arguments, Agent::AgentHost::McpCliDone done) {
+        start_mcp_setup_command(this, arguments, [complete = std::move(done)](McpSetupResult result) {
+            complete(result.success, std::move(result.diagnostic));
+        });
+    });
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);
 

@@ -19,6 +19,9 @@ import {
   ToolActivityInfo,
   WireMessage,
   WorkspaceContext,
+  McpCatalogPayload,
+  McpPreviewPayload,
+  McpStatusPayload,
 } from '../bridge/protocol';
 import { ConnectionState } from '../bridge/client';
 
@@ -48,6 +51,9 @@ export interface AgentUiState {
   // Progress of a credential check. The host owns it; the page only mirrors
   // it, so a reload cannot leave a check looking live when it is not.
   setup: SetupStatusPayload;
+  mcpCatalog: McpCatalogPayload | null;
+  mcpPreview: McpPreviewPayload | null;
+  mcpStatus: McpStatusPayload;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
   needsResync: boolean;
@@ -72,6 +78,9 @@ export const initialState: AgentUiState = {
   attachments: [],
   context: null,
   setup: { phase: 'idle' },
+  mcpCatalog: null,
+  mcpPreview: null,
+  mcpStatus: { phase: 'idle' },
   needsResync: false,
   diagnostics: [],
 };
@@ -144,6 +153,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         // A full state answers a fresh handshake; any check that was in
         // flight before belonged to the previous page.
         setup: { phase: 'idle' },
+        mcpStatus: { phase: 'idle' },
         needsResync: false,
       };
     }
@@ -157,6 +167,12 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, agentStatus: payload.status as AgentStatus };
     case 'setup_status':
       return { ...state, setup: envelope.payload as SetupStatusPayload };
+    case 'mcp_catalog':
+      return { ...state, mcpCatalog: envelope.payload as McpCatalogPayload };
+    case 'mcp_preview':
+      return { ...state, mcpPreview: envelope.payload as McpPreviewPayload };
+    case 'mcp_status':
+      return { ...state, mcpStatus: envelope.payload as McpStatusPayload };
     case 'message_added': {
       const message = fromWire(payload.message as WireMessage);
       return { ...state, messages: upsert(state.messages, message) };

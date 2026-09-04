@@ -12,6 +12,7 @@ add_executable(agent_bridge_tests
     test_mcp_discovery.cpp
     test_mcp_bridge.cpp
     test_mcp_connections.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpConfigFile.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpDiscoveryFile.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp

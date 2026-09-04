@@ -16,6 +16,7 @@ import {
   ConnectingPane,
 } from './components/Panels';
 import { ConnectedBanner, DEFAULT_PROVIDER, SetupApiKey, SetupChooser } from './components/Setup';
+import { SetupLocalTool } from './components/SetupLocalTool';
 
 let clientMessageCounter = 0;
 function nextClientMessageId(): string {
@@ -83,7 +84,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // Which setup screen the dock is showing. This is page-local on purpose:
   // the host cares which credentials it was asked to check, not which panel
   // is on screen, so navigating setup costs no bridge traffic.
-  const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey'>('offer');
+  const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey' | 'localTool'>('offer');
   const [view, setView] = useState<'chat' | 'list' | 'setup'>('chat');
   const [commandError, setCommandError] = useState<string | null>(null);
   const setupReturn = useRef<'chat' | 'list'>('chat');
@@ -213,7 +214,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       deleteConversation: (conversationId) => client.send('delete_conversation', { conversationId }),
       revert: sendRevert,
       setDraft: (text: string) => client.send('draft_update', { text }),
-      openSetup: () => setSetupScreen('chooser'),
+      openSetup: () => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); },
       checkKey,
       attach: (name: string, dataBase64: string, mime?: string) =>
         client.send('attach_file', {
@@ -297,7 +298,20 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         />
       );
     if (setupScreen === 'chooser')
-      return <SetupChooser onUseApiKey={() => setSetupScreen('apiKey')} onDismiss={closeSetup} />;
+      return <SetupChooser onUseApiKey={() => setSetupScreen('apiKey')} onConnectTool={() => setSetupScreen('localTool')} onDismiss={closeSetup} />;
+    if (setupScreen === 'localTool')
+      return (
+        <SetupLocalTool
+          catalog={state.mcpCatalog}
+          preview={state.mcpPreview}
+          status={state.mcpStatus}
+          onRefresh={() => client.send('mcp_catalog', {})}
+          onPreview={(toolId) => client.send('mcp_preview', { toolId })}
+          onConnect={(toolId) => client.send('mcp_connect', { toolId })}
+          onBack={() => setSetupScreen('chooser')}
+          onDone={closeSetup}
+        />
+      );
     if (setupScreen === 'apiKey')
       return (
         <SetupApiKey
@@ -310,7 +324,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
           }}
         />
       );
-    return <AgentNotConfiguredPane onSetUp={() => setSetupScreen('chooser')} />;
+    return <AgentNotConfiguredPane onSetUp={() => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); }} />;
   };
 
   return (

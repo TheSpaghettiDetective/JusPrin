@@ -35,13 +35,11 @@ function seconds(elapsedMs: number): string {
 
 export interface SetupChooserProps {
   onUseApiKey: () => void;
+  onConnectTool: () => void;
   onDismiss: () => void;
 }
 
-// The three ways to reach an Agent. Two of them have no implementation in
-// this build yet, so they are shown but inert with the reason on them: a live
-// looking row that always failed would be worse than one that says "not yet".
-export function SetupChooser({ onUseApiKey, onDismiss }: SetupChooserProps) {
+export function SetupChooser({ onUseApiKey, onConnectTool, onDismiss }: SetupChooserProps) {
   const laterTitle = 'This way of connecting an Agent arrives in a later JusPrin release';
   return (
     <div className="pane-state setup" data-testid="setup-chooser">
@@ -65,8 +63,8 @@ export function SetupChooser({ onUseApiKey, onDismiss }: SetupChooserProps) {
           <span>Use your own API key</span>
           <span aria-hidden="true">›</span>
         </button>
-        <button className="setup-row" disabled title={laterTitle}>
-          <span>Run a model on this machine</span>
+        <button className="setup-row" onClick={onConnectTool} data-testid="setup-row-connect-tool">
+          <span>Connect an AI tool you already use</span>
           <span aria-hidden="true">›</span>
         </button>
       </div>

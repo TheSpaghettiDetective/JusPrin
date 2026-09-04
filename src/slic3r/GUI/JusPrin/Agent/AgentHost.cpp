@@ -1,4 +1,5 @@
 #include "AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 
 #include <nlohmann/json.hpp>
@@ -530,6 +531,7 @@ AgentHost::~AgentHost()
 
 void AgentHost::start_mcp(const std::string& discovery_path)
 {
+    m_mcp_discovery_path = discovery_path;
     if (!m_mcp) {
         Mcp::ServerOptions options;
         options.port = Mcp::kPreferredPort;
@@ -753,6 +755,12 @@ void AgentHost::on_page_message(const std::string& envelope_json)
         handle_setup_check_key(envelope_id, payload);
     else if (type == Protocol::kSetupCancel)
         handle_setup_cancel();
+    else if (type == Protocol::kMcpCatalog)
+        handle_mcp_catalog(envelope_id);
+    else if (type == Protocol::kMcpPreview)
+        handle_mcp_preview(envelope_id, payload);
+    else if (type == Protocol::kMcpConnect)
+        handle_mcp_connect(envelope_id, payload);
     else
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
@@ -1794,6 +1802,169 @@ void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)
         m_agent->cancel();
     m_agent = std::move(agent);
     set_availability(availability);
+}
+
+void AgentHost::configure_mcp_connect(McpConnectSettings settings)
+{
+    m_mcp_connect = std::move(settings);
+}
+
+void AgentHost::set_mcp_cli_runner(McpCliRunner runner)
+{
+    m_mcp_cli = std::move(runner);
+}
+
+void AgentHost::send_mcp_status(const std::string& phase, const std::string& tool_id, const std::string& correlation_id,
+                                const std::string& backup, const std::optional<AgentError>& error,
+                                const std::string& diagnostic)
+{
+    json payload{{"phase", phase}};
+    if (!tool_id.empty()) payload["toolId"] = tool_id;
+    if (!backup.empty()) payload["backup"] = backup;
+    if (!diagnostic.empty()) payload["diagnostic"] = diagnostic;
+    if (error) payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
+    send_envelope(Protocol::kMcpStatus, payload.dump(), correlation_id);
+}
+
+void AgentHost::handle_mcp_catalog(const std::string& envelope_id)
+{
+    Mcp::CatalogPaths paths;
+    paths.home = m_mcp_connect.home;
+    paths.config_home = m_mcp_connect.config_home;
+    paths.windows = m_mcp_connect.windows;
+    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
+    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
+    const auto items = Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+    json tools = json::array();
+    for (const auto& item : items) {
+        json tool{{"id", item.entry.id},
+                  {"name", item.entry.name},
+                  {"detected", item.detected},
+                  {"cli", item.entry.cli},
+                  {"text", item.entry.text}};
+        if (!item.entry.subtitle.empty()) tool["subtitle"] = item.entry.subtitle;
+        if (!item.config_path.empty()) tool["configPath"] = item.config_path.u8string();
+        tools.push_back(std::move(tool));
+    }
+    json payload{{"tools", std::move(tools)},
+                 {"helperPresent", std::filesystem::is_regular_file(m_mcp_connect.helper_path) &&
+                                       (m_mcp_connect.launcher_path.empty() ||
+                                        m_mcp_connect.launcher_path == m_mcp_connect.helper_path ||
+                                        std::filesystem::is_regular_file(m_mcp_connect.launcher_path))}};
+    if (m_mcp)
+        payload["liveUrl"] = m_mcp->server().url();
+    if (!m_mcp_connect.startup_error.empty())
+        payload["startupError"] = m_mcp_connect.startup_error;
+    send_envelope(Protocol::kMcpCatalog, payload.dump(), envelope_id);
+}
+
+void AgentHost::handle_mcp_preview(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
+    Mcp::CatalogPaths paths;
+    paths.home = m_mcp_connect.home;
+    paths.config_home = m_mcp_connect.config_home;
+    paths.windows = m_mcp_connect.windows;
+    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
+    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
+    const auto items = Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+    const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
+    if (found == items.end() || found->entry.cli) {
+        send_bridge_error("invalid_payload", "mcp_preview requires a file-based tool.", envelope_id);
+        return;
+    }
+    try {
+        const auto value = json::parse(found->entry.text);
+        const auto edit = Mcp::prepare_json_connection(found->config_path, found->json_root, value.at(found->json_root).at("jusprin"));
+        m_mcp_edit = edit;
+        m_mcp_edit_tool = tool_id;
+        send_envelope(Protocol::kMcpPreview,
+                      json{{"toolId", tool_id},
+                           {"path", edit.path.u8string()},
+                           {"previous", edit.previous.dump(2)},
+                           {"next", edit.next.dump(2)},
+                           {"root", found->json_root}}
+                          .dump(),
+                      envelope_id);
+    } catch (const std::exception& error) {
+        send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", error.what(), true});
+    }
+}
+
+void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::string& payload_json)
+{
+    if (m_mcp_busy) {
+        send_bridge_error("busy", "A connection is already being saved.", envelope_id);
+        return;
+    }
+    const json payload = json::parse(payload_json, nullptr, false);
+    const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
+    Mcp::CatalogPaths paths;
+    paths.home = m_mcp_connect.home;
+    paths.config_home = m_mcp_connect.config_home;
+    paths.windows = m_mcp_connect.windows;
+    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
+    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
+    const auto items = Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+    const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
+    if (found == items.end()) {
+        send_bridge_error("invalid_payload", "Unknown MCP tool.", envelope_id);
+        return;
+    }
+    if (!std::filesystem::is_regular_file(m_mcp_connect.helper_path)) {
+        send_mcp_status("error", tool_id, envelope_id, {},
+                        AgentError{"helper_missing", "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin.", true});
+        return;
+    }
+    if (!m_mcp_connect.launcher_path.empty() && m_mcp_connect.launcher_path != m_mcp_connect.helper_path &&
+        !std::filesystem::is_regular_file(m_mcp_connect.launcher_path)) {
+        send_mcp_status("error", tool_id, envelope_id, {},
+                        AgentError{"helper_missing", "The AppImage launcher is missing. Reopen the installed AppImage.", true});
+        return;
+    }
+    if (!found->entry.cli) {
+        if (!m_mcp_edit || m_mcp_edit_tool != tool_id) {
+            send_bridge_error("invalid_payload", "Review the change before connecting.", envelope_id);
+            return;
+        }
+        send_mcp_status("writing", tool_id, envelope_id);
+        try {
+            const auto backup = Mcp::apply_config_edit(*m_mcp_edit);
+            m_mcp_edit.reset();
+            m_mcp_edit_tool.clear();
+            send_mcp_status("saved", tool_id, envelope_id, backup.empty() ? "" : backup.u8string());
+        } catch (const std::exception& error) {
+            const std::string text = error.what();
+            const char* code = text.find("changed after the preview") != std::string::npos ? "stale_preview" : "write_failed";
+            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{code, text, true});
+        }
+        return;
+    }
+    const auto cli = Mcp::command_on_path(found->entry.id);
+    if (cli.empty()) {
+        send_mcp_status("error", tool_id, envelope_id, {},
+                        AgentError{"cli_missing", found->entry.name + " isn't installed. Install it, or copy the command and run it later.", true});
+        return;
+    }
+    if (!m_mcp_cli) {
+        send_mcp_status("error", tool_id, envelope_id, {},
+                        AgentError{"command_failed", "This build cannot run the client CLI.", true});
+        return;
+    }
+    std::vector<std::string> arguments{cli};
+    arguments.insert(arguments.end(), found->entry.arguments.begin(), found->entry.arguments.end());
+    m_mcp_busy = true;
+    send_mcp_status("writing", tool_id, envelope_id);
+    m_mcp_cli(arguments, [this, tool_id, envelope_id](bool success, std::string diagnostic) {
+        m_mcp_busy = false;
+        if (success)
+            send_mcp_status("saved", tool_id, envelope_id, {}, std::nullopt, diagnostic);
+        else {
+            const char* code = diagnostic.find("timed out") != std::string::npos ? "timeout" : "command_failed";
+            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{code, diagnostic, true}, diagnostic);
+        }
+    });
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

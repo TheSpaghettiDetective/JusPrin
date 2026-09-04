@@ -26,7 +26,10 @@ export type PageMessageType =
   | 'attach_file'
   | 'remove_attachment'
   | 'setup_check_key'
-  | 'setup_cancel';
+  | 'setup_cancel'
+  | 'mcp_catalog'
+  | 'mcp_preview'
+  | 'mcp_connect';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -46,7 +49,10 @@ export type HostMessageType =
   | 'revision_added'
   | 'bridge_error'
   | 'attachment_updated'
-  | 'setup_status';
+  | 'setup_status'
+  | 'mcp_catalog'
+  | 'mcp_preview'
+  | 'mcp_status';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -129,6 +135,39 @@ export interface SetupStatusPayload {
   elapsedMs?: number;
   error?: AgentErrorInfo;
   warning?: string;
+}
+
+export interface McpToolInfo {
+  id: string;
+  name: string;
+  subtitle?: string;
+  detected: boolean;
+  cli: boolean;
+  text: string;
+  configPath?: string;
+}
+
+export interface McpCatalogPayload {
+  tools: McpToolInfo[];
+  liveUrl?: string;
+  helperPresent: boolean;
+  startupError?: string;
+}
+
+export interface McpPreviewPayload {
+  toolId: string;
+  path: string;
+  previous: string;
+  next: string;
+  root: string;
+}
+
+export interface McpStatusPayload {
+  phase: 'idle' | 'writing' | 'saved' | 'error';
+  toolId?: string;
+  backup?: string;
+  diagnostic?: string;
+  error?: AgentErrorInfo;
 }
 
 export interface WorkspaceContext {

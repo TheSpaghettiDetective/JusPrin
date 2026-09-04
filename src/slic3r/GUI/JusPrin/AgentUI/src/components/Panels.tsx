@@ -80,7 +80,7 @@ export function AgentNotConfiguredPane({ onSetUp }: { onSetUp: () => void }) {
       <button className="primary" onClick={onSetUp}>
         Set up the agent
       </button>
-      <p className="footnote">Registered JusPrin account, your own key, or a model on this machine.</p>
+      <p className="footnote">Registered JusPrin account, your own key, or an AI tool you already use.</p>
     </div>
   );
 }

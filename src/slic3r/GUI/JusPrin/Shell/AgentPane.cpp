@@ -1,13 +1,14 @@
 #include "AgentPane.hpp"
-#include "McpConnectionDialog.hpp"
 
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 
 #include <boost/system/system_error.hpp>
-#include <wx/button.h>
 #include <wx/sizer.h>
+#include <wx/stdpaths.h>
+#include <wx/utils.h>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -32,22 +33,38 @@ AgentPane::AgentPane(wxWindow*                  parent,
     try {
         m_web_view->host().start_mcp(discovery_path);
     } catch (const boost::system::system_error& error) {
-        // Keep slicing and the in-app Agent usable if the listener fails;
-        // the connection dialog exposes the startup error.
         startup_error = error.what();
     } catch (const std::filesystem::filesystem_error& error) {
-        // Discovery failure disables MCP, not the slicer. Show the actionable
-        // path/error in the same connection surface as a bind failure.
         startup_error = error.what();
     } catch (const std::ios_base::failure& error) {
         startup_error = "Could not write MCP discovery at " + discovery_path + ": " + error.what();
     }
-    auto* diagnostics = new wxButton(this, wxID_ANY, "Connect AI tools...");
-    diagnostics->Bind(wxEVT_BUTTON, [this, startup_error, discovery_path](wxCommandEvent&) {
-        const auto* runtime = m_web_view->host().mcp();
-        show_mcp_connection_dialog(this, m_theme, discovery_path, runtime ? runtime->server().url() : "", startup_error);
-    });
-    sizer->Add(diagnostics, 0, wxEXPAND | wxALL, FromDIP(8));
+#ifdef _WIN32
+    const std::string helper_name = "jusprin-mcp.exe";
+#else
+    const std::string helper_name = "jusprin-mcp";
+#endif
+    const auto executable = std::filesystem::u8path(wxStandardPaths::Get().GetExecutablePath().ToUTF8().data());
+    const auto helper = executable.parent_path() / helper_name;
+    auto launcher = helper;
+    std::vector<std::string> launch_arguments;
+#if defined(__linux__)
+    wxString appimage;
+    if (wxGetEnv("APPIMAGE", &appimage) && !appimage.empty()) {
+        launcher = std::filesystem::u8path(appimage.ToUTF8().data());
+        launch_arguments.emplace_back("--mcp-bridge");
+    }
+#endif
+    const auto paths = Mcp::default_catalog_paths();
+    Agent::AgentHost::McpConnectSettings settings;
+    settings.helper_path = helper.u8string();
+    settings.launcher_path = launcher.u8string();
+    settings.launch_arguments = std::move(launch_arguments);
+    settings.startup_error = std::move(startup_error);
+    settings.home = paths.home;
+    settings.config_home = paths.config_home;
+    settings.windows = paths.windows;
+    m_web_view->host().configure_mcp_connect(std::move(settings));
     SetSizer(sizer);
 
     Bind(wxEVT_SYS_COLOUR_CHANGED, [this](wxSysColourChangedEvent& event) {

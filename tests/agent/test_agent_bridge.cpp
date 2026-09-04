@@ -13,10 +13,13 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "mcp_test_directory.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <random>
@@ -283,7 +286,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kToolCancel, Protocol::kCreateConversation,
                                               Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation, Protocol::kRevertToRevision,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
-                                              Protocol::kSetupCheckKey, Protocol::kSetupCancel});
+                                              Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
+                                              Protocol::kMcpPreview, Protocol::kMcpConnect});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -291,7 +295,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMessageAdded, Protocol::kAssistantStarted, Protocol::kAssistantDelta,
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity, Protocol::kRevisionAdded,
-                                              Protocol::kSetupStatus,
+                                              Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
+                                              Protocol::kMcpStatus,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated});
 }
 
@@ -1566,4 +1571,124 @@ TEST_CASE("a title failure stays separate from a successful conversation", "[age
     harness.deliver("rename_conversation", json{{"conversationId", harness.persistence.document().active_conversation_id()},
                                               {"title", "My print"}});
     CHECK(harness.persistence.document().conversations().front().title == "My print");
+}
+
+TEST_CASE("mcp_catalog lists stdio discovery entries without a live URL payload", "[agent][mcp_setup]")
+{
+    Harness harness;
+    JusPrinTest::McpDirectory directory;
+    const auto helper = directory.root / "jusprin-mcp";
+    { std::ofstream(helper) << "x\n"; }
+    std::filesystem::permissions(helper, std::filesystem::perms::owner_all);
+    AgentHost::McpConnectSettings settings;
+    settings.helper_path = helper.u8string();
+    settings.launcher_path = helper.u8string();
+    settings.home = directory.root / "home";
+    settings.config_home = directory.root / "config";
+    harness.host.configure_mcp_connect(settings);
+    harness.host.start_mcp((directory.root / "discovery.json").u8string());
+    harness.handshake();
+    harness.deliver("mcp_catalog");
+    const json* catalog = harness.last_of_type("mcp_catalog");
+    REQUIRE(catalog != nullptr);
+    CHECK((*catalog)["payload"]["helperPresent"] == true);
+    REQUIRE((*catalog)["payload"]["tools"].size() == 6);
+    CHECK((*catalog)["payload"]["tools"][0]["cli"] == true);
+    CHECK((*catalog)["payload"]["tools"][4]["id"] == "cursor");
+    const auto text = (*catalog)["payload"]["tools"][4]["text"].get<std::string>();
+    CHECK(text.find("--discovery") != std::string::npos);
+    CHECK(text.find("\"url\"") == std::string::npos);
+}
+
+TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup]")
+{
+    Harness harness;
+    JusPrinTest::McpDirectory directory;
+    const auto helper = directory.root / "jusprin-mcp";
+    { std::ofstream(helper) << "x\n"; }
+    std::filesystem::permissions(helper, std::filesystem::perms::owner_all);
+    const auto home = directory.root / "home";
+    std::filesystem::create_directories(home / ".cursor");
+    const auto cursor_config = home / ".cursor" / "mcp.json";
+    { std::ofstream(cursor_config) << "{}\n"; }
+    AgentHost::McpConnectSettings settings;
+    settings.helper_path = helper.u8string();
+    settings.launcher_path = helper.u8string();
+    settings.home = home;
+    settings.config_home = directory.root / "config";
+    harness.host.configure_mcp_connect(settings);
+    harness.host.start_mcp((directory.root / "discovery.json").u8string());
+    harness.handshake();
+    harness.deliver("mcp_preview", json{{"toolId", "cursor"}});
+    const json* preview = harness.last_of_type("mcp_preview");
+    REQUIRE(preview != nullptr);
+    CHECK((*preview)["payload"]["next"].get<std::string>().find("\"url\"") == std::string::npos);
+    CHECK((*preview)["payload"]["next"].get<std::string>().find("command") != std::string::npos);
+    harness.deliver("mcp_connect", json{{"toolId", "cursor"}});
+    const json* status = harness.last_of_type("mcp_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "saved");
+    std::ifstream in(cursor_config);
+    const json written = json::parse(in);
+    CHECK(written["mcpServers"]["jusprin"]["command"] == helper.u8string());
+    CHECK_FALSE(written["mcpServers"]["jusprin"].contains("url"));
+}
+
+TEST_CASE("mcp_connect reports a missing helper instead of writing settings", "[agent][mcp_setup]")
+{
+    Harness harness;
+    JusPrinTest::McpDirectory directory;
+    const auto home = directory.root / "home";
+    std::filesystem::create_directories(home / ".cursor");
+    { std::ofstream(home / ".cursor" / "mcp.json") << "{}\n"; }
+    AgentHost::McpConnectSettings settings;
+    settings.helper_path = (directory.root / "missing-helper").u8string();
+    settings.home = home;
+    settings.config_home = directory.root / "config";
+    harness.host.configure_mcp_connect(settings);
+    harness.handshake();
+    harness.deliver("mcp_preview", json{{"toolId", "cursor"}});
+    harness.deliver("mcp_connect", json{{"toolId", "cursor"}});
+    const json* status = harness.last_of_type("mcp_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "error");
+    CHECK((*status)["payload"]["error"]["code"] == "helper_missing");
+}
+
+TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
+{
+    Harness harness;
+    JusPrinTest::McpDirectory directory;
+    const auto helper = directory.root / "jusprin-mcp";
+    { std::ofstream(helper) << "x\n"; }
+    std::filesystem::permissions(helper, std::filesystem::perms::owner_all);
+    const auto bin = directory.root / "bin";
+    std::filesystem::create_directories(bin);
+    const auto claude = bin / "claude";
+    { std::ofstream(claude) << "#!/bin/sh\n"; }
+    std::filesystem::permissions(claude, std::filesystem::perms::owner_all);
+    const char* previous = std::getenv("PATH");
+    const std::string restored = previous ? previous : "";
+    const std::string path = bin.u8string() + ":" + restored;
+    setenv("PATH", path.c_str(), 1);
+    AgentHost::McpConnectSettings settings;
+    settings.helper_path = helper.u8string();
+    settings.launcher_path = helper.u8string();
+    settings.home = directory.root / "home";
+    settings.config_home = directory.root / "config";
+    harness.host.configure_mcp_connect(settings);
+    std::vector<std::string> seen;
+    harness.host.set_mcp_cli_runner([&](const std::vector<std::string>& arguments, AgentHost::McpCliDone done) {
+        seen = arguments;
+        done(true, "ok");
+    });
+    harness.handshake();
+    harness.deliver("mcp_connect", json{{"toolId", "claude"}});
+    setenv("PATH", restored.c_str(), 1);
+    REQUIRE(seen.size() >= 2);
+    CHECK(seen[0] == claude.u8string());
+    CHECK(std::find(seen.begin(), seen.end(), "--discovery") != seen.end());
+    const json* status = harness.last_of_type("mcp_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "saved");
 }
