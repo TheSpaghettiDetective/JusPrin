@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
+import { SetupScreenTitle } from './Setup';
 
-type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved' | 'manual' | 'error';
+type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved' | 'error';
 
 export interface SetupLocalToolProps {
   catalog: McpCatalogPayload | null;
@@ -88,15 +89,14 @@ export function SetupLocalTool({
     }
   };
 
-  const copy = async (text: string, next?: Step) => {
+  const copyCommand = async (text: string) => {
     await copyText(text);
     setCopied(true);
-    if (next) setStep(next);
   };
 
   if (step === 'saving') {
     return (
-      <div className="pane-state setup-local" data-testid="setup-local-saving">
+      <div className="pane-state setup" data-testid="setup-local-saving">
         <h1>Writing settings…</h1>
         <p>JusPrin is saving the connection. This usually takes a second.</p>
         <div className="setup-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={40}>
@@ -108,7 +108,7 @@ export function SetupLocalTool({
 
   if (step === 'saved') {
     return (
-      <div className="pane-state setup-local" data-testid="setup-local-saved">
+      <div className="pane-state setup" data-testid="setup-local-saved">
         <p className="setup-kicker">
           <span className="setup-check" aria-hidden="true" />
           Connected
@@ -126,23 +126,7 @@ export function SetupLocalTool({
           <li>Ask it about the open project.</li>
           <li>Approve or reject proposals in this panel.</li>
         </ol>
-        <button className="primary wide" onClick={onDone}>
-          Done
-        </button>
-      </div>
-    );
-  }
-
-  if (step === 'manual') {
-    return (
-      <div className="pane-state setup-local" data-testid="setup-local-manual">
-        <p className="setup-kicker">
-          <span className="setup-check" aria-hidden="true" />
-          Copied
-        </p>
-        <h1>Run this in your terminal, then restart the app</h1>
-        <p>JusPrin didn’t change any files. Paste the command, restart {tool?.name ?? 'the tool'}, and come back here.</p>
-        <button className="primary wide" onClick={onDone}>
+        <button className="primary" onClick={onDone}>
           Done
         </button>
       </div>
@@ -152,66 +136,72 @@ export function SetupLocalTool({
   if (step === 'error') {
     const copy = errorCopy(status, tool, preview?.path ?? tool?.configPath);
     return (
-      <div className="pane-state setup-local" data-testid="setup-local-error">
+      <div className="pane-state setup" data-testid="setup-local-error">
+        <SetupScreenTitle label="Can’t connect" onBack={() => setStep('pick')} />
         <div className="setup-error" role="alert">
           <strong>{copy.title}</strong>
           <p>{copy.body}</p>
         </div>
-        <div className="setup-actions-row">
+        <div className="setup-actions">
           {tool?.cli && (
             <button className="link" onClick={() => tool && copyText(tool.text)}>
               Copy
             </button>
           )}
-          <button
-            className="link"
-            onClick={() => {
-              setStep(tool?.cli ? 'prepare' : 'review');
-            }}
-          >
-            Review again
-          </button>
+          <button onClick={() => setStep(tool?.cli ? 'prepare' : 'review')}>Review again</button>
         </div>
-        <button className="primary wide" onClick={() => setStep('pick')}>
-          Back to tools
-        </button>
       </div>
     );
   }
 
   if (step === 'prepare' && tool) {
     return (
-      <div className="pane-state setup-local" data-testid="setup-local-prepare">
-        <h1>JusPrin will run this for you</h1>
-        <p>This adds JusPrin as a local tool {tool.name} can call. You can copy it instead and run it yourself.</p>
-        <pre className="setup-command">{tool.text}</pre>
-        <button className="link" onClick={() => copy(tool.text, 'manual')}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-        <button className="primary wide" onClick={() => { setAwaitingStatus(true); onConnect(tool.id); }} disabled={!catalog?.helperPresent}>
-          Connect {tool.name}…
-        </button>
-        <button className="wide" onClick={() => setStep('pick')}>
-          Close
-        </button>
-        <button className="link" onClick={() => setAdvanced(!advanced)}>
-          Advanced
-        </button>
-        {advanced && (
-          <div className="setup-advanced">
-            <p>Live URL (developer only — this can change after restart)</p>
-            <pre className="setup-command">{catalog?.liveUrl || 'Not listening yet'}</pre>
-            {catalog?.startupError && <p className="setup-error-inline">{catalog.startupError}</p>}
-          </div>
-        )}
+      <div className="pane-state setup" data-testid="setup-local-prepare">
+        <SetupScreenTitle label={tool.name} onBack={() => setStep('pick')} />
+        <p>JusPrin can run this for you, or you can copy it and run it yourself.</p>
+        <div className="setup-command">
+          <pre>{tool.text}</pre>
+          <button type="button" className="link" onClick={() => copyCommand(tool.text)}>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <p className="footnote">
+          Keep JusPrin open while you use {tool.name}; the helper doesn’t launch it. Restarting JusPrin later won’t need
+          this again.
+        </p>
+        <div className="setup-actions">
+          <button
+            className="primary"
+            onClick={() => {
+              setAwaitingStatus(true);
+              onConnect(tool.id);
+            }}
+            disabled={!catalog?.helperPresent}
+          >
+            Connect…
+          </button>
+          <button onClick={() => setStep('pick')}>Close</button>
+        </div>
+        <div className="setup-advanced">
+          <button type="button" onClick={() => setAdvanced(!advanced)}>
+            {advanced ? '▾' : '▸'} Advanced / developer details
+          </button>
+          {advanced && (
+            <>
+              <p>Live URL (developer only — this can change after restart)</p>
+              <pre>{catalog?.liveUrl || 'Not listening yet'}</pre>
+              {catalog?.startupError && <p className="setup-error-inline">{catalog.startupError}</p>}
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
   if (step === 'review') {
     return (
-      <div className="pane-state setup-local" data-testid="setup-local-review">
-        <h1>Review the change, then connect</h1>
+      <div className="pane-state setup" data-testid="setup-local-review">
+        <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={() => setStep('pick')} />
         <p>JusPrin will write only the JusPrin entry. Everything else in the file stays as it is.</p>
         <p className="setup-path">{preview?.path ?? tool?.configPath}</p>
         <p className="setup-eyebrow">JusPrin will edit</p>
@@ -220,21 +210,28 @@ export function SetupLocalTool({
           <pre className="setup-diff-after">{preview?.next || ''}</pre>
         </div>
         <p className="footnote">Other servers in this file stay unchanged.</p>
-        <div className="setup-actions-row">
-          <button className="wide" onClick={() => setStep('pick')}>
-            Cancel
-          </button>
-          <button className="primary wide" onClick={() => { if (selectedId) { setAwaitingStatus(true); onConnect(selectedId); } }} disabled={!preview || !catalog?.helperPresent}>
+        <div className="setup-actions">
+          <button
+            className="primary"
+            onClick={() => {
+              if (selectedId) {
+                setAwaitingStatus(true);
+                onConnect(selectedId);
+              }
+            }}
+            disabled={!preview || !catalog?.helperPresent}
+          >
             Connect
           </button>
+          <button onClick={() => setStep('pick')}>Cancel</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="pane-state setup-local" data-testid="setup-local-tools">
-      <h1>Connect an AI tool you already use</h1>
+    <div className="pane-state setup" data-testid="setup-local-tools">
+      <SetupScreenTitle label="Connect an AI tool" onBack={onBack} />
       <p>Let an AI app on this computer work with the open project. JusPrin writes the connection settings; you don’t need to know what MCP is.</p>
       <div className="setup-tool-list" role="radiogroup" aria-label="AI tools">
         {(catalog?.tools ?? []).map((item) => (
@@ -243,7 +240,7 @@ export function SetupLocalTool({
             <span className="setup-tool-copy">
               <span className="setup-tool-name">
                 {item.name}
-                {item.subtitle ? <span className="setup-tool-sub"> {item.subtitle}</span> : null}
+                {item.subtitle ? <span className="setup-tool-sub">{item.subtitle}</span> : null}
               </span>
               <span className={item.detected ? 'setup-detected' : 'setup-missing'}>
                 {item.detected ? 'detected' : 'not found'}
@@ -252,13 +249,12 @@ export function SetupLocalTool({
           </label>
         ))}
       </div>
-      <p className="footnote">JusPrin talks to the tool on this computer. Nothing is sent to a JusPrin server.</p>
-      <button className="wide" onClick={onRefresh}>
+      <p className="footnote">
+        “Detected” means JusPrin found the app or its settings file here. It doesn’t mean the app is signed in. You can
+        pick one that wasn’t found.
+      </p>
+      <button type="button" onClick={onRefresh}>
         Refresh scan
-      </button>
-      <p className="footnote">You can change this later in Preferences › Agent</p>
-      <button className="link" onClick={onBack}>
-        Back
       </button>
     </div>
   );

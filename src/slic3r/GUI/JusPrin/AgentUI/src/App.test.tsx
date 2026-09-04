@@ -870,6 +870,7 @@ describe('App agent setup', () => {
     expect(screen.getByText(/--discovery/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     expect(writeText).toHaveBeenCalled();
-    expect(await screen.findByTestId('setup-local-manual')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
   });
 });

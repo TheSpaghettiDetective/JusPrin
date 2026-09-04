@@ -39,6 +39,17 @@ export interface SetupChooserProps {
   onDismiss: () => void;
 }
 
+export function SetupScreenTitle({ label, onBack }: { label: string; onBack: () => void }) {
+  return (
+    <div className="setup-card-head">
+      <button type="button" className="back" onClick={onBack} aria-label="Back to setup options">
+        <span className="chevron" aria-hidden="true" />
+      </button>
+      <h1>{label}</h1>
+    </div>
+  );
+}
+
 export function SetupChooser({ onUseApiKey, onConnectTool, onDismiss }: SetupChooserProps) {
   const laterTitle = 'This way of connecting an Agent arrives in a later JusPrin release';
   return (
@@ -122,12 +133,7 @@ export function SetupApiKey({ setup, onCheck, onCancel, onBack }: SetupApiKeyPro
   return (
     <div className="pane-state setup" data-testid="setup-api-key">
       <div className="setup-card">
-        <div className="setup-card-head">
-          <button className="icon" onClick={onBack} aria-label="Back to setup options">
-            ‹
-          </button>
-          <h1>Your own API key</h1>
-        </div>
+        <SetupScreenTitle label="Your own API key" onBack={onBack} />
         <p>Billed by your provider, not JusPrin. Stored on this machine only.</p>
 
         <div className="setup-tabs" role="tablist" aria-label="Provider">
