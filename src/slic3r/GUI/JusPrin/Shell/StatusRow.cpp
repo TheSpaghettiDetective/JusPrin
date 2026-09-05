@@ -1,5 +1,6 @@
 #include "StatusRow.hpp"
 #include "HeaderControls.hpp"
+#include "SliceReviewPanel.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -13,6 +14,10 @@
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/BackgroundSlicingProcess.hpp"
+#include "slic3r/GUI/Widgets/Label.hpp"
+#include <wx/sizer.h>
+#include <wx/stattext.h>
 #include <wx/msgdlg.h>
 #include <wx/weakref.h>
 #include <wx/dcbuffer.h>
@@ -92,6 +97,7 @@ StatusRow::StatusRow(wxWindow*                  parent,
     m_persistence.set_ledger_listener([this]() { refresh(); });
     m_reviews->set_listener([this]() { refresh(); });
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
+    m_plater.Bind(EVT_SLICING_UPDATE, &StatusRow::on_slicing_progress, this);
     m_tabpanel.Bind(page_changed_event(), &StatusRow::on_tab_changed, this);
     // The tab panel and this row are siblings, so wx may destroy either one
     // first at shutdown; only unbind while the tab panel still exists.
@@ -104,6 +110,7 @@ StatusRow::~StatusRow()
     m_reviews->set_listener(nullptr);
     if (m_tabpanel_alive) {
         m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
+        m_plater.Unbind(EVT_SLICING_UPDATE, &StatusRow::on_slicing_progress, this);
         m_tabpanel.Unbind(wxEVT_DESTROY, &StatusRow::on_tabpanel_destroyed, this);
         m_tabpanel.Unbind(page_changed_event(), &StatusRow::on_tab_changed, this);
     }
@@ -113,6 +120,16 @@ void StatusRow::on_slice_status_changed(wxCommandEvent& event)
 {
     refresh();
     event.Skip();
+}
+
+void StatusRow::on_slicing_progress(SlicingStatusEvent& event)
+{
+    // Let Orca update the owning PartPlate first. This observes progress; it
+    // never changes worker state or replaces the native slicing handler.
+    event.Skip();
+    m_plater.CallAfter([self=wxWeakRef<StatusRow>(this)] {
+        if (self && self->m_tabpanel_alive) self->refresh_workspace_status();
+    });
 }
 
 void StatusRow::on_tab_changed(wxBookCtrlEvent& event)
@@ -135,6 +152,7 @@ void StatusRow::apply_appearance(bool dark)
     SetBackgroundColour(palette.surface_canvas);
     for (auto* button : {m_home_button,m_setup_chip,m_slice_button,m_menu_button,m_overflow_button})
         button->set_dark(dark);
+    refresh_workspace_status();
     Refresh();
 }
 
@@ -185,6 +203,65 @@ void StatusRow::refresh()
     m_menu_button->SetName(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
     m_menu_button->Enable(!actions.menu.empty());
     layout_header();
+    refresh_workspace_status();
+}
+
+wxWindow* StatusRow::create_workspace_status(wxWindow* parent)
+{
+    auto* panel = new wxPanel(parent);
+    m_workspace_status = panel;
+    auto* vertical = new wxBoxSizer(wxVERTICAL);
+    auto* review = new SliceReviewPanel(panel,m_theme,[self=wxWeakRef<StatusRow>(this)](
+        Workspace::SliceIdentity identity, const std::vector<std::string>& displayed) {
+        if (self && self->m_tabpanel_alive && self->m_tabpanel.GetSelection() == MainFrame::tpPreview &&
+            self->m_plater.is_preview_shown() && identity == self->slice_identity()) {
+            self->m_reviews->acknowledge_displayed(identity,displayed);
+            return true;
+        }
+        return false;
+    });
+    m_review_panel = review;
+    vertical->Add(review,0,wxEXPAND);
+    auto* strip = new wxBoxSizer(wxHORIZONTAL);
+    auto* label = new wxStaticText(panel,wxID_ANY,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxST_ELLIPSIZE_END);
+    label->SetName("Active plate status"); label->SetFont(Label::Body_12);
+    m_plate_label = label;
+    strip->Add(label,1,wxALIGN_CENTER_VERTICAL | wxLEFT,FromDIP(16));
+    auto* back = new HeaderButton(panel,m_theme,HeaderStyle::Quiet,_L("Back to Prepare"),HeaderIcon::Back);
+    back->Bind(wxEVT_BUTTON,[self=wxWeakRef<StatusRow>(this)](wxCommandEvent&) { if (self) self->request_prepare(); });
+    m_return_button = back;
+    strip->Add(back,0,wxRIGHT,FromDIP(8));
+    strip->SetMinSize(FromDIP(wxSize(-1,34)));
+    vertical->Add(strip,0,wxEXPAND);
+    panel->SetSizer(vertical);
+    refresh_workspace_status();
+    return panel;
+}
+
+void StatusRow::refresh_workspace_status()
+{
+    if (!m_workspace_status || !m_tabpanel_alive) return;
+    const auto& palette = m_theme.palette(m_dark);
+    m_workspace_status->SetBackgroundColour(palette.surface_canvas);
+    m_plate_label->SetForegroundColour(palette.text_secondary);
+    m_return_button->set_dark(m_dark);
+    m_review_panel->set_dark(m_dark);
+    const auto state = action_state();
+    const bool workspace = m_tabpanel.GetSelection() == MainFrame::tp3DEditor || m_tabpanel.GetSelection() == MainFrame::tpPreview;
+    bool layout = m_workspace_status->Show(workspace);
+    const bool preview = m_tabpanel.GetSelection() == MainFrame::tpPreview;
+    const bool check = preview && state.preview && state.sliced && !state.slicing;
+    layout = m_review_panel->Show(check) || layout;
+    layout = m_return_button->Show(preview) || layout;
+    if (check) m_review_panel->set_report(slice_identity(),m_reviews->findings(slice_identity()));
+    auto* plate = m_plater.get_partplate_list().get_curr_plate();
+    wxString label = wxString::Format(_L("Plate %d"),state.plate_number);
+    if (plate && !plate->get_plate_name().empty()) label += " · " + wxString::FromUTF8(plate->get_plate_name());
+    if (state.slicing) label += " · " + _L("Slicing…") + wxString::Format(" %.0f%%",plate ? std::clamp(double(plate->get_slicing_percent()),0.,100.) : 0.);
+    else label += " · " + (state.sliced ? _L("sliced") : _L("not sliced"));
+    m_plate_label->SetLabel(label);
+    m_workspace_status->Layout();
+    if (layout) m_workspace_status->GetParent()->Layout();
 }
 
 Workspace::SliceIdentity StatusRow::slice_identity() const
@@ -390,15 +467,10 @@ void StatusRow::request_check_print()
     const auto identity = slice_identity();
     if (!identity.valid()) return;
     m_tabpanel.SetSelection(MainFrame::tpPreview);
-    // Notebook selection and the native canvas switch do not finish in the
-    // same callback. Acknowledge after that event, only if the requested
-    // result is still the one actually shown (not after a rapid Back/edit).
-    // Queue on Plater, like MainFrame's Preview command, so the two callbacks
-    // keep their order even when other wx event handlers already have work.
-    m_plater.CallAfter([self = wxWeakRef<StatusRow>(this), identity] {
+    // Preview selection is asynchronous. The report's actual paint callback
+    // acknowledges the displayed findings; entering Preview alone does not.
+    m_plater.CallAfter([self = wxWeakRef<StatusRow>(this)] {
         if (!self || !self->m_tabpanel_alive) return;
-        if (self->m_tabpanel.GetSelection() == MainFrame::tpPreview && self->m_plater.is_preview_shown() && identity == self->slice_identity())
-            self->m_reviews->acknowledge(identity);
         self->refresh();
     });
 }

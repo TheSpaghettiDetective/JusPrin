@@ -103,7 +103,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
-        m_center_sizer->Add(&tabpanel, 1, wxEXPAND);
+        m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
+        m_workspace_sizer->Add(&tabpanel,1,wxEXPAND);
+        m_workspace_status = m_status_row->create_workspace_status(&frame);
+        m_workspace_sizer->Add(m_workspace_status,0,wxEXPAND);
+        m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
         main_sizer.Insert(0, m_status_row, 0, wxEXPAND);
         main_sizer.Add(m_center_sizer, 1, wxEXPAND);
@@ -166,13 +170,15 @@ void ShellController::uninstall()
     m_tabpanel->GetBtnsListCtrl()->Show();
 
     if (m_center_sizer != nullptr) {
-        m_center_sizer->Detach(m_tabpanel);
+        if (m_workspace_sizer) m_workspace_sizer->Detach(m_tabpanel);
         if (m_agent_pane != nullptr)
             m_center_sizer->Detach(m_agent_pane);
         m_main_sizer->Detach(m_center_sizer);
         delete m_center_sizer;
         m_center_sizer = nullptr;
+        m_workspace_sizer = nullptr;
     }
+    if (m_workspace_status) { m_workspace_status->Destroy(); m_workspace_status = nullptr; }
     if (m_status_row != nullptr)
         m_main_sizer->Detach(m_status_row);
     if (m_main_sizer->GetItem(m_tabpanel) == nullptr)

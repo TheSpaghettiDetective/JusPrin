@@ -7,11 +7,14 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 
 #include <wx/panel.h>
+#include <wx/weakref.h>
 #include <memory>
 
 class wxBookCtrlEvent;
 class wxWindowDestroyEvent;
 class Notebook;
+class wxStaticText;
+namespace Slic3r { class SlicingStatusEvent; }
 
 namespace Slic3r::GUI {
 class Plater;
@@ -23,6 +26,7 @@ class ProjectPersistence;
 
 namespace Slic3r::GUI::JusPrin {
 class HeaderButton;
+class SliceReviewPanel;
 
 // Home navigation, a centered setup selector, and right-aligned print actions.
 // Project identity and physical-print count live in the overflow menu. It
@@ -54,6 +58,7 @@ public:
     void show_setup_menu();
     void show_overflow_menu();
     wxString project_summary() const;
+    wxWindow* create_workspace_status(wxWindow* parent);
 
 private:
     void layout_header();
@@ -61,6 +66,8 @@ private:
     void on_slice_status_changed(wxCommandEvent& event);
     void on_tab_changed(wxBookCtrlEvent& event);
     void on_tabpanel_destroyed(wxWindowDestroyEvent& event);
+    void on_slicing_progress(SlicingStatusEvent& event);
+    void refresh_workspace_status();
 
     const ShellTheme&          m_theme;
     Plater&                    m_plater;
@@ -73,6 +80,10 @@ private:
     HeaderButton* m_slice_button{nullptr};
     HeaderButton* m_menu_button{nullptr};
     HeaderButton* m_overflow_button{nullptr};
+    wxWeakRef<wxPanel> m_workspace_status;
+    wxWeakRef<SliceReviewPanel> m_review_panel;
+    wxWeakRef<wxStaticText> m_plate_label;
+    wxWeakRef<HeaderButton> m_return_button;
 
     ProjectStateSubscription m_project_state_subscription;
     bool                     m_dark{false};

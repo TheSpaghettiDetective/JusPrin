@@ -51,7 +51,7 @@ TEST_CASE("Preview navigation does not replace Print", "[header]")
     state.sliced = state.can_print = state.preview = true;
     const auto actions = primary_print_action(state);
     CHECK(actions.primary.action == PrintAction::Print);
-    CHECK(actions.menu.back().action == PrintAction::Prepare);
+    CHECK(std::none_of(actions.menu.begin(),actions.menu.end(),[](const auto& item) { return item.action == PrintAction::Prepare; }));
 }
 
 TEST_CASE("Slice all can start from an empty active plate", "[header]")
@@ -89,6 +89,11 @@ TEST_CASE("Slice review belongs to the exact plate result and session", "[header
     CHECK_FALSE(reviews.needs_review(first)); // identical late retry
     REQUIRE(reviews.report(first, first, {"Different concern"}));
     CHECK(reviews.needs_review(first));
+    reviews.acknowledge_displayed(first,{"Check opening"});
+    CHECK(reviews.needs_review(first));
+    CHECK(reviews.findings(first) == std::vector<std::string>{"Different concern"});
+    reviews.acknowledge_displayed(first,{"Different concern"});
+    CHECK_FALSE(reviews.needs_review(first));
     REQUIRE(reviews.report(resliced, resliced, {}));
     CHECK_FALSE(reviews.needs_review(resliced));
     CHECK_FALSE(reviews.needs_review(first));

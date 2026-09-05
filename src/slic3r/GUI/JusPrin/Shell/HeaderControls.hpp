@@ -24,6 +24,7 @@ public:
     void set_status(bool visible, bool warning = false);
     void set_slots(std::vector<wxColour> colors);
     void set_detail(const wxString& detail);
+    void set_menu_selected(bool selected) { m_menu_selected = selected; Refresh(); }
     void SetLabel(const wxString& label) override;
     bool Enable(bool enabled = true) override;
     wxSize DoGetBestSize() const override;
@@ -40,6 +41,7 @@ private:
     std::vector<wxColour> m_slots;
     wxString m_detail;
     bool m_dark{false}, m_hover{false}, m_pressed{false}, m_status{false}, m_warning{false};
+    bool m_menu_selected{false};
 };
 
 struct HeaderMenuItem {
@@ -59,13 +61,16 @@ public:
     HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark,
                std::vector<HeaderMenuItem> items);
     void open(wxWindow& anchor);
+    HeaderButton* selected_item() const { return m_selected < 0 ? nullptr : m_items[m_selected]; }
 protected:
     void OnDismiss() override;
 private:
     void close();
+    void select_item(int index);
     std::vector<HeaderButton*> m_items;
     wxWeakRef<wxWindow> m_anchor;
     bool m_closed{false};
+    int m_selected{-1};
 };
 
 } // namespace Slic3r::GUI::JusPrin

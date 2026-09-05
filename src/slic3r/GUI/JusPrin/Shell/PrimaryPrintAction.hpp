@@ -38,8 +38,6 @@ inline PrimaryPrintAction primary_print_action(const PrintActionState& state)
                        {PrintAction::PrintAll, state.plate_count > 1 && state.can_print_all},
                        {PrintAction::Export, state.can_export}};
     }
-    // Navigation stays available without changing what the primary button means.
-    if (state.preview && !state.slicing) result.menu.push_back({PrintAction::Prepare, true});
     return result;
 }
 

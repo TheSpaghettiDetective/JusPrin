@@ -75,6 +75,7 @@
 #include <wx/app.h>
 #include <wx/glcanvas.h>
 #include <wx/dialog.h>
+#include <wx/scrolwin.h>
 #include <wx/process.h>
 #include <wx/stdpaths.h>
 #include <wx/timer.h>
@@ -129,6 +130,7 @@ struct HarnessState
     Mode mode{Mode::Shell};
     bool mcp_bridge{false};
     bool header_visual{false};
+    bool review_visual{false};
     std::optional<bool> dark_appearance;
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
@@ -183,7 +185,12 @@ public:
                 prepare_mcp_slice([self = shared_from_this()] {
                     // Real-client tests need a native setting edit while the
                     // shell's rendered external approval cards remain live.
-                    if (self->m_state->header_visual) {
+                    if (self->m_state->review_visual) {
+                        auto* row = installed_shell()->status_row();
+                        installed_shell()->workspace()->slice_reviews()->report(row->slice_identity(),row->slice_identity(),
+                            {"Test fixture: inspect the opening and the support contact before printing."});
+                        row->request_check_print();
+                    } else if (self->m_state->header_visual) {
                         installed_shell()->status_row()->show_action_menu();
                     } else {
                         self->m_plater->set_sidebar_available(true);
@@ -429,6 +436,8 @@ private:
         installed_shell()->status_row()->request_slice();
         wait_until([this] { return m_plater->is_background_process_slicing(); }, "header_slice_starts",
                    [self = shared_from_this()] {
+                       auto* label = wxWindow::FindWindowByName("Active plate status",self->m_frame);
+                       self->check(label && label->GetLabel().Contains("Slicing") && label->GetLabel().Contains("%"),"plate_label_shows_slicing_progress");
                        self->wait_until(
                            [self] {
                                PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
@@ -441,6 +450,7 @@ private:
     void after_slice()
     {
         auto* row = installed_shell()->status_row();
+        check(wxWindow::FindWindowByName("Active plate status", m_frame) != nullptr, "wireframe_plate_label_exists");
         check(!m_plater->is_preview_shown(), "slice_stays_in_prepare");
         check(primary_print_action(row->action_state()).primary.action == PrintAction::Print, "unflagged_slice_offers_print");
         auto* primary = wxWindow::FindWindowByName("Next print action", row);
@@ -468,26 +478,83 @@ private:
             primary_print_action(installed_shell()->status_row()->action_state()).primary.action == PrintAction::Print; },
                    "check_preview_acknowledges_exact_slice",
                    [self = shared_from_this()] {
-                       installed_shell()->status_row()->request_prepare();
-                       self->wait_until([self] { return !self->m_plater->is_preview_shown(); }, "returns_to_prepare",
-                                        [self] { self->after_return(); });
+                       auto* report = wxWindow::FindWindowByName("Slice review findings", self->m_frame);
+                       self->check(report && report->IsShownOnScreen(), "wireframe_findings_visible_before_acknowledgement");
+                       const auto actions = primary_print_action(installed_shell()->status_row()->action_state());
+                       self->check(std::none_of(actions.menu.begin(), actions.menu.end(), [](const auto& item) {
+                           return item.action == PrintAction::Prepare;
+                       }), "wireframe_print_menu_has_no_navigation");
+                       self->verify_long_review();
                    });
+    }
+
+    void verify_long_review()
+    {
+        auto* row = installed_shell()->status_row();
+        std::vector<std::string> findings(16,"Inspect the support contact on this surface before printing. This finding must remain available while reviewing the actual sliced toolpaths.");
+        installed_shell()->workspace()->slice_reviews()->report(row->slice_identity(),row->slice_identity(),findings);
+        wait_until([this] {
+            auto* report = dynamic_cast<wxScrolledWindow*>(wxWindow::FindWindowByName("Slice review findings",m_frame));
+            return report && report->GetVirtualSize().y > report->GetClientSize().y;
+        },"long_review_is_scrollable",[self=shared_from_this()] {
+            self->check(installed_shell()->status_row()->action_state().needs_review,"unseen_findings_keep_check_print");
+            auto* report = dynamic_cast<wxScrolledWindow*>(wxWindow::FindWindowByName("Slice review findings",self->m_frame));
+            report->Bind(wxEVT_PAINT,[weak=std::weak_ptr<Scenario>(self)](wxPaintEvent& e) {
+                if (auto owner = weak.lock()) ++owner->m_report_paints;
+                e.Skip();
+            });
+            report->Scroll(0,10000);
+            report->Refresh(); report->Update();
+            self->m_app.CallAfter([self] {
+                self->check(installed_shell()->status_row()->action_state().needs_review,"skipping_findings_does_not_acknowledge");
+                self->read_report_lines(0);
+            });
+        });
+    }
+
+    void read_report_lines(int position)
+    {
+        auto* report = dynamic_cast<wxScrolledWindow*>(wxWindow::FindWindowByName("Slice review findings",m_frame));
+        const int before = m_report_paints;
+        report->Scroll(0,position);
+        report->Refresh(); report->Update();
+        wait_until([this,before] { return m_report_paints > before; },"review_scroll_position_painted",
+            [self=shared_from_this(),position] {
+                auto* report = dynamic_cast<wxScrolledWindow*>(wxWindow::FindWindowByName("Slice review findings",self->m_frame));
+                if (position*report->FromDIP(16) < report->GetVirtualSize().y) self->read_report_lines(position+1);
+                else self->after_report_read();
+            });
+    }
+
+    void after_report_read()
+    {
+        wait_until([] { return !installed_shell()->status_row()->action_state().needs_review; },
+            "displaying_all_findings_acknowledges_report",[self=shared_from_this()] {
+                installed_shell()->status_row()->request_prepare();
+                self->wait_until([self] { return !self->m_plater->is_preview_shown(); },"returns_to_prepare",[self] { self->after_return(); });
+            });
     }
 
     void after_return()
     {
+        auto* report = wxWindow::FindWindowByName("Slice review findings",m_frame);
+        check(report && !report->IsShownOnScreen(),"review_report_hidden_in_prepare");
         verify_header_menus();
     }
 
-    void choose_header_item(const wxString& name)
+    void choose_header_item(const wxString& name, std::function<void()> then)
     {
         auto* menu = visible_header_menu();
         auto* item = menu ? wxWindow::FindWindowByName(name,menu) : nullptr;
         if (!item || !item->IsEnabled()) throw std::runtime_error("missing enabled header menu item: " + name.ToStdString());
-        item->SetFocus();
-        check(wxWindow::FindFocus() == item,"header_menu_item_accepts_keyboard_focus");
-        wxKeyEvent enter(wxEVT_KEY_DOWN); enter.m_keyCode = WXK_RETURN;
-        item->GetEventHandler()->ProcessEvent(enter);
+        for (size_t i=0;i<menu->GetChildren().size() && menu->selected_item() != item;++i) {
+            wxKeyEvent down(wxEVT_CHAR); down.m_keyCode = WXK_DOWN;
+            menu->GetEventHandler()->ProcessEvent(down);
+        }
+        check(menu->selected_item() == item,"header_menu_keyboard_selects_enabled_row");
+        wxKeyEvent enter(wxEVT_CHAR); enter.m_keyCode = WXK_RETURN;
+        menu->GetEventHandler()->ProcessEvent(enter);
+        then();
     }
 
     void verify_header_menus()
@@ -516,7 +583,12 @@ private:
     void verify_header_setup(Preset::Type type)
     {
         installed_shell()->status_row()->show_setup_menu();
-        choose_header_item(type == Preset::TYPE_PRINTER ? "Printer and nozzle…" : "Filament…");
+        choose_header_item(type == Preset::TYPE_PRINTER ? "Printer and nozzle…" : "Filament…",
+            [self=shared_from_this(),type] { self->verify_header_setup_open(type); });
+    }
+
+    void verify_header_setup_open(Preset::Type type)
+    {
         const std::string kind = type == Preset::TYPE_PRINTER ? "printer" : "filament";
         wait_until([] { return wxGetApp().params_dialog()->IsShown(); },"header_setup_opens_" + kind + "_editor",
             [self=shared_from_this(),type,kind] {
@@ -531,7 +603,11 @@ private:
     void verify_header_overflow()
     {
         installed_shell()->status_row()->show_overflow_menu();
-        choose_header_item("Project details");
+        choose_header_item("Project details",[self=shared_from_this()] { self->verify_project_details_open(); });
+    }
+
+    void verify_project_details_open()
+    {
         wait_until([this] { return m_notebook->GetSelection() == MainFrame::tpProject; },
             "header_overflow_opens_project_details",[self=shared_from_this()] {
                 installed_shell()->status_row()->request_prepare();
@@ -1836,6 +1912,7 @@ private:
     MainFrame*                    m_frame{nullptr};
     Notebook*                     m_notebook{nullptr};
     int                           m_failures{0};
+    int                           m_report_paints{0};
     bool                          m_finished{false};
     std::uint64_t                 m_wait_ticks{0};
     nlohmann::json                m_settings_original, m_settings_patch;
@@ -1941,13 +2018,14 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Mcp;
         else if (argument == "--mcp-setup")
             state->mode = HarnessState::Mode::McpSetup;
-        else if (argument == "--manual-mcp" || argument == "--header-visual") {
+        else if (argument == "--manual-mcp" || argument == "--header-visual" || argument == "--review-visual") {
             if (++index == argc) {
                 std::cerr << "--manual-mcp requires a dedicated fixture directory\n";
                 return 2;
             }
             state->mode = HarnessState::Mode::ManualMcp;
             state->header_visual = argument == "--header-visual";
+            state->review_visual = argument == "--review-visual";
             data_directory = fs::absolute(argv[index]);
         }
         else if (argument == "--mcp-bridge") {

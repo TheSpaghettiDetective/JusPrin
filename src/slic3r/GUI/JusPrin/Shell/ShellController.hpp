@@ -12,6 +12,7 @@
 
 class wxSizer;
 class wxBoxSizer;
+class wxWindow;
 class Notebook;
 
 namespace Slic3r::GUI {
@@ -65,6 +66,8 @@ private:
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
+    wxBoxSizer* m_workspace_sizer{nullptr};
+    wxWindow* m_workspace_status{nullptr};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

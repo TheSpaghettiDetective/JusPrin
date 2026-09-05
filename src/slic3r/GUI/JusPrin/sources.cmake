@@ -57,6 +57,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/StatusRow.hpp
     GUI/JusPrin/Shell/HeaderControls.cpp
     GUI/JusPrin/Shell/HeaderControls.hpp
+    GUI/JusPrin/Shell/SliceReviewPanel.cpp
+    GUI/JusPrin/Shell/SliceReviewPanel.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
     GUI/JusPrin/Workspace/FakeWorkspace.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp

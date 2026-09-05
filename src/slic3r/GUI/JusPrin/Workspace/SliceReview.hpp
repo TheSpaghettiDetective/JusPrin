@@ -53,6 +53,20 @@ public:
         }
     }
 
+    std::vector<std::string> findings(SliceIdentity current) const
+    {
+        const auto* review = find(current);
+        return review ? review->findings : std::vector<std::string>{};
+    }
+
+    // A visible report can be replaced while its paint callback is queued.
+    // Seeing the old report must never acknowledge the replacement.
+    void acknowledge_displayed(SliceIdentity current, const std::vector<std::string>& displayed)
+    {
+        const auto* review = find(current);
+        if (review && review->findings == displayed) acknowledge(current);
+    }
+
     void set_listener(std::function<void()> listener) { m_listener = std::move(listener); }
 
 private:

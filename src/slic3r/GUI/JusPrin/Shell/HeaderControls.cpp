@@ -192,7 +192,7 @@ void HeaderButton::paint(wxPaintEvent&)
             draw_icon(*gc,HeaderIcon::Down,w-FromDIP(24),(h-icon_size)/2,icon_size,foreground);
         }
     }
-    if (HasFocus()) {
+    if (HasFocus() || m_menu_selected) {
         gc->SetBrush(*wxTRANSPARENT_BRUSH); gc->SetPen(wxPen(p.border_focus,FromDIP(2)));
         gc->DrawRoundedRectangle(2,2,w-4,h-4,std::max(0.,r-2));
     }
@@ -221,6 +221,10 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
         auto* button = new HeaderButton(this,theme,HeaderStyle::Menu,item.label,item.icon);
         button->SetName(item.label); button->set_detail(item.detail); button->set_dark(dark); button->Enable(item.enabled);
         m_items.push_back(button);
+        button->Bind(wxEVT_ENTER_WINDOW,[this,index=int(m_items.size()-1)](wxMouseEvent& e) {
+            if (m_items[index]->IsEnabled()) select_item(index);
+            e.Skip();
+        });
         sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(4));
         button->Bind(wxEVT_BUTTON,[this,owner=wxWeakRef<wxWindow>(parent),invoke=std::move(item.invoke)](wxCommandEvent&) {
             close();
@@ -238,20 +242,31 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
     outline.AddRoundedRectangle(0,0,GetSize().x,GetSize().y,FromDIP(8));
     SetShape(outline);
 #endif
-    Bind(wxEVT_CHAR_HOOK,[this](wxKeyEvent& e) {
+    auto handle_key = [this](wxKeyEvent& e) {
         const int key = e.GetKeyCode();
         if (key == WXK_ESCAPE || key == WXK_TAB) { close(); return; }
+        if (key == WXK_RETURN || key == WXK_NUMPAD_ENTER || key == WXK_SPACE) {
+            if (auto* button = selected_item()) {
+                wxCommandEvent click(wxEVT_BUTTON,button->GetId());
+                click.SetEventObject(button);
+                button->ProcessWindowEvent(click);
+            }
+            return;
+        }
         if (key != WXK_UP && key != WXK_DOWN && key != WXK_HOME && key != WXK_END) { e.Skip(); return; }
-        const auto it = std::find(m_items.begin(),m_items.end(),wxWindow::FindFocus());
-        int index = it == m_items.end() ? -1 : int(it-m_items.begin());
+        int index = m_selected;
         if (key == WXK_HOME) index = -1;
         if (key == WXK_END) index = 0;
         const int step = key == WXK_UP || key == WXK_END ? -1 : 1;
         for (size_t n=0;n<m_items.size();++n) {
             index = (index+step+int(m_items.size()))%int(m_items.size());
-            if (m_items[index]->IsEnabled()) { m_items[index]->SetFocus(); break; }
+            if (m_items[index]->IsEnabled()) { select_item(index); break; }
         }
-    });
+    };
+    Bind(wxEVT_CHAR_HOOK,handle_key);
+    // wxPopupFocusHandler forwards CHAR (not CHAR_HOOK) and dismisses an
+    // unhandled key on macOS. Handle that native route as well.
+    Bind(wxEVT_CHAR,handle_key);
 }
 
 void HeaderMenu::open(wxWindow& anchor)
@@ -259,10 +274,16 @@ void HeaderMenu::open(wxWindow& anchor)
     m_anchor = &anchor;
     Position(anchor.ClientToScreen(wxPoint(anchor.GetSize().x-GetSize().x,anchor.GetSize().y)),wxSize(0,0));
     Popup();
-    // wxOSX shows popup panels without activating them. Make this panel key
-    // before focusing a row, or keyboard input remains in the main window.
     Raise();
-    for (auto* button : m_items) if (button->IsEnabled()) { button->SetFocus(); break; }
+    // Like an owner-drawn list, the popup owns its keyboard selection. Cocoa
+    // can deliver keys to the popup without assigning focus to a child view.
+    for (size_t i=0;i<m_items.size();++i) if (m_items[i]->IsEnabled()) { select_item(int(i)); break; }
+}
+void HeaderMenu::select_item(int index)
+{
+    if (m_selected >= 0) m_items[m_selected]->set_menu_selected(false);
+    m_selected = index;
+    m_items[index]->set_menu_selected(true);
 }
 void HeaderMenu::OnDismiss()
 {
