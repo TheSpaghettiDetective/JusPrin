@@ -25,6 +25,8 @@ public:
     void set_slots(std::vector<wxColour> colors);
     void set_detail(const wxString& detail);
     void set_menu_selected(bool selected) { m_menu_selected = selected; Refresh(); }
+    // A primary-left half squares its right edge only while a menu half sits beside it.
+    void set_attached(bool attached) { m_attached = attached; Refresh(); }
     void SetLabel(const wxString& label) override;
     bool Enable(bool enabled = true) override;
     wxSize DoGetBestSize() const override;
@@ -42,6 +44,7 @@ private:
     wxString m_detail;
     bool m_dark{false}, m_hover{false}, m_pressed{false}, m_status{false}, m_warning{false};
     bool m_menu_selected{false};
+    bool m_attached{true};
 };
 
 struct HeaderMenuItem {

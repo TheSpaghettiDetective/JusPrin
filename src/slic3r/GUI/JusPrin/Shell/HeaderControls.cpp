@@ -149,7 +149,7 @@ void HeaderButton::paint(wxPaintEvent&)
     gc->SetPen(primary || m_style == HeaderStyle::Quiet || m_style == HeaderStyle::Menu ? *wxTRANSPARENT_PEN : wxPen(p.border_subtle));
     gc->SetBrush(wxBrush(fill));
     gc->DrawRoundedRectangle(0.5,0.5,w-1,h-1,r);
-    if (primary) {
+    if (primary && (m_style == HeaderStyle::PrimaryRight || m_attached)) {
         gc->SetPen(*wxTRANSPARENT_PEN);
         gc->DrawRectangle(m_style == HeaderStyle::PrimaryLeft ? w-r-1 : 0,0,r+1,h);
     }

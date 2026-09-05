@@ -201,7 +201,9 @@ void StatusRow::refresh()
     m_menu_button->set_icon(state.slicing ? HeaderIcon::Cancel : HeaderIcon::Down);
     m_menu_button->SetToolTip(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
     m_menu_button->SetName(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
-    m_menu_button->Enable(!actions.menu.empty());
+    // An empty menu has no half to show; the primary keeps its full silhouette.
+    m_menu_button->Show(!actions.menu.empty());
+    m_slice_button->set_attached(!actions.menu.empty());
     layout_header();
     refresh_workspace_status();
 }
@@ -364,8 +366,11 @@ void StatusRow::layout_header()
     };
     int right = GetClientSize().x-margin-m_overflow_button->GetBestSize().x;
     place(m_overflow_button,right);
-    right -= gap+m_menu_button->GetBestSize().x;
-    place(m_menu_button,right);
+    right -= gap;
+    if (m_menu_button->IsShown()) {
+        right -= m_menu_button->GetBestSize().x;
+        place(m_menu_button,right);
+    }
     right -= m_slice_button->GetBestSize().x;
     place(m_slice_button,right);
     place(m_home_button,margin);

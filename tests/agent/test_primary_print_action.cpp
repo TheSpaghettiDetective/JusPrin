@@ -34,7 +34,10 @@ TEST_CASE("Header offers only the next valid manufacturing action", "[header]")
             CHECK_FALSE(offers(PrintAction::Print));
             CHECK_FALSE(offers(PrintAction::CheckPrint));
             CHECK(offers(PrintAction::SliceAll) == (state.plate_count > 1 && state.can_slice_all));
+            // A single plate has nothing to put in the menu, so the header hides its chevron half.
+            CHECK(actions.menu.empty() == (state.plate_count == 1));
         } else {
+            CHECK_FALSE(actions.menu.empty());
             CHECK(actions.primary.action == (state.needs_review ? PrintAction::CheckPrint : PrintAction::Print));
             CHECK_FALSE(offers(PrintAction::Slice));
             CHECK_FALSE(offers(PrintAction::SliceAll));
