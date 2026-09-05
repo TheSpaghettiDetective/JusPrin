@@ -1,6 +1,6 @@
 # Guide for adding JusPrin tools
 
-**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The five-tool MCP catalog includes workspace inspection and the verified process-settings workflow.
+**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The six-tool MCP catalog includes workspace inspection, slice-review reporting, and the verified process-settings workflow.
 
 JusPrin has one tool system with multiple adapters. New capabilities are added to the shared registry, executed by `ToolExecutionCoordinator`, and implemented through the typed live-workspace boundary; the OpenAI and MCP adapters only translate that contract to their wire formats. This guide keeps the catalog small, honest, safe to evolve, and driven by real printing tasks rather than an abstract feature inventory.
 
@@ -228,7 +228,7 @@ The current coordinator stages execution through GUI ticks; it does not provide 
 
 Default to both adapters when both can satisfy the same input contract. A deliberate filter is appropriate when context is supplied differently:
 
-- `workspace_inspect` can be MCP-only because the in-app Agent already receives the snapshot in its turn context;
+- `workspace_inspect` is exposed to both adapters so either can obtain a fresh completed slice identity after slicing, independently of the initial turn context;
 - attachment-based `import_model` remains in-app-only until MCP has a file-transfer contract; and
 - a future MCP diagnostics tool may be MCP-only if it exists to establish the external connection.
 
@@ -286,13 +286,16 @@ Current registry, in deterministic name order. `Internal` entries are native man
 | `record_build` | Record a sliced plate | mutation | Internal | manufacturing history | coordinator's history recorder | build ID and recorded flag |
 | `record_export_copy` | Record a verified G-code export | destructive | Internal | manufacturing history | coordinator's history recorder | exported-copy ID and build ID |
 | `record_physical_print` | Record a completed print fact | destructive | Internal | manufacturing history; does not start a printer | coordinator's history recorder | physical-print ID, build ID and recorded flag |
+| `report_slice_review` | Agent findings must drive the header's Check print state without parsing chat text | read-only (ephemeral presentation metadata) | both | exact session, plate, and completed G-code result ID; stale results fail | shared workspace `SliceReviews` | 16 findings of at most 256 UTF-8 bytes; one reported flag |
 | `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | preview session/revision and confirmed before/after values | `IWorkspace::apply_settings` through `Tab::load_config` | bounded actual changes/normalization, revision, dirty flag and `projectUndo: false` |
 | `settings_get` | Read current values and preset origin | read-only | both | 1–32 process keys | `IWorkspace::read_settings` using the edited process preset | at most 32 values and unknown-key issues; canonical values are preserved |
 | `settings_preview_patch` | Check a batch before requesting approval | read-only | both | active FFF process preset; seven writable keys | `IWorkspace::preview_settings` using a clone and Orca validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
 | `settings_search` | Find a process setting without loading its full catalog | read-only | both | active FFF process preset | `IWorkspace::search_settings` using Orca definitions | 1–25 matches; deterministic cursor paging and bounded metadata |
-| `workspace_inspect` | External client needs current project context | read-only | MCP | current document | `IWorkspace::snapshot` | at most 16 plates, 64 objects across returned plates and 64 selected IDs; labels at most 256 UTF-8 bytes; totals and truncation flags |
+| `workspace_inspect` | Client needs current project context and exact slice identity | read-only | both | current document | `IWorkspace::snapshot` | at most 16 plates, 64 objects across returned plates and 64 selected IDs; labels at most 256 UTF-8 bytes; totals, result IDs and truncation flags |
 
-Only `workspace_inspect`, `settings_search`, `settings_get`, `settings_preview_patch`, and `settings_apply_patch` are MCP-visible. `duplicate_object` and `inspect_selection` remain in-app fixtures pending an in-app eval; they are not callable over MCP. There is no MCP attachment-import contract.
+Only `workspace_inspect`, `report_slice_review`, `settings_search`, `settings_get`, `settings_preview_patch`, and `settings_apply_patch` are MCP-visible. `duplicate_object` and `inspect_selection` remain in-app fixtures pending an in-app eval; they are not callable over MCP. There is no MCP attachment-import contract.
+
+Slice reviews use the runtime G-code processor result ID, never a selection-driven workspace revision. Unsliced plates and plates during slicing expose an empty result ID. Reports for invalidated, replaced, or re-sliced results fail with `stale_slice`; reviewing a different plate does not acknowledge this one. Identical report retries preserve acknowledgement. This metadata is not saved, does not dirty the project, and cannot authorize printing. The reporting tool is not an automatic geometry-analysis engine: the caller must establish findings and explain them in chat.
 
 Settings search/read cover the active FFF process preset. The write allowlist is `layer_height`, `wall_loops`, `sparse_infill_density`, `sparse_infill_pattern`, `top_shell_layers`, `bottom_shell_layers`, and `brim_width`. Apply takes `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use Orca preset revert or a previewed inverse patch to restore values; ordinary project Undo does not reverse preset edits.
 
