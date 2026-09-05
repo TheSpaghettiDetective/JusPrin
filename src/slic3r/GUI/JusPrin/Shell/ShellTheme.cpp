@@ -47,6 +47,7 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     palette.action_disabled_text    = parse_color(mode_tokens, "action", "disabledText");
     palette.status_warning          = parse_color(mode_tokens, "status", "warning");
     palette.status_success          = parse_color(mode_tokens, "status", "success");
+    palette.status_success_on_action = parse_color(mode_tokens, "status", "successOnAction");
     palette.status_danger           = parse_color(mode_tokens, "status", "danger");
     return palette;
 }

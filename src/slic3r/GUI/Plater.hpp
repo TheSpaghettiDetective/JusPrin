@@ -98,6 +98,8 @@ enum class ActionButtonType : int;
 
 //BBS: add EVT_SLICING_UPDATE declare here
 wxDECLARE_EVENT(EVT_SLICING_UPDATE, Slic3r::SlicingStatusEvent);
+// Delivered after the current GUI event has finalized slicing availability.
+wxDECLARE_EVENT(EVT_SLICE_STATUS_CHANGED, wxCommandEvent);
 wxDECLARE_EVENT(EVT_PUBLISH,        wxCommandEvent);
 wxDECLARE_EVENT(EVT_OPEN_PLATESETTINGSDIALOG,        wxCommandEvent);
 
@@ -330,6 +332,9 @@ public:
     // unavailable, later view and project-load paths must not remount it.
     bool is_sidebar_available() const { return m_sidebar_available; }
     void set_sidebar_available(bool available);
+    bool auto_preview_after_slice() const { return m_auto_preview_after_slice; }
+    void set_auto_preview_after_slice(bool enabled) { m_auto_preview_after_slice = enabled; }
+    bool cancel_slicing();
 
     // Behavior-oriented object commands for the workspace adapter; they run
     // through Orca's own selection, snapshot, and history paths.
@@ -968,6 +973,7 @@ private:
     // those callbacks dereference a null unique_ptr with no compile error.
     std::unique_ptr<PlaterProjectState> m_project_state;
     bool m_sidebar_available { true };
+    bool m_auto_preview_after_slice { true };
     std::unique_ptr<priv> p;
     std::string           m_3mf_path;
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.

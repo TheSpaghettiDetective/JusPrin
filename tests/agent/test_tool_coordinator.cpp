@@ -103,6 +103,31 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
 }
 
+TEST_CASE("Agent reports exact slice findings without approving or mutating the project", "[tools][review]")
+{
+    Harness h;
+    auto plate = h.workspace.snapshot().plates.front();
+    h.workspace.set_plate_sliced(plate.id, true);
+    plate = h.workspace.snapshot().plates.front();
+    const auto before = h.workspace.snapshot();
+    const Workspace::SliceIdentity identity{before.session.value(), plate.id.value(), plate.slice_result_id};
+    const auto request = ToolRequest{"report_slice_review", json{{"sessionId", std::to_string(identity.session)},
+        {"plateId", std::to_string(identity.plate)}, {"sliceResultId", std::to_string(identity.result)}, {"findings", {"Check opening"}}}.dump()};
+    auto activity = h.coordinator.propose(request, "review");
+    CHECK_FALSE(activity.requires_approval);
+    h.pump_to_completion(activity.action_id);
+    CHECK(h.coordinator.find(activity.action_id)->state == ToolState::Succeeded);
+    CHECK(h.workspace.slice_reviews()->needs_review(identity));
+    CHECK(h.workspace.snapshot().revision == before.revision);
+    CHECK(h.workspace.snapshot().setup.project_dirty == before.setup.project_dirty);
+    h.workspace.set_plate_sliced(plate.id, false);
+    h.workspace.set_plate_sliced(plate.id, true);
+    activity = h.coordinator.propose(request, "late-review");
+    h.pump_to_completion(activity.action_id);
+    REQUIRE(h.coordinator.find(activity.action_id)->error);
+    CHECK(h.coordinator.find(activity.action_id)->error->code == "stale_slice");
+}
+
 TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")
 {
     Harness h;

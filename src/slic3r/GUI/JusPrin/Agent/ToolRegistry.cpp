@@ -103,6 +103,17 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     if (definition.handler == ToolHandler::InspectSelection || definition.handler == ToolHandler::WorkspaceInspect)
         return arguments.empty();
 
+    if (definition.handler == ToolHandler::ReportSliceReview) {
+        if (!has_only(arguments, {"sessionId", "plateId", "sliceResultId", "findings"}) || arguments.size() != 4 ||
+            !is_unsigned_string(arguments["sessionId"]) || !is_unsigned_string(arguments["plateId"]) ||
+            !is_unsigned_string(arguments["sliceResultId"]) || !arguments["findings"].is_array() ||
+            arguments["findings"].size() > 16) return false;
+        return std::all_of(arguments["findings"].begin(), arguments["findings"].end(), [](const json& finding) {
+            return finding.is_string() && !finding.get_ref<const std::string&>().empty() &&
+                   finding.get_ref<const std::string&>().size() <= kToolLabelLimit;
+        });
+    }
+
     if (definition.handler == ToolHandler::DuplicateObject)
         return has_only(arguments, {"sessionId", "objectId"}) && arguments.size() == 2 &&
                arguments.contains("sessionId") && is_unsigned_string(arguments["sessionId"]) &&
@@ -159,9 +170,9 @@ std::vector<ToolDefinition> make_definitions()
     const json object_summary = object_schema({{"objectId", id}, {"name", string_schema()}, {"instanceCount", revision}},
                                                {"objectId", "name", "instanceCount"});
     const json plate_summary = object_schema({{"plateId", id}, {"name", string_schema()}, {"active", boolean_schema()},
-                                              {"sliced", boolean_schema()}, {"objectCount", revision},
+                                              {"sliced", boolean_schema()}, {"sliceResultId", id}, {"objectCount", revision},
                                               {"objects", list_schema(object_summary)}},
-                                              {"plateId", "name", "active", "sliced", "objectCount", "objects"});
+                                              {"plateId", "name", "active", "sliced", "sliceResultId", "objectCount", "objects"});
     json selection_summary = list_schema(id);
     selection_summary["properties"]["status"] = string_schema();
     selection_summary["required"].push_back("status");
@@ -193,6 +204,15 @@ std::vector<ToolDefinition> make_definitions()
         {"valid", "changes", "dependencies", "issues", "warnings"});
 
     std::vector<ToolDefinition> definitions{
+        {"report_slice_review", "Report slice review",
+         "Report findings for an exact completed slice from workspace_inspect. Use only findings you actually established and also explain them in chat. An empty findings list means nothing flagged, not a safety certification. This updates only the header's temporary review indicator; it never changes settings, acknowledges findings for the user, or prints. Stale result IDs are rejected.",
+         object_schema({{"sessionId", id}, {"plateId", id}, {"sliceResultId", id},
+                        {"findings", {{"type", "array"}, {"items", {{"type", "string"}, {"minLength", 1}, {"maxLength", kToolLabelLimit}}}, {"maxItems", 16}}}},
+                       {"sessionId", "plateId", "sliceResultId", "findings"}),
+         object_schema({{"reported", boolean_schema()}}, {"reported"}),
+         // ReadOnly in the approval taxonomy means no durable project or external
+         // changes. This is ephemeral presentation metadata, just like chat.
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ReportSliceReview},
         {"settings_search", "Search process settings",
          "Find a page of process settings by key, label, or description. Requires an active FFF process preset. A page is not the full writable list; read known keys directly with settings_get or follow nextCursor.",
          object_schema({{"query", id}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id}}, {"query"}),
@@ -261,7 +281,7 @@ std::vector<ToolDefinition> make_definitions()
                          {"history", object_schema({{"canUndo", boolean_schema()}, {"canRedo", boolean_schema()}}, {"canUndo", "canRedo"})}},
                          {"sessionId", "revision", "projectName", "projectDirty", "printerPreset", "filamentPreset", "activePlateId",
                           "plateCount", "objectCount", "plates", "selection", "truncated", "history"}),
-         ActionClass::ReadOnly, ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::WorkspaceInspect},
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::WorkspaceInspect},
         {"record_build",
          "Record a build of the sliced active plate",
          "Record the sliced active plate in the JusPrin manufacturing history.",

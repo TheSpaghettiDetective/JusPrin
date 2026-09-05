@@ -10121,6 +10121,8 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
         schedule_auto_reslice_if_needed();
     }
 
+    wxPostEvent(q, wxCommandEvent(EVT_SLICE_STATUS_CHANGED));
+
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(", exit.");
 }
 
@@ -10182,7 +10184,8 @@ void Plater::priv::on_action_slice_plate(SimpleEvent&)
         Model::setPrintSpeedTable(config, print_config);
         m_slice_all = false;
         q->reslice();
-        q->select_view_3D("Preview");
+        if (q->auto_preview_after_slice())
+            q->select_view_3D("Preview");
     }
 }
 
@@ -10205,10 +10208,13 @@ void Plater::priv::on_action_slice_all(SimpleEvent&)
         //select plate
         q->select_plate(m_cur_slice_plate);
         q->reslice();
-        if (!m_is_publishing)
+        if (!m_is_publishing && q->auto_preview_after_slice())
             q->select_view_3D("Preview");
         //BBS: wish to select all plates stats item
-        preview->get_canvas3d()->_update_select_plate_toolbar_stats_item(true);
+        // Keep selection in an unopened Preview unchanged too. Its toolbar
+        // may not exist yet when slicing without automatic preview.
+        if (q->auto_preview_after_slice())
+            preview->get_canvas3d()->_update_select_plate_toolbar_stats_item(true);
     }
 }
 
@@ -10900,10 +10906,9 @@ void Plater::priv::init_notification_manager()
     notification_manager->init();
 
     auto cancel_callback = [this]() {
-        if (this->background_process.idle())
-            return false;
-        this->background_process.stop();
-        return true;
+        // Cancellation moved to Plater::cancel_slicing; carry upstream changes
+        // there on rebase so every cancellation entry point stays identical.
+        return q->cancel_slicing();
     };
     notification_manager->init_slicing_progress_notification(cancel_callback);
     notification_manager->set_fff(printer_technology == ptFFF);
@@ -18335,6 +18340,14 @@ void Plater::set_bed_position(Vec2d& pos)
 bool Plater::is_background_process_slicing() const
 {
     return p->m_is_slicing;
+}
+
+bool Plater::cancel_slicing()
+{
+    if (p->background_process.idle())
+        return false;
+    p->background_process.stop();
+    return true;
 }
 
 //BBS: update slicing context

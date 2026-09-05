@@ -11,6 +11,8 @@
 
 namespace Slic3r { namespace GUI {
 
+wxDEFINE_EVENT(EVT_SLICE_STATUS_CHANGED, wxCommandEvent);
+
 ProjectStateSubscription Plater::subscribe_project_state(ProjectStateChangedCallback callback)
 {
     return m_project_state->observers.subscribe(std::move(callback));

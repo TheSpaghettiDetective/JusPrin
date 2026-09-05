@@ -59,7 +59,7 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     auto tools = list.messages()[0]["result"]["tools"];
     CHECK(list.messages()[0]["result"]["ttlMs"] == 0);
     CHECK(list.messages()[0]["result"]["cacheScope"] == "private");
-    REQUIRE(tools.size() == 5);
+    REQUIRE(tools.size() == 6);
     CHECK(tools.back()["name"] == "workspace_inspect");
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));

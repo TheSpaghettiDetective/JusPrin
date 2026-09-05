@@ -2424,6 +2424,8 @@ void MainFrame::update_slice_print_status(SlicePrintEventType event, bool can_sl
     m_slice_enable = enable_slice;
     m_print_enable = enable_print;
 
+    wxPostEvent(m_plater, wxCommandEvent(EVT_SLICE_STATUS_CHANGED));
+
     if (!old_slice_status && enable_slice)
         m_plater->reset_check_status();
 

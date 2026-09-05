@@ -116,6 +116,8 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
         projected_plate.active = index == active_index;
         projected_plate.sliced = plate->is_slice_result_valid();
+        if (projected_plate.sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result())
+            projected_plate.slice_result_id = plate->get_slice_result()->id;
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
             WorkspaceObject object = project_object(m_session, *objects[object_index], *plate, static_cast<int>(object_index));

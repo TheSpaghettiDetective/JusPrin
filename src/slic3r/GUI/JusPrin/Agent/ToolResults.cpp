@@ -157,7 +157,9 @@ json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot)
                                {"name", label(object.name, objects_truncated)}, {"instanceCount", object.instances.size()}});
         }
         plates.push_back({{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
-                          {"active", plate.active}, {"sliced", plate.sliced}, {"objectCount", plate.objects.size()},
+                          {"active", plate.active}, {"sliced", plate.sliced},
+                          {"sliceResultId", plate.slice_result_id ? std::to_string(plate.slice_result_id) : ""},
+                          {"objectCount", plate.objects.size()},
                           {"objects", {{"items", std::move(objects)}, {"truncated", objects_truncated}}}});
         truncated = truncated || objects_truncated;
     }

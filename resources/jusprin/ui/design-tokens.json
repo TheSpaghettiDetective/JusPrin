@@ -75,6 +75,7 @@
       },
       "status": {
         "success": "#2D6A55",
+        "successOnAction": "#58B894",
         "danger": "#B44757",
         "warning": "#D49A2A"
       }
@@ -115,6 +116,7 @@
       },
       "status": {
         "success": "#58B894",
+        "successOnAction": "#174735",
         "danger": "#F07A8E",
         "warning": "#E9B960"
       }

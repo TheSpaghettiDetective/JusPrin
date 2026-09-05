@@ -55,6 +55,9 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/ShellTheme.hpp
     GUI/JusPrin/Shell/StatusRow.cpp
     GUI/JusPrin/Shell/StatusRow.hpp
+    GUI/JusPrin/Shell/HeaderControls.cpp
+    GUI/JusPrin/Shell/HeaderControls.hpp
+    GUI/JusPrin/Shell/PrimaryPrintAction.hpp
     GUI/JusPrin/Workspace/FakeWorkspace.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
@@ -62,6 +65,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/PlaterProjectState.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
+    GUI/JusPrin/Workspace/SliceReview.hpp
 )
 
 # Translation catalogs carrying the product name, built from upstream .po files.

@@ -35,6 +35,8 @@ public:
         result.can_redo          = !m_redo.empty();
         result.setup.process_preset = m_settings_available ? "Fixture process" : "";
         result.setup.process_preset_dirty = m_settings.values != m_settings.preset_values;
+        for (auto& plate : result.plates)
+            if (!plate.sliced) plate.slice_result_id = 0;
         return result;
     }
 
@@ -305,6 +307,7 @@ public:
         for (WorkspacePlate& plate : m_snapshot.plates)
             if (plate.id == id && plate.sliced != sliced) {
                 plate.sliced = sliced;
+                if (sliced) ++plate.slice_result_id;
                 publish(WorkspaceChangeReasons::Plates);
                 return;
             }

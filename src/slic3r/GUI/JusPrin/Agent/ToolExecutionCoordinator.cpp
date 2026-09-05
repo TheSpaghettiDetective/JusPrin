@@ -347,6 +347,25 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (definition->handler == ToolHandler::ReportSliceReview) {
+        const auto args = json::parse(activity.arguments_json);
+        const auto snapshot = m_workspace.snapshot();
+        Workspace::SliceIdentity expected{std::stoull(args.at("sessionId").get<std::string>()),
+            std::stoull(args.at("plateId").get<std::string>()), std::stoull(args.at("sliceResultId").get<std::string>())};
+        Workspace::SliceIdentity current;
+        for (const auto& plate : snapshot.plates)
+            if (plate.id.value() == expected.plate && plate.sliced)
+                current = {snapshot.session.value(), plate.id.value(), plate.slice_result_id};
+        if (!m_workspace.slice_reviews()->report(expected, current, args.at("findings").get<std::vector<std::string>>())) {
+            fail(activity, "stale_slice", "That slice is no longer current. Inspect the workspace and review the new slice.");
+            return;
+        }
+        activity.result_json = json{{"reported", true}}.dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (definition->handler == ToolHandler::SettingsSearch) {
         const auto args = json::parse(activity.arguments_json);
         const auto result = m_workspace.search_settings({args.at("query").get<std::string>(), args.value("limit", std::size_t(10)), args.value("cursor", "")});

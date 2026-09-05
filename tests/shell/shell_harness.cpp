@@ -27,6 +27,8 @@
 //                 leaves a two-plate native fixture open for real MCP clients;
 //                 exposes Orca's sidebar for native-edit/stale-revision checks;
 //                 reuse the directory to test restarts without reconfiguration
+//   --header-visual <fixture-directory>
+//                 same fixture without the expert sidebar, with the header menu open
 //   --live-agent-unavailable
 //              selects OpenAI with consent withheld and verifies that the
 //              application stays usable without silently selecting the mock
@@ -39,6 +41,9 @@
 //              _init_select_plate_toolbar on the Preview canvas before any
 //              render. Kept as a guard in case that incidental init path
 //              changes; run it alongside the default and --stock modes.
+//              The synchronous Prepare-only slice command made this reachable
+//              on 2026-09-04. The no-auto-preview policy now also leaves the
+//              unopened Preview's plate selection unchanged.
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
@@ -53,6 +58,10 @@
 #include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
+#include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
+#include "slic3r/GUI/ParamsDialog.hpp"
+#include "slic3r/GUI/ParamsPanel.hpp"
+#include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
@@ -119,16 +128,17 @@ struct HarnessState
     std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(900)};
     Mode mode{Mode::Shell};
     bool mcp_bridge{false};
+    bool header_visual{false};
     std::optional<bool> dark_appearance;
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
-Notebook* find_notebook(wxWindow* root)
+Notebook* find_notebook(wxWindow* root, Plater* plater)
 {
     if (auto* notebook = dynamic_cast<Notebook*>(root))
-        return notebook;
+        if (notebook->FindPage(plater) == MainFrame::tp3DEditor) return notebook;
     for (wxWindow* child : root->GetChildren())
-        if (Notebook* notebook = find_notebook(child))
+        if (Notebook* notebook = find_notebook(child, plater))
             return notebook;
     return nullptr;
 }
@@ -147,15 +157,18 @@ public:
             m_plater = m_app.plater();
             m_frame  = m_app.mainframe;
             check(m_plater != nullptr && m_frame != nullptr, "application_ready");
-            m_notebook = find_notebook(m_frame);
+            m_notebook = find_notebook(m_frame, m_plater);
             check(m_notebook != nullptr, "notebook_found");
             if (m_plater == nullptr || m_frame == nullptr || m_notebook == nullptr) {
                 fail("application widgets missing");
                 return;
             }
             if (m_state->mode == HarnessState::Mode::Stock) {
-                verify_stock_mode();
-                finish();
+                // The stock startup selects Home after constructing MainFrame.
+                // Do not start navigation assertions inside that initialization.
+                wait_until([this] { return m_app.initialized() && !m_frame->IsFrozen() &&
+                    m_plater->canvas3D()->is_initialized() && m_notebook->GetSelection() == MainFrame::tpHome; }, "stock_startup_ready",
+                           [self = shared_from_this()] { self->verify_stock_slice(); });
                 return;
             }
             verify_shell_installed();
@@ -170,9 +183,13 @@ public:
                 prepare_mcp_slice([self = shared_from_this()] {
                     // Real-client tests need a native setting edit while the
                     // shell's rendered external approval cards remain live.
-                    self->m_plater->set_sidebar_available(true);
-                    self->m_plater->collapse_sidebar(false);
-                    self->check(self->m_plater->sidebar().IsShown(), "mcp_fixture_native_sidebar_visible");
+                    if (self->m_state->header_visual) {
+                        installed_shell()->status_row()->show_action_menu();
+                    } else {
+                        self->m_plater->set_sidebar_available(true);
+                        self->m_plater->collapse_sidebar(false);
+                        self->check(self->m_plater->sidebar().IsShown(), "mcp_fixture_native_sidebar_visible");
+                    }
                     std::cerr << "HARNESS MCP FIXTURE READY failures=" << self->m_failures
                               << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
                 });
@@ -207,6 +224,22 @@ public:
     }
 
 private:
+    void verify_stock_slice()
+    {
+        verify_stock_mode();
+        check(m_plater->auto_preview_after_slice(), "stock_keeps_auto_preview_policy");
+        load_multi_plate_fixture();
+        m_plater->update(true, true);
+        wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_PLATE));
+        m_frame->select_tab(MainFrame::tpPreview);
+        wait_until([this] { return m_plater->is_preview_shown() && !m_plater->is_background_process_slicing() &&
+            m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid(); }, "stock_slice_opens_preview",
+            [self = shared_from_this()] {
+                self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "stock_slice_teardown");
+                self->finish();
+            });
+    }
+
     void verify_mcp_setup()
     {
         const std::string executable = wxStandardPaths::Get().GetExecutablePath().ToUTF8().data();
@@ -281,9 +314,7 @@ private:
     // widget tree so the row needs no test-only accessor.
     static wxString status_row_labels(wxWindow* window)
     {
-        wxString text;
-        if (auto* label = dynamic_cast<wxStaticText*>(window))
-            text += label->GetLabel() + "\n";
+        wxString text = window->GetLabel() + "\n";
         for (wxWindow* child : window->GetChildren())
             text += status_row_labels(child);
         return text;
@@ -310,8 +341,9 @@ private:
         if (shell == nullptr)
             throw std::runtime_error("shell is not installed");
         check(shell->status_row() != nullptr && shell->status_row()->IsShown(), "status_row_shown");
-        check(status_row_labels(shell->status_row()).Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
-              "status_row_shows_empty_print_count");
+        check(shell->status_row()->project_summary().Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
+              "overflow_summary_shows_empty_print_count");
+        verify_header_layout();
         check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
         check(shell->agent_pane()->web_view().host().mcp() != nullptr, "shell_starts_mcp_automatically");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
@@ -379,13 +411,28 @@ private:
 
     void begin_slice_check()
     {
+        auto* row = installed_shell()->status_row();
+        row->request_slice();
+        check(row->action_state().slicing, "header_enters_slicing");
+        row->request_action(PrintAction::Cancel);
+        wait_until([this] { return !m_plater->is_background_process_slicing(); }, "header_cancel_finishes",
+                   [self = shared_from_this()] {
+                       auto* row = installed_shell()->status_row();
+                       self->check(!row->action_state().sliced, "cancel_leaves_no_valid_slice");
+                       self->check(primary_print_action(row->action_state()).primary.action == PrintAction::Slice, "cancel_returns_to_slice");
+                       self->begin_verified_slice();
+                   });
+    }
+
+    void begin_verified_slice()
+    {
         installed_shell()->status_row()->request_slice();
-        wait_until([this] { return m_plater->is_preview_shown(); }, "slice_switches_to_preview",
+        wait_until([this] { return m_plater->is_background_process_slicing(); }, "header_slice_starts",
                    [self = shared_from_this()] {
                        self->wait_until(
                            [self] {
                                PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
-                               return plate != nullptr && plate->is_slice_result_valid();
+                               return plate != nullptr && plate->is_slice_result_valid() && !self->m_plater->is_background_process_slicing();
                            },
                            "slice_completes", [self] { self->after_slice(); });
                    });
@@ -393,10 +440,33 @@ private:
 
     void after_slice()
     {
+        auto* row = installed_shell()->status_row();
+        check(!m_plater->is_preview_shown(), "slice_stays_in_prepare");
+        check(primary_print_action(row->action_state()).primary.action == PrintAction::Print, "unflagged_slice_offers_print");
+        auto* primary = wxWindow::FindWindowByName("Next print action", row);
+        check(primary && primary->GetLabel().StartsWith("Print"), "slice_completion_updates_rendered_button");
+        auto& tools = installed_shell()->agent_pane()->web_view().host().tools();
+        const auto identity = row->slice_identity();
+        const auto activity = tools.propose({"report_slice_review", nlohmann::json{{"sessionId", std::to_string(identity.session)},
+            {"plateId", std::to_string(identity.plate)}, {"sliceResultId", std::to_string(identity.result)},
+            {"findings", {"Inspect the opening in Preview"}}}.dump()}, "header-review-fixture");
+        for (int i = 0; i < 10 && !Agent::tool_state_terminal(tools.find(activity.action_id)->state); ++i) tools.pump();
+        check(tools.find(activity.action_id)->state == Agent::ToolState::Succeeded, "agent_report_reaches_native_header");
+        check(primary_print_action(row->action_state()).primary.action == PrintAction::CheckPrint, "finding_offers_check_print");
+        check(primary && primary->GetLabel() == "Check print", "report_updates_rendered_button");
+        const int original_plate = m_plater->get_partplate_list().get_curr_plate_index();
+        m_plater->select_plate(original_plate == 0 ? 1 : 0);
+        check(primary_print_action(row->action_state()).primary.action == PrintAction::Slice, "other_unsliced_plate_offers_slice");
+        m_plater->select_plate(original_plate);
+        check(primary_print_action(row->action_state()).primary.action == PrintAction::CheckPrint, "return_to_flagged_plate_preserves_review");
+        row->request_slice();
+        check(!m_plater->is_background_process_slicing(), "valid_slice_cannot_reslice");
         // The user flow under test: with a valid slice, Check print shows the
         // real Preview, and Back to Prepare returns.
         installed_shell()->status_row()->request_check_print();
-        wait_until([this] { return m_plater->is_preview_shown(); }, "check_print_shows_preview",
+        wait_until([this] { return m_plater->is_preview_shown() &&
+            primary_print_action(installed_shell()->status_row()->action_state()).primary.action == PrintAction::Print; },
+                   "check_preview_acknowledges_exact_slice",
                    [self = shared_from_this()] {
                        installed_shell()->status_row()->request_prepare();
                        self->wait_until([self] { return !self->m_plater->is_preview_shown(); }, "returns_to_prepare",
@@ -406,7 +476,105 @@ private:
 
     void after_return()
     {
-        begin_slice_all_warm();
+        verify_header_menus();
+    }
+
+    void choose_header_item(const wxString& name)
+    {
+        auto* menu = visible_header_menu();
+        auto* item = menu ? wxWindow::FindWindowByName(name,menu) : nullptr;
+        if (!item || !item->IsEnabled()) throw std::runtime_error("missing enabled header menu item: " + name.ToStdString());
+        item->SetFocus();
+        check(wxWindow::FindFocus() == item,"header_menu_item_accepts_keyboard_focus");
+        wxKeyEvent enter(wxEVT_KEY_DOWN); enter.m_keyCode = WXK_RETURN;
+        item->GetEventHandler()->ProcessEvent(enter);
+    }
+
+    void verify_header_menus()
+    {
+        auto* row = installed_shell()->status_row();
+        row->show_action_menu();
+        auto* menu = visible_header_menu();
+        check(menu && menu->IsShown(),"header_action_menu_visible");
+        auto* check_item = menu ? wxWindow::FindWindowByName("Check print",menu) : nullptr;
+        check(check_item && wxWindow::FindWindowByName("Print all plates",menu),"header_menu_has_contextual_actions");
+        auto* arrow = wxWindow::FindWindowByName("Print actions",row);
+        check(menu && menu->GetScreenRect().GetRight() == arrow->GetScreenRect().GetRight(),"header_menu_right_edge_matches_split_button");
+        wxKeyEvent escape(wxEVT_CHAR_HOOK); escape.m_keyCode = WXK_ESCAPE;
+        menu->GetEventHandler()->ProcessEvent(escape);
+        check(!menu->IsShown(),"header_menu_escape_dismisses");
+        row->request_home();
+        wait_until([this] { return m_notebook->GetSelection() == MainFrame::tpHome &&
+            m_notebook->GetPage(MainFrame::tpHome)->IsShown(); },"header_home_opens_native_home",
+            [self=shared_from_this()] {
+                installed_shell()->status_row()->request_home();
+                self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(); },
+                    "header_home_returns_to_prepare",[self] { self->verify_header_setup(Preset::TYPE_PRINTER); });
+            });
+    }
+
+    void verify_header_setup(Preset::Type type)
+    {
+        installed_shell()->status_row()->show_setup_menu();
+        choose_header_item(type == Preset::TYPE_PRINTER ? "Printer and nozzle…" : "Filament…");
+        const std::string kind = type == Preset::TYPE_PRINTER ? "printer" : "filament";
+        wait_until([] { return wxGetApp().params_dialog()->IsShown(); },"header_setup_opens_" + kind + "_editor",
+            [self=shared_from_this(),type,kind] {
+                self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
+                            "header_setup_selects_" + kind + "_tab");
+                wxGetApp().params_dialog()->Close();
+                if (type == Preset::TYPE_PRINTER) self->verify_header_setup(Preset::TYPE_FILAMENT);
+                else self->verify_header_overflow();
+            });
+    }
+
+    void verify_header_overflow()
+    {
+        installed_shell()->status_row()->show_overflow_menu();
+        choose_header_item("Project details");
+        wait_until([this] { return m_notebook->GetSelection() == MainFrame::tpProject; },
+            "header_overflow_opens_project_details",[self=shared_from_this()] {
+                installed_shell()->status_row()->request_prepare();
+                self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor; },
+                    "header_navigation_keeps_project",[self] {
+                        self->check(self->m_plater->model().objects.size() >= 2,"header_navigation_preserves_objects");
+                        self->verify_print_preflight(PrintAction::Print);
+                        self->begin_slice_all_warm();
+                    });
+            });
+    }
+
+    HeaderMenu* visible_header_menu() const
+    {
+        // Dismissed popups remain in the wx tree until delayed destruction.
+        // Only the currently shown popup represents a user-visible menu.
+        for (auto* child : installed_shell()->status_row()->GetChildren())
+            if (auto* menu = dynamic_cast<HeaderMenu*>(child); menu && menu->IsShown()) return menu;
+        return nullptr;
+    }
+
+    void verify_print_preflight(PrintAction action)
+    {
+        // Close only the expected native confirmation with Cancel. No printer
+        // is selected and no Send button is ever invoked by this test.
+        bool observed = false;
+        wxEvtHandler handler;
+        wxTimer timer(&handler);
+        handler.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+            for (auto* window : wxTopLevelWindows) {
+                auto* dialog = dynamic_cast<wxDialog*>(window);
+                if (dialog && dialog->IsModal() && dialog->GetTitle() == "Send print job") {
+                    observed = true;
+                    dialog->EndModal(wxID_CANCEL);
+                    timer.Stop();
+                    return;
+                }
+            }
+        });
+        timer.Start(50);
+        installed_shell()->status_row()->request_action(action);
+        timer.Stop();
+        check(observed, action == PrintAction::Print ? "print_opens_cancellable_native_preflight" : "print_all_opens_cancellable_native_preflight");
     }
 
     bool all_nonempty_plates_sliced()
@@ -423,16 +591,16 @@ private:
     // the same menu dispatch must slice every nonempty plate without crashing.
     void begin_slice_all_warm()
     {
-        wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_ALL));
-        wait_until([this] { return all_nonempty_plates_sliced(); }, "slice_all_completes_all_plates",
+        auto& plates = m_plater->get_partplate_list();
+        for (int i = 0; i < plates.get_plate_count(); ++i)
+            if (!plates.get_plate(i)->is_slice_result_valid()) { m_plater->select_plate(i); break; }
+        installed_shell()->status_row()->request_action(PrintAction::SliceAll);
+        wait_until([this] { return all_nonempty_plates_sliced() && !m_plater->is_background_process_slicing(); }, "slice_all_completes_all_plates",
                    [self = shared_from_this()] {
-                       // Restore the deterministic pre-scenario state the
-                       // later phases assume: first plate active, Prepare
-                       // shown. on_action_slice_all switches the shown panel
-                       // to Preview directly without moving the Notebook tab,
-                       // so the tab still reads Prepare; re-align the tab to
-                       // Preview first or the Prepare selection is a no-op
-                       // that fires no page-changed event.
+                       self->check(!self->m_plater->is_preview_shown(), "slice_all_stays_in_prepare");
+                       self->check(!self->m_plater->get_preview_canvas3D()->is_all_plates_selected(), "slice_all_does_not_select_hidden_preview");
+                       self->verify_print_preflight(PrintAction::PrintAll);
+                       // Restore the deterministic first-plate state for later phases.
                        self->m_plater->select_plate(0);
                        installed_shell()->status_row()->request_check_print();
                        installed_shell()->status_row()->request_prepare();
@@ -447,7 +615,7 @@ private:
     {
         check(!m_plater->is_preview_shown(), "cold_starts_in_prepare");
         check(m_plater->get_partplate_list().get_nonempty_plate_list().size() > 1, "cold_fixture_has_multiple_plates");
-        wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_ALL));
+        installed_shell()->status_row()->request_slice(true);
         wait_until([this] { return all_nonempty_plates_sliced(); }, "cold_slice_all_completes_all_plates",
                    [self = shared_from_this()] {
                        self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "cold_teardown_project");
@@ -898,7 +1066,7 @@ private:
         installed_shell()->status_row()->request_slice();
         wait_until([this] {
             const auto* plate = m_plater->get_partplate_list().get_curr_plate();
-            return plate && plate->is_slice_result_valid();
+            return plate && plate->is_slice_result_valid() && !m_plater->is_background_process_slicing();
         }, "mcp_fixture_has_real_slice", [self = shared_from_this(), next] {
             installed_shell()->status_row()->request_prepare();
             self->wait_until([self] { return !self->m_plater->is_preview_shown(); }, "mcp_fixture_prepare", next);
@@ -931,12 +1099,12 @@ private:
                 else
                     self->check(result["ttlMs"] == 0 && result["cacheScope"] == "private", "mcp_real_catalog_cache_policy");
                 const auto tools = result["tools"];
-                self->check(tools.size() == 5 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
+                self->check(tools.size() == 6 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];
                     self->check(result["plateCount"] == 2 && result["objectCount"] == self->m_objects_before_tool, "mcp_real_workspace_snapshot");
-                    self->mcp_settings_reads();
+                    self->mcp_slice_review(result);
                 });
             });
         });
@@ -964,6 +1132,28 @@ private:
                     self->mcp_mutation(0);
                 });
             });
+        });
+    }
+
+    void mcp_slice_review(const nlohmann::json& snapshot)
+    {
+        nlohmann::json arguments;
+        for (const auto& plate : snapshot["plates"]["items"])
+            if (plate["active"] == true) arguments = {{"sessionId", snapshot["sessionId"]}, {"plateId", plate["plateId"]},
+                {"sliceResultId", plate["sliceResultId"]}, {"findings", {"Fixture: inspect opening"}}};
+        check(!arguments.is_null() && arguments["sliceResultId"] != "", "mcp_exposes_completed_slice_identity");
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "report_slice_review"}, {"arguments", arguments}}));
+        mcp_wait([self = shared_from_this()] {
+            self->check(self->mcp_result()["structuredContent"]["reported"] == true, "mcp_slice_report_succeeds");
+            auto* row = installed_shell()->status_row();
+            self->check(primary_print_action(row->action_state()).primary.action == PrintAction::CheckPrint, "mcp_report_updates_header");
+            row->request_check_print();
+            self->wait_until([self] { return self->m_plater->is_preview_shown() &&
+                primary_print_action(installed_shell()->status_row()->action_state()).primary.action == PrintAction::Print; },
+                "mcp_finding_can_be_reviewed", [self] {
+                    installed_shell()->status_row()->request_prepare();
+                    self->mcp_settings_reads();
+                });
         });
     }
 
@@ -1031,7 +1221,11 @@ private:
                 if (scenario == 1) {
                     self->check(content["processPresetDirty"] == true, "mcp_settings_mark_preset_dirty");
                     self->wait_until([self] { return !self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid(); },
-                        "mcp_settings_invalidate_real_slice", [self] { self->mcp_mutation(2); });
+                        "mcp_settings_invalidate_real_slice", [self] {
+                            self->check(primary_print_action(installed_shell()->status_row()->action_state()).primary.action == PrintAction::Slice,
+                                        "settings_change_returns_header_to_slice");
+                            self->mcp_mutation(2);
+                        });
                     return;
                 }
             } else {
@@ -1410,9 +1604,9 @@ private:
 
     void phase6_verify_and_revert()
     {
-        check(status_row_labels(installed_shell()->status_row())
+        check(installed_shell()->status_row()->project_summary()
                   .Contains(wxString::FromUTF8("Prints \xC2\xB7 1")),
-              "status_row_print_count_follows_the_ledger");
+              "overflow_print_count_follows_the_ledger");
         const Agent::BuildRecord build = persistence().document().builds().front();
         const Agent::ExportedCopyRecord copy = persistence().document().exported_copies().front();
         const Agent::PhysicalPrintRecord print = persistence().document().physical_prints().front();
@@ -1515,8 +1709,37 @@ private:
         StatusRow* row = installed_shell()->status_row();
         check(row->IsShown() && row->GetSize().GetWidth() > 0, "status_row_survives_resize");
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "canvas_survives_resize");
+        verify_header_layout();
+        m_frame->SetSize(m_frame->FromDIP(900),original.y);
+        m_frame->Layout();
+        auto* setup = wxWindow::FindWindowByName("Printer setup",row);
+        setup->SetLabel(wxString('W',180));
+        row->SendSizeEvent();
+        verify_header_layout();
+        row->refresh();
         m_frame->SetSize(original);
         m_frame->Layout();
+    }
+
+    void verify_header_layout()
+    {
+        auto* row = installed_shell()->status_row();
+        auto* home = wxWindow::FindWindowByName("Home navigation",row);
+        auto* setup = wxWindow::FindWindowByName("Printer setup",row);
+        auto* action = wxWindow::FindWindowByName("Next print action",row);
+        auto* arrow = wxWindow::FindWindowByName("Print actions",row);
+        auto* more = wxWindow::FindWindowByName("Project actions",row);
+        check(home && setup && action && arrow && more,"header_has_all_five_controls");
+        if (!home || !setup || !action || !arrow || !more) return;
+        check(row->GetSize().y == row->FromDIP(56),"header_matches_56_dip_design");
+        check(home->GetPosition().x == row->FromDIP(16),"header_home_left_margin");
+        check(home->GetRect().GetRight() < setup->GetPosition().x && setup->GetRect().GetRight() < action->GetPosition().x,
+              "header_home_setup_actions_order_without_overlap");
+        check(action->GetPosition().x+action->GetSize().x == arrow->GetPosition().x,"header_split_halves_joined");
+        check(action->GetSize().y == row->FromDIP(34) && arrow->GetSize().y == action->GetSize().y,"header_action_height");
+        check(more->GetPosition().x+more->GetSize().x == row->GetSize().x-row->FromDIP(16),"header_overflow_right_aligned");
+        check(!setup->GetLabel().Contains("Plate ") && !setup->GetLabel().Contains("@"),"header_setup_compact_no_plate_or_raw_suffix");
+        check(!status_row_labels(row).Contains(wxString::FromUTF8("Prints \xC2\xB7")),"header_has_no_standalone_print_count");
     }
 
     void verify_project_replacement()
@@ -1718,12 +1941,13 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Mcp;
         else if (argument == "--mcp-setup")
             state->mode = HarnessState::Mode::McpSetup;
-        else if (argument == "--manual-mcp") {
+        else if (argument == "--manual-mcp" || argument == "--header-visual") {
             if (++index == argc) {
                 std::cerr << "--manual-mcp requires a dedicated fixture directory\n";
                 return 2;
             }
             state->mode = HarnessState::Mode::ManualMcp;
+            state->header_visual = argument == "--header-visual";
             data_directory = fs::absolute(argv[index]);
         }
         else if (argument == "--mcp-bridge") {

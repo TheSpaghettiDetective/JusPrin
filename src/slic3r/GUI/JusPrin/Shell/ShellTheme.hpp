@@ -34,6 +34,7 @@ struct ShellPalette
     wxColour action_disabled_text;
     wxColour status_warning;
     wxColour status_success;
+    wxColour status_success_on_action;
     wxColour status_danger;
 };
 

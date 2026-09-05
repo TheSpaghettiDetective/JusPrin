@@ -103,6 +103,7 @@ TEST_CASE("action text is readable on the action fill in every state", "[brand]"
         }
         CHECK(contrast(a.at("secondaryText"), a.at("secondary")) >= 4.5);
         CHECK(contrast(a.at("dangerText"), a.at("danger")) >= 4.5);
+        CHECK(contrast(tokens.at("semantic").at(mode).at("status").at("successOnAction"), a.at("primary")) >= 3.0);
         // Disabled controls are exempt from the contrast minimum (WCAG 1.4.3);
         // only guard against a fully invisible label.
         CHECK(contrast(a.at("disabledText"), a.at("disabled")) >= 2.0);

@@ -90,11 +90,12 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    REQUIRE(body["tools"].size() == 6);
+    REQUIRE(body["tools"].size() == 8);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
-        CHECK(tool["strict"] == (name == "duplicate_object" || name == "inspect_selection" || name == "settings_get"));
+        CHECK(tool["strict"] == (name == "duplicate_object" || name == "inspect_selection" || name == "settings_get" ||
+                                  name == "report_slice_review" || name == "workspace_inspect"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
         REQUIRE(definition != nullptr);
@@ -103,7 +104,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
+    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection", "report_slice_review", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -167,7 +168,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
+    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "report_slice_review", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},

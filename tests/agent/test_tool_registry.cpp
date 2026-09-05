@@ -65,9 +65,9 @@ TEST_CASE("tool registry definitions are unique deterministic and schema-backed"
 TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][exposure]")
 {
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::InApp)) ==
-          std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
+          std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "report_slice_review", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
-          std::vector<std::string>{"settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
+          std::vector<std::string>{"report_slice_review", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
           std::vector<std::string>{"record_build", "record_export_copy", "record_physical_print"});
 
@@ -118,4 +118,22 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     unsupported.output_schema["maximum"] = 1;
     CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, snapshot)), std::logic_error);
     CHECK(registry.approval_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
+}
+
+TEST_CASE("Slice reports have bounded typed arguments", "[tools][review]")
+{
+    const auto& registry = ToolRegistry::instance();
+    const auto& tool = *registry.find("report_slice_review");
+    json args{{"sessionId", "1"}, {"plateId", "2"}, {"sliceResultId", "3"}, {"findings", json::array()}};
+    CHECK(registry.validate_call(tool, args.dump()).valid());
+    CHECK(registry.validate_output(tool, json{{"reported", true}}));
+    for (const auto& override : std::vector<json>{
+             {{"reviewed", true}}, {{"sliceResultId", 3}}, {{"sliceResultId", "0"}},
+             {{"plateId", "18446744073709551616"}}, {{"findings", std::vector<std::string>(17, "concern")}},
+             {{"findings", {std::string(kToolLabelLimit + 1, 'x')}}}, {{"findings", {""}}}, {{"findings", {false}}}}) {
+        auto invalid = args;
+        invalid.update(override);
+        CAPTURE(invalid.dump());
+        CHECK_FALSE(registry.validate_call(tool, invalid.dump()).valid());
+    }
 }

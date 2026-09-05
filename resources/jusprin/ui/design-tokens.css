@@ -21,6 +21,7 @@
   --jp-action-disabled: #E4E0E6;
   --jp-action-disabled-text: #8A838F;
   --jp-status-success: #2D6A55;
+  --jp-status-success-on-action: #58B894;
   --jp-status-danger: #B44757;
   --jp-status-warning: #D49A2A;
 }
@@ -47,6 +48,7 @@
   --jp-action-disabled: #342C3B;
   --jp-action-disabled-text: #857B8C;
   --jp-status-success: #58B894;
+  --jp-status-success-on-action: #174735;
   --jp-status-danger: #F07A8E;
   --jp-status-warning: #E9B960;
 }

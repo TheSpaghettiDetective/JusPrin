@@ -74,6 +74,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     // Saved before any mutation so a partial-install rollback restores the
     // real prior state, not a default.
     m_saved_collapse_toolbar_enabled = plater->get_collapse_toolbar().is_enabled();
+    m_saved_auto_preview_after_slice = plater->auto_preview_after_slice();
 
     try {
         m_workspace = std::make_unique<Workspace::OrcaWorkspaceAdapter>(*plater);
@@ -87,7 +88,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         Agent::AgentRuntime agent = Agent::load_agent_runtime(wxGetApp().app_config);
 
-        m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel, *m_persistence);
+        m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel, *m_persistence, m_workspace->slice_reviews());
         m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
@@ -109,6 +110,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         tabpanel.GetBtnsListCtrl()->Hide();
         plater->set_sidebar_available(false);
+        plater->set_auto_preview_after_slice(false);
 
         // The collapse toolbar belongs to the Plater and is shared by the
         // Prepare and Preview canvases, so this controller is its single
@@ -160,6 +162,7 @@ void ShellController::uninstall()
     m_prepare_canvas_presentation.detach();
     m_plater->get_collapse_toolbar().set_enabled(m_saved_collapse_toolbar_enabled);
     m_plater->set_sidebar_available(true);
+    m_plater->set_auto_preview_after_slice(m_saved_auto_preview_after_slice);
     m_tabpanel->GetBtnsListCtrl()->Show();
 
     if (m_center_sizer != nullptr) {

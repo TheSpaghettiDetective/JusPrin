@@ -7,6 +7,7 @@ add_executable(agent_bridge_tests
     test_project_state.cpp
     test_tool_coordinator.cpp
     test_tool_registry.cpp
+    test_primary_print_action.cpp
     test_mcp_protocol.cpp
     test_mcp_runtime.cpp
     test_mcp_discovery.cpp
