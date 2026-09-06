@@ -9,7 +9,7 @@
 
 namespace Slic3r::GUI::JusPrin {
 
-enum class HeaderIcon { None, Back, Down, More, Machine, Slice, Eye, Plates, Export, Print, Cancel };
+enum class HeaderIcon { None, Back, Down, Up, More, Machine, Slice, Eye, Plates, Export, Print, Cancel };
 enum class HeaderStyle { Quiet, Setup, PrimaryLeft, PrimaryRight, Outline, Menu };
 
 // Fork-owned painting, with the same wxEVT_BUTTON contract as native controls.
@@ -27,6 +27,13 @@ public:
     void set_menu_selected(bool selected) { m_menu_selected = selected; Refresh(); }
     // A primary-left half squares its right edge only while a menu half sits beside it.
     void set_attached(bool attached) { m_attached = attached; Refresh(); }
+    // A menu trigger holds a pressed fill and flips its chevron for as long as
+    // its menu is open. HeaderMenu owns the flag; nothing else may set it.
+    void set_open(bool open) { m_open = open; Refresh(); }
+    bool is_open() const { return m_open; }
+    // Whether the last activation came from Return/Space rather than a click.
+    // A menu anchored here highlights its first row only in the keyboard case.
+    bool activated_by_keyboard() const { return m_keyboard_activated; }
     void SetLabel(const wxString& label) override;
     bool Enable(bool enabled = true) override;
     wxSize DoGetBestSize() const override;
@@ -36,7 +43,7 @@ public:
 
 private:
     void paint(wxPaintEvent&);
-    void activate();
+    void activate(bool from_keyboard);
     const ShellTheme& m_theme;
     HeaderStyle m_style;
     HeaderIcon m_icon;
@@ -45,6 +52,8 @@ private:
     bool m_dark{false}, m_hover{false}, m_pressed{false}, m_status{false}, m_warning{false};
     bool m_menu_selected{false};
     bool m_attached{true};
+    bool m_open{false};
+    bool m_keyboard_activated{false};
 };
 
 struct HeaderMenuItem {
@@ -63,7 +72,7 @@ class HeaderMenu : public PopupWindow
 public:
     HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark,
                std::vector<HeaderMenuItem> items);
-    void open(wxWindow& anchor);
+    void open(HeaderButton& anchor);
     HeaderButton* selected_item() const { return m_selected < 0 ? nullptr : m_items[m_selected]; }
 protected:
     void OnDismiss() override;
@@ -71,7 +80,7 @@ private:
     void close();
     void select_item(int index);
     std::vector<HeaderButton*> m_items;
-    wxWeakRef<wxWindow> m_anchor;
+    wxWeakRef<HeaderButton> m_anchor;
     bool m_closed{false};
     int m_selected{-1};
 };

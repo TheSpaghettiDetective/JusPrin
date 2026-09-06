@@ -318,8 +318,7 @@ wxString StatusRow::action_label(PrintAction action, bool primary) const
     case PrintAction::Cancel: return primary ? _L("Slicing…") : _L("Cancel");
     case PrintAction::CheckPrint: return _L("Check print");
     case PrintAction::Print: return primary ? (state.plate_count > 1 ? wxString::Format(_L("Print plate %d"), state.plate_number) : _L("Print")) : _L("Print…");
-    case PrintAction::PrintAll: return _L("Print all plates") + "  " +
-        (state.plate_count > 1 ? wxString::Format(_L("%d sliced"), state.sliced_count) : _L("1 plate"));
+    case PrintAction::PrintAll: return _L("Print all plates…");
     case PrintAction::Export: return _L("Export sliced file…");
     case PrintAction::Prepare: return _L("Back to Prepare");
     }
@@ -341,12 +340,9 @@ void StatusRow::show_action_menu()
         else if (item.action == PrintAction::Prepare) icon = HeaderIcon::Back;
         else if (item.action == PrintAction::Cancel) icon = HeaderIcon::Cancel;
         wxString detail;
-        wxString label = action_label(item.action);
-        if (item.action == PrintAction::PrintAll) {
-            label = _L("Print all plates");
+        if (item.action == PrintAction::PrintAll)
             detail = wxString::Format(_L("%d sliced"), state.sliced_count);
-        }
-        menu.push_back({label, icon, detail, item.enabled, item.action == PrintAction::Export || item.action == PrintAction::Prepare,
+        menu.push_back({action_label(item.action), icon, detail, item.enabled, item.action == PrintAction::Export || item.action == PrintAction::Prepare,
             [this,identity,action=item.action] {
                 // The menu describes one plate/result. A later plate switch or
                 // project replacement must not retarget that displayed command.

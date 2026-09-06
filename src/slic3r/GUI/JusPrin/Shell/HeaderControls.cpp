@@ -32,6 +32,7 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
     switch (icon) {
     case HeaderIcon::Back: line({{10,3},{5,8},{10,13}}); break;
     case HeaderIcon::Down: line({{4,6},{8,10},{12,6}}); break;
+    case HeaderIcon::Up: line({{4,10},{8,6},{12,10}}); break;
     case HeaderIcon::More:
         gc.SetBrush(wxBrush(color));
         for (int i = 0; i < 3; ++i) gc.DrawEllipse(3 + i * 4, 7, 1.5, 1.5);
@@ -55,8 +56,8 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         line({{2,5},{8,2},{14,5},{8,8},{2,5}});
         line({{2,8},{8,11},{14,8}}); line({{2,11},{8,14},{14,11}}); break;
     case HeaderIcon::Export:
-        line({{7,4},{3,4},{3,13},{12,13},{12,9}});
-        line({{8,2},{14,2},{14,8}}); line({{14,2},{7,9}}); break;
+        line({{8,2},{8,9.5}}); line({{4.5,6},{8,9.5},{11.5,6}});
+        line({{3,11},{3,13.5},{13,13.5},{13,11}}); break;
     case HeaderIcon::Print:
         line({{2,7},{14,2},{9,14},{7,9},{2,7}}); line({{7,9},{14,2}}); break;
     case HeaderIcon::None: break;
@@ -89,23 +90,24 @@ HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyl
         m_pressed = false;
         if (HasCapture()) ReleaseMouse();
         Refresh();
-        if (invoke) activate();
+        if (invoke) activate(false);
     });
     Bind(wxEVT_MOUSE_CAPTURE_LOST, [this](wxMouseCaptureLostEvent&) { m_pressed = false; Refresh(); });
     Bind(wxEVT_KEY_DOWN, [this](wxKeyEvent& e) {
         if (e.GetKeyCode() == WXK_SPACE) { m_pressed = true; Refresh(); }
-        else if (e.GetKeyCode() == WXK_RETURN || e.GetKeyCode() == WXK_NUMPAD_ENTER) activate();
+        else if (e.GetKeyCode() == WXK_RETURN || e.GetKeyCode() == WXK_NUMPAD_ENTER) activate(true);
         else e.Skip();
     });
     Bind(wxEVT_KEY_UP, [this](wxKeyEvent& e) {
-        if (e.GetKeyCode() == WXK_SPACE && m_pressed) { m_pressed = false; Refresh(); activate(); }
+        if (e.GetKeyCode() == WXK_SPACE && m_pressed) { m_pressed = false; Refresh(); activate(true); }
         else e.Skip();
     });
 }
 
-void HeaderButton::activate()
+void HeaderButton::activate(bool from_keyboard)
 {
     if (!IsEnabled()) return;
+    m_keyboard_activated = from_keyboard;
     wxCommandEvent event(wxEVT_BUTTON, GetId());
     event.SetEventObject(this);
     ProcessWindowEvent(event);
@@ -140,9 +142,9 @@ void HeaderButton::paint(wxPaintEvent&)
     const bool primary = m_style == HeaderStyle::PrimaryLeft || m_style == HeaderStyle::PrimaryRight;
     const auto foreground = !IsEnabled() ? p.action_disabled_text : primary ? p.action_primary_text :
                             m_style == HeaderStyle::Quiet ? p.text_secondary : p.text_primary;
-    wxColour fill = primary ? (!IsEnabled() ? p.action_disabled : m_pressed ? p.action_primary_pressed :
+    wxColour fill = primary ? (!IsEnabled() ? p.action_disabled : m_pressed || m_open ? p.action_primary_pressed :
                               m_hover ? p.action_primary_hover : p.action_primary) :
-                   m_hover && IsEnabled() ? p.surface_selected :
+                   (m_hover || m_open || m_menu_selected) && IsEnabled() ? p.surface_selected :
                    m_style == HeaderStyle::Setup ? p.surface_subtle :
                    m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas;
     const double w = GetClientSize().x, h = GetClientSize().y, r = FromDIP(primary ? 8 : 4);
@@ -158,12 +160,13 @@ void HeaderButton::paint(wxPaintEvent&)
         gc->StrokeLine(0,FromDIP(7),0,h-FromDIP(7));
     }
     const double icon_size = FromDIP(16);
+    const HeaderIcon icon = m_open && m_icon == HeaderIcon::Down ? HeaderIcon::Up : m_icon;
     if (m_style == HeaderStyle::PrimaryRight || m_style == HeaderStyle::Outline) {
-        draw_icon(*gc, m_icon, (w-icon_size)/2,(h-icon_size)/2,icon_size,foreground);
+        draw_icon(*gc, icon, (w-icon_size)/2,(h-icon_size)/2,icon_size,foreground);
     } else {
         double x = FromDIP(12);
-        if (m_icon != HeaderIcon::None) {
-            draw_icon(*gc,m_icon,x,(h-icon_size)/2,icon_size,foreground);
+        if (icon != HeaderIcon::None) {
+            draw_icon(*gc,icon,x,(h-icon_size)/2,icon_size,foreground);
             x += FromDIP(24);
         }
         double reserve = FromDIP(12 + (m_status ? 16 : 0) + (m_style == HeaderStyle::Setup ? 56 : 0));
@@ -189,10 +192,12 @@ void HeaderButton::paint(wxPaintEvent&)
                 gc->SetBrush(i < int(m_slots.size()) ? wxBrush(m_slots[i]) : *wxTRANSPARENT_BRUSH);
                 gc->DrawEllipse(w-FromDIP(64-i*10),h/2-FromDIP(3),FromDIP(6),FromDIP(6));
             }
-            draw_icon(*gc,HeaderIcon::Down,w-FromDIP(24),(h-icon_size)/2,icon_size,foreground);
+            draw_icon(*gc,m_open ? HeaderIcon::Up : HeaderIcon::Down,w-FromDIP(24),(h-icon_size)/2,icon_size,foreground);
         }
     }
-    if (HasFocus() || m_menu_selected) {
+    // Menu rows never paint a focus ring: the popup owns selection for the whole
+    // list, so a row holding native focus is an artifact, not a selected row.
+    if (HasFocus() && m_style != HeaderStyle::Menu) {
         gc->SetBrush(*wxTRANSPARENT_BRUSH); gc->SetPen(wxPen(p.border_focus,FromDIP(2)));
         gc->DrawRoundedRectangle(2,2,w-4,h-4,std::max(0.,r-2));
     }
@@ -255,6 +260,9 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
         }
         if (key != WXK_UP && key != WXK_DOWN && key != WXK_HOME && key != WXK_END) { e.Skip(); return; }
         int index = m_selected;
+        // With no row selected, Down starts before the first and Up wraps back
+        // from the last -- the same offset trick Home and End use below.
+        if (index < 0) index = key == WXK_UP ? 0 : -1;
         if (key == WXK_HOME) index = -1;
         if (key == WXK_END) index = 0;
         const int step = key == WXK_UP || key == WXK_END ? -1 : 1;
@@ -269,15 +277,20 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
     Bind(wxEVT_CHAR,handle_key);
 }
 
-void HeaderMenu::open(wxWindow& anchor)
+void HeaderMenu::open(HeaderButton& anchor)
 {
     m_anchor = &anchor;
-    Position(anchor.ClientToScreen(wxPoint(anchor.GetSize().x-GetSize().x,anchor.GetSize().y)),wxSize(0,0));
+    anchor.set_open(true);
+    Position(anchor.ClientToScreen(wxPoint(anchor.GetSize().x-GetSize().x,anchor.GetSize().y+FromDIP(4))),wxSize(0,0));
     Popup();
     Raise();
     // Like an owner-drawn list, the popup owns its keyboard selection. Cocoa
     // can deliver keys to the popup without assigning focus to a child view.
-    for (size_t i=0;i<m_items.size();++i) if (m_items[i]->IsEnabled()) { select_item(int(i)); break; }
+    // A mouse-opened menu highlights nothing until the pointer or an arrow key
+    // picks a row; a keyboard-opened one starts on the first row so a keyboard
+    // user has a visible starting point. Arrows work from either state.
+    if (anchor.activated_by_keyboard())
+        for (size_t i=0;i<m_items.size();++i) if (m_items[i]->IsEnabled()) { select_item(int(i)); break; }
 }
 void HeaderMenu::select_item(int index)
 {
@@ -289,7 +302,7 @@ void HeaderMenu::OnDismiss()
 {
     if (m_closed) return; // Native dismissal and an explicit Escape can coincide.
     m_closed = true;
-    if (m_anchor) m_anchor->SetFocus();
+    if (m_anchor) { m_anchor->set_open(false); m_anchor->SetFocus(); }
     Destroy();
 }
 void HeaderMenu::close() { Dismiss(); OnDismiss(); }

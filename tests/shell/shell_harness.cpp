@@ -557,6 +557,37 @@ private:
         then();
     }
 
+    // A mouse-opened menu must start with nothing highlighted, matching native
+    // menus; a keyboard-opened one must start on the first enabled row so a
+    // keyboard user has somewhere to arrow from. Keyboard runs first so the
+    // mouse case proves a click clears the flag rather than reading its default.
+    void verify_header_menu_open_paths(HeaderButton* chevron)
+    {
+        if (!chevron) return;
+        auto dismiss = [](HeaderMenu* menu) {
+            if (!menu) return;
+            wxKeyEvent escape(wxEVT_CHAR_HOOK); escape.m_keyCode = WXK_ESCAPE;
+            menu->GetEventHandler()->ProcessEvent(escape);
+        };
+        wxKeyEvent open_key(wxEVT_KEY_DOWN); open_key.m_keyCode = WXK_RETURN;
+        chevron->ProcessWindowEvent(open_key);
+        auto* key_menu = visible_header_menu();
+        check(key_menu && key_menu->selected_item(),"header_keyboard_menu_starts_on_first_row");
+        dismiss(key_menu);
+
+        wxMouseEvent press(wxEVT_LEFT_DOWN), release(wxEVT_LEFT_UP);
+        chevron->ProcessWindowEvent(press);
+        chevron->ProcessWindowEvent(release);
+        auto* mouse_menu = visible_header_menu();
+        check(mouse_menu && !mouse_menu->selected_item(),"header_mouse_menu_starts_unhighlighted");
+        if (mouse_menu) {
+            wxKeyEvent down(wxEVT_CHAR); down.m_keyCode = WXK_DOWN;
+            mouse_menu->GetEventHandler()->ProcessEvent(down);
+            check(mouse_menu->selected_item(),"header_mouse_menu_arrow_selects_first_row");
+        }
+        dismiss(mouse_menu);
+    }
+
     void verify_header_menus()
     {
         auto* row = installed_shell()->status_row();
@@ -564,12 +595,22 @@ private:
         auto* menu = visible_header_menu();
         check(menu && menu->IsShown(),"header_action_menu_visible");
         auto* check_item = menu ? wxWindow::FindWindowByName("Check print",menu) : nullptr;
-        check(check_item && wxWindow::FindWindowByName("Print all plates",menu),"header_menu_has_contextual_actions");
+        check(check_item && wxWindow::FindWindowByName("Print all plates…",menu),"header_menu_has_contextual_actions");
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         check(menu && menu->GetScreenRect().GetRight() == arrow->GetScreenRect().GetRight(),"header_menu_right_edge_matches_split_button");
+        // The trigger must read as held down (and show an up chevron) for as
+        // long as the menu stands, and must not stay stuck that way after.
+        auto* chevron = dynamic_cast<HeaderButton*>(arrow);
+        check(chevron && chevron->is_open(),"header_menu_trigger_marked_open");
+        // A touching surface reads as an extension of the button whose corner
+        // radius it cannot reconcile with, so the menu stands off by 4px.
+        check(menu && menu->GetScreenRect().GetTop() == arrow->GetScreenRect().GetBottom()+1+row->FromDIP(4),
+              "header_menu_stands_off_split_button");
         wxKeyEvent escape(wxEVT_CHAR_HOOK); escape.m_keyCode = WXK_ESCAPE;
         menu->GetEventHandler()->ProcessEvent(escape);
         check(!menu->IsShown(),"header_menu_escape_dismisses");
+        check(chevron && !chevron->is_open(),"header_menu_trigger_open_state_cleared");
+        verify_header_menu_open_paths(chevron);
         row->request_home();
         wait_until([this] { return m_notebook->GetSelection() == MainFrame::tpHome &&
             m_notebook->GetPage(MainFrame::tpHome)->IsShown(); },"header_home_opens_native_home",
@@ -1811,8 +1852,16 @@ private:
         check(home->GetPosition().x == row->FromDIP(16),"header_home_left_margin");
         check(home->GetRect().GetRight() < setup->GetPosition().x && setup->GetRect().GetRight() < action->GetPosition().x,
               "header_home_setup_actions_order_without_overlap");
-        check(action->GetPosition().x+action->GetSize().x == arrow->GetPosition().x,"header_split_halves_joined");
-        check(action->GetSize().y == row->FromDIP(34) && arrow->GetSize().y == action->GetSize().y,"header_action_height");
+        // The reducer returns no menu items for a single unsliced plate, and the
+        // chevron half is hidden in that state, so the joined-halves geometry
+        // only applies while both halves are laid out.
+        if (arrow->IsShown()) {
+            check(action->GetPosition().x+action->GetSize().x == arrow->GetPosition().x,"header_split_halves_joined");
+            check(arrow->GetSize().y == action->GetSize().y,"header_split_halves_equal_height");
+        } else {
+            check(action->GetRect().GetRight() < more->GetPosition().x,"header_lone_action_precedes_overflow");
+        }
+        check(action->GetSize().y == row->FromDIP(34),"header_action_height");
         check(more->GetPosition().x+more->GetSize().x == row->GetSize().x-row->FromDIP(16),"header_overflow_right_aligned");
         check(!setup->GetLabel().Contains("Plate ") && !setup->GetLabel().Contains("@"),"header_setup_compact_no_plate_or_raw_suffix");
         check(!status_row_labels(row).Contains(wxString::FromUTF8("Prints \xC2\xB7")),"header_has_no_standalone_print_count");
