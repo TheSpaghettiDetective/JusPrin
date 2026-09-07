@@ -139,6 +139,9 @@ describe('App', () => {
     expect(screen.getByText('what is on the plate?')).toBeInTheDocument();
     expect(screen.getByText('Two cubes.')).toBeInTheDocument();
     expect(screen.getByTestId('context-summary')).toHaveTextContent('Two Cubes');
+    // The plan line names the material the plan is written against, so a spool
+    // swap is visible here as well as on the chip.
+    expect(screen.getByTestId('context-summary')).toHaveTextContent('Generic PLA');
     expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-a');
   });
 
