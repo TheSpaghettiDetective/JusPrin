@@ -99,6 +99,9 @@ Design for a dense, native, high-DPI desktop application on Windows, macOS, and 
 - Standard control radius: 6 DIP.
 - Compact or branded action radius: 8 DIP.
 - Window action and large-dialog radius: 12 DIP.
+- Capsule radius: `pill`, for status chips and progress tracks whose shape is
+  the full height. Menu rows are the opposite case and carry no radius: they
+  run the full width of an already-rounded popover.
 - Reserve 16–24 DIP radii for onboarding and marketing, not the main application shell.
 
 Avoid web-only assumptions such as oversized controls, blur-heavy or glass surfaces, fixed physical pixels, and platform-specific fonts.
