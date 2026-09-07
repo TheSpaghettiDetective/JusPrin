@@ -215,6 +215,10 @@ export interface WorkspaceContext {
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };
   history: { canUndo: boolean; canRedo: boolean };
   presetDeltas: PresetDeltaInfo[];
+  // ISO 4217 code from the machine's regional settings, empty when the OS does
+  // not say. OrcaSlicer itself has no currency concept, so this is the only
+  // thing that says what a cost is denominated in.
+  currency: string;
   // The agent's restatement of what this chat asked the setup to be, in the
   // user's words. Empty until a change is applied: talking does not write it.
   setupIntent: string;

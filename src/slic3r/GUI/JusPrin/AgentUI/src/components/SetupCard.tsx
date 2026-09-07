@@ -29,11 +29,20 @@ export function formatGrams(grams: number): string {
   return `${grams < 10 ? Math.round(grams * 10) / 10 : Math.round(grams)} g`;
 }
 
-// OrcaSlicer has no currency concept at all: filament_cost's unit is literally
-// "money/kg" and the slicer's own G-code legend prints "Cost: 1.12" with no
-// symbol. So the number carries a word instead, exactly as upstream does -- a
-// bare "1.12" next to "47 g" would read as one more measurement.
-export function formatCost(cost: number): string {
+// OrcaSlicer has no currency concept -- filament_cost's unit is literally
+// "money/kg" -- so the host reads the ISO code from the machine's regional
+// settings and the page formats it the way that viewer's locale writes money:
+// symbol placement, grouping, and the right number of decimals (yen has none).
+// Without a code there is nothing to denominate the number in, so it carries
+// the word "cost" the way the slicer's own G-code legend does.
+export function formatCost(cost: number, currency: string): string {
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cost);
+    } catch {
+      // An unknown code is not worth losing the number over.
+    }
+  }
   return `cost ${cost.toFixed(2)}`;
 }
 
@@ -80,21 +89,20 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // lines, as the design has it.
   const identity = !title && preset && deltaLabel !== '' ? preset : '';
 
-
   const facts: string[] = [];
   if (substantive && !title && !identity && preset) facts.push(preset);
-  if (substantive && material) facts.push(material);
   if (estimate) {
     facts.push(formatPrintTime(estimate.printTimeSeconds));
     facts.push(formatGrams(estimate.materialGrams));
     // A priced job so small it rounds to nothing reads exactly like the
     // unpriced case, so it takes the same exit: no clause rather than 0.00.
     if (estimate.materialCost !== null && estimate.materialCost >= 0.005)
-      facts.push(formatCost(estimate.materialCost));
+      facts.push(formatCost(estimate.materialCost, context.currency));
   }
-  // The estimate exists only after a slice. Saying so in a row the card
-  // already has is honest and costs no height; growing a row for it would not.
-  if (substantive && !estimate) facts.push('not sliced yet');
+  // "Not sliced yet" is a claim about the plate, not about whether we happen
+  // to hold a number: a sliced plate that yielded no usable estimate must not
+  // be described as unsliced. With no plate at all there is nothing to say.
+  if (substantive && !estimate && active !== null && !active.sliced) facts.push('not sliced yet');
 
   return { kicker: substantive, title, identity, facts, deltas, deltaLabel, preset, material };
 }
@@ -135,6 +143,10 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
     <section className="current-setup" data-testid="current-setup" aria-label="Current setup">
       <p className="current-setup-kicker">
         <span>Current setup</span>
+        {/* The material rides in the heading's dead space rather than on the
+            facts line, where it crowded out the cost. It is standing context,
+            it is always worth a glance, and here it costs no height. */}
+        {model.material && <span className="material" title={model.material}>{model.material}</span>}
         {model.deltaLabel && (
           <button
             type="button"
@@ -153,7 +165,9 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
           breaking the layout -- the full sentence lives in the expansion. */}
       {model.title && <p className="current-setup-title" title={model.title}>{model.title}</p>}
       {model.identity && <p className="current-setup-identity" title={model.identity}>{model.identity}</p>}
-      <p className="current-setup-facts">
+      {/* The row is omitted, not left blank: a sliced plate with no usable
+          estimate and an untouched preset has nothing to put on this line. */}
+      {(model.facts.length > 0 || model.deltaLabel) && <p className="current-setup-facts">
         <span className="clauses">
           {model.facts.map((fact, index) => (
             <span key={index}>
@@ -176,7 +190,7 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
             {model.deltaLabel}
           </button>
         )}
-      </p>
+      </p>}
       {expanded && model.deltaLabel && (
         // A temporary layer over the thread rather than a taller card: the
         // conversation is only covered while you are reading, and comes back

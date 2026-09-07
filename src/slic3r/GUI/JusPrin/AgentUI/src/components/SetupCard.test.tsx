@@ -15,6 +15,7 @@ function makeContext(overrides: {
   estimate?: SliceEstimateInfo | null;
   deltas?: PresetDeltaInfo[];
   sliced?: boolean;
+  currency?: string;
 } = {}): WorkspaceContext {
   return {
     sessionId: '1',
@@ -35,6 +36,7 @@ function makeContext(overrides: {
     selection: { status: 'none', objectIds: [] },
     history: { canUndo: false, canRedo: false },
     presetDeltas: overrides.deltas ?? [],
+    currency: overrides.currency ?? 'USD',
     setupIntent: overrides.setupIntent ?? '',
   };
 }
@@ -134,6 +136,29 @@ describe('setup card', () => {
     expect(card.querySelectorAll('p')).toHaveLength(3);
   });
 
+  it('writes money the way the regional settings write it', () => {
+    renderCard(makeContext({
+      setupIntent: 'Cheap and quick',
+      estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: 1.12 },
+      deltas: deltas(1),
+      currency: 'EUR',
+    }));
+    // Symbol, not a bare number -- the reader can tell it is money.
+    expect(screen.getByTestId('current-setup').textContent).toMatch(/€/);
+  });
+
+  it('falls back to the slicer\'s own wording when the OS names no currency', () => {
+    renderCard(makeContext({
+      setupIntent: 'Cheap and quick',
+      estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: 1.12 },
+      deltas: deltas(1),
+      currency: '',
+    }));
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('cost 1.12');
+    expect(card.textContent).not.toMatch(/[$£€¥]/);
+  });
+
   it('drops a priced job that rounds to nothing rather than printing 0.00', () => {
     renderCard(makeContext({
       setupIntent: 'A tiny part',
@@ -149,6 +174,29 @@ describe('setup card', () => {
     expect(card).toHaveTextContent('not sliced yet');
     expect(card).toHaveTextContent('5 changes from preset');
     expect(card.querySelectorAll('p')).toHaveLength(3);
+  });
+
+  it('never calls a sliced plate unsliced just because it has no estimate', () => {
+    // A slice can land without a usable estimate. Saying "not sliced yet"
+    // there is not a missing fact, it is a false one.
+    const context = makeContext({ setupIntent: 'Strong', deltas: deltas(2) });
+    context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, objects: [] }];
+    renderCard(context);
+    const card = screen.getByTestId('current-setup');
+    expect(card).not.toHaveTextContent('not sliced yet');
+    expect(card).toHaveTextContent('2 changes from preset');
+  });
+
+  it('omits the facts row rather than leaving an empty line on it', () => {
+    // Sliced but no usable estimate, and the preset untouched: there is
+    // nothing to put on that line, so the line is not there.
+    const context = makeContext({ setupIntent: 'Strong' });
+    context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, objects: [] }];
+    renderCard(context);
+    const card = screen.getByTestId('current-setup');
+    expect(card.querySelector('.current-setup-facts')).toBeNull();
+    // Heading and title only.
+    expect(card.querySelectorAll('p')).toHaveLength(2);
   });
 
   it('states the count for many objects rather than concatenating intents', () => {
@@ -266,9 +314,15 @@ describe('setup card formatting', () => {
   });
 
   it('prints money unadorned, the way the slicer does, since Orca has no currency', () => {
-    // Upstream's own legend reads "Cost: 1.12" -- no symbol, but a word.
-    expect(formatCost(1.1249)).toBe('cost 1.12');
-    expect(formatCost(12)).toBe('cost 12.00');
+    // With a currency from the OS, money is written the way that locale
+    // writes money -- including how many decimals it uses.
+    expect(formatCost(1.1249, 'USD')).toBe('$1.12');
+    expect(formatCost(1234.5, 'JPY')).toBe('¥1,235');
+    // Without one there is nothing to denominate it in, so it reads as the
+    // slicer's own legend does.
+    expect(formatCost(1.1249, '')).toBe('cost 1.12');
+    // An unknown code must not lose the number.
+    expect(formatCost(12, 'NOTACODE')).toBe('cost 12.00');
   });
 
   it('keeps a decimal only where a whole gram would be a lie', () => {

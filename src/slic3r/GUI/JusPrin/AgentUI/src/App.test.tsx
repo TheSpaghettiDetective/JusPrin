@@ -64,6 +64,7 @@ const context: WorkspaceContext = {
   selection: { status: 'objects', objectIds: ['21'] },
   history: { canUndo: false, canRedo: false },
   presetDeltas: [],
+  currency: 'USD',
   setupIntent: '',
 };
 

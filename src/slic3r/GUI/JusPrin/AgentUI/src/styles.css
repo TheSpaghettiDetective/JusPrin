@@ -104,7 +104,6 @@ body {
 .current-setup-kicker {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   font-size: 11px;
   line-height: 14px;
@@ -125,6 +124,17 @@ body {
 
 /* One line, always. The clauses give way before the handle does: the handle
    is the only way into the expansion, so it never gets clipped. */
+/* Pushed hard right, next to the chevron, and the first thing to give way if
+   the heading ever runs out of room. */
+.current-setup-kicker .material {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* The preset name standing in for a title: same one-line clamp, but it is a
    fact about the setup rather than something the agent said, so it does not
    take the title's weight. */

@@ -20,6 +20,7 @@ const context = {
   selection: { status: 'none' as const, objectIds: [] },
   history: { canUndo: false, canRedo: false },
   presetDeltas: [],
+  currency: 'USD',
   setupIntent: '',
 };
 

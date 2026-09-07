@@ -29,6 +29,7 @@ function context(o: {
     selection: { status: 'none', objectIds: [] },
     history: { canUndo: false, canRedo: false },
     presetDeltas: o.deltas ?? [],
+    currency: 'USD',
     setupIntent: o.setupIntent ?? '',
   };
 }

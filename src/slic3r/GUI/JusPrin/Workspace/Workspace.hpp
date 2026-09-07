@@ -159,6 +159,10 @@ struct WorkspaceSnapshot
     // Empty when the process preset is untouched, which is also the state a
     // non-FFF printer reports.
     std::vector<PresetDelta>    preset_deltas;
+    // ISO 4217 code from the machine's regional settings, or empty when the OS
+    // does not say. A cost is a bare number without it, so consumers drop the
+    // money rather than denominate it in a guess.
+    std::string                 currency;
 };
 
 enum class WorkspaceError : std::uint8_t {

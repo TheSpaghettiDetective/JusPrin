@@ -1,5 +1,6 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "OrcaSettings.hpp"
+#include "HostLocale.hpp"
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Model.hpp"
@@ -148,6 +149,11 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
     WorkspaceSnapshot result;
     result.session  = m_session;
     result.revision = m_changes.revision();
+
+    // Read once: regional settings do not change while the app runs, and this
+    // runs on every selection change.
+    static const std::string currency = host_currency_code();
+    result.currency = currency;
 
     result.setup.project_name  = m_plater.get_project_name().ToUTF8().data();
     result.setup.project_dirty = m_plater.is_project_dirty();
