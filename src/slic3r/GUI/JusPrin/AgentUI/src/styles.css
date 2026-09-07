@@ -178,7 +178,7 @@ button.danger { color: var(--status-danger); }
 .chat-list-header h1 { font-size: 18px; line-height: 24px; }
 .chat-list-header .chat-icon { border: 0; }
 .chat-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.chat-list-empty { margin: 16px; color: var(--text-secondary); font-size: 13px; }
+.chat-list-empty { margin: 16px; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
 button.chat-list-row {
   display: block;
   width: 100%;
@@ -194,20 +194,20 @@ button.chat-list-row {
 button.chat-list-row.selected { background: var(--surface-selected); }
 .chat-list-row:focus-visible { outline-offset: -2px; }
 .chat-list-row-top { display: flex; align-items: center; gap: 8px; }
-.chat-list-row-top strong { flex: 1; min-width: 0; font-size: 13px; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-list-row time { flex: 0 0 auto; margin-left: 4px; font-size: 11px; color: var(--text-secondary); }
+.chat-list-row-top strong { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-list-row time { flex: 0 0 auto; margin-left: 4px; font-size: 10px; line-height: 14px; color: var(--text-secondary); }
 .chat-list-preview { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 12px; line-height: 16px; }
 .chat-list-footer { flex: 0 0 auto; padding: 16px; border-top: 1px solid var(--border-subtle); background: var(--surface-subtle); }
 button.configure-agent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid var(--border-subtle); background: var(--surface-canvas); }
 button.configure-agent:hover:enabled { background: var(--surface-canvas); border-color: var(--border-subtle); }
 .configure-agent svg { color: var(--action-primary); }
 .configure-agent span { min-width: 0; }
-.configure-agent strong { display: block; font-size: 13px; line-height: 18px; }
-.configure-agent small { display: block; margin-top: 2px; font-size: 11px; line-height: 14px; color: var(--text-secondary); }
+.configure-agent strong { display: block; font-size: 14px; line-height: 20px; }
+.configure-agent small { display: block; margin-top: 2px; font-size: 10px; line-height: 14px; color: var(--text-secondary); }
 .chat-dialog-shade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px 16px; background: var(--surface-subtle); overflow-y: auto; }
 .chat-dialog { width: 100%; padding: 16px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-raised); }
-.chat-dialog h2 { margin: 0 0 12px; font-size: 16px; line-height: 22px; }
-.chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 13px; }
+.chat-dialog h2 { margin: 0 0 12px; font-size: 18px; line-height: 24px; }
+.chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
 .chat-dialog label { display: block; font-size: 12px; }
 .chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: 6px; }
 .chat-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
@@ -285,8 +285,8 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .markdown-content h2 {
-  font-size: 16px;
-  line-height: 20px;
+  font-size: 18px;
+  line-height: 24px;
 }
 
 .markdown-content h3,
@@ -603,13 +603,18 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-warnings {
   margin: 8px 0 0;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 10px;
+  line-height: 14px;
 }
 
+/* A slice warning is the most actionable line on the card, so it takes Label
+   (12/16 bold) rather than the Dense Metadata its sibling provenance line uses. */
 .history-warnings {
   padding-left: 18px;
   color: var(--status-warning);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
 }
 
 .long-content {
@@ -645,8 +650,8 @@ button {
   justify-content: center;
   gap: 6px;
   font: inherit;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -915,8 +920,8 @@ input[type='radio']:checked {
 
 .pane-state p {
   margin: 0;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-secondary);
 }
 
@@ -933,8 +938,8 @@ input[type='radio']:checked {
 }
 
 .pane-state .footnote {
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 10px;
+  line-height: 14px;
 }
 
 /* Dock header shown in place of the conversation chrome while no Agent
@@ -1166,8 +1171,8 @@ button.wide {
   width: 100%;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   cursor: pointer;
 }
 
@@ -1227,8 +1232,8 @@ button.wide {
   min-width: 0;
   margin: 0;
   font: inherit;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1267,8 +1272,8 @@ button.wide {
   border-radius: 6px;
   background: var(--surface-subtle);
   font: inherit;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1312,8 +1317,8 @@ button.wide {
   margin: 0;
   padding-left: 20px;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .setup-error {
