@@ -227,6 +227,19 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   border: 1px solid var(--border-subtle);
 }
 
+/* A host note is a statement of fact about the project, not a turn in the
+   conversation, so it takes no bubble, no border, and no author side. */
+.message.note {
+  align-self: stretch;
+  max-width: 100%;
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  background: none;
+  border: none;
+}
+
 .markdown-content {
   min-width: 0;
   white-space: normal;

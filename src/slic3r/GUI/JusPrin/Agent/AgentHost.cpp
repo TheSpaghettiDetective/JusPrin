@@ -29,7 +29,7 @@ using Workspace::WorkspaceSnapshot;
 
 const char* role_name(MessageRole role)
 {
-    return role == MessageRole::User ? "user" : "assistant";
+    return role == MessageRole::User ? "user" : role == MessageRole::Note ? "note" : "assistant";
 }
 
 const char* state_name(MessageState state)
@@ -1013,6 +1013,27 @@ void AgentHost::handle_remove_attachment(const std::string& envelope_id, const s
     send_state(envelope_id);
 }
 
+std::string AgentHost::post_note(const std::string& text)
+{
+    if (text.empty())
+        return {};
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string conversation_id = document.active_conversation_id();
+
+    ConversationMessage note;
+    note.id    = document.allocate_message_id();
+    note.role  = MessageRole::Note;
+    note.state = MessageState::Complete;
+    note.text  = text;
+    document.append_message(conversation_id, note, m_persistence.timestamp());
+    m_persistence.flush();
+    // A note starts nothing: no reply, no title generation, no tool run. It
+    // reaches a connected page as an ordinary message_added; a page that is
+    // reloading picks it up from the state message after its next handshake.
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(note)}}.dump());
+    return note.id;
+}
+
 void AgentHost::handle_stop(const std::string& payload_json)
 {
     const json payload = json::parse(payload_json, nullptr, false);
@@ -1519,8 +1540,14 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     for (const ConversationMessage& message : document.messages(conversation_id)) {
         if (message.id == assistant.id || message.id == assistant.in_reply_to || message.text.empty())
             continue;
+        // Notes stay out of the model's context. They restate a setup change
+        // the workspace snapshot already carries authoritatively, so sending
+        // them would duplicate that state in prose and let a stale line
+        // contradict the snapshot.
+        if (message.role == MessageRole::Note)
+            continue;
         AgentConversationContext entry;
-        entry.role = message.role == MessageRole::User ? "user" : "assistant";
+        entry.role = role_name(message.role);
         entry.text = message.text;
         request.conversation.emplace_back(std::move(entry));
     }
@@ -1717,6 +1744,7 @@ void AgentHost::start_conversation_title(const std::string& conversation_id)
     bool has_reply = false;
     for (const auto& message : document.messages(conversation_id)) {
         if (message.role == MessageRole::User && !request.conversation.empty()) break;
+        if (message.role == MessageRole::Note) continue; // never a turn to title
         if (message.state != MessageState::Complete) continue;
         std::string text = message.text;
         if (text.size() > 4096) {

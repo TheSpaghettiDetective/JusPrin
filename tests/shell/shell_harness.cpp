@@ -57,6 +57,8 @@
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
@@ -87,6 +89,8 @@
 #include <cctype>
 #include <chrono>
 #include <csignal>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -617,15 +621,148 @@ private:
             [self=shared_from_this()] {
                 installed_shell()->status_row()->request_home();
                 self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(); },
-                    "header_home_returns_to_prepare",[self] { self->verify_header_setup(Preset::TYPE_PRINTER); });
+                    "header_home_returns_to_prepare",[self] {
+                        self->capture_chip_appearance();
+                        self->verify_two_click_swap();
+                        self->verify_header_setup(Preset::TYPE_PRINTER);
+                    });
             });
     }
 
     void verify_header_setup(Preset::Type type)
     {
-        installed_shell()->status_row()->show_setup_menu();
-        choose_header_item(type == Preset::TYPE_PRINTER ? "Printer and nozzle…" : "Filament…",
-            [self=shared_from_this(),type] { self->verify_header_setup_open(type); });
+        // The printer half opens the printer menu; the spool half's row menu
+        // is where Filament settings… now lives, one step in from the list.
+        if (type == Preset::TYPE_PRINTER) {
+            installed_shell()->status_row()->open_printer_menu();
+            choose_header_item("Printer settings…",
+                [self=shared_from_this(),type] { self->verify_header_setup_open(type); });
+            return;
+        }
+        installed_shell()->status_row()->open_spool_menu();
+        // Row one of the spool list is the current spool; its ⋯ menu carries
+        // the filament editor.
+        auto* menu = visible_header_menu();
+        check(menu != nullptr, "spool_menu_opens");
+        if (menu == nullptr) return;
+        auto* row = first_spool_row(menu);
+        check(row != nullptr, "spool_menu_lists_a_spool");
+        if (row == nullptr) return;
+        row->invoke_row_action();
+        m_frame->CallAfter([self=shared_from_this(),type] {
+            self->choose_header_item("Filament settings…",
+                [self,type] { self->verify_header_setup_open(type); });
+        });
+    }
+
+    // The first selectable row of an open spool menu: the most recently used
+    // remembered spool.
+    HeaderButton* first_spool_row(HeaderMenu* menu) const
+    {
+        for (auto* child : menu->GetChildren())
+            if (auto* button = dynamic_cast<HeaderButton*>(child); button && button->has_row_action())
+                return button;
+        return nullptr;
+    }
+
+    // Drives the two-click swap without a pointer: open the half, pick a row
+    // that is not the current spool, and confirm the chip followed.
+    // Writes the chip as it actually renders, in both appearance modes and in
+    // the long-name case, so appearance is evidence rather than a claim. The
+    // application draws these itself, so they need no screen-capture
+    // permission and do not depend on what else is on the tester's display.
+    void capture_chip_appearance()
+    {
+        auto* row  = installed_shell()->status_row();
+        auto* chip = dynamic_cast<PrinterSpoolChip*>(wxWindow::FindWindowByName("Printer and spool", row));
+        check(chip != nullptr, "chip_is_in_the_header");
+        if (chip == nullptr) return;
+
+        // The automated run's data directory is temporary and removed at exit.
+        // JUSPRIN_ARTIFACT_DIR keeps the images for a human to look at.
+        const char* artifact_dir = std::getenv("JUSPRIN_ARTIFACT_DIR");
+        const fs::path out = artifact_dir != nullptr ? fs::path(artifact_dir)
+                                                     : fs::path(data_dir()) / "chip-appearance";
+        fs::create_directories(out);
+        const bool was_dark = wxGetApp().dark_mode();
+
+        // Deliberately does NOT refresh: a refresh re-reads the spool store and
+        // would overwrite any label the caller set for the shot.
+        auto write = [&](const std::string& name) {
+            chip->Layout();
+            const wxBitmap bitmap = chip->snapshot();
+            const std::string file = (out / (name + ".png")).string();
+            const bool ok = bitmap.IsOk() && bitmap.GetWidth() > 0 &&
+                            bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
+            check(ok, "chip_renders_" + name);
+            if (ok) std::cout << "HARNESS ARTIFACT " << name << " " << file
+                              << " " << bitmap.GetWidth() << "x" << bitmap.GetHeight() << std::endl;
+            return bitmap.IsOk() ? bitmap.ConvertToImage() : wxImage();
+        };
+        auto same_pixels = [](const wxImage& a, const wxImage& b) {
+            if (!a.IsOk() || !b.IsOk() || a.GetWidth() != b.GetWidth() || a.GetHeight() != b.GetHeight())
+                return false;
+            return std::memcmp(a.GetData(), b.GetData(), std::size_t(a.GetWidth()) * a.GetHeight() * 3) == 0;
+        };
+
+        row->refresh();
+        installed_shell()->status_row()->apply_appearance(false);
+        const wxImage light = write("light");
+        installed_shell()->status_row()->apply_appearance(true);
+        const wxImage dark = write("dark");
+        // Dark mode is a real remapping, not the same pixels with a filter.
+        check(!same_pixels(light, dark), "light_and_dark_render_differently");
+
+        // A name far past the 240 DIP cap must ellipsize rather than widen the
+        // chip. No refresh after this point: it would restore the real name.
+        installed_shell()->status_row()->apply_appearance(false);
+        const int natural = chip->GetBestSize().x;
+        chip->set_spool("Prusament Galaxy Black PLA Blend, third reel from the shelf by the window",
+                        wxColour("#101010"));
+        chip->InvalidateBestSize();
+        const int capped = chip->GetBestSize().x;
+        const wxImage long_name = write("long-name");
+        // The proof the long name was actually rendered: different pixels.
+        check(!same_pixels(light, long_name), "long_name_actually_rendered");
+        // 240 DIP label cap plus the half's own padding and chevron; a name
+        // this long must not push the chip past that.
+        check(capped <= chip->FromDIP(240) + natural, "long_spool_name_stays_within_the_cap");
+        std::cout << "HARNESS MEASURE chip_natural_width=" << natural
+                  << " chip_capped_width=" << capped << std::endl;
+
+        // Leave the chip showing real state again.
+        installed_shell()->status_row()->apply_appearance(was_dark);
+        row->refresh();
+    }
+
+    void verify_two_click_swap()
+    {
+        auto* row = installed_shell()->status_row();
+        auto spools = row->listed_spools();
+        check(!spools.empty(), "chip_seeds_a_spool_for_this_printer");
+        if (spools.empty()) return;
+
+        // A fresh profile has exactly the seeded spool. Remember a second one
+        // -- same preset, a different colour, the ordinary "I loaded the other
+        // reel" case -- so the swap under test is a real swap.
+        const std::string other_colour = spools.front().colour == "#101010" ? "#F5F5F0" : "#101010";
+        const auto second = row->remember_spool(spools.front().filament_preset, other_colour, "Harness Second Spool");
+        check(row->listed_spools().size() == spools.size() + 1, "remembering_a_spool_adds_one_row");
+
+        const wxString before = row->spool_text();
+        check(row->select_spool(second.id), "select_spool_applies_a_remembered_spool");
+        check(row->spool_text() == wxString::FromUTF8(second.name), "chip_shows_the_swapped_spool");
+        check(row->spool_text() != before, "the_chip_actually_changed");
+        // The project itself moved, not just the label.
+        check(SetupCommands::current_colour().Lower() == wxString::FromUTF8(other_colour).Lower(),
+              "swap_writes_the_colour_into_the_project");
+        // The swapped-to spool is now the most recently used.
+        check(row->listed_spools().front().id == second.id, "swap_stamps_recency");
+        // And it is the one the chip reports as current.
+        const auto current = row->current_spool();
+        check(current.has_value() && current->id == second.id, "current_spool_matches_after_a_swap");
+
+        check(!row->select_spool("not-a-spool-id"), "select_spool_refuses_an_unknown_id");
     }
 
     void verify_header_setup_open(Preset::Type type)
@@ -1383,8 +1520,13 @@ private:
                            "window.__jusprinTest && window.__jusprinTest.send('what is on the plate?')");
         wait_until(
             [&web_view] {
-                const auto& conversation = web_view.host().conversation();
-                return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Complete;
+                // Wait for the assistant's own message to finish. Counting
+                // entries is not enough: the thread can also hold host notes,
+                // which are complete the instant they are posted.
+                for (const auto& message : web_view.host().conversation())
+                    if (message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete)
+                        return true;
+                return false;
             },
             "agent_reply_streams_to_completion", [self = shared_from_this()] { self->agent_verify_reply_and_context(); });
     }
@@ -1394,14 +1536,30 @@ private:
         AgentWebView&     web_view = installed_shell()->agent_pane()->web_view();
         Agent::AgentHost& host     = web_view.host();
 
-        const auto& conversation = host.conversation();
-        check(conversation.size() == 2, "agent_conversation_has_exchange");
-        check(conversation.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
-        check(conversation.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
+        // The thread holds turns and host notes. These checks are about the
+        // exchange, so they read the turns; a separate check below covers the
+        // note the earlier spool swap posted.
+        std::vector<Agent::ConversationMessage> turns, notes;
+        for (const auto& message : host.conversation())
+            (message.role == Agent::MessageRole::Note ? notes : turns).push_back(message);
+
+        check(turns.size() == 2, "agent_conversation_has_exchange");
+        check(!turns.empty() && turns.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
+        check(!turns.empty() && turns.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
+        if (turns.empty()) return;
+        // The spool swap earlier in this run posted exactly one note, and it
+        // names the spool it swapped to.
+        check(notes.size() == 1, "spool_swap_posts_one_note");
+        check(!notes.empty() && notes.front().text.find("Harness Second Spool") != std::string::npos,
+              "swap_note_names_the_spool");
+        // A note is a statement, not a turn: nothing replies to it, and it
+        // never carries the streaming or failure states a turn can.
+        check(!notes.empty() && notes.front().state == Agent::MessageState::Complete, "swap_note_is_complete");
+        check(!notes.empty() && notes.front().in_reply_to.empty(), "swap_note_starts_no_exchange");
         // The reply must describe the authoritative fixture, not canned text:
         // the two-plate fixture and its active plate contents appear in it.
-        check(conversation.back().text.find("2 plates") != std::string::npos, "agent_reply_describes_fixture_plates");
-        check(conversation.back().text.find("is active with") != std::string::npos, "agent_reply_describes_active_plate");
+        check(turns.back().text.find("2 plates") != std::string::npos, "agent_reply_describes_fixture_plates");
+        check(turns.back().text.find("is active with") != std::string::npos, "agent_reply_describes_active_plate");
 
         // A native selection change must push fresh context over the bridge.
         const std::uint64_t sent_before = host.messages_sent();
@@ -1536,8 +1694,14 @@ private:
                                    "window.__jusprinTest && window.__jusprinTest.send('what changed so far?')");
                 self->wait_until(
                     [&web_view] {
-                        const auto& conversation = web_view.host().conversation();
-                        return conversation.size() >= 2 && conversation.back().state == Agent::MessageState::Complete;
+                        // Same reason as the first exchange: wait for the
+                        // assistant's message, not for a count that a host
+                        // note could also satisfy.
+                        for (const auto& message : web_view.host().conversation())
+                            if (message.role == Agent::MessageRole::Assistant &&
+                                message.state == Agent::MessageState::Complete)
+                                return true;
+                        return false;
                     },
                     "second_conversation_reply_completes", [self] { self->agent_manage_chats(); });
             });
@@ -1829,7 +1993,10 @@ private:
         verify_header_layout();
         m_frame->SetSize(m_frame->FromDIP(900),original.y);
         m_frame->Layout();
-        auto* setup = wxWindow::FindWindowByName("Printer setup",row);
+        // The single setup chip became a two-half printer/spool chip; both
+        // halves must exist, since each anchors its own menu.
+        auto* setup = wxWindow::FindWindowByName("Printer",row) && wxWindow::FindWindowByName("Spool",row)
+                          ? wxWindow::FindWindowByName("Printer and spool",row) : nullptr;
         setup->SetLabel(wxString('W',180));
         row->SendSizeEvent();
         verify_header_layout();
@@ -1842,7 +2009,10 @@ private:
     {
         auto* row = installed_shell()->status_row();
         auto* home = wxWindow::FindWindowByName("Home navigation",row);
-        auto* setup = wxWindow::FindWindowByName("Printer setup",row);
+        // The single setup chip became a two-half printer/spool chip; both
+        // halves must exist, since each anchors its own menu.
+        auto* setup = wxWindow::FindWindowByName("Printer",row) && wxWindow::FindWindowByName("Spool",row)
+                          ? wxWindow::FindWindowByName("Printer and spool",row) : nullptr;
         auto* action = wxWindow::FindWindowByName("Next print action",row);
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         auto* more = wxWindow::FindWindowByName("Project actions",row);

@@ -14,7 +14,8 @@
     "manufacturing_history",
     "agent_setup",
     "conversation_management",
-    "mcp_setup"
+    "mcp_setup",
+    "system_notes"
   ],
   "pageMessageTypes": [
     "hello",

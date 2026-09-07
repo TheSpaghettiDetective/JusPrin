@@ -28,7 +28,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "context",     "appearance",  "tools",
                                                  "conversations", "revisions", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
-                                                 "mcp_setup"};
+                                                 "mcp_setup", "system_notes"};
     return values;
 }
 
@@ -89,7 +89,11 @@ struct AgentError
     bool        retryable{false};
 };
 
-enum class MessageRole : std::uint8_t { User, Assistant };
+// Note is the host's own voice: a short factual line the shell posts when it
+// changes something the person should see in the thread. It is not a turn --
+// no reply follows it, it is never sent to the model, and it renders without a
+// bubble. Added additively; the capability list advertises it.
+enum class MessageRole : std::uint8_t { User, Assistant, Note };
 enum class MessageState : std::uint8_t { Complete, Streaming, Failed, Stopped };
 
 struct ConversationMessage

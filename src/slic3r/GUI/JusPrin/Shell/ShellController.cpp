@@ -93,6 +93,14 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
 
+        // The header posts its after-swap line into the thread. Wiring it here
+        // rather than giving StatusRow the AgentHost keeps the header free of
+        // any Agent dependency, and the weak reference means a torn-down pane
+        // simply stops accepting notes.
+        m_status_row->set_note_sink([pane = wxWeakRef<AgentPane>(m_agent_pane)](const wxString& text) {
+            if (pane) pane->web_view().host().post_note(text.ToUTF8().data());
+        });
+
         // Adopt the currently open project once the host has registered its
         // listeners, so the initial document reaches the pane too.
         m_persistence->attach();

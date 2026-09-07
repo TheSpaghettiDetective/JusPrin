@@ -87,7 +87,14 @@ export function MessageList({
           </p>
         </div>
       )}
-      {messages.map((message) => (
+      {messages.map((message) =>
+        message.role === 'note' ? (
+          <div key={message.id} className="message-group">
+            <div className="message note" role="status">
+              {message.text}
+            </div>
+          </div>
+        ) : (
         <div key={message.id} className="message-group">
           <div className={`message ${message.role}`}>
             {message.text &&
@@ -131,7 +138,8 @@ export function MessageList({
           ))}
           {historyAfter(message.id).map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
         </div>
-      ))}
+        ),
+      )}
     </div>
   );
 }

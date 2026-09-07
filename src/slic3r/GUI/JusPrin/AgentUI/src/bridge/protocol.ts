@@ -65,7 +65,11 @@ export interface Envelope<T = unknown> {
   payload: T;
 }
 
-export type MessageRole = 'user' | 'assistant';
+// 'note' is the host's own voice: a short factual line the native shell posts
+// when it changes something the reader should see in the thread (a spool swap,
+// for example). It is never a turn -- no reply follows it, and the host never
+// sends it to the model -- so it renders as a plain line, not a bubble.
+export type MessageRole = 'user' | 'assistant' | 'note';
 export type MessageStateName = 'complete' | 'streaming' | 'failed' | 'stopped';
 export type AgentStatus = 'ready' | 'unavailable';
 export type Appearance = 'light' | 'dark';

@@ -1,5 +1,9 @@
 #include "StatusRow.hpp"
 #include "HeaderControls.hpp"
+#include "PrinterMenu.hpp"
+#include "PrinterSpoolChip.hpp"
+#include "SetupCommands.hpp"
+#include "SpoolMenu.hpp"
 #include "SliceReviewPanel.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
@@ -21,6 +25,8 @@
 #include <wx/msgdlg.h>
 #include <wx/weakref.h>
 #include <wx/dcbuffer.h>
+#include <boost/filesystem/path.hpp>
+#include <boost/log/trivial.hpp>
 #include <algorithm>
 #include <stdexcept>
 
@@ -50,12 +56,20 @@ StatusRow::StatusRow(wxWindow*                  parent,
     , m_reviews(std::move(reviews))
 {
     SetName("Project header");
+    Workspace::SpoolStore::Config spool_config;
+    spool_config.file_path = (boost::filesystem::path(data_dir()) / "jusprin" / "spools.json").string();
+    m_spools = std::make_unique<Workspace::SpoolStore>(std::move(spool_config));
+    if (m_spools->corrupt()) {
+        // Visible, and the person's own file is preserved next to it. The chip
+        // still works: it reseeds from whatever the project has loaded.
+        BOOST_LOG_TRIVIAL(error) << "JusPrin: spools.json was damaged and has been moved aside: "
+                                 << m_spools->corrupt_reason();
+    }
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetMinSize(wxSize(-1, FromDIP(56)));
     m_home_button = new HeaderButton(this, theme, HeaderStyle::Quiet, _L("Home"), HeaderIcon::Back);
     m_home_button->SetName("Home navigation");
-    m_setup_chip = new HeaderButton(this, theme, HeaderStyle::Setup, wxEmptyString, HeaderIcon::Machine);
-    m_setup_chip->SetName("Printer setup");
+    m_chip = new PrinterSpoolChip(this, theme);
     m_slice_button = new HeaderButton(this, theme, HeaderStyle::PrimaryLeft, _L("Slice"), HeaderIcon::Slice);
     m_slice_button->SetName("Next print action");
     m_menu_button = new HeaderButton(this, theme, HeaderStyle::PrimaryRight, wxEmptyString, HeaderIcon::Down);
@@ -64,7 +78,8 @@ StatusRow::StatusRow(wxWindow*                  parent,
     m_overflow_button->SetName("Project actions");
     m_overflow_button->SetToolTip(_L("Project details and preferences"));
     m_home_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { request_home(); });
-    m_setup_chip->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { show_setup_menu(); });
+    m_chip->on_printer_activated([this] { open_printer_menu(); });
+    m_chip->on_spool_activated([this] { open_spool_menu(); });
     m_overflow_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { show_overflow_menu(); });
     Bind(wxEVT_SIZE, [this](wxSizeEvent& e) { layout_header(); e.Skip(); });
     Bind(wxEVT_PAINT, [this](wxPaintEvent&) {
@@ -150,44 +165,16 @@ void StatusRow::apply_appearance(bool dark)
     m_dark = dark;
     const ShellPalette& palette = m_theme.palette(dark);
     SetBackgroundColour(palette.surface_canvas);
-    for (auto* button : {m_home_button,m_setup_chip,m_slice_button,m_menu_button,m_overflow_button})
+    for (auto* button : {m_home_button,m_slice_button,m_menu_button,m_overflow_button})
         button->set_dark(dark);
+    m_chip->set_dark(dark);
     refresh_workspace_status();
     Refresh();
 }
 
 void StatusRow::refresh()
 {
-    const PresetBundle* presets = wxGetApp().preset_bundle;
-    wxString summary;
-    std::vector<wxColour> colors;
-    if (presets != nullptr) {
-        const auto& printer = presets->printers.get_edited_preset();
-        summary = wxString::FromUTF8(printer.config.opt_string("printer_model"));
-        if (summary.empty()) {
-            summary = wxString::FromUTF8(printer.label(false));
-            // Custom profiles often encode the nozzle in their display name.
-            const auto nozzle_suffix = summary.Find(" nozzle");
-            if (nozzle_suffix != wxNOT_FOUND) summary = summary.Left(nozzle_suffix).BeforeLast(' ');
-        }
-        if (auto* nozzle = printer.config.option<ConfigOptionFloats>("nozzle_diameter"); nozzle && !nozzle->values.empty())
-            summary += wxString::FromUTF8(" \xC2\xB7 ") + wxString::Format("%g",nozzle->values.front());
-        if (!presets->filament_presets.empty()) {
-            const auto* filament = presets->filaments.find_preset(presets->filament_presets.front());
-            wxString material = wxString::FromUTF8(filament && !filament->alias.empty() ? filament->alias : presets->filament_presets.front());
-            material = material.BeforeFirst('@'); material.Trim();
-            summary += wxString::FromUTF8(" \xC2\xB7 ") + material;
-        }
-        if (const auto* configured = presets->project_config.option<ConfigOptionStrings>("filament_colour"))
-            for (const auto& color : configured->values) {
-                wxColour parsed(wxString::FromUTF8(color));
-                colors.push_back(parsed.IsOk() ? parsed : m_theme.palette(m_dark).text_secondary);
-            }
-    }
-    if (summary.empty()) summary = _L("Select printer");
-    m_setup_chip->SetLabel(summary);
-    m_setup_chip->set_slots(std::move(colors));
-    m_setup_chip->SetToolTip(summary + "\n" + _L("Configured materials — verify loaded spools before printing"));
+    refresh_chip();
     m_overflow_button->SetToolTip(project_summary());
     m_home_button->SetLabel(m_tabpanel.GetSelection() == MainFrame::tpHome ? _L("Prepare") : _L("Home"));
 
@@ -372,8 +359,9 @@ void StatusRow::layout_header()
     place(m_home_button,margin);
     const int left = margin+m_home_button->GetBestSize().x+gap;
     const int available = std::max(0,right-gap-left);
-    const int width = std::min(m_setup_chip->GetBestSize().x,available);
-    place(m_setup_chip,left+(available-width)/2,width);
+    const int width = std::min(m_chip->GetBestSize().x,available);
+    const wxSize chip = m_chip->GetBestSize();
+    m_chip->SetSize(left+(available-width)/2,(height-chip.y)/2,width,chip.y);
 }
 
 wxString StatusRow::project_summary() const
@@ -390,22 +378,129 @@ void StatusRow::request_home()
     m_tabpanel.SetSelection(m_tabpanel.GetSelection() == MainFrame::tpHome ? MainFrame::tp3DEditor : MainFrame::tpHome);
 }
 
-void StatusRow::show_setup_menu()
+std::optional<Workspace::Spool> StatusRow::current_spool()
 {
-    auto edit = [](Preset::Type type) {
-        auto* tab = wxGetApp().get_tab(type);
-        // Follow PlaterPresetComboBox::switch_to_tab: the Tab activates its
-        // own page and ParamsPanel, including clearing the previous page.
-        wxGetApp().params_dialog()->Popup();
-        tab->OnActivate();
-        tab->restore_last_select_item();
-    };
-    std::vector<HeaderMenuItem> menu{
-        {_L("Printer and nozzle…"),HeaderIcon::Machine,{},true,false,[edit] { edit(Preset::TYPE_PRINTER); }},
-        {_L("Filament…"),HeaderIcon::Plates,{},true,false,[edit] { edit(Preset::TYPE_FILAMENT); }}
-    };
-    (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_setup_chip);
+    const auto printer  = SetupCommands::current_printer();
+    const auto filament = SetupCommands::current_filament();
+    if (!printer.valid || !filament.valid)
+        return std::nullopt;
+    const std::string colour = SetupCommands::current_colour().ToStdString();
+
+    if (auto matched = m_spools->current(printer.preset_name, filament.preset_name, colour))
+        return matched;
+    // A printer with no remembered spools gets its first one from whatever the
+    // project already has loaded, so the chip's right half is never empty and
+    // the person starts with a list of one rather than a list of none. A
+    // printer that already has spools and is on some other preset simply has
+    // no current spool; guessing a new one on every project would fill the
+    // list with entries nobody chose.
+    if (!m_spools->spools_for(printer.preset_name).empty())
+        return std::nullopt;
+
+    Workspace::Spool seed;
+    seed.printer_preset  = printer.preset_name;
+    seed.filament_preset = filament.preset_name;
+    seed.colour          = colour;
+    seed.brand           = filament.vendor.ToStdString();
+    const wxString word  = SetupCommands::colour_word(wxColour(SetupCommands::current_colour()));
+    const wxString label = word.empty() ? filament.alias : word + " " + filament.material;
+    seed.name            = (label.empty() ? filament.alias : label).ToStdString();
+    return m_spools->add(std::move(seed));
 }
+
+// The chip renders Orca's authoritative selection plus the spool the store
+// remembers for it. Nothing here writes; a swap goes through SetupCommands.
+void StatusRow::refresh_chip()
+{
+    const auto printer = SetupCommands::current_printer();
+    m_chip->set_printer(printer.nickname, printer.valid ? wxString::Format("%g", printer.nozzle) : wxString{});
+    if (printer.extruder_count > 1) {
+        // TODO(slice 2): multi-extruder printers show extruder 0 only. Slot
+        // mapping, the AMS chip, and multi-colour projects are a separate
+        // brief; the chip must not imply it is describing every extruder.
+    }
+
+    const auto     filament = SetupCommands::current_filament();
+    const wxString colour   = SetupCommands::current_colour();
+    const wxColour parsed(colour);
+    const auto     spool    = current_spool();
+    m_chip->set_spool(spool ? wxString::FromUTF8(spool->name) : filament.alias, parsed);
+}
+
+void StatusRow::open_printer_menu()
+{
+    PrinterMenu::open(this, m_theme, m_dark, m_plater, m_chip->printer_half());
+}
+
+void StatusRow::open_spool_menu()
+{
+    SpoolMenu::Host host;
+    host.store  = m_spools.get();
+    host.plater = &m_plater;
+    host.selected = [self = wxWeakRef<StatusRow>(this)](const Workspace::Spool& spool) {
+        if (self) self->on_spool_selected(spool);
+    };
+    host.store_changed = [self = wxWeakRef<StatusRow>(this)] { if (self) self->refresh(); };
+    SpoolMenu::open(this, m_theme, m_dark, std::move(host), m_chip->spool_half());
+}
+
+// A swap changes three things and nothing else: the chip's right half and the
+// pinned card both follow Orca's own settings-changed notification, and one
+// grey line lands at the end of the thread. The line reports; it never offers
+// to undo, because the selection belongs to the chip.
+void StatusRow::on_spool_selected(const Workspace::Spool& spool)
+{
+    refresh();
+    if (!m_note_sink) return;
+    wxString note = wxString::Format(_L("Spool is now %s"), wxString::FromUTF8(spool.name));
+    if (!spool.brand.empty()) note += wxString::Format(" (%s)", wxString::FromUTF8(spool.brand));
+    note += ".";
+    const auto filament = SetupCommands::current_filament();
+    if (!filament.material.empty())
+        note += " " + wxString::Format(_L("Heat and cooling follow %s; walls and infill unchanged."), filament.material);
+    note += " " + _L("Slice again when ready.");
+    m_note_sink(note);
+}
+
+bool StatusRow::select_spool(const std::string& spool_id)
+{
+    const auto printer = SetupCommands::current_printer();
+    const auto spool   = m_spools->find(spool_id);
+    // A spool belonging to another printer is not a stale menu row, it is a
+    // wrong instruction; refusing it keeps the mistake visible to the caller.
+    if (!spool || spool->printer_preset != printer.preset_name)
+        return false;
+    if (!SetupCommands::select_filament_preset(m_plater, spool->filament_preset))
+        return false;
+    if (const wxColour colour(wxString::FromUTF8(spool->colour)); colour.IsOk())
+        SetupCommands::set_filament_colour(m_plater, colour);
+    m_spools->touch(spool->id);
+    on_spool_selected(*spool);
+    return true;
+}
+
+std::vector<Workspace::Spool> StatusRow::listed_spools()
+{
+    // Consult current_spool() first so a printer with no spools seeds one,
+    // exactly as opening the menu would.
+    current_spool();
+    return m_spools->spools_for(SetupCommands::current_printer().preset_name);
+}
+
+Workspace::Spool StatusRow::remember_spool(const std::string& filament_preset, const std::string& colour,
+                                           const std::string& name)
+{
+    Workspace::Spool spool;
+    spool.printer_preset  = SetupCommands::current_printer().preset_name;
+    spool.filament_preset = filament_preset;
+    spool.colour          = colour;
+    spool.name            = name;
+    spool.brand           = SetupCommands::current_filament().vendor.ToStdString();
+    return m_spools->add(std::move(spool));
+}
+
+wxString StatusRow::printer_text() const { return m_chip->printer_half().GetLabel(); }
+wxString StatusRow::spool_text() const { return m_chip->spool_half().GetLabel(); }
 
 void StatusRow::show_overflow_menu()
 {

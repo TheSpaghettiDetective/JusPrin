@@ -9,9 +9,17 @@ namespace {
 
 using nlohmann::json;
 
-const char* role_name(MessageRole role) { return role == MessageRole::User ? "user" : "assistant"; }
+const char* role_name(MessageRole role)
+{
+    return role == MessageRole::User ? "user" : role == MessageRole::Note ? "note" : "assistant";
+}
 
-MessageRole role_from(const std::string& name) { return name == "user" ? MessageRole::User : MessageRole::Assistant; }
+MessageRole role_from(const std::string& name)
+{
+    if (name == "user") return MessageRole::User;
+    if (name == "note") return MessageRole::Note;
+    return MessageRole::Assistant;
+}
 
 const char* message_state_name(MessageState state)
 {
