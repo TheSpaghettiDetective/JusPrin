@@ -35,6 +35,7 @@ public:
         result.can_redo          = !m_redo.empty();
         result.setup.process_preset = m_settings_available ? "Fixture process" : "";
         result.setup.process_preset_dirty = m_settings.values != m_settings.preset_values;
+        result.currency = m_currency;
         if (m_settings_available)
             for (const auto& [key, value] : m_settings.values) {
                 const auto preset = m_settings.preset_values.find(key);
@@ -107,6 +108,9 @@ public:
             publish(WorkspaceChangeReasons::Settings);
     }
     void set_settings_available_for_testing(bool available) { m_settings_available = available; }
+    // The real adapter reads this from the OS; a fixture states it outright so
+    // a test can describe a machine with no regional currency at all.
+    void set_currency_for_testing(std::string code) { m_currency = std::move(code); }
 
     CommandResult select_object(ObjectId id) override
     {
@@ -568,6 +572,7 @@ private:
     WorkspaceChangeHub             m_changes;
     FakeSettings                   m_settings;
     bool                           m_settings_available{true};
+    std::string                    m_currency{"USD"};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

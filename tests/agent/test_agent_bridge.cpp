@@ -568,6 +568,20 @@ TEST_CASE("the setup card's facts travel with the context", "[agent][context][se
         CHECK(context["plates"][0]["estimate"]["materialCost"] == 1.12);
     }
 
+    SECTION("the regional currency travels so a cost can be denominated")
+    {
+        const json initial = harness.of_type("context").empty()
+                                 ? (*harness.last_of_type("state"))["payload"]["context"]
+                                 : harness.of_type("context").back()["payload"]["context"];
+        CHECK(initial["currency"] == "USD");
+
+        // A machine whose OS names no currency leaves the field empty rather
+        // than guessing one; the page then drops the money entirely.
+        harness.workspace.set_currency_for_testing("");
+        harness.workspace.set_plate_sliced(plate, true);
+        CHECK(harness.of_type("context").back()["payload"]["context"]["currency"] == "");
+    }
+
     SECTION("un-slicing takes the estimate away with it")
     {
         harness.workspace.set_plate_sliced(plate, true);

@@ -485,6 +485,7 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::string& setup_in
                 {"selection", json{{"status", selection_status}, {"objectIds", std::move(selected_ids)}}},
                 {"history", json{{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}}},
                 {"presetDeltas", std::move(preset_deltas)},
+                {"currency", snapshot.currency},
                 {"setupIntent", setup_intent}};
 }
 
