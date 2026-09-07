@@ -36,6 +36,21 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
     case HeaderIcon::Down: line({{4,6},{8,10},{12,6}}); break;
     case HeaderIcon::Up: line({{4,10},{8,6},{12,10}}); break;
     case HeaderIcon::Check: line({{3,8.5},{6.5,12},{13,4}}); break;
+    case HeaderIcon::Caret: {
+        // A filled disclosure triangle, as the chip halves use in the design.
+        auto p = gc.CreatePath();
+        p.MoveToPoint(4.5,6.5); p.AddLineToPoint(11.5,6.5); p.AddLineToPoint(8,10.5); p.CloseSubpath();
+        gc.SetBrush(wxBrush(color)); gc.SetPen(*wxTRANSPARENT_PEN);
+        gc.FillPath(p);
+        break;
+    }
+    case HeaderIcon::Printer:
+        // A printer: paper feeding out of a body, not the abstract mark the
+        // previous single chip inherited.
+        line({{4.5,6},{4.5,2.5},{11.5,2.5},{11.5,6}});
+        line({{2.5,6},{13.5,6},{13.5,11},{2.5,11},{2.5,6}});
+        line({{4.5,9},{4.5,13.5},{11.5,13.5},{11.5,9}});
+        break;
     case HeaderIcon::Spool:
         // A reel seen end-on: the filament wound between two flanges.
         gc.DrawEllipse(1.5,1.5,13,13);
@@ -254,8 +269,10 @@ wxSize HeaderButton::DoGetBestSize() const
                         (m_decoration.dot.has_value() ? FromDIP(16) : 0);
     // Menu rows are 32 DIP so the whole header reads at one density; chip
     // halves are 28; the print action stays 34.
+    // Chip halves are 26 DIP, matching the design's chip frame; menu rows are
+    // 32 so the whole header reads at one density; the print action stays 34.
     const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? 32 : 44) :
-                       m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? 28 : 34;
+                       m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? 26 : 34;
     return {leading + label + trailing_reserve(), FromDIP(height)};
 }
 
@@ -492,11 +509,15 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
 
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     sizer->AddSpacer(FromDIP(4));
-    if (m_header_builder) {
+    int placed_rows = 0;
+    auto place_header = [&] {
+        if (!m_header_builder || m_header != nullptr) return;
         m_header = m_header_builder(this);
         if (m_header) sizer->Add(m_header,0,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,FromDIP(8));
-    }
+    };
+    if (m_header_after_rows == 0) place_header();
     for (auto& item : items) {
+        if (placed_rows == m_header_after_rows) place_header();
         if (item.separator) {
             auto* line = new wxStaticLine(this);
             line->SetForegroundColour(palette.border_subtle);
@@ -512,6 +533,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             caption->SetForegroundColour(palette.text_secondary);
             caption->SetBackgroundColour(palette.surface_raised);
             sizer->Add(caption,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(8));
+            ++placed_rows;
             continue;
         }
         auto* button = new HeaderButton(this,m_theme,HeaderStyle::Menu,item.label,item.icon);
@@ -532,6 +554,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             e.Skip();
         });
         sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(4));
+        ++placed_rows;
         button->Bind(wxEVT_BUTTON,[this,owner=wxWeakRef<wxWindow>(GetParent()),invoke=std::move(item.invoke),
                                    keeps_open=item.keeps_open](wxCommandEvent&) {
             if (!invoke) return;
@@ -545,6 +568,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             if (owner) owner->CallAfter([owner,invoke] { if (owner) invoke(); });
         });
     }
+    place_header(); // a step with fewer rows than requested still gets its view
     sizer->AddSpacer(FromDIP(4));
     SetSizerAndFit(sizer);
     // The first build fixes the width; later rebuilds keep it so swapping to
@@ -562,9 +586,10 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
 #endif
 }
 
-void HeaderMenu::set_header_builder(std::function<wxWindow*(wxWindow*)> builder)
+void HeaderMenu::set_header_builder(std::function<wxWindow*(wxWindow*)> builder, int after_rows)
 {
-    m_header_builder = std::move(builder);
+    m_header_builder    = std::move(builder);
+    m_header_after_rows = after_rows;
 }
 
 void HeaderMenu::replace_items(std::vector<HeaderMenuItem> items)

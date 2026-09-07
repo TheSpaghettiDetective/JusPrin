@@ -28,16 +28,18 @@ PrinterMenu::PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Pl
 
 void PrinterMenu::open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor)
 {
-    auto* controller = new PrinterMenu(owner, theme, dark, plater);
-    controller->m_menu = new HeaderMenu(owner, theme, dark, {});
-    // The popup destroys itself on dismissal; the controller goes with it.
-    controller->m_menu->set_dismiss_listener([controller] { delete controller; });
-    controller->show_root();
-    controller->m_menu->open(anchor);
+    auto self = std::make_shared<PrinterMenu>(owner, theme, dark, plater);
+    self->m_menu = new HeaderMenu(owner, theme, dark, {});
+    show_root(self);
+    self->m_menu->open(anchor);
+    // No dismiss listener: the row callbacks own the controller, so it lives
+    // until the last queued callback has run.
 }
 
-void PrinterMenu::show_root()
+void PrinterMenu::show_root(const Ptr& self)
 {
+    auto* menu = self->m_menu.get();
+    if (menu == nullptr) return; // the popup went away; nothing to rebuild
     const auto printer    = SetupCommands::current_printer();
     const auto connection = SetupCommands::printer_connection();
     const auto variants   = SetupCommands::nozzle_variants();
@@ -89,7 +91,7 @@ void PrinterMenu::show_root()
     if (nozzle.enabled) {
         nozzle.decoration.trailing = HeaderIcon::Right;
         nozzle.keeps_open          = true;
-        nozzle.invoke              = [this] { show_nozzles(); };
+        nozzle.invoke              = [self] { show_nozzles(self); };
     }
     rows.push_back(std::move(nozzle));
 
@@ -101,7 +103,7 @@ void PrinterMenu::show_root()
     if (plate.enabled) {
         plate.decoration.trailing = HeaderIcon::Right;
         plate.keeps_open          = true;
-        plate.invoke              = [this] { show_plates(); };
+        plate.invoke              = [self] { show_plates(self); };
     }
     rows.push_back(std::move(plate));
     rows.push_back(separator());
@@ -118,47 +120,49 @@ void PrinterMenu::show_root()
     add.invoke = [] { wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS); };
     rows.push_back(std::move(add));
 
-    m_menu->replace_items(std::move(rows));
+    menu->replace_items(std::move(rows));
 }
 
-void PrinterMenu::show_nozzles()
+void PrinterMenu::show_nozzles(const Ptr& self)
 {
     std::vector<HeaderMenuItem> choices;
     for (const auto& variant : SetupCommands::nozzle_variants()) {
         HeaderMenuItem row;
         row.label                = nozzle_text(variant.nozzle);
         row.decoration.check     = variant.current;
-        row.invoke = [this, name = variant.preset_name] { SetupCommands::select_printer_preset(m_plater, name); };
+        row.invoke = [self, name = variant.preset_name] { SetupCommands::select_printer_preset(self->m_plater, name); };
         choices.push_back(std::move(row));
     }
-    show_sublist(_L("Nozzle"), std::move(choices));
+    show_sublist(self, _L("Nozzle"), std::move(choices));
 }
 
-void PrinterMenu::show_plates()
+void PrinterMenu::show_plates(const Ptr& self)
 {
     std::vector<HeaderMenuItem> choices;
     for (const auto& choice : SetupCommands::bed_types()) {
         HeaderMenuItem row;
         row.label            = choice.label;
         row.decoration.check = choice.current;
-        row.invoke = [this, value = choice.value] { SetupCommands::select_bed_type(m_plater, value); };
+        row.invoke = [self, value = choice.value] { SetupCommands::select_bed_type(self->m_plater, value); };
         choices.push_back(std::move(row));
     }
-    show_sublist(_L("Plate"), std::move(choices));
+    show_sublist(self, _L("Plate"), std::move(choices));
 }
 
-void PrinterMenu::show_sublist(const wxString& title, std::vector<HeaderMenuItem> choices)
+void PrinterMenu::show_sublist(const Ptr& self, const wxString& title, std::vector<HeaderMenuItem> choices)
 {
+    auto* menu = self->m_menu.get();
+    if (menu == nullptr) return; // the popup went away; nothing to rebuild
     std::vector<HeaderMenuItem> rows;
     HeaderMenuItem back;
     back.label      = title;
     back.icon       = HeaderIcon::Back;
     back.keeps_open = true;
-    back.invoke     = [this] { show_root(); };
+    back.invoke     = [self] { show_root(self); };
     rows.push_back(std::move(back));
     rows.push_back(separator());
     for (auto& choice : choices) rows.push_back(std::move(choice));
-    m_menu->replace_items(std::move(rows));
+    menu->replace_items(std::move(rows));
 }
 
 } // namespace Slic3r::GUI::JusPrin

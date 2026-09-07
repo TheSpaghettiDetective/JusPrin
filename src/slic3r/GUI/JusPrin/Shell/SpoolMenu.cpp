@@ -63,33 +63,46 @@ SpoolMenu::SpoolMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Host h
 
 void SpoolMenu::open(wxWindow* owner, const ShellTheme& theme, bool dark, Host host, HeaderButton& anchor)
 {
-    auto* controller = new SpoolMenu(owner, theme, dark, std::move(host));
-    controller->m_menu = new HeaderMenu(owner, theme, dark, {});
-    controller->m_menu->set_dismiss_listener([controller] { delete controller; });
-    controller->show_spools();
-    controller->m_menu->open(anchor);
+    auto self = std::make_shared<SpoolMenu>(owner, theme, dark, std::move(host));
+    self->m_anchor = &anchor;
+    self->m_menu = new HeaderMenu(owner, theme, dark, {});
+    show_spools(self);
+    self->m_menu->open(anchor);
+    // No dismiss listener: the row callbacks own the controller, so it is
+    // released when the popup's rows are destroyed and any queued callback has
+    // run -- never while one is still pending.
 }
 
-void SpoolMenu::select(const Workspace::Spool& spool)
+void SpoolMenu::select(const Ptr& self, const Workspace::Spool& spool)
 {
+    Host& host = self->m_host;
     // Order matters: the preset switch first, because it can pull a colour of
     // its own from the preset, then the spool's colour over the top, then the
     // recency stamp. The chip refreshes from Orca's own settings-changed
     // notification, not from here.
-    if (!SetupCommands::select_filament_preset(*m_host.plater, spool.filament_preset))
+    if (!SetupCommands::select_filament_preset(*host.plater, spool.filament_preset))
         return;
     const wxColour colour(wxString::FromUTF8(spool.colour));
     if (colour.IsOk())
-        SetupCommands::set_filament_colour(*m_host.plater, colour);
-    m_host.store->touch(spool.id);
-    if (m_host.selected) m_host.selected(spool);
+        SetupCommands::set_filament_colour(*host.plater, colour);
+    host.store->touch(spool.id);
+    if (host.selected) host.selected(spool);
 }
 
-void SpoolMenu::show_spools()
+// Brings the spool list back after a step that had to close the popup.
+void SpoolMenu::reopen(const Ptr& self)
 {
-    m_menu->set_header_builder(nullptr);
+    if (!self->m_anchor) return;
+    open(self->m_owner, self->m_theme, self->m_dark, self->m_host, *self->m_anchor);
+}
+
+void SpoolMenu::show_spools(const Ptr& self)
+{
+    auto* menu = self->m_menu.get();
+    if (menu == nullptr) return; // the popup went away; nothing to rebuild
+    menu->set_header_builder(nullptr);
     const auto printer = SetupCommands::current_printer();
-    const auto current = m_host.store->current(printer.preset_name,
+    const auto current = self->m_host.store->current(printer.preset_name,
                                                SetupCommands::current_filament().preset_name,
                                                SetupCommands::current_colour().ToStdString());
 
@@ -98,14 +111,14 @@ void SpoolMenu::show_spools()
 
     // Never truncated and never scrolled: a person keeps three to fifteen
     // spools, and the whole design rests on the right one being one click away.
-    for (const Workspace::Spool& spool : m_host.store->spools_for(printer.preset_name)) {
+    for (const Workspace::Spool& spool : self->m_host.store->spools_for(printer.preset_name)) {
         HeaderMenuItem row;
         row.label            = spool_label(spool);
         row.decoration.dot   = wxColour(wxString::FromUTF8(spool.colour));
         row.decoration.check = current.has_value() && current->id == spool.id;
-        row.invoke           = [this, spool] { select(spool); };
+        row.invoke           = [self, spool] { SpoolMenu::select(self, spool); };
         row.row_action       = HeaderIcon::More;
-        row.invoke_row_action = [this, spool] { show_row_menu(spool); };
+        row.invoke_row_action = [self, spool] { show_row_menu(self, spool); };
         rows.push_back(std::move(row));
     }
 
@@ -114,57 +127,61 @@ void SpoolMenu::show_spools()
     other.label              = _L("Other spool…");
     other.decoration.trailing = HeaderIcon::Right;
     other.keeps_open         = true;
-    other.invoke             = [this] { show_other_spool(); };
+    other.invoke             = [self] { show_other_spool(self); };
     rows.push_back(std::move(other));
 
-    m_menu->replace_items(std::move(rows));
+    menu->replace_items(std::move(rows));
 }
 
-void SpoolMenu::show_row_menu(const Workspace::Spool& spool)
+void SpoolMenu::show_row_menu(const Ptr& self, const Workspace::Spool& spool)
 {
-    m_menu->set_header_builder(nullptr);
+    auto* menu = self->m_menu.get();
+    if (menu == nullptr) return; // the popup went away; nothing to rebuild
+    menu->set_header_builder(nullptr);
     std::vector<HeaderMenuItem> rows;
 
     HeaderMenuItem back;
     back.label      = wxString::FromUTF8(spool.name);
     back.icon       = HeaderIcon::Back;
     back.keeps_open = true;
-    back.invoke     = [this] { show_spools(); };
+    back.invoke     = [self] { show_spools(self); };
     rows.push_back(std::move(back));
     rows.push_back(separator());
 
     HeaderMenuItem recolour;
     recolour.label      = _L("Change colour…");
-    recolour.keeps_open = true;
-    recolour.invoke     = [this, spool] {
+    // NOT keeps_open. The system colour panel has no accept or cancel button
+    // of its own on macOS, so its window frame is the only way out -- and a
+    // transient popup renders above it and covers that frame. The popup has to
+    // be gone before the dialog appears, or the person is trapped.
+    recolour.invoke     = [self, spool] {
         wxColourData data;
         data.SetChooseFull(true);
         data.SetColour(wxColour(wxString::FromUTF8(spool.colour)));
-        wxColourDialog dialog(m_menu, &data);
+        wxColourDialog dialog(self->m_owner, &data);
         dialog.CenterOnParent();
-        if (dialog.ShowModal() != wxID_OK) { show_spools(); return; }
+        if (dialog.ShowModal() != wxID_OK) { reopen(self); return; }
         const wxColour picked = dialog.GetColourData().GetColour();
-        m_host.store->recolour(spool.id, picked.GetAsString(wxC2S_HTML_SYNTAX).ToStdString());
+        self->m_host.store->recolour(spool.id, picked.GetAsString(wxC2S_HTML_SYNTAX).ToStdString());
         // Recolouring the spool the project is on must move the project too,
         // or the chip would show a colour the print will not use.
         if (spool.filament_preset == SetupCommands::current_filament().preset_name &&
             spool.colour == SetupCommands::current_colour().ToStdString())
-            SetupCommands::set_filament_colour(*m_host.plater, picked);
-        if (m_host.store_changed) m_host.store_changed();
-        show_spools();
+            SetupCommands::set_filament_colour(*self->m_host.plater, picked);
+        if (self->m_host.store_changed) self->m_host.store_changed();
+        reopen(self);
     };
     rows.push_back(std::move(recolour));
 
     HeaderMenuItem rename;
     rename.label      = _L("Rename…");
-    rename.keeps_open = true;
-    rename.invoke     = [this, spool] {
-        wxTextEntryDialog dialog(m_menu, _L("Spool name"), _L("Rename spool"), wxString::FromUTF8(spool.name));
+    rename.invoke     = [self, spool] {
+        wxTextEntryDialog dialog(self->m_owner, _L("Spool name"), _L("Rename spool"), wxString::FromUTF8(spool.name));
         if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().Trim().empty()) {
-            m_host.store->rename(spool.id, dialog.GetValue().Trim().ToStdString());
-            if (m_host.store_changed) m_host.store_changed();
+            self->m_host.store->rename(spool.id, dialog.GetValue().Trim().ToStdString());
+            if (self->m_host.store_changed) self->m_host.store_changed();
         }
-        show_spools();
+        reopen(self);
     };
     rows.push_back(std::move(rename));
     rows.push_back(separator());
@@ -191,58 +208,66 @@ void SpoolMenu::show_row_menu(const Workspace::Spool& spool)
     remove.label            = _L("Remove from this printer");
     remove.decoration.danger = true;
     remove.keeps_open       = true;
-    remove.invoke           = [this, spool] {
+    remove.invoke           = [self, spool] {
         // Removing the spool forgets a note about a physical reel; it changes
         // nothing about the project, which keeps the preset and colour it has.
-        m_host.store->remove(spool.id);
-        if (m_host.store_changed) m_host.store_changed();
-        show_spools();
+        self->m_host.store->remove(spool.id);
+        if (self->m_host.store_changed) self->m_host.store_changed();
+        show_spools(self);
     };
     rows.push_back(std::move(remove));
 
-    m_menu->replace_items(std::move(rows));
+    menu->replace_items(std::move(rows));
 }
 
-void SpoolMenu::show_other_spool()
+void SpoolMenu::show_other_spool(const Ptr& self)
 {
+    auto* menu = self->m_menu.get();
+    if (menu == nullptr) return; // the popup went away; nothing to rebuild
     const auto printer = SetupCommands::current_printer();
 
     // The search field lives above the rows and keeps focus while the result
     // list rebuilds under it on every keystroke.
-    m_menu->set_header_builder([this](wxWindow* parent) -> wxWindow* {
-        const auto& palette = m_theme.palette(m_dark);
-        auto* field = new wxTextCtrl(parent, wxID_ANY, m_search, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
+    menu->set_header_builder([self](wxWindow* parent) -> wxWindow* {
+        const auto& palette = self->m_theme.palette(self->m_dark);
+        auto* field = new wxTextCtrl(parent, wxID_ANY, self->m_search, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
         field->SetHint(_L("Search filaments"));
         field->SetFont(Label::Body_14);
         field->SetBackgroundColour(palette.surface_subtle);
         field->SetForegroundColour(palette.text_primary);
         field->SetMinSize(wxSize(-1, field->FromDIP(28)));
-        field->Bind(wxEVT_TEXT, [this](wxCommandEvent& event) {
-            m_search = event.GetString();
+        field->Bind(wxEVT_TEXT, [self](wxCommandEvent& event) {
+            self->m_search = event.GetString();
             // Rebuilding destroys this control, so leave the current event
             // first and let the rebuild re-create the field with the text.
             // The popup owns the deferral: if it dismisses in between, the
             // weak reference drops the call and this controller is gone too.
-            m_menu->CallAfter([this, menu = wxWeakRef<wxWindow>(m_menu)] {
-                if (menu) show_other_spool();
+            self->m_owner->CallAfter([self, alive = wxWeakRef<wxWindow>(self->m_menu)] {
+                if (alive) show_other_spool(self);
             });
         });
-        m_search_field = field;
+        self->m_search_field = field;
         return field;
-    });
+    }, 1); // below the back row, as the design places it
 
     std::vector<HeaderMenuItem> rows;
-    rows.push_back(title_row(wxString::Format(_L("OTHER SPOOL · FITS %s · %g MM"),
-                                              printer.nickname.Upper(), printer.nozzle)));
+    // The title is also the way back to the spool list; without it the only
+    // exit from this step is dismissing the whole menu.
+    HeaderMenuItem back;
+    back.label      = wxString::Format(_L("OTHER SPOOL · FITS %s · %g MM"), printer.nickname.Upper(), printer.nozzle);
+    back.icon       = HeaderIcon::Back;
+    back.keeps_open = true;
+    back.invoke     = [self] { self->m_search.clear(); show_spools(self); };
+    rows.push_back(std::move(back));
 
     for (const auto& filament : SetupCommands::compatible_filaments()) {
-        if (!matches(filament, m_search)) continue;
+        if (!matches(filament, self->m_search)) continue;
         HeaderMenuItem row;
         row.label = filament.vendor.empty() ? filament.alias : filament.alias + middot() + filament.vendor;
         // A dashed ring: this preset is not a spool yet, and has no colour.
         row.decoration.dot = wxColour();
         row.keeps_open     = true;
-        row.invoke         = [this, filament] { show_new_spool(filament); };
+        row.invoke         = [self, filament] { show_new_spool(self, filament); };
         rows.push_back(std::move(row));
     }
 
@@ -250,11 +275,11 @@ void SpoolMenu::show_other_spool()
     generic.separator = true;
     generic.label     = _L("Generic preset…");
     generic.keeps_open = true;
-    generic.invoke    = [this] {
+    generic.invoke    = [self] {
         // Generic presets are ordinary compatible presets from the "Generic"
         // vendor, so this is the same list filtered, not a separate source.
-        m_search = "Generic";
-        show_other_spool();
+        self->m_search = "Generic";
+        show_other_spool(self);
     };
     rows.push_back(std::move(generic));
 
@@ -263,28 +288,35 @@ void SpoolMenu::show_other_spool()
     import.invoke = [] { SetupCommands::import_preset_file(); };
     rows.push_back(std::move(import));
 
-    m_menu->replace_items(std::move(rows));
-    if (m_search_field) m_search_field->SetFocus();
+    menu->replace_items(std::move(rows));
+    // The rebuild replaced the field, so focus and caret have to be restored
+    // or every keystroke would land at the start of what was already typed.
+    if (self->m_search_field) {
+        self->m_search_field->SetFocus();
+        self->m_search_field->SetInsertionPointEnd();
+    }
 }
 
-void SpoolMenu::show_new_spool(const SetupCommands::FilamentInfo& preset)
+void SpoolMenu::show_new_spool(const Ptr& self, const SetupCommands::FilamentInfo& preset)
 {
+    auto* menu = self->m_menu.get();
+    if (menu == nullptr) return; // the popup went away; nothing to rebuild
     const auto printer = SetupCommands::current_printer();
-    const bool first   = m_new_preset != preset.preset_name;
+    const bool first   = self->m_new_preset != preset.preset_name;
     if (first) {
-        m_new_preset      = preset.preset_name;
-        m_new_material    = preset.material.empty() ? preset.alias : preset.material;
-        m_new_vendor      = preset.vendor;
-        m_new_colour      = wxColour(wxString::FromUTF8(SetupCommands::swatches().front().hex));
-        m_new_name_edited = false;
+        self->m_new_preset      = preset.preset_name;
+        self->m_new_material    = preset.material.empty() ? preset.alias : preset.material;
+        self->m_new_vendor      = preset.vendor;
+        self->m_new_colour      = wxColour(wxString::FromUTF8(SetupCommands::swatches().front().hex));
+        self->m_new_name_edited = false;
     }
-    if (!m_new_name_edited) {
-        const wxString word = SetupCommands::colour_word(m_new_colour);
-        m_new_name = word.empty() ? preset.alias : word + " " + m_new_material;
+    if (!self->m_new_name_edited) {
+        const wxString word = SetupCommands::colour_word(self->m_new_colour);
+        self->m_new_name = word.empty() ? preset.alias : word + " " + self->m_new_material;
     }
 
-    m_menu->set_header_builder([this, preset](wxWindow* parent) -> wxWindow* {
-        const auto& palette = m_theme.palette(m_dark);
+    menu->set_header_builder([self, preset](wxWindow* parent) -> wxWindow* {
+        const auto& palette = self->m_theme.palette(self->m_dark);
         auto* panel = new wxPanel(parent);
         panel->SetBackgroundColour(palette.surface_raised);
         auto* column = new wxBoxSizer(wxVERTICAL);
@@ -307,49 +339,49 @@ void SpoolMenu::show_new_spool(const SetupCommands::FilamentInfo& preset)
             cell->SetName(swatch.name);
             cell->SetToolTip(_(swatch.name));
             cell->SetBackgroundStyle(wxBG_STYLE_PAINT);
-            cell->Bind(wxEVT_PAINT, [this, cell, colour, palette](wxPaintEvent&) {
+            cell->Bind(wxEVT_PAINT, [self, cell, colour, palette](wxPaintEvent&) {
                 wxPaintDC dc(cell);
                 dc.SetBackground(wxBrush(palette.surface_raised));
                 dc.Clear();
-                const bool chosen = m_new_colour == colour;
+                const bool chosen = self->m_new_colour == colour;
                 dc.SetBrush(wxBrush(colour));
                 dc.SetPen(wxPen(chosen ? palette.border_strong : palette.border_subtle, chosen ? 2 : 1));
                 const wxRect box = cell->GetClientRect().Deflate(chosen ? 1 : 2);
                 dc.DrawRoundedRectangle(box, cell->FromDIP(4));
             });
-            cell->Bind(wxEVT_LEFT_UP, [this, colour, preset](wxMouseEvent&) {
-                m_new_colour = colour;
-                m_menu->CallAfter([this, preset, menu = wxWeakRef<wxWindow>(m_menu)] {
-                    if (menu) show_new_spool(preset);
+            cell->Bind(wxEVT_LEFT_UP, [self, colour, preset](wxMouseEvent&) {
+                self->m_new_colour = colour;
+                self->m_owner->CallAfter([self, preset, alive = wxWeakRef<wxWindow>(self->m_menu)] {
+                    if (alive) show_new_spool(self, preset);
                 });
             });
             grid->Add(cell, 0);
         }
         column->Add(grid, 0, wxBOTTOM, panel->FromDIP(8));
 
-        auto* name = new wxTextCtrl(panel, wxID_ANY, m_new_name);
+        auto* name = new wxTextCtrl(panel, wxID_ANY, self->m_new_name);
         name->SetFont(Label::Body_14);
         name->SetBackgroundColour(palette.surface_subtle);
         name->SetForegroundColour(palette.text_primary);
         name->SetMinSize(wxSize(-1, panel->FromDIP(28)));
-        name->Bind(wxEVT_TEXT, [this](wxCommandEvent& event) {
+        name->Bind(wxEVT_TEXT, [self](wxCommandEvent& event) {
             // Once the person types, the colour no longer rewrites the name.
-            m_new_name        = event.GetString();
-            m_new_name_edited = true;
+            self->m_new_name        = event.GetString();
+            self->m_new_name_edited = true;
         });
-        m_name_field = name;
+        self->m_name_field = name;
         column->Add(name, 0, wxEXPAND);
 
         panel->SetSizerAndFit(column);
         return panel;
-    });
+    }, 1); // below the back row
 
     std::vector<HeaderMenuItem> rows;
     HeaderMenuItem back;
     back.label      = wxString::Format(_L("NEW SPOOL FOR %s"), printer.nickname.Upper());
     back.icon       = HeaderIcon::Back;
     back.keeps_open = true;
-    back.invoke     = [this] { m_new_preset.clear(); show_other_spool(); };
+    back.invoke     = [self] { self->m_new_preset.clear(); show_other_spool(self); };
     rows.push_back(std::move(back));
 
     HeaderMenuItem use;
@@ -357,20 +389,20 @@ void SpoolMenu::show_new_spool(const SetupCommands::FilamentInfo& preset)
     use.separator            = true;
     use.decoration.detail    = _L("adds it to the list");
     use.decoration.bold      = true;
-    use.invoke               = [this, printer] {
+    use.invoke               = [self, printer] {
         Workspace::Spool spool;
         spool.printer_preset  = printer.preset_name;
-        spool.filament_preset = m_new_preset;
-        spool.colour          = m_new_colour.GetAsString(wxC2S_HTML_SYNTAX).ToStdString();
-        spool.name            = m_new_name.Trim().ToStdString();
-        spool.brand           = m_new_vendor.ToStdString();
-        if (spool.name.empty()) spool.name = m_new_material.ToStdString();
-        select(m_host.store->add(std::move(spool)));
+        spool.filament_preset = self->m_new_preset;
+        spool.colour          = self->m_new_colour.GetAsString(wxC2S_HTML_SYNTAX).ToStdString();
+        spool.name            = self->m_new_name.Trim().ToStdString();
+        spool.brand           = self->m_new_vendor.ToStdString();
+        if (spool.name.empty()) spool.name = self->m_new_material.ToStdString();
+        SpoolMenu::select(self, self->m_host.store->add(std::move(spool)));
     };
     rows.push_back(std::move(use));
 
-    m_menu->replace_items(std::move(rows));
-    if (m_name_field && !m_new_name_edited) m_name_field->SetInsertionPointEnd();
+    menu->replace_items(std::move(rows));
+    if (self->m_name_field && !self->m_new_name_edited) self->m_name_field->SetInsertionPointEnd();
 }
 
 } // namespace Slic3r::GUI::JusPrin

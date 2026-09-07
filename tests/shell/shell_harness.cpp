@@ -622,6 +622,8 @@ private:
                 installed_shell()->status_row()->request_home();
                 self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(); },
                     "header_home_returns_to_prepare",[self] {
+                        self->verify_chip_keyboard();
+                        self->verify_menu_in_place_navigation();
                         self->capture_chip_appearance();
                         self->verify_two_click_swap();
                         self->verify_header_setup(Preset::TYPE_PRINTER);
@@ -685,6 +687,9 @@ private:
                                                      : fs::path(data_dir()) / "chip-appearance";
         fs::create_directories(out);
         const bool was_dark = wxGetApp().dark_mode();
+        // A half left in its open state paints the selected fill, which would
+        // make these images describe a state the reader never sees at rest.
+        check(!chip_half_open(), "chip_is_at_rest_before_capture");
 
         // Deliberately does NOT refresh: a refresh re-reads the spool store and
         // would overwrite any label the caller set for the shot.
@@ -735,6 +740,130 @@ private:
         row->refresh();
     }
 
+    // The nozzle, plate, other-spool and per-row steps all replace the popup's
+    // own rows instead of opening a second popup. That mechanism is the one
+    // thing a screenshot cannot check and a click test kept missing, so it is
+    // asserted here: after activating the row, the SAME popup must still be
+    // open and must now show the sub-step.
+    void verify_menu_in_place_navigation()
+    {
+        auto* row = installed_shell()->status_row();
+
+        row->open_printer_menu();
+        auto* menu = visible_header_menu();
+        check(menu != nullptr, "printer_menu_opens");
+        if (menu == nullptr) return;
+        check(wxWindow::FindWindowByName("Nozzle", menu) != nullptr, "printer_menu_has_nozzle_row");
+        check(wxWindow::FindWindowByName("Plate", menu) != nullptr, "printer_menu_has_plate_row");
+
+        auto* plate = static_cast<HeaderButton*>(wxWindow::FindWindowByName("Plate", menu));
+        check(plate != nullptr && plate->IsEnabled(), "plate_row_is_live_with_the_sidebar_hidden");
+        if (plate == nullptr || !plate->IsEnabled()) { menu->Dismiss(); return; }
+
+        // Drive it the way a pointer does, through the popup's own mouse
+        // re-dispatch, not by synthesising the button event: a real click was
+        // observed to close the menu where the button event does not, so the
+        // defect lives somewhere in this path.
+        const wxPoint in_row = plate->GetPosition() + wxPoint(plate->GetSize().x / 2, plate->GetSize().y / 2);
+        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
+            wxMouseEvent mouse(type);
+            mouse.SetPosition(in_row);
+            mouse.SetEventObject(menu);
+            menu->GetEventHandler()->ProcessEvent(mouse);
+        }
+
+        // The rebuild is deferred past the click, so let the queue drain.
+        wxYield();
+        auto* after = visible_header_menu();
+        check(after != nullptr, "plate_substep_keeps_the_menu_open_after_a_click");
+        if (after == nullptr) return;
+        // The sub-step replaced the rows: the root's Nozzle row is gone and a
+        // back row named Plate heads the list.
+        check(wxWindow::FindWindowByName("Nozzle", after) == nullptr, "plate_substep_replaced_the_rows");
+        check(wxWindow::FindWindowByName("Printer settings…", after) == nullptr, "plate_substep_hides_root_rows");
+        after->close();
+        wxYield();
+        // Dismissing must also clear the anchor's open state, or the chip keeps
+        // painting its pressed fill with no menu on screen.
+        check(!chip_half_open(), "dismissing_the_menu_clears_the_chip_open_state");
+    }
+
+    // True while either chip half still believes its menu is open.
+    bool chip_half_open() const
+    {
+        auto* chip = dynamic_cast<PrinterSpoolChip*>(
+            wxWindow::FindWindowByName("Printer and spool", installed_shell()->status_row()));
+        return chip != nullptr && (chip->printer_half().is_open() || chip->spool_half().is_open());
+    }
+
+    // Left/right arrows move between the chip's halves, so the whole chip
+    // behaves like one control to the keyboard while remaining two to the
+    // pointer. Focus is asserted, not the key press.
+    void verify_chip_keyboard()
+    {
+        auto* row  = installed_shell()->status_row();
+        auto* chip = dynamic_cast<PrinterSpoolChip*>(wxWindow::FindWindowByName("Printer and spool", row));
+        check(chip != nullptr, "chip_present_for_keyboard");
+        if (chip == nullptr) return;
+
+        // Focus only sticks while the top-level window is active, so make it
+        // so before asserting; otherwise this measures window activation.
+        m_frame->Raise();
+        m_frame->SetFocus();
+        wxYield();
+        chip->printer_half().SetFocus();
+        wxYield();
+        if (!chip->printer_half().HasFocus()) {
+            // The harness window is not key (common when another app is
+            // frontmost). Focus assertions would measure the environment, not
+            // the chip, so say that plainly instead of failing or pretending.
+            std::cout << "HARNESS SKIP chip_keyboard_needs_an_active_window" << std::endl;
+            return;
+        }
+        check(chip->printer_half().HasFocus(), "printer_half_takes_focus");
+
+        auto arrow = [&](wxWindow& from, int key) {
+            wxKeyEvent event(wxEVT_KEY_DOWN);
+            event.m_keyCode = key;
+            event.SetEventObject(&from);
+            from.GetEventHandler()->ProcessEvent(event);
+            wxYield();
+        };
+        arrow(chip->printer_half(), WXK_RIGHT);
+        check(chip->spool_half().HasFocus(), "right_arrow_moves_to_the_spool_half");
+        arrow(chip->spool_half(), WXK_LEFT);
+        check(chip->printer_half().HasFocus(), "left_arrow_moves_back_to_the_printer_half");
+    }
+
+    // The after-swap line must reach the page as a note, rendered without a
+    // bubble. Checked in the DOM, because the host storing it proves nothing
+    // about what the reader sees. RunScript cannot return a value on macOS, so
+    // the probe reports through the composer draft, which the host owns.
+    void verify_note_rendered(std::function<void()> then)
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        WebView::RunScript(web_view.webview(),
+            "(function(){"
+            "  var notes = document.querySelectorAll('.message.note');"
+            "  var bubbles = document.querySelectorAll('.message.note.user, .message.note.assistant');"
+            "  var text = notes.length ? notes[0].textContent : '';"
+            "  var probe = 'notes=' + notes.length + ';bubbles=' + bubbles.length + ';first=' + text;"
+            "  window.__jusprinTest && window.__jusprinTest.setDraft(probe);"
+            "})()");
+        wait_until([this] { return persistence().draft().rfind("notes=", 0) == 0; },
+            "note_probe_reported", [self = shared_from_this(), then] {
+                const std::string probe = self->persistence().draft();
+                self->check(probe.find("notes=0;") == std::string::npos, "page_renders_the_swap_notes");
+                self->check(probe.find(";bubbles=0;") != std::string::npos, "notes_render_without_a_bubble");
+                self->check(probe.find("Harness Second Spool") != std::string::npos ||
+                            probe.find("Harness Other Preset") != std::string::npos,
+                            "the_rendered_note_names_the_spool");
+                std::cout << "HARNESS NOTE PROBE " << probe << std::endl;
+                self->persistence().set_draft({});
+                then();
+            });
+    }
+
     void verify_two_click_swap()
     {
         auto* row = installed_shell()->status_row();
@@ -763,6 +892,24 @@ private:
         check(current.has_value() && current->id == second.id, "current_spool_matches_after_a_swap");
 
         check(!row->select_spool("not-a-spool-id"), "select_spool_refuses_an_unknown_id");
+
+        // Swapping to a DIFFERENT filament preset is a heavier path than
+        // recolouring the same one: it runs Orca's preset switch, which can
+        // touch compatibility, dirty state and the sidebar. The "Use this
+        // spool" step does exactly this, so it is exercised here.
+        const auto compatible = SetupCommands::compatible_filaments();
+        const std::string current_preset = SetupCommands::current_filament().preset_name;
+        std::string other_preset;
+        for (const auto& filament : compatible)
+            if (filament.preset_name != current_preset) { other_preset = filament.preset_name; break; }
+        check(!other_preset.empty(), "a_second_compatible_filament_exists");
+        if (other_preset.empty()) return;
+
+        const auto crossed = row->remember_spool(other_preset, "#101010", "Harness Other Preset");
+        check(row->select_spool(crossed.id), "select_spool_switches_to_another_preset");
+        check(SetupCommands::current_filament().preset_name == other_preset,
+              "the_project_is_on_the_new_filament_preset");
+        check(row->spool_text() == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
     }
 
     void verify_header_setup_open(Preset::Type type)
@@ -1547,15 +1694,19 @@ private:
         check(!turns.empty() && turns.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
         check(!turns.empty() && turns.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
         if (turns.empty()) return;
-        // The spool swap earlier in this run posted exactly one note, and it
-        // names the spool it swapped to.
-        check(notes.size() == 1, "spool_swap_posts_one_note");
-        check(!notes.empty() && notes.front().text.find("Harness Second Spool") != std::string::npos,
-              "swap_note_names_the_spool");
+        // The two swaps earlier in this run posted one note each, in order,
+        // each naming the spool it swapped to.
+        check(notes.size() == 2, "each_spool_swap_posts_one_note");
+        if (notes.size() == 2) {
+            check(notes[0].text.find("Harness Second Spool") != std::string::npos, "first_swap_note_names_its_spool");
+            check(notes[1].text.find("Harness Other Preset") != std::string::npos, "second_swap_note_names_its_spool");
+        }
         // A note is a statement, not a turn: nothing replies to it, and it
         // never carries the streaming or failure states a turn can.
-        check(!notes.empty() && notes.front().state == Agent::MessageState::Complete, "swap_note_is_complete");
-        check(!notes.empty() && notes.front().in_reply_to.empty(), "swap_note_starts_no_exchange");
+        for (const auto& note : notes) {
+            check(note.state == Agent::MessageState::Complete, "swap_note_is_complete");
+            check(note.in_reply_to.empty(), "swap_note_starts_no_exchange");
+        }
         // The reply must describe the authoritative fixture, not canned text:
         // the two-plate fixture and its active plate contents appear in it.
         check(turns.back().text.find("2 plates") != std::string::npos, "agent_reply_describes_fixture_plates");
@@ -1566,7 +1717,9 @@ private:
         check(m_plater->select_object(1), "agent_native_selection_change");
         wait_until([&host, sent_before] { return host.messages_sent() > sent_before; },
                    "agent_context_pushed_on_native_selection",
-                   [self = shared_from_this()] { self->agent_verify_reload(); });
+                   [self = shared_from_this()] {
+                       self->verify_note_rendered([self] { self->agent_verify_reload(); });
+                   });
     }
 
     void agent_verify_reload()

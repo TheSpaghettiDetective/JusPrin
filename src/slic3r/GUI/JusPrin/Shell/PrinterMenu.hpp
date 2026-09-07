@@ -15,6 +15,8 @@
 
 #include <wx/weakref.h>
 
+#include <memory>
+
 namespace Slic3r::GUI { class Plater; }
 
 namespace Slic3r::GUI::JusPrin {
@@ -22,24 +24,30 @@ namespace Slic3r::GUI::JusPrin {
 class PrinterMenu
 {
 public:
-    // Opens the menu anchored to the chip's left half. The controller lives
-    // exactly as long as the popup and deletes itself when it dismisses.
+    // Opens the menu anchored to the chip's left half.
+    //
+    // Lifetime: HeaderMenu closes the popup *before* running a row's callback,
+    // so a raw controller would be freed while a queued callback still pointed
+    // at it. The controller is shared and every callback holds a reference.
     static void open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor);
 
-private:
     PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater);
 
-    void show_root();
-    void show_nozzles();
-    void show_plates();
+private:
+    using Ptr = std::shared_ptr<PrinterMenu>;
+
+    static void show_root(const Ptr& self);
+    static void show_nozzles(const Ptr& self);
+    static void show_plates(const Ptr& self);
     // A sub-list: a back row carrying the step's name, then the choices.
-    void show_sublist(const wxString& title, std::vector<HeaderMenuItem> choices);
+    static void show_sublist(const Ptr& self, const wxString& title, std::vector<HeaderMenuItem> choices);
 
     wxWindow*         m_owner;
     const ShellTheme& m_theme;
     bool              m_dark;
     Plater&           m_plater;
-    HeaderMenu*       m_menu{nullptr};
+    // Weak: see SpoolMenu -- a transient popup may vanish under us.
+    wxWeakRef<HeaderMenu> m_menu;
 };
 
 } // namespace Slic3r::GUI::JusPrin

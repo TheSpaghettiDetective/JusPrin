@@ -17,6 +17,9 @@
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 
 #include <functional>
+#include <memory>
+
+#include <wx/weakref.h>
 
 class wxTextCtrl;
 
@@ -38,26 +41,43 @@ public:
         std::function<void()> store_changed;
     };
 
-    // Opens anchored to the chip's right half. The controller lives exactly as
-    // long as the popup and deletes itself when it dismisses.
+    // Opens anchored to the chip's right half.
+    //
+    // Lifetime: HeaderMenu closes the popup *before* it runs a row's callback,
+    // and closing destroys the popup and everything the popup owns. A raw
+    // controller would therefore be freed while a queued callback still held a
+    // pointer to it. The controller is shared instead, and every row callback
+    // holds a reference, so it outlives the popup by exactly as long as the
+    // callbacks need it.
     static void open(wxWindow* owner, const ShellTheme& theme, bool dark, Host host, HeaderButton& anchor);
 
-private:
     SpoolMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Host host);
 
-    void show_spools();
-    void show_row_menu(const Workspace::Spool& spool);
-    void show_other_spool();
-    void show_new_spool(const SetupCommands::FilamentInfo& preset);
+private:
+    using Ptr = std::shared_ptr<SpoolMenu>;
+
+    // Each takes the shared handle so the callbacks they install keep the
+    // controller alive after the popup has gone.
+    static void reopen(const Ptr& self);
+    static void show_spools(const Ptr& self);
+    static void show_row_menu(const Ptr& self, const Workspace::Spool& spool);
+    static void show_other_spool(const Ptr& self);
+    static void show_new_spool(const Ptr& self, const SetupCommands::FilamentInfo& preset);
 
     // Applies a remembered spool to the project, then reports it.
-    void select(const Workspace::Spool& spool);
+    static void select(const Ptr& self, const Workspace::Spool& spool);
 
     wxWindow*         m_owner;
     const ShellTheme& m_theme;
     bool              m_dark;
     Host              m_host;
-    HeaderMenu*       m_menu{nullptr};
+    // Weak: a transient popup can be dismissed by the system at any time --
+    // notably while one of the row dialogs below is modal -- and every step
+    // must tolerate finding it gone.
+    wxWeakRef<HeaderMenu> m_menu;
+    // The chip half this menu hangs from, so a step that must close the popup
+    // (to put a modal dialog on screen) can bring the menu back afterwards.
+    wxWeakRef<HeaderButton> m_anchor;
 
     // "Other spool…" step.
     wxString    m_search;

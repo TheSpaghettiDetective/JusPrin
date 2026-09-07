@@ -13,7 +13,9 @@ class wxGraphicsContext;
 
 namespace Slic3r::GUI::JusPrin {
 
-enum class HeaderIcon { None, Back, Down, Up, Right, More, Machine, Spool, Monitor, Check, Slice, Eye, Plates, Export, Print, Cancel };
+// Caret is the chip's own solid disclosure triangle; Down/Up/Right are the
+// lighter strokes the menu rows use.
+enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Machine, Printer, Spool, Monitor, Check, Slice, Eye, Plates, Export, Print, Cancel };
 
 // ChipLeft and ChipRight are the two halves of the printer/spool chip. Each is
 // a separate focus target, and each paints its own outer half of one shared
@@ -155,16 +157,22 @@ public:
     void replace_items(std::vector<HeaderMenuItem> items);
     // A custom view above the rows -- the search field of the "Other spool…"
     // step. The builder runs with the popup as parent; nullptr clears it.
-    void set_header_builder(std::function<wxWindow*(wxWindow*)> builder);
+    // `after_rows` places the custom view below that many rows, so a step can
+    // keep its title/back row at the top where the design puts it.
+    void set_header_builder(std::function<wxWindow*(wxWindow*)> builder, int after_rows = 0);
     // Invoked when the popup dismisses for any reason, after the anchor has
     // been released. Used to drop menu-owned state the owner is holding.
     void set_dismiss_listener(std::function<void()> listener) { m_dismissed = std::move(listener); }
+
+    // Dismisses the popup and releases its anchor. Public because closing a
+    // menu is a normal thing for an owner (or a test) to ask for; Dismiss()
+    // alone would leave the anchor painting its open state.
+    void close();
 
 protected:
     void OnDismiss() override;
 
 private:
-    void close();
     void select_item(int index);
     void build(std::vector<HeaderMenuItem> items);
     void on_key(wxKeyEvent& event);
@@ -175,6 +183,7 @@ private:
     std::vector<HeaderButton*> m_items;
     wxWindow* m_header{nullptr};
     std::function<wxWindow*(wxWindow*)> m_header_builder;
+    int m_header_after_rows{0};
     std::function<void()> m_dismissed;
     wxWeakRef<HeaderButton> m_anchor;
     bool m_closed{false};

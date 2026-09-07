@@ -22,7 +22,7 @@ PrinterSpoolChip::PrinterSpoolChip(wxWindow* parent, const ShellTheme& theme)
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Bind(wxEVT_PAINT, [](wxPaintEvent&) {});
 
-    m_printer = new HeaderButton(this, theme, HeaderStyle::ChipLeft, wxEmptyString, HeaderIcon::Machine);
+    m_printer = new HeaderButton(this, theme, HeaderStyle::ChipLeft, wxEmptyString, HeaderIcon::Printer);
     m_printer->SetName("Printer");
     m_printer->set_label_cap(kHalfLabelCapDip);
     m_spool = new HeaderButton(this, theme, HeaderStyle::ChipRight, wxEmptyString, HeaderIcon::None);
@@ -60,7 +60,7 @@ void PrinterSpoolChip::set_printer(const wxString& nickname, const wxString& noz
     decoration.detail        = nozzle;
     decoration.technical     = true;
     decoration.detail_inline = true;
-    decoration.trailing  = HeaderIcon::Down;
+    decoration.trailing  = HeaderIcon::Caret;
     m_printer->set_decoration(std::move(decoration));
     // The tooltip carries the full text the chip may have ellipsized. It says
     // what is selected and nothing about whether it is loaded: the chip makes
@@ -76,7 +76,7 @@ void PrinterSpoolChip::set_spool(const wxString& name, const wxColour& colour)
     m_spool->SetLabel(label);
     HeaderRowDecoration decoration;
     decoration.dot      = colour; // an invalid colour draws the dashed ring
-    decoration.trailing = HeaderIcon::Down;
+    decoration.trailing = HeaderIcon::Caret;
     m_spool->set_decoration(std::move(decoration));
     m_spool->SetToolTip(label);
     InvalidateBestSize();
