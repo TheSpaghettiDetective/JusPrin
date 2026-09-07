@@ -519,6 +519,107 @@ TEST_CASE("project replacement invalidates the session in pushed context", "[age
     CHECK(context["plates"].empty());
 }
 
+TEST_CASE("the setup card's facts travel with the context", "[agent][context][setup-card]")
+{
+    Harness harness;
+    harness.handshake();
+    const auto plate = harness.workspace.snapshot().plates.front().id;
+
+    SECTION("nothing changed, nothing sliced")
+    {
+        const json context = harness.of_type("context").empty()
+                                 ? (*harness.last_of_type("state"))["payload"]["context"]
+                                 : harness.of_type("context").back()["payload"]["context"];
+        // Absent, not zeroed: there is no honest estimate before a slice.
+        CHECK(context["plates"][0]["estimate"].is_null());
+        CHECK(context["presetDeltas"].empty());
+        CHECK(context["setupIntent"] == "");
+    }
+
+    SECTION("a dirty setting becomes one delta with the value it moved from")
+    {
+        harness.workspace.set_setting_for_testing("wall_loops", "4");
+        const json context = harness.of_type("context").back()["payload"]["context"];
+        REQUIRE(context["presetDeltas"].size() == 1);
+        CHECK(context["presetDeltas"][0]["key"] == "wall_loops");
+        CHECK(context["presetDeltas"][0]["label"] == "Wall loops");
+        CHECK(context["presetDeltas"][0]["preset"] == "2");
+        CHECK(context["presetDeltas"][0]["value"] == "4");
+    }
+
+    SECTION("a sliced plate carries time and material, and money only when priced")
+    {
+        harness.workspace.set_plate_sliced(plate, true);
+        Workspace::SliceEstimate estimate;
+        estimate.print_time_seconds = 13800;
+        estimate.material_grams     = 47.0;
+        harness.workspace.set_plate_estimate_for_testing(plate, estimate);
+
+        json context = harness.of_type("context").back()["payload"]["context"];
+        CHECK(context["plates"][0]["estimate"]["printTimeSeconds"] == 13800);
+        CHECK(context["plates"][0]["estimate"]["materialGrams"] == 47.0);
+        // No filament price is the default, and a zero is not a price.
+        CHECK(context["plates"][0]["estimate"]["materialCost"].is_null());
+
+        estimate.material_cost = 1.12;
+        estimate.has_cost      = true;
+        harness.workspace.set_plate_estimate_for_testing(plate, estimate);
+        context = harness.of_type("context").back()["payload"]["context"];
+        CHECK(context["plates"][0]["estimate"]["materialCost"] == 1.12);
+    }
+
+    SECTION("un-slicing takes the estimate away with it")
+    {
+        harness.workspace.set_plate_sliced(plate, true);
+        Workspace::SliceEstimate estimate;
+        estimate.print_time_seconds = 600;
+        harness.workspace.set_plate_estimate_for_testing(plate, estimate);
+        REQUIRE(harness.of_type("context").back()["payload"]["context"]["plates"][0]["estimate"].is_object());
+
+        harness.workspace.set_plate_sliced(plate, false);
+        CHECK(harness.of_type("context").back()["payload"]["context"]["plates"][0]["estimate"].is_null());
+    }
+}
+
+TEST_CASE("an applied settings change records its intent on the chat it came from", "[agent][context][setup-card]")
+{
+    Harness harness;
+    harness.handshake();
+    const std::string message_id = harness.send_user_message("make it strong", "c-1");
+    harness.pump_all();
+
+    const auto snapshot = harness.workspace.snapshot();
+    auto propose = [&](json arguments) {
+        arguments["expectedSessionId"] = std::to_string(snapshot.session.value());
+        arguments["expectedRevision"]  = harness.workspace.snapshot().revision;
+        return harness.host.tools().propose({"settings_apply_patch", arguments.dump()}, message_id).action_id;
+    };
+
+    SECTION("the agent's restatement reaches the page")
+    {
+        const std::string action = propose(json{{"changes", {{"wall_loops", 4}}}, {"intent", "Strong - it'll bear weight"}});
+        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
+        for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
+            harness.host.pump_tools();
+        REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
+
+        CHECK(harness.of_type("context").back()["payload"]["context"]["setupIntent"] == "Strong - it'll bear weight");
+    }
+
+    SECTION("a change with nothing to restate leaves the title row empty rather than inventing one")
+    {
+        const std::string action = propose(json{{"changes", {{"wall_loops", 4}}}});
+        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
+        for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
+            harness.host.pump_tools();
+        REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
+
+        CHECK(harness.of_type("context").back()["payload"]["context"]["setupIntent"] == "");
+        // The change still moved the card's other rows.
+        CHECK(harness.of_type("context").back()["payload"]["context"]["presetDeltas"].size() == 1);
+    }
+}
+
 TEST_CASE("reload reconstructs the page from native state, mid-stream included", "[agent][reload]")
 {
     Harness harness;

@@ -88,12 +88,14 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     }
     if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
         const bool apply = definition.handler == ToolHandler::SettingsApplyPatch;
-        if (!(apply ? has_only(arguments, {"changes", "expectedSessionId", "expectedRevision"}) : has_only(arguments, {"changes"})) ||
+        if (!(apply ? has_only(arguments, {"changes", "expectedSessionId", "expectedRevision", "intent"}) : has_only(arguments, {"changes"})) ||
             !arguments.contains("changes") || !arguments["changes"].is_object() || arguments["changes"].empty() ||
             arguments["changes"].size() > 32)
             return false;
         if (apply && (!arguments.contains("expectedSessionId") || !is_unsigned_string(arguments["expectedSessionId"]) ||
                       !arguments.contains("expectedRevision") || !arguments["expectedRevision"].is_number_unsigned()))
+            return false;
+        if (apply && !optional_string(arguments, "intent"))
             return false;
         return std::all_of(arguments["changes"].begin(), arguments["changes"].end(), [](const auto& value) {
             return value.is_string() || value.is_number() || value.is_boolean();
@@ -232,7 +234,11 @@ std::vector<ToolDefinition> make_definitions()
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
         {"settings_apply_patch", "Change process settings",
          "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview. Waits for approval in JusPrin; project Undo does not undo this change.",
-         object_schema({{"changes", changes_input}, {"expectedSessionId", id}, {"expectedRevision", revision}},
+         object_schema({{"changes", changes_input}, {"expectedSessionId", id}, {"expectedRevision", revision},
+                        {"intent", json{{"type", "string"}, {"maxLength", 40},
+                                        {"description", "What the user asked this setup to be, in their own words, as "
+                                         "one line of at most 40 characters. Not a description of the settings you "
+                                         "changed. Send it whenever the change came from something the user asked for."}}}},
                        {"changes", "expectedSessionId", "expectedRevision"}),
          settings_output({{"applied", boolean_schema()}, {"changes", array_schema(change)}, {"normalized", array_schema(id)},
              {"processPresetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},

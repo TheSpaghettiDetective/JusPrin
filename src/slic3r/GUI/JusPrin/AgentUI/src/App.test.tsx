@@ -47,13 +47,14 @@ const context: WorkspaceContext = {
   revision: 2,
   projectName: 'Two Cubes',
   projectDirty: false,
-  printer: { preset: 'Test Printer 0.4', filament: 'Generic PLA' },
+  printer: { preset: 'MyKlipper 0.2 nozzle', filament: 'Generic PLA', process: 'Test Printer 0.4' },
   plates: [
     {
       id: '11',
       name: 'Plate 1',
       active: true,
       sliced: false,
+      estimate: null,
       objects: [
         { id: '21', name: 'cube-a', instances: 1, selected: true },
         { id: '22', name: 'cube-b', instances: 1, selected: false },
@@ -62,6 +63,8 @@ const context: WorkspaceContext = {
   ],
   selection: { status: 'objects', objectIds: ['21'] },
   history: { canUndo: false, canRedo: false },
+  presetDeltas: [],
+  setupIntent: '',
 };
 
 function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
@@ -138,11 +141,13 @@ describe('App', () => {
 
     expect(screen.getByText('what is on the plate?')).toBeInTheDocument();
     expect(screen.getByText('Two cubes.')).toBeInTheDocument();
-    expect(screen.getByTestId('context-summary')).toHaveTextContent('Two Cubes');
-    // The plan line names the material the plan is written against, so a spool
-    // swap is visible here as well as on the chip.
-    expect(screen.getByTestId('context-summary')).toHaveTextContent('Generic PLA');
-    expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-a');
+    // Nothing delegated, nothing sliced, preset untouched: the card degrades
+    // to a label rather than an empty frame. It names the process preset the
+    // changes are measured against, not the machine.
+    expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
+    // The card is the plan line, so a spool swap has to be visible here too.
+    expect(screen.getByTestId('current-setup')).toHaveTextContent('Generic PLA');
+    expect(screen.queryByText('Current setup')).not.toBeInTheDocument();
   });
 
   it('renders assistant Markdown while keeping user input literal', () => {
@@ -300,7 +305,7 @@ describe('App', () => {
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
     // The conversation chrome and the consent banner give way to the offer.
     expect(screen.queryByTestId('agent-unavailable')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('context-summary')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
     // The ask box stays in place, inert.
     const composer = screen.getByLabelText('Message the Agent');
     expect(composer).toBeDisabled();
@@ -559,27 +564,53 @@ describe('App', () => {
     expect((draft!.payload as { text: string }).text).toBe('recovered draft plus more');
   });
 
-  it('updates the context header when the native selection changes', () => {
+  it('rebuilds the setup card when the native workspace changes', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
-    expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-a');
+    expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
 
     const changed: WorkspaceContext = {
       ...context,
       revision: 3,
-      selection: { status: 'objects', objectIds: ['22'] },
-      plates: [
-        {
-          ...context.plates[0],
-          objects: [
-            { id: '21', name: 'cube-a', instances: 1, selected: false },
-            { id: '22', name: 'cube-b', instances: 1, selected: true },
-          ],
-        },
+      setupIntent: "Strong - it'll bear weight",
+      presetDeltas: [
+        { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4' },
+        { key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '45%' },
       ],
+      plates: [{ ...context.plates[0], sliced: true, estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: null } }],
     };
     host.deliver('context', { context: changed });
-    expect(screen.getByTestId('context-summary')).toHaveTextContent('Selected: cube-b');
+
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('Current setup');
+    expect(card).toHaveTextContent("Strong - it'll bear weight");
+    expect(card).toHaveTextContent('~3h 50');
+    expect(card).toHaveTextContent('47 g');
+    expect(card).toHaveTextContent('2 changes from preset');
+  });
+
+  it('opens the deltas over the thread and closes them again on the next keystroke', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('context', {
+      context: {
+        ...context,
+        setupIntent: 'Strong enough to bear weight',
+        presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4' }],
+      },
+    });
+
+    expect(screen.queryByTestId('current-setup-expansion')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('current-setup-handle'));
+
+    const expansion = screen.getByTestId('current-setup-expansion');
+    expect(expansion).toHaveTextContent('Wall loops');
+    expect(expansion).toHaveTextContent('2');
+    expect(expansion).toHaveTextContent('4');
+
+    // Typing means the user has moved on, so the layer gets out of the way.
+    await userEvent.type(screen.getByRole('textbox'), 'a');
+    expect(screen.queryByTestId('current-setup-expansion')).not.toBeInTheDocument();
   });
 });
 

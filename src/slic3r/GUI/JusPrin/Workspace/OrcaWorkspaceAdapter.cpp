@@ -70,6 +70,61 @@ bool blank(const std::string& value)
     return value.empty() || std::all_of(value.begin(), value.end(), [](unsigned char ch) { return std::isspace(ch) != 0; });
 }
 
+// Time and material for one plate, read from the plate's own G-code result the
+// same way Orca's preview and cost readouts do: volume per extruder times that
+// filament's density and price. Nothing here is computed by JusPrin, so the
+// card can never disagree with the number the slicer shows.
+std::optional<SliceEstimate> estimate_of(const GCodeProcessorResult& result)
+{
+    SliceEstimate estimate;
+    const auto& statistics = result.print_statistics;
+    const auto& mode = statistics.modes[static_cast<std::size_t>(PrintEstimatedStatistics::ETimeMode::Normal)];
+    estimate.print_time_seconds = mode.time > 0.f ? static_cast<std::uint32_t>(mode.time) : 0u;
+
+    double cost = 0.0;
+    bool   every_filament_priced = true;
+    for (const auto& [extruder, volume] : statistics.total_volumes_per_extruder) {
+        // A slice that used an extruder Orca has no density for cannot be
+        // weighed, and a partial weight presented as the total is worse than
+        // no weight at all -- so the whole estimate goes.
+        if (extruder >= result.filament_densities.size()) return std::nullopt;
+        const double grams = volume * result.filament_densities[extruder] * 0.001;
+        estimate.material_grams += grams;
+        // A filament profile with no price reports zero, which is not a price.
+        if (extruder < result.filament_costs.size() && result.filament_costs[extruder] > 0.f)
+            cost += grams * result.filament_costs[extruder] * 0.001;
+        else
+            every_filament_priced = false;
+    }
+    // Money is the cost of the whole print or it is not shown. With one spool
+    // priced and another not, a "total" would silently leave material out.
+    estimate.has_cost      = every_filament_priced && cost > 0.0;
+    estimate.material_cost = estimate.has_cost ? cost : 0.0;
+    // A slice that produced no material is not an estimate worth a row.
+    if (estimate.print_time_seconds == 0 && estimate.material_grams <= 0.0) return std::nullopt;
+    return estimate;
+}
+
+// Every process setting whose value in force differs from the preset it was
+// loaded from -- the card's "N changes from preset". Keys Orca reports but no
+// longer defines are skipped rather than shown without a label.
+std::vector<PresetDelta> preset_deltas_of(const PresetCollection& prints, const std::vector<std::string>& dirty)
+{
+    std::vector<PresetDelta> result;
+    result.reserve(dirty.size());
+    const DynamicPrintConfig& edited = prints.get_edited_preset().config;
+    const DynamicPrintConfig& saved  = prints.get_selected_preset().config;
+    for (const std::string& key : dirty) {
+        const ConfigOptionDef* definition = print_config_def.get(key);
+        const ConfigOption*    before     = saved.option(key);
+        const ConfigOption*    after      = edited.option(key);
+        if (definition == nullptr || before == nullptr || after == nullptr) continue;
+        const std::string& label = definition->full_label.empty() ? definition->label : definition->full_label;
+        result.push_back({key, label.empty() ? key : label, before->serialize(), after->serialize()});
+    }
+    return result;
+}
+
 } // namespace
 
 OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
@@ -100,7 +155,10 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         result.setup.printer_preset = presets->printers.get_selected_preset().label(false);
         if (presets->printers.get_edited_preset().printer_technology() == ptFFF) {
             result.setup.process_preset = presets->prints.get_edited_preset().name;
-            result.setup.process_preset_dirty = !presets->prints.current_dirty_options().empty();
+            // One diff, used twice: snapshot() runs on every selection change.
+            const std::vector<std::string> dirty = presets->prints.current_dirty_options();
+            result.setup.process_preset_dirty = !dirty.empty();
+            result.preset_deltas = preset_deltas_of(presets->prints, dirty);
         }
         if (!presets->filament_presets.empty())
             result.setup.filament_preset = presets->filament_presets.front();
@@ -116,8 +174,10 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
         projected_plate.active = index == active_index;
         projected_plate.sliced = plate->is_slice_result_valid();
-        if (projected_plate.sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result())
+        if (projected_plate.sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result()) {
             projected_plate.slice_result_id = plate->get_slice_result()->id;
+            projected_plate.estimate        = estimate_of(*plate->get_slice_result());
+        }
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
             WorkspaceObject object = project_object(m_session, *objects[object_index], *plate, static_cast<int>(object_index));

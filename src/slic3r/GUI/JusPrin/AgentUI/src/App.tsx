@@ -3,7 +3,7 @@ import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
-import { ContextSummary } from './components/ContextSummary';
+import { SetupCard } from './components/SetupCard';
 import { ChatHeader, ChatList } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
@@ -86,6 +86,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // is on screen, so navigating setup costs no bridge traffic.
   const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey' | 'localTool'>('offer');
   const [view, setView] = useState<'chat' | 'list' | 'setup'>('chat');
+  // The setup card's expansion is a temporary layer over the thread, so it is
+  // page-local and closes on its own the moment the user does something else.
+  const [setupExpanded, setSetupExpanded] = useState(false);
   const [commandError, setCommandError] = useState<string | null>(null);
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
@@ -124,6 +127,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   }, [state.appearance]);
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
+  useEffect(() => { setSetupExpanded(false); }, [state.activeConversationId, view]);
 
   useEffect(() => {
     if (state.needsResync) {
@@ -346,7 +350,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }} />
-          {view === 'chat' && !notConfigured && <ContextSummary context={state.context} />}
+          {view === 'chat' && !notConfigured && (
+            <SetupCard context={state.context} expanded={setupExpanded} onToggle={() => setSetupExpanded((open) => !open)} />
+          )}
         </>
       )}
       {unavailable && !notConfigured && <AgentUnavailableNotice />}
@@ -371,6 +377,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         }}
         onAttachFiles={attachFiles}
         onRemoveAttachment={removeAttachment}
+        onTyping={() => setSetupExpanded(false)}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>

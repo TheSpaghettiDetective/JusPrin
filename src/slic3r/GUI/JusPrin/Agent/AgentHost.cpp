@@ -427,7 +427,10 @@ json attachment_json(const AttachmentRecord& record)
     return result;
 }
 
-json context_json(const WorkspaceSnapshot& snapshot)
+// setup_intent belongs to a chat, not to the workspace, so it is passed in
+// rather than read from the snapshot. The agent-facing copy of this payload
+// omits it: those are the agent's own words coming back at it.
+json context_json(const WorkspaceSnapshot& snapshot, const std::string& setup_intent = {})
 {
     json plates = json::array();
     for (const Workspace::WorkspacePlate& plate : snapshot.plates) {
@@ -440,12 +443,25 @@ json context_json(const WorkspaceSnapshot& snapshot)
                                    {"instances", object.instances.size()},
                                    {"selected", selected}});
         }
+        // Absent, not zeroed, when the plate holds no slice: there is no
+        // background slicing, so before Slice there is no honest number.
+        json estimate = json(nullptr);
+        if (plate.estimate)
+            estimate = json{{"printTimeSeconds", plate.estimate->print_time_seconds},
+                            {"materialGrams", plate.estimate->material_grams},
+                            {"materialCost", plate.estimate->has_cost ? json(plate.estimate->material_cost) : json(nullptr)}};
         plates.push_back(json{{"id", std::to_string(plate.id.value())},
                               {"name", plate.name},
                               {"active", plate.active},
                               {"sliced", plate.sliced},
+                              {"estimate", std::move(estimate)},
                               {"objects", std::move(objects)}});
     }
+
+    json preset_deltas = json::array();
+    for (const Workspace::PresetDelta& delta : snapshot.preset_deltas)
+        preset_deltas.push_back(json{{"key", delta.key}, {"label", delta.label},
+                                     {"preset", delta.preset}, {"value", delta.value}});
 
     const char* selection_status = "none";
     if (snapshot.selection_status == SelectionStatus::Objects)
@@ -460,10 +476,16 @@ json context_json(const WorkspaceSnapshot& snapshot)
                 {"revision", snapshot.revision},
                 {"projectName", snapshot.setup.project_name},
                 {"projectDirty", snapshot.setup.project_dirty},
-                {"printer", json{{"preset", snapshot.setup.printer_preset}, {"filament", snapshot.setup.filament_preset}}},
+                // "process" is the preset the setting deltas are measured
+                // against; the other two describe the machine and the spool.
+                {"printer", json{{"preset", snapshot.setup.printer_preset},
+                                 {"filament", snapshot.setup.filament_preset},
+                                 {"process", snapshot.setup.process_preset}}},
                 {"plates", std::move(plates)},
                 {"selection", json{{"status", selection_status}, {"objectIds", std::move(selected_ids)}}},
-                {"history", json{{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}}}};
+                {"history", json{{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}}},
+                {"presetDeltas", std::move(preset_deltas)},
+                {"setupIntent", setup_intent}};
 }
 
 } // namespace
@@ -503,6 +525,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             m_persistence.commit();
         if (m_handshake)
             send_tool_activity(activity);
+        if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch")
+            remember_setup_intent(activity);
         if (m_handshake && activity.state == ToolState::Succeeded &&
             (activity.tool == "record_build" || activity.tool == "record_export_copy" ||
              activity.tool == "record_physical_print"))
@@ -667,7 +691,7 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"builds", std::move(builds)},
                  {"exportedCopies", std::move(exported_copies)},
                  {"physicalPrints", std::move(physical_prints)},
-                 {"context", context_json(snapshot)}};
+                 {"context", context_json(snapshot, m_persistence.document().setup_intent(active))}};
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
 
@@ -676,7 +700,10 @@ void AgentHost::send_context()
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
     m_last_session  = snapshot.session.value();
     m_last_revision = snapshot.revision;
-    send_envelope(Protocol::kContext, json{{"context", context_json(snapshot)}}.dump());
+    send_envelope(Protocol::kContext,
+                  json{{"context", context_json(snapshot, m_persistence.document().setup_intent(
+                                                              m_persistence.document().active_conversation_id()))}}
+                      .dump());
 }
 
 void AgentHost::send_conversations()
@@ -1648,6 +1675,28 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
         start_next_queued_reply();
     }
     send_conversations();
+}
+
+void AgentHost::remember_setup_intent(const ToolActivity& activity)
+{
+    const json arguments = json::parse(activity.arguments_json, nullptr, false);
+    if (arguments.is_discarded() || !arguments.is_object() || !arguments.contains("intent") ||
+        !arguments["intent"].is_string())
+        return;
+    // A change made outside a chat -- an MCP client, say -- has no chat to be
+    // the record of, so it leaves no intent behind.
+    const std::string conversation_id = m_persistence.document().conversation_of_message(activity.correlation_id);
+    if (conversation_id.empty())
+        return;
+    if (!m_persistence.document().set_setup_intent(conversation_id, arguments["intent"].get<std::string>()))
+        return;
+    m_persistence.commit();
+    // The change itself already pushed a context when it advanced the
+    // workspace revision, and that push predates this write. Without a second
+    // one the card would show the new deltas under the old title -- the exact
+    // moment it is supposed to be proof that the agent heard you.
+    if (m_handshake && conversation_id == m_persistence.document().active_conversation_id())
+        send_context();
 }
 
 void AgentHost::continue_after_tool(const ToolActivity& activity)
