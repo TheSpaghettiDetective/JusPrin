@@ -546,7 +546,10 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         if (item.invoke_row_action)
             button->Bind(wxEVT_MENU,[this,action=std::move(item.invoke_row_action)](wxCommandEvent&) {
                 // Like keeps_open rows, this rebuilds the popup's own contents.
-                CallAfter([self=wxWeakRef<wxWindow>(this),action] { if (self) action(); });
+                // MSVC binds 'this' in a nested lambda's init-capture to the
+                // enclosing closure, not to HeaderMenu, so name the menu first.
+                auto* menu = this;
+                CallAfter([self=wxWeakRef<wxWindow>(menu),action] { if (self) action(); });
             });
         m_items.push_back(button);
         button->Bind(wxEVT_ENTER_WINDOW,[this,index=int(m_items.size()-1)](wxMouseEvent& e) {
@@ -561,7 +564,10 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             if (keeps_open) {
                 // The handler rebuilds this menu's rows, which destroys the
                 // button currently delivering this event. Defer past it.
-                CallAfter([self=wxWeakRef<wxWindow>(this),invoke] { if (self) invoke(); });
+                // MSVC binds 'this' in a nested lambda's init-capture to the
+                // enclosing closure, not to HeaderMenu, so name the menu first.
+                auto* menu = this;
+                CallAfter([self=wxWeakRef<wxWindow>(menu),invoke] { if (self) invoke(); });
                 return;
             }
             close();
