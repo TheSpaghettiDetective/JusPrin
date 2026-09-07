@@ -86,6 +86,7 @@ if "%1"=="pack" (
     echo packing deps: OrcaSlicer_dep_win-!arch!_!build_date!_vs!VS_VERSION!.zip
 
     %WP%/tools/7z.exe a OrcaSlicer_dep_win-!arch!_!build_date!_vs!VS_VERSION!.zip OrcaSlicer_dep
+    if errorlevel 1 goto :failed
     goto :done
 )
 
@@ -127,10 +128,14 @@ REM Set minimum CMake policy to avoid <3.5 errors
 set CMAKE_POLICY_VERSION_MINIMUM=3.5
 if "%USE_NINJA%"=="1" (
     cmake ../ -G %CMAKE_GENERATOR% -DCMAKE_BUILD_TYPE=%build_type%
+    if errorlevel 1 goto :failed
     cmake --build . --config %build_type% --target deps
+    if errorlevel 1 goto :failed
 ) else (
     cmake ../ -G %CMAKE_GENERATOR% -A %arch% -DCMAKE_BUILD_TYPE=%build_type%
+    if errorlevel 1 goto :failed
     cmake --build . --config %build_type% --target deps -- -m
+    if errorlevel 1 goto :failed
 )
 @echo off
 
@@ -146,16 +151,22 @@ echo on
 set CMAKE_POLICY_VERSION_MINIMUM=3.5
 if "%USE_NINJA%"=="1" (
     cmake .. -G %CMAKE_GENERATOR% -DORCA_TOOLS=ON %SIG_FLAG% -DCMAKE_BUILD_TYPE=%build_type%
+    if errorlevel 1 goto :failed
     cmake --build . --config %build_type% --target ALL_BUILD
+    if errorlevel 1 goto :failed
 ) else (
     cmake .. -G %CMAKE_GENERATOR% -A %arch% -DORCA_TOOLS=ON %SIG_FLAG% -DCMAKE_BUILD_TYPE=%build_type%
+    if errorlevel 1 goto :failed
     cmake --build . --config %build_type% --target ALL_BUILD -- -m
+    if errorlevel 1 goto :failed
 )
 @echo off
 cd ..
 call scripts/run_gettext.bat
+if errorlevel 1 goto :failed
 cd %build_dir%
 cmake --build . --target install --config %build_type%
+if errorlevel 1 goto :failed
 
 :done
 @echo off
@@ -169,3 +180,13 @@ set /a "_mins=_remainder / 60"
 set /a "_secs=_remainder - _mins * 60"
 echo.
 echo Build completed in %_hours%h %_mins%m %_secs%s
+exit /b 0
+
+@REM A build step failed. Exit with its code so callers and CI see the
+@REM failure; ERRORLEVEL must be captured before echo resets it.
+:failed
+set "_rc=%ERRORLEVEL%"
+if "%_rc%"=="0" set "_rc=1"
+echo.
+echo Build FAILED with exit code %_rc%
+exit /b %_rc%
