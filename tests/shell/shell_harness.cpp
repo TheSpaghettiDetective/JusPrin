@@ -687,9 +687,16 @@ private:
                                                      : fs::path(data_dir()) / "chip-appearance";
         fs::create_directories(out);
         const bool was_dark = wxGetApp().dark_mode();
-        // A half left in its open state paints the selected fill, which would
-        // make these images describe a state the reader never sees at rest.
+        // At rest means no menu open AND no focus ring: either one makes these
+        // images describe a state the reader does not see when simply looking
+        // at the header. The keyboard check runs before this and leaves focus
+        // on a half, so move it away first rather than assuming.
+        if (auto* focused = wxWindow::FindFocus(); focused == &chip->printer_half() || focused == &chip->spool_half())
+            row->SetFocus();
+        wxYield();
         check(!chip_half_open(), "chip_is_at_rest_before_capture");
+        check(!chip->printer_half().HasFocus() && !chip->spool_half().HasFocus(),
+              "no_focus_ring_when_the_chip_is_captured");
 
         // Deliberately does NOT refresh: a refresh re-reads the spool store and
         // would overwrite any label the caller set for the shot.

@@ -96,7 +96,7 @@ Never require Menlo or another platform-specific face. The broader marketing bra
 Design for a dense, native, high-DPI desktop application on Windows, macOS, and Linux. Use device-independent pixels (DIP), not physical pixels. Verify 100%, 150%, and 200% scaling.
 
 - Spacing scale: 4, 8, 12, 16, 20, 24, 32, 40, and 48 DIP.
-- Standard control radius: 4 DIP.
+- Standard control radius: 6 DIP.
 - Compact or branded action radius: 8 DIP.
 - Window action and large-dialog radius: 12 DIP.
 - Reserve 16–24 DIP radii for onboarding and marketing, not the main application shell.
@@ -112,10 +112,10 @@ Use the existing native component density and established SVG icon library. Func
 - Directional accent: at most one diagonal for momentum; avoid decorative competing angles.
 - Compact button: 8×3 DIP padding, 8 DIP radius, dense metadata text.
 - Window button: minimum 58×24 DIP, 12 DIP radius, 12 DIP text.
-- Choice control: minimum 100×32 DIP, 12×8 DIP padding, 4 DIP radius.
-- Parameter control: 120×26 DIP, 4 DIP radius, 14 DIP text.
-- Icon button: 26×26 DIP, 16 DIP icon, 4 DIP radius.
-- Expanded button: at least 32 DIP high, 12×8 DIP padding, 4 DIP radius.
+- Choice control: minimum 100×32 DIP, 12×8 DIP padding, 6 DIP radius.
+- Parameter control: 120×26 DIP, 6 DIP radius, 14 DIP text.
+- Icon button: 26×26 DIP, 16 DIP icon, 6 DIP radius.
+- Expanded button: at least 32 DIP high, 12×8 DIP padding, 6 DIP radius.
 
 Every interactive component must define normal, hover, pressed, disabled, focused, success, warning, and error states where relevant. Status must combine color with an icon and plain-language label.
 
