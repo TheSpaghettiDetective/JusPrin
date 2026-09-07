@@ -251,19 +251,36 @@ void SpoolMenu::show_other_spool(const Ptr& self)
     }, 1); // below the back row, as the design places it
 
     std::vector<HeaderMenuItem> rows;
-    // The title is also the way back to the spool list; without it the only
-    // exit from this step is dismissing the whole menu.
+    // The title is also the way back one step; without it the only exit from
+    // this step is dismissing the whole menu. It names the filter in force, so
+    // a shortened list is never mistaken for the whole list, and going back
+    // from the generic list lands on the full one rather than leaving the
+    // menu.
     HeaderMenuItem back;
-    back.label      = wxString::Format(_L("OTHER SPOOL · FITS %s · %g MM"), printer.nickname.Upper(), printer.nozzle);
+    back.label      = self->m_generic_only
+                        ? wxString::Format(_L("GENERIC PRESETS · FITS %s · %g MM"), printer.nickname.Upper(), printer.nozzle)
+                        : wxString::Format(_L("OTHER SPOOL · FITS %s · %g MM"), printer.nickname.Upper(), printer.nozzle);
     back.icon       = HeaderIcon::Back;
     back.keeps_open = true;
-    back.invoke     = [self] { self->m_search.clear(); show_spools(self); };
+    back.invoke     = [self] {
+        if (self->m_generic_only) { self->m_generic_only = false; show_other_spool(self); return; }
+        self->m_search.clear();
+        show_spools(self);
+    };
     rows.push_back(std::move(back));
 
     for (const auto& filament : SetupCommands::compatible_filaments()) {
+        // Whether a preset is generic is a property of the preset, so it is an
+        // exact test on the vendor the profile declares -- never a text match,
+        // which would both admit branded presets that happen to read "generic"
+        // and drop generic ones that do not.
+        if (self->m_generic_only && filament.vendor != SetupCommands::kGenericVendor) continue;
         if (!matches(filament, self->m_search)) continue;
         HeaderMenuItem row;
-        row.label = filament.vendor.empty() ? filament.alias : filament.alias + middot() + filament.vendor;
+        // The step already says every row is generic; repeating the vendor on
+        // each one would say it a second time and eat the width the name needs.
+        row.label = filament.vendor.empty() || self->m_generic_only
+                      ? filament.alias : filament.alias + middot() + filament.vendor;
         // A dashed ring: this preset is not a spool yet, and has no colour.
         row.decoration.dot = wxColour();
         row.keeps_open     = true;
@@ -271,19 +288,26 @@ void SpoolMenu::show_other_spool(const Ptr& self)
         rows.push_back(std::move(row));
     }
 
-    HeaderMenuItem generic;
-    generic.separator = true;
-    generic.label     = _L("Generic preset…");
-    generic.keeps_open = true;
-    generic.invoke    = [self] {
-        // Generic presets are ordinary compatible presets from the "Generic"
-        // vendor, so this is the same list filtered, not a separate source.
-        self->m_search = "Generic";
-        show_other_spool(self);
-    };
-    rows.push_back(std::move(generic));
+    // Offered only from the full list: once the filter is on, the title row is
+    // the affordance, and a row that turns on what is already on says nothing.
+    if (!self->m_generic_only) {
+        HeaderMenuItem generic;
+        generic.separator  = true;
+        generic.label      = _L("Generic preset…");
+        generic.keeps_open = true;
+        generic.invoke     = [self] {
+            // Generic presets are ordinary compatible presets whose profile
+            // declares the "Generic" vendor, so this is the same list
+            // filtered, not a separate source. Whatever was typed still
+            // applies; nothing is typed on the person's behalf.
+            self->m_generic_only = true;
+            show_other_spool(self);
+        };
+        rows.push_back(std::move(generic));
+    }
 
     HeaderMenuItem import;
+    import.separator = self->m_generic_only; // the rule the generic row carried
     import.label  = _L("Import a preset file…");
     import.invoke = [] { SetupCommands::import_preset_file(); };
     rows.push_back(std::move(import));

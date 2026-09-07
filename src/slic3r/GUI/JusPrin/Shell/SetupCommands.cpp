@@ -36,6 +36,18 @@ wxString option_string(const DynamicPrintConfig& config, const char* key, unsign
     return {};
 }
 
+// The brand printed on the reel. Orca resolves filament_vendor through the
+// inheritance chain, so a branded profile reports its own name and everything
+// that only inherits fdm_filament_common reports "Generic". Preset::vendor
+// cannot answer this: it names the profile bundle the preset shipped in.
+wxString filament_vendor(const Preset& preset)
+{
+    const wxString vendor = option_string(preset.config, "filament_vendor");
+    // PrintConfig's stand-in for a preset that declares no vendor at all. It is
+    // a placeholder, not a brand, so it reads here as no vendor.
+    return vendor == "(Undefined)" ? wxString{} : vendor;
+}
+
 } // namespace
 
 PrinterInfo current_printer()
@@ -72,7 +84,7 @@ FilamentInfo current_filament()
     if (preset == nullptr)
         return info;
     info.alias    = display_alias(*preset);
-    info.vendor   = wxString::FromUTF8(preset->vendor != nullptr ? preset->vendor->name : std::string{});
+    info.vendor   = filament_vendor(*preset);
     info.material = option_string(preset->config, "filament_type");
     info.valid    = true;
     return info;
@@ -160,7 +172,7 @@ std::vector<FilamentInfo> compatible_filaments()
         FilamentInfo info;
         info.preset_name = preset.name;
         info.alias       = display_alias(preset);
-        info.vendor      = wxString::FromUTF8(preset.vendor != nullptr ? preset.vendor->name : std::string{});
+        info.vendor      = filament_vendor(preset);
         info.material    = option_string(preset.config, "filament_type");
         info.valid       = true;
         filaments.push_back(std::move(info));
