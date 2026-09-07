@@ -713,3 +713,35 @@ If this event is something the user would act on now, send a PushNotification. R
 ---
 
 fix it
+
+---
+
+commit it. then give me the command to test it myself
+
+---
+
+<task-notification>
+<task-id>b2ma9x24i</task-id>
+<summary>Monitor event: "final clean build and harness"</summary>
+<event>STAGE build
+STAGE build OK
+STAGE harness
+STAGE harness PASS=288 FAIL=0
+STAGE app
+STAGE app READY pid 14165
+ALL DONE
+--- failures ---
+--- skips ---
+HARNESS SKIP chip_keyboard_needs_an_active_window</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2ma9x24i</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/b2ma9x24i.output</output-file>
+<status>completed</status>
+<summary>Monitor "final clean build and harness" stream ended</summary>
+</task-notification>
