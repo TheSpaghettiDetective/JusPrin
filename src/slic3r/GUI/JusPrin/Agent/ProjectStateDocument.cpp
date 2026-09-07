@@ -520,6 +520,31 @@ bool ProjectStateDocument::rename_conversation(const std::string& conversation_i
     return true;
 }
 
+std::string ProjectStateDocument::setup_intent(const std::string& conversation_id) const
+{
+    const json* conversation = conversation_json(conversation_id);
+    return conversation ? conversation->value("setupIntent", "") : std::string();
+}
+
+bool ProjectStateDocument::set_setup_intent(const std::string& conversation_id, const std::string& intent)
+{
+    json* conversation = conversation_json(conversation_id);
+    if (!conversation) return false;
+    const auto first = intent.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return false;
+    std::string cleaned = intent.substr(first, intent.find_last_not_of(" \t\r\n") - first + 1);
+    // The 40-character line is a contract with the agent, enforced in its
+    // prompt. All the store can do is refuse one long enough to be a
+    // paragraph, and let the card clamp the rest to one line.
+    const auto characters = std::count_if(cleaned.begin(), cleaned.end(), [](unsigned char byte) {
+        return (byte & 0xc0) != 0x80;
+    });
+    if (characters > 120 || cleaned.find_first_of("\r\n") != std::string::npos) return false;
+    (*conversation)["setupIntent"] = std::move(cleaned);
+    touch();
+    return true;
+}
+
 std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversation(const std::string& conversation_id,
                                                                                 const std::string& timestamp)
 {

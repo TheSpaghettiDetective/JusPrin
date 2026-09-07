@@ -35,8 +35,23 @@ public:
         result.can_redo          = !m_redo.empty();
         result.setup.process_preset = m_settings_available ? "Fixture process" : "";
         result.setup.process_preset_dirty = m_settings.values != m_settings.preset_values;
+        if (m_settings_available)
+            for (const auto& [key, value] : m_settings.values) {
+                const auto preset = m_settings.preset_values.find(key);
+                if (preset == m_settings.preset_values.end() || preset->second == value) continue;
+                const auto definition = std::find_if(m_settings.definitions.begin(), m_settings.definitions.end(),
+                                                     [&](const auto& candidate) { return candidate.key == key; });
+                result.preset_deltas.push_back(
+                    {key, definition == m_settings.definitions.end() ? key : definition->label, preset->second, value});
+            }
         for (auto& plate : result.plates)
-            if (!plate.sliced) plate.slice_result_id = 0;
+            if (!plate.sliced) {
+                plate.slice_result_id = 0;
+                // No slice, no honest estimate -- the same invariant the Orca
+                // adapter enforces, so fixtures cannot describe a state the
+                // real workspace never produces.
+                plate.estimate.reset();
+            }
         return result;
     }
 
@@ -308,6 +323,18 @@ public:
             if (plate.id == id && plate.sliced != sliced) {
                 plate.sliced = sliced;
                 if (sliced) ++plate.slice_result_id;
+                publish(WorkspaceChangeReasons::Plates);
+                return;
+            }
+    }
+
+    // Fixtures describe a slice by its estimate; snapshot() still drops it if
+    // the plate is not sliced, so a test cannot invent an impossible state.
+    void set_plate_estimate_for_testing(PlateId id, std::optional<SliceEstimate> estimate)
+    {
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            if (plate.id == id) {
+                plate.estimate = std::move(estimate);
                 publish(WorkspaceChangeReasons::Plates);
                 return;
             }

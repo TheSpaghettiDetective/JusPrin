@@ -184,6 +184,9 @@ private:
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);
     void continue_after_tool(const ToolActivity& activity);
+    // Records the agent's one-line restatement of intent on the chat the
+    // change came from, so the setup card can say what it heard.
+    void remember_setup_intent(const ToolActivity& activity);
     void begin_tool_followup(const PendingToolContinuation& continuation);
     void start_next_queued_reply();
     void refresh_workspace_identity() const;

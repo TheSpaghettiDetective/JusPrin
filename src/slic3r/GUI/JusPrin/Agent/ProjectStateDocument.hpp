@@ -106,6 +106,12 @@ public:
     bool        set_active_conversation(const std::string& conversation_id);
     bool        needs_conversation_title(const std::string& conversation_id) const;
     bool        rename_conversation(const std::string& conversation_id, const std::string& title, bool generated = false);
+    // The agent's restatement of what this chat asked the setup to be, in the
+    // user's own words. Written by a settings change, never by talking, and
+    // kept for the life of the chat: it is the record of a delegation, not a
+    // description of the current config. Empty until the first change.
+    std::string setup_intent(const std::string& conversation_id) const;
+    bool        set_setup_intent(const std::string& conversation_id, const std::string& intent);
     // Erases chat content and returns orphaned attachment directories. Project
     // revisions/builds/physical prints retain their historical conversation IDs.
     std::optional<std::vector<std::string>> delete_conversation(const std::string& conversation_id,

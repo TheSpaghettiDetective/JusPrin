@@ -74,6 +74,176 @@ body {
   color: var(--text-primary);
 }
 
+/* Setup card. The resting card is three lines and nothing about it may grow
+   without a rule that also takes the growth away again; the expansion is a
+   layer over the thread rather than a taller card. */
+.current-setup {
+  position: relative;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
+/* The degenerate case: no delegation, no drift, nothing sliced. A label, not
+   a card -- so no border and no heading. */
+.current-setup.bare {
+  border-bottom: none;
+  background: transparent;
+  padding: 6px 12px;
+}
+
+.current-setup p {
+  margin: 0;
+}
+
+/* Heading on the left, the card's own expand control hard right, the way the
+   design puts it. */
+.current-setup-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* One line, always. A title past its budget clamps here rather than wrapping
+   and pushing the conversation down. */
+.current-setup-title {
+  color: var(--text-primary);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* One line, always. The clauses give way before the handle does: the handle
+   is the only way into the expansion, so it never gets clipped. */
+/* The preset name standing in for a title: same one-line clamp, but it is a
+   fact about the setup rather than something the agent said, so it does not
+   take the title's weight. */
+.current-setup-identity {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.current-setup-facts {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.current-setup-facts .clauses {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.current-setup-facts .sep {
+  opacity: 0.6;
+}
+
+.current-setup-handle {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.current-setup-handle:hover {
+  color: var(--text-primary);
+}
+
+/* The kicker's own type is 11px, which would leave a 9px click target. The
+   chevron sets its own size and a real hit area instead. */
+.current-setup-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  margin: -4px -6px -4px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.current-setup-chevron:hover {
+  color: var(--text-primary);
+  background: var(--surface-selected);
+}
+
+.current-setup-base {
+  margin-top: 6px !important;
+  color: var(--text-secondary);
+}
+
+.current-setup-expansion {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+}
+
+.current-setup-title-full {
+  margin-bottom: 6px !important;
+  color: var(--text-primary);
+}
+
+.current-setup-deltas {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+}
+
+.current-setup-deltas > div {
+  display: contents;
+}
+
+.current-setup-deltas dt {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-setup-deltas dd {
+  margin: 0;
+  text-align: right;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.current-setup-deltas .was {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
 .notice {
   margin: 12px;
   padding: 12px;

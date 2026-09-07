@@ -26,6 +26,9 @@ interface Props {
   onRemoveAttachment: (id: string) => void;
   onDraftChange?: (text: string) => void;
   draftDebounceMs?: number;
+  // Fired on the keystroke itself, not on the debounced draft save. Anything
+  // covering the thread uses this to get out of the way immediately.
+  onTyping?: () => void;
 }
 
 export function Composer({
@@ -40,6 +43,7 @@ export function Composer({
   onRemoveAttachment,
   onDraftChange,
   draftDebounceMs = 300,
+  onTyping,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
   const [dragging, setDragging] = useState(false);
@@ -153,6 +157,7 @@ export function Composer({
           disabled={disabled}
           onChange={(event) => {
             touched.current = true;
+            onTyping?.();
             setText(event.target.value);
             reportDraft(event.target.value);
           }}

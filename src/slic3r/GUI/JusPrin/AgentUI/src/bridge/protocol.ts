@@ -174,21 +174,50 @@ export interface McpStatusPayload {
   error?: AgentErrorInfo;
 }
 
+// Time and material for one plate's current slice. Null whenever that plate
+// holds no valid slice result: OrcaSlicer has no background slicing, so there
+// is no honest estimate before Slice and the card omits the row rather than
+// showing a zero. materialCost is null on its own whenever the filament
+// profile carries no price, which is the default.
+export interface SliceEstimateInfo {
+  printTimeSeconds: number;
+  materialGrams: number;
+  materialCost: number | null;
+}
+
+// One process setting whose value in force differs from the preset it came
+// from. The length of the list is the setup card's "N changes"; the entries
+// are what the card shows when it is opened.
+export interface PresetDeltaInfo {
+  key: string;
+  label: string;
+  preset: string;
+  value: string;
+}
+
 export interface WorkspaceContext {
   sessionId: string;
   revision: number;
   projectName: string;
   projectDirty: boolean;
-  printer: { preset: string; filament: string };
+  // `process` is the preset the setting deltas are measured against, so it is
+  // the name the setup card shows; `preset` is the machine and `filament` the
+  // spool. Empty for a non-FFF printer, which has no process preset.
+  printer: { preset: string; filament: string; process: string };
   plates: {
     id: string;
     name: string;
     active: boolean;
     sliced: boolean;
+    estimate: SliceEstimateInfo | null;
     objects: { id: string; name: string; instances: number; selected: boolean }[];
   }[];
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };
   history: { canUndo: boolean; canRedo: boolean };
+  presetDeltas: PresetDeltaInfo[];
+  // The agent's restatement of what this chat asked the setup to be, in the
+  // user's words. Empty until a change is applied: talking does not write it.
+  setupIntent: string;
 }
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',

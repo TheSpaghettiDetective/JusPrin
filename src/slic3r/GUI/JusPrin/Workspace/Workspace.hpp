@@ -82,6 +82,21 @@ struct WorkspaceObject
     std::vector<ObjectTransform> instances;
 };
 
+// Time and material for one plate's current slice. OrcaSlicer has no
+// background slicing, so before the first Slice there is no honest number:
+// the estimate is absent rather than zero, and consumers omit the row.
+struct SliceEstimate
+{
+    std::uint32_t print_time_seconds{0};
+    double        material_grams{0.0};
+    // Material cost is filament price times grams, and the price lives in the
+    // filament profile as a field most people never fill in. When it is unset
+    // Orca reports zero, which is not a price -- has_cost says so, and
+    // consumers drop the clause rather than printing a zero.
+    double        material_cost{0.0};
+    bool          has_cost{false};
+};
+
 struct WorkspacePlate
 {
     PlateId                      id;
@@ -92,6 +107,20 @@ struct WorkspacePlate
     bool                         sliced{false};
     std::vector<WorkspaceObject> objects;
     std::uint64_t                slice_result_id{0}; // zero while invalid or slicing
+    // Present only while sliced is true and no background slice is running.
+    std::optional<SliceEstimate> estimate;
+};
+
+// One process setting whose value in force differs from the preset it came
+// from. The list is how far the project has drifted from stock: its size is
+// the count the setup card rests on, and its contents are what the card shows
+// when it is opened.
+struct PresetDelta
+{
+    std::string key;    // config key, stable across languages
+    std::string label;  // the setting's own UI label, already localized
+    std::string preset; // value the preset carries
+    std::string value;  // value in force
 };
 
 enum class SelectionStatus : std::uint8_t { None, Objects, Unsupported };
@@ -127,6 +156,9 @@ struct WorkspaceSnapshot
     std::vector<ObjectId>       selected_objects;
     bool                        can_undo{false};
     bool                        can_redo{false};
+    // Empty when the process preset is untouched, which is also the state a
+    // non-FFF printer reports.
+    std::vector<PresetDelta>    preset_deltas;
 };
 
 enum class WorkspaceError : std::uint8_t {

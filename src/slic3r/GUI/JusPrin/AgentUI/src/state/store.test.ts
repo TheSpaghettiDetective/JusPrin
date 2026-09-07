@@ -15,10 +15,12 @@ const context = {
   revision: 4,
   projectName: 'Fixture',
   projectDirty: false,
-  printer: { preset: 'Test Printer', filament: 'PLA' },
+  printer: { preset: 'Test Printer', filament: 'PLA', process: '0.20 mm Standard' },
   plates: [],
   selection: { status: 'none' as const, objectIds: [] },
   history: { canUndo: false, canRedo: false },
+  presetDeltas: [],
+  setupIntent: '',
 };
 
 function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo {
