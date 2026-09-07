@@ -1,0 +1,125 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M1YFQ0BE34990HMGNP35801S",
+  "session_id": "1f6398f6-3a6a-4bfb-bbfb-ebd02e54cc55",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-07T17:47:34.072836Z",
+  "checkpoints_count": 8,
+  "save_step_count": 7,
+  "files_touched": [
+    "build_release_vs.bat"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "c8d5cd20209e",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1470,
+    "cache_creation_tokens": 1046601,
+    "cache_read_tokens": 267818441,
+    "output_tokens": 388596,
+    "api_call_count": 736
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-07T17:47:33.702131Z",
+    "agent_lines": 21,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 21,
+    "total_lines_changed": 21,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 310,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/printer-spool-chip-brief.md": 270
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 270,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 270,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 270,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 310,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/printer-spool-chip-brief.md": 270
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 310,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/printer-spool-chip-brief.md": 270
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 310,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/printer-spool-chip-brief.md": 270
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 310,
+      "user_lines_removed": 0,
+      "agent_lines_added": 21,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/printer-spool-chip-brief.md": 270
+      }
+    }
+  ]
+}
