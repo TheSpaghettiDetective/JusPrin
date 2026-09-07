@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M1Y8VEMENDSMWWRKY0QYN2TN",
+  "strategy": "manual-commit",
+  "branch": "claude/jusprin-printer-spool-chip-2df256",
+  "checkpoints_count": 26,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SpoolMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SpoolMenu.hpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1064,
+    "cache_creation_tokens": 2282255,
+    "cache_read_tokens": 265667958,
+    "output_tokens": 350678,
+    "api_call_count": 532
+  }
+}
