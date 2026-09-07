@@ -352,3 +352,25 @@ If this event is something the user would act on now, send a PushNotification. R
 <status>completed</status>
 <summary>Monitor "middot spacing build and render" stream ended</summary>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>bgdiv2uw9</task-id>
+<summary>Monitor event: "inline detail clipping build and render"</summary>
+<event>HARNESS EXIT=0
+PASS=267 FAIL=0
+HARNESS MEASURE chip_natural_width=353 chip_capped_width=541
+images ready</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bgdiv2uw9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bgdiv2uw9.output</output-file>
+<status>completed</status>
+<summary>Monitor "inline detail clipping build and render" stream ended</summary>
+</task-notification>
