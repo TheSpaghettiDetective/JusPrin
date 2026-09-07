@@ -1,0 +1,17 @@
+Check the code to see if The printer communication has the ability to return The filament, color and material , And if so, if they can be different From the ones in the slicing settings
+
+---
+
+how can I test the behavior of mismatching in vanilla orcaslicer (not JusPrin branch)? or can you find a few screenshots online so that I can see what the current UX is
+
+---
+
+will a fake FlashForge printer or a ake Moonraker/AFC printer provide more tesitng senarios?
+
+---
+
+the fake moonraker stub lives outside the orcaslicer code base, right?
+
+---
+
+will it be a lot more code than /Users/kenneth/Projects/JusPrin/.claude/worktrees/fake-printer-agent for The equivalent number of faking capabilities?
