@@ -115,3 +115,7 @@ fix the exit code bug in build_release_vs.bat
 ---
 
 fix the exit code bug in build_release_vs.bat
+
+---
+
+yes
