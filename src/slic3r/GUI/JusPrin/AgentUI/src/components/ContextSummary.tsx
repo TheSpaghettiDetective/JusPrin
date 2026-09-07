@@ -17,6 +17,11 @@ export function ContextSummary({ context }: { context: WorkspaceContext | null }
 
   const parts: string[] = [];
   if (context.printer.preset) parts.push(context.printer.preset);
+  // The material the plan is written against. It comes from the same context
+  // the Agent sees, so it follows a spool swap with no second path. The
+  // "@printer" qualifier is dropped here exactly as the chip drops it: it
+  // disambiguates presets in a settings list, and says nothing to a reader.
+  if (context.printer.filament) parts.push(context.printer.filament.split('@')[0].trim());
   if (active) parts.push(`${active.name} · ${active.objects.length} object${active.objects.length === 1 ? '' : 's'}`);
   if (context.selection.status === 'objects' && selectedNames.length > 0)
     parts.push(`Selected: ${selectedNames.join(', ')}`);
