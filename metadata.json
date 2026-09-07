@@ -3,7 +3,7 @@
   "checkpoint_id": "01M1YP60DN8J41NZ9T4BG3CQ0D",
   "strategy": "manual-commit",
   "branch": "claude/agent-panel-token-sweep-943665",
-  "checkpoints_count": 3,
+  "checkpoints_count": 1,
   "files_touched": null,
   "sessions": [
     {
@@ -15,10 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 390,
-    "cache_creation_tokens": 204837,
-    "cache_read_tokens": 26681512,
-    "output_tokens": 66980,
-    "api_call_count": 195
+    "input_tokens": 460,
+    "cache_creation_tokens": 483424,
+    "cache_read_tokens": 34724540,
+    "output_tokens": 99513,
+    "api_call_count": 230
   }
 }
