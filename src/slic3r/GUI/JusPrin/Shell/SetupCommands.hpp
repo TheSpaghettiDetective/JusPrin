@@ -38,10 +38,20 @@ struct FilamentInfo
 {
     std::string preset_name;
     wxString    alias;           // display name, "@printer" suffix removed
+    // The filament's brand -- "Bambu Lab", "eSUN", "Generic" -- read from the
+    // preset's own filament_vendor option. Not Preset::vendor, which names the
+    // profile bundle the preset shipped in ("BBL", "OrcaFilamentLibrary") and
+    // so can never identify an unbranded preset. Empty when the preset
+    // declares no vendor.
     wxString    vendor;
     wxString    material;        // filament_type[0], e.g. "PLA"
     bool        valid{false};
 };
+
+// The filament_vendor every unbranded preset inherits from
+// fdm_filament_common. Upstream's own generic test, in WebGuideDialog, reads
+// the same option and compares it against the same word.
+constexpr const char* kGenericVendor = "Generic";
 
 // -- Reads ------------------------------------------------------------------
 

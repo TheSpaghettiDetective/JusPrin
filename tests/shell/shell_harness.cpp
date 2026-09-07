@@ -80,6 +80,7 @@
 #include <wx/scrolwin.h>
 #include <wx/process.h>
 #include <wx/stdpaths.h>
+#include <wx/textctrl.h>
 #include <wx/timer.h>
 
 #include <boost/filesystem.hpp>
@@ -624,11 +625,100 @@ private:
                     "header_home_returns_to_prepare",[self] {
                         self->verify_chip_keyboard();
                         self->verify_menu_in_place_navigation();
+                        self->verify_generic_preset_filter();
                         self->capture_chip_appearance();
                         self->verify_two_click_swap();
                         self->verify_header_setup(Preset::TYPE_PRINTER);
                     });
             });
+    }
+
+    // Clicks a keeps_open row the way a pointer does -- through the popup's own
+    // mouse re-dispatch, the path verify_menu_in_place_navigation established
+    // -- and lets the deferred rebuild run. Returns the menu that replaced it.
+    HeaderMenu* click_menu_row(HeaderMenu* menu, const wxString& name)
+    {
+        auto* row = dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(name, menu));
+        if (row == nullptr || !row->IsEnabled()) return nullptr;
+        const wxPoint in_row = row->GetPosition() + wxPoint(row->GetSize().x / 2, row->GetSize().y / 2);
+        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
+            wxMouseEvent mouse(type);
+            mouse.SetPosition(in_row);
+            mouse.SetEventObject(menu);
+            menu->GetEventHandler()->ProcessEvent(mouse);
+        }
+        wxYield();
+        return visible_header_menu();
+    }
+
+    // The selectable rows of an open menu, in order. Rows are named by their
+    // full label, which the paint-time ellipsis never shortens.
+    std::vector<std::string> menu_row_names(HeaderMenu* menu) const
+    {
+        std::vector<std::string> names;
+        for (auto* child : menu->GetChildren())
+            if (auto* button = dynamic_cast<HeaderButton*>(child)) names.push_back(button->GetName().ToStdString());
+        return names;
+    }
+
+    // "Generic preset…" must narrow the list by the vendor the profile
+    // declares. The earlier implementation instead typed "Generic" into the
+    // search box and re-ran the substring search, which matched any preset
+    // whose name happened to read "generic", missed generic presets named
+    // otherwise, and left a word in a field the person never typed into. Each
+    // of those three is checked here, so a regression to text matching fails
+    // rather than passing on a list that happens to look similar.
+    void verify_generic_preset_filter()
+    {
+        installed_shell()->status_row()->open_spool_menu();
+        auto* menu = visible_header_menu();
+        check(menu != nullptr, "spool_menu_opens_for_the_generic_filter");
+        if (menu == nullptr) return;
+
+        menu = click_menu_row(menu, "Other spool…");
+        check(menu != nullptr, "other_spool_step_opens");
+        if (menu == nullptr) return;
+        const std::size_t unfiltered_rows = menu_row_names(menu).size();
+
+        menu = click_menu_row(menu, "Generic preset…");
+        check(menu != nullptr, "generic_preset_step_opens");
+        if (menu == nullptr) return;
+
+        wxTextCtrl* field = nullptr;
+        for (auto* child : menu->GetChildren())
+            if (auto* text = dynamic_cast<wxTextCtrl*>(child); text && field == nullptr) field = text;
+        check(field != nullptr && field->GetValue().empty(), "generic_step_leaves_the_search_field_empty");
+
+        const std::vector<std::string> names = menu_row_names(menu);
+        check(!names.empty() && names.front().find("GENERIC") != std::string::npos,
+              "generic_step_title_says_the_list_is_filtered");
+        check(names.size() < unfiltered_rows, "generic_step_shortens_the_list");
+
+        // The listed rows must be exactly the compatible presets whose vendor
+        // is Generic -- no branded preset admitted, no generic one dropped.
+        std::vector<std::string> listed, expected;
+        for (std::size_t i = 1; i < names.size(); ++i)
+            if (names[i] != "Import a preset file…") listed.push_back(names[i]);
+        std::string branded; // an alias the vendor test must have excluded
+        for (const auto& filament : SetupCommands::compatible_filaments()) {
+            if (filament.vendor == SetupCommands::kGenericVendor) expected.push_back(filament.alias.ToStdString());
+            else if (branded.empty()) branded = filament.alias.ToStdString();
+        }
+        std::sort(listed.begin(), listed.end());
+        std::sort(expected.begin(), expected.end());
+        check(!expected.empty(), "the_printer_has_generic_filament_presets");
+        check(listed == expected, "generic_step_lists_exactly_the_generic_vendor_presets");
+        check(!branded.empty() && std::find(listed.begin(), listed.end(), branded) == listed.end(),
+              "generic_step_drops_a_branded_preset");
+
+        // Back must reach the full list again, not leave the menu.
+        menu = click_menu_row(menu, names.front());
+        check(menu != nullptr && menu_row_names(menu).size() == unfiltered_rows,
+              "generic_step_returns_to_the_full_list");
+        if (menu == nullptr) return;
+        menu->close();
+        wxYield();
+        check(!chip_half_open(), "generic_step_dismisses_cleanly");
     }
 
     void verify_header_setup(Preset::Type type)

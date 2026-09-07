@@ -79,8 +79,11 @@ private:
     // (to put a modal dialog on screen) can bring the menu back afterwards.
     wxWeakRef<HeaderButton> m_anchor;
 
-    // "Other spool…" step.
+    // "Other spool…" step. The free-text query and the generic filter are
+    // independent: the filter is a fact about the preset, the query is what
+    // the person typed, and narrowing by one must never fake the other.
     wxString    m_search;
+    bool        m_generic_only{false};
     wxTextCtrl* m_search_field{nullptr};
 
     // "New spool" step.
