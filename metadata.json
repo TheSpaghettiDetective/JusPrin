@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M1Y935HXX2F3ZX7PMSTEP2XQ",
+  "strategy": "manual-commit",
+  "branch": "jusprin-fake-printer-agent",
+  "checkpoints_count": 18,
+  "files_touched": [
+    "src/slic3r/CMakeLists.txt",
+    "src/slic3r/Utils/FakePrinterAgent.cpp",
+    "src/slic3r/Utils/FakePrinterAgent.hpp",
+    "src/slic3r/Utils/NetworkAgentFactory.cpp",
+    "tests/slic3rutils/slic3rutils_tests_main.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 334,
+    "cache_creation_tokens": 1465626,
+    "cache_read_tokens": 38671021,
+    "output_tokens": 154858,
+    "api_call_count": 167,
+    "subagent_tokens": {
+      "input_tokens": 38,
+      "cache_creation_tokens": 146785,
+      "cache_read_tokens": 943612,
+      "output_tokens": 4308,
+      "api_call_count": 19
+    }
+  }
+}
