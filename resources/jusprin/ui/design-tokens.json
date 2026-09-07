@@ -178,7 +178,8 @@
     "radius": {
       "standard": 6,
       "compact": 8,
-      "window": 12
+      "window": 12,
+      "pill": 9999
     }
   },
   "component": {
