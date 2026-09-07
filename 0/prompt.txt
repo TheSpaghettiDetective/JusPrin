@@ -1,0 +1,5 @@
+can we get the default currency format using user locale setting? If so, do it. rebase if you haven't done so. now Don't be lazy, you are a very good engineer. You are just sometimes tired and lazy. But you shouldn't be lazy right now.
+
+---
+
+tell me what the divergence is.
