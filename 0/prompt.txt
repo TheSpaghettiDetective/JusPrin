@@ -1,0 +1,354 @@
+You are implementing a header control in JusPrin, a fork of OrcaSlicer (C++17, wxWidgets, CMake) with a React agent panel in a WebView. The complete brief is in the repo at agent-docs/jusprin/printer-spool-chip-brief.md. Read it in full before doing anything else, then read the documents its section 2 lists, in order. Treat the brief as the spec; where the Figma file and the brief disagree, the brief's section 3 table says which side wins. Also read docs in @agent-docs  for the background and lessons about this project.
+
+
+Goal, in one sentence: replace the Prepare header's printer chip and its two-line menu with a two-half chip (printer on the left, spool on the right), each half opening its own short menu, so a person with one printer and no multi-material unit can swap to a spool they have used before in two clicks.
+
+Scope is slice 1 exactly as the brief defines it: the chip, the printer menu, the spool menu with swap and "Other spool…" plus colour pick, the remembered-spool store, and the three-part after-swap feedback. Section 10 of the brief lists what is deferred. Do not build any of it, even if it looks small.
+
+Working rules
+
+1. Change files only under src/slic3r/GUI/JusPrin/ and tests/. If you need a seam that does not exist in OrcaSlicer-owned code, stop, describe the seam and why the existing entry points are not enough, and wait. Do not add it yourself.
+2. Extend HeaderButton and HeaderMenu in src/slic3r/GUI/JusPrin/Shell/HeaderControls.{hpp,cpp}; do not write a parallel menu or button system.
+3. All colours through ShellTheme, all sizes in DIP via FromDIP. Both appearance modes.
+4. Select presets and colours through the code paths Plater and PlaterPresetComboBox already use, never by writing into the config directly.
+5. Follow the error-handling rules in AGENTS.md: no catch-and-log, no silent fallbacks, invalid states stay visible.
+6. Use the Figma MCP connection to read component values from the "Design System" page and screens from the "Printer & Material Settings" page of the JusPrin v2 file linked in the brief. If the Figma MCP is not connected in this session, say so before starting and use the values written in the brief's section 3 and section 4 instead; do not guess from screenshots.
+
+Order of work
+
+1. Report back a short plan: the files you will add or change, the Orca entry points you will call for preset switch, bed type, nozzle variant, filament tab, printer tab, and preset import, and which of the brief's section 9 open decisions you are taking as recommended. Wait for a reply before writing code.
+2. Build the SpoolStore with its Catch2 tests first, and run them.
+3. Build the chip and the printer menu, then the spool menu, then "Other spool…" and colour pick, then the after-swap chat line. Build and launch the app after each step; do not batch four steps and test at the end.
+4. Add the native-harness entry points the brief names so the two-click swap can be driven without a mouse.
+5. Run the full verification list in the brief's section 8 and record the results.
+
+Build and test facts
+
+- Configure and build with the worktree recipe in agent-docs and the memory notes; the macOS build is cmake --build build/arm64 --config RelWithDebInfo --target all. Tests need BUILD_TESTS=ON at configure time. Run ctest from the build directory.
+- After any change under src/slic3r/GUI/JusPrin/AgentUI/, rebuild the bundle per AgentUI/README.md, or the running app will show stale React code.
+- For live testing, run a re-signed copy of the built bundle under its own bundle id so automation tools do not attach to another JusPrin instance that may be running.
+
+Reporting
+
+Write for someone who did not see this session. Every status update opens with two or three sentences a cold reader can follow. Report outcomes, not narration: what works, what you verified and how, what you could not verify and why. If a test fails, show the output. Do not report a step as done until it is built, run, and checked in the live app.
+
+When slice 1 meets the definition of done in the brief's section 11, commit on your branch with a message that says what changed and why, and write a PR description that includes the verification record and the fork-stewardship rebase evidence, which for this slice should read that no OrcaSlicer-owned files changed. Do not push or open the PR; stop and report.
+
+---
+
+Yes to SetupCommands and the resources files, keep notes out of context. also the brief stays out. figma mcp connected. check again
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>b2ieg42x1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/b2ieg42x1.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the GUI library with the new chip sources" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbgub4yel</task-id>
+<summary>Monitor event: "JusPrin build errors and completion"</summary>
+<event>BUILD ERRORS:
+FAILED: [code=1] src/slic3r/CMakeFiles/libslic3r_gui.dir/RelWithDebInfo/GUI/JusPrin/Shell/SpoolMenu.cpp.o
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/jusprin-printer-spool-chip-2df256/src/slic3r/GUI/JusPrin/Shell/SpoolMenu.cpp:223:13: error: use of undeclared identifier 'CallAfter'
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/jusprin-printer-spool-chip-2df256/src/slic3r/GUI/JusPrin/Shell/SpoolMenu.cpp:317:17: error: use of undeclared identifier 'CallAfter'
+FAILED: [code=1] src/slic3r/CMakeFiles/libslic3r_gui.dir/RelWithDebInfo/GUI/JusPrin/Shell/SetupCommands.cpp.o
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/jusprin-printer-spool-chip-2df256/src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp:178:32: error: 'this' argument to member function 'use_bbl_network' has type 'const PresetBundle', but function is not marked const</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbgub4yel</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bbgub4yel.output</output-file>
+<status>failed</status>
+<summary>Monitor "JusPrin build errors and completion" script failed (exit 1)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfemzxkx6</task-id>
+<summary>Monitor event: "JusPrin build errors and completion"</summary>
+<event>BUILD OK: all targets linked
+ld: warning: ignoring duplicate libraries: '-lm', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libjpeg.a', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libpng.a', 'deps_src/libnest2d/RelWithDebInfo/liblibnest2d.a', 'src/libslic3r/RelWithDebInfo/liblibslic3r.a'
+[201/201] Linking CXX executable src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/OrcaSlicer
+ld: warning: ignoring duplicate libraries: '-lc++', '-lm', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libjpeg.a', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libpng.a', 'deps_src/libnest2d/RelWithDebInfo/liblibnest2d.a', 'src/libslic3r/RelWithDebInfo/liblibslic3r.a'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfemzxkx6</task-id>
+<tool-use-id>toolu_015w9ZDHq6yzEqygQosQbUZv</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bfemzxkx6.output</output-file>
+<status>completed</status>
+<summary>Monitor "JusPrin build errors and completion" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bb22pxwd0</task-id>
+<summary>Monitor event: "shell harness scenario results"</summary>
+<event>HARNESS ENDED
+checks: 0
+HARNESS CHECK header_has_all_five_controls FAIL
+HARNESS CHECK header_has_all_five_controls FAIL
+HARNESS CHECK phase6_print_source_timeline_removed PASS
+HARNESS CHECK phase6_surviving_print_facts_exact PASS
+HARNESS CHECK import_adds_content PASS
+HARNESS CHECK import_keeps_project_identity PASS
+HARNESS CHECK clean_copy_written PASS
+HARNESS CHECK clean_copy_is_a_project_archive PASS
+HARNESS CHECK clean_copy_has_no_conversation_state PASS
+HARNESS CHECK clean_copy_has_no_checkpoints PASS
+HARNESS BENCH checkpoint_captures=18 capture_failures=3 total_snapshot_bytes=643328 last_capture_ms=168.811 last_restore_ms=787.638 saved_project_bytes=476614 save_ms=173.952
+HARNESS CHECK status_row_survives_resize PASS
+HARNESS CHECK canvas_survives_resize PASS
+HARNESS CHECK header_has_all_five_controls FAIL</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bb22pxwd0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bb22pxwd0.output</output-file>
+<status>completed</status>
+<summary>Monitor "shell harness scenario results" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxiuzypfg</task-id>
+<summary>Monitor event: "rebuild then harness rerun"</summary>
+<event>BUILD OK — starting harness</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxiuzypfg</task-id>
+<summary>Monitor event: "rebuild then harness rerun"</summary>
+<event>HARNESS EXIT=1
+PASS=254 FAIL=2
+HARNESS CHECK agent_conversation_has_exchange FAIL
+HARNESS CHECK agent_user_message_recorded FAIL
+HARNESS CHECK chip_seeds_a_spool_for_this_printer PASS
+HARNESS CHECK chip_shows_the_swapped_spool PASS
+HARNESS CHECK current_spool_matches_after_a_swap PASS
+HARNESS CHECK remembering_a_spool_adds_one_row PASS
+HARNESS CHECK select_spool_applies_a_remembered_spool PASS
+HARNESS CHECK select_spool_refuses_an_unknown_id PASS
+HARNESS CHECK spool_menu_lists_a_spool PASS
+HARNESS CHECK spool_menu_opens PASS
+HARNESS CHECK swap_stamps_recency PASS
+HARNESS CHECK swap_writes_the_colour_into_the_project PASS
+HARNESS CHECK the_chip_actually_changed PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxiuzypfg</task-id>
+<tool-use-id>toolu_01MoxkKZM1bJuYy7c5b6vtYh</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bxiuzypfg.output</output-file>
+<status>completed</status>
+<summary>Monitor "rebuild then harness rerun" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhkm1b61m</task-id>
+<summary>Monitor event: "harness rebuild and rerun"</summary>
+<event>HARNESS EXIT=0
+PASS=260 FAIL=0
+HARNESS CHECK chip_seeds_a_spool_for_this_printer PASS
+HARNESS CHECK chip_shows_the_swapped_spool PASS
+HARNESS CHECK current_spool_matches_after_a_swap PASS
+HARNESS CHECK header_has_all_five_controls PASS
+HARNESS CHECK header_has_no_standalone_print_count PASS
+HARNESS CHECK notebook_found PASS
+HARNESS CHECK remembering_a_spool_adds_one_row PASS
+HARNESS CHECK select_spool_applies_a_remembered_spool PASS
+HARNESS CHECK select_spool_refuses_an_unknown_id PASS
+HARNESS CHECK spool_menu_lists_a_spool PASS
+HARNESS CHECK spool_menu_opens PASS
+HARNESS CHECK spool_swap_posts_one_note PASS
+HARNESS CHECK swap_note_is_complete PASS
+HARNESS CHECK swap_note_names_the_spool PASS
+HARNESS CHECK swap_note_starts_no_exchange PASS
+HARNESS CHECK swap_stamps_recency PASS
+HARNESS CHECK swap_writes_the_colour_into_the_project PASS
+HARNESS CHECK the_chip_actually_changed PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhkm1b61m</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bhkm1b61m.output</output-file>
+<status>completed</status>
+<summary>Monitor "harness rebuild and rerun" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blg6h2i6u</task-id>
+<summary>Monitor event: "appearance capture build and harness run"</summary>
+<event>BUILD ERRORS:
+FAILED: [code=1] src/slic3r/CMakeFiles/libslic3r_gui.dir/RelWithDebInfo/GUI/JusPrin/Shell/HeaderControls.cpp.o
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/jusprin-printer-spool-chip-2df256/src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp:281:43: error: no matching function for call to 'Create'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blg6h2i6u</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/blg6h2i6u.output</output-file>
+<status>failed</status>
+<summary>Monitor "appearance capture build and harness run" script failed (exit 1)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bpbkt4kcs</task-id>
+<summary>Monitor event: "appearance capture build and harness run"</summary>
+<event>HARNESS EXIT=0
+PASS=265 FAIL=0
+HARNESS ARTIFACT light /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-542b-e03c-c753/chip-appearance/light.png 351x28
+HARNESS ARTIFACT dark /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-542b-e03c-c753/chip-appearance/dark.png 351x28
+HARNESS ARTIFACT long-name /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-542b-e03c-c753/chip-appearance/long-name.png 351x28
+HARNESS CHECK chip_is_in_the_header PASS
+HARNESS CHECK chip_renders_dark PASS
+HARNESS CHECK chip_renders_light PASS
+HARNESS CHECK chip_renders_long-name PASS
+HARNESS CHECK long_spool_name_stays_within_the_cap PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bpbkt4kcs</task-id>
+<tool-use-id>toolu_013SmoNF7ydypoEEdG9P6Sz4</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bpbkt4kcs.output</output-file>
+<status>completed</status>
+<summary>Monitor "appearance capture build and harness run" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bct0dd6hr</task-id>
+<summary>Monitor event: "harness run writing chip images to the scratchpad"</summary>
+<event>HARNESS EXIT=0
+PASS=265 FAIL=0
+total 48
+drwxr-xr-x  5 kenneth  wheel   160 Sep  6 23:41 .
+drwx------  5 kenneth  wheel   160 Sep  6 23:41 ..
+-rw-r--r--  1 kenneth  wheel  4346 Sep  6 23:41 dark.png
+-rw-r--r--  1 kenneth  wheel  4229 Sep  6 23:41 light.png
+-rw-r--r--  1 kenneth  wheel  4229 Sep  6 23:41 long-name.png</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bct0dd6hr</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bct0dd6hr.output</output-file>
+<status>completed</status>
+<summary>Monitor "harness run writing chip images to the scratchpad" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b1zjy07xc</task-id>
+<summary>Monitor event: "corrected appearance capture run"</summary>
+<event>HARNESS EXIT=0
+PASS=267 FAIL=0
+HARNESS ARTIFACT light /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/scratchpad/chip/light.png 351x28
+HARNESS ARTIFACT dark /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/scratchpad/chip/dark.png 351x28
+HARNESS ARTIFACT long-name /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/scratchpad/chip/long-name.png 351x28
+HARNESS MEASURE chip_natural_width=351 chip_capped_width=539
+078cef77819a1b134eb108edc500cfe2
+ceaae378352414e8f27ed25e781362ce
+e8e394fa1b5556cecd362a2ff4ec05a8</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bu12sjkew</task-id>
+<summary>Monitor event: "inline nozzle build and appearance run"</summary>
+<event>HARNESS EXIT=0
+PASS=267 FAIL=0
+HARNESS ARTIFACT light /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/scratchpad/chip/light.png 357x28
+HARNESS ARTIFACT dark /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/scratchpad/chip/dark.png 357x28
+HARNESS ARTIFACT long-name /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/scratchpad/chip/long-name.png 357x28
+HARNESS MEASURE chip_natural_width=357 chip_capped_width=545
+928dc7a35f46a239dd16709ba173f234
+18b1325b530f2ab00eeb37f0aa4294d3
+a19bebdddfbc832d76e42ebc530df73a</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bu12sjkew</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bu12sjkew.output</output-file>
+<status>completed</status>
+<summary>Monitor "inline nozzle build and appearance run" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzbea937r</task-id>
+<summary>Monitor event: "middot spacing build and render"</summary>
+<event>HARNESS EXIT=0
+PASS=267 FAIL=0
+HARNESS MEASURE chip_natural_width=360 chip_capped_width=548
+images ready</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzbea937r</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-printer-spool-chip-2df256/2fad4c18-37df-4a53-8945-67732b89e96a/tasks/bzbea937r.output</output-file>
+<status>completed</status>
+<summary>Monitor "middot spacing build and render" stream ended</summary>
+</task-notification>
