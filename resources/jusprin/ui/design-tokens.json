@@ -1,5 +1,4 @@
 {
-  "$schema": "https://design-tokens.github.io/community-group/format/",
   "meta": {
     "name": "JusPrin UI Design System",
     "version": "1.0.0",
@@ -129,11 +128,13 @@
         "regular": 400,
         "bold": 700
       },
-      "fallback": "system GUI font"
+      "fallback": "system GUI font",
+      "cssFallback": "system-ui, sans-serif"
     },
     "technical": {
       "family": "system teletype",
-      "usage": "measurements, temperatures, filenames, machine status"
+      "usage": "measurements, temperatures, filenames, machine status",
+      "cssFamily": "ui-monospace, SFMono-Regular, Menlo, monospace"
     },
     "roles": {
       "pageTitle": {
@@ -195,7 +196,7 @@
         "minWidth": 58,
         "height": 24,
         "radius": 12,
-        "textSize": 12
+        "textRole": "label"
       },
       "choice": {
         "minWidth": 100,
@@ -203,13 +204,13 @@
         "paddingX": 12,
         "paddingY": 8,
         "radius": 4,
-        "textSize": 14
+        "textRole": "body"
       },
       "parameter": {
         "width": 120,
         "height": 26,
         "radius": 4,
-        "textSize": 14
+        "textRole": "body"
       },
       "icon": {
         "width": 26,
@@ -222,8 +223,28 @@
         "paddingX": 12,
         "paddingY": 8,
         "radius": 4,
-        "textSize": 14
+        "textRole": "body"
       }
+    },
+    "chip": {
+      "height": 28,
+      "radius": 4
+    },
+    "menuRow": {
+      "height": 36,
+      "radius": 0
+    },
+    "popover": {
+      "paddingY": 8,
+      "rowGap": 2,
+      "radius": 8
+    },
+    "statusRow": {
+      "height": 34
+    },
+    "swatch": {
+      "size": 24,
+      "radius": 4
     },
     "icon": {
       "sizes": [
