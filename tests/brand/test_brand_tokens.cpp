@@ -1,14 +1,21 @@
 // Contract tests for resources/jusprin/ui/design-tokens.json, the file every
-// JusPrin color resolves through (shell, Agent page, and the OrcaSlicer palette
-// overrides in JusPrin/Brand/BrandPalette.cpp).
+// JusPrin color, radius, spacing step, and type role resolves through (shell,
+// Agent page, and the OrcaSlicer palette overrides in
+// JusPrin/Brand/BrandPalette.cpp). The scale cases below are the numbers in
+// agent-docs/jusprin/design-system.md; change both or neither.
 
 #include <catch2/catch_all.hpp>
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <functional>
+#include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 using nlohmann::json;
 
@@ -66,6 +73,10 @@ TEST_CASE("text keeps the documented contrast on every surface", "[brand]")
             INFO(mode << " text on surface." << surface << " (" << bg << ")");
             CHECK(contrast(s.at("text").at("primary"), bg) >= 4.5);
             CHECK(contrast(s.at("text").at("secondary"), bg) >= 4.5);
+            // Dark tertiary on the selected surface is a known gap; see the
+            // [!mayfail] case below.
+            if (std::string(mode) == "light" || std::string(surface) != "selected")
+                CHECK(contrast(s.at("text").at("tertiary"), bg) >= 4.5);
         }
         // Essential boundaries need 3:1 on the surfaces a control normally sits on.
         for (const char* surface : {"canvas", "subtle", "raised"}) {
@@ -77,18 +88,21 @@ TEST_CASE("text keeps the documented contrast on every surface", "[brand]")
     }
 }
 
-// Known token gap, reported rather than hidden: in dark mode the focus ring
+// Known token gaps, reported rather than hidden: in dark mode the focus ring
 // (#7D6A8D) on the selected surface (#4B3E57) measures about 2.0:1, below the
-// 3:1 the design system promises for state indicators. Resolving it is a
-// token decision; this case turns green on its own once the tokens change.
-TEST_CASE("focus ring stays visible on the selected surface", "[brand][!mayfail]")
+// 3:1 the design system promises for state indicators, and dark tertiary text
+// (#A99EAE) on the same surface measures about 3.9:1, below 4.5:1. Resolving
+// them is a token decision; this case turns green on its own once the tokens
+// change.
+TEST_CASE("focus ring and tertiary text stay visible on the selected surface", "[brand][!mayfail]")
 {
     const json tokens = load_tokens();
     for (const char* mode : {"light", "dark"}) {
         const json& s = tokens.at("semantic").at(mode);
         const std::string bg = s.at("surface").at("selected");
-        INFO(mode << " focus on surface.selected (" << bg << ")");
+        INFO(mode << " on surface.selected (" << bg << ")");
         CHECK(contrast(s.at("border").at("focus"), bg) >= 3.0);
+        CHECK(contrast(s.at("text").at("tertiary"), bg) >= 4.5);
     }
 }
 
@@ -117,10 +131,133 @@ TEST_CASE("dark mode is a remapping, not a copy of light mode", "[brand]")
     const json& dark  = tokens.at("semantic").at("dark");
     CHECK(light.at("surface").at("canvas") != dark.at("surface").at("canvas"));
     CHECK(light.at("action").at("primary") != dark.at("action").at("primary"));
-    // The same token names exist in both modes so a component can switch by mode alone.
-    for (const auto& [group, values] : light.items())
-        for (const auto& [name, value] : values.items()) {
-            INFO(group << "." << name);
-            CHECK(dark.at(group).contains(name));
+    // The same token names exist in both modes so a component can switch by
+    // mode alone: a token added to one mode must be added to the other.
+    auto require_mirror = [](const json& from, const char* from_mode, const json& to, const char* to_mode) {
+        for (const auto& [group, values] : from.items())
+            for (const auto& [name, value] : values.items()) {
+                INFO("semantic." << from_mode << "." << group << "." << name
+                     << " has no counterpart in semantic." << to_mode);
+                CHECK((to.contains(group) && to.at(group).contains(name)));
+            }
+    };
+    require_mirror(light, "light", dark, "dark");
+    require_mirror(dark, "dark", light, "light");
+}
+
+// The scale cases pin the tables in agent-docs/jusprin/design-system.md.
+// Each one names the offending key so a wrong edit is a one-line fix.
+
+template <typename T>
+void require_exact_table(const json& actual, const std::map<std::string, T>& expected, const std::string& path)
+{
+    for (const auto& [key, value] : expected) {
+        INFO(path << "." << key << " expected " << value);
+        REQUIRE(actual.contains(key));
+        CHECK(actual.at(key) == json(value));
+    }
+    for (const auto& [key, value] : actual.items()) {
+        INFO(path << "." << key << " is not part of the scale");
+        CHECK(expected.count(key) == 1);
+    }
+}
+
+TEST_CASE("the radius scale is exactly the documented one", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("dimension").at("radius"),
+        {{"standard", 4}, {"compact", 8}, {"container", 8}, {"window", 12}, {"pill", 9999}},
+        "dimension.radius");
+}
+
+TEST_CASE("the spacing scale is exactly the documented one", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("dimension").at("space"),
+        {{"1", 4}, {"2", 8}, {"3", 12}, {"4", 16}, {"5", 20}, {"6", 24}, {"8", 32}, {"10", 40}, {"12", 48}},
+        "dimension.space");
+    std::vector<int> values;
+    for (const auto& [key, value] : tokens.at("dimension").at("space").items())
+        values.push_back(value.get<int>());
+    std::sort(values.begin(), values.end());
+    CHECK(values == std::vector<int>{4, 8, 12, 16, 20, 24, 32, 40, 48});
+}
+
+TEST_CASE("the type roles are exactly the documented ones", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& roles = tokens.at("typography").at("roles");
+    const std::map<std::string, json> expected = {
+        {"pageTitle", {{"size", 24}, {"lineHeight", 30}, {"weight", 700}}},
+        {"section",   {{"size", 18}, {"lineHeight", 24}, {"weight", 700}}},
+        {"body",      {{"size", 14}, {"lineHeight", 20}, {"weight", 400}}},
+        {"label",     {{"size", 12}, {"lineHeight", 16}, {"weight", 700}}},
+        {"metadata",  {{"size", 10}, {"lineHeight", 14}, {"weight", 400}}},
+    };
+    for (const auto& [role, spec] : expected) {
+        INFO("typography.roles." << role);
+        REQUIRE(roles.contains(role));
+        for (const auto& [field, value] : spec.items()) {
+            INFO("typography.roles." << role << "." << field << " expected " << value);
+            CHECK(roles.at(role).value(field, json()) == value);
         }
+    }
+    for (const auto& [role, spec] : roles.items()) {
+        INFO("typography.roles." << role << " is not a documented role");
+        CHECK(expected.count(role) == 1);
+    }
+}
+
+TEST_CASE("button recipes name a type role instead of a raw size", "[brand]")
+{
+    const json tokens = load_tokens();
+    std::set<std::string> roles;
+    for (const auto& [role, spec] : tokens.at("typography").at("roles").items())
+        roles.insert(role);
+    for (const auto& [name, recipe] : tokens.at("component").at("button").items()) {
+        INFO("component.button." << name);
+        CHECK_FALSE(recipe.contains("textSize"));
+        if (recipe.contains("textRole")) {
+            INFO("component.button." << name << ".textRole = " << recipe.at("textRole"));
+            REQUIRE(recipe.at("textRole").is_string());
+            CHECK(roles.count(recipe.at("textRole").get<std::string>()) == 1);
+        }
+    }
+}
+
+TEST_CASE("every component radius comes from the radius scale", "[brand]")
+{
+    const json tokens = load_tokens();
+    std::set<int> allowed = {0}; // menu rows carry no radius inside an already-rounded popover
+    for (const auto& [name, value] : tokens.at("dimension").at("radius").items())
+        allowed.insert(value.get<int>());
+    int checked = 0;
+    std::function<void(const json&, const std::string&)> walk = [&](const json& node, const std::string& path) {
+        for (const auto& [key, value] : node.items()) {
+            const std::string here = path + "." + key;
+            if (key == "radius") {
+                INFO(here << " = " << value << " is not a dimension.radius value");
+                REQUIRE(value.is_number_integer());
+                CHECK(allowed.count(value.get<int>()) == 1);
+                ++checked;
+            } else if (value.is_object()) {
+                walk(value, here);
+            }
+        }
+    };
+    walk(tokens.at("component"), "component");
+    CHECK(checked >= 10);
+}
+
+TEST_CASE("the CSS font stacks are present", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& typography = tokens.at("typography");
+    for (const auto& [path, value] : {
+             std::pair<const char*, json>{"typography.ui.cssFallback", typography.at("ui").value("cssFallback", json())},
+             std::pair<const char*, json>{"typography.technical.cssFamily", typography.at("technical").value("cssFamily", json())}}) {
+        INFO(path);
+        REQUIRE(value.is_string());
+        CHECK_FALSE(value.get<std::string>().empty());
+    }
 }

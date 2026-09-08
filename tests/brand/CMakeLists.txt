@@ -1,6 +1,7 @@
 # GUI-free checks on the JusPrin design tokens: the semantic palette must keep
 # the contrast the design system promises, in both appearance modes, so a
-# token edit cannot silently make text unreadable.
+# token edit cannot silently make text unreadable; and the radius, spacing,
+# and type scales must stay exactly the ones the design system documents.
 add_executable(brand_tokens_tests
     test_brand_tokens.cpp
 )

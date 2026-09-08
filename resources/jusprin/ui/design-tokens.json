@@ -49,6 +49,7 @@
       "text": {
         "primary": "#17131F",
         "secondary": "#5F5767",
+        "tertiary": "#6C6374",
         "onAction": "#FFFFFF"
       },
       "border": {
