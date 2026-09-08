@@ -19,3 +19,7 @@ commit. leave 	agent-docs/jusprin/fake-bambu-printer-handoff.md and other task-s
 ---
 
 have you updated related docs to document how to operate the fake printer, both for ai agents and for humans
+
+---
+
+commit. then bring your commits to jusprin-newui
