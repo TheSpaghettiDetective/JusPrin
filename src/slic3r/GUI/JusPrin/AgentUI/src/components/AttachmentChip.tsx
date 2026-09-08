@@ -47,7 +47,7 @@ export function AttachmentChip({ attachment, onRemove }: Props) {
           aria-label={`Remove ${title}`}
           onClick={() => onRemove(attachment.id)}
         >
-          ×
+          <span className="remove-glyph" aria-hidden="true" />
         </button>
       )}
     </div>

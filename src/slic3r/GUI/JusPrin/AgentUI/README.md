@@ -38,7 +38,12 @@ a scripted mock host playing the same protocol.
 
 ## Design
 
-Colors resolve through the semantic tokens in
-`resources/jusprin/ui/design-tokens.json` (imported at build time and applied
-as CSS custom properties for the light and dark appearance the host reports).
-Do not hard-code palette values in components.
+`tokens.ts` imports `resources/jusprin/ui/design-tokens.json` at build time
+and writes it onto the root element as custom properties: `--<group>-<name>`
+for the semantic colors of the appearance the host reports, and, once at
+startup, `--radius-<name>` for each radius plus `--font-<role>` and
+`--font-mono-<role>` holding the complete `font` shorthand of each type role
+in the UI and technical faces. `styles.css` may use only those variables for
+color, radius, and type, and only the spacing scale (4 through 48) for
+padding, margin, and gap; `styles.test.ts` reads the stylesheet from disk and
+fails on any literal outside that contract, naming the offending line.

@@ -138,7 +138,7 @@ export function Composer({
           disabled={disabled}
           onClick={() => fileInput.current?.click()}
         >
-          +
+          <span className="attach-glyph" aria-hidden="true" />
         </button>
         <input
           ref={fileInput}

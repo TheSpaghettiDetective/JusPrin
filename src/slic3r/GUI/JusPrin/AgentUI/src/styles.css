@@ -1,4 +1,9 @@
-/* Colors come exclusively from the semantic tokens applied in tokens.ts. */
+/* Every color, radius, and type metric below resolves through a custom
+   property that tokens.ts writes from resources/jusprin/ui/design-tokens.json:
+   --<group>-<name> for colors, --radius-<name> for radii, --font-<role> and
+   --font-mono-<role> for the `font` shorthand of each type role. Padding,
+   margin, and gap stay literal but must sit on the spacing scale. styles.test.ts
+   fails the build on any literal outside those rules. */
 
 /* The product font ships with OrcaSlicer, but it is registered as a private
    font of the native process and WKWebView renders in a separate process
@@ -17,18 +22,6 @@
   src: url('./fonts/HarmonyOS_Sans_SC_Bold_latin.woff') format('woff');
 }
 
-/* radius/pill from resources/jusprin/ui/design-tokens.json. The other radii on
-   the scale (4, 8, 12) are written literally; only the capsule shape needs a
-   name, because its value is not a size anyone should read as one.
-
-   The monospace stack is named for the same reason the pill is: Figma's Mono
-   Label and Mono Body roles both ride on it, and the shell bundles no mono
-   face, so it falls through to the system's. */
-:root {
-  --radius-pill: 9999px;
-  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -41,9 +34,7 @@ body,
 }
 
 body {
-  font-family: 'HarmonyOS Sans SC', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-body);
   color: var(--text-primary);
   background: var(--surface-subtle);
   -webkit-user-select: text;
@@ -69,21 +60,19 @@ body {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
 .context-summary .project {
-  font-weight: 700;
   color: var(--text-primary);
 }
 
 /* Current setup card. Measured from the Figma "Current Setup Card" page:
    a 405px card inset 12px inside a 429px dock, tinted surface/subtle with a
-   2px action/primary edge, 8px radius, 16/12 padding and a 4px row gap. The
-   three rows are eyebrow, title and cost; the expansion grows the same card
-   rather than floating a second panel under it. */
+   2px action/primary edge, container radius, 16/12 padding and a 4px row gap.
+   The three rows are eyebrow, title and cost; the expansion grows the same
+   card rather than floating a second panel under it. */
 .pinned-setup {
   flex: 0 0 auto;
   padding: 12px;
@@ -96,7 +85,7 @@ body {
   gap: 4px;
   padding: 12px 16px;
   border: 2px solid var(--action-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   background: var(--surface-subtle);
 }
 
@@ -107,7 +96,7 @@ body {
   border: 0;
   border-radius: 0;
   background: transparent;
-  font: 11px/16px var(--mono);
+  font: var(--font-mono-label);
   color: var(--text-secondary);
 }
 
@@ -115,24 +104,25 @@ body {
   margin: 0;
 }
 
-/* Eyebrow 10/14, action/primary. The right half is where a state puts its one
-   word -- "working...", "+2 yours", "undo" -- so nothing else may live there. */
+/* Eyebrow in Dense Metadata, action/primary. The right half is where a state
+   puts its one word -- "working...", "+2 yours", "undo" -- so nothing else may
+   live there. */
 .current-setup-eyebrow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font: 10px/14px inherit;
+  font: var(--font-metadata);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--action-primary);
 }
 
-/* Body Bold 14/20, text/primary. One line, always: 40 characters is a contract
-   with the agent, and all the card can do is stop a long one from breaking the
-   layout -- the full sentence lives in the expansion. */
+/* Body, text/primary. One line, always: 40 characters is a contract with the
+   agent, and all the card can do is stop a long one from breaking the layout
+   -- the full sentence lives in the expansion. */
 .current-setup-title {
-  font: 700 14px/20px inherit;
+  font: var(--font-body);
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -141,20 +131,20 @@ body {
 
 /* The preset name standing in for a title it does not have. */
 .current-setup-identity {
-  font: 14px/20px inherit;
+  font: var(--font-body);
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Mono Label 11/16, text/secondary. One line: the clauses give way before the
+/* Mono Label, text/secondary. One line: the clauses give way before the
    handle does, because the handle is the only way into the expansion. */
 .current-setup-cost {
   display: flex;
   align-items: baseline;
   white-space: nowrap;
-  font: 11px/16px var(--mono);
+  font: var(--font-mono-label);
   color: var(--text-secondary);
 }
 
@@ -188,13 +178,12 @@ body {
   justify-content: center;
   width: 20px;
   height: 16px;
-  margin: -2px -6px -2px 0;
+  margin: 0 -4px 0 0;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   background: none;
-  font-size: 9px;
-  line-height: 1;
+  font: var(--font-metadata);
   color: var(--action-primary);
   cursor: pointer;
 }
@@ -208,9 +197,9 @@ body {
 .current-setup-deltas {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 12px;
+  gap: 4px 12px;
   margin: 4px 0 0;
-  font: 11px/16px var(--mono);
+  font: var(--font-mono-label);
   color: var(--text-secondary);
 }
 
@@ -239,7 +228,7 @@ body {
 
 .current-setup-base {
   margin-top: 4px !important;
-  font: 11px/16px var(--mono);
+  font: var(--font-mono-label);
   color: var(--text-secondary);
 }
 
@@ -253,21 +242,19 @@ body {
   margin: 12px;
   padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   background: var(--surface-raised);
 }
 
 .notice h2 {
   margin: 0 0 4px;
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-label);
 }
 
 .notice p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
 }
 
 /* Conversation */
@@ -280,7 +267,7 @@ body {
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
 }
-.external-actions h2 { margin: 0 0 8px; font-size: 14px; line-height: 20px; }
+.external-actions h2 { margin: 0 0 8px; font: var(--font-label); }
 .external-actions .tool-card + .tool-card { margin-top: 8px; }
 
 .message-list {
@@ -314,8 +301,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-section);
 }
 .chat-header svg, .chat-list-pane svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 button.chat-icon {
@@ -327,7 +313,7 @@ button.chat-icon {
   flex: 0 0 auto;
   padding: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   color: var(--text-secondary);
   background: var(--surface-canvas);
 }
@@ -341,19 +327,18 @@ button.chat-back { border-color: transparent; color: var(--action-primary); }
   min-width: 128px;
   padding: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   background: var(--surface-raised);
 }
-.chat-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 4px; }
+.chat-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: var(--radius-standard); }
 .chat-menu button:hover:enabled,
 .chat-menu button:active:enabled { border: 0; background: var(--surface-subtle); }
 button.danger { color: var(--status-danger); }
 .chat-list-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--surface-canvas); }
 .chat-list-header { height: 56px; padding: 12px 16px; }
-.chat-list-header h1 { font-size: 18px; line-height: 24px; }
 .chat-list-header .chat-icon { border: 0; }
 .chat-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.chat-list-empty { margin: 16px; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
+.chat-list-empty { margin: 16px; color: var(--text-secondary); font: var(--font-body); }
 button.chat-list-row {
   display: block;
   width: 100%;
@@ -369,30 +354,31 @@ button.chat-list-row {
 button.chat-list-row.selected { background: var(--surface-selected); }
 .chat-list-row:focus-visible { outline-offset: -2px; }
 .chat-list-row-top { display: flex; align-items: center; gap: 8px; }
-.chat-list-row-top strong { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-list-row time { flex: 0 0 auto; margin-left: 4px; font-size: 10px; line-height: 14px; color: var(--text-secondary); }
-.chat-list-preview { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+/* The title is a <strong>: it inherits Body and takes the element's own bold. */
+.chat-list-row-top strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-list-row time { flex: 0 0 auto; margin-left: 4px; font: var(--font-metadata); color: var(--text-secondary); }
+.chat-list-preview { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font: var(--font-body); }
 .chat-list-footer { flex: 0 0 auto; padding: 16px; border-top: 1px solid var(--border-subtle); background: var(--surface-subtle); }
-button.configure-agent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid var(--border-subtle); background: var(--surface-canvas); }
+button.configure-agent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; text-align: left; border: 1px solid var(--border-subtle); background: var(--surface-canvas); }
 button.configure-agent:hover:enabled { background: var(--surface-canvas); border-color: var(--border-subtle); }
 .configure-agent svg { color: var(--action-primary); }
 .configure-agent span { min-width: 0; }
-.configure-agent strong { display: block; font-size: 14px; line-height: 20px; }
-.configure-agent small { display: block; margin-top: 2px; font-size: 10px; line-height: 14px; color: var(--text-secondary); }
-.chat-dialog-shade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px 16px; background: var(--surface-subtle); overflow-y: auto; }
-.chat-dialog { width: 100%; padding: 16px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-raised); }
-.chat-dialog h2 { margin: 0 0 12px; font-size: 18px; line-height: 24px; }
-.chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
-.chat-dialog label { display: block; font-size: 12px; }
-.chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: 4px; }
+.configure-agent strong { display: block; }
+.configure-agent small { display: block; font: var(--font-metadata); color: var(--text-secondary); }
+.chat-dialog-shade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; background: var(--surface-subtle); overflow-y: auto; }
+.chat-dialog { width: 100%; padding: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-container); background: var(--surface-raised); }
+.chat-dialog h2 { margin: 0 0 12px; font: var(--font-section); }
+.chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font: var(--font-body); }
+.chat-dialog label { display: block; font: var(--font-label); }
+.chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: var(--radius-standard); }
 .chat-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font-size: 12px; color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
+.chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-body); color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
 .chat-error span { flex: 1; }
 
 .message {
   max-width: 92%;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -416,8 +402,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   max-width: 100%;
   padding: 4px 0;
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   background: none;
   border: none;
 }
@@ -451,25 +436,18 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .markdown-content h5,
 .markdown-content h6 {
   margin: 12px 0 4px;
-  font-weight: 700;
 }
 
-.markdown-content h1 {
-  font-size: 18px;
-  line-height: 24px;
-}
-
+.markdown-content h1,
 .markdown-content h2 {
-  font-size: 18px;
-  line-height: 24px;
+  font: var(--font-section);
 }
 
 .markdown-content h3,
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-label);
 }
 
 .markdown-content ul,
@@ -478,7 +456,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .markdown-content li + li {
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .markdown-content blockquote {
@@ -489,21 +467,19 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .markdown-content code,
 .markdown-content pre {
-  font-family: ui-monospace, monospace;
+  font: var(--font-mono-body);
 }
 
 .markdown-content code {
-  padding: 1px 3px;
-  border-radius: 4px;
+  padding: 0 4px;
+  border-radius: var(--radius-standard);
   background: var(--surface-subtle);
-  font-size: 12px;
-  line-height: 16px;
 }
 
 .markdown-content pre {
   max-width: 100%;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   background: var(--surface-subtle);
   overflow-x: auto;
   white-space: pre;
@@ -523,7 +499,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .markdown-content th,
 .markdown-content td {
-  padding: 4px 6px;
+  padding: 4px 8px;
   border: 1px solid var(--border-subtle);
   text-align: left;
 }
@@ -551,8 +527,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .message .meta {
   margin-top: 4px;
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
@@ -563,8 +538,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .message .error {
   margin-top: 4px;
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   color: var(--status-danger);
 }
 
@@ -577,8 +551,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   align-self: stretch;
   padding: 4px 8px;
   border-left: 3px solid var(--border-strong);
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -591,9 +564,9 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 8px;
   border: 1px solid var(--status-danger);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   color: var(--text-primary);
   background: var(--surface-raised);
 }
@@ -604,24 +577,19 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   gap: 8px;
 }
 
-/* Native tool action cards */
+/* Native tool action cards. The title inherits Body from the card. */
 .tool-card {
   align-self: stretch;
   margin-left: 12px;
   padding: 8px 12px;
   border: 1px solid var(--border-subtle);
   border-left: 3px solid var(--action-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   background: var(--surface-raised);
 }
 
-.tool-card .tool-title {
-  font-weight: 700;
-}
-
 .tool-card .tool-meta {
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
@@ -633,8 +601,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .tool-card .tool-state {
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -645,8 +612,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .tool-card .tool-error {
   margin-top: 4px;
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   color: var(--status-danger);
 }
 
@@ -669,10 +635,10 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-card {
   align-self: stretch;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--border-subtle);
   border-left: 3px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   background: var(--surface-raised);
   overflow-wrap: anywhere;
 }
@@ -695,23 +661,21 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   min-width: 0;
 }
 
+/* An eyebrow, like .current-setup-eyebrow and .setup-eyebrow. */
 .history-kind {
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 700;
+  font: var(--font-metadata);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .history-status {
   flex: 0 0 auto;
-  padding: 2px 6px;
+  padding: 0 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
   text-transform: capitalize;
 }
 
@@ -720,11 +684,11 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .timeline-removed {
   margin: 0 0 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-standard);
   background: var(--surface-selected);
   color: var(--text-primary);
-  font-weight: 700;
+  font: var(--font-label);
 }
 
 .history-facts,
@@ -737,7 +701,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
+  gap: 4px 12px;
   margin-bottom: 8px;
 }
 
@@ -749,8 +713,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .history-card dt {
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
 }
 
 .history-card dd {
@@ -765,11 +728,11 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .history-hash code {
   display: block;
-  padding: 3px 5px;
-  border-radius: 4px;
+  padding: 4px;
+  border-radius: var(--radius-standard);
   background: var(--surface-subtle);
   color: var(--text-primary);
-  font: 10px/14px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: var(--font-mono-metadata);
   overflow-wrap: anywhere;
   user-select: text;
 }
@@ -778,18 +741,15 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-warnings {
   margin: 8px 0 0;
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
 }
 
 /* A slice warning is the most actionable line on the card, so it takes Label
-   (12/16 bold) rather than the Dense Metadata its sibling provenance line uses. */
+   rather than the Dense Metadata its sibling provenance line uses. */
 .history-warnings {
-  padding-left: 18px;
+  padding-left: 20px;
   color: var(--status-warning);
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
+  font: var(--font-label);
 }
 
 .long-content {
@@ -819,16 +779,15 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   }
 }
 
+/* Expanded button from the token file: 12x8 padding, standard radius, Body. */
 button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font: inherit;
-  font-size: 14px;
-  line-height: 20px;
-  padding: 6px 12px;
-  border-radius: 4px;
+  gap: 8px;
+  font: var(--font-body);
+  padding: 8px 12px;
+  border-radius: var(--radius-standard);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-primary);
@@ -844,12 +803,12 @@ button:disabled {
   cursor: default;
 }
 
+/* The decisive action carries the compact (branded) radius. */
 button.primary {
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-compact);
   background: var(--action-primary);
   color: var(--action-primaryText);
-  font-weight: 700;
 }
 
 button.primary:hover:enabled {
@@ -873,7 +832,7 @@ button.icon {
   width: 32px;
   height: 32px;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   color: var(--text-secondary);
 }
 
@@ -898,6 +857,8 @@ button.back:active:enabled {
   border: none;
 }
 
+/* Icons are SVGs from resources/jusprin/ui/icons drawn as masks so they take
+   the button's current color in both appearances. */
 button.back .chevron {
   display: block;
   width: 12px;
@@ -913,7 +874,6 @@ button.link {
   border-radius: 0;
   background: transparent;
   color: var(--action-primary);
-  font-weight: 700;
 }
 
 button.link:hover:enabled,
@@ -964,16 +924,15 @@ input[type='radio']:checked {
 .composer-attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .attach-button {
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
-  font-size: 20px;
-  line-height: 1;
-  border-radius: 4px;
+  padding: 0;
+  border-radius: var(--radius-standard);
   border: 1px solid var(--border-subtle);
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -985,14 +944,23 @@ input[type='radio']:checked {
   cursor: default;
 }
 
+.attach-button .attach-glyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/plus.svg') center / 16px 16px no-repeat;
+  mask: url('@resources/jusprin/ui/icons/plus.svg') center / 16px 16px no-repeat;
+}
+
 .attachment-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   max-width: 240px;
-  padding: 4px 6px;
+  padding: 4px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   background: var(--surface-raised);
 }
 
@@ -1004,13 +972,12 @@ input[type='radio']:checked {
   width: 28px;
   height: 28px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   flex: 0 0 auto;
 }
 
 .attachment-kind {
-  font-size: 10px;
-  font-weight: 600;
+  font: var(--font-metadata);
   text-transform: uppercase;
   color: var(--text-secondary);
   flex: 0 0 auto;
@@ -1022,8 +989,9 @@ input[type='radio']:checked {
   min-width: 0;
 }
 
+/* A filename is a technical value, so it takes the technical face. */
 .attachment-name {
-  font-size: 12px;
+  font: var(--font-mono-label);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1031,30 +999,40 @@ input[type='radio']:checked {
 }
 
 .attachment-sub {
-  font-size: 10px;
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
 .attachment-error {
-  font-size: 10px;
+  font: var(--font-metadata);
   color: var(--status-danger);
 }
 
 .attachment-remove {
   flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 16px;
-  line-height: 1;
   cursor: pointer;
+}
+
+.attachment-remove .remove-glyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/close.svg') center / 16px 16px no-repeat;
+  mask: url('@resources/jusprin/ui/icons/close.svg') center / 16px 16px no-repeat;
 }
 
 .message-attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .composer textarea {
@@ -1062,7 +1040,7 @@ input[type='radio']:checked {
   resize: none;
   font: inherit;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   border: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
   color: var(--text-primary);
@@ -1087,22 +1065,18 @@ input[type='radio']:checked {
 }
 
 .pane-state h1 {
-  font-size: 18px;
-  line-height: 24px;
-  font-weight: 700;
+  font: var(--font-section);
   margin: 0;
 }
 
 .pane-state p {
   margin: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-body);
   color: var(--text-secondary);
 }
 
 .pane-state details {
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   color: var(--text-secondary);
   max-width: 100%;
 }
@@ -1113,34 +1087,32 @@ input[type='radio']:checked {
 }
 
 .pane-state .footnote {
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
 }
 
 /* Dock header shown in place of the conversation chrome while no Agent
-   service is configured; same row metrics as .conversation-bar. */
+   service is configured; same row metrics as .chat-header. */
 .agent-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
 }
 
 .agent-header .agent-title {
   flex: 1;
-  font-weight: 700;
+  font: var(--font-section);
 }
 
 .agent-header .agent-badge {
   flex: 0 0 auto;
-  padding: 2px 6px;
+  padding: 0 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
   letter-spacing: 0.04em;
 }
 
@@ -1159,7 +1131,7 @@ input[type='radio']:checked {
   gap: 8px;
   width: 100%;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-window);
   background: var(--surface-selected);
 }
 
@@ -1172,9 +1144,7 @@ input[type='radio']:checked {
 
 .setup-card-head h1 {
   flex: 1;
-  font-size: 18px;
-  line-height: 24px;
-  font-weight: 700;
+  font: var(--font-section);
   margin: 0;
 }
 
@@ -1193,8 +1163,7 @@ button.wide {
 
 .setup-eyebrow {
   margin: 8px 0 0;
-  font-size: 10px;
-  line-height: 14px;
+  font: var(--font-metadata);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -1227,17 +1196,19 @@ button.wide {
   cursor: default;
 }
 
+/* The provider switch is one control, so it carries the compact action
+   radius rather than a container's. */
 .setup-tabs {
   display: flex;
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-compact);
   overflow: hidden;
   border: 1px solid var(--border-subtle);
 }
 
 .setup-tab {
   flex: 1;
-  padding: 6px 8px;
+  padding: 8px;
   border: none;
   border-radius: 0;
   background: var(--surface-canvas);
@@ -1272,15 +1243,17 @@ button.wide {
   width: 100%;
 }
 
+/* Shares the compact radius and height of the primary button beside it so
+   the key row reads as one control. A key is a technical value. */
 .setup-key-input {
   flex: 1;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-compact);
   background: var(--surface-canvas);
   color: var(--text-primary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: var(--font-mono-body);
 }
 
 .setup-key-input:focus {
@@ -1297,8 +1270,7 @@ button.wide {
 }
 
 .setup-result {
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -1315,12 +1287,11 @@ button.wide {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
   color: var(--status-success);
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
 }
 
 .setup-banner.warning {
@@ -1334,20 +1305,20 @@ button.wide {
 .setup-tool-list {
   width: 100%;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   overflow: hidden;
   background: var(--surface-canvas);
 }
 
+/* 8px vertical padding on a Body line makes the 36px menu row. */
 .setup-tool-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-body);
   cursor: pointer;
 }
 
@@ -1367,7 +1338,7 @@ button.wide {
 .setup-tool-name {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1378,8 +1349,7 @@ button.wide {
 .setup-detected,
 .setup-missing {
   flex: 0 0 auto;
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-label);
 }
 
 .setup-detected {
@@ -1397,18 +1367,18 @@ button.wide {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   background: var(--surface-subtle);
 }
 
+/* Deliberately the UI face, not the technical one: these blocks are copy
+   the user reads, and the surrounding card already frames them. */
 .setup-command pre,
 .setup-advanced pre {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-body);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1425,11 +1395,10 @@ button.wide {
 .setup-path {
   width: 100%;
   margin: 0;
-  padding: 10px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: var(--radius-standard);
   background: var(--surface-subtle);
-  font-size: 12px;
-  line-height: 16px;
+  font: var(--font-body);
   overflow-wrap: anywhere;
 }
 
@@ -1443,12 +1412,10 @@ button.wide {
 .setup-diff-before,
 .setup-diff-after {
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: var(--radius-standard);
   background: var(--surface-subtle);
-  font: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-body);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1475,9 +1442,7 @@ button.wide {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
+  font: var(--font-label);
   color: var(--status-success);
 }
 
@@ -1492,15 +1457,14 @@ button.wide {
   margin: 0;
   padding-left: 20px;
   color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 20px;
+  font: var(--font-body);
 }
 
 .setup-error {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--status-danger);
-  border-radius: 4px;
+  border-radius: var(--radius-standard);
   color: var(--status-danger);
 }
 
