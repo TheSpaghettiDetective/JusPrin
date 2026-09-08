@@ -1,0 +1,368 @@
+Is there a device simulator for testing purpose in this code base? I want the ability to test functions such as sending g-code to the printer or querying printer status without having to connect a physical printer.
+
+---
+
+<task-notification>
+<task-id>abd56d8ef3c141fd4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/abd56d8ef3c141fd4.output</output-file>
+<status>completed</status>
+<summary>Agent "Search for printer simulator or test harness" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No mentions of a device/printer simulator in those docs (their "simulation" references are about git rebase simulation, unrelated). I now have enough to answer.
+
+## Findings
+
+**1. No printer/device simulator exists.** Nothing in `src/slic3r/Utils/*PrinterAgent*`, `src/slic3r/Utils/PrintHost.*`, or `src/slic3r/GUI/DeviceCore/` provides a fake/mock backend — every implementation talks to real hardware or a real cloud/local endpoint. The only "mock" concept in the repo is unrelated: `tests/shell/shell_harness.cpp` and the JusPrin agent config support a `"provider": "mock"` **LLM agent** provider (for testing the AI chat pane without OpenAI), not a mock printer.
+
+**2. Protocols used for real printers:**
+- **Bambu-style (`BBLPrinterAgent.hpp/.cpp`, `OrcaPrinterAgent.hpp/.cpp`)** — MQTT for status/telemetry (`BBLPrinterAgent.cpp:449`, "BBL uses MQTT subscription for real-time filament updates") plus binary FTP-style upload for G-code. Interface is `IPrinterAgent` (`src/slic3r/Utils/IPrinterAgent.hpp`), with methods like `connect_printer()`, `send_message_to_printer()`, `start_print()`, `start_local_print()`, `start_sdcard_print()`, `set_on_message_fn()`, `get_agent_info()`.
+- **Moonraker/Klipper (`MoonrakerPrinterAgent.cpp`)** — HTTP REST via `Http.hpp` (`Http::get(url)`, `X-Api-Key` header) plus a `boost::beast` websocket connection to `/websocket` for live status.
+- **Generic PrintHost family (`PrintHost.hpp/.cpp` + `OctoPrint.*`, `Duet.*`, `AstroBox.*`, `Repetier.*`, `ESP3D.*`, `FlashAir.*`, `Obico.*`, `SimplyPrint.*`, `Moonraker.*`)** — abstract `class PrintHost` (`src/slic3r/Utils/PrintHost.hpp:52`) with `virtual bool test(...)`, `virtual bool upload(PrintHostUpload, ProgressFn, ErrorFn, InfoFn)`, `virtual std::string get_host()`. All implementations do real HTTP calls (OctoPrint/Moonraker-style REST for upload/status).
+
+**3. No unit tests exercise `PrintHost` or any `*PrinterAgent`.** `grep -rn "PrintHost\|PrinterAgent" tests/` returns nothing. `tests/agent/` (Catch2) only covers the AI/MCP agent bridge (`test_agent_bridge.cpp`, `test_mcp_*.cpp`, `test_primary_print_action.cpp` — pure UI state logic, no I/O). No `httplib`/mock-HTTP/mock-MQTT test infrastructure exists anywhere in `tests/`.
+
+**4. `agent-docs/jusprin/README.md` and `fork-stewardship.md`** describe fork-stewardship and testing philosophy generally but say nothing about simulating a printer or device for testing. Their only "simulation" references are to git-rebase simulation, unrelated to hardware.
+
+**Where a simulator would plug in:** a fake `IPrinterAgent` implementation (subclassing the interface in `IPrinterAgent.hpp`) for Bambu-style MQTT/local flows, and/or a mock HTTP+websocket server standing in for Moonraker/OctoPrint endpoints consumed via `Http.hpp` and `PrintHost::upload()`/`test()`, would be the two insertion points needed.</result>
+<usage><subagent_tokens>62816</subagent_tokens><tool_uses>17</tool_uses><duration_ms>46007</duration_ms></usage>
+</task-notification>
+
+---
+
+is Bambu/MQTT-style  a super set of OctoPrint/Moonraker REST-style?
+
+---
+
+if I only care about the UI layer, faking IPrinterAgent wiull have enough coverage, right? also what's your suggestion about how the faked printer should interact with the tester (or completely auotmated)?
+
+---
+
+implement the FakePrinterAgent class and a first scenario script. do it in a worktree based off of jusprin-newui branch
+
+---
+
+<task-notification>
+<task-id>acc0ec898b8a2909e</task-id>
+<tool-use-id>toolu_01Ti9G6zNPfborvehY8Ee61z</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/acc0ec898b8a2909e.output</output-file>
+<status>completed</status>
+<summary>Agent "Research printer agent wiring details" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have all the information needed. Here is the report.
+
+## 1. Types in `bambu_networking.hpp` (`/Users/kenneth/Projects/JusPrin/src/slic3r/Utils/bambu_networking.hpp`)
+
+```cpp
+#define BAMBU_NETWORK_SUCCESS 0                    // line 15
+
+typedef std::function&lt;void(std::string topic_str)&gt;  OnPrinterConnectedFn;                          // 119
+typedef std::function&lt;void(int status, std::string dev_id, std::string msg)&gt; OnLocalConnectedFn;    // 120
+typedef std::function&lt;void(std::string dev_id, std::string msg)&gt; OnMessageFn;                       // 122
+typedef std::function&lt;void(std::string topic)&gt;      GetSubscribeFailureFn;                          // 126
+typedef std::function&lt;void(int status, int code, std::string msg)&gt; OnUpdateStatusFn;                // 128
+typedef std::function&lt;bool()&gt;                       WasCancelledFn;                                 // 129
+typedef std::function&lt;bool(int status, std::string job_info)&gt; OnWaitFn;                             // 130
+typedef std::function&lt;void(std::string dev_info_json_str)&gt; OnMsgArrivedFn;                          // 132
+typedef std::function&lt;void(std::function&lt;void()&gt;)&gt; QueueOnMainFn;                                   // 134
+typedef std::function&lt;void(std::string url, int status)&gt; OnServerErrFn;                             // 143
+
+struct detectResult {                              // 179
+    std::string result_msg, command, dev_id, model_id, dev_name, version, bind_state, connect_type;
+};
+
+struct PrintParams {                               // 233 (current, not the _Legacy variant at 191)
+    std::string dev_id, task_name, project_name, preset_name, filename, config_filename;
+    int         plate_index;
+    std::string ftp_folder, ftp_file, ftp_file_md5, nozzle_mapping, ams_mapping, ams_mapping2,
+                ams_mapping_info, nozzles_info, connection_type, comments;
+    int         origin_profile_id = 0, stl_design_id = 0;
+    std::string origin_model_id, print_type, dst_file, dev_name;
+    std::string dev_ip; bool use_ssl_for_ftp; bool use_ssl_for_mqtt;
+    std::string username, password;
+    bool task_bed_leveling, task_flow_cali, task_vibration_cali, task_layer_inspect, task_record_timelapse, task_use_ams;
+    std::string task_bed_type, extra_options;
+    int  auto_bed_leveling{0}, auto_flow_cali{0}, auto_offset_cali{0};
+    bool task_ext_change_assist, try_emmc_print;
+};
+
+struct NetworkLibraryLoadError {                   // 374 — not referenced by IPrinterAgent itself
+    bool has_error = false;
+    std::string message, technical_details, attempted_path;
+};
+```
+Not found: `GetSubscribeFailureFn` above is the correct name (matches). No separate `NetworkLibraryLoadError` usage in `IPrinterAgent.hpp` — it's only used by network-plugin loading code, irrelevant to your class.
+
+## 2. OrcaPrinterAgent (template to copy)
+
+`/Users/kenneth/Projects/JusPrin/src/slic3r/Utils/OrcaPrinterAgent.hpp` and `.cpp` — full contents captured above. Key pattern: private members mirror every callback typedef (`OnMsgArrivedFn on_ssdp_msg_fn;` etc.), a `mutable std::mutex state_mutex;` guarding all setters/getters, every stub method just `return BAMBU_NETWORK_SUCCESS;` (or `true`/no-op), and a static `get_agent_info_static()` returning `AgentInfo{ORCA_PRINTER_AGENT_ID, "Orca", "0.0.1", "..."}` (id constants like `ORCA_PRINTER_AGENT_ID` live in `NetworkAgentFactory.hpp:17-18`). Constructor takes `std::string log_dir`.
+
+## 3. Construction / registration site
+
+Least invasive route: OrcaSlicer already has a **plugin registry**, not a compile-time switch. In `/Users/kenneth/Projects/JusPrin/src/slic3r/Utils/NetworkAgentFactory.cpp`:
+
+- Lines 132-154, `register_all_agents()`:
+```cpp
+void NetworkAgentFactory::register_all_agents()
+{
+    register_agent&lt;OrcaPrinterAgent&gt;();
+    register_agent&lt;QidiPrinterAgent&gt;();
+    register_agent&lt;SnapmakerPrinterAgent&gt;();
+    register_agent&lt;CrealityPrintAgent&gt;();
+    register_agent&lt;MoonrakerPrinterAgent&gt;();
+    { /* BBLPrinterAgent registered manually, no log_dir ctor arg */ }
+}
+```
+`register_agent&lt;T&gt;()` (lines 34-47) calls `T::get_agent_info_static()` for id/name and registers a factory lambda `make_shared&lt;T&gt;(log_dir)`. **To add `FakePrinterAgent` you only need one line: `register_agent&lt;FakePrinterAgent&gt;();`** inside `register_all_agents()`, plus `#include "FakePrinterAgent.hpp"` at the top — no other call site, no AppConfig flag, no compile switch needed. Selection is done at runtime via `NetworkAgentFactory::create_printer_agent_by_id(id, cloud_agent, log_dir)` (called when the user picks a printer, id stored in printer config's `host_type`/agent selector), and the UI populates choices from `get_registered_printer_agents()` — used in `/Users/kenneth/Projects/JusPrin/src/slic3r/GUI/PhysicalPrinterDialog.cpp:135` and `:159` (`auto agents = NetworkAgentFactory::get_registered_printer_agents();`) so a `FakePrinterAgent` with id `"fake"` would automatically show up in that picker too.
+
+## 4. JSON status shape (`MachineObject::parse_json`)
+
+`/Users/kenneth/Projects/JusPrin/src/slic3r/GUI/DeviceManager.cpp:2569` `MachineObject::parse_json(std::string tunnel, std::string payload, bool key_field_only)`. It's classic Bambu MQTT command-topic style: top-level keys `"print"` and `"system"`.
+
+```cpp
+if (j_pre.contains("print")) {
+    if (j_pre["print"].contains("command")) {
+        if (j_pre["print"]["command"].get&lt;std::string&gt;() == "push_status") {
+            if (j_pre["print"].contains("msg")) {
+                if (j_pre["print"]["msg"].get&lt;int&gt;() == 0) { /* full snapshot */ }
+                else if (j_pre["print"]["msg"].get&lt;int&gt;() == 1) { /* diff-encoded */ }
+            }
+        }
+    }
+}
+if (j_pre.contains("system")) {
+    if (j_pre["system"]["command"].get&lt;std::string&gt;() == "get_access_code") { ... }
+}
+```
+Fields read later out of the merged/diffed `print` object (around lines 3066-3197): `print_type`, `mc_percent`, `mc_remaining_time`, `gcode_state`, `subtask_name`, plus `plate_idx`. No JSON fixture files exist anywhere in the repo (`grep` for `push_status`/`gcode_state` in tests/resources found nothing) — you'll need to hand-craft one. A minimal realistic "full push" status payload, safe to send with `msg:0`:
+
+```json
+{
+  "print": {
+    "command": "push_status",
+    "msg": 0,
+    "print_type": "cloud",
+    "gcode_state": "RUNNING",
+    "mc_percent": 42,
+    "mc_remaining_time": 12,
+    "subtask_name": "fake_print.3mf",
+    "nozzle_temper": 210.0,
+    "nozzle_target_temper": 210.0,
+    "bed_temper": 60.0,
+    "bed_target_temper": 60.0,
+    "plate_idx": 1
+  }
+}
+```
+For the connect/heat/print/complete sequence, cycle `gcode_state` through `"IDLE"` → `"PREPARE"`/`"SLICING"` → `"RUNNING"` (ramping temps and `mc_percent`) → `"FINISH"`, each delivered via the `OnMessageFn`/`OnLocalConnectedFn`/`OnMsgArrivedFn` you registered in `set_on_message_fn`/`set_on_local_message_fn`.
+
+## 5. Catch2 test infra
+
+There is no `tests/agent/CMakeLists.txt` target for printer-agent tests specifically — `/Users/kenneth/Projects/JusPrin/tests/agent/CMakeLists.txt` builds a single executable `agent_bridge_tests` from a fixed file list (unrelated MCP/agent-bridge sources), linked against `Catch2WithMain`, `nlohmann_json`, `OpenSSL::Crypto`, `Boost::system`, `Threads::Threads`, and `jusprin_mcp_bridge_core`; registered via `orcaslicer_discover_tests(agent_bridge_tests)` at the bottom. To add a `FakePrinterAgent` test, either append a new `test_fake_printer_agent.cpp` to that same executable's source list (simplest, reuses existing link setup), or create a new `add_executable(...)` + `target_link_libraries(... Catch2WithMain ...)` + `orcaslicer_discover_tests(...)` block following that exact pattern in a sibling directory. Standard include is `&lt;catch2/catch_all.hpp&gt;` per `tests/CLAUDE.md`.</result>
+<usage><subagent_tokens>86874</subagent_tokens><tool_uses>19</tool_uses><duration_ms>79439</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bu04sqhu0</task-id>
+<tool-use-id>toolu_01BaoVWyj4XVREaKBtJ4Zyih</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/bu04sqhu0.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/fake-printer-agent/build/arm64 --config RelWithDebInfo --target slic3rutils_tests -- 2&gt;&amp;1 | tail -100" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Why do you have to change NetworkAgentFactory.cpp? Isn't this already designed to be a plug-in system? Your fake printer should just be another Implementation of the interface, right?
+
+---
+
+leave it as-is. now how can I manually test it?
+
+---
+
+compare this approach to an indepenent fake Moonraker/AFC printer living outside the OrcaSlicer code base. Will an indepenent fake Moonraker/AFC printer cost a lot more code than the fake printer you just biult?
+
+---
+
+I want to have a fake printer that not only can ai agent can use to automate testing, but I can also use in manual mode in manual testing
+
+---
+
+where did you change the code?
+
+---
+
+When I need to add more capabilities to the fake printer, Such as returning different kind of filament/plate settings and status, Do we still need to increase the footprint on upstream code?
+
+---
+
+the manual control you built - When I am testing it, I'll have to remember all these commands, right? Is there an easier way for me to use that without having to memorize all these commands, including dev_id etc?
+
+---
+
+Give me the step-by-step instructions for testing it manually.
+
+---
+
+Advanced or Expert (top-right selector) - can't find it
+
+---
+
+Still not working, try to perform these steps yourself and fix things
+
+---
+
+is hte work still on a worktree?
+
+---
+
+commit. and bring the work to /Users/kenneth/Projects/JusPrin: on branch jusprin-newui
+
+---
+
+<task-notification>
+<task-id>b7njmkphv</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/b7njmkphv.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/fake-printer-agent
+cmake --build build/arm64 --config RelWithDebInfo --target slic3rutils_tests &gt; /tmp/claude/build_rebase.log 2&gt;&amp;1
+echo "build exit=$?"
+tail -3 /tmp/claude/build_rebase.log
+echo "=== errors? ==="; grep -c "error:" /tmp/claude/build_rebase.log || true" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Say it again in plain English in under one hundred words.
+
+---
+
+Your header printer chip only displays live status for Bambu printers, - check if you can add a non-bambu printer by clickoing "add printer"
+
+---
+
+The reason why I would need a device simulator is to exercise the different states of the printer and spool drop-downs.  Based on what you have learned so far, should we have faked a moonraker/afc printer instead? which one is cleaner and easier, Especially when it comes to the footprint on the upstream?
+
+---
+
+Say that again in plain English.
+
+---
+
+yes, make the UI change so the fake printer drives it
+
+---
+
+<task-notification>
+<task-id>b3utg76ha</task-id>
+<tool-use-id>toolu_01S9Mp9pBBzDZdvXeGdLuy8y</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/b3utg76ha.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin
+cmake --build build/arm64 --config RelWithDebInfo --target slic3rutils_tests &gt; /tmp/claude/build_gate.log 2&gt;&amp;1
+echo "cmake exit=$?"
+echo "=== errors ==="; grep -n "error:" /tmp/claude/build_gate.log | head -20
+echo "=== tail ==="; tail -3 /tmp/claude/build_gate.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bq5zj7or1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/bq5zj7or1.output</output-file>
+<status>completed</status>
+<summary>Background command "until ! pgrep -f "cmake --build build/arm64 --config RelWithDebInfo --target slic3rutils_tests" &gt;/dev/null 2&gt;&amp;1; do sleep 5; done
+echo "=== BUILD ERRORS: $(grep -c 'error:' /tmp/claude/build_gate.log) ==="
+grep -n "error:" /tmp/claude/build_gate.log | head -10
+echo "=== TESTS ==="
+/Users/kenneth/Projects/JusPrin/build/arm64/tests/slic3rutils/RelWithDebInfo/slic3rutils_tests.app/Contents/MacOS/slic3rutils_tests "~[NotWorking]" 2&gt;&amp;1 | tail -3" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bwgifemak</task-id>
+<tool-use-id>toolu_01Qo87L3Gn3xGmWp1Epar95C</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/bwgifemak.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin
+cmake --build build/arm64 --config RelWithDebInfo --target slic3rutils_tests OrcaSlicer &gt; /tmp/claude/build_activate.log 2&gt;&amp;1
+echo "exit=$?"
+echo "=== errors ==="; grep -n "error:" /tmp/claude/build_activate.log | head -20
+echo "=== tail ==="; tail -3 /tmp/claude/build_activate.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bd6tlepqp</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/bd6tlepqp.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin
+python3 - &lt;&lt;'PY'
+p='src/slic3r/GUI/JusPrin/Shell/ShellController.cpp'
+s=open(p).read()
+old='#include "slic3r/GUI/DeviceManager.hpp"\n'
+new='#include "slic3r/GUI/DeviceCore/DevManager.h"\n#include "slic3r/GUI/DeviceManager.hpp"\n'
+assert s.count(old)==1
+open(p,'w').write(s.replace(old,new,1))
+print("include added")
+PY
+cmake --build build/arm64 --config RelWithDebInfo --target slic3rutils_tests OrcaSlicer &gt; /tmp/claude/build_activate2.log 2&gt;&amp;1
+echo "exit=$?"; echo "errors: $(grep -c 'error:' /tmp/claude/build_activate2.log)"
+grep -n "error:" /tmp/claude/build_activate2.log | head -10
+tail -2 /tmp/claude/build_activate2.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bddpwslu9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/bddpwslu9.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin
+cmake --build build/arm64 --config RelWithDebInfo --target OrcaSlicer slic3rutils_tests &gt; /tmp/claude/build_guard.log 2&gt;&amp;1
+echo "exit=$?  errors=$(grep -c 'error:' /tmp/claude/build_guard.log)"
+grep -n "error:" /tmp/claude/build_guard.log | head -5" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+anything else still need to be tested? if not, comit
+
+---
+
+are you in a worktree? If so, bring your commit to jusprin-newui branch in /Users/kenneth/Projects/JusPrin
+
+---
+
+run it and show me the chip
+
+---
+
+<task-notification>
+<task-id>bucrzlt4g</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e382afcb-145d-4046-bdb9-12c57f306eab/tasks/bucrzlt4g.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin
+pkill -9 -f "FakeTest.app/Contents/MacOS" 2&gt;/dev/null; pkill -f "sleep 3600" 2&gt;/dev/null; sleep 1
+echo "instances left: $(pgrep -f 'FakeTest.app/Contents/MacOS' | wc -l | tr -d ' ')"
+cmake --build build/arm64 --config RelWithDebInfo --target OrcaSlicer &gt; /tmp/claude/build_clean.log 2&gt;&amp;1
+echo "rebuild from committed source: exit=$? errors=$(grep -c 'error:' /tmp/claude/build_clean.log)"
+git status --short; echo "(clean)"; git log --oneline -1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+so what you built didn't work, and you don't know why, rigth? Please be honest with me, I won't kill you, even if it's your fault.
+
+---
+
+So the changes you made have not worked at all? please confirm, once confirmed, revert the commits you made
