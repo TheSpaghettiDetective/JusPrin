@@ -47,12 +47,17 @@ private:
     std::optional<ResolvedObject> resolve(ObjectId id) const;
     CommandResult id_error(ObjectId id) const;
     void on_project_state_changed(const ProjectStateChanged& change);
+    void on_slice_status_changed(wxCommandEvent& event);
+    // Per plate: whether it holds a valid slice, and which result. Compared on
+    // every slice-status event so only a real change advances the revision.
+    std::vector<std::pair<bool, std::uint64_t>> current_slice_state() const;
     void publish_change(WorkspaceChangeReasons reasons);
     void remember_current_ids() const;
 
     Plater&                         m_plater;
     ProjectSessionId                m_session;
     WorkspaceChangeHub              m_changes;
+    std::vector<std::pair<bool, std::uint64_t>> m_known_slice_state;
     mutable std::set<std::uint64_t> m_known_object_ids;
     ProjectStateSubscription        m_project_subscription;
 };

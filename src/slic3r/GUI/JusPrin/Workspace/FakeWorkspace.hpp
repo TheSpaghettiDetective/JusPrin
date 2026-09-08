@@ -321,6 +321,11 @@ public:
         publish(WorkspaceChangeReasons::Project);
     }
 
+    // Publishing here is part of the contract, not a fixture convenience: a
+    // slice changes what consumers may say about the plate, so it has to
+    // advance the revision. The Orca adapter matches this by listening to
+    // EVT_SLICE_STATUS_CHANGED -- it did not, once, and the setup card kept
+    // reporting "not sliced yet" after a successful slice.
     void set_plate_sliced(PlateId id, bool sliced)
     {
         for (WorkspacePlate& plate : m_snapshot.plates)
