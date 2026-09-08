@@ -11,3 +11,7 @@ Can you do end 2 end testing using the real UI?
 ---
 
 how do I test it myself?
+
+---
+
+commit. leave 	agent-docs/jusprin/fake-bambu-printer-handoff.md and other task-specific docs outside git.
