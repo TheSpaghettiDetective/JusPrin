@@ -72,8 +72,8 @@ describe('setup card preview', () => {
       .map((entry) => `<figure>
   <figcaption><b>${entry.name}</b> — ${entry.note}</figcaption>
   <div class="dock ${mode}"><div class="app"><div class="chat-content">
-    ${renderToStaticMarkup(<SetupCard context={entry.context} expanded={entry.expanded ?? false} onToggle={() => {}} />)}
-    <div class="thread">the conversation lives here, and every pixel the card takes comes out of it</div>
+    <div class="pinned-setup">${renderToStaticMarkup(<SetupCard context={entry.context} expanded={entry.expanded ?? false} onToggle={() => {}} />)}</div>
+    <div class="thread${entry.expanded ? ' thread-dimmed' : ''}">the conversation lives here, and every pixel the card takes comes out of it</div>
   </div></div></div>
 </figure>`)
       .join('\n');
@@ -86,9 +86,9 @@ ${css}
 body { background: #f2f2f2; font-family: system-ui, sans-serif; padding: 16px; margin: 0; }
 .grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 figure { margin: 0; }
-figcaption { font-size: 12px; margin-bottom: 6px; color: #333; max-width: 340px; }
-/* The real dock: 340px wide, and the card competes with the thread for it. */
-.dock { width: 340px; height: 220px; border: 1px solid #bbb; background: var(--surface-subtle); overflow: hidden; }
+figcaption { font-size: 12px; margin-bottom: 6px; color: #333; max-width: 429px; }
+/* The real dock, from the Figma frame: 429px. */
+.dock { width: 429px; height: 240px; border: 1px solid #bbb; background: var(--surface-subtle); overflow: hidden; }
 .thread { padding: 10px 12px; font-size: 13px; color: var(--text-secondary); }
 .dock.dark { color: var(--text-primary); }
 h2 { font: 600 14px system-ui, sans-serif; margin: 20px 0 10px; }

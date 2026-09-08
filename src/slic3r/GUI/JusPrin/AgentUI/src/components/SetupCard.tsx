@@ -82,15 +82,14 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // what is left is a label and the caller renders it as one.
   const substantive = Boolean(title) || estimate !== null || deltaLabel !== '';
 
-  // With no intent to restate, the preset name takes the identity slot. It
-  // goes on the identity ROW when the facts line already has a change count to
-  // carry, because at dock width the two together push the useful clauses off
-  // the end; with nothing else to say it rides inline and the card stays two
-  // lines, as the design has it.
-  const identity = !title && preset && deltaLabel !== '' ? preset : '';
+  // With no intent to restate, the preset name takes the identity slot -- and
+  // it takes a whole row. Sharing the facts line was tried and measured in the
+  // running app: preset names run to "0.08mm Extra Fine @MyKlipper", the dock
+  // is ~310px, and whatever came last was clipped away. A row costs 16px; a
+  // silently truncated cost is worse.
+  const identity = !title && preset && substantive ? preset : '';
 
   const facts: string[] = [];
-  if (substantive && !title && !identity && preset) facts.push(preset);
   if (estimate) {
     facts.push(formatPrintTime(estimate.printTimeSeconds));
     facts.push(formatGrams(estimate.materialGrams));
@@ -141,12 +140,8 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
 
   return (
     <section className="current-setup" data-testid="current-setup" aria-label="Current setup">
-      <p className="current-setup-kicker">
+      <p className="current-setup-eyebrow">
         <span>Current setup</span>
-        {/* The material rides in the heading's dead space rather than on the
-            facts line, where it crowded out the cost. It is standing context,
-            it is always worth a glance, and here it costs no height. */}
-        {model.material && <span className="material" title={model.material}>{model.material}</span>}
         {model.deltaLabel && (
           <button
             type="button"
@@ -156,7 +151,7 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
             data-testid="current-setup-chevron"
             onClick={onToggle}
           >
-            {expanded ? '▴' : '▾'}
+            {expanded ? '▲' : '▼'}
           </button>
         )}
       </p>
@@ -167,7 +162,7 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
       {model.identity && <p className="current-setup-identity" title={model.identity}>{model.identity}</p>}
       {/* The row is omitted, not left blank: a sliced plate with no usable
           estimate and an untouched preset has nothing to put on this line. */}
-      {(model.facts.length > 0 || model.deltaLabel) && <p className="current-setup-facts">
+      {(model.facts.length > 0 || model.deltaLabel) && <p className="current-setup-cost">
         <span className="clauses">
           {model.facts.map((fact, index) => (
             <span key={index}>
@@ -192,11 +187,9 @@ export function SetupCard({ context, expanded, onToggle }: SetupCardProps) {
         )}
       </p>}
       {expanded && model.deltaLabel && (
-        // A temporary layer over the thread rather than a taller card: the
-        // conversation is only covered while you are reading, and comes back
-        // on the next tap or the next keystroke.
-        <div className="current-setup-expansion" data-testid="current-setup-expansion">
-          {model.title && <p className="current-setup-title-full">{model.title}</p>}
+        // The same card, grown. The thread behind it dims rather than going
+        // away, so the conversation is still legibly there while you read.
+        <div data-testid="current-setup-expansion">
           <DeltaList deltas={model.deltas} />
           {/* What the deltas are measured against, so the list means
               something on its own. */}

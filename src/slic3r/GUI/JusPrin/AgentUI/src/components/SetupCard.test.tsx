@@ -105,16 +105,17 @@ describe('setup card', () => {
     const card = screen.getByTestId('current-setup');
     expect(card.querySelector('.current-setup-identity')).toHaveTextContent('0.08mm Extra Fine @MyKlipper');
     // The facts line keeps what the reader actually needs, in full.
-    expect(card.querySelector('.current-setup-facts')).toHaveTextContent('not sliced yet');
-    expect(card.querySelector('.current-setup-facts')).toHaveTextContent('2 changes from preset');
+    expect(card.querySelector('.current-setup-cost')).toHaveTextContent('not sliced yet');
+    expect(card.querySelector('.current-setup-cost')).toHaveTextContent('2 changes from preset');
   });
 
-  it('keeps the preset inline when the facts line has room for it', () => {
-    // No count to carry, so the card stays two lines as the design has it.
-    renderCard(makeContext({ estimate }));
+  it('gives the preset its own row even with no change count beside it', () => {
+    // Seen clipped in the running app: preset + estimate + cost on one line
+    // does not fit the real dock, and the cost was what disappeared.
+    renderCard(makeContext({ preset: '0.08mm Extra Fine @MyKlipper', estimate }));
     const card = screen.getByTestId('current-setup');
-    expect(card.querySelector('.current-setup-identity')).toBeNull();
-    expect(card.querySelector('.current-setup-facts')).toHaveTextContent('0.20 mm Standard');
+    expect(card.querySelector('.current-setup-identity')).toHaveTextContent('0.08mm Extra Fine @MyKlipper');
+    expect(card.querySelector('.current-setup-cost')).not.toHaveTextContent('Extra Fine');
   });
 
   it('omits money entirely rather than inventing a zero when no price is set', () => {
@@ -194,7 +195,7 @@ describe('setup card', () => {
     context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, objects: [] }];
     renderCard(context);
     const card = screen.getByTestId('current-setup');
-    expect(card.querySelector('.current-setup-facts')).toBeNull();
+    expect(card.querySelector('.current-setup-cost')).toBeNull();
     // Heading and title only.
     expect(card.querySelectorAll('p')).toHaveLength(2);
   });
@@ -232,6 +233,24 @@ describe('setup card', () => {
     context.printer = { preset: 'MyKlipper 0.2 nozzle', filament: '', process: '' };
     const { container } = renderCard(context);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('grows the same card rather than floating a second panel under it', () => {
+    const context = makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(3) });
+    render(<SetupCard context={context} expanded onToggle={() => {}} />);
+    const card = screen.getByTestId('current-setup');
+    // The design's expansion is the card itself getting taller, so the deltas
+    // have to be inside it -- not a sibling positioned beneath.
+    expect(card.contains(screen.getByTestId('current-setup-expansion'))).toBe(true);
+  });
+
+  it("keeps the eyebrow's right half free for a state to speak into", () => {
+    // "working...", "+2 yours" and "undo" all live there in the design, so
+    // nothing standing may occupy it.
+    renderCard(makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(2) }));
+    const eyebrow = screen.getByTestId('current-setup').querySelector('.current-setup-eyebrow');
+    expect(eyebrow).toHaveTextContent('Current setup');
+    expect(eyebrow).not.toHaveTextContent('Generic PLA');
   });
 
   it('opens the deltas as a layer over the thread rather than a taller card', async () => {
