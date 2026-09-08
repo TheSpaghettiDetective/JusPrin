@@ -176,8 +176,9 @@
       "12": 48
     },
     "radius": {
-      "standard": 6,
+      "standard": 4,
       "compact": 8,
+      "container": 8,
       "window": 12,
       "pill": 9999
     }
@@ -201,26 +202,26 @@
         "height": 32,
         "paddingX": 12,
         "paddingY": 8,
-        "radius": 6,
+        "radius": 4,
         "textSize": 14
       },
       "parameter": {
         "width": 120,
         "height": 26,
-        "radius": 6,
+        "radius": 4,
         "textSize": 14
       },
       "icon": {
         "width": 26,
         "height": 26,
         "iconSize": 16,
-        "radius": 6
+        "radius": 4
       },
       "expanded": {
         "minHeight": 32,
         "paddingX": 12,
         "paddingY": 8,
-        "radius": 6,
+        "radius": 4,
         "textSize": 14
       }
     },
