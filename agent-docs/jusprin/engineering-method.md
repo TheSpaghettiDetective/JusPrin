@@ -97,6 +97,17 @@ rendering and hit-testing separately. Compare a stock window with the product
 policy, then exercise selection, orbit, pan, zoom, active gizmo input, slicing,
 Preview, and restoration of the prior presentation state.
 
+### Printer tests without hardware
+
+Bambu paths (header chip Idle / Printing / Offline, Select Machine, print job)
+are exercised by an in-process fake that substitutes for the Bambu printer
+agent while a real Bambu preset stays selected. Procedure, control file, and
+acceptance checks: [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md).
+
+The Klipper/Moonraker network simulator lives on `jusprin-newui-fakeprinter`
+under `tests/printer_sim/` and covers print-host paths. Do not add a fake
+Bambu network layer (MQTT/FTPS/discovery) without an explicit request.
+
 ### Platform matrix
 
 Before release completion, cover:

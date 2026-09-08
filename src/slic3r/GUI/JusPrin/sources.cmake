@@ -80,6 +80,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/SliceReview.hpp
     GUI/JusPrin/Workspace/SpoolStore.cpp
     GUI/JusPrin/Workspace/SpoolStore.hpp
+    GUI/JusPrin/Testing/FakeBambuAgent.cpp
+    GUI/JusPrin/Testing/FakeBambuAgent.hpp
 )
 
 # Translation catalogs carrying the product name, built from upstream .po files.

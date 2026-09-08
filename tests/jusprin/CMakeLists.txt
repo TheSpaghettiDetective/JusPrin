@@ -33,4 +33,16 @@ if (SLIC3R_GUI)
     target_link_libraries(shell_theme_tests PRIVATE Catch2WithMain libslic3r_gui)
 
     orcaslicer_discover_tests(shell_theme_tests)
+
+    add_executable(jusprin_fake_bambu_tests
+        test_fake_bambu_agent.cpp
+    )
+    target_include_directories(jusprin_fake_bambu_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/slic3r/GUI
+    )
+    target_link_libraries(jusprin_fake_bambu_tests PRIVATE test_common libslic3r_gui libslic3r Catch2::Catch2WithMain)
+    set_property(TARGET jusprin_fake_bambu_tests PROPERTY FOLDER "tests")
+    orcaslicer_copy_test_dlls()
+    orcaslicer_discover_tests(jusprin_fake_bambu_tests)
 endif()

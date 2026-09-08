@@ -121,6 +121,7 @@
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
 #include "JusPrin/Brand/BrandPalette.hpp"
+#include "JusPrin/Testing/FakeBambuAgent.hpp"
 #include "Widgets/Label.hpp"
 #include "Widgets/ProgressDialog.hpp"
 
@@ -3573,6 +3574,9 @@ void GUI_App::switch_printer_agent()
     if (preset_bundle->is_bbl_vendor()) {
         effective_agent_id = BBL_PRINTER_AGENT_ID;
         cloud_agent_id = BBL_CLOUD_PROVIDER;
+        // Fork policy: fake mode substitutes the Bambu agent. Additive; no upstream line deleted.
+        if (const std::string fake_id = fake_bambu_printer_agent_id(app_config); !fake_id.empty())
+            effective_agent_id = fake_id;
     } else {
         const DynamicPrintConfig& config = preset_bundle->printers.get_edited_preset().config;
         if (config.has("printer_agent")) {
