@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M20Q1HAW20CHTR3Z4RAG3H0R",
+  "strategy": "manual-commit",
+  "branch": "claude/device-simulator-printer-5dee78",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.hpp",
+    "src/slic3r/Utils/MoonrakerPrinterAgent.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4582,
+    "cache_creation_tokens": 817230,
+    "cache_read_tokens": 46300670,
+    "output_tokens": 232285,
+    "api_call_count": 159
+  }
+}

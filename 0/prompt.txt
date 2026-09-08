@@ -1,0 +1,370 @@
+how to build a device simulator for testing purpose in this code base? I want the ability to test functions such as sending g-code to the printer or querying printer status without having to connect a physical printer. this simulator can be used for ai agent testing, as well as my manual testing.
+The previous agents failed miserably. You know better. Give it another shot. whether we simulate a bambu printer or a moonraker printer doesn't matter. We only need a simple simplest simulator that serve the purposes stated above. Do whatever that is simplest.
+
+---
+
+<task-notification>
+<task-id>a1714d6aef9bd2883</task-id>
+<tool-use-id>toolu_01Vsh8gsQiLfpHUU688fp8yR</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-device-simulator-printer-5dee78/6b96dccc-1cb4-4f72-9de4-3ecee4b28e74/tasks/a1714d6aef9bd2883.output</output-file>
+<status>completed</status>
+<summary>Agent "Map printer comms paths" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have the full picture. Here's the report.
+
+---
+
+# Non-Bambu Printer Networking — Code Map
+
+All paths relative to `/Users/kenneth/Projects/JusPrin/.claude/worktrees/device-simulator-printer-5dee78`.
+
+There are **two entirely separate networking stacks** for non-Bambu printers, and they are chosen by different config keys and reached from different UI paths:
+
+| Stack | Config key | Entry point | Used for |
+|---|---|---|---|
+| **A. `IPrinterAgent`** (Bambu-shaped, MQTT-emulating) | `printer_agent` (string, e.g. `"moonraker"`) | `MachineObject::connect()` → `agent-&gt;connect_printer()` | Monitor tab / device state / filament (AMS) sync |
+| **B. `PrintHost`** (classic OrcaSlicer upload) | `host_type` (enum, e.g. `htMoonraker`) | `Plater::send_gcode_legacy()` → `PrintHostJob` | The actual "Print" button for non-BBL printers |
+
+A minimal fake server must satisfy **both**, plus `/server/info` is the only endpoint both agree on.
+
+---
+
+## 1. IPrinterAgent + MoonrakerPrinterAgent
+
+### Interface
+- `src/slic3r/Utils/IPrinterAgent.hpp` — pure-virtual interface, `AgentInfo` struct (`:18-23`), `FilamentSyncMode` enum (`:33-37`), `connect_printer` (`:81`), `send_message_to_printer` (`:91`), `start_local_print` (`:204`), `fetch_filament_info` (`:277`).
+- `src/slic3r/Utils/NetworkAgentFactory.cpp:132-154` — `register_all_agents()`. Registration order matters: `CrealityPrintAgent` **before** `MoonrakerPrinterAgent` (`:137-140`), because Creality subclasses Moonraker.
+- Registered agent IDs: `orca`, `qidi`, `snapmaker`, `crealityprint`, `moonraker`, `bbl`.
+- Agents are **cached by ID** for the process lifetime (`NetworkAgentFactory.cpp:93-101`) — a fake test must account for one live `MoonrakerPrinterAgent` instance per process.
+
+### Agent identity
+`src/slic3r/Utils/MoonrakerPrinterAgent.cpp:112-115`:
+```cpp
+return AgentInfo{"moonraker", "Moonraker", "1.0.0", "Klipper/Moonraker printer agent"};
+```
+
+### Every HTTP/WS endpoint MoonrakerPrinterAgent touches
+
+| Method | Path | Called from | Reads/writes |
+|---|---|---|---|
+| `GET` | `/server/info` | `fetch_device_info()` `:1130` | reads `result.machine_name` (fallback `result.hostname`), `result.moonraker_version`, `result.klippy_state` (`:1136-1138`) |
+| `GET` | `/printer/objects/list` | `fetch_object_list()` `:1247` | reads `result.objects` (array of strings) `:1281-1291` |
+| `GET` | `/printer/objects/query?print_stats&amp;virtual_sdcard&amp;extruder&amp;heater_bed&amp;fan` | `query_printer_status()` `:1148` | reads `result.status` `:1187-1192` — **currently dead code** (see below) |
+| `GET` | `/printer/objects/query?mmu` | `fetch_hh_filament_info()` `:828` | reads `result.status.mmu.{num_gates, gate_status[], gate_material[], gate_color[], gate_temperature[]}` `:867-901` |
+| `GET` | `/server/database/item?namespace=lane_data` | `fetch_moonraker_filament_data()` `:730` | reads `result.value.&lt;laneN&gt;.{lane, color, material, bed_temp, nozzle_temp}` `:769-805` |
+| `POST` | `/printer/gcode/script` | `send_gcode()` `:1206` | body `{"script": "&lt;gcode&gt;"}` `:1199`; success = HTTP 200 |
+| `POST` | `/server/files/upload` (multipart) | `upload_gcode()` `:1959` | form fields `root=gcodes`, `print=false`, file part named `file` `:1963-1965`. **Response body is ignored.** |
+| `POST` | `/printer/print/start` | `send_jsonrpc_command()` `:2021` | **dead code** — never called anywhere |
+| `WS` | `/websocket` | `run_status_stream()` `:69`, `:1441` | **disabled** (see below) |
+
+Auth header on every request: `X-Api-Key: &lt;api_key&gt;` when non-empty. Timeouts: `timeout_connect(5)`, `timeout_max(10)` (upload: `timeout_max(300)`).
+
+### Connect / discovery flow
+
+`connect_printer(dev_id, dev_ip, username, password, use_ssl)` at `MoonrakerPrinterAgent.cpp:137`:
+1. `init_device_info()` `:1061` — `api_key = password`, `base_url = (use_ssl ? "https://" : "http://") + dev_ip`, `model_name` from printer preset `printer_model`, `model_id` from `preset.get_printer_type()`. **Note `dev_ip` already carries `host:port`** (see §3).
+2. Spawns a background thread → `perform_connection_async()` `:2052`.
+3. That thread calls **only `GET /server/info`**. On success it dispatches `ConnectStatusOk` + `on_printer_connected_fn`.
+
+**Critical for a fake server: the WebSocket path is compiled out.** `MoonrakerPrinterAgent.cpp:2084-2099`:
+```cpp
+// Orca todo: disable websocket for now, as we don't use MonitorPanel for Moonraker printers yet
+#if 0
+    ... query_printer_status(...) ...
+    start_status_stream(dev_id, base_url, api_key);
+#endif
+```
+So **no status polling and no subscription happen today**. `GET /server/info` returning 200 with `result.klippy_state` present is the entire connect handshake.
+
+SSDP announce (`announce_printhost_device()` `:1322`) is synthetic — it fabricates a JSON payload and calls `on_ssdp_msg_fn` locally; no network. It also writes `access_code`/`user_access_code` into app config, defaulting to `"88888888"` when the API key is empty (`:1350-1352`).
+
+### Bambu-style push_status conversion
+
+Yes — `build_print_payload_locked()` `:1742-1893` converts the Moonraker status cache into Bambu MQTT `print` JSON. Fields produced verbatim:
+
+`print.command = "push_status"`, `print.msg = 0`, `print.support_mqtt_alive = true`, `print.gcode_state`, `print.mc_print_stage`, `print.mc_print_error_code = 0`, `print.print_error = 0`, `print.home_flag`, `print.nozzle_temp_range = [100,370]`, `print.bed_temp_range = [0,120]`, `print.support_send_to_sd = true`, `print.support_bed_leveling`, `print.nozzle_temper`, `print.nozzle_target_temper`, `print.bed_temper`, `print.bed_target_temper`, `print.fan_gear`, `print.subtask_name`, `print.gcode_file`, `print.mc_percent`, `print.mc_remaining_time`, and top-level `t_utc`.
+
+State mapping (`:73-89`), Moonraker `print_stats.state` → `gcode_state`:
+`printing`→`RUNNING`, `paused`→`PAUSE`, `complete`→`FINISH`, `error`/`cancelled`→`FAILED`, else `IDLE`.
+`mc_print_stage` (`:1757-1768`): `printing`→1, `paused`→2, `complete`→3, `error`→4, else 0.
+
+Source fields consumed from the Moonraker status cache: `print_stats.{state, filename, total_duration, print_duration}`, `virtual_sdcard.progress`, `extruder.{temperature, target}` (any `extruder*` object), `heater_bed.{temperature, target}`, `fan.{speed|power}`, `toolhead.homed_axes`.
+
+Because the WS is off, this function is currently unreachable in practice — but it's exactly the shape a simulator would need to drive if you re-enable `#if 0`.
+
+### Inbound commands (Bambu JSON → Moonraker G-code)
+
+`handle_request()` `:952-1059` — reached via `send_message()` / `send_message_to_printer()`:
+
+| Incoming JSON | Action |
+|---|---|
+| `info.command == "get_version"` | replies locally with `info.module[0] = {name:"ota", sw_ver, product_name:"Moonraker"}` `:1296-1311` |
+| `system.command == "get_access_code"` | replies locally with `system.access_code` `:1313-1320` |
+| `print.command == "gcode_line"`, `print.param` | `POST /printer/gcode/script`; echoes back `print.result = "success"\|"failed"` `:987-1015` |
+| `print.command == "pause"` | G-code `PAUSE` `:2002` |
+| `print.command == "resume"` | G-code `RESUME` `:2007` |
+| `print.command == "stop"` | G-code `CANCEL_PRINT` `:2012` |
+| `print.command == "set_bed_temp"`, `print.temp` | `SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=&lt;n&gt;` `:1032` |
+| `print.command == "set_nozzle_temp"`, `print.target_temp`, `print.extruder_index` | `SET_HEATER_TEMPERATURE HEATER=extruder[N] TARGET=&lt;n&gt;` `:1046-1047` |
+| `print.command == "home"` | `G28` `:1054` |
+
+### Print start via the agent
+
+`start_local_print()` `:328-383`:
+1. Uses `params.dst_file` if set, else `params.filename`.
+2. `POST /server/files/upload` with `root=gcodes`, `print=false`.
+3. Then starts via G-code, **not** the REST API: `send_gcode("SDCARD_PRINT_FILE FILENAME=" + upload_filename)` `:375-376`.
+
+`start_send_gcode_to_sdcard()` `:297` = upload only. `start_print()`, `start_local_print_with_record()`, `start_sdcard_print()` are all no-op stubs returning success (`:276`, `:285`, `:385`).
+
+### Filament sync (pull mode)
+`get_filament_sync_mode()` returns `FilamentSyncMode::pull` (`MoonrakerPrinterAgent.hpp:72`). `fetch_filament_info()` `:569` tries `lane_data` first, then Happy Hare `mmu`; on success builds Bambu-shaped `ams` JSON (`build_ams_payload()` `:451-567`, fields `ams[].id`, `ams[].info="0002"`, `ams[].tray[].{id, tag_uid, tray_info_idx, tray_type, tray_color, bed_temp, nozzle_temp_max}`, plus `ams_exist_bits` / `tray_exist_bits` as uppercase hex) and feeds `DevFilaSystemParser::ParseV1_0`. Callers: `src/slic3r/GUI/Plater.cpp:3343-3344`.
+
+---
+
+## 2. PrintHost family
+
+- Base: `src/slic3r/Utils/PrintHost.hpp` — `PrintHostUpload` (`:30-50`), `PrintHostPostUploadAction` enum (`:21-26`), `PrintHost` (`:52`).
+- Factory: `src/slic3r/Utils/PrintHost.cpp:42-77` — `switch (host_type)`, `case htMoonraker: return new Moonraker(config);` at **`:73`**.
+
+### PrintHostType enum
+`src/libslic3r/PrintConfig.hpp:79-81`:
+```cpp
+htPrusaLink, htPrusaConnect, htOctoPrint, htDuet, htFlashAir, htAstroBox, htRepetier,
+htMKS, htESP3D, htCrealityPrint, htObico, htFlashforge, htSimplyPrint, htElegooLink,
+ht3DPrinterOS, htMoonraker
+```
+String values / labels: `src/libslic3r/PrintConfig.cpp:4853-4895`. **`"moonraker"` → `"Moonraker (Klipper)"`** (`:4874`, `:4890`). Default is `htOctoPrint` (`:4893`).
+
+### Moonraker PrintHost
+`src/slic3r/Utils/Moonraker.hpp` (endpoint summary in the header comment `:18-28`) and `src/slic3r/Utils/Moonraker.cpp`:
+
+| Method | Path | Line | Details |
+|---|---|---|---|
+| `GET` | `server/info` | `:71` | `test()`. **Must return `result.klippy_state`** or the test fails with "doesn't look like Moonraker (missing result.klippy_state)" (`:90-98`). The *value* is not validated. |
+| `GET` | `server/files/roots` | `:124` | `get_storage()`. Reads `result[].name` and `result[].permissions`; only roots whose permissions contain `w` are offered (`:150-161`). **404/501 is benign** (`:136-138`) — a fake server can omit it. |
+| `POST` | `server/files/upload` | `:236` | multipart: `root=&lt;storage or "gcodes"&gt;`, optional `plateindex`, file part `file` (`:256-259`). Reads back **`result.item.path`** (`:270`); falls back to the original filename if absent. |
+| `POST` | `printer/print/start` | `:183` | JSON body `{"filename": "&lt;result.item.path&gt;"}` (`:184-188`). |
+
+Auth (`set_auth()` `:49-58`): `X-Api-Key` only when `printhost_apikey` non-empty; plus `printhost_cafile`. **Basic/Digest are deliberately not sent.** `get_post_upload_actions()` returns `StartPrint` only (`Moonraker.hpp:43`).
+
+### OctoPrint (for contrast)
+`src/slic3r/Utils/OctoPrint.cpp` — `api/version` for `test()` (`:203`, `:620`, `:783`), `api/files/local` for upload (`:423`) with form fields `print`, `path`, optional `plateindex`, file `file` (`:366-373`). PrusaLink adds `api/v1/storage` (`:673`) and `api/v1/files` (`:935`). Classes: `OctoPrint`, `PrusaLink : OctoPrint`, `PrusaConnect : PrusaLink`, `SL1Host : PrusaLink` (`OctoPrint.hpp:18,58,105,119`).
+
+---
+
+## 3. Agent selection and printer config plumbing
+
+### `switch_printer_agent()`
+`src/slic3r/GUI/GUI_App.cpp:3563-3617`. Logic:
+1. If `preset_bundle-&gt;is_bbl_vendor()` → force `BBL_PRINTER_AGENT_ID`.
+2. Else read `printer_agent` from **`preset_bundle-&gt;printers.get_edited_preset().config`** (`:3578-3583`) — i.e. the *printer preset*, defaulting to `ORCA_PRINTER_AGENT_ID`.
+3. If not registered, keep the current agent (`:3586-3592`).
+4. `NetworkAgentFactory::create_printer_agent_by_id()` → `m_agent-&gt;set_printer_agent()` → `select_machine(effective_agent_id)`.
+
+Callers: `src/slic3r/GUI/PhysicalPrinterDialog.cpp:900` (deferred via `CallAfter` on dialog OK) and `src/slic3r/GUI/Tab.cpp:2118` (on printer preset change).
+
+### `GUI_App::select_machine()`
+`src/slic3r/GUI/GUI_App.cpp:3621-3696`. This is the bridge that manufactures a `MachineObject` for a non-Bambu host:
+- `print_host = config.opt_string("print_host")`; empty → returns early (`:3639-3642`).
+- `port = config.opt_string("printhost_port")`.
+- `dev_id = MachineObject::dev_id_from_address(print_host, port)` (`:3645`) — implementation at `src/slic3r/GUI/DeviceManager.cpp:366-387`: strips scheme and path, then appends `:port`, yielding **`"host:port"`**.
+- Sets `machine.dev_ip = dev_id` (`:3667`), `printer_type` from `printer_model`, `access_code` from `printhost_apikey` **defaulting to `"88888888"` when empty** (`:3669-3673`).
+- `local_use_ssl` from whether `print_host` starts with `https://` (`:3685`).
+- Finally `mainframe-&gt;m_monitor-&gt;select_machine(dev_id)`.
+
+So the base URL the Moonraker agent ends up using is `http://&lt;host&gt;:&lt;printhost_port&gt;`.
+
+### Where `connect_printer` is actually invoked
+`src/slic3r/GUI/DeviceManager.cpp:2404-2417` — `MachineObject::connect()` passes hardcoded `username = "bblp"` and `password = get_access_code()`. The Moonraker agent ignores the username and treats the password as the API key.
+
+### PhysicalPrinter presets — how they're *actually* stored
+Important nuance: **`PhysicalPrinterCollection::load_printers()` (`src/libslic3r/Preset.cpp:4106`) is never called anywhere in this fork.** The only call is `load_printers_from_presets()` at `src/slic3r/GUI/GUI_App.cpp:4158`. And `Plater::send_gcode_legacy()` explicitly bypasses the physical-printer config:
+
+`src/slic3r/GUI/Plater.cpp:16264-16266`:
+```cpp
+// DynamicPrintConfig* physical_printer_config = wxGetApp().preset_bundle-&gt;physical_printers.get_selected_printer_config();
+DynamicPrintConfig* physical_printer_config = &amp;Slic3r::GUI::wxGetApp().preset_bundle-&gt;printers.get_edited_preset().config;
+```
+
+**Consequence for pre-seeding a test: write the printer preset, not a `physical_printer/*.json`.** See §6.
+
+### JusPrin printer status UI
+
+- **The chip:** `src/slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.cpp` (`set_printer()` `:53`, falls back to `"Select printer"` `:55`), constructed in `src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp:72`, and its printer half opens `PrinterMenu` at `StatusRow.cpp:432`.
+- **The status words:** `src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp:53-83` — `Idle` (`:60`), `Printing` (`:65`), `Offline` (`:70`), `Not connected` (`:75`, with sub-label `"Prints go to a card."`).
+- **The function that computes it:** `SetupCommands::printer_connection()` at **`src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp:183-207`**. Enum at `SetupCommands.hpp:88-102`.
+
+**This is the single biggest blocker for simulating a Moonraker printer in the JusPrin UI.** `SetupCommands.cpp:191-192`:
+```cpp
+if (presets == nullptr || !presets-&gt;use_bbl_network())
+    return connection;   // -&gt; ConnectionState::NotConnected, monitor_available = false
+```
+`use_bbl_network()` (`src/libslic3r/PresetBundle.cpp:646-651`) is `is_bbl_vendor() &amp;&amp; !bbl_use_printhost`. So **any Moonraker printer will always render "Not connected"** regardless of what a fake server returns. Only after that early-return does it consult `MachineObject::is_connected()` / `is_in_printing()` (`:200-205`).
+
+`StatusRow.cpp:286-293` similarly only enables "print all plates" for BBL network or `htSimplyPrint`.
+
+---
+
+## 4. Agent bridge / tool definitions
+
+Files: `src/slic3r/GUI/JusPrin/Agent/ToolRegistry.{hpp,cpp}`, `ToolExecutionCoordinator.{hpp,cpp}`, `AgentHost.cpp`, `Mcp/McpCatalog.cpp`.
+
+**Finding: no AI-agent tool touches the printer network at all.** The complete registry is `ToolRegistry.cpp:206-331`:
+
+| Tool name | Line | Handler | Touches printer? |
+|---|---|---|---|
+| `report_slice_review` | `:207` | `ReportSliceReview` | no |
+| `settings_search` | `:216` | `SettingsSearch` | no |
+| `settings_get` | `:221` | `SettingsGet` | no |
+| `settings_preview_patch` | `:229` | `SettingsPreviewPatch` | no |
+| `settings_apply_patch` | `:233` | `SettingsApplyPatch` | no |
+| `duplicate_object` | `:241` | `DuplicateObject` | no |
+| `import_model` | `:251` | `ImportModel` | no |
+| `inspect_selection` | `:262` | `InspectSelection` | no |
+| `workspace_inspect` | `:272` | `WorkspaceInspect` | no — exposes `printerPreset` name string only |
+| `record_build` | `:285` | `RecordBuild` | no (`Internal` exposure) |
+| `record_export_copy` | `:302` | `RecordExportCopy` | no (`Internal`) |
+| `record_physical_print` | `:314` | `RecordPhysicalPrint` | **no** — writes a local history row (`printer` is a free-text string), never contacts a printer |
+
+Handler dispatch: `ToolExecutionCoordinator.cpp:283-445`; the three `Record*` handlers all land in one branch at `:438-439` and go to `ManufacturingHistory.cpp`. Handler enum: `ToolRegistry.hpp:44-57`.
+
+**There is no `send_gcode`, `printer_status`, `start_print`, or `upload` tool.** A fake printer server therefore needs no agent-side support — printing is driven purely by the human-facing Print button (`Plater::send_gcode_legacy`).
+
+---
+
+## 5. Existing simulator / mock / fake code
+
+**There is no fake printer server anywhere in the repo.** What exists:
+
+- `scripts/test_moonraker_lane_data.py` (477 lines) — a *client* test tool, not a server. It pokes a **real** Moonraker at `DEFAULT_HOST = "192.168.88.9"`, `DEFAULT_PORT = 7125` (`:16-17`), hits `GET /server/info` (`:34`), and writes/reads the `lane_data` namespace via `/server/database/item`. Useful as a reference for the exact `lane_data` JSON shape your fake must serve.
+- `src/slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp` and `FakeSettings.hpp` — test doubles for the **workspace/settings** abstraction, not printers.
+- `src/slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.{cpp,hpp}` — a mock **LLM** agent, not a printer.
+- `src/libslic3r/ExtrusionSimulator.{cpp,hpp}` — unrelated (extrusion rendering).
+
+Test layout (`tests/`): `agent/` (GUI-free contract tests compiling JusPrin Agent + Mcp sources directly, `tests/agent/CMakeLists.txt:1-32`), `jusprin/`, `shell/`, `workspace/`, `mcp/` (Python: `test_bridge_process.py`, `probe.py`), plus the Orca-inherited `libslic3r/`, `fff_print/`, `sla_print/`, `libnest2d/`. `tests/slic3rutils/` contains only `CMakeLists.txt` and `slic3rutils_tests_main.cpp` — a Catch2 main with no printer tests. **No existing test harness exercises `PrintHost` or `IPrinterAgent` over the network**, so you'd be adding the first.
+
+---
+
+## 6. Config storage and pre-seeding a printer without the dialog
+
+### Where the option definitions live (`src/libslic3r/PrintConfig.cpp`)
+| Key | Line | Type | Default |
+|---|---|---|---|
+| `printer_agent` | `:829` | `coString` | `""` |
+| `print_host` | `:836` | `coString` | `""` |
+| `print_host_webui` | `:844` | `coString` | `""` |
+| `printhost_apikey` | `:853` | `coString` | `""` |
+| `printhost_port` | `:868` | `coString` | — |
+| `printhost_cafile` | `:876` | `coString` | — |
+| `printhost_user` | `:886` | `coString` | — |
+| `printhost_password` | `:893` | `coString` | — |
+| `printhost_authorization_type` | `:915` | `coEnum` | `atKeyPassword` (`"key"` / `"user"`) |
+| `host_type` | `:4853` | `coEnum` | `htOctoPrint` |
+| `bbl_use_printhost` | `:814` | `coBool` | `false` |
+
+`AuthorizationType` enum: `src/libslic3r/PrintConfig.hpp:83-85`.
+
+### Which option list carries them
+- **Printer preset** (`s_Preset_printer_options`, `src/libslic3r/Preset.cpp:1375-1378`) — includes `host_type`, `print_host`, `printhost_apikey`, `bbl_use_printhost`, `printer_agent`, `print_host_webui`, `printhost_cafile`, `printhost_port`, `printhost_authorization_type`, `printhost_user`, `printhost_password`, `printhost_ssl_ignore_revoke`.
+- **PhysicalPrinter** (`s_PhysicalPrinter_opts`, `src/libslic3r/Preset.cpp:3928-3947`) — the same keys plus `preset_name`/`preset_names`.
+
+### On-disk locations
+- **PhysicalPrinter JSON** (the path you asked about): `PhysicalPrinterCollection::path_from_name()` at `src/libslic3r/Preset.cpp:4270-4276` → `&lt;m_dir_path&gt;/&lt;name&gt;.json`, where `m_dir_path` is set in `load_printers()` to `&lt;dir_path&gt;/&lt;subdir&gt;` (`:4113`). The subdir string is `"physical_printer"` (`Preset.cpp:516-517`, `Snapshot.cpp:248`). Written by `PhysicalPrinter::save()` `:4001-4009` via `config.save_to_json(file, "Physical_Printer", "User", SLIC3R_VERSION)`.
+  **But: nothing calls `load_printers()`, and `send_gcode_legacy` reads the printer preset instead. Seeding `physical_printer/*.json` alone will not work.**
+- **Printer preset JSON (what you actually want):** `data_dir()/user/&lt;user&gt;/machine/&lt;name&gt;.json`. Constants: `PRESET_USER_DIR = "user"` and `PRESET_PRINTER_NAME = "machine"` (`src/libslic3r/Preset.hpp:21,24`); path built at `src/libslic3r/PresetBundle.cpp:950` and `:1584`; default user folder is `"default"` (`PresetBundle.hpp:16`).
+- **App data dir:** `wxStandardPaths::Get().GetUserDataDir()` (`src/slic3r/GUI/GUI_App.cpp:2412-2414`), with app key `JusPrin2` (`version.inc:5`) → macOS `~/Library/Application Support/JusPrin2/`. Note it's **`JusPrin2`, not `JusPrin`** — `SLIC3R_APP_NAME` is `JusPrin` (`version.inc:4`) but `SLIC3R_APP_KEY` drives the directory. There is also a portable override: a `data_dir/` folder next to the `.app` bundle wins if it exists (`GUI_App.cpp:2405-2407`).
+
+### Minimum keys to pre-seed
+For **stack B** (the Print button — this is the one that matters):
+```
+host_type = "moonraker"
+print_host = "127.0.0.1:7125"
+printhost_apikey = ""            // optional; empty means no X-Api-Key header
+```
+For **stack A** (agent/monitor), additionally:
+```
+printer_agent = "moonraker"
+printhost_port = "7125"          // required for dev_id "host:port"
+```
+
+---
+
+## Minimum viable fake server
+
+Given the above, a fake Moonraker only needs four handlers to satisfy both stacks end to end:
+
+1. `GET /server/info` → `{"result":{"klippy_state":"ready","moonraker_version":"0.8.0","hostname":"fake-printer"}}` — **`result.klippy_state` is mandatory** or `Moonraker::test()` rejects the host (`Moonraker.cpp:90-98`).
+2. `POST /server/files/upload` (multipart) → `{"result":{"item":{"path":"&lt;filename&gt;","root":"gcodes"},"print_started":false}}` — `result.item.path` is echoed straight into print start (`Moonraker.cpp:270`).
+3. `POST /printer/print/start` → any 2xx; body is `{"filename":"..."}`.
+4. `POST /printer/gcode/script` → any 200; body is `{"script":"..."}` (only needed for the agent path).
+
+Optional: `GET /server/files/roots` (return 404 to skip), `GET /printer/objects/list`, `GET /server/database/item?namespace=lane_data` (for AMS sync). `/websocket` is not needed — it's `#if 0`'d out.
+
+Two caveats worth knowing before you build:
+- The JusPrin header chip will still read **"Not connected"** for a Moonraker printer no matter what the fake server does, because `SetupCommands.cpp:191` gates on `use_bbl_network()`. If showing live status in the chip is a goal, that's a code change, not a server feature.
+- `MoonrakerPrinterAgent` never polls status today (`#if 0` at `MoonrakerPrinterAgent.cpp:2085`), so a fake server that serves only `/server/info` is indistinguishable from a fully-featured one on the agent path.</result>
+<usage><subagent_tokens>179712</subagent_tokens><tool_uses>73</tool_uses><duration_ms>336606</duration_ms></usage>
+</task-notification>
+
+---
+
+That is a UI policy in the shell - what ui policy? who set that policy?
+
+---
+
+how to start jusprin to test it? I did open "/Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app" and no printer found
+
+---
+
+not true. have you tested it yourself?
+
+---
+
+the printer name is not what you promised
+
+---
+
+also fix the "printer not connected" issue. Your work doesn't finish until I have a way to verify that it works
+
+---
+
+<task-notification>
+<task-id>b7kpgx246</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-device-simulator-printer-5dee78/6b96dccc-1cb4-4f72-9de4-3ecee4b28e74/tasks/b7kpgx246.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the rebuild to finish and report its result" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Did you have to make any changes to the upstream code?
+
+---
+
+why is this necessary?
+
+---
+
+I'm pretty sure upstream mnonitor tab shows moonraker printers. What's the reason again why you don't think they're showing it?
+
+---
+
+Explain the justification to me in plain English.
+
+---
+
+does it mean that orcaslicer will also pop up "printer connection required" when sending gcode to a moonraker printer?
+
+---
+
+If we keep our fake printer's behavior exactly the same, then we don't have to change the upstream, right? The net will be able to send the prints to our fake printer, right? If not, tell me why not in plain English.
+
+---
+
+what if we build a fake bambu printer? does it mean we can test all scenarios?
+
+---
+
+ok. let's keep your fake printer. make sure you properly document how ai agent and human can use your fake printer to test. commit. then bring the commit to jusprin-newui branch. then give me clear stepbystep for how to test the printer status
