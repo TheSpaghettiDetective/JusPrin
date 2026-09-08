@@ -74,12 +74,13 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.space_1 == 4);
     CHECK(m.space_12 == 48);
 
-    CHECK(m.chip.height == 28);
+    CHECK(m.chip.height == 26);
     CHECK(m.chip.radius == 4);
-    CHECK(m.menu_row.height == 36);
-    CHECK(m.menu_row.radius == 0);
-    CHECK(m.popover.padding_y == 8);
-    CHECK(m.popover.row_gap == 2);
+    CHECK(m.menu_row.height == 32);
+    CHECK(m.menu_row.radius == 4);
+    CHECK(m.menu_row.side_inset == 4);
+    CHECK(m.popover.padding_y == 4);
+    CHECK(m.popover.row_gap == 0);
     CHECK(m.popover.radius == 8);
     CHECK(m.status_row.height == 34);
     CHECK(m.swatch.size == 24);
@@ -100,10 +101,10 @@ TEST_CASE("the packaged token file yields the documented text roles", "[shell][t
     CHECK(theme.type_style(TextRole::Section).weight == 700);
     CHECK(theme.type_style(TextRole::Body).size == 14);
     CHECK(theme.type_style(TextRole::Body).line_height == 20);
-    CHECK(theme.type_style(TextRole::Label).weight == 700);
+    CHECK(theme.type_style(TextRole::Label).weight == 400);
+    CHECK(theme.type_style(TextRole::LabelBold).weight == 700);
+    CHECK(theme.type_style(TextRole::BodyBold).size == 14);
     CHECK(theme.type_style(TextRole::Metadata).size == 10);
-    // Technical has no entry of its own: it is the teletype face at body size.
-    CHECK(theme.type_style(TextRole::Technical).size == theme.type_style(TextRole::Body).size);
 }
 
 TEST_CASE("a token file without the component section is refused", "[shell][theme]")
@@ -114,7 +115,7 @@ TEST_CASE("a token file without the component section is refused", "[shell][them
 
 TEST_CASE("a token file with a fractional DIP value is refused", "[shell][theme]")
 {
-    const ScratchResources resources(packaged_tokens_with("\"height\": 28,", "\"height\": 28.5,"));
+    const ScratchResources resources(packaged_tokens_with("\"chip\": {\n      \"height\": 26,", "\"chip\": {\n      \"height\": 26.5,"));
     CHECK_THROWS_WITH(ShellTheme::load_from_resources(), Catch::Matchers::ContainsSubstring("component.chip.height"));
 }
 
@@ -124,7 +125,7 @@ TEST_CASE("fonts carry the role weight and are built once", "[shell][theme][wx]"
     REQUIRE(wx.IsOk());
     const ShellTheme theme = load_packaged_theme();
 
-    const wxFont& label = theme.font(TextRole::Label);
+    const wxFont& label = theme.font(TextRole::LabelBold);
     REQUIRE(label.IsOk());
     CHECK(label.GetWeight() == wxFONTWEIGHT_BOLD);
 
@@ -132,10 +133,12 @@ TEST_CASE("fonts carry the role weight and are built once", "[shell][theme][wx]"
     REQUIRE(body.IsOk());
     CHECK(body.GetWeight() == wxFONTWEIGHT_NORMAL);
 
-    const wxFont& technical = theme.font(TextRole::Technical);
+    const wxFont& technical = theme.mono_font(TextRole::Label);
     REQUIRE(technical.IsOk());
     CHECK(technical.IsFixedWidth());
-    CHECK(technical.GetPointSize() == body.GetPointSize());
+    CHECK(technical.GetWeight() == wxFONTWEIGHT_NORMAL);
+    CHECK(technical.GetPointSize() == theme.font(TextRole::Label).GetPointSize());
+    CHECK(&theme.mono_font(TextRole::Label) == &technical);
 
     CHECK(&theme.font(TextRole::Body) == &body);
 }

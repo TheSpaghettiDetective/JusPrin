@@ -69,7 +69,9 @@ TextRole parse_text_role(const nlohmann::json& recipe, const std::string& path)
     if (name == "pageTitle") return TextRole::PageTitle;
     if (name == "section")   return TextRole::Section;
     if (name == "body")      return TextRole::Body;
+    if (name == "bodyBold")  return TextRole::BodyBold;
     if (name == "label")     return TextRole::Label;
+    if (name == "labelBold") return TextRole::LabelBold;
     if (name == "metadata")  return TextRole::Metadata;
     throw std::runtime_error("design token " + path + ".textRole names an unknown role: " + name);
 }
@@ -164,6 +166,7 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& menu_row = component.at("menuRow");
     m.menu_row.height = parse_int(menu_row, "component.menuRow", "height");
     m.menu_row.radius = parse_int(menu_row, "component.menuRow", "radius");
+    m.menu_row.side_inset = parse_int(menu_row, "component.menuRow", "sideInset");
 
     const nlohmann::json& popover = component.at("popover");
     m.popover.padding_y = parse_int(popover, "component.popover", "paddingY");
@@ -198,11 +201,10 @@ ShellTheme ShellTheme::load_from_resources()
         theme.m_type_styles[size_t(TextRole::PageTitle)] = parse_type_style(roles, "pageTitle");
         theme.m_type_styles[size_t(TextRole::Section)]   = parse_type_style(roles, "section");
         theme.m_type_styles[size_t(TextRole::Body)]      = parse_type_style(roles, "body");
+        theme.m_type_styles[size_t(TextRole::BodyBold)]  = parse_type_style(roles, "bodyBold");
         theme.m_type_styles[size_t(TextRole::Label)]     = parse_type_style(roles, "label");
+        theme.m_type_styles[size_t(TextRole::LabelBold)] = parse_type_style(roles, "labelBold");
         theme.m_type_styles[size_t(TextRole::Metadata)]  = parse_type_style(roles, "metadata");
-        // Technical is the teletype face at the body size; it has no role
-        // entry of its own in the token file.
-        theme.m_type_styles[size_t(TextRole::Technical)] = theme.m_type_styles[size_t(TextRole::Body)];
         return theme;
     } catch (const nlohmann::json::exception& error) {
         throw std::runtime_error(std::string("design token file could not be parsed: ") + error.what());
@@ -214,14 +216,19 @@ const wxFont& ShellTheme::font(TextRole role) const
     wxFont& font = m_fonts[size_t(role)];
     if (font.IsOk())
         return font;
-    if (role == TextRole::Technical) {
-        // Taken from the built Body font rather than the raw role size so it
-        // follows the same platform point-size scaling Label::sysFont applies.
-        font = wxFont(wxFontInfo(this->font(TextRole::Body).GetPointSize()).Family(wxFONTFAMILY_TELETYPE));
-        return font;
-    }
     const TypeStyle& style = type_style(role);
     font = Label::sysFont(style.size, style.weight == 700);
+    return font;
+}
+
+const wxFont& ShellTheme::mono_font(TextRole role) const
+{
+    wxFont& font = m_mono_fonts[size_t(role)];
+    if (font.IsOk())
+        return font;
+    // Sized from the built role font rather than the raw token so it follows
+    // the same platform point-size scaling Label::sysFont applies.
+    font = wxFont(wxFontInfo(this->font(role).GetPointSize()).Family(wxFONTFAMILY_TELETYPE));
     return font;
 }
 

@@ -88,8 +88,16 @@ Never require Menlo or another platform-specific face. The broader marketing bra
 | Page title | 24/30 | Bold |
 | Section | 18/24 | Bold |
 | Body and control | 14/20 | Regular |
-| Label | 12/16 | Bold |
+| Body bold | 14/20 | Bold |
+| Label | 12/16 | Regular |
+| Label bold | 12/16 | Bold |
 | Dense metadata | 10/14 | Regular |
+
+The bold pairs exist for emphasis inside a run of the same size (a primary
+action beside secondary ones, the current row of a menu, a chip's name beside
+its detail). Technical values use the same size and line height as the role
+they sit in, the system teletype face, and regular weight; the token file
+carries no separate technical size.
 
 ## Layout and geometry
 
@@ -101,8 +109,9 @@ Design for a dense, native, high-DPI desktop application on Windows, macOS, and 
 - Container radius: 8 DIP, for grouped panels and cards, matching OrcaSlicer's `StaticBox` default.
 - Window action and large-dialog radius: 12 DIP.
 - Capsule radius: `pill`, for status chips and progress tracks whose shape is
-  the full height. Menu rows are the opposite case and carry no radius: they
-  run the full width of an already-rounded popover.
+  the full height. Menu rows sit inset 4 DIP inside the popover and carry the
+  standard radius, so a hovered row reads as a control inside the panel
+  rather than a stripe across it.
 - Reserve 16–24 DIP radii for onboarding and marketing, not the main application shell.
 
 Avoid web-only assumptions such as oversized controls, blur-heavy or glass surfaces, fixed physical pixels, and platform-specific fonts.

@@ -191,7 +191,9 @@ TEST_CASE("the type roles are exactly the documented ones", "[brand]")
         {"pageTitle", {{"size", 24}, {"lineHeight", 30}, {"weight", 700}}},
         {"section",   {{"size", 18}, {"lineHeight", 24}, {"weight", 700}}},
         {"body",      {{"size", 14}, {"lineHeight", 20}, {"weight", 400}}},
-        {"label",     {{"size", 12}, {"lineHeight", 16}, {"weight", 700}}},
+        {"bodyBold",  {{"size", 14}, {"lineHeight", 20}, {"weight", 700}}},
+        {"label",     {{"size", 12}, {"lineHeight", 16}, {"weight", 400}}},
+        {"labelBold", {{"size", 12}, {"lineHeight", 16}, {"weight", 700}}},
         {"metadata",  {{"size", 10}, {"lineHeight", 14}, {"weight", 400}}},
     };
     for (const auto& [role, spec] : expected) {

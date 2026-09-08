@@ -200,23 +200,20 @@ void HeaderButton::set_decoration(HeaderRowDecoration decoration)
     Refresh();
 }
 
-// Chip halves carry the Label role; everything else is Body, the control
-// role. Two former choices had no role: the print action was bold 14 and now
-// takes Body, the text role the choice and expanded button recipes name; a
-// bold menu row was bold 14 and now takes Label, keeping the emphasis the
-// flag exists for at the nearest bold size.
+// Chip halves carry the bold label role; the print action and an emphasised
+// menu row carry bold body; everything else is Body, the control role.
 const wxFont& HeaderButton::role_font() const
 {
-    if (m_decoration.bold) return m_theme.font(TextRole::Label);
-    if (m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight) return m_theme.font(TextRole::Label);
+    if (m_decoration.bold || m_style == HeaderStyle::PrimaryLeft) return m_theme.font(TextRole::BodyBold);
+    if (m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight) return m_theme.font(TextRole::LabelBold);
     return m_theme.font(TextRole::Body);
 }
 
-// Secondary text beside a label: the teletype face for a measurement,
-// otherwise Metadata (this was regular 12, which no role defines).
+// Secondary text beside a label: the label role, in the teletype face when
+// it is a measurement.
 const wxFont& HeaderButton::detail_font() const
 {
-    return m_theme.font(m_decoration.technical ? TextRole::Technical : TextRole::Metadata);
+    return m_decoration.technical ? m_theme.mono_font(TextRole::Label) : m_theme.font(TextRole::Label);
 }
 
 // How much of a row's width is reserved on the right for everything that is
@@ -267,7 +264,7 @@ wxSize HeaderButton::DoGetBestSize() const
                         (m_decoration.dot.has_value() ? FromDIP(16) : 0);
     // A two-line row is one spacing step taller than the menu row recipe;
     // the print action and the quiet buttons fill the status row.
-    const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? m.menu_row.height : m.menu_row.height + m.space_2) :
+    const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? m.menu_row.height : m.menu_row.height + m.space_3) :
                        m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? m.chip.height : m.status_row.height;
     return {leading + label + trailing_reserve(), FromDIP(height)};
 }
@@ -401,7 +398,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     }
     if (m_decoration.status != StatusTone::None) {
         if (!m_decoration.status_word.empty()) {
-            gc->SetFont(m_theme.font(TextRole::Metadata), p.text_secondary); // was regular 12; no such role
+            gc->SetFont(m_theme.font(TextRole::Label), p.text_secondary);
             double tw,th; gc->GetTextExtent(m_decoration.status_word,&tw,&th);
             gc->DrawText(m_decoration.status_word, right-tw, (h-th)/2);
             right -= tw + FromDIP(4);
@@ -500,6 +497,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
 {
     const auto palette = m_theme.palette(m_dark);
     const PopoverMetrics& popover = m_theme.metrics().popover;
+    const MenuRowMetrics& menu_row = m_theme.metrics().menu_row;
     // A rebuild replaces every row, so drop the old selection rather than
     // leaving an index pointing into a destroyed vector.
     m_selected = -1;
@@ -526,7 +524,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         if (item.separator) {
             auto* line = new wxStaticLine(this);
             line->SetForegroundColour(palette.border_subtle);
-            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(4));
+            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(menu_row.side_inset));
             after_row = false;
         }
         // A separator-only entry carries no caption of its own.
@@ -564,7 +562,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             e.Skip();
         });
         if (after_row) sizer->AddSpacer(FromDIP(popover.row_gap));
-        sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(4));
+        sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(menu_row.side_inset));
         ++placed_rows;
         after_row = true;
         button->Bind(wxEVT_BUTTON,[this,owner=wxWeakRef<wxWindow>(GetParent()),invoke=std::move(item.invoke),
