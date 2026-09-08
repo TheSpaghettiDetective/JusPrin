@@ -134,13 +134,52 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
     m_session = ProjectSessionId(m_plater.project_state_session());
     m_project_subscription = m_plater.subscribe_project_state(
         [this](const ProjectStateChanged& change) { on_project_state_changed(change); });
+    // Slicing changes what a plate holds without changing the project, so it
+    // raises no ProjectStateChanged and consumers would keep reporting the
+    // plate unsliced until something unrelated moved. The header already
+    // listens to this event; the workspace has to as well, or an estimate only
+    // appears after the next click.
+    m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &OrcaWorkspaceAdapter::on_slice_status_changed, this);
+    m_known_slice_state = current_slice_state();
     remember_current_ids();
 }
 
 OrcaWorkspaceAdapter::~OrcaWorkspaceAdapter()
 {
     wxASSERT(wxIsMainThread());
+    m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &OrcaWorkspaceAdapter::on_slice_status_changed, this);
     m_project_subscription.reset();
+}
+
+std::vector<std::pair<bool, std::uint64_t>> OrcaWorkspaceAdapter::current_slice_state() const
+{
+    std::vector<std::pair<bool, std::uint64_t>> state;
+    PartPlateList& plates = m_plater.get_partplate_list();
+    state.reserve(plates.get_plate_count());
+    for (int index = 0; index < plates.get_plate_count(); ++index) {
+        PartPlate* plate = plates.get_plate(index);
+        const bool sliced = plate != nullptr && plate->is_slice_result_valid();
+        const std::uint64_t result = sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result() ?
+            plate->get_slice_result()->id : 0;
+        state.emplace_back(sliced, result);
+    }
+    return state;
+}
+
+void OrcaWorkspaceAdapter::on_slice_status_changed(wxCommandEvent& event)
+{
+    event.Skip();
+    wxASSERT(wxIsMainThread());
+    // This event also fires whenever the native toolbar re-evaluates whether
+    // Slice and Print are enabled, which happens on ordinary selection and
+    // object changes. Publishing on all of those would advance the revision --
+    // and add a history entry -- for nothing. Only a real change in what the
+    // plates hold is a workspace change.
+    std::vector<std::pair<bool, std::uint64_t>> state = current_slice_state();
+    if (state == m_known_slice_state)
+        return;
+    m_known_slice_state = std::move(state);
+    publish_change(WorkspaceChangeReasons::Plates);
 }
 
 WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
