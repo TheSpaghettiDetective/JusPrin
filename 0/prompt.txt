@@ -1,0 +1,5 @@
+2c and 2d were built from a low-resolution overview, not the Figma frames - why? do you need to open figma file again?
+
+---
+
+use claude in chrome.
