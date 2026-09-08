@@ -54,6 +54,10 @@ public:
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
+    // Testing aid: when JUSPRIN_FAKE_PRINTER is set, install the scripted
+    // printer agent and select a synthetic machine, so printer state can be
+    // driven without hardware. No-op otherwise.
+    void install_fake_printer_if_requested();
 
     ShellTheme m_theme;
     wxTimer m_runtime_timer{this};

@@ -11,12 +11,17 @@
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/DeviceCore/DevManager.h"
+#include "slic3r/GUI/DeviceManager.hpp"
+#include "slic3r/Utils/FakePrinterAgent.hpp"
+#include "slic3r/Utils/NetworkAgentFactory.hpp"
 
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
 #include <wx/sizer.h>
 
+#include <cstdlib>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin {
@@ -143,6 +148,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
 
         m_installed = true;
+        install_fake_printer_if_requested();
         apply_current_appearance();
         m_status_row->refresh();
         frame.Layout();
@@ -151,6 +157,43 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         uninstall();
         throw;
     }
+}
+
+void ShellController::install_fake_printer_if_requested()
+{
+    if (std::getenv("JUSPRIN_FAKE_PRINTER") == nullptr)
+        return;
+
+    NetworkAgent*  agent   = wxGetApp().getAgent();
+    DeviceManager* devices = wxGetApp().getDeviceManager();
+    if (agent == nullptr || devices == nullptr) {
+        BOOST_LOG_TRIVIAL(warning) << "fake printer requested but no agent/device manager exists";
+        return;
+    }
+
+    std::shared_ptr<IPrinterAgent> fake =
+        NetworkAgentFactory::create_printer_agent_by_id(FAKE_PRINTER_AGENT_ID, agent->get_cloud_agent(), data_dir());
+    if (!fake) {
+        BOOST_LOG_TRIVIAL(warning) << "fake printer requested but the agent could not be created";
+        return;
+    }
+    agent->set_printer_agent(fake);
+
+    // A synthetic LAN device standing in for a discovered printer. dev_ip must
+    // be non-empty or MachineObject::connect() refuses to reach the agent.
+    BBLocalMachine machine;
+    machine.dev_id   = FAKE_PRINTER_DEV_ID;
+    machine.dev_ip   = FAKE_PRINTER_DEV_ID;
+    machine.dev_name = "Fake Printer";
+    if (PresetBundle* presets = wxGetApp().preset_bundle)
+        machine.printer_type = presets->printers.get_edited_preset().config.opt_string("printer_model");
+
+    if (devices->insert_local_device(machine, "lan", "free", "", "88888888") == nullptr) {
+        BOOST_LOG_TRIVIAL(warning) << "fake printer requested but the device could not be registered";
+        return;
+    }
+    devices->set_selected_machine(FAKE_PRINTER_DEV_ID);
+    BOOST_LOG_TRIVIAL(info) << "fake printer installed as " << FAKE_PRINTER_DEV_ID;
 }
 
 void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)

@@ -14,6 +14,13 @@
 
 namespace Slic3r {
 
+// Agent id this implementation registers under, mirroring
+// ORCA_PRINTER_AGENT_ID / BBL_PRINTER_AGENT_ID in NetworkAgentFactory.hpp.
+static constexpr char FAKE_PRINTER_AGENT_ID[] = "fake";
+// Device id the simulator answers to, shared by the shell hook that
+// registers it and the manual console that drives it.
+static constexpr char FAKE_PRINTER_DEV_ID[] = "FAKE001";
+
 /**
  * One tick of a simulated print job. Mirrors the subset of Bambu's
  * "push_status" fields that the GUI (MachineObject::parse_json) actually
@@ -131,7 +138,7 @@ private:
     void stop_scenario_thread();
 
     // Manual-testing console: reads commands from stdin when
-    // JUSPRIN_FAKE_PRINTER_CONSOLE is set in the environment, driving this
+    // JUSPRIN_FAKE_PRINTER is set in the environment, driving this
     // same instance through the methods above so a human can poke the fake
     // printer while watching the running app's device monitor react.
     void maybe_start_debug_console();
