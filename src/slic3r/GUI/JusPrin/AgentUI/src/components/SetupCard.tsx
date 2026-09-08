@@ -52,11 +52,14 @@ export function formatCost(cost: number, currency: string): string {
 
 interface CardModel {
   kicker: boolean;
-  // 2c/2d: the estimate is on screen but struck through, with a word saying
-  // why. The old number stays because the reader is usually watching for the
-  // difference, and a blank kills the comparison.
-  supersededEstimate: string;
-  estimateNote: string;
+  // 2c: the figure a running slice is about to replace, struck through, with
+  // "re-slicing..." beside it on the same line. The number stays because the
+  // reader is watching for the difference, and a blank kills the comparison.
+  struckEstimate: string;
+  inlineNote: string;
+  // 2d: the estimate reads plainly -- it is the last honest figure, not a
+  // discarded one -- and a plain-language row underneath says what took it.
+  reason: string;
   outOfDate: boolean;
   title: string;
   identity: string;
@@ -84,8 +87,11 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // it: it disambiguates presets in a settings list and says nothing here.
   const material = context.printer.filament.split('@')[0].trim();
 
+  const status = active?.estimateStatus ?? 'current';
+  const changeWord = deltas.length === 1 ? 'change' : 'changes';
   const deltaLabel = deltas.length === 0 ? '' :
-    `${deltas.length} ${deltas.length === 1 ? 'change' : 'changes'} from preset`;
+    status === 'recomputing' ? `${deltas.length} ${changeWord}`
+                             : `${deltas.length} ${changeWord} from preset`;
 
   // A card earns its heading by having something to say. The preset name on
   // its own does not count: nothing was delegated and nothing has moved, so
@@ -99,11 +105,13 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // silently truncated cost is worse.
   const identity = !title && preset && substantive ? preset : '';
 
-  const status = active?.estimateStatus ?? 'current';
-  const superseded = estimate !== null && status !== 'current';
+  const recomputing = estimate !== null && status === 'recomputing';
+  const outOfDate = estimate !== null && status === 'stale';
 
   const facts: string[] = [];
-  if (estimate && !superseded) {
+  // Stale keeps its figure on the facts line, unstruck: it is the last number
+  // the card could defend, not one already superseded by a better answer.
+  if (estimate && !recomputing) {
     facts.push(formatPrintTime(estimate.printTimeSeconds));
     facts.push(formatGrams(estimate.materialGrams));
     // A priced job so small it rounds to nothing reads exactly like the
@@ -112,23 +120,20 @@ export function cardModel(context: WorkspaceContext): CardModel {
       facts.push(formatCost(estimate.materialCost, context.currency));
   }
 
-  // The figure the plate can no longer defend, shown struck through so the
-  // reader keeps the number they were comparing against.
-  const supersededEstimate = superseded && estimate
+  const struckEstimate = recomputing && estimate
     ? [formatPrintTime(estimate.printTimeSeconds), formatGrams(estimate.materialGrams)].join(' · ')
     : '';
-  // Recomputing says so; stale says which action took it, and falls back to
-  // the instruction rather than guessing a cause.
-  const estimateNote = !superseded ? ''
-    : status === 'recomputing' ? 're-slicing…'
-    : [active?.invalidatedBy ?? '', 're-slice'].filter(Boolean).join(' — ');
+  const inlineNote = recomputing ? 're-slicing…' : '';
+  // Names the action when it is known and asks for the re-slice either way,
+  // rather than attributing the loss to something the reader did not do.
+  const reason = outOfDate ? (active?.invalidatedBy ?? '') : '';
   // "Not sliced yet" is a claim about the plate, not about whether we happen
   // to hold a number: a sliced plate that yielded no usable estimate must not
   // be described as unsliced. With no plate at all there is nothing to say.
   if (substantive && !estimate && active !== null && !active.sliced) facts.push('not sliced yet');
 
   return { kicker: substantive, title, identity, facts, deltas, deltaLabel, preset, material,
-           supersededEstimate, estimateNote, outOfDate: status === 'stale' && estimate !== null };
+           struckEstimate, inlineNote, reason, outOfDate };
 }
 
 function DeltaList({ deltas }: { deltas: PresetDeltaInfo[] }) {
@@ -164,7 +169,8 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
   }
 
   return (
-    <section className={working ? 'current-setup working' : 'current-setup'} data-testid="current-setup"
+    <section className={['current-setup', working ? 'working' : '', model.outOfDate ? 'out-of-date' : ''].filter(Boolean).join(' ')}
+      data-testid="current-setup"
       aria-label="Current setup" aria-busy={working || undefined}>
       <p className="current-setup-eyebrow">
         <span>Current setup</span>
@@ -193,12 +199,14 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
       {model.identity && <p className="current-setup-identity" title={model.identity}>{model.identity}</p>}
       {/* The row is omitted, not left blank: a sliced plate with no usable
           estimate and an untouched preset has nothing to put on this line. */}
-      {(model.facts.length > 0 || model.deltaLabel || model.supersededEstimate) && <p className="current-setup-cost">
+      {(model.facts.length > 0 || model.deltaLabel || model.struckEstimate) && <p className="current-setup-cost">
         <span className="clauses">
           {/* Struck through rather than removed: you are usually watching for
               the difference, and a blank kills the comparison. */}
-          {model.supersededEstimate && <span className="superseded">{model.supersededEstimate}</span>}
-          {model.supersededEstimate && model.facts.length > 0 &&
+          {model.struckEstimate && <span className="superseded">{model.struckEstimate}</span>}
+          {model.struckEstimate && model.inlineNote && ' '}
+          {model.inlineNote && <span className="estimate-note">{model.inlineNote}</span>}
+          {model.struckEstimate && model.facts.length > 0 &&
             <span className="sep" aria-hidden="true"> · </span>}
           {model.facts.map((fact, index) => (
             <span key={index}>
@@ -206,7 +214,7 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
               {fact}
             </span>
           ))}
-          {(model.facts.length > 0 || model.supersededEstimate) && model.deltaLabel &&
+          {model.facts.length > 0 && model.deltaLabel &&
             <span className="sep" aria-hidden="true"> · </span>}
         </span>
         {/* The count is the handle: a label exists exactly when there are
@@ -223,7 +231,14 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
           </button>
         )}
       </p>}
-      {model.estimateNote && <p className="current-setup-note">{model.estimateNote}</p>}
+      {/* Plain language, then the action. "re-slice" is the thing to do, so it
+          reads as a link rather than as more prose. */}
+      {model.outOfDate && (
+        <p className="current-setup-note">
+          {model.reason && <span>{model.reason} — </span>}
+          <span className="action">re-slice</span>
+        </p>
+      )}
       {expanded && model.deltaLabel && (
         // The same card, grown. The thread behind it dims rather than going
         // away, so the conversation is still legibly there while you read.

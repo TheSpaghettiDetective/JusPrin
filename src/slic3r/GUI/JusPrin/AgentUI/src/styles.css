@@ -137,16 +137,29 @@ body {
   opacity: 0.7;
 }
 
-/* What the card wants you to do about a figure it can no longer defend. Its
-   own row, because at real dock widths -- which narrow with the window, well
-   below the 429px design frame -- sharing the facts line cost it its second
-   half, and a truncated instruction is worse than an extra 16px. */
+/* Out of date drops the edge entirely, as the design has it: the card is not
+   asking for attention, it is standing down from a number it cannot defend.
+   Transparent rather than removed so the box keeps its size. */
+.current-setup.out-of-date {
+  border-color: transparent;
+}
+
+/* Why it went, then what to do. Its own row: the dock narrows with the window,
+   well below the 429px design frame, and sharing the facts line cost this its
+   second half in the running app. A truncated instruction is worse than 16px. */
 .current-setup-note {
   font: var(--font-metadata);
-  color: var(--status-warning);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Colour alone marks the action, as it does on every other accent control in
+   the panel. There is no bold metadata role, and inheriting a larger bold role
+   inline would inflate the row it sits in. */
+.current-setup-note .action {
+  color: var(--action-primary);
 }
 
 .current-setup-eyebrow .out-of-date {

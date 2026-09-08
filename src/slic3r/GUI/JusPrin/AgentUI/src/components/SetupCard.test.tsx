@@ -189,12 +189,17 @@ describe('setup card', () => {
       sliced: false, estimateStatus: 'recomputing',
     }));
     const card = screen.getByTestId('current-setup');
-    expect(card.querySelector('.superseded')).toHaveTextContent('~3h 50');
-    expect(card.querySelector('.superseded')).toHaveTextContent('47 g');
-    expect(card).toHaveTextContent('re-slicing…');
-    expect(card).toHaveTextContent('6 changes from preset');
+    const line = card.querySelector('.current-setup-cost');
+    // Struck figure and the note sit on the same line, with the count after.
+    expect(line?.querySelector('.superseded')).toHaveTextContent('~3h 50 · 47 g');
+    expect(line).toHaveTextContent('re-slicing…');
+    // Shortened while the line is carrying a struck figure and a note.
+    expect(line).toHaveTextContent('6 changes');
+    expect(line).not.toHaveTextContent('from preset');
     // Not the unsliced state: the plate has a number, it is just being redone.
     expect(card).not.toHaveTextContent('not sliced yet');
+    // Recomputing is not an alarm: the card keeps its edge.
+    expect(card).not.toHaveClass('out-of-date');
   });
 
   it('marks an invalidated estimate out of date and says which action took it', () => {
@@ -206,11 +211,15 @@ describe('setup card', () => {
     }));
     const card = screen.getByTestId('current-setup');
     expect(card).toHaveTextContent('out of date');
-    expect(card.querySelector('.superseded')).toHaveTextContent('~3h 50');
+    // The last honest figure, read plainly: it is not superseded by a better
+    // answer, it is simply the newest one the card can defend.
+    expect(card.querySelector('.superseded')).toBeNull();
+    expect(card.querySelector('.current-setup-cost')).toHaveTextContent('~3h 50 · 47 g · 5 changes from preset');
     // Its own row: seen truncated to "you moved the object..." in the running
     // app, where the dock is narrower than the design frame.
     expect(card.querySelector('.current-setup-note')).toHaveTextContent('you moved the object — re-slice');
-    expect(card.querySelector('.current-setup-cost')).not.toHaveTextContent('re-slice');
+    // The edge drops: the card is standing down, not raising an alarm.
+    expect(card).toHaveClass('out-of-date');
     expect(card).not.toHaveTextContent('not sliced yet');
   });
 
@@ -220,8 +229,8 @@ describe('setup card', () => {
       sliced: false, estimateStatus: 'stale',
     }));
     const card = screen.getByTestId('current-setup');
-    expect(card).toHaveTextContent('re-slice');
-    expect(card).not.toHaveTextContent('—');
+    expect(card.querySelector('.current-setup-note')).toHaveTextContent('re-slice');
+    expect(card.querySelector('.current-setup-note')).not.toHaveTextContent('—');
   });
 
   it('drops the money from a figure it can no longer defend', () => {
@@ -230,7 +239,7 @@ describe('setup card', () => {
     renderCard(makeContext({
       setupIntent: 'Strong',
       estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: 1.12 },
-      deltas: deltas(2), sliced: false, estimateStatus: 'stale',
+      deltas: deltas(2), sliced: false, estimateStatus: 'recomputing',
     }));
     expect(screen.getByTestId('current-setup').textContent).not.toMatch(/1\.12|\$/);
   });
