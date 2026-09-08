@@ -6,6 +6,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -62,9 +63,12 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     if (main_sizer.GetItem(&tabpanel) == nullptr)
         throw std::runtime_error("the tab panel is not in the main layout");
 
-    // Load the packaged design tokens before touching any layout so a broken
-    // resource bundle leaves the stock presentation untouched.
-    m_theme = ShellTheme::load_from_resources();
+    // The design tokens were loaded once, at startup, by the brand palette.
+    // Checked before touching any layout so a broken resource bundle leaves
+    // the stock presentation untouched.
+    m_theme = brand_theme();
+    if (m_theme == nullptr)
+        throw std::runtime_error("the JusPrin design tokens did not load; the brand palette logged why");
 
     m_frame     = &frame;
     m_tabpanel  = &tabpanel;
@@ -88,8 +92,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         Agent::AgentRuntime agent = Agent::load_agent_runtime(wxGetApp().app_config);
 
-        m_status_row = new StatusRow(&frame, m_theme, *plater, tabpanel, *m_persistence, m_workspace->slice_reviews());
-        m_agent_pane = new AgentPane(&frame, m_theme, *m_workspace, *m_persistence, agent.availability,
+        m_status_row = new StatusRow(&frame, *m_theme, *plater, tabpanel, *m_persistence, m_workspace->slice_reviews());
+        m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
 

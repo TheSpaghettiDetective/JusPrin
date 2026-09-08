@@ -16,23 +16,21 @@
 
 namespace Slic3r::GUI::JusPrin {
 
-namespace {
-
-// Loaded once. A missing or malformed token file keeps the stock OrcaSlicer
-// colors, the same recovery the shell applies when its theme cannot load.
 const ShellTheme* brand_theme()
 {
     static const ShellTheme* theme = []() -> const ShellTheme* {
         try {
             return new ShellTheme(ShellTheme::load_from_resources());
         } catch (const std::exception& error) {
-            BOOST_LOG_TRIVIAL(error) << "JusPrin brand palette not applied, keeping the standard colors: "
+            BOOST_LOG_TRIVIAL(error) << "JusPrin design tokens not loaded, keeping the standard presentation: "
                                      << error.what();
             return nullptr;
         }
     }();
     return theme;
 }
+
+namespace {
 
 std::string hex(const wxColour& color) { return color.GetAsString(wxC2S_HTML_SYNTAX).ToStdString(); }
 

@@ -16,3 +16,21 @@ target_include_directories(jusprin_tests PRIVATE
 target_link_libraries(jusprin_tests PRIVATE Catch2WithMain nlohmann_json)
 
 orcaslicer_discover_tests(jusprin_tests)
+
+# ShellTheme reads the same token file but hands out wxColour and wxFont, and
+# its fonts go through OrcaSlicer's Label::sysFont, so its tests link the GUI
+# library and initialise wx themselves.
+if (SLIC3R_GUI)
+    add_executable(shell_theme_tests
+        test_shell_theme.cpp
+    )
+    target_compile_definitions(shell_theme_tests PRIVATE
+        JUSPRIN_SOURCE_DIR=R"\(${CMAKE_SOURCE_DIR}\)"
+    )
+    target_include_directories(shell_theme_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+    target_link_libraries(shell_theme_tests PRIVATE Catch2WithMain libslic3r_gui)
+
+    orcaslicer_discover_tests(shell_theme_tests)
+endif()

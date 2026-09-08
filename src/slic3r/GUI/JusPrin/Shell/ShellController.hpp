@@ -1,7 +1,5 @@
 #pragma once
 
-#include "ShellTheme.hpp"
-
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
@@ -23,6 +21,7 @@ class Plater;
 namespace Slic3r::GUI::JusPrin {
 
 class AgentPane;
+class ShellTheme;
 class StatusRow;
 
 // Installs the JusPrin production presentation inside the existing MainFrame
@@ -55,7 +54,7 @@ public:
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
 
-    ShellTheme m_theme;
+    const ShellTheme* m_theme{nullptr};
     wxTimer m_runtime_timer{this};
 
     MainFrame* m_frame{nullptr};

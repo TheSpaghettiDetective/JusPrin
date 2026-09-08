@@ -1,5 +1,4 @@
 #include "HeaderControls.hpp"
-#include "slic3r/GUI/Widgets/Label.hpp"
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
 #include <wx/sizer.h>
@@ -83,15 +82,6 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
     gc.PopState();
 }
 
-// The teletype face the design system reserves for measurements and machine
-// values. Resolved from the platform's own monospace family so no
-// platform-specific font name is baked in.
-const wxFont& technical_font()
-{
-    static const wxFont font(wxFontInfo(Label::Body_12.GetPointSize()).Family(wxFONTFAMILY_TELETYPE));
-    return font;
-}
-
 wxColour status_colour(StatusTone tone, const ShellPalette& p)
 {
     switch (tone) {
@@ -130,10 +120,7 @@ HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyl
       m_theme(theme), m_style(style), m_icon(icon)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    // Chip halves carry the 12 DIP Label role; the print action is 14 bold;
-    // everything else is the 14 DIP control role.
-    SetFont(style == HeaderStyle::ChipLeft || style == HeaderStyle::ChipRight ? Label::Head_12 :
-            style == HeaderStyle::PrimaryLeft ? Label::Head_14 : Label::Body_14);
+    SetFont(role_font());
     SetLabel(label);
     Bind(wxEVT_PAINT, &HeaderButton::paint, this);
     Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) { m_hover = true; Refresh(); });
@@ -208,11 +195,28 @@ void HeaderButton::set_label_cap(int cap_dip) { m_label_cap = cap_dip; Invalidat
 void HeaderButton::set_decoration(HeaderRowDecoration decoration)
 {
     m_decoration = std::move(decoration);
-    SetFont(m_decoration.bold ? Label::Head_14 :
-            m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? Label::Head_12 :
-            m_style == HeaderStyle::PrimaryLeft ? Label::Head_14 : Label::Body_14);
+    SetFont(role_font());
     InvalidateBestSize();
     Refresh();
+}
+
+// Chip halves carry the Label role; everything else is Body, the control
+// role. Two former choices had no role: the print action was bold 14 and now
+// takes Body, the text role the choice and expanded button recipes name; a
+// bold menu row was bold 14 and now takes Label, keeping the emphasis the
+// flag exists for at the nearest bold size.
+const wxFont& HeaderButton::role_font() const
+{
+    if (m_decoration.bold) return m_theme.font(TextRole::Label);
+    if (m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight) return m_theme.font(TextRole::Label);
+    return m_theme.font(TextRole::Body);
+}
+
+// Secondary text beside a label: the teletype face for a measurement,
+// otherwise Metadata (this was regular 12, which no role defines).
+const wxFont& HeaderButton::detail_font() const
+{
+    return m_theme.font(m_decoration.technical ? TextRole::Technical : TextRole::Metadata);
 }
 
 // How much of a row's width is reserved on the right for everything that is
@@ -231,7 +235,7 @@ int HeaderButton::trailing_reserve() const
     }
     if (!m_decoration.detail.empty() && !m_decoration.detail_inline) {
         wxClientDC dc(const_cast<HeaderButton*>(this));
-        dc.SetFont(m_decoration.technical ? technical_font() : Label::Body_12);
+        dc.SetFont(detail_font());
         reserve += dc.GetTextExtent(m_decoration.detail).x + FromDIP(16);
     }
     return reserve;
@@ -239,18 +243,21 @@ int HeaderButton::trailing_reserve() const
 
 wxSize HeaderButton::DoGetBestSize() const
 {
-    if (m_style == HeaderStyle::PrimaryRight) return FromDIP(wxSize(28,34));
-    if (m_style == HeaderStyle::Outline) return FromDIP(wxSize(28,28));
+    const ShellMetrics& m = m_theme.metrics();
+    // No recipe covers a split action: its arrow half is the functional icon
+    // plus a 12 DIP gutter, as tall as the status row it lives in.
+    if (m_style == HeaderStyle::PrimaryRight) return FromDIP(wxSize(m.button.icon.icon_size + m.space_3, m.status_row.height));
+    if (m_style == HeaderStyle::Outline) return FromDIP(wxSize(m.button.icon.width, m.button.icon.height));
     int label = GetTextExtent(GetLabel()).x;
     if (!m_decoration.sub_label.empty()) {
         wxClientDC dc(const_cast<HeaderButton*>(this));
-        dc.SetFont(Label::Body_10);
+        dc.SetFont(m_theme.font(TextRole::Metadata));
         label = std::max(label, dc.GetTextExtent(m_decoration.sub_label).x);
     }
     if (m_label_cap > 0) label = std::min(label, FromDIP(m_label_cap));
     if (!m_decoration.detail.empty() && m_decoration.detail_inline) {
         wxClientDC dc(const_cast<HeaderButton*>(this));
-        dc.SetFont(m_decoration.technical ? technical_font() : Label::Body_12);
+        dc.SetFont(detail_font());
         // Measured exactly as painted: " \xC2\xB7" plus a 3 DIP gap, or the chip
         // reserves space it never fills and the chevron drifts right.
         label += dc.GetTextExtent(wxString::FromUTF8(" \xC2\xB7")).x + FromDIP(3) +
@@ -258,12 +265,10 @@ wxSize HeaderButton::DoGetBestSize() const
     }
     const int leading = FromDIP(12) + (m_icon == HeaderIcon::None ? 0 : FromDIP(24)) +
                         (m_decoration.dot.has_value() ? FromDIP(16) : 0);
-    // Menu rows are 32 DIP so the whole header reads at one density; chip
-    // halves are 28; the print action stays 34.
-    // Chip halves are 26 DIP, matching the design's chip frame; menu rows are
-    // 32 so the whole header reads at one density; the print action stays 34.
-    const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? 32 : 44) :
-                       m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? 26 : 34;
+    // A two-line row is one spacing step taller than the menu row recipe;
+    // the print action and the quiet buttons fill the status row.
+    const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? m.menu_row.height : m.menu_row.height + m.space_2) :
+                       m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? m.chip.height : m.status_row.height;
     return {leading + label + trailing_reserve(), FromDIP(height)};
 }
 
@@ -314,7 +319,12 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
                    m_style == HeaderStyle::ChipRight ? p.surface_subtle :
                    m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas;
 
-    const double w = client.x, h = client.y, r = FromDIP(primary ? 8 : 4);
+    const ShellMetrics& m = m_theme.metrics();
+    const double w = client.x, h = client.y;
+    const double r = FromDIP(primary ? m.radius_compact :
+                             chip ? m.chip.radius :
+                             m_style == HeaderStyle::Menu ? m.menu_row.radius :
+                             m_style == HeaderStyle::Outline ? m.button.icon.radius : m.radius_standard);
     if (chip) {
         // Each half draws the whole chip's rounded rectangle, extended past
         // the shared inner edge so only its own outer corners round. The top
@@ -340,7 +350,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         gc->StrokeLine(0,FromDIP(7),0,h-FromDIP(7));
     }
 
-    const double icon_size = FromDIP(16);
+    const double icon_size = FromDIP(m.button.icon.icon_size);
     const HeaderIcon icon = m_open && m_icon == HeaderIcon::Down ? HeaderIcon::Up : m_icon;
     if (m_style == HeaderStyle::PrimaryRight || m_style == HeaderStyle::Outline) {
         draw_icon(*gc, icon, (w-icon_size)/2,(h-icon_size)/2,icon_size,foreground);
@@ -384,14 +394,14 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         right -= FromDIP(20);
     }
     if (!m_decoration.detail.empty() && !m_decoration.detail_inline) {
-        gc->SetFont(m_decoration.technical ? technical_font() : Label::Body_12, p.text_secondary);
+        gc->SetFont(detail_font(), p.text_secondary);
         double tw,th; gc->GetTextExtent(m_decoration.detail,&tw,&th);
         gc->DrawText(m_decoration.detail, right-tw, (h-th)/2);
         right -= tw + FromDIP(16);
     }
     if (m_decoration.status != StatusTone::None) {
         if (!m_decoration.status_word.empty()) {
-            gc->SetFont(Label::Body_12, p.text_secondary);
+            gc->SetFont(m_theme.font(TextRole::Metadata), p.text_secondary); // was regular 12; no such role
             double tw,th; gc->GetTextExtent(m_decoration.status_word,&tw,&th);
             gc->DrawText(m_decoration.status_word, right-tw, (h-th)/2);
             right -= tw + FromDIP(4);
@@ -420,7 +430,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     if (!m_decoration.detail.empty() && m_decoration.detail_inline) {
         dc.SetFont(GetFont());
         inline_run = dc.GetTextExtent(wxString::FromUTF8(" \xC2\xB7")).x + FromDIP(3);
-        dc.SetFont(m_decoration.technical ? technical_font() : Label::Body_12);
+        dc.SetFont(detail_font());
         inline_run += dc.GetTextExtent(m_decoration.detail).x;
         available = std::max(0, available - int(inline_run));
     }
@@ -440,14 +450,14 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         gc->SetFont(GetFont(), p.text_secondary);
         double sw,sh; gc->GetTextExtent(separator,&sw,&sh);
         gc->DrawText(separator, x+tw, (h-sh)/2);
-        gc->SetFont(m_decoration.technical ? technical_font() : Label::Body_12, p.text_secondary);
+        gc->SetFont(detail_font(), p.text_secondary);
         double dh, dw; gc->GetTextExtent(m_decoration.detail,&dw,&dh);
         gc->DrawText(m_decoration.detail, x+tw+sw+FromDIP(3), (h-dh)/2);
     }
     if (two_line) {
-        dc.SetFont(Label::Body_10);
+        dc.SetFont(m_theme.font(TextRole::Metadata));
         const wxString sub = wxControl::Ellipsize(m_decoration.sub_label, dc, wxELLIPSIZE_END, available);
-        gc->SetFont(Label::Body_10, p.text_secondary);
+        gc->SetFont(m_theme.font(TextRole::Metadata), p.text_secondary);
         gc->DrawText(sub, x, h/2 + FromDIP(1));
     }
     if (m_status) {
@@ -472,11 +482,12 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
     SetName("Header menu");
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     const auto palette = theme.palette(dark);
-    Bind(wxEVT_PAINT,[this,palette](wxPaintEvent&) {
+    const int radius = theme.metrics().popover.radius;
+    Bind(wxEVT_PAINT,[this,palette,radius](wxPaintEvent&) {
         wxAutoBufferedPaintDC dc(this);
         dc.SetBackground(wxBrush(palette.surface_raised)); dc.Clear();
         dc.SetPen(wxPen(palette.border_subtle)); dc.SetBrush(wxBrush(palette.surface_raised));
-        dc.DrawRoundedRectangle(GetClientRect().Deflate(1),FromDIP(8));
+        dc.DrawRoundedRectangle(GetClientRect().Deflate(1),FromDIP(radius));
     });
     build(std::move(items));
     Bind(wxEVT_CHAR_HOOK,&HeaderMenu::on_key,this);
@@ -488,6 +499,7 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
 void HeaderMenu::build(std::vector<HeaderMenuItem> items)
 {
     const auto palette = m_theme.palette(m_dark);
+    const PopoverMetrics& popover = m_theme.metrics().popover;
     // A rebuild replaces every row, so drop the old selection rather than
     // leaving an index pointing into a destroyed vector.
     m_selected = -1;
@@ -499,12 +511,14 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     m_header = nullptr;
 
     auto* sizer = new wxBoxSizer(wxVERTICAL);
-    sizer->AddSpacer(FromDIP(4));
+    sizer->AddSpacer(FromDIP(popover.padding_y));
     int placed_rows = 0;
+    bool after_row = false; // the row gap sits only between two consecutive rows
     auto place_header = [&] {
         if (!m_header_builder || m_header != nullptr) return;
         m_header = m_header_builder(this);
         if (m_header) sizer->Add(m_header,0,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,FromDIP(8));
+        after_row = false;
     };
     if (m_header_after_rows == 0) place_header();
     for (auto& item : items) {
@@ -513,6 +527,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             auto* line = new wxStaticLine(this);
             line->SetForegroundColour(palette.border_subtle);
             sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(4));
+            after_row = false;
         }
         // A separator-only entry carries no caption of its own.
         if (item.title && item.label.empty()) continue;
@@ -520,11 +535,12 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             // Eyebrow: a caption, not a row. It takes no focus, no hover, and
             // no keyboard stop, so arrow keys skip straight over it.
             auto* caption = new wxStaticText(this,wxID_ANY,item.label);
-            caption->SetFont(Label::Body_10);
+            caption->SetFont(m_theme.font(TextRole::Metadata));
             caption->SetForegroundColour(palette.text_secondary);
             caption->SetBackgroundColour(palette.surface_raised);
             sizer->Add(caption,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(8));
             ++placed_rows;
+            after_row = false;
             continue;
         }
         auto* button = new HeaderButton(this,m_theme,HeaderStyle::Menu,item.label,item.icon);
@@ -547,8 +563,10 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             if (m_items[index]->IsEnabled()) select_item(index);
             e.Skip();
         });
+        if (after_row) sizer->AddSpacer(FromDIP(popover.row_gap));
         sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(4));
         ++placed_rows;
+        after_row = true;
         button->Bind(wxEVT_BUTTON,[this,owner=wxWeakRef<wxWindow>(GetParent()),invoke=std::move(item.invoke),
                                    keeps_open=item.keeps_open](wxCommandEvent&) {
             if (!invoke) return;
@@ -566,7 +584,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         });
     }
     place_header(); // a step with fewer rows than requested still gets its view
-    sizer->AddSpacer(FromDIP(4));
+    sizer->AddSpacer(FromDIP(popover.padding_y));
     SetSizerAndFit(sizer);
     // The first build fixes the width; later rebuilds keep it so swapping to
     // the search view does not make the popup jump under the pointer.
@@ -578,7 +596,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     // Preserve the actual rounded silhouette (and the compositor's popup
     // shadow), rather than painting a rounded border into a square window.
     auto outline = wxGraphicsRenderer::GetDefaultRenderer()->CreatePath();
-    outline.AddRoundedRectangle(0,0,GetSize().x,GetSize().y,FromDIP(8));
+    outline.AddRoundedRectangle(0,0,GetSize().x,GetSize().y,FromDIP(popover.radius));
     SetShape(outline);
 #endif
 }

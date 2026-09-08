@@ -102,6 +102,8 @@ private:
     void paint(wxPaintEvent&);
     void draw(wxDC& dc, wxGraphicsContext& context, const wxSize& client);
     void activate(bool from_keyboard);
+    const wxFont& role_font() const;
+    const wxFont& detail_font() const;
     int  trailing_reserve() const;
     // Screen rect of the row-action glyph, empty when there is none.
     wxRect row_action_rect() const;
