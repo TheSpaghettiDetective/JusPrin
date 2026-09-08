@@ -26,6 +26,9 @@ interface Props {
   onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
   onRevert: (revisionId: string) => void;
+  // The setup card's expansion is a layer over this thread; the thread dims
+  // rather than being covered, so the conversation stays legibly there.
+  dimmed?: boolean;
 }
 
 export function MessageList({
@@ -41,6 +44,7 @@ export function MessageList({
   onToolDecision,
   onToolCancel,
   onRevert,
+  dimmed,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
   const listRef = useRef<HTMLDivElement>(null);
@@ -73,7 +77,8 @@ export function MessageList({
   );
 
   return (
-    <div className="message-list" role="log" aria-label="Agent conversation" ref={listRef} onScroll={handleScroll}>
+    <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
+      ref={listRef} onScroll={handleScroll}>
       {leadingMarkers.map((revision) => (
         <RevisionMarker key={revision.id} revision={revision} onRevert={onRevert} />
       ))}

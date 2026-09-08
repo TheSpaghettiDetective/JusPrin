@@ -89,6 +89,10 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // The setup card's expansion is a temporary layer over the thread, so it is
   // page-local and closes on its own the moment the user does something else.
   const [setupExpanded, setSetupExpanded] = useState(false);
+  // Every way out of this chat closes the card's expansion. Kept explicit
+  // rather than derived from an effect: an effect on (chat, view) re-ran
+  // whenever the host resent state and re-closed the card mid-click.
+  const collapseSetup = () => setSetupExpanded(false);
   const [commandError, setCommandError] = useState<string | null>(null);
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
@@ -127,7 +131,6 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   }, [state.appearance]);
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
-  useEffect(() => { setSetupExpanded(false); }, [state.activeConversationId, view]);
 
   useEffect(() => {
     if (state.needsResync) {
@@ -264,8 +267,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
     ['pending', 'approved', 'running'].includes(activity.state));
-  const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
-  const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); };
+  const createChat = () => { client.send('create_conversation', {}); setView('chat'); collapseSetup(); };
+  const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); collapseSetup(); };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
     <span>{commandError}</span><button aria-label="Dismiss error" onClick={() => setCommandError(null)}>×</button>
@@ -275,6 +278,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       onSwitch={(conversationId) => {
         if (conversationId !== state.activeConversationId) client.send('switch_conversation', { conversationId });
         setView('chat');
+        collapseSetup();
       }} onCreate={createChat} onConfigure={() => {
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} />;
@@ -286,6 +290,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     if (!notConfigured && view !== 'setup')
       return (
         <MessageList
+          dimmed={setupExpanded}
           key={`messages-${state.context?.sessionId}-${state.activeConversationId}`}
           messages={state.messages}
           attachments={state.attachments}
@@ -346,12 +351,16 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       ) : (
         <>
           <ChatHeader key={`header-${state.context?.sessionId}-${state.activeConversationId}`} title={activeChat?.title || 'New chat'} busy={busy || pendingAction}
-            onBack={() => { if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
+            onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }} />
-          {view === 'chat' && !notConfigured && (
-            <SetupCard context={state.context} expanded={setupExpanded} onToggle={() => setSetupExpanded((open) => !open)} />
+          {view === 'chat' && !notConfigured && state.context && (
+            // The card sits in its own pinned band above the thread, as the
+            // design has it: the band is the canvas the tinted card sits on.
+            <div className="pinned-setup">
+              <SetupCard context={state.context} expanded={setupExpanded} onToggle={() => setSetupExpanded((open) => !open)} />
+            </div>
           )}
         </>
       )}
@@ -377,7 +386,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
         }}
         onAttachFiles={attachFiles}
         onRemoveAttachment={removeAttachment}
-        onTyping={() => setSetupExpanded(false)}
+        onTyping={collapseSetup}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>
