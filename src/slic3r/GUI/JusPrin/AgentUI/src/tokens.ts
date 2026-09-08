@@ -15,6 +15,11 @@ interface TypeRole {
   weight: number;
 }
 
+interface ButtonRecipe {
+  paddingX?: number;
+  paddingY?: number;
+}
+
 interface StaticTokens {
   dimension: { radius: Record<string, number> };
   typography: {
@@ -22,6 +27,7 @@ interface StaticTokens {
     technical: { cssFamily: string };
     roles: Record<string, TypeRole>;
   };
+  component: { button: Record<string, ButtonRecipe> };
 }
 
 // The three roles that also exist in the technical (monospace) face: Figma's
@@ -38,13 +44,16 @@ function kebab(name: string): string {
   return name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 }
 
-// Every --font-* variable applyStaticTokens writes, so a test can check that
-// the stylesheet only asks for variables that exist.
-export function fontVariableNames(): string[] {
-  const { typography } = tokens as unknown as StaticTokens;
+// Every --font-* and --button-* variable applyStaticTokens writes, so a test
+// can check that the stylesheet only asks for variables that exist.
+export function staticVariableNames(): string[] {
+  const { typography, component } = tokens as unknown as StaticTokens;
   return [
     ...Object.keys(typography.roles).map((name) => `--font-${kebab(name)}`),
     ...monoRoles.map((name) => `--font-mono-${kebab(name)}`),
+    ...Object.entries(component.button)
+      .filter(([, recipe]) => recipe.paddingX !== undefined && recipe.paddingY !== undefined)
+      .map(([name]) => `--button-${kebab(name)}-padding`),
   ];
 }
 
@@ -53,8 +62,10 @@ export function fontVariableNames(): string[] {
 //   --radius-<name>       e.g. --radius-container: 8px
 //   --font-<role>         full `font` shorthand in the UI face, kebab-case
 //   --font-mono-<role>    the same metrics in the technical face
+//   --button-<recipe>-padding  "<y>px <x>px" from component.button; control
+//                         padding follows the recipes, not the spacing scale
 export function applyStaticTokens(): void {
-  const { dimension, typography } = tokens as unknown as StaticTokens;
+  const { dimension, typography, component } = tokens as unknown as StaticTokens;
   const root = document.documentElement;
   for (const [name, value] of Object.entries(dimension.radius)) {
     root.style.setProperty(`--radius-${name}`, `${value}px`);
@@ -66,6 +77,10 @@ export function applyStaticTokens(): void {
   for (const name of monoRoles) {
     const role = typography.roles[name];
     root.style.setProperty(`--font-mono-${kebab(name)}`, fontShorthand(role, typography.technical.cssFamily));
+  }
+  for (const [name, recipe] of Object.entries(component.button)) {
+    if (recipe.paddingX === undefined || recipe.paddingY === undefined) continue;
+    root.style.setProperty(`--button-${kebab(name)}-padding`, `${recipe.paddingY}px ${recipe.paddingX}px`);
   }
 }
 

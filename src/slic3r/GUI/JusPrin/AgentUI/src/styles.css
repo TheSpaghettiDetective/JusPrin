@@ -97,7 +97,7 @@ body {
   border: 0;
   border-radius: 0;
   background: transparent;
-  font: var(--font-mono-label);
+  font: var(--font-mono-metadata);
   color: var(--text-secondary);
 }
 
@@ -145,7 +145,7 @@ body {
   display: flex;
   align-items: baseline;
   white-space: nowrap;
-  font: var(--font-mono-label);
+  font: var(--font-mono-metadata);
   color: var(--text-secondary);
 }
 
@@ -200,7 +200,7 @@ body {
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
   margin: 4px 0 0;
-  font: var(--font-mono-label);
+  font: var(--font-mono-metadata);
   color: var(--text-secondary);
 }
 
@@ -229,7 +229,7 @@ body {
 
 .current-setup-base {
   margin-top: 4px !important;
-  font: var(--font-mono-label);
+  font: var(--font-mono-metadata);
   color: var(--text-secondary);
 }
 
@@ -793,7 +793,7 @@ button {
   justify-content: center;
   gap: 8px;
   font: var(--font-body);
-  padding: 8px 12px;
+  padding: var(--button-secondary-padding);
   border-radius: var(--radius-standard);
   border: 1px solid transparent;
   background: transparent;
@@ -1217,7 +1217,7 @@ button.wide {
 
 .setup-tab {
   flex: 1;
-  padding: 8px;
+  padding: var(--button-secondary-padding);
   border: none;
   border-radius: 0;
   background: var(--surface-canvas);
@@ -1257,12 +1257,12 @@ button.wide {
 .setup-key-input {
   flex: 1;
   min-width: 0;
-  padding: 8px;
+  padding: var(--button-secondary-padding);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-compact);
   background: var(--surface-canvas);
   color: var(--text-primary);
-  font: var(--font-mono-body);
+  font: var(--font-mono-label);
 }
 
 .setup-key-input:focus {

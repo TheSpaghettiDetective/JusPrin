@@ -235,6 +235,12 @@
         "paddingY": 8,
         "radius": 4,
         "textRole": "body"
+      },
+      "secondary": {
+        "paddingX": 12,
+        "paddingY": 6,
+        "radius": 4,
+        "textRole": "body"
       }
     },
     "chip": {
