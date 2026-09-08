@@ -19,3 +19,7 @@ revert all these UI-related changes. Build and launch the app.
 <status>completed</status>
 <summary>Background command "Confirm the binary is current" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+commit this with a specific Commit message that you fucked up and you couldn't figure out why, so you reverted the work you did.
