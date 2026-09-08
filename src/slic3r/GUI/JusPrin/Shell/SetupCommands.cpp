@@ -11,8 +11,6 @@
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Tab.hpp"
-#include "slic3r/Utils/FakePrinterAgent.hpp"
-#include "slic3r/Utils/NetworkAgent.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -48,19 +46,6 @@ wxString filament_vendor(const Preset& preset)
     // PrintConfig's stand-in for a preset that declares no vendor at all. It is
     // a placeholder, not a brand, so it reads here as no vendor.
     return vendor == "(Undefined)" ? wxString{} : vendor;
-}
-
-// The fake printer agent publishes the same MachineObject state a Bambu
-// printer does, so the chip can read it whatever the preset's vendor is. It is
-// only ever installed when a preset explicitly selects it, so no real
-// printer's behaviour changes.
-bool fake_printer_agent_active()
-{
-    NetworkAgent* agent = wxGetApp().getAgent();
-    if (agent == nullptr)
-        return false;
-    const std::shared_ptr<IPrinterAgent> printer_agent = agent->get_printer_agent();
-    return printer_agent != nullptr && printer_agent->get_agent_info().id == FAKE_PRINTER_AGENT_ID;
 }
 
 } // namespace
@@ -200,11 +185,10 @@ PrinterConnection printer_connection()
     PrinterConnection connection;
     // Non-const: use_bbl_network() is not a const member on PresetBundle.
     PresetBundle* presets = wxGetApp().preset_bundle;
-    // Only the Bambu network path reports a live machine state, plus the fake
-    // printer agent used for testing. Every other print host is "not connected"
-    // here, which is a statement about what JusPrin can observe, not a claim
-    // about the machine.
-    if (presets == nullptr || !(presets->use_bbl_network() || fake_printer_agent_active()))
+    // Only the Bambu network path reports a live machine state. Every other
+    // print host is "not connected" here, which is a statement about what
+    // JusPrin can observe, not a claim about the machine.
+    if (presets == nullptr || !presets->use_bbl_network())
         return connection;
     auto* devices = wxGetApp().getDeviceManager();
     if (devices == nullptr)

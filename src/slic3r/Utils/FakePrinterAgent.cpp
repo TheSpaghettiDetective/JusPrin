@@ -25,7 +25,7 @@ FakePrinterAgent::~FakePrinterAgent()
 
 AgentInfo FakePrinterAgent::get_agent_info_static()
 {
-    return AgentInfo{FAKE_PRINTER_AGENT_ID, "Fake Printer (Simulator)", FakePrinterAgent_VERSION,
+    return AgentInfo{"fake", "Fake Printer (Simulator)", FakePrinterAgent_VERSION,
                      "Scripted printer for exercising the UI without physical hardware"};
 }
 
@@ -139,7 +139,7 @@ void FakePrinterAgent::cancel_scenario()
 
 void FakePrinterAgent::maybe_start_debug_console()
 {
-    if (!std::getenv("JUSPRIN_FAKE_PRINTER"))
+    if (!std::getenv("JUSPRIN_FAKE_PRINTER_CONSOLE"))
         return;
     // Detached rather than joined: it blocks on std::getline(std::cin, ...),
     // which nothing can interrupt short of closing stdin. This is only ever
@@ -149,7 +149,7 @@ void FakePrinterAgent::maybe_start_debug_console()
 }
 
 namespace {
-const std::string kConsoleDevId = FAKE_PRINTER_DEV_ID;
+const std::string kConsoleDevId = "FAKE001";
 
 // Reads one line and parses a leading integer. Returns -1 on EOF or a non-numeric line.
 int read_menu_choice()

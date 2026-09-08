@@ -3567,12 +3567,6 @@ void GUI_App::switch_printer_agent()
         return;
     }
 
-    // Testing aid: the fake printer agent is installed explicitly by the shell
-    // and must survive preset-driven switches, which would otherwise replace it
-    // and drop its callbacks. Unset, this changes nothing.
-    if (std::getenv("JUSPRIN_FAKE_PRINTER") != nullptr)
-        return;
-
     // Read printer_agent from config, falling back to default
     std::string effective_agent_id = ORCA_PRINTER_AGENT_ID;
     std::string cloud_agent_id = ORCA_CLOUD_PROVIDER;
