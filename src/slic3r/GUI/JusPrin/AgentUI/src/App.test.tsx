@@ -55,6 +55,8 @@ const context: WorkspaceContext = {
       active: true,
       sliced: false,
       estimate: null,
+      estimateStatus: 'current',
+      invalidatedBy: '',
       objects: [
         { id: '21', name: 'cube-a', instances: 1, selected: true },
         { id: '22', name: 'cube-b', instances: 1, selected: false },

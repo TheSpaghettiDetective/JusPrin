@@ -48,10 +48,13 @@ public:
         for (auto& plate : result.plates)
             if (!plate.sliced) {
                 plate.slice_result_id = 0;
-                // No slice, no honest estimate -- the same invariant the Orca
-                // adapter enforces, so fixtures cannot describe a state the
-                // real workspace never produces.
-                plate.estimate.reset();
+                // A fixture may describe an estimate the plate can no longer
+                // defend -- recomputing or stale -- but never a current one.
+                if (plate.estimate_status == EstimateStatus::Current) plate.estimate.reset();
+                continue;
+            } else {
+                plate.estimate_status = EstimateStatus::Current;
+                plate.invalidated_by.clear();
             }
         return result;
     }
@@ -339,11 +342,15 @@ public:
 
     // Fixtures describe a slice by its estimate; snapshot() still drops it if
     // the plate is not sliced, so a test cannot invent an impossible state.
-    void set_plate_estimate_for_testing(PlateId id, std::optional<SliceEstimate> estimate)
+    void set_plate_estimate_for_testing(PlateId id, std::optional<SliceEstimate> estimate,
+                                        EstimateStatus status = EstimateStatus::Current,
+                                        std::string invalidated_by = {})
     {
         for (WorkspacePlate& plate : m_snapshot.plates)
             if (plate.id == id) {
-                plate.estimate = std::move(estimate);
+                plate.estimate        = std::move(estimate);
+                plate.estimate_status = status;
+                plate.invalidated_by  = std::move(invalidated_by);
                 publish(WorkspaceChangeReasons::Plates);
                 return;
             }

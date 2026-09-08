@@ -450,11 +450,16 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::string& setup_in
             estimate = json{{"printTimeSeconds", plate.estimate->print_time_seconds},
                             {"materialGrams", plate.estimate->material_grams},
                             {"materialCost", plate.estimate->has_cost ? json(plate.estimate->material_cost) : json(nullptr)}};
+        const char* estimate_status = "current";
+        if (plate.estimate_status == Workspace::EstimateStatus::Recomputing) estimate_status = "recomputing";
+        else if (plate.estimate_status == Workspace::EstimateStatus::Stale)  estimate_status = "stale";
         plates.push_back(json{{"id", std::to_string(plate.id.value())},
                               {"name", plate.name},
                               {"active", plate.active},
                               {"sliced", plate.sliced},
                               {"estimate", std::move(estimate)},
+                              {"estimateStatus", estimate_status},
+                              {"invalidatedBy", plate.invalidated_by},
                               {"objects", std::move(objects)}});
     }
 

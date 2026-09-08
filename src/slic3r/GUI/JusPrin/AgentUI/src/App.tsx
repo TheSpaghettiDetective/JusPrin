@@ -359,7 +359,8 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
             // The card sits in its own pinned band above the thread, as the
             // design has it: the band is the canvas the tinted card sits on.
             <div className="pinned-setup">
-              <SetupCard context={state.context} expanded={setupExpanded} onToggle={() => setSetupExpanded((open) => !open)} />
+              <SetupCard context={state.context} expanded={setupExpanded} working={busy}
+                onToggle={() => setSetupExpanded((open) => !open)} />
             </div>
           )}
         </>

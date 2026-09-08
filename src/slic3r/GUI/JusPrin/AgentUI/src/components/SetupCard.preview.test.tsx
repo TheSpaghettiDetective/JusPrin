@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SetupCard } from './SetupCard';
-import { PresetDeltaInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
+import { EstimateStatus, PresetDeltaInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
 import tokens from '../../../../../../../resources/jusprin/ui/design-tokens.json';
 
 function context(o: {
@@ -18,6 +18,8 @@ function context(o: {
   preset?: string;
   estimate?: SliceEstimateInfo | null;
   deltas?: PresetDeltaInfo[];
+  status?: EstimateStatus;
+  invalidatedBy?: string;
 } = {}): WorkspaceContext {
   return {
     sessionId: '1',
@@ -25,7 +27,7 @@ function context(o: {
     projectName: 'Bracket',
     projectDirty: false,
     printer: { preset: 'MyKlipper 0.2 nozzle', filament: 'Generic PLA', process: o.preset ?? '0.20 mm Standard' },
-    plates: [{ id: '1', name: 'Plate 1', active: true, sliced: o.estimate != null, estimate: o.estimate ?? null, objects: [] }],
+    plates: [{ id: '1', name: 'Plate 1', active: true, sliced: o.estimate != null, estimate: o.estimate ?? null, estimateStatus: o.status ?? 'current', invalidatedBy: o.invalidatedBy ?? '', objects: [] }],
     selection: { status: 'none', objectIds: [] },
     history: { canUndo: false, canRedo: false },
     presetDeltas: o.deltas ?? [],

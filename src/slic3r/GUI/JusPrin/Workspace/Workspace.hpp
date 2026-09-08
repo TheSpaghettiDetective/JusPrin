@@ -97,6 +97,16 @@ struct SliceEstimate
     bool          has_cost{false};
 };
 
+// What the estimate on a plate is worth right now. The number itself is kept
+// across all three: a slice in flight or invalidated does not make the last
+// honest figure worthless, and blanking it kills the comparison the reader is
+// usually making. Only "never sliced" has no estimate at all.
+enum class EstimateStatus : std::uint8_t {
+    Current,     // this plate holds the slice the estimate came from
+    Recomputing, // a slice is running; the estimate is the one it will replace
+    Stale        // something invalidated the slice; the estimate predates it
+};
+
 struct WorkspacePlate
 {
     PlateId                      id;
@@ -107,8 +117,13 @@ struct WorkspacePlate
     bool                         sliced{false};
     std::vector<WorkspaceObject> objects;
     std::uint64_t                slice_result_id{0}; // zero while invalid or slicing
-    // Present only while sliced is true and no background slice is running.
+    // The plate's estimate: current, being recomputed, or stale. Absent only
+    // when this plate has never been sliced in this session.
     std::optional<SliceEstimate> estimate;
+    EstimateStatus               estimate_status{EstimateStatus::Current};
+    // Which of the user's actions invalidated the slice, when that is known.
+    // Empty when it is not: the card would rather say nothing than guess.
+    std::string                  invalidated_by;
 };
 
 // One process setting whose value in force differs from the preset it came

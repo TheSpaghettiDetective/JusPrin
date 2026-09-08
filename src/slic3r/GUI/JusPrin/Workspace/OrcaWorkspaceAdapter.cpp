@@ -151,17 +151,22 @@ OrcaWorkspaceAdapter::~OrcaWorkspaceAdapter()
     m_project_subscription.reset();
 }
 
-std::vector<std::pair<bool, std::uint64_t>> OrcaWorkspaceAdapter::current_slice_state() const
+OrcaWorkspaceAdapter::SliceState OrcaWorkspaceAdapter::current_slice_state() const
 {
-    std::vector<std::pair<bool, std::uint64_t>> state;
+    SliceState state;
+    // Whether a slice is running is part of what the plate holds, not merely
+    // progress: starting one on an already-invalid plate changes neither the
+    // valid flag nor the result id, so without it that transition publishes
+    // nothing and no consumer ever learns the slice began.
+    const bool slicing = m_plater.is_background_process_slicing();
     PartPlateList& plates = m_plater.get_partplate_list();
-    state.reserve(plates.get_plate_count());
     for (int index = 0; index < plates.get_plate_count(); ++index) {
         PartPlate* plate = plates.get_plate(index);
-        const bool sliced = plate != nullptr && plate->is_slice_result_valid();
-        const std::uint64_t result = sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result() ?
+        if (plate == nullptr) continue;
+        const bool sliced = plate->is_slice_result_valid();
+        const std::uint64_t result = sliced && !slicing && plate->get_slice_result() ?
             plate->get_slice_result()->id : 0;
-        state.emplace_back(sliced, result);
+        state.emplace(plate->id().id, PlateSlice{sliced, result, slicing});
     }
     return state;
 }
@@ -175,9 +180,19 @@ void OrcaWorkspaceAdapter::on_slice_status_changed(wxCommandEvent& event)
     // object changes. Publishing on all of those would advance the revision --
     // and add a history entry -- for nothing. Only a real change in what the
     // plates hold is a workspace change.
-    std::vector<std::pair<bool, std::uint64_t>> state = current_slice_state();
+    SliceState state = current_slice_state();
     if (state == m_known_slice_state)
         return;
+    // A plate that held a slice and no longer does was invalidated by whatever
+    // the person just did. Recording it here, at the transition, is the only
+    // moment the cause is still known.
+    for (const auto& [id, now] : state) {
+        const auto before = m_known_slice_state.find(id);
+        if (before != m_known_slice_state.end() && before->second.sliced && !now.sliced)
+            m_invalidated_by[id] = m_last_change_reason;
+        else if (now.sliced)
+            m_invalidated_by.erase(id);
+    }
     m_known_slice_state = std::move(state);
     publish_change(WorkspaceChangeReasons::Plates);
 }
@@ -219,9 +234,22 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
         projected_plate.active = index == active_index;
         projected_plate.sliced = plate->is_slice_result_valid();
+        const std::uint64_t plate_key = plate->id().id;
         if (projected_plate.sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result()) {
             projected_plate.slice_result_id = plate->get_slice_result()->id;
             projected_plate.estimate        = estimate_of(*plate->get_slice_result());
+            projected_plate.estimate_status = EstimateStatus::Current;
+            // The figure this plate can currently defend, kept so a slice in
+            // flight or an invalidated one still has something to show.
+            if (projected_plate.estimate) m_last_estimate[plate_key] = *projected_plate.estimate;
+        } else if (const auto remembered = m_last_estimate.find(plate_key); remembered != m_last_estimate.end()) {
+            projected_plate.estimate        = remembered->second;
+            projected_plate.estimate_status = m_plater.is_background_process_slicing() ?
+                EstimateStatus::Recomputing : EstimateStatus::Stale;
+            if (projected_plate.estimate_status == EstimateStatus::Stale) {
+                if (const auto why = m_invalidated_by.find(plate_key); why != m_invalidated_by.end())
+                    projected_plate.invalidated_by = why->second;
+            }
         }
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
@@ -449,6 +477,19 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
         m_known_object_ids.clear();
     }
     remember_current_ids();
+    // Orca invalidates the slice as a consequence of this change and only then
+    // posts EVT_SLICE_STATUS_CHANGED, so the reason is still the newest one
+    // when the slice watcher runs. Naming only the actions a person would
+    // recognise; anything else leaves the card saying nothing rather than
+    // attributing the loss to something the reader did not do.
+    const auto touched = [&](ProjectStateChangeReason reason) {
+        return (static_cast<std::uint32_t>(change.reasons) & static_cast<std::uint32_t>(reason)) != 0;
+    };
+    if (touched(ProjectStateChangeReason::Transform))     m_last_change_reason = "you moved the object";
+    else if (touched(ProjectStateChangeReason::Objects))  m_last_change_reason = "the objects changed";
+    else if (touched(ProjectStateChangeReason::Settings)) m_last_change_reason = "a setting changed";
+    else                                                  m_last_change_reason.clear();
+
     publish_change(workspace_reasons(change.reasons));
 }
 

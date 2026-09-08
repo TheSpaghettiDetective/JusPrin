@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SetupCard, formatCost, formatGrams, formatPrintTime } from './SetupCard';
-import { PresetDeltaInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
+import { EstimateStatus, PresetDeltaInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
 
 function makeContext(overrides: {
   setupIntent?: string;
@@ -16,6 +16,8 @@ function makeContext(overrides: {
   deltas?: PresetDeltaInfo[];
   sliced?: boolean;
   currency?: string;
+  estimateStatus?: EstimateStatus;
+  invalidatedBy?: string;
 } = {}): WorkspaceContext {
   return {
     sessionId: '1',
@@ -30,6 +32,8 @@ function makeContext(overrides: {
         active: true,
         sliced: overrides.sliced ?? overrides.estimate != null,
         estimate: overrides.estimate ?? null,
+        estimateStatus: overrides.estimateStatus ?? 'current',
+        invalidatedBy: overrides.invalidatedBy ?? '',
         objects: [],
       },
     ],
@@ -177,11 +181,65 @@ describe('setup card', () => {
     expect(card.querySelectorAll('p')).toHaveLength(3);
   });
 
+  it('keeps the old number struck through while a new slice runs', () => {
+    // 2c: you are usually watching for the difference, so a blank kills the
+    // comparison. The figure stays, marked as the one being replaced.
+    renderCard(makeContext({
+      setupIntent: 'Strong', estimate, deltas: deltas(6),
+      sliced: false, estimateStatus: 'recomputing',
+    }));
+    const card = screen.getByTestId('current-setup');
+    expect(card.querySelector('.superseded')).toHaveTextContent('~3h 50');
+    expect(card.querySelector('.superseded')).toHaveTextContent('47 g');
+    expect(card).toHaveTextContent('re-slicing…');
+    expect(card).toHaveTextContent('6 changes from preset');
+    // Not the unsliced state: the plate has a number, it is just being redone.
+    expect(card).not.toHaveTextContent('not sliced yet');
+  });
+
+  it('marks an invalidated estimate out of date and says which action took it', () => {
+    // 2d: stale is a legitimate state, not an error. It never shows a cost it
+    // cannot defend, and it names the action rather than blaming the reader.
+    renderCard(makeContext({
+      setupIntent: 'Strong', estimate, deltas: deltas(5),
+      sliced: false, estimateStatus: 'stale', invalidatedBy: 'you moved the object',
+    }));
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('out of date');
+    expect(card.querySelector('.superseded')).toHaveTextContent('~3h 50');
+    // Its own row: seen truncated to "you moved the object..." in the running
+    // app, where the dock is narrower than the design frame.
+    expect(card.querySelector('.current-setup-note')).toHaveTextContent('you moved the object — re-slice');
+    expect(card.querySelector('.current-setup-cost')).not.toHaveTextContent('re-slice');
+    expect(card).not.toHaveTextContent('not sliced yet');
+  });
+
+  it('asks for a re-slice without inventing a cause it does not know', () => {
+    renderCard(makeContext({
+      setupIntent: 'Strong', estimate, deltas: deltas(5),
+      sliced: false, estimateStatus: 'stale',
+    }));
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('re-slice');
+    expect(card).not.toHaveTextContent('—');
+  });
+
+  it('drops the money from a figure it can no longer defend', () => {
+    // The strike-through carries time and material; a price on a superseded
+    // slice is exactly the number the card promised never to show.
+    renderCard(makeContext({
+      setupIntent: 'Strong',
+      estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: 1.12 },
+      deltas: deltas(2), sliced: false, estimateStatus: 'stale',
+    }));
+    expect(screen.getByTestId('current-setup').textContent).not.toMatch(/1\.12|\$/);
+  });
+
   it('never calls a sliced plate unsliced just because it has no estimate', () => {
     // A slice can land without a usable estimate. Saying "not sliced yet"
     // there is not a missing fact, it is a false one.
     const context = makeContext({ setupIntent: 'Strong', deltas: deltas(2) });
-    context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, objects: [] }];
+    context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, estimateStatus: 'current', invalidatedBy: '', objects: [] }];
     renderCard(context);
     const card = screen.getByTestId('current-setup');
     expect(card).not.toHaveTextContent('not sliced yet');
@@ -192,7 +250,7 @@ describe('setup card', () => {
     // Sliced but no usable estimate, and the preset untouched: there is
     // nothing to put on that line, so the line is not there.
     const context = makeContext({ setupIntent: 'Strong' });
-    context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, objects: [] }];
+    context.plates = [{ id: '1', name: 'Plate 1', active: true, sliced: true, estimate: null, estimateStatus: 'current', invalidatedBy: '', objects: [] }];
     renderCard(context);
     const card = screen.getByTestId('current-setup');
     expect(card.querySelector('.current-setup-cost')).toBeNull();
@@ -306,13 +364,15 @@ describe('setup card', () => {
   it('reads the estimate from the active plate, not the first one', () => {
     const context = makeContext({ setupIntent: 'Strong', deltas: deltas(1) });
     context.plates = [
-      { id: '1', name: 'Plate 1', active: false, sliced: true, estimate, objects: [] },
+      { id: '1', name: 'Plate 1', active: false, sliced: true, estimate, estimateStatus: 'current', invalidatedBy: '', objects: [] },
       {
         id: '2',
         name: 'Plate 2',
         active: true,
         sliced: true,
         estimate: { printTimeSeconds: 600, materialGrams: 4.25, materialCost: null },
+        estimateStatus: 'current',
+        invalidatedBy: '',
         objects: [],
       },
     ];

@@ -3,6 +3,7 @@
 #include "Workspace.hpp"
 #include "ProjectState.hpp"
 
+#include <map>
 #include <set>
 
 namespace Slic3r::GUI {
@@ -50,14 +51,30 @@ private:
     void on_slice_status_changed(wxCommandEvent& event);
     // Per plate: whether it holds a valid slice, and which result. Compared on
     // every slice-status event so only a real change advances the revision.
-    std::vector<std::pair<bool, std::uint64_t>> current_slice_state() const;
+    // What one plate holds right now. Compared whole on every slice-status
+    // event, so only a real change advances the revision.
+    struct PlateSlice
+    {
+        bool          sliced{false};
+        std::uint64_t result{0};
+        bool          slicing{false};
+        bool operator==(const PlateSlice& other) const
+        { return sliced == other.sliced && result == other.result && slicing == other.slicing; }
+    };
+    using SliceState = std::map<std::uint64_t, PlateSlice>;
+    SliceState current_slice_state() const;
     void publish_change(WorkspaceChangeReasons reasons);
     void remember_current_ids() const;
 
     Plater&                         m_plater;
     ProjectSessionId                m_session;
     WorkspaceChangeHub              m_changes;
-    std::vector<std::pair<bool, std::uint64_t>> m_known_slice_state;
+    SliceState m_known_slice_state;
+    // The last figure each plate could defend, and what took it away. Both are
+    // keyed by plate id, which survives a plate being inserted or removed.
+    mutable std::map<std::uint64_t, SliceEstimate> m_last_estimate;
+    std::map<std::uint64_t, std::string>           m_invalidated_by;
+    std::string                                    m_last_change_reason;
     mutable std::set<std::uint64_t> m_known_object_ids;
     ProjectStateSubscription        m_project_subscription;
 };

@@ -195,6 +195,11 @@ export interface PresetDeltaInfo {
   value: string;
 }
 
+// What the estimate is worth right now. The number is kept in all three: a
+// slice in flight or invalidated does not make the last honest figure
+// worthless, and blanking it kills the comparison the reader is making.
+export type EstimateStatus = 'current' | 'recomputing' | 'stale';
+
 export interface WorkspaceContext {
   sessionId: string;
   revision: number;
@@ -210,6 +215,11 @@ export interface WorkspaceContext {
     active: boolean;
     sliced: boolean;
     estimate: SliceEstimateInfo | null;
+    estimateStatus: EstimateStatus;
+    // Which of the user's actions invalidated the slice, when it is known.
+    // Empty otherwise: the card says nothing rather than attributing the loss
+    // to something the reader did not do.
+    invalidatedBy: string;
     objects: { id: string; name: string; instances: number; selected: boolean }[];
   }[];
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };

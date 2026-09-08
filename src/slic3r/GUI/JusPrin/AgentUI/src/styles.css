@@ -119,6 +119,47 @@ body {
   color: var(--action-primary);
 }
 
+/* Mid-thought: everything drops to secondary, nothing is removed. The numbers
+   on screen are still what Slice would produce this second. */
+.current-setup.working .current-setup-title,
+.current-setup.working .current-setup-identity {
+  color: var(--text-secondary);
+}
+
+.current-setup.working.bare {
+  opacity: 0.7;
+}
+
+/* The figure the plate can no longer defend. Kept legible: it is the number
+   the reader is comparing the new one against. */
+.current-setup-cost .superseded {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* What the card wants you to do about a figure it can no longer defend. Its
+   own row, because at real dock widths -- which narrow with the window, well
+   below the 429px design frame -- sharing the facts line cost it its second
+   half, and a truncated instruction is worse than an extra 16px. */
+.current-setup-note {
+  font: var(--font-metadata);
+  color: var(--status-warning);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.current-setup-eyebrow .out-of-date {
+  color: var(--status-warning);
+}
+
+/* The one word a state gets, hard right in the eyebrow, before the chevron. */
+.current-setup-status {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* Body Bold, text/primary. One line, always: 40 characters is a contract with the
    agent, and all the card can do is stop a long one from breaking the layout
    -- the full sentence lives in the expansion. */

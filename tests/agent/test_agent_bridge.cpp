@@ -582,6 +582,31 @@ TEST_CASE("the setup card's facts travel with the context", "[agent][context][se
         CHECK(harness.of_type("context").back()["payload"]["context"]["currency"] == "");
     }
 
+    SECTION("a superseded estimate is kept, and says what it is worth")
+    {
+        harness.workspace.set_plate_sliced(plate, true);
+        Workspace::SliceEstimate estimate;
+        estimate.print_time_seconds = 13800;
+        estimate.material_grams     = 47.0;
+        harness.workspace.set_plate_estimate_for_testing(plate, estimate);
+        CHECK(harness.of_type("context").back()["payload"]["context"]["plates"][0]["estimateStatus"] == "current");
+
+        // Recomputing: the number stays so the reader keeps the comparison.
+        harness.workspace.set_plate_estimate_for_testing(plate, estimate, Workspace::EstimateStatus::Recomputing);
+        harness.workspace.set_plate_sliced(plate, false);
+        json context = harness.of_type("context").back()["payload"]["context"];
+        CHECK(context["plates"][0]["estimateStatus"] == "recomputing");
+        CHECK(context["plates"][0]["estimate"]["printTimeSeconds"] == 13800);
+
+        // Stale: the same number, plus the action that invalidated it.
+        harness.workspace.set_plate_estimate_for_testing(plate, estimate, Workspace::EstimateStatus::Stale,
+                                                         "you moved the object");
+        context = harness.of_type("context").back()["payload"]["context"];
+        CHECK(context["plates"][0]["estimateStatus"] == "stale");
+        CHECK(context["plates"][0]["invalidatedBy"] == "you moved the object");
+        CHECK(context["plates"][0]["estimate"]["materialGrams"] == 47.0);
+    }
+
     SECTION("un-slicing takes the estimate away with it")
     {
         harness.workspace.set_plate_sliced(plate, true);
@@ -591,6 +616,7 @@ TEST_CASE("the setup card's facts travel with the context", "[agent][context][se
         REQUIRE(harness.of_type("context").back()["payload"]["context"]["plates"][0]["estimate"].is_object());
 
         harness.workspace.set_plate_sliced(plate, false);
+        // Nothing said this estimate survives the slice, so it does not.
         CHECK(harness.of_type("context").back()["payload"]["context"]["plates"][0]["estimate"].is_null());
     }
 }
