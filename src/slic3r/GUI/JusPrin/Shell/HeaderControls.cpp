@@ -481,8 +481,16 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
     Bind(wxEVT_PAINT,[this,palette](wxPaintEvent&) {
         wxAutoBufferedPaintDC dc(this);
         dc.SetBackground(wxBrush(palette.surface_raised)); dc.Clear();
-        dc.SetPen(wxPen(palette.border_subtle)); dc.SetBrush(wxBrush(palette.surface_raised));
-        dc.DrawRoundedRectangle(GetClientRect().Deflate(1),FromDIP(8));
+        // Through a graphics context, on the same half-pixel grid the chip and
+        // the buttons use. Plain wxDC draws this curve unantialiased and on
+        // integer coordinates, which put the popup's outline on a different
+        // sub-pixel from every border beside it.
+        std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+        if (!gc) return;
+        const double w = GetClientSize().x, h = GetClientSize().y, r = FromDIP(8);
+        gc->SetPen(wxPen(palette.border_subtle));
+        gc->SetBrush(wxBrush(palette.surface_raised));
+        gc->DrawRoundedRectangle(0.5,0.5,w-1,h-1,r);
     });
     build(std::move(items));
     Bind(wxEVT_CHAR_HOOK,&HeaderMenu::on_key,this);
@@ -521,7 +529,9 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         if (item.separator) {
             auto* line = new wxStaticLine(this);
             line->SetForegroundColour(palette.border_subtle);
-            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(4));
+            // Full width, like the rows it divides. Menu/Popover has no side
+            // padding, so an inset rule reads as a broken line.
+            sizer->Add(line,0,wxEXPAND | wxTOP | wxBOTTOM,FromDIP(4));
         }
         // A separator-only entry carries no caption of its own.
         if (item.title && item.label.empty()) continue;

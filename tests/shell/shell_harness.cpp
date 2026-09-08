@@ -779,10 +779,17 @@ private:
         const bool was_dark = wxGetApp().dark_mode();
         // At rest means no menu open AND no focus ring: either one makes these
         // images describe a state the reader does not see when simply looking
-        // at the header. The keyboard check runs before this and leaves focus
-        // on a half, so move it away first rather than assuming.
-        if (auto* focused = wxWindow::FindFocus(); focused == &chip->printer_half() || focused == &chip->spool_half())
-            row->SetFocus();
+        // at the header. Earlier checks leave a half focused, and a popup that
+        // is still dismissing hands focus back to its anchor after it goes --
+        // so drain those pending events first, then move focus away
+        // unconditionally rather than testing where it happens to be.
+        // The assertion below reads HasFocus(), the same predicate the painter
+        // uses to draw the ring, so it cannot disagree with the image. macOS
+        // grants focus only inside the key window, so it can only fire on a run
+        // where this app is frontmost -- which is the run that would otherwise
+        // write a chip with a ring on it.
+        wxYield();
+        row->SetFocus();
         wxYield();
         check(!chip_half_open(), "chip_is_at_rest_before_capture");
         check(!chip->printer_half().HasFocus() && !chip->spool_half().HasFocus(),
