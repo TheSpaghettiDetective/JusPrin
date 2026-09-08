@@ -35,6 +35,8 @@ ctest --test-dir ./tests/libslic3r              # individual suite
 ctest --test-dir ./tests/fff_print
 ```
 
+Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu in-process fake). Isolated `--datadir`; do not drive another JusPrin instance.
+
 ## Code Style
 
 - C++17, selective C++20. PascalCase classes, snake_case functions/variables

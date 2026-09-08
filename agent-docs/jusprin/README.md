@@ -13,6 +13,8 @@ Read these documents in order:
 7. [POC reference](poc-reference.md) — exact pointers to the spike-only documents, code, commits, logs, screenshots, and generated brand artifacts left on `jusprin-v2-poc`.
 8. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, approval and verification requirements.
 
+Printer UI without hardware (Bambu in-process fake; control file; isolated app): [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md). Print-host (Klipper/Moonraker) simulation stays on `jusprin-newui-fakeprinter`.
+
 ## Governing decisions
 
 - JusPrin is an AI-piloted 3D-printing product built on OrcaSlicer, not a replacement slicing engine.

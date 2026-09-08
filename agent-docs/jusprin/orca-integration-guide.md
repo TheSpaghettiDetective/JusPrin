@@ -358,6 +358,15 @@ ever abandons.
 
 ## 4. Testing and verification lessons
 
+### Printer UI without a physical machine
+
+Bambu header-menu state, Select Machine, and print jobs are driven by the
+in-process fake in `src/slic3r/GUI/JusPrin/Testing/`. Operators (humans and
+agents) follow [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md):
+JSON `jusprin.fake_printer`, a real Bambu Lab **system** preset, a scratch
+`--datadir`, and the printer **menu** first row rather than the chip label.
+Do not send keys or clicks to some other JusPrin already on the machine.
+
 ### Run adapter workflows against the complete native application
 
 A fake workspace can verify contract behavior, revisions, merged reason flags,
