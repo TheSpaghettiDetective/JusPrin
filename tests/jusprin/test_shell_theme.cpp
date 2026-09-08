@@ -5,10 +5,15 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
+#include "slic3r/GUI/Widgets/Button.hpp"
 #include "libslic3r/Utils.hpp"
 
+#include <wx/frame.h>
 #include <wx/init.h>
+#include <wx/stattext.h>
+#include <wx/textctrl.h>
 
 #include <filesystem>
 #include <fstream>
@@ -141,4 +146,47 @@ TEST_CASE("fonts carry the role weight and are built once", "[shell][theme][wx]"
     CHECK(&theme.mono_font(TextRole::Label) == &technical);
 
     CHECK(&theme.font(TextRole::Body) == &body);
+}
+
+// The recipes are how a stock wxStaticText, wxTextCtrl and OrcaSlicer Button
+// take their font, colours and geometry from the theme. Each is applied to a
+// real control under a frame that is never shown; no event loop runs.
+TEST_CASE("the recipes dress stock controls from the theme", "[shell][theme][wx]")
+{
+    wxInitializer wx;
+    REQUIRE(wx.IsOk());
+    const ShellTheme    theme   = load_packaged_theme();
+    const ShellPalette& palette = theme.palette(false);
+    const ButtonMetrics& buttons = theme.metrics().button;
+
+    auto* frame  = new wxFrame(nullptr, wxID_ANY, "recipes");
+    auto* label  = new wxStaticText(frame, wxID_ANY, "Active plate status");
+    auto* field  = new wxTextCtrl(frame, wxID_ANY);
+    auto* button = new Button(frame, "Retry");
+
+    style_label(*label, theme, TextRole::Label, palette.text_secondary);
+    CHECK(label->GetFont().GetPointSize() == theme.font(TextRole::Label).GetPointSize());
+    CHECK(label->GetFont().GetWeight() == wxFONTWEIGHT_NORMAL);
+    CHECK(label->GetForegroundColour() == palette.text_secondary);
+
+    style_text_field(*field, theme, palette);
+    CHECK(field->GetFont().GetPointSize() == theme.font(TextRole::Body).GetPointSize());
+    CHECK(field->GetBackgroundColour() == palette.surface_canvas);
+    CHECK(field->GetForegroundColour() == palette.text_primary);
+
+    REQUIRE(buttons.compact.text_role.has_value());
+    style_button(*button, theme, palette, buttons.compact);
+    const wxFont& compact_font = theme.font(*buttons.compact.text_role);
+    CHECK(button->GetFont().GetPointSize() == compact_font.GetPointSize());
+    CHECK(button->GetFont().GetWeight() == compact_font.GetWeight());
+    CHECK(button->GetMinSize().y >= button->FromDIP(buttons.compact.height));
+
+    // The window recipe is the one that fixes a height, so it proves the
+    // minimum size is honoured rather than left at the text's own height.
+    style_button(*button, theme, palette, buttons.window);
+    CHECK(button->GetFont().GetPointSize() == theme.font(*buttons.window.text_role).GetPointSize());
+    CHECK(button->GetMinSize().y >= button->FromDIP(buttons.window.height));
+    CHECK(button->GetMinSize().x >= button->FromDIP(buttons.window.min_width));
+
+    frame->Destroy();
 }

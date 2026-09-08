@@ -12,6 +12,13 @@
 
 namespace Slic3r::GUI::JusPrin {
 
+namespace {
+// The narrowest the Agent pane may be squeezed before the composer wraps
+// badly. A pane width, not a control size: no token names it and it is off
+// the spacing scale, so it is written once here.
+constexpr int kMinWidthDip = 320;
+} // namespace
+
 AgentPane::AgentPane(wxWindow*                  parent,
                      const ShellTheme&          theme,
                      Workspace::IWorkspace&     workspace,
@@ -23,7 +30,7 @@ AgentPane::AgentPane(wxWindow*                  parent,
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
 {
-    SetMinSize(wxSize(FromDIP(320), -1));
+    SetMinSize(wxSize(FromDIP(kMinWidthDip), -1));
 
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     m_web_view = new AgentWebView(this, theme, workspace, persistence, availability, std::move(agent),

@@ -1,4 +1,5 @@
 #include "McpConnectionDialog.hpp"
+#include "ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConnections.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -51,16 +52,20 @@ std::string command_path(const std::string& command)
     return {};
 }
 
-bool confirm_setup(wxWindow* parent, const std::string& preview)
+bool confirm_setup(wxWindow* parent, const ShellTheme& theme, const ShellPalette& colors, const std::string& preview)
 {
     wxDialog dialog(parent, wxID_ANY, "Confirm AI tool connection", wxDefaultPosition, parent->FromDIP(wxSize(740, 520)),
                     wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    dialog.SetBackgroundColour(colors.surface_raised);
     auto* layout = new wxBoxSizer(wxVERTICAL);
-    layout->Add(new wxStaticText(&dialog, wxID_ANY,
-        "Allow this AI tool to read the open project and propose changes?\nChanges still require approval inside JusPrin."),
-        0, wxEXPAND | wxALL, dialog.FromDIP(12));
-    layout->Add(new wxTextCtrl(&dialog, wxID_ANY, wxString::FromUTF8(preview), wxDefaultPosition, wxDefaultSize,
-                              wxTE_MULTILINE | wxTE_READONLY), 1, wxEXPAND | wxLEFT | wxRIGHT, dialog.FromDIP(12));
+    auto* question = new wxStaticText(&dialog, wxID_ANY,
+        "Allow this AI tool to read the open project and propose changes?\nChanges still require approval inside JusPrin.");
+    style_label(*question, theme, TextRole::Body, colors.text_primary);
+    layout->Add(question, 0, wxEXPAND | wxALL, dialog.FromDIP(12));
+    auto* text = new wxTextCtrl(&dialog, wxID_ANY, wxString::FromUTF8(preview), wxDefaultPosition, wxDefaultSize,
+                                wxTE_MULTILINE | wxTE_READONLY);
+    style_text_field(*text, theme, colors);
+    layout->Add(text, 1, wxEXPAND | wxLEFT | wxRIGHT, dialog.FromDIP(12));
     auto* buttons = new wxStdDialogButtonSizer;
     auto* confirm = new wxButton(&dialog, wxID_OK, "Connect");
     auto* cancel = new wxButton(&dialog, wxID_CANCEL, "Cancel");
@@ -254,6 +259,7 @@ void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const
     auto* intro = new wxStaticText(&dialog, wxID_ANY,
         "Connect a local AI tool to the open JusPrin project. Changes still require approval in the Agent panel.\n"
         "Copy the entry, or choose Connect and review the proposed change before saving it.");
+    style_label(*intro, theme, TextRole::Body, colors.text_primary);
     intro->Wrap(dialog.FromDIP(710));
     layout->Add(intro, 0, wxEXPAND | wxALL, gap);
     auto* clients = new wxChoice(&dialog, wxID_ANY);
@@ -266,12 +272,15 @@ void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const
     clients->SetName("MCP client");
     layout->Add(clients, 0, wxEXPAND | wxLEFT | wxRIGHT, gap);
     auto* instructions = new wxStaticText(&dialog, wxID_ANY, "");
+    style_label(*instructions, theme, TextRole::Body, colors.text_primary);
     layout->Add(instructions, 0, wxEXPAND | wxALL, gap);
     auto* entry = new wxTextCtrl(&dialog, wxID_ANY, "", wxDefaultPosition, wxDefaultSize,
                                  wxTE_MULTILINE | wxTE_READONLY);
     entry->SetName("MCP connection entry");
+    style_text_field(*entry, theme, colors);
     layout->Add(entry, 1, wxEXPAND | wxLEFT | wxRIGHT, gap);
     auto* status = new wxStaticText(&dialog, wxID_ANY, "");
+    style_label(*status, theme, TextRole::Body, colors.text_primary);
     layout->Add(status, 0, wxEXPAND | wxALL, gap);
     auto refresh = [&] {
         const auto index = std::size_t(clients->GetSelection());
@@ -291,8 +300,10 @@ void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const
     auto* details = new wxBoxSizer(wxVERTICAL);
     const auto diagnostic = live_url.empty() ? "MCP could not start: " + startup_error :
         live_url + "\nThis URL can change after restarting JusPrin. Local requests need no authentication.";
-    details->Add(new wxTextCtrl(disclosure->GetPane(), wxID_ANY, wxString::FromUTF8(diagnostic), wxDefaultPosition,
-                              dialog.FromDIP(wxSize(-1, 70)), wxTE_MULTILINE | wxTE_READONLY), 1, wxEXPAND);
+    auto* diagnostics = new wxTextCtrl(disclosure->GetPane(), wxID_ANY, wxString::FromUTF8(diagnostic), wxDefaultPosition,
+                                       dialog.FromDIP(wxSize(-1, 70)), wxTE_MULTILINE | wxTE_READONLY);
+    style_text_field(*diagnostics, theme, colors);
+    details->Add(diagnostics, 1, wxEXPAND);
     disclosure->GetPane()->SetSizer(details);
     disclosure->Bind(wxEVT_COLLAPSIBLEPANE_CHANGED, [&](wxCollapsiblePaneEvent&) { dialog.Layout(); });
     layout->Add(disclosure, 0, wxEXPAND | wxLEFT | wxRIGHT, gap);
@@ -321,7 +332,7 @@ void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const
                 arguments.insert(arguments.end(), selected.arguments.begin(), selected.arguments.end());
                 std::string command;
                 for (const auto& argument : arguments) command += (command.empty() ? "" : " ") + Mcp::quote_argument(argument, windows);
-                if (!confirm_setup(&dialog, "Run this command directly (no shell):\n\n" + command +
+                if (!confirm_setup(&dialog, theme, colors, "Run this command directly (no shell):\n\n" + command +
                     "\n\nThe client CLI manages its configuration. It may replace an existing JusPrin entry. Other servers are not removed.")) return;
                 const auto result = run_mcp_setup_command(&dialog, arguments);
                 status->SetLabel(wxString::FromUTF8((result.success ? "Configuration saved. Restart the client session to load JusPrin.\n" : "Setup failed.\n") + result.diagnostic));
@@ -329,7 +340,7 @@ void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const
                 const std::string root = selected.id == "code" ? "servers" : "mcpServers";
                 const auto value = nlohmann::json::parse(selected.text);
                 const auto edit = Mcp::prepare_json_connection(configs[index], root, value[root]["jusprin"]);
-                if (!confirm_setup(&dialog, edit.preview)) return;
+                if (!confirm_setup(&dialog, theme, colors, edit.preview)) return;
                 const auto backup = Mcp::apply_config_edit(edit);
                 status->SetLabel(wxString::FromUTF8("Configuration saved. Restart the client to load JusPrin." +
                     (backup.empty() ? "" : "\nBackup: " + backup.u8string())));

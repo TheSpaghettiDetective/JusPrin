@@ -31,7 +31,7 @@ public:
     // at it. The controller is shared and every callback holds a reference.
     static void open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor);
 
-    PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater);
+    explicit PrinterMenu(Plater& plater);
 
 private:
     using Ptr = std::shared_ptr<PrinterMenu>;
@@ -42,10 +42,7 @@ private:
     // A sub-list: a back row carrying the step's name, then the choices.
     static void show_sublist(const Ptr& self, const wxString& title, std::vector<HeaderMenuItem> choices);
 
-    wxWindow*         m_owner;
-    const ShellTheme& m_theme;
-    bool              m_dark;
-    Plater&           m_plater;
+    Plater& m_plater;
     // Weak: see SpoolMenu -- a transient popup may vanish under us.
     wxWeakRef<HeaderMenu> m_menu;
 };

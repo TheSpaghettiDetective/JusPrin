@@ -34,7 +34,7 @@ PrinterSpoolChip::PrinterSpoolChip(wxWindow* parent, const ShellTheme& theme)
 
     // Left and right move between the halves; the halves themselves keep
     // Return and Space, which HeaderButton already handles.
-    auto arrows = [this](HeaderButton* self, HeaderButton* other) {
+    auto arrows = [](HeaderButton* self, HeaderButton* other) {
         self->Bind(wxEVT_KEY_DOWN, [self, other](wxKeyEvent& event) {
             const int key = event.GetKeyCode();
             if (key == WXK_LEFT || key == WXK_RIGHT) {

@@ -53,6 +53,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/ShellController.hpp
     GUI/JusPrin/Shell/ShellTheme.cpp
     GUI/JusPrin/Shell/ShellTheme.hpp
+    GUI/JusPrin/Shell/ShellRecipes.cpp
+    GUI/JusPrin/Shell/ShellRecipes.hpp
     GUI/JusPrin/Shell/StatusRow.cpp
     GUI/JusPrin/Shell/StatusRow.hpp
     GUI/JusPrin/Shell/HeaderControls.cpp

@@ -1,5 +1,4 @@
 #include "SliceReviewPanel.hpp"
-#include "slic3r/GUI/Widgets/Label.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include <wx/dcbuffer.h>
 #include <wx/textwrapper.h>
@@ -13,6 +12,11 @@ public:
     std::vector<wxString> lines;
     void OnOutputLine(const wxString& line) override { lines.push_back(line); }
 };
+
+// Room for the heading and a few findings before the panel scrolls. A panel
+// height, not a control height: no token names it and it is off the spacing
+// scale, so it is written once here.
+constexpr int kMinHeightDip = 120;
 }
 
 SliceReviewPanel::SliceReviewPanel(wxWindow* parent, const ShellTheme& theme, Displayed displayed)
@@ -21,8 +25,8 @@ SliceReviewPanel::SliceReviewPanel(wxWindow* parent, const ShellTheme& theme, Di
 {
     SetName("Slice review findings");
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    SetFont(Label::Body_14);
-    SetMinSize(FromDIP(wxSize(-1,120)));
+    SetFont(theme.font(TextRole::Body));
+    SetMinSize(wxSize(-1,FromDIP(kMinHeightDip)));
     SetScrollRate(0,FromDIP(16));
     Bind(wxEVT_PAINT, &SliceReviewPanel::paint, this);
     Bind(wxEVT_SIZE, [this](wxSizeEvent& e) { Refresh(); e.Skip(); });
@@ -49,7 +53,7 @@ void SliceReviewPanel::paint(wxPaintEvent&)
     dc.SetBackground(wxBrush(palette.surface_subtle)); dc.Clear();
     PrepareDC(dc);
     dc.SetTextForeground(palette.text_primary);
-    dc.SetFont(Label::Head_12);
+    dc.SetFont(m_theme.font(TextRole::LabelBold));
     const int margin = FromDIP(12);
     int y = margin;
     dc.DrawText(_L("Check print"),margin,y);

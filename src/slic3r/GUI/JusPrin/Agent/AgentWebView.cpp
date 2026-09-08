@@ -4,8 +4,8 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
-#include "slic3r/GUI/Widgets/Label.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <boost/filesystem.hpp>
@@ -57,13 +57,10 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     // Internal-connection error surface; hidden until a failure occurs.
     m_error_panel = new wxPanel(this, wxID_ANY);
     auto* error_sizer = new wxBoxSizer(wxVERTICAL);
-    m_error_title = new wxStaticText(m_error_panel, wxID_ANY, _L("The Agent panel could not connect"));
-    m_error_title->SetFont(Label::Head_14);
+    m_error_title  = new wxStaticText(m_error_panel, wxID_ANY, _L("The Agent panel could not connect"));
     m_error_detail = new wxStaticText(m_error_panel, wxID_ANY, wxEmptyString);
-    m_error_detail->SetFont(Label::Body_12);
     auto* retry_button = new Button(m_error_panel, _L("Retry"));
-    retry_button->SetFont(Label::Body_12);
-    retry_button->SetCornerRadius(FromDIP(8));
+    m_retry_button = retry_button;
     retry_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { reload(); });
     error_sizer->AddSpacer(FromDIP(24));
     error_sizer->Add(m_error_title, 0, wxLEFT | wxRIGHT, FromDIP(16));
@@ -74,6 +71,10 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     m_error_panel->SetSizer(error_sizer);
     m_error_panel->Hide();
     sizer->Add(m_error_panel, 1, wxEXPAND);
+    // Fonts and colours come from the theme here and on every appearance
+    // change; they must be in place before a load failure below wraps the
+    // detail text.
+    apply_appearance(GUI_App::dark_mode());
 
     const boost::filesystem::path page = agent_page_path();
     if (!boost::filesystem::exists(page)) {
@@ -116,8 +117,6 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
         else
             event.Skip();
     });
-
-    apply_appearance(GUI_App::dark_mode());
 }
 
 AgentWebView::~AgentWebView()
@@ -207,8 +206,9 @@ void AgentWebView::apply_appearance(bool dark)
     const ShellPalette& palette = m_theme.palette(dark);
     SetBackgroundColour(palette.surface_subtle);
     m_error_panel->SetBackgroundColour(palette.surface_subtle);
-    m_error_title->SetForegroundColour(palette.text_primary);
-    m_error_detail->SetForegroundColour(palette.text_secondary);
+    style_label(*m_error_title, m_theme, TextRole::BodyBold, palette.text_primary);
+    style_label(*m_error_detail, m_theme, TextRole::Label, palette.text_secondary);
+    style_button(*m_retry_button, m_theme, palette, m_theme.metrics().button.compact);
     m_host->set_appearance(dark);
     Refresh();
 }

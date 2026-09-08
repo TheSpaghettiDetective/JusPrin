@@ -14,6 +14,7 @@
 
 #include <memory>
 
+class Button;
 class wxWebView;
 class wxWebViewEvent;
 class wxStaticText;
@@ -55,6 +56,7 @@ private:
     wxPanel*      m_error_panel{nullptr};
     wxStaticText* m_error_title{nullptr};
     wxStaticText* m_error_detail{nullptr};
+    Button*       m_retry_button{nullptr};
 
     wxTimer  m_handshake_timer;
     wxString m_page_url;

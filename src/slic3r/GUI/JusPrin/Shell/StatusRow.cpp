@@ -4,6 +4,7 @@
 #include "PrinterSpoolChip.hpp"
 #include "SetupCommands.hpp"
 #include "SpoolMenu.hpp"
+#include "ShellRecipes.hpp"
 #include "SliceReviewPanel.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
@@ -19,7 +20,6 @@
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/BackgroundSlicingProcess.hpp"
-#include "slic3r/GUI/Widgets/Label.hpp"
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/msgdlg.h>
@@ -39,6 +39,10 @@ const wxEventTypeTag<wxBookCtrlEvent>& page_changed_event() { return wxEVT_BOOKC
 #else
 const wxEventTypeTag<wxBookCtrlEvent>& page_changed_event() { return wxEVT_NOTEBOOK_PAGE_CHANGED; }
 #endif
+
+// The header row is taller than any component recipe; no token names it. It
+// is not a spacing step either, so it is written once here.
+constexpr int kHeaderHeightDip = 56;
 
 } // namespace
 
@@ -66,7 +70,7 @@ StatusRow::StatusRow(wxWindow*                  parent,
                                  << m_spools->corrupt_reason();
     }
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    SetMinSize(wxSize(-1, FromDIP(56)));
+    SetMinSize(wxSize(-1, FromDIP(kHeaderHeightDip)));
     m_home_button = new HeaderButton(this, theme, HeaderStyle::Quiet, _L("Home"), HeaderIcon::Back);
     m_home_button->SetName("Home navigation");
     m_chip = new PrinterSpoolChip(this, theme);
@@ -213,14 +217,15 @@ wxWindow* StatusRow::create_workspace_status(wxWindow* parent)
     vertical->Add(review,0,wxEXPAND);
     auto* strip = new wxBoxSizer(wxHORIZONTAL);
     auto* label = new wxStaticText(panel,wxID_ANY,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxST_ELLIPSIZE_END);
-    label->SetName("Active plate status"); label->SetFont(Label::Body_12);
+    label->SetName("Active plate status");
+    style_label(*label,m_theme,TextRole::Label,m_theme.palette(m_dark).text_secondary);
     m_plate_label = label;
     strip->Add(label,1,wxALIGN_CENTER_VERTICAL | wxLEFT,FromDIP(16));
     auto* back = new HeaderButton(panel,m_theme,HeaderStyle::Quiet,_L("Back to Prepare"),HeaderIcon::Back);
     back->Bind(wxEVT_BUTTON,[self=wxWeakRef<StatusRow>(this)](wxCommandEvent&) { if (self) self->request_prepare(); });
     m_return_button = back;
     strip->Add(back,0,wxRIGHT,FromDIP(8));
-    strip->SetMinSize(FromDIP(wxSize(-1,34)));
+    strip->SetMinSize(wxSize(-1,FromDIP(m_theme.metrics().status_row.height)));
     vertical->Add(strip,0,wxEXPAND);
     panel->SetSizer(vertical);
     refresh_workspace_status();

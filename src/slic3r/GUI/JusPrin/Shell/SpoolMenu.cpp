@@ -1,8 +1,8 @@
 #include "SpoolMenu.hpp"
+#include "ShellRecipes.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
-#include "slic3r/GUI/Widgets/Label.hpp"
 
 #include <wx/sizer.h>
 #include <wx/weakref.h>
@@ -18,6 +18,11 @@ namespace Slic3r::GUI::JusPrin {
 namespace {
 
 constexpr int kSwatchesPerRow = 6;
+
+// The single-line fields in the menu's header views. The text field recipe
+// carries no height and no token names one, and 28 is off the spacing scale,
+// so it is written once here.
+constexpr int kFieldHeightDip = 28;
 
 HeaderMenuItem separator()
 {
@@ -232,10 +237,8 @@ void SpoolMenu::show_other_spool(const Ptr& self)
         const auto& palette = self->m_theme.palette(self->m_dark);
         auto* field = new wxTextCtrl(parent, wxID_ANY, self->m_search, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
         field->SetHint(_L("Search filaments"));
-        field->SetFont(Label::Body_14);
-        field->SetBackgroundColour(palette.surface_subtle);
-        field->SetForegroundColour(palette.text_primary);
-        field->SetMinSize(wxSize(-1, field->FromDIP(28)));
+        style_text_field(*field, self->m_theme, palette);
+        field->SetMinSize(wxSize(-1, field->FromDIP(kFieldHeightDip)));
         field->Bind(wxEVT_TEXT, [self](wxCommandEvent& event) {
             self->m_search = event.GetString();
             // Rebuilding destroys this control, so leave the current event
@@ -345,25 +348,26 @@ void SpoolMenu::show_new_spool(const Ptr& self, const SetupCommands::FilamentInf
         panel->SetBackgroundColour(palette.surface_raised);
         auto* column = new wxBoxSizer(wxVERTICAL);
 
-        auto caption = [&](const wxString& text, const wxFont& font, const wxColour& colour) {
+        auto caption = [&](const wxString& text, TextRole role, const wxColour& colour) {
             auto* label = new wxStaticText(panel, wxID_ANY, text);
-            label->SetFont(font);
-            label->SetForegroundColour(colour);
+            style_label(*label, self->m_theme, role, colour);
             return label;
         };
-        column->Add(caption(preset.alias, Label::Body_14, palette.text_primary), 0, wxBOTTOM, panel->FromDIP(8));
-        column->Add(caption(_L("COLOUR"), Label::Body_10, palette.text_secondary), 0, wxBOTTOM, panel->FromDIP(4));
+        column->Add(caption(preset.alias, TextRole::Body, palette.text_primary), 0, wxBOTTOM, panel->FromDIP(8));
+        column->Add(caption(_L("COLOUR"), TextRole::Metadata, palette.text_secondary), 0, wxBOTTOM, panel->FromDIP(4));
 
         // Twelve swatches on two rows. Each is a small owner-drawn panel
         // rather than a button: it carries one value and one selected ring.
+        const SwatchMetrics& swatch_metrics = self->m_theme.metrics().swatch;
         auto* grid = new wxGridSizer(kSwatchesPerRow, panel->FromDIP(4), panel->FromDIP(4));
         for (const auto& swatch : SetupCommands::swatches()) {
             const wxColour colour(wxString::FromUTF8(swatch.hex));
-            auto* cell = new wxPanel(panel, wxID_ANY, wxDefaultPosition, panel->FromDIP(wxSize(24, 24)));
+            auto* cell = new wxPanel(panel, wxID_ANY, wxDefaultPosition,
+                                     panel->FromDIP(wxSize(swatch_metrics.size, swatch_metrics.size)));
             cell->SetName(swatch.name);
             cell->SetToolTip(_(swatch.name));
             cell->SetBackgroundStyle(wxBG_STYLE_PAINT);
-            cell->Bind(wxEVT_PAINT, [self, cell, colour, palette](wxPaintEvent&) {
+            cell->Bind(wxEVT_PAINT, [self, cell, colour, palette, radius = swatch_metrics.radius](wxPaintEvent&) {
                 wxPaintDC dc(cell);
                 dc.SetBackground(wxBrush(palette.surface_raised));
                 dc.Clear();
@@ -371,7 +375,7 @@ void SpoolMenu::show_new_spool(const Ptr& self, const SetupCommands::FilamentInf
                 dc.SetBrush(wxBrush(colour));
                 dc.SetPen(wxPen(chosen ? palette.border_strong : palette.border_subtle, chosen ? 2 : 1));
                 const wxRect box = cell->GetClientRect().Deflate(chosen ? 1 : 2);
-                dc.DrawRoundedRectangle(box, cell->FromDIP(4)); // standard control radius
+                dc.DrawRoundedRectangle(box, cell->FromDIP(radius));
             });
             cell->Bind(wxEVT_LEFT_UP, [self, colour, preset](wxMouseEvent&) {
                 self->m_new_colour = colour;
@@ -384,10 +388,8 @@ void SpoolMenu::show_new_spool(const Ptr& self, const SetupCommands::FilamentInf
         column->Add(grid, 0, wxBOTTOM, panel->FromDIP(8));
 
         auto* name = new wxTextCtrl(panel, wxID_ANY, self->m_new_name);
-        name->SetFont(Label::Body_14);
-        name->SetBackgroundColour(palette.surface_subtle);
-        name->SetForegroundColour(palette.text_primary);
-        name->SetMinSize(wxSize(-1, panel->FromDIP(28)));
+        style_text_field(*name, self->m_theme, palette);
+        name->SetMinSize(wxSize(-1, panel->FromDIP(kFieldHeightDip)));
         name->Bind(wxEVT_TEXT, [self](wxCommandEvent& event) {
             // Once the person types, the colour no longer rewrites the name.
             self->m_new_name        = event.GetString();

@@ -22,13 +22,11 @@ HeaderMenuItem separator()
 
 } // namespace
 
-PrinterMenu::PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
-    : m_owner(owner), m_theme(theme), m_dark(dark), m_plater(plater)
-{}
+PrinterMenu::PrinterMenu(Plater& plater) : m_plater(plater) {}
 
 void PrinterMenu::open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor)
 {
-    auto self = std::make_shared<PrinterMenu>(owner, theme, dark, plater);
+    auto self = std::make_shared<PrinterMenu>(plater);
     self->m_menu = new HeaderMenu(owner, theme, dark, {});
     show_root(self);
     self->m_menu->open(anchor);
