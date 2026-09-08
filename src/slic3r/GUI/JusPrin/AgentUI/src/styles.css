@@ -18,7 +18,7 @@
 }
 
 /* radius/pill from resources/jusprin/ui/design-tokens.json. The other radii on
-   the scale (6, 8, 12) are written literally; only the capsule shape needs a
+   the scale (4, 8, 12) are written literally; only the capsule shape needs a
    name, because its value is not a size anyone should read as one.
 
    The monospace stack is named for the same reason the pill is: Figma's Mono
@@ -327,7 +327,7 @@ button.chat-icon {
   flex: 0 0 auto;
   padding: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text-secondary);
   background: var(--surface-canvas);
 }
@@ -344,7 +344,7 @@ button.chat-back { border-color: transparent; color: var(--action-primary); }
   border-radius: 8px;
   background: var(--surface-raised);
 }
-.chat-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 6px; }
+.chat-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 4px; }
 .chat-menu button:hover:enabled,
 .chat-menu button:active:enabled { border: 0; background: var(--surface-subtle); }
 button.danger { color: var(--status-danger); }
@@ -384,7 +384,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .chat-dialog h2 { margin: 0 0 12px; font-size: 18px; line-height: 24px; }
 .chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 14px; line-height: 20px; }
 .chat-dialog label { display: block; font-size: 12px; }
-.chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: 6px; }
+.chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: 4px; }
 .chat-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font-size: 12px; color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
 .chat-error span { flex: 1; }
@@ -494,7 +494,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .markdown-content code {
   padding: 1px 3px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-subtle);
   font-size: 12px;
   line-height: 16px;
@@ -503,7 +503,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .markdown-content pre {
   max-width: 100%;
   padding: 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-subtle);
   overflow-x: auto;
   white-space: pre;
@@ -721,7 +721,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .timeline-removed {
   margin: 0 0 8px;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-selected);
   color: var(--text-primary);
   font-weight: 700;
@@ -766,7 +766,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-hash code {
   display: block;
   padding: 3px 5px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-subtle);
   color: var(--text-primary);
   font: 10px/14px ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -828,7 +828,7 @@ button {
   font-size: 14px;
   line-height: 20px;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-primary);
@@ -873,7 +873,7 @@ button.icon {
   width: 32px;
   height: 32px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text-secondary);
 }
 
@@ -973,7 +973,7 @@ input[type='radio']:checked {
   height: 36px;
   font-size: 20px;
   line-height: 1;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid var(--border-subtle);
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -992,7 +992,7 @@ input[type='radio']:checked {
   max-width: 240px;
   padding: 4px 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-raised);
 }
 
@@ -1004,7 +1004,7 @@ input[type='radio']:checked {
   width: 28px;
   height: 28px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 4px;
   flex: 0 0 auto;
 }
 
@@ -1062,7 +1062,7 @@ input[type='radio']:checked {
   resize: none;
   font: inherit;
   padding: 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
   color: var(--text-primary);
@@ -1426,7 +1426,7 @@ button.wide {
   width: 100%;
   margin: 0;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-subtle);
   font-size: 12px;
   line-height: 16px;
@@ -1444,7 +1444,7 @@ button.wide {
 .setup-diff-after {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--surface-subtle);
   font: inherit;
   font-size: 14px;
@@ -1500,7 +1500,7 @@ button.wide {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--status-danger);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--status-danger);
 }
 

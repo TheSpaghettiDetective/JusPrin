@@ -20,8 +20,8 @@ of that change deliberately rather than swept silently.
 From `resources/jusprin/ui/design-tokens.json` (authoritative) and
 `agent-docs/jusprin/design-system.md`:
 
-- **Radius:** `standard` 6, `compact` 8, `window` 12. Nothing else.
-  (Standard was 4 until 2026-09-07; it is now 6, matching
+- **Radius:** `standard` 4, `compact` 8, `container` 8, `window` 12. Nothing else.
+  (Standard was briefly 6 on 2026-09-07 to match
   `Chip/Printer+Spool` in Figma. Menu rows are a documented exception at 0:
   they are full-width inside a rounded popover.)
 - **Type roles:** page title 24/30 bold, section 18/24 bold, body and control
@@ -41,8 +41,8 @@ and the same for `font-size`.
 | `10px` | 1 | `.setup-card` |
 | `999px` | 3 | `.history-status`, `.agent-badge`, `.setup-progress` |
 
-The `6px` ones are now **correct by accident** — 6 became the standard radius on
-2026-09-07. Verify each is meant to be a standard control, then leave it.
+The `6px` ones were standard controls; standard returned to 4 on
+2026-09-08 to match OrcaSlicer, and they now read `4px`.
 
 `10px` on `.setup-card` is a card, not a control: it should be `12`
 (`radius/window`, used for large surfaces) or `8`. Pick one and say which.

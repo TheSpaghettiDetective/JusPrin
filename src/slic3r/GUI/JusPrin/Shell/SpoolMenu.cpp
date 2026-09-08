@@ -371,7 +371,7 @@ void SpoolMenu::show_new_spool(const Ptr& self, const SetupCommands::FilamentInf
                 dc.SetBrush(wxBrush(colour));
                 dc.SetPen(wxPen(chosen ? palette.border_strong : palette.border_subtle, chosen ? 2 : 1));
                 const wxRect box = cell->GetClientRect().Deflate(chosen ? 1 : 2);
-                dc.DrawRoundedRectangle(box, cell->FromDIP(6)); // standard control radius
+                dc.DrawRoundedRectangle(box, cell->FromDIP(4)); // standard control radius
             });
             cell->Bind(wxEVT_LEFT_UP, [self, colour, preset](wxMouseEvent&) {
                 self->m_new_colour = colour;
