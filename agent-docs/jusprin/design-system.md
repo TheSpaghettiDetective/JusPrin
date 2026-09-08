@@ -150,7 +150,24 @@ color literal of its own, and the whole layer touches OrcaSlicer code in only
 three small, additive seams plus one attachment point.
 
 1. **Fork-owned surfaces** (`src/slic3r/GUI/JusPrin/Shell/*`, the React Agent
-   page) resolve colors through `ShellTheme` and `tokens.ts` directly.
+   page) resolve every style through the token file, not only color.
+   - Native: `ShellTheme` exposes `palette(dark)` for color, `metrics()` for
+     the radius and spacing scales and the per-component sizes, `font(role)`
+     for the type roles above, and `mono_font(role)` for the same role in the
+     teletype face. It is loaded once, by `Brand/BrandPalette.cpp`, and passed
+     by reference into every shell widget. Widgets that paint themselves read
+     it directly; a stock `wxStaticText`, `wxTextCtrl`, or OrcaSlicer `Button`
+     is dressed through the three functions in `Shell/ShellRecipes.hpp`, so no
+     fork-owned C++ file names an OrcaSlicer font preset or writes a radius as
+     a number. `tests/jusprin/test_shell_theme.cpp` checks the parse and the
+     fonts.
+   - Web: `AgentUI/src/tokens.ts` writes the semantic colors as
+     `--<group>-<name>` on every appearance change, and once at startup the
+     radii as `--radius-<name>` and each type role as a complete `font`
+     shorthand, `--font-<role>` in the UI face and `--font-mono-<role>` in the
+     technical face. The stylesheet may only say `var(--…)` for color, radius,
+     and type; `AgentUI/src/styles.test.ts` reads the stylesheet from disk and
+     fails on any literal, and on any spacing value off the scale.
 2. **Retained OrcaSlicer surfaces** are retinted through the color tables
    OrcaSlicer already routes its colors through, installed once per appearance
    mode by `JusPrin/Brand/BrandPalette.cpp` from the end of
