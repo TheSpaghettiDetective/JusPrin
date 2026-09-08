@@ -1,0 +1,55 @@
+<task-notification>
+<task-id>a2266fa4309914e0a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-jusprin-brand-styles-45abe2/598f26fe-b466-4336-928e-14d10d45e1f7/tasks/a2266fa4309914e0a.output</output-file>
+<status>completed</status>
+<summary>Agent "Agent panel stylesheet token sweep" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Committed as **09f6ad8967** on `claude/style-web-sweep` (worktree `/Users/kenneth/Projects/JusPrin/.claude/worktrees/style-web-sweep`, parent eff2bdb6af). Not pushed. Working tree clean; `package-lock.json` restored to HEAD. Main checkout and other worktrees untouched.
+
+## What changed
+
+- `src/tokens.ts`: `applyStaticTokens()` emits `--radius-{standard,compact,container,window,pill}`, `--font-{pageTitle,section,body,label,metadata}` (full `font` shorthand, UI family + `cssFallback`), and `--font-mono-{body,label,metadata}` (technical `cssFamily`). Called from `main.tsx` before `applyAppearance('light')`. No literal numbers or family strings in the file; a jsdom probe confirmed all thirteen values match the JSON exactly (e.g. `--font-body = 400 14px/20px 'HarmonyOS Sans SC', system-ui, sans-serif`).
+- `styles.css` rewritten (402 lines changed); local `--radius-pill`/`--mono` removed; no colour touched.
+- `+` and `×` glyphs replaced by `resources/jusprin/ui/icons/plus.svg` and `close.svg` (16 DIP, `currentColor` fills) as CSS masks via the `@resources` alias; aria-labels unchanged; both icons are inlined as data URIs in the rebuilt bundle.
+- `styles.test.ts` guard; README "Design" section; `agent-panel-token-sweep.md` replaced with a completion note dated 2026-09-08.
+
+## 8px radius decisions
+
+- **container**: `.current-setup`, `.notice`, `.chat-menu`, `.chat-dialog`, `.message`, `.revision-confirm`, `.tool-card`, `.history-card`, `.setup-tool-list`, `.setup-command`
+- **compact**: `button.primary`, `.setup-tabs` (one segmented control), `.setup-key-input` (shares the primary button's radius and height so the key row reads as one control)
+- 4 → standard everywhere; 12 on `.setup-card` → window.
+
+## Spacing moves (all listed in the commit message too)
+
+gap 6→8: `button`, `.composer-attachments`, `.message-attachments`. gap 6→4: `.attachment-chip`, `.setup-tool-name`, `.history-facts`/`.history-stats` row gap; `.current-setup-deltas` row gap 2→4; `.setup-tool-row` gap 10→8. Padding: `6px 12px`→`8px 12px` (`button`, `.agent-header`, `.setup-banner`); `6px 8px`→`8px` (`.revision-confirm`, `.setup-tab`, `.setup-key-input`); `6px 8px`→`4px 8px` (`.timeline-removed`); `4px 6px`→`4px 8px` (`.attachment-chip`, markdown th/td); `2px 6px`→`0 8px` (`.history-status`, `.agent-badge`); `1px 3px`→`0 4px` (markdown `code`); `3px 5px`→`4px` (`.history-hash code`); `10px 12px`→`8px 12px` (`.history-card`, `.setup-tool-row`, `.setup-diff-*`, `.setup-error`); `10px`→`8px 12px` (`.setup-path`); `10px 12px`→`12px` (`.configure-agent`); padding-left 18→20 (`.history-warnings`); `60px 16px 16px`→`48px 16px 16px` (`.chat-dialog-shade`). Margin: 2→4 (markdown `li + li`), 2→0 (`.configure-agent small`), `-2px -6px -2px 0`→`0 -4px 0 0` (`.current-setup-chevron`), 6→8 (`.message-attachments`).
+
+## Type decision you should know about
+
+The five roles carry weight, and the guard you specified forbids `font-weight`, so **"bold 14" and "regular 12" cannot exist any more**. I mapped by function rather than by size:
+- Lost bold (now `body`): `.current-setup-title` (Figma said "Body Bold"), `.tool-title` (rule deleted), `button.primary`, `button.link`, `.context-summary .project`. `&lt;strong&gt;` elements in `.chat-list-row-top` and `.configure-agent` keep UA bold by inheriting body instead of declaring a role.
+- Regular 12 → body 14 (density increase): `.notice p`, `.message.note`, `.chat-list-preview`, `.chat-error`, `.message .error`, `.revision-marker`, `.tool-state`, `.tool-error`, `.setup-result`, `.setup-banner`, `.setup-path`, `.pane-state details`.
+- → label (12 bold): `.notice h2`, `.external-actions h2`, markdown h3–h6, `.chat-dialog label`, `.timeline-removed`, `.setup-detected/.setup-missing`, `.setup-kicker`, `.history-warnings`.
+- → section (18 bold): `.chat-header h1`, `.agent-title` (matching `.chat-list-header h1`), `.chat-dialog h2`, `.pane-state h1`, `.setup-card-head h1`, markdown h1/h2.
+- Mono: setup-card 11/16 lines → `mono-label`; `.attachment-name` and `.setup-key-input` → technical face (filenames/keys are technical values per the design system); `.history-hash code` → `mono-metadata`; markdown `code`/`pre` → `mono-body`. 9px chevron → `metadata`.
+
+If a `body-bold` role is wanted, it belongs in the JSON (the other agent's file), and `tokens.ts` would emit it the same way; I did not invent one.
+
+## Test output
+
+Fail-first, with `border-radius: 6px` / `font-size: 13px` appended:
+```
+× carries no pixel border-radius
+    → expected [ '1481: border-radius: 6px;' ] to deeply equal []
+× sets type only through the role variables
+    → expected [ '1482: font-size: 13px;' ] to deeply equal []
+Tests  2 failed | 3 passed (5)
+```
+After removal: `npm run build` OK (tsc + vite, 456 kB bundle; bundle CSS greps clean for any `px` font/radius), `npm test`: **8 files, 101/101 passed** (96 existing + 5 new). The guard additionally rejects a `font:` shorthand containing a px literal, so the shorthand can't smuggle metrics past the per-property checks.
+
+## Not done
+
+- **No visual check.** I cannot run the native app; the 12→14 density change on secondary text and the bold losses above are unseen. That is the one thing worth eyeballing before this merges.
+- `.context-summary` has no markup using it (dead CSS); mapped to `label` but left in place.</result>
+<usage><subagent_tokens>147483</subagent_tokens><tool_uses>22</tool_uses><duration_ms>628980</duration_ms></usage>
+</task-notification>
