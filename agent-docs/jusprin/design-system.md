@@ -178,7 +178,12 @@ three small, additive seams plus one attachment point.
      reference it.
 
 `tests/brand/test_brand_tokens.cpp` fails the build if a token edit breaks the
-contrast rules above or removes a token from one mode only.
+contrast rules above or leaves a token in one mode without its counterpart in
+the other. The same test guards the radius, spacing, and type scales: the
+`dimension.radius`, `dimension.space`, and `typography.roles` tables must match
+the values in this document exactly, every component radius must be one of
+the scale values, and every button recipe must name a type role rather than a
+raw size.
 
 Known gaps, all deliberate: ImGui panels and canvas notifications keep the
 teal accent; the first-run setup wizard (an OrcaSlicer HTML page) is
