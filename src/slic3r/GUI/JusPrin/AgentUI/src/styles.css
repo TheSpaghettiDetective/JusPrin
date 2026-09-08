@@ -66,6 +66,7 @@ body {
 
 .context-summary .project {
   color: var(--text-primary);
+  font: var(--font-label-bold);
 }
 
 /* Current setup card. Measured from the Figma "Current Setup Card" page:
@@ -118,11 +119,11 @@ body {
   color: var(--action-primary);
 }
 
-/* Body, text/primary. One line, always: 40 characters is a contract with the
+/* Body Bold, text/primary. One line, always: 40 characters is a contract with the
    agent, and all the card can do is stop a long one from breaking the layout
    -- the full sentence lives in the expansion. */
 .current-setup-title {
-  font: var(--font-body);
+  font: var(--font-body-bold);
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -248,13 +249,13 @@ body {
 
 .notice h2 {
   margin: 0 0 4px;
-  font: var(--font-label);
+  font: var(--font-body-bold);
 }
 
 .notice p {
   margin: 0;
   color: var(--text-secondary);
-  font: var(--font-body);
+  font: var(--font-label);
 }
 
 /* Conversation */
@@ -267,7 +268,7 @@ body {
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
 }
-.external-actions h2 { margin: 0 0 8px; font: var(--font-label); }
+.external-actions h2 { margin: 0 0 8px; font: var(--font-body-bold); }
 .external-actions .tool-card + .tool-card { margin-top: 8px; }
 
 .message-list {
@@ -301,7 +302,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: var(--font-section);
+  font: var(--font-body-bold);
 }
 .chat-header svg, .chat-list-pane svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 button.chat-icon {
@@ -336,6 +337,7 @@ button.chat-back { border-color: transparent; color: var(--action-primary); }
 button.danger { color: var(--status-danger); }
 .chat-list-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--surface-canvas); }
 .chat-list-header { height: 56px; padding: 12px 16px; }
+.chat-list-header h1 { font: var(--font-section); }
 .chat-list-header .chat-icon { border: 0; }
 .chat-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .chat-list-empty { margin: 16px; color: var(--text-secondary); font: var(--font-body); }
@@ -357,7 +359,7 @@ button.chat-list-row.selected { background: var(--surface-selected); }
 /* The title is a <strong>: it inherits Body and takes the element's own bold. */
 .chat-list-row-top strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-list-row time { flex: 0 0 auto; margin-left: 4px; font: var(--font-metadata); color: var(--text-secondary); }
-.chat-list-preview { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font: var(--font-body); }
+.chat-list-preview { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font: var(--font-label); }
 .chat-list-footer { flex: 0 0 auto; padding: 16px; border-top: 1px solid var(--border-subtle); background: var(--surface-subtle); }
 button.configure-agent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; text-align: left; border: 1px solid var(--border-subtle); background: var(--surface-canvas); }
 button.configure-agent:hover:enabled { background: var(--surface-canvas); border-color: var(--border-subtle); }
@@ -372,7 +374,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .chat-dialog label { display: block; font: var(--font-label); }
 .chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: var(--radius-standard); }
 .chat-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-body); color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
+.chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-label); color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
 .chat-error span { flex: 1; }
 
 .message {
@@ -402,7 +404,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   max-width: 100%;
   padding: 4px 0;
   color: var(--text-secondary);
-  font: var(--font-body);
+  font: var(--font-label);
   background: none;
   border: none;
 }
@@ -447,7 +449,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  font: var(--font-label);
+  font: var(--font-body-bold);
 }
 
 .markdown-content ul,
@@ -472,6 +474,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .markdown-content code {
   padding: 0 4px;
+  font: var(--font-mono-label);
   border-radius: var(--radius-standard);
   background: var(--surface-subtle);
 }
@@ -538,7 +541,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .message .error {
   margin-top: 4px;
-  font: var(--font-body);
+  font: var(--font-label);
   color: var(--status-danger);
 }
 
@@ -551,7 +554,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   align-self: stretch;
   padding: 4px 8px;
   border-left: 3px solid var(--border-strong);
-  font: var(--font-body);
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
@@ -577,7 +580,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   gap: 8px;
 }
 
-/* Native tool action cards. The title inherits Body from the card. */
+/* Native tool action cards. */
 .tool-card {
   align-self: stretch;
   margin-left: 12px;
@@ -586,6 +589,10 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   border-left: 3px solid var(--action-primary);
   border-radius: var(--radius-container);
   background: var(--surface-raised);
+}
+
+.tool-card .tool-title {
+  font: var(--font-body-bold);
 }
 
 .tool-card .tool-meta {
@@ -601,7 +608,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .tool-card .tool-state {
-  font: var(--font-body);
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
@@ -612,7 +619,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .tool-card .tool-error {
   margin-top: 4px;
-  font: var(--font-body);
+  font: var(--font-label);
   color: var(--status-danger);
 }
 
@@ -688,7 +695,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   border-radius: var(--radius-standard);
   background: var(--surface-selected);
   color: var(--text-primary);
-  font: var(--font-label);
+  font: var(--font-body-bold);
 }
 
 .history-facts,
@@ -744,12 +751,12 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   font: var(--font-metadata);
 }
 
-/* A slice warning is the most actionable line on the card, so it takes Label
+/* A slice warning is the most actionable line on the card, so it takes Label Bold
    rather than the Dense Metadata its sibling provenance line uses. */
 .history-warnings {
   padding-left: 20px;
   color: var(--status-warning);
-  font: var(--font-label);
+  font: var(--font-label-bold);
 }
 
 .long-content {
@@ -809,6 +816,7 @@ button.primary {
   border-radius: var(--radius-compact);
   background: var(--action-primary);
   color: var(--action-primaryText);
+  font: var(--font-body-bold);
 }
 
 button.primary:hover:enabled {
@@ -874,6 +882,7 @@ button.link {
   border-radius: 0;
   background: transparent;
   color: var(--action-primary);
+  font: var(--font-body-bold);
 }
 
 button.link:hover:enabled,
@@ -1076,7 +1085,7 @@ input[type='radio']:checked {
 }
 
 .pane-state details {
-  font: var(--font-body);
+  font: var(--font-label);
   color: var(--text-secondary);
   max-width: 100%;
 }
@@ -1103,7 +1112,7 @@ input[type='radio']:checked {
 
 .agent-header .agent-title {
   flex: 1;
-  font: var(--font-section);
+  font: var(--font-body-bold);
 }
 
 .agent-header .agent-badge {
@@ -1270,7 +1279,7 @@ button.wide {
 }
 
 .setup-result {
-  font: var(--font-body);
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
@@ -1291,7 +1300,7 @@ button.wide {
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
   color: var(--status-success);
-  font: var(--font-body);
+  font: var(--font-label);
 }
 
 .setup-banner.warning {
@@ -1398,7 +1407,7 @@ button.wide {
   padding: 8px 12px;
   border-radius: var(--radius-standard);
   background: var(--surface-subtle);
-  font: var(--font-body);
+  font: var(--font-label);
   overflow-wrap: anywhere;
 }
 
@@ -1442,7 +1451,7 @@ button.wide {
   display: flex;
   align-items: center;
   gap: 8px;
-  font: var(--font-label);
+  font: var(--font-label-bold);
   color: var(--status-success);
 }
 

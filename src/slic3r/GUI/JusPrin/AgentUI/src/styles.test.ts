@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { fontVariableNames } from './tokens';
 
 const SPACING_SCALE = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48];
 
@@ -62,11 +63,21 @@ describe('styles.css stays on the design tokens', () => {
     expect(offending(/border-radius\s*:[^;]*\d+px/)).toEqual([]);
   });
 
+  // The patterns match after a `{` or `;` as well as at the start of a line,
+  // so a single-line rule cannot slip past them.
   it('sets type only through the role variables', () => {
-    expect(offending(/^\s*(font-size|line-height|font-weight)\s*:/)).toEqual([]);
+    expect(offending(/(?:^|[{;])\s*(font-size|line-height|font-weight)\s*:/)).toEqual([]);
     // A `font` shorthand with a literal size or line height would bypass the
     // check above.
-    expect(offending(/^\s*font\s*:[^;]*\d+px/)).toEqual([]);
+    expect(offending(/(?:^|[{;])\s*font\s*:[^;]*\d+px/)).toEqual([]);
+  });
+
+  it('asks only for font variables that tokens.ts emits', () => {
+    const emitted = new Set(fontVariableNames());
+    expect(emitted).toContain('--font-body-bold');
+    const requested = [...css.matchAll(/var\((--font-[\w-]+)\)/g)].map((m) => m[1]);
+    expect(requested.length).toBeGreaterThan(0);
+    expect(requested.filter((name) => !emitted.has(name))).toEqual([]);
   });
 
   it('keeps padding, margin, and gap on the spacing scale', () => {

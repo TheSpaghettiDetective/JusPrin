@@ -32,10 +32,26 @@ function fontShorthand(role: TypeRole, family: string): string {
   return `${role.weight} ${role.size}px/${role.lineHeight}px ${family}`;
 }
 
+// The token file names roles in camelCase (pageTitle, bodyBold); CSS custom
+// properties take the kebab-case form (--font-page-title, --font-body-bold).
+function kebab(name: string): string {
+  return name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
+
+// Every --font-* variable applyStaticTokens writes, so a test can check that
+// the stylesheet only asks for variables that exist.
+export function fontVariableNames(): string[] {
+  const { typography } = tokens as unknown as StaticTokens;
+  return [
+    ...Object.keys(typography.roles).map((name) => `--font-${kebab(name)}`),
+    ...monoRoles.map((name) => `--font-mono-${kebab(name)}`),
+  ];
+}
+
 // Colors depend on the appearance; everything below does not, so it is
 // written once at startup:
 //   --radius-<name>       e.g. --radius-container: 8px
-//   --font-<role>         full `font` shorthand in the UI face
+//   --font-<role>         full `font` shorthand in the UI face, kebab-case
 //   --font-mono-<role>    the same metrics in the technical face
 export function applyStaticTokens(): void {
   const { dimension, typography } = tokens as unknown as StaticTokens;
@@ -45,11 +61,11 @@ export function applyStaticTokens(): void {
   }
   const uiFamily = `'${typography.ui.family}', ${typography.ui.cssFallback}`;
   for (const [name, role] of Object.entries(typography.roles)) {
-    root.style.setProperty(`--font-${name}`, fontShorthand(role, uiFamily));
+    root.style.setProperty(`--font-${kebab(name)}`, fontShorthand(role, uiFamily));
   }
   for (const name of monoRoles) {
     const role = typography.roles[name];
-    root.style.setProperty(`--font-mono-${name}`, fontShorthand(role, typography.technical.cssFamily));
+    root.style.setProperty(`--font-mono-${kebab(name)}`, fontShorthand(role, typography.technical.cssFamily));
   }
 }
 
