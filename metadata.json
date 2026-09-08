@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2144GY53J0XX12GMWQN8GWF",
+  "strategy": "manual-commit",
+  "branch": "claude/orca-setup-card",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "resources/jusprin/agent/index.html",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.preview.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts",
+    "src/slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp",
+    "tests/agent/test_agent_bridge.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1950,
+    "cache_creation_tokens": 7240026,
+    "cache_read_tokens": 435981498,
+    "output_tokens": 537744,
+    "api_call_count": 976
+  }
+}
