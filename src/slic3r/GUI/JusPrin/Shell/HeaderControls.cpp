@@ -260,12 +260,10 @@ wxSize HeaderButton::DoGetBestSize() const
                         (m_decoration.dot.has_value() ? FromDIP(16) : 0);
     // Menu rows are 32 DIP so the whole header reads at one density; chip
     // halves are 28; the print action stays 34.
-    // Taken from the design-system components, not from the screens that use
-    // them: Chip/Printer+Spool is 28 (as is the chip it replaces), Menu/Row is
-    // 36. A row with a second line gets the same extra as before. The print
-    // action is not in the component set and keeps its 34.
-    const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? 36 : 48) :
-                       m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? 28 : 34;
+    // Chip halves are 26 DIP, matching the design's chip frame; menu rows are
+    // 32 so the whole header reads at one density; the print action stays 34.
+    const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? 32 : 44) :
+                       m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight ? 26 : 34;
     return {leading + label + trailing_reserve(), FromDIP(height)};
 }
 
@@ -316,11 +314,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
                    m_style == HeaderStyle::ChipRight ? p.surface_subtle :
                    m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas;
 
-    // Menu/Row carries no corner radius in the design system; the popup itself
-    // provides the rounding. Everything else is the 6 DIP standard control
-    // radius, or 8 for the compact print action.
-    const double w = client.x, h = client.y,
-                 r = m_style == HeaderStyle::Menu ? 0. : FromDIP(primary ? 8 : 6);
+    const double w = client.x, h = client.y, r = FromDIP(primary ? 8 : 4);
     if (chip) {
         // Each half draws the whole chip's rounded rectangle, extended past
         // the shared inner edge so only its own outer corners round. The top
@@ -481,16 +475,8 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
     Bind(wxEVT_PAINT,[this,palette](wxPaintEvent&) {
         wxAutoBufferedPaintDC dc(this);
         dc.SetBackground(wxBrush(palette.surface_raised)); dc.Clear();
-        // Through a graphics context, on the same half-pixel grid the chip and
-        // the buttons use. Plain wxDC draws this curve unantialiased and on
-        // integer coordinates, which put the popup's outline on a different
-        // sub-pixel from every border beside it.
-        std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
-        if (!gc) return;
-        const double w = GetClientSize().x, h = GetClientSize().y, r = FromDIP(8);
-        gc->SetPen(wxPen(palette.border_subtle));
-        gc->SetBrush(wxBrush(palette.surface_raised));
-        gc->DrawRoundedRectangle(0.5,0.5,w-1,h-1,r);
+        dc.SetPen(wxPen(palette.border_subtle)); dc.SetBrush(wxBrush(palette.surface_raised));
+        dc.DrawRoundedRectangle(GetClientRect().Deflate(1),FromDIP(8));
     });
     build(std::move(items));
     Bind(wxEVT_CHAR_HOOK,&HeaderMenu::on_key,this);
@@ -512,11 +498,8 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     }
     m_header = nullptr;
 
-    // Menu/Popover: 8 DIP top and bottom, nothing at the sides, 2 between
-    // rows. Rows run the full width, which is why they carry no radius of
-    // their own -- the popup's rounding is the only rounding.
     auto* sizer = new wxBoxSizer(wxVERTICAL);
-    sizer->AddSpacer(FromDIP(8));
+    sizer->AddSpacer(FromDIP(4));
     int placed_rows = 0;
     auto place_header = [&] {
         if (!m_header_builder || m_header != nullptr) return;
@@ -529,9 +512,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         if (item.separator) {
             auto* line = new wxStaticLine(this);
             line->SetForegroundColour(palette.border_subtle);
-            // Full width, like the rows it divides. Menu/Popover has no side
-            // padding, so an inset rule reads as a broken line.
-            sizer->Add(line,0,wxEXPAND | wxTOP | wxBOTTOM,FromDIP(4));
+            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(4));
         }
         // A separator-only entry carries no caption of its own.
         if (item.title && item.label.empty()) continue;
@@ -566,7 +547,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             if (m_items[index]->IsEnabled()) select_item(index);
             e.Skip();
         });
-        sizer->Add(button,0,wxEXPAND | wxTOP,placed_rows == 0 ? 0 : FromDIP(2));
+        sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(4));
         ++placed_rows;
         button->Bind(wxEVT_BUTTON,[this,owner=wxWeakRef<wxWindow>(GetParent()),invoke=std::move(item.invoke),
                                    keeps_open=item.keeps_open](wxCommandEvent&) {
@@ -585,7 +566,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         });
     }
     place_header(); // a step with fewer rows than requested still gets its view
-    sizer->AddSpacer(FromDIP(8));
+    sizer->AddSpacer(FromDIP(4));
     SetSizerAndFit(sizer);
     // The first build fixes the width; later rebuilds keep it so swapping to
     // the search view does not make the popup jump under the pointer.
