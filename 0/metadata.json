@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M20QCEMX6N5AVHAZYE2B8XN5",
+  "session_id": "598f26fe-b466-4336-928e-14d10d45e1f7",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-08T14:40:05.769627Z",
+  "branch": "claude/jusprin-brand-styles-45abe2",
+  "checkpoints_count": 11,
+  "save_step_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/agent-panel-token-sweep.md",
+    "agent-docs/jusprin/design-system.md",
+    "resources/jusprin/agent/index.html",
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SpoolMenu.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "9866b246a5cb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1478,
+    "cache_creation_tokens": 421092,
+    "cache_read_tokens": 11063637,
+    "output_tokens": 64100,
+    "api_call_count": 64
+  },
+  "session_metrics": {
+    "turn_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-08T14:40:05.485513Z",
+    "agent_lines": 37,
+    "agent_removed": 35,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 37,
+    "total_lines_changed": 72,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 37,
+      "agent_lines_removed": 35,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
