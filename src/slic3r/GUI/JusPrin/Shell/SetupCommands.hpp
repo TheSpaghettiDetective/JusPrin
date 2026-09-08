@@ -87,7 +87,7 @@ std::vector<FilamentInfo> compatible_filaments();
 
 enum class ConnectionState
 {
-    NotConnected, // no network printer, or a host Orca does not report state for
+    NotConnected, // no network printer and no print host on the edited preset
     Idle,
     Printing,
     Offline

@@ -2082,7 +2082,9 @@ void MoonrakerPrinterAgent::perform_connection_async(const std::string& dev_id, 
         }
 
 // Orca todo: disable websocket for now, as we don't use MonitorPanel for Moonraker printers yet
-#if 0
+// JusPrin: enabled. The header's printer menu reports the machine's live state for print hosts
+// (SetupCommands::printer_connection), which needs the status stream this block starts.
+#if 1
         // Query initial status
         nlohmann::json initial_status;
         if (query_printer_status(base_url, api_key, initial_status, error_msg)) {

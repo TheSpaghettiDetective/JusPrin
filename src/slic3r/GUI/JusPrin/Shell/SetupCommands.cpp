@@ -185,10 +185,7 @@ PrinterConnection printer_connection()
     PrinterConnection connection;
     // Non-const: use_bbl_network() is not a const member on PresetBundle.
     PresetBundle* presets = wxGetApp().preset_bundle;
-    // Only the Bambu network path reports a live machine state. Every other
-    // print host is "not connected" here, which is a statement about what
-    // JusPrin can observe, not a claim about the machine.
-    if (presets == nullptr || !presets->use_bbl_network())
+    if (presets == nullptr)
         return connection;
     auto* devices = wxGetApp().getDeviceManager();
     if (devices == nullptr)
@@ -196,7 +193,18 @@ PrinterConnection printer_connection()
     MachineObject* machine = devices->get_selected_machine();
     if (machine == nullptr)
         return connection;
-    connection.monitor_available = true;
+    const bool bbl = presets->use_bbl_network();
+    if (!bbl) {
+        // A print host gets a machine object from GUI_App::select_machine, keyed by
+        // its address. Report it only while the edited preset still names that
+        // host; a preset without one keeps the previous machine selected.
+        const auto&       config = presets->printers.get_edited_preset().config;
+        const std::string host   = config.opt_string("print_host");
+        if (host.empty() || machine->get_dev_id() != MachineObject::dev_id_from_address(host, config.opt_string("printhost_port")))
+            return connection;
+    }
+    // Orca's monitor tab only knows Bambu machines.
+    connection.monitor_available = bbl;
     if (!machine->is_connected())
         connection.state = ConnectionState::Offline;
     else if (machine->is_in_printing())

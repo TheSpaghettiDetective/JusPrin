@@ -53,7 +53,8 @@ void PrinterMenu::show_root(const Ptr& self)
     HeaderMenuItem machine;
     machine.label           = printer.nickname.empty() ? _L("No printer selected") : printer.nickname;
     machine.decoration.bold = true;
-    machine.enabled         = connection.monitor_available;
+    // A row with a known state stays readable even when there is no monitor to open.
+    machine.enabled         = connection.monitor_available || connection.state != SetupCommands::ConnectionState::NotConnected;
     switch (connection.state) {
     case SetupCommands::ConnectionState::Idle:
         machine.decoration.status      = StatusTone::Positive;
@@ -80,6 +81,8 @@ void PrinterMenu::show_root(const Ptr& self)
     }
     if (connection.monitor_available)
         machine.invoke = [] { SetupCommands::open_monitor(); };
+    else
+        machine.decoration.trailing = HeaderIcon::None; // a print host has no monitor to open
     rows.push_back(std::move(machine));
     rows.push_back(separator());
 
