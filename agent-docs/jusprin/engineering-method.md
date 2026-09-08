@@ -97,6 +97,10 @@ rendering and hit-testing separately. Compare a stock window with the product
 policy, then exercise selection, orbit, pan, zoom, active gizmo input, slicing,
 Preview, and restoration of the prior presentation state.
 
+### Printer tests without hardware
+
+`tests/printer_sim/fake_moonraker.py` is a stand-alone Klipper (Moonraker) printer: plain-Python HTTP plus websocket, no third-party packages. JusPrin reaches it through its real Moonraker code, so it covers the Print button's upload and print-start requests, the printer agent's connect and status stream, and the header chip's Idle / Printing / Offline row. Its `/sim` endpoint sets the printer's state and returns a log of every request the app made, which is the assertion surface for an automated test. `tests/printer_sim/README.md` has the manual procedure, the AI-agent procedure, and the current limits (the preset installer, the SSL setting, and project files that carry their own printer). Use it whenever a change touches printing, printer status, or the printer chip; do not add fake `IPrinterAgent` implementations inside the app for that purpose, two earlier attempts were reverted because they exercised none of the real network code and needed upstream registration.
+
 ### Platform matrix
 
 Before release completion, cover:
