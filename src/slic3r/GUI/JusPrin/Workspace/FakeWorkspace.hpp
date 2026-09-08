@@ -33,7 +33,7 @@ public:
         result.revision          = m_changes.revision();
         result.can_undo          = !m_undo.empty();
         result.can_redo          = !m_redo.empty();
-        result.setup.process_preset = m_settings_available ? "Fixture process" : "";
+        result.setup.process_preset = m_settings_available ? m_process_preset : "";
         result.setup.process_preset_dirty = m_settings.values != m_settings.preset_values;
         result.currency = m_currency;
         if (m_settings_available)
@@ -111,6 +111,13 @@ public:
             publish(WorkspaceChangeReasons::Settings);
     }
     void set_settings_available_for_testing(bool available) { m_settings_available = available; }
+    // Switching presets moves the baseline the deltas are measured from, which
+    // a fixture can only say outright.
+    void set_process_preset_for_testing(std::string name)
+    {
+        m_process_preset = std::move(name);
+        publish(WorkspaceChangeReasons::Settings);
+    }
     // The real adapter reads this from the OS; a fixture states it outright so
     // a test can describe a machine with no regional currency at all.
     void set_currency_for_testing(std::string code) { m_currency = std::move(code); }
@@ -584,6 +591,7 @@ private:
     WorkspaceChangeHub             m_changes;
     FakeSettings                   m_settings;
     bool                           m_settings_available{true};
+    std::string                    m_process_preset{"Fixture process"};
     std::string                    m_currency{"USD"};
 };
 

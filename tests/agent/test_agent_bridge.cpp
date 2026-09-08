@@ -660,6 +660,85 @@ TEST_CASE("an applied settings change records its intent on the chat it came fro
     }
 }
 
+TEST_CASE("the card counts your hand edits apart from the agent's changes", "[agent][context][setup-card]")
+{
+    Harness harness;
+    harness.handshake();
+    const std::string message_id = harness.send_user_message("make it strong", "c-1");
+    harness.pump_all();
+
+    auto apply = [&](json changes) {
+        json arguments{{"changes", std::move(changes)}};
+        arguments["expectedSessionId"] = std::to_string(harness.workspace.snapshot().session.value());
+        arguments["expectedRevision"]  = harness.workspace.snapshot().revision;
+        const std::string action =
+            harness.host.tools().propose({"settings_apply_patch", arguments.dump()}, message_id).action_id;
+        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
+        for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
+            harness.host.pump_tools();
+        REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
+    };
+    auto origins = [&](const json& context) {
+        std::map<std::string, std::string> result;
+        for (const json& delta : context["presetDeltas"])
+            result[delta["key"].get<std::string>()] = delta["origin"].get<std::string>();
+        return result;
+    };
+    auto pushed = [&] { return origins(harness.of_type("context").back()["payload"]["context"]); };
+
+    SECTION("what the agent applied is the agent's; what you typed is yours")
+    {
+        apply(json{{"wall_loops", 4}});
+        harness.workspace.set_setting_for_testing("brim_width", "8");
+        CHECK(pushed() == std::map<std::string, std::string>{{"wall_loops", "agent"}, {"brim_width", "user"}});
+    }
+
+    SECTION("editing a setting the agent wrote takes it back")
+    {
+        apply(json{{"wall_loops", 4}});
+        REQUIRE(pushed().at("wall_loops") == "agent");
+        harness.workspace.set_setting_for_testing("wall_loops", "6");
+        // The card describes the project, so the last hand on a setting owns
+        // it. Restoring the agent's exact value would read as the agent's
+        // again: the card compares values, it does not watch keystrokes.
+        CHECK(pushed().at("wall_loops") == "user");
+    }
+
+    SECTION("switching the process preset drops attribution with the baseline")
+    {
+        apply(json{{"wall_loops", 4}});
+        REQUIRE(pushed().at("wall_loops") == "agent");
+        harness.workspace.set_process_preset_for_testing("Another process");
+        // The same key against a different preset is a different claim, and
+        // nothing the agent did says who put this value in force.
+        CHECK(pushed().at("wall_loops") == "user");
+    }
+
+    SECTION("reopening the project reads the attribution back out of its history")
+    {
+        apply(json{{"wall_loops", 4}});
+        harness.workspace.set_setting_for_testing("brim_width", "8");
+
+        // A second host over the same project is what reopening it looks like:
+        // the settings survive in the preset, and the only record of who wrote
+        // them is the persisted tool history.
+        std::vector<json> sent;
+        AgentHost         reopened(harness.workspace, harness.persistence, AgentAvailability::Ready, false,
+                                   std::make_unique<DeterministicMockAgent>());
+        reopened.set_send([&sent](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
+        reopened.on_page_message(harness.page_envelope("hello",
+            json{{"protocolVersions", json::array({Protocol::kVersion})},
+                 {"capabilities", json::array({"streaming"})}}).dump());
+
+        const json* state = nullptr;
+        for (const json& envelope : sent)
+            if (envelope["type"] == "state") state = &envelope;
+        REQUIRE(state != nullptr);
+        CHECK(origins((*state)["payload"]["context"]) ==
+              std::map<std::string, std::string>{{"wall_loops", "agent"}, {"brim_width", "user"}});
+    }
+}
+
 TEST_CASE("reload reconstructs the page from native state, mid-stream included", "[agent][reload]")
 {
     Harness harness;

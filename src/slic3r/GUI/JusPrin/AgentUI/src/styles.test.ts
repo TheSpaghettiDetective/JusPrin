@@ -89,4 +89,17 @@ describe('styles.css stays on the design tokens', () => {
     });
     expect(offScale).toEqual([]);
   });
+
+  // Measured in a browser at the dock's real width, which narrows with the
+  // window well below the 429px design frame: a three-digit "+ 128 yours"
+  // wrapped "CURRENT SETUP" onto a second line and the card silently grew a
+  // row. The heading must clip instead.
+  it('keeps the setup card eyebrow on one line', () => {
+    const rule = css.match(/\.current-setup-eyebrow\s*\{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/white-space:\s*nowrap/);
+    const label = css.match(/\.current-setup-eyebrow\s*>\s*span:first-child\s*\{[^}]*\}/);
+    expect(label).not.toBeNull();
+    expect(label![0]).toMatch(/text-overflow:\s*ellipsis/);
+  });
 });

@@ -193,6 +193,10 @@ export interface PresetDeltaInfo {
   label: string;
   preset: string;
   value: string;
+  // Who put this value in force. 'user' unless the host can prove the agent
+  // wrote this exact value, so a setting the agent once set and you have since
+  // edited by hand reads as yours again.
+  origin: 'agent' | 'user';
 }
 
 // What the estimate is worth right now. The number is kept in all three: a

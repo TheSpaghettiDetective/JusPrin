@@ -117,6 +117,17 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--action-primary);
+  /* One line, always. Measured at the dock's real width -- which narrows with
+     the window, well below the 429px design frame -- a three-digit count wraps
+     the heading and the card silently grows a row. The fixed word gives up a
+     few pixels instead, because losing height is worse than losing them. */
+  white-space: nowrap;
+}
+
+.current-setup-eyebrow > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Mid-thought: everything drops to secondary, nothing is removed. The numbers
@@ -279,6 +290,12 @@ body {
 .current-setup-deltas .was {
   color: var(--text-secondary);
   text-decoration: line-through;
+}
+
+/* Which rows the eyebrow's count meant. Secondary rather than accented: it
+   marks a row, it does not compete with the value on it. */
+.current-setup-deltas .yours {
+  color: var(--text-secondary);
 }
 
 .current-setup-base {

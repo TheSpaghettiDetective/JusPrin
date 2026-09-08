@@ -47,12 +47,15 @@ function makeContext(overrides: {
 
 const estimate: SliceEstimateInfo = { printTimeSeconds: 13800, materialGrams: 47, materialCost: null };
 
-function deltas(count: number): PresetDeltaInfo[] {
+// Agent-authored by default: a test that cares about hand edits says so, and
+// every other test keeps a card with nothing of yours on it.
+function deltas(count: number, yours = 0): PresetDeltaInfo[] {
   return Array.from({ length: count }, (_, index) => ({
     key: `key_${index}`,
     label: `Setting ${index}`,
     preset: '1',
     value: '2',
+    origin: index < yours ? 'user' : 'agent',
   }));
 }
 
@@ -242,6 +245,61 @@ describe('setup card', () => {
       deltas: deltas(2), sliced: false, estimateStatus: 'recomputing',
     }));
     expect(screen.getByTestId('current-setup').textContent).not.toMatch(/1\.12|\$/);
+  });
+
+  it('counts your hand edits apart from the agent\'s, without hiding the total', () => {
+    renderCard(makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(7, 2) }));
+    const card = screen.getByTestId('current-setup');
+    expect(card.querySelector('.current-setup-eyebrow')).toHaveTextContent('+ 2 yours');
+    // The total is what the project drifted by; the count of yours is a note
+    // about who did it, not a correction to the total.
+    expect(card).toHaveTextContent('7 changes from preset');
+  });
+
+  it('says nothing about whose changes these are when they are all yours', () => {
+    // "+ 7 yours" beside "7 changes from preset" is the same fact twice, and
+    // the "+" claims an agent contribution that is not there.
+    renderCard(makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(7, 7) }));
+    const card = screen.getByTestId('current-setup');
+    expect(card.querySelector('.current-setup-eyebrow')).not.toHaveTextContent('yours');
+    expect(card).toHaveTextContent('7 changes from preset');
+  });
+
+  it('lets the working state have the eyebrow to itself', () => {
+    // One slot, and what is true this second outranks standing context.
+    render(<SetupCard context={makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(7, 2) })}
+                      expanded={false} onToggle={() => {}} working />);
+    const eyebrow = screen.getByTestId('current-setup').querySelector('.current-setup-eyebrow');
+    expect(eyebrow).toHaveTextContent('working');
+    expect(eyebrow).not.toHaveTextContent('yours');
+  });
+
+  it('keeps the count beside out of date, which speaks from the other side', () => {
+    renderCard(makeContext({
+      setupIntent: 'Strong', estimate, deltas: deltas(7, 2),
+      sliced: false, estimateStatus: 'stale',
+    }));
+    const eyebrow = screen.getByTestId('current-setup').querySelector('.current-setup-eyebrow');
+    expect(eyebrow).toHaveTextContent('out of date');
+    expect(eyebrow).toHaveTextContent('+ 2 yours');
+  });
+
+  it('states a three-digit count without breaking the eyebrow into two spans', () => {
+    // The count is one span whatever its size; whether that span forces the
+    // heading onto a second line is a CSS rule, guarded in styles.test.ts.
+    renderCard(makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(300, 128) }));
+    const eyebrow = screen.getByTestId('current-setup').querySelector('.current-setup-eyebrow');
+    expect(eyebrow?.querySelectorAll('.current-setup-status')).toHaveLength(1);
+    expect(eyebrow).toHaveTextContent('+ 128 yours');
+  });
+
+  it('marks which rows are yours when the card is opened', () => {
+    render(<SetupCard context={makeContext({ setupIntent: 'Strong', estimate, deltas: deltas(4, 1) })}
+                      expanded onToggle={() => {}} />);
+    const rows = screen.getByTestId('current-setup-expansion').querySelectorAll('dd');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent('yours');
+    expect(rows[1]).not.toHaveTextContent('yours');
   });
 
   it('never calls a sliced plate unsliced just because it has no estimate', () => {

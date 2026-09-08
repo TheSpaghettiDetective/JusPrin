@@ -27,6 +27,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -186,7 +187,17 @@ private:
     void continue_after_tool(const ToolActivity& activity);
     // Records the agent's one-line restatement of intent on the chat the
     // change came from, so the setup card can say what it heard.
-    void remember_setup_intent(const ToolActivity& activity);
+    // Returns whether the write should reach the page now.
+    bool remember_setup_intent(const ToolActivity& activity);
+    // Records which process settings the agent itself put in force, and to
+    // what, so the card can count your hand edits separately from its own.
+    bool remember_agent_authored(const ToolActivity& activity);
+    // Rebuilds that record from the persisted activities of the document in
+    // hand. Without it a restart would relabel every change the agent made as
+    // yours -- a loud, wrong claim rather than a quiet missing one.
+    void rebuild_agent_authored();
+    // The subset of a snapshot's deltas the agent can prove it wrote.
+    std::set<std::string> agent_authored_keys(const Workspace::WorkspaceSnapshot& snapshot);
     void begin_tool_followup(const PendingToolContinuation& continuation);
     void start_next_queued_reply();
     void refresh_workspace_identity() const;
@@ -224,6 +235,15 @@ private:
     bool                            m_mcp_busy{false};
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
+    // Every process setting the agent has applied, mapped to the value it
+    // applied. A key stays the agent's only while that value is still in
+    // force: hand-edit the setting and it becomes yours again, because the
+    // card describes the project rather than the agent's turns.
+    std::map<std::string, std::string> m_agent_authored;
+    // The process preset the map above was recorded against. Switching presets
+    // changes the baseline every delta is measured from, so the attribution
+    // does not carry over. Empty until the first context binds it.
+    std::optional<std::string> m_agent_authored_preset;
 
     std::uint64_t m_next_envelope_id{1};
     std::uint64_t m_messages_sent{0};

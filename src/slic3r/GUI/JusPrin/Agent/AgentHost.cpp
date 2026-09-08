@@ -430,7 +430,13 @@ json attachment_json(const AttachmentRecord& record)
 // setup_intent belongs to a chat, not to the workspace, so it is passed in
 // rather than read from the snapshot. The agent-facing copy of this payload
 // omits it: those are the agent's own words coming back at it.
-json context_json(const WorkspaceSnapshot& snapshot, const std::string& setup_intent = {})
+//
+// agent_authored names the deltas the agent can prove it wrote, so the card can
+// count your hand edits apart from its own. The agent-facing copy carries it
+// too, but only the copy returned with a tool result: an ordinary turn is
+// built from the snapshot struct, which has no notion of an agent.
+json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>& agent_authored,
+                  const std::string& setup_intent = {})
 {
     json plates = json::array();
     for (const Workspace::WorkspacePlate& plate : snapshot.plates) {
@@ -466,7 +472,12 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::string& setup_in
     json preset_deltas = json::array();
     for (const Workspace::PresetDelta& delta : snapshot.preset_deltas)
         preset_deltas.push_back(json{{"key", delta.key}, {"label", delta.label},
-                                     {"preset", delta.preset}, {"value", delta.value}});
+                                     {"preset", delta.preset}, {"value", delta.value},
+                                     // Yours unless the agent can prove it put this exact
+                                     // value in force. Unprovable provenance counts as
+                                     // yours: crediting the agent for your edit would make
+                                     // the card the agent's opinion instead of the truth.
+                                     {"origin", agent_authored.count(delta.key) != 0 ? "agent" : "user"}});
 
     const char* selection_status = "none";
     if (snapshot.selection_status == SelectionStatus::Objects)
@@ -531,8 +542,17 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             m_persistence.commit();
         if (m_handshake)
             send_tool_activity(activity);
-        if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch")
-            remember_setup_intent(activity);
+        if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch") {
+            // The change itself pushed a context while it was advancing the
+            // workspace revision, and that push predates both writes below.
+            // Without a second one the card would show the new deltas under
+            // the old title and the old attribution -- the exact moment it is
+            // supposed to be proof that the agent heard you.
+            const bool authored = remember_agent_authored(activity);
+            const bool restated = remember_setup_intent(activity);
+            if ((authored || restated) && m_handshake)
+                send_context();
+        }
         if (m_handshake && activity.state == ToolState::Succeeded &&
             (activity.tool == "record_build" || activity.tool == "record_export_copy" ||
              activity.tool == "record_physical_print"))
@@ -540,6 +560,9 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         if (tool_state_terminal(activity.state))
             continue_after_tool(activity);
     });
+    // A host built over an already-restored project inherits its history, so
+    // the attribution starts from that history rather than from empty.
+    rebuild_agent_authored();
     m_persistence.set_document_replaced_listener([this]() { on_document_replaced(); });
     m_persistence.set_revision_listener([this](const RevisionInfo& revision) {
         if (m_handshake)
@@ -594,6 +617,7 @@ std::vector<ConversationMessage> AgentHost::conversation() const
 
 void AgentHost::on_document_replaced()
 {
+    rebuild_agent_authored();
     m_title.reset();
     if (m_mcp) m_mcp->detach_calls();
     if (m_agent)
@@ -697,7 +721,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"builds", std::move(builds)},
                  {"exportedCopies", std::move(exported_copies)},
                  {"physicalPrints", std::move(physical_prints)},
-                 {"context", context_json(snapshot, m_persistence.document().setup_intent(active))}};
+                 {"context", context_json(snapshot, agent_authored_keys(snapshot),
+                                          m_persistence.document().setup_intent(active))}};
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
 
@@ -707,8 +732,9 @@ void AgentHost::send_context()
     m_last_session  = snapshot.session.value();
     m_last_revision = snapshot.revision;
     send_envelope(Protocol::kContext,
-                  json{{"context", context_json(snapshot, m_persistence.document().setup_intent(
-                                                              m_persistence.document().active_conversation_id()))}}
+                  json{{"context", context_json(snapshot, agent_authored_keys(snapshot),
+                                                m_persistence.document().setup_intent(
+                                                    m_persistence.document().active_conversation_id()))}}
                       .dump());
 }
 
@@ -1683,26 +1709,73 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     send_conversations();
 }
 
-void AgentHost::remember_setup_intent(const ToolActivity& activity)
+bool AgentHost::remember_setup_intent(const ToolActivity& activity)
 {
     const json arguments = json::parse(activity.arguments_json, nullptr, false);
     if (arguments.is_discarded() || !arguments.is_object() || !arguments.contains("intent") ||
         !arguments["intent"].is_string())
-        return;
+        return false;
     // A change made outside a chat -- an MCP client, say -- has no chat to be
     // the record of, so it leaves no intent behind.
     const std::string conversation_id = m_persistence.document().conversation_of_message(activity.correlation_id);
     if (conversation_id.empty())
-        return;
+        return false;
     if (!m_persistence.document().set_setup_intent(conversation_id, arguments["intent"].get<std::string>()))
-        return;
+        return false;
     m_persistence.commit();
-    // The change itself already pushed a context when it advanced the
-    // workspace revision, and that push predates this write. Without a second
-    // one the card would show the new deltas under the old title -- the exact
-    // moment it is supposed to be proof that the agent heard you.
-    if (m_handshake && conversation_id == m_persistence.document().active_conversation_id())
-        send_context();
+    // An intent written on a chat you are not looking at changes nothing on
+    // screen, so it is not worth a push of its own.
+    return conversation_id == m_persistence.document().active_conversation_id();
+}
+
+bool AgentHost::remember_agent_authored(const ToolActivity& activity)
+{
+    const json result = json::parse(activity.result_json, nullptr, false);
+    // A patch that changed nothing wrote nothing, so it authored nothing.
+    if (result.is_discarded() || !result.is_object() || !result.value("applied", false))
+        return false;
+    const auto changes = result.find("changes");
+    if (changes == result.end() || !changes->is_array())
+        return false;
+    // Both the requested changes and the dependencies Orca normalized as a
+    // consequence: the reader did not type either of them. The requested ones
+    // are serialized first, so the tool result's 64-entry cap can only ever
+    // cost us a dependency, never a setting the agent was asked for.
+    for (const json& change : *changes)
+        if (change.is_object() && change.contains("key") && change["key"].is_string() &&
+            change.contains("after") && change["after"].is_string())
+            m_agent_authored[change["key"].get<std::string>()] = change["after"].get<std::string>();
+    return true;
+}
+
+void AgentHost::rebuild_agent_authored()
+{
+    m_agent_authored.clear();
+    // Left unbound so the next context adopts whatever preset is in force
+    // without mistaking the rebuild itself for a preset switch.
+    m_agent_authored_preset.reset();
+    for (const ToolActivity& activity : m_persistence.document().activities())
+        if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch")
+            remember_agent_authored(activity);
+}
+
+std::set<std::string> AgentHost::agent_authored_keys(const Workspace::WorkspaceSnapshot& snapshot)
+{
+    if (!m_agent_authored_preset)
+        m_agent_authored_preset = snapshot.setup.process_preset;
+    else if (*m_agent_authored_preset != snapshot.setup.process_preset) {
+        m_agent_authored.clear();
+        m_agent_authored_preset = snapshot.setup.process_preset;
+    }
+    std::set<std::string> keys;
+    for (const Workspace::PresetDelta& delta : snapshot.preset_deltas) {
+        const auto found = m_agent_authored.find(delta.key);
+        // The agent's only while the value it applied is the value in force.
+        // Edit that setting by hand and the delta becomes yours again.
+        if (found != m_agent_authored.end() && found->second == delta.value)
+            keys.insert(delta.key);
+    }
+    return keys;
 }
 
 void AgentHost::continue_after_tool(const ToolActivity& activity)
@@ -1718,7 +1791,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     json output{{"state", tool_state_name(activity.state)},
                 {"actionId", activity.action_id},
                 {"workspaceRevision", current_workspace.revision},
-                {"workspace", context_json(current_workspace)}};
+                {"workspace", context_json(current_workspace, agent_authored_keys(current_workspace))}};
     if (!activity.result_json.empty())
         output["result"] = parsed_or_object(activity.result_json);
     if (activity.error)

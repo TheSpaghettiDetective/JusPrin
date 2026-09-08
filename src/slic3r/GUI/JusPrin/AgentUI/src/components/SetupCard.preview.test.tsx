@@ -37,7 +37,8 @@ function context(o: {
 }
 
 const sliced: SliceEstimateInfo = { printTimeSeconds: 13800, materialGrams: 47, materialCost: null };
-const delta = (key: string, label: string, from: string, to: string) => ({ key, label, preset: from, value: to });
+const delta = (key: string, label: string, from: string, to: string, origin: 'agent' | 'user' = 'agent') =>
+  ({ key, label, preset: from, value: to, origin });
 const five = [
   delta('wall_loops', 'Wall loops', '2', '4'),
   delta('sparse_infill_density', 'Sparse infill density', '15%', '45%'),
@@ -49,6 +50,8 @@ const five = [
 const cases: { name: string; note: string; context: WorkspaceContext; expanded?: boolean }[] = [
   { name: '1b resting', note: 'kicker + title + facts', context: context({ setupIntent: "Strong — it'll bear weight", estimate: sliced, deltas: five }) },
   { name: '1c expanded', note: 'deltas as a layer over the thread', expanded: true, context: context({ setupIntent: "Strong — it'll bear weight", estimate: sliced, deltas: five }) },
+  { name: '2e hand-edited', note: 'yours counted apart from the total', context: context({ setupIntent: "Strong — it'll bear weight", estimate: sliced, deltas: [...five, delta('brim_width', 'Brim width', '0', '5', 'user'), delta('spiral_mode', 'Spiral vase', '0', '1', 'user')] }) },
+  { name: '2e opened', note: 'which two were yours', expanded: true, context: context({ setupIntent: "Strong — it'll bear weight", estimate: sliced, deltas: [...five, delta('brim_width', 'Brim width', '0', '5', 'user'), delta('spiral_mode', 'Spiral vase', '0', '1', 'user')] }) },
   { name: '3a title at ceiling', note: '40 characters, must not wrap', context: context({ setupIntent: 'Strong, smooth top, no marks on the face', estimate: sliced, deltas: five }) },
   { name: '3a overlong title', note: 'past the ceiling: clamps, never wraps', context: context({ setupIntent: 'Strong enough to bear real weight without any sagging on the long overhang', estimate: sliced, deltas: five }) },
   { name: '3b no title', note: 'preset takes the identity slot', context: context({ estimate: sliced, deltas: five }) },

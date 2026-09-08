@@ -61,6 +61,10 @@ interface CardModel {
   // discarded one -- and a plain-language row underneath says what took it.
   reason: string;
   outOfDate: boolean;
+  // 2e: how many of the deltas you made by hand. Shown only when the agent
+  // made some of the others -- with nothing to stand apart from, "+7 yours"
+  // over "7 changes from preset" says the same thing twice.
+  yours: number;
   title: string;
   identity: string;
   facts: string[];
@@ -108,6 +112,9 @@ export function cardModel(context: WorkspaceContext): CardModel {
   const recomputing = estimate !== null && status === 'recomputing';
   const outOfDate = estimate !== null && status === 'stale';
 
+  const hand_edited = deltas.filter((delta) => delta.origin === 'user').length;
+  const yours = hand_edited > 0 && hand_edited < deltas.length ? hand_edited : 0;
+
   const facts: string[] = [];
   // Stale keeps its figure on the facts line, unstruck: it is the last number
   // the card could defend, not one already superseded by a better answer.
@@ -133,7 +140,7 @@ export function cardModel(context: WorkspaceContext): CardModel {
   if (substantive && !estimate && active !== null && !active.sliced) facts.push('not sliced yet');
 
   return { kicker: substantive, title, identity, facts, deltas, deltaLabel, preset, material,
-           struckEstimate, inlineNote, reason, outOfDate };
+           struckEstimate, inlineNote, reason, outOfDate, yours };
 }
 
 function DeltaList({ deltas }: { deltas: PresetDeltaInfo[] }) {
@@ -146,6 +153,11 @@ function DeltaList({ deltas }: { deltas: PresetDeltaInfo[] }) {
             <span className="was">{delta.preset}</span>
             <span aria-hidden="true"> → </span>
             <span className="now">{delta.value}</span>
+            {/* The count in the eyebrow is only worth trusting if opening the
+                card says which ones it meant. Separated the way the facts line
+                separates its clauses: without the dot it reads as part of the
+                value, which is the one thing this row must not blur. */}
+            {delta.origin === 'user' && <span className="yours"> · yours</span>}
           </dd>
         </div>
       ))}
@@ -177,8 +189,13 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
         {/* Out of date is a legitimate state, not an error: the card is not
             broken, it simply will not stand behind the number any more. */}
         {model.outOfDate && <span className="current-setup-status out-of-date">· out of date</span>}
-        {/* The eyebrow's right half is where a state says its one word. */}
+        {/* The eyebrow's right half is where a state says its one word, so only
+            one may speak. "working…" is about this second and outranks the
+            count, which is standing context and will still be there after. */}
         {working && <span className="current-setup-status">working…</span>}
+        {!working && model.yours > 0 && (
+          <span className="current-setup-status yours">+ {model.yours} yours</span>
+        )}
         {model.deltaLabel && (
           <button
             type="button"

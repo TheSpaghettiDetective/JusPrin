@@ -577,8 +577,8 @@ describe('App', () => {
       revision: 3,
       setupIntent: "Strong - it'll bear weight",
       presetDeltas: [
-        { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4' },
-        { key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '45%' },
+        { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' },
+        { key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '45%', origin: 'agent' },
       ],
       plates: [{ ...context.plates[0], sliced: true, estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: null } }],
     };
