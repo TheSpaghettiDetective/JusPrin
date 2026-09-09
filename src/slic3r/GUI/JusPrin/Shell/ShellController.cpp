@@ -282,6 +282,27 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_runtime_timer.Stop();
         m_installed = false;
         m_prepare_canvas_presentation.abandon();
+        // This controller lives in a static slot and outlives every window,
+        // so whatever it owns that unbinds from the Plater has to go now,
+        // while the frame's children still exist: wx sends this event from
+        // the top-level window's destructor, before DestroyChildren. Left in
+        // place, the slot's destructor ran ~OrcaWorkspaceAdapter against a
+        // deleted Plater after main had returned -- an access violation at
+        // process exit in every run that did not detach the shell by hand.
+        // Same order as uninstall(): the pane and status row first, since
+        // their destructors talk to persistence and the workspace, then
+        // those two. The remaining children die with the frame.
+        if (m_agent_pane != nullptr) {
+            m_agent_pane->Destroy();
+            m_agent_pane = nullptr;
+        }
+        if (m_status_row != nullptr) {
+            m_status_row->Destroy();
+            m_status_row = nullptr;
+        }
+        m_workspace_status = nullptr;
+        m_persistence.reset();
+        m_workspace.reset();
     }
     event.Skip();
 }

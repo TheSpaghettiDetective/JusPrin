@@ -183,6 +183,10 @@ public:
     Scenario(GUI_App& app, std::shared_ptr<HarnessState> state) : m_app(app), m_state(std::move(state))
     {
         m_poll_handler.Bind(wxEVT_TIMER, [this](wxTimerEvent&) { poll_wait(); });
+        m_exit_handler.Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+            std::cerr << "HARNESS ERROR main loop still running 30 s after the frame was closed; forcing ExitMainLoop\n";
+            m_app.ExitMainLoop();
+        });
     }
 
     void start()
@@ -2636,7 +2640,28 @@ private:
         std::cerr << "HARNESS RESULT " << (result == 0 ? "PASS" : "FAIL") << " failures=" << m_failures << '\n';
         m_state->result = result;
         m_state->stop = true;
-        m_app.ExitMainLoop();
+        m_poll_timer.Stop();
+        if (m_frame == nullptr) {
+            m_app.ExitMainLoop();
+            return;
+        }
+        // Leave the way the application leaves. A forced close runs
+        // MainFrame::shutdown() -- backup callback cleared, canvas handlers
+        // unbound and volumes released, background threads stopped,
+        // GUI_App::set_closing, the window hidden -- and then Destroy()s the
+        // frame inside the main loop, so wx leaves the loop on its own once
+        // the last top-level window is gone and GUI_App::OnExit() runs with
+        // nothing left to tear down.
+        //
+        // ExitMainLoop() skipped all of that: OnExit() deleted the device
+        // manager and agent first, and wxAppBase::CleanUp() then deleted the
+        // still-shown MainFrame from inside ~wxInitializer, where any
+        // exception is std::terminate -- a 0xC0000409 exit on Windows with
+        // nothing printed. Deferred so nothing on the current stack keeps
+        // using a frame that has already been shut down.
+        m_app.CallAfter([frame = m_frame] { frame->Close(true); });
+        // Safety net: a stray top-level window would keep the loop alive.
+        m_exit_watchdog.StartOnce(30000);
     }
 
     GUI_App&                      m_app;
@@ -2662,6 +2687,8 @@ private:
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
+    wxEvtHandler          m_exit_handler;
+    wxTimer               m_exit_watchdog{&m_exit_handler};
     std::function<bool()> m_wait_condition;
     std::string           m_wait_name;
     std::function<void()> m_wait_then;
@@ -2749,6 +2776,13 @@ int main(int argc, char** argv)
         std::cerr << "fixture stderr\n";
         return mode == "failure" ? 7 : 0;
     }
+    // Registered before any function-local static is constructed, so those
+    // statics' destructors run before this marker and namespace-scope
+    // statics' destructors run after it.
+    std::atexit([] {
+        std::fputs("HARNESS ATEXIT REACHED\n", stderr);
+        std::fflush(stderr);
+    });
     using namespace Slic3r;
     using namespace Slic3r::GUI;
     using namespace Slic3r::GUI::JusPrin;
@@ -2877,6 +2911,7 @@ int main(int argc, char** argv)
     params.argc = static_cast<int>(gui_arguments.size());
     params.argv = gui_arguments.data();
     const int gui_result = GUI_Run(params);
+    std::cerr << "HARNESS GUI_RUN RETURNED " << gui_result << '\n';
     state->stop = true;
     installer.join();
 
@@ -2898,14 +2933,27 @@ int main(int argc, char** argv)
     }
 
     fs::current_path(original_directory);
-    if (state->result == 0)
-        fs::remove_all(data_directory);
-    else
+    if (state->result == 0) {
+        // The boost::log sink keeps log/debug_*.log.0 open until static
+        // destruction, so on Windows this cannot delete everything, and an
+        // uncaught filesystem_error here would end a PASS run with
+        // 0xE06D7363. Report instead of throwing.
+        boost::system::error_code error;
+        fs::remove_all(data_directory, error);
+        if (error)
+            std::cerr << "HARNESS WARNING data dir not fully removed: " << error.message() << " ("
+                      << data_directory.string() << ")\n";
+    } else
         std::cerr << "HARNESS DATA DIR kept for inspection: " << data_directory.string() << '\n';
+    int exit_code = state->result;
     if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
         state->mode == HarnessState::Mode::ManualUnconfigured || state->mode == HarnessState::Mode::ManualMcp)
-        return gui_result;
-    if (state->result < 0)
-        return gui_result == 0 ? 1 : gui_result;
-    return state->result;
+        exit_code = gui_result;
+    else if (state->result < 0)
+        exit_code = gui_result == 0 ? 1 : gui_result;
+    // Static destructors run after this line; a crash without a later
+    // ATEXIT line is in a function-local static (the 3mf backup manager,
+    // the shell slot, ...), one after it is in a namespace-scope static.
+    std::cerr << "HARNESS MAIN RETURNING " << exit_code << '\n';
+    return exit_code;
 }

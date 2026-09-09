@@ -18,6 +18,13 @@ if (SLIC3R_GUI)
     )
     target_link_libraries(shell_integration_harness PRIVATE libslic3r_gui)
 
+    # The tree compiles with /Zi but only RelWithDebInfo links with /DEBUG, so
+    # a Release harness had no PDB and its teardown crash on Windows could
+    # only be read as module+offset. The PDB costs link time, nothing else.
+    if (MSVC)
+        target_link_options(shell_integration_harness PRIVATE /DEBUG)
+    endif()
+
     # The harness is its own executable, so on Windows it does not inherit the
     # runtime DLLs that land next to the application. Every other test
     # directory linking a GUI target calls this for the same reason; it is a
