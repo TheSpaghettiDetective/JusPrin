@@ -59,6 +59,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
@@ -453,6 +454,7 @@ private:
         check(shell->status_row()->project_summary().Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
               "overflow_summary_shows_empty_print_count");
         verify_header_layout();
+        verify_type_roles_render_at_token_size();
         check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
         check(shell->agent_pane()->web_view().host().mcp() != nullptr, "shell_starts_mcp_automatically");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
@@ -2775,6 +2777,43 @@ private:
         check(more->GetPosition().x+more->GetSize().x == row->GetSize().x-row->FromDIP(16),"header_overflow_right_aligned");
         check(!setup->GetLabel().Contains("Plate ") && !setup->GetLabel().Contains("@"),"header_setup_compact_no_plate_or_raw_suffix");
         check(!status_row_labels(row).Contains(wxString::FromUTF8("Prints \xC2\xB7")),"header_has_no_standalone_print_count");
+    }
+
+    // The em of a font in pixels. wx has no portable accessor for it: on MSW
+    // GetPixelSize() reads LOGFONT::lfHeight, the em at the screen DPI the
+    // font was built for; on macOS and GTK it measures a rendered "g", which
+    // is the line height, but there a point is a DIP
+    // (wxHAS_DPI_INDEPENDENT_PIXELS), so the em is the point size: as is on
+    // macOS, and at Pango's 96 dpi logical resolution on GTK.
+    static int font_em_pixels(const wxFont& font)
+    {
+#if defined(__WXMSW__)
+        return font.GetPixelSize().y;
+#elif defined(__APPLE__)
+        return wxRound(font.GetFractionalPointSize());
+#else
+        return wxRound(font.GetFractionalPointSize() * 96.0 / 72.0);
+#endif
+    }
+
+    // The type roles are DIP sizes and every role font must render its token
+    // as its em. Windows once drew the body role at 15 px because
+    // Label::sysFont truncates 14 * 4 / 5 to 11 pt, which is why filament
+    // names truncated sooner in the spool picker there than on macOS. The
+    // shell resolves its theme through brand_theme(), so that is checked.
+    void verify_type_roles_render_at_token_size()
+    {
+        const ShellTheme* theme = brand_theme();
+        check(theme != nullptr, "shell_theme_loaded");
+        if (theme == nullptr) return;
+        const std::pair<TextRole, const char*> roles[] = {
+            {TextRole::Body, "body"}, {TextRole::Label, "label"}, {TextRole::Metadata, "metadata"}};
+        for (const auto& [role, name] : roles) {
+            const int         token = theme->type_style(role).size;
+            const std::string suffix = std::string("_em_is_") + std::to_string(token) + "_dip";
+            check(font_em_pixels(theme->font(role)) == m_frame->FromDIP(token), std::string("font_") + name + suffix);
+            check(font_em_pixels(theme->mono_font(role)) == m_frame->FromDIP(token), std::string("mono_font_") + name + suffix);
+        }
     }
 
     void verify_project_replacement()

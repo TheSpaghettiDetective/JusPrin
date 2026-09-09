@@ -134,8 +134,10 @@ public:
     const TypeStyle&    type_style(TextRole role) const { return m_type_styles[size_t(role)]; }
 
     // The wxFont for a role, built once on first use through OrcaSlicer's
-    // Label::sysFont so it carries the same face and platform size scaling
-    // as the rest of the application. Requires wx to be initialised.
+    // Label::sysFont so it carries the same face as the rest of the
+    // application, then sized so the role's DIP size is its em on every
+    // platform (sysFont's own point scaling rounds the token off on Windows
+    // and Linux). Requires wx to be initialised.
     const wxFont& font(TextRole role) const;
 
     // The same role in the system teletype face at regular weight, for

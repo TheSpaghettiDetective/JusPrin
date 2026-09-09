@@ -224,6 +224,14 @@ const wxFont& ShellTheme::font(TextRole role) const
         return font;
     const TypeStyle& style = type_style(role);
     font = Label::sysFont(style.size, style.weight == 700);
+#ifndef __APPLE__
+    // The role sizes are DIP. A point is a DIP on macOS, so sysFont renders
+    // the token exactly there; elsewhere wx resolves points at 96 dpi and
+    // sysFont's integer 4/5 truncation lands 14 on 15 px and 10 on 11 px.
+    // Restating the size as exact points keeps the face and weight sysFont
+    // chose and makes the em `size` px at 96 dpi, scaled by the window DPI.
+    font.SetFractionalPointSize(style.size * 72.0 / 96.0);
+#endif
     return font;
 }
 
@@ -233,8 +241,8 @@ const wxFont& ShellTheme::mono_font(TextRole role) const
     if (font.IsOk())
         return font;
     // Sized from the built role font rather than the raw token so it follows
-    // the same platform point-size scaling Label::sysFont applies.
-    font = wxFont(wxFontInfo(this->font(role).GetPointSize()).Family(wxFONTFAMILY_TELETYPE));
+    // the same platform point-size correction font() applies.
+    font = wxFont(wxFontInfo(this->font(role).GetFractionalPointSize()).Family(wxFONTFAMILY_TELETYPE));
     return font;
 }
 
