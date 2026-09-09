@@ -17,6 +17,13 @@ if (SLIC3R_GUI)
         ${CMAKE_SOURCE_DIR}/src/slic3r/GUI
     )
     target_link_libraries(shell_integration_harness PRIVATE libslic3r_gui)
+
+    # The harness is its own executable, so on Windows it does not inherit the
+    # runtime DLLs that land next to the application. Every other test
+    # directory linking a GUI target calls this for the same reason; it is a
+    # no-op off Windows.
+    orcaslicer_copy_test_dlls()
+
     if (APPLE)
         target_sources(shell_integration_harness PRIVATE harness_appearance.mm)
         set_target_properties(shell_integration_harness PROPERTIES
