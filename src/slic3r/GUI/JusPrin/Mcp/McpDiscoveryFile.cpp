@@ -7,11 +7,14 @@
 #include <charconv>
 #include <cerrno>
 #include <chrono>
+#include <cstddef>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <mutex>
 #include <sstream>
+#include <vector>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -110,6 +113,40 @@ std::string timestamp()
     out << std::put_time(&utc, "%Y-%m-%dT%H:%M:%SZ");
     return out.str();
 }
+
+#ifdef _WIN32
+// MoveFileExW cannot honour the atomicity this file promises: replacing a
+// target that any process holds open fails with ERROR_ACCESS_DENIED, and
+// readers hold it open constantly by design. Sharing delete access does not
+// help, because the ordinary rename still unlinks the name before the last
+// handle closes. FileRenameInfoEx with POSIX semantics is the rename that
+// behaves like rename(2) -- the name is rebound immediately while existing
+// handles keep reading the file they already opened.
+//
+// It needs NTFS and Windows 10 1607, so the caller falls back to the ordinary
+// replace rather than refusing to publish on a volume that cannot do this.
+bool rename_over_open_readers(const fs::path& temporary, const fs::path& path)
+{
+    const std::wstring target = path.wstring();
+    const std::size_t name_bytes = (target.size() + 1) * sizeof(wchar_t);
+    std::vector<std::byte> buffer(offsetof(FILE_RENAME_INFO, FileName) + name_bytes, std::byte{});
+    auto& info = *reinterpret_cast<FILE_RENAME_INFO*>(buffer.data());
+    info.Flags = FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_POSIX_SEMANTICS;
+    info.RootDirectory = nullptr;
+    info.FileNameLength = DWORD(target.size() * sizeof(wchar_t)); // bytes, excluding the terminator
+    std::memcpy(info.FileName, target.c_str(), name_bytes);
+
+    // DELETE is the access a rename needs; the share flags let readers keep the
+    // temporary open should anything have found it.
+    const HANDLE handle = CreateFileW(temporary.c_str(), DELETE | SYNCHRONIZE,
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+                                      FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) return false;
+    const bool renamed = SetFileInformationByHandle(handle, FileRenameInfoEx, buffer.data(), DWORD(buffer.size())) != 0;
+    CloseHandle(handle);
+    return renamed;
+}
+#endif
 }
 
 std::string mcp_build_version()
@@ -186,7 +223,8 @@ DiscoveryRecord write_discovery(const fs::path& path, const std::string& url)
     output << body.dump(2) << '\n';
     output.close();
 #ifdef _WIN32
-    if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    if (!rename_over_open_readers(temporary, path) &&
+        !MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         throw fs::filesystem_error("Publish MCP discovery", temporary, path, std::error_code(GetLastError(), std::system_category()));
 #else
     fs::rename(temporary, path);
