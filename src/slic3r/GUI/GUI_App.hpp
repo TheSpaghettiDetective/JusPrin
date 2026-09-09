@@ -343,6 +343,9 @@ public:
     bool            OnInit() override;
     int             OnExit() override;
     bool            initialized() const { return m_initialized; }
+    // True once the idle loop has entered post_init(). JusPrin's shell tests
+    // gate on it: post_init ends by selecting the startup tab.
+    bool            post_initialized() const { return m_post_initialized; }
     inline bool     is_enable_multi_machine() { return this->app_config&& this->app_config->get("enable_multi_machine") == "true"; }
 
     std::map<std::string, bool> test_url_state;

@@ -201,11 +201,30 @@ public:
                 fail("application widgets missing");
                 return;
             }
+            // GUI_App::post_init runs from the first idle event after the main
+            // loop starts and ends with select_tab(0) (GUI_App.cpp, "if
+            // (is_editor()) mainframe->select_tab(size_t(0))"). This scenario
+            // starts from a CallAfter, which the loop drains before it idles,
+            // so every mode used to drive the shell ahead of post_init, and
+            // post_init later undid whatever tab the scenario had chosen --
+            // which is how the three visual modes handed over a Home screen
+            // while reporting failures=0. On a software renderer the first
+            // idle arrived seconds after the fixture had finished slicing.
+            wait_until_settled("startup_post_init_complete",
+                               [self = shared_from_this()] { self->run_mode(); });
+        } catch (const std::exception& error) {
+            fail(std::string("exception: ") + error.what());
+        } catch (...) {
+            fail("unknown exception");
+        }
+    }
+
+    void run_mode()
+    {
+        try {
             if (m_state->mode == HarnessState::Mode::Stock) {
-                // The stock startup selects Home after constructing MainFrame.
-                // Do not start navigation assertions inside that initialization.
-                wait_until([this] { return m_app.initialized() && !m_frame->IsFrozen() &&
-                    m_plater->canvas3D()->is_initialized() && m_notebook->GetSelection() == MainFrame::tpHome; }, "stock_startup_ready",
+                wait_until([this] { return m_plater->canvas3D()->is_initialized() &&
+                    m_notebook->GetSelection() == MainFrame::tpHome; }, "stock_startup_ready",
                            [self = shared_from_this()] { self->verify_stock_slice(); });
                 return;
             }
@@ -243,8 +262,28 @@ public:
                         self->m_plater->collapse_sidebar(false);
                         self->check(self->m_plater->sidebar().IsShown(), "mcp_fixture_native_sidebar_visible");
                     }
-                    std::cerr << "HARNESS MCP FIXTURE READY failures=" << self->m_failures
-                              << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
+                    // The checks above fire at the instant of navigation.
+                    // Anything deferred -- a queued page change, a CallAfter
+                    // from a load handler, a late post_init -- lands after
+                    // them, so the tab is asserted once more when the loop
+                    // has actually been idle, and the READY line carries
+                    // that result. m_workspace_status (plate label, return
+                    // button, review panel) is only shown on Prepare/Preview,
+                    // so its label is the operator's tell made into a check.
+                    self->wait_until_settled("mcp_fixture_settled", [self] {
+                        const bool preview = self->m_state->review_visual;
+                        self->check(self->m_notebook->GetSelection() == (preview ? MainFrame::tpPreview : MainFrame::tp3DEditor),
+                                    "mcp_fixture_tab_survives_settle");
+                        self->check(self->m_plater->is_preview_shown() == preview, "mcp_fixture_view_survives_settle");
+                        auto* label = wxWindow::FindWindowByName("Active plate status", self->m_frame);
+                        self->check(label && label->IsShownOnScreen(), "mcp_fixture_workspace_status_visible");
+                        // The hand-over screen is what gets photographed, so
+                        // the page's own error pane is re-checked last.
+                        self->check(!installed_shell()->agent_pane()->web_view().bridge_error_shown(),
+                                    "mcp_fixture_agent_page_healthy_at_handover");
+                        std::cerr << "HARNESS MCP FIXTURE READY failures=" << self->m_failures
+                                  << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
+                    });
                 });
                 return;
             }
@@ -2595,6 +2634,36 @@ private:
         poll_wait();
     }
 
+    // A settle condition rather than a delay: post_init has been entered, the
+    // frame is out of post_init's Freeze/Thaw, and the loop has delivered a
+    // further wxEVT_IDLE since -- which it only does once nothing is pending:
+    // no queued page change, no CallAfter, no timer already due. The watcher
+    // is bound on the app after GUI_App's own idle handler, so wx runs it
+    // first in the same event; arming only after post_initialized() is seen
+    // is what keeps the idle that ran post_init from counting.
+    void wait_until_settled(std::string name, std::function<void()> then)
+    {
+        if (!m_idle_watch_bound) {
+            m_app.Bind(wxEVT_IDLE, [weak = std::weak_ptr<Scenario>(shared_from_this())](wxIdleEvent& event) {
+                if (auto self = weak.lock(); self && self->m_idle_armed)
+                    self->m_idle_seen = true;
+                event.Skip();
+            });
+            m_idle_watch_bound = true;
+        }
+        m_idle_armed = false;
+        m_idle_seen  = false;
+        wait_until([this] {
+            if (!m_app.post_initialized() || m_frame->IsFrozen())
+                return false;
+            if (!m_idle_armed) {
+                m_idle_armed = true;
+                return false;
+            }
+            return m_idle_seen;
+        }, std::move(name), std::move(then));
+    }
+
     void poll_wait()
     {
         if (m_state->stop || !m_wait_condition)
@@ -2693,6 +2762,9 @@ private:
     std::string           m_wait_name;
     std::function<void()> m_wait_then;
     std::function<void()> m_wait_each_tick;
+    bool                  m_idle_watch_bound{false};
+    bool                  m_idle_armed{false};
+    bool                  m_idle_seen{false};
 };
 
 void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
