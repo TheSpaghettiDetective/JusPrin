@@ -1,0 +1,6 @@
+# The single-file bundle carries the Latin font subset as inlined binary, so it
+# holds NUL bytes and git's `text=auto` heuristic already classifies it as
+# binary. Saying so outright keeps that classification from depending on
+# whether a future bundle happens to contain a NUL: this file is bytes, and no
+# platform may rewrite its line endings on checkout or on commit.
+index.html -text

@@ -1,0 +1,7 @@
+# The bundle vite writes is committed, so the page's HTML template must read
+# the same on every platform. Under the repository's `* text=auto`, a Windows
+# checkout hands vite a CRLF template, vite copies those line endings into
+# resources/jusprin/agent/index.html, and the committed bundle -- which git
+# treats as binary, so it never normalises it back -- shows a whole-file diff
+# that a macOS or Linux build would immediately undo.
+index.html text eol=lf
