@@ -131,6 +131,7 @@ Use the existing native component density and established SVG icon library. Func
 - Expanded button: at least 32 DIP high, 12×8 DIP padding, 4 DIP radius.
 - Agent-pane divider: transparent 8 DIP pointer target with a centered 2 DIP line; the line changes from subtle to strong on hover and to the primary action color while dragging.
 - Agent-pane width: minimum 320 DIP; its maximum follows the window width while preserving at least 320 DIP for the workspace.
+- Agent-pane collapse: a 26 DIP icon button in the header, left of the overflow button, whose glyph fills its right-hand column while the pane is open and empties it while the pane is closed. Double-clicking the divider closes the pane, and so does dragging it below 240 DIP. There is no keyboard shortcut, no animation, and no automatic reopening; the pane is hidden, never destroyed, so its conversation survives. Reopening restores the width it last held.
 
 Every interactive component must define normal, hover, pressed, disabled, focused, success, warning, and error states where relevant. Status must combine color with an icon and plain-language label.
 

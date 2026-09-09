@@ -77,6 +77,16 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         line({{3,11},{3,13.5},{13,13.5},{13,11}}); break;
     case HeaderIcon::Print:
         line({{2,7},{14,2},{9,14},{7,9},{2,7}}); line({{7,9},{14,2}}); break;
+    case HeaderIcon::PanelOpen:
+    case HeaderIcon::PanelClosed:
+        line({{2.5,3.5},{13.5,3.5},{13.5,12.5},{2.5,12.5},{2.5,3.5}});
+        line({{9.5,3.5},{9.5,12.5}});
+        if (icon == HeaderIcon::PanelOpen) {
+            gc.SetBrush(wxBrush(color));
+            gc.SetPen(*wxTRANSPARENT_PEN);
+            gc.DrawRectangle(9.5,3.5,4,9);
+        }
+        break;
     case HeaderIcon::None: break;
     }
     gc.PopState();

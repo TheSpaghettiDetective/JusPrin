@@ -264,7 +264,8 @@
       "minWidth": 320,
       "workspaceMinWidth": 320,
       "resizeHandleWidth": 8,
-      "resizeHandleLineWidth": 2
+      "resizeHandleLineWidth": 2,
+      "dragCollapseWidth": 240
     },
     "swatch": {
       "size": 24,

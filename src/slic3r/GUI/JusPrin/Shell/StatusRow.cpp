@@ -89,6 +89,11 @@ StatusRow::StatusRow(wxWindow*                  parent,
     m_overflow_button = new HeaderButton(this, theme, HeaderStyle::Outline, wxEmptyString, HeaderIcon::More);
     m_overflow_button->SetName("Project actions");
     m_overflow_button->SetToolTip(_L("Project details and preferences"));
+    m_agent_toggle = new HeaderButton(this, theme, HeaderStyle::Outline, wxEmptyString, HeaderIcon::PanelOpen);
+    m_agent_toggle->SetName("Agent panel");
+    m_agent_toggle->SetToolTip(_L("Hide the Agent panel"));
+    m_agent_toggle->Hide();
+    m_agent_toggle->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { toggle_agent_pane(); });
     m_home_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { request_home(); });
     m_chip->on_printer_activated([this] { open_printer_menu(); });
     m_chip->on_spool_activated([this] { open_spool_menu(); });
@@ -177,7 +182,7 @@ void StatusRow::apply_appearance(bool dark)
     m_dark = dark;
     const ShellPalette& palette = m_theme.palette(dark);
     SetBackgroundColour(palette.surface_canvas);
-    for (auto* button : {m_home_button,m_slice_button,m_menu_button,m_overflow_button})
+    for (auto* button : {m_home_button,m_slice_button,m_menu_button,m_overflow_button,m_agent_toggle})
         button->set_dark(dark);
     m_chip->set_dark(dark);
     refresh_workspace_status();
@@ -352,6 +357,25 @@ void StatusRow::show_action_menu()
     if (!menu.empty()) (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_menu_button);
 }
 
+void StatusRow::set_agent_pane_toggle(std::function<void()> toggle)
+{
+    m_agent_pane_toggle = std::move(toggle);
+    m_agent_toggle->Show(static_cast<bool>(m_agent_pane_toggle));
+    layout_header();
+}
+
+void StatusRow::set_agent_pane_collapsed(bool collapsed)
+{
+    m_agent_toggle->set_icon(collapsed ? HeaderIcon::PanelClosed : HeaderIcon::PanelOpen);
+    m_agent_toggle->SetToolTip(collapsed ? _L("Show the Agent panel") : _L("Hide the Agent panel"));
+}
+
+void StatusRow::toggle_agent_pane()
+{
+    if (m_agent_pane_toggle)
+        m_agent_pane_toggle();
+}
+
 void StatusRow::layout_header()
 {
     const int margin = FromDIP(16), gap = FromDIP(8), height = GetClientSize().y;
@@ -363,6 +387,11 @@ void StatusRow::layout_header()
     int right = GetClientSize().x-margin-m_overflow_button->GetBestSize().x;
     place(m_overflow_button,right);
     right -= gap;
+    if (m_agent_toggle->IsShown()) {
+        right -= m_agent_toggle->GetBestSize().x;
+        place(m_agent_toggle,right);
+        right -= gap;
+    }
     if (m_menu_button->IsShown()) {
         right -= m_menu_button->GetBestSize().x;
         place(m_menu_button,right);

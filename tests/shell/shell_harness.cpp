@@ -2331,22 +2331,99 @@ private:
                 wxYield();
             };
 
+            auto double_click = [divider] {
+                const wxPoint start(divider->GetClientSize().x / 2, divider->GetClientSize().y / 2);
+                for (wxEventType type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP, wxEVT_LEFT_DCLICK, wxEVT_LEFT_UP}) {
+                    wxMouseEvent event(type);
+                    event.SetPosition(start);
+                    event.SetEventObject(divider);
+                    divider->GetEventHandler()->ProcessEvent(event);
+                }
+                wxYield();
+            };
+            auto* toggle = dynamic_cast<HeaderButton*>(
+                wxWindow::FindWindowByName("Agent panel", installed_shell()->status_row()));
+            auto press_toggle = [&toggle] {
+                if (!toggle) return;
+                wxMouseEvent press(wxEVT_LEFT_DOWN), release(wxEVT_LEFT_UP);
+                toggle->ProcessWindowEvent(press);
+                toggle->ProcessWindowEvent(release);
+                wxYield();
+            };
+            auto workspace_width = [this] {
+                return m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth();
+            };
+
             const int original_pane_width = pane->GetSize().x;
             drag(-divider->FromDIP(120));
             check(pane->GetSize().x > original_pane_width, "agent_panel_mouse_drag_grows_width");
 
-            drag(divider->FromDIP(2000));
+            // Short of the collapse threshold, the minimum still holds.
+            drag(pane->GetSize().x - divider->FromDIP(280));
             check(pane->GetSize().x == pane->FromDIP(320), "agent_panel_drag_stops_at_minimum_width");
 
             drag(-divider->FromDIP(2000));
             const int expected_max = std::max(pane->FromDIP(320),
                 m_frame->GetClientSize().x - pane->FromDIP(320) - divider->GetSize().x);
             check(pane->GetSize().x == expected_max, "agent_panel_drag_uses_available_window_width");
-            check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
-                  "agent_panel_drag_preserves_workspace_width");
+            check(workspace_width() > 200, "agent_panel_drag_preserves_workspace_width");
 
             drag(pane->GetSize().x - original_pane_width);
             check(pane->GetSize().x == original_pane_width, "agent_panel_width_can_be_restored");
+
+            check(toggle != nullptr && toggle->IsShown(), "agent_panel_toggle_shown");
+            const int open_workspace_width = workspace_width();
+
+            drag(divider->FromDIP(2000));
+            check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_drag_past_threshold_collapses");
+            check(!pane->IsShown() && !divider->IsShown(), "agent_panel_collapse_hides_pane_and_divider");
+            check(workspace_width() > open_workspace_width, "agent_panel_collapse_widens_workspace");
+            check(pane->web_view().host().mcp() != nullptr, "agent_panel_collapse_keeps_the_runtime");
+
+            press_toggle();
+            check(!installed_shell()->is_agent_pane_collapsed() && pane->IsShown() && divider->IsShown(),
+                  "agent_panel_toggle_reopens_the_pane");
+            check(pane->GetSize().x == pane->FromDIP(320), "agent_panel_reopens_at_a_usable_width");
+
+            double_click();
+            check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_divider_double_click_collapses");
+            press_toggle();
+            check(!installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_reopens_after_double_click");
+
+            // The toggle's two states are one glyph with its right-hand column
+            // filled or empty. No assertion on state can see which was drawn,
+            // so the button paints itself into a file the way the chip does.
+            if (toggle != nullptr) {
+                const char* artifact_dir = std::getenv("JUSPRIN_ARTIFACT_DIR");
+                const fs::path out = artifact_dir != nullptr ? fs::path(artifact_dir)
+                                                             : fs::path(data_dir()) / "agent-toggle";
+                fs::create_directories(out);
+                auto shoot = [&](const std::string& name) {
+                    const wxBitmap bitmap = toggle->snapshot();
+                    const std::string file = (out / (name + ".png")).string();
+                    const bool ok = bitmap.IsOk() && bitmap.GetWidth() > 0 &&
+                                    bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
+                    check(ok, "agent_panel_toggle_renders_" + name);
+                    if (ok) std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+                    return bitmap.IsOk() ? bitmap.ConvertToImage() : wxImage();
+                };
+                const wxImage open_glyph = shoot("agent-toggle-open");
+                press_toggle();
+                const wxImage closed_glyph = shoot("agent-toggle-closed");
+                press_toggle();
+                const bool differ = open_glyph.IsOk() && closed_glyph.IsOk() &&
+                                    open_glyph.GetWidth() == closed_glyph.GetWidth() &&
+                                    open_glyph.GetHeight() == closed_glyph.GetHeight() &&
+                                    std::memcmp(open_glyph.GetData(), closed_glyph.GetData(),
+                                                std::size_t(open_glyph.GetWidth()) * open_glyph.GetHeight() * 3) != 0;
+                check(differ, "agent_panel_toggle_draws_its_two_states_differently");
+                check(!installed_shell()->is_agent_pane_collapsed(), "agent_panel_open_after_capture");
+            }
+
+            drag(-divider->FromDIP(120));
+            check(pane->GetSize().x > original_pane_width, "agent_panel_still_resizable_after_collapse");
+            drag(pane->GetSize().x - original_pane_width);
+            check(pane->GetSize().x == original_pane_width, "agent_panel_width_restored_after_collapse");
         }
 
         const wxSize original = m_frame->GetSize();

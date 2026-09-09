@@ -51,6 +51,13 @@ public:
 
     void apply_current_appearance();
 
+    // Closing the Agent panel hides it and its divider; the panel keeps its
+    // conversation, its loaded page, and its MCP runtime while hidden, and
+    // reopening restores the width it last held this session.
+    void set_agent_pane_collapsed(bool collapsed);
+    void toggle_agent_pane() { set_agent_pane_collapsed(!m_agent_pane_collapsed); }
+    bool is_agent_pane_collapsed() const { return m_agent_pane_collapsed; }
+
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
     void on_frame_size(wxSizeEvent& event);
@@ -72,6 +79,7 @@ private:
     wxBoxSizer* m_workspace_sizer{nullptr};
     wxWindow* m_workspace_status{nullptr};
     int m_agent_pane_preferred_width{0};
+    bool m_agent_pane_collapsed{false};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

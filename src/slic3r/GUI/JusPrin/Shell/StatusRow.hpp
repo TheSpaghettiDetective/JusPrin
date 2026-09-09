@@ -60,6 +60,9 @@ public:
     PrintActionState action_state() const;
     Workspace::SliceIdentity slice_identity() const;
     void request_home();
+    // Closes the Agent panel if it is open and opens it if it is closed.
+    // Does nothing until ShellController has supplied the toggle.
+    void toggle_agent_pane();
     void show_action_menu();
     void show_overflow_menu();
 
@@ -91,6 +94,13 @@ public:
     // the Agent pane exists, so the header does not depend on the Agent host.
     void set_note_sink(std::function<void(const wxString&)> sink) { m_note_sink = std::move(sink); }
 
+    // The Agent-panel toggle, supplied by ShellController for the same reason
+    // as the note sink: the header drives the panel without depending on it.
+    // Its button stays hidden until a toggle is supplied, so a header built
+    // without a panel shows no control for one.
+    void set_agent_pane_toggle(std::function<void()> toggle);
+    void set_agent_pane_collapsed(bool collapsed);
+
 private:
     void on_spool_selected(const Workspace::Spool& spool);
     void refresh_chip();
@@ -113,6 +123,7 @@ private:
     HeaderButton* m_slice_button{nullptr};
     HeaderButton* m_menu_button{nullptr};
     HeaderButton* m_overflow_button{nullptr};
+    HeaderButton* m_agent_toggle{nullptr};
     wxWeakRef<wxPanel> m_workspace_status;
     wxWeakRef<SliceReviewPanel> m_review_panel;
     wxWeakRef<wxStaticText> m_plate_label;
@@ -122,6 +133,7 @@ private:
     // application data rather than in the project archive.
     std::unique_ptr<Workspace::SpoolStore> m_spools;
     std::function<void(const wxString&)>   m_note_sink;
+    std::function<void()>                  m_agent_pane_toggle;
 
     ProjectStateSubscription m_project_state_subscription;
     bool                     m_dark{false};

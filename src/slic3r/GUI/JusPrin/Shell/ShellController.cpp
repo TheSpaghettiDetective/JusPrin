@@ -31,16 +31,22 @@ namespace {
 class AgentPaneResizeHandle final : public wxPanel
 {
 public:
-    using WidthGetter = std::function<int()>;
-    using WidthSetter = std::function<void(int)>;
+    // What the divider needs from the shell: the pane's width now, a new
+    // width while dragging, and the two ways a drag ends in a closed pane.
+    struct Callbacks
+    {
+        std::function<int()>     width;
+        std::function<void(int)> set_width;
+        std::function<void()>    collapse;
+        std::function<void()>    toggle;
+    };
 
-    AgentPaneResizeHandle(wxWindow* parent, const ShellTheme& theme, WidthGetter get_width, WidthSetter set_width)
+    AgentPaneResizeHandle(wxWindow* parent, const ShellTheme& theme, Callbacks callbacks)
         : wxPanel(parent, wxID_ANY, wxDefaultPosition,
                   parent->FromDIP(wxSize(theme.metrics().agent_pane.resize_handle_width, -1)),
                   wxBORDER_NONE)
         , m_theme(theme)
-        , m_get_width(std::move(get_width))
-        , m_set_width(std::move(set_width))
+        , m_callbacks(std::move(callbacks))
     {
         SetName(_L("Resize Agent panel"));
         SetToolTip(_L("Drag to resize the Agent panel"));
@@ -53,6 +59,7 @@ public:
         Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) { m_hovered = false; Refresh(); });
         Bind(wxEVT_LEFT_DOWN, &AgentPaneResizeHandle::on_left_down, this);
         Bind(wxEVT_LEFT_UP, &AgentPaneResizeHandle::on_left_up, this);
+        Bind(wxEVT_LEFT_DCLICK, &AgentPaneResizeHandle::on_double_click, this);
         Bind(wxEVT_MOTION, &AgentPaneResizeHandle::on_motion, this);
         Bind(wxEVT_MOUSE_CAPTURE_LOST, [this](wxMouseCaptureLostEvent&) { m_dragging = false; Refresh(); });
     }
@@ -76,13 +83,41 @@ private:
     void on_left_down(wxMouseEvent& event)
     {
         m_drag_origin_x = ClientToScreen(event.GetPosition()).x;
-        m_drag_origin_width = m_get_width();
+        m_drag_origin_width = m_callbacks.width();
         m_dragging = true;
         CaptureMouse();
         Refresh();
     }
 
     void on_left_up(wxMouseEvent&)
+    {
+        end_drag();
+    }
+
+    void on_double_click(wxMouseEvent&)
+    {
+        // wx sends down/up before the double click, so a drag may be open.
+        end_drag();
+        m_callbacks.toggle();
+    }
+
+    void on_motion(wxMouseEvent& event)
+    {
+        if (!m_dragging || !HasCapture())
+            return;
+        const int pointer_x = ClientToScreen(event.GetPosition()).x;
+        const int width = m_drag_origin_width + m_drag_origin_x - pointer_x;
+        if (width < FromDIP(m_theme.metrics().agent_pane.drag_collapse_width)) {
+            // Ending the drag before collapsing releases the capture while
+            // this window is still shown; collapsing hides it.
+            end_drag();
+            m_callbacks.collapse();
+            return;
+        }
+        m_callbacks.set_width(width);
+    }
+
+    void end_drag()
     {
         if (!m_dragging)
             return;
@@ -92,17 +127,8 @@ private:
         Refresh();
     }
 
-    void on_motion(wxMouseEvent& event)
-    {
-        if (!m_dragging || !HasCapture())
-            return;
-        const int pointer_x = ClientToScreen(event.GetPosition()).x;
-        m_set_width(m_drag_origin_width + m_drag_origin_x - pointer_x);
-    }
-
     const ShellTheme& m_theme;
-    WidthGetter m_get_width;
-    WidthSetter m_set_width;
+    Callbacks m_callbacks;
     bool m_hovered{false};
     bool m_dragging{false};
     int m_drag_origin_x{0};
@@ -184,8 +210,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.min_width);
         m_agent_resize_handle = new AgentPaneResizeHandle(
             &frame, *m_theme,
-            [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
-            [this](int width) { request_agent_pane_width(width); });
+            AgentPaneResizeHandle::Callbacks{
+                [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
+                [this](int width) { request_agent_pane_width(width); },
+                [this] { set_agent_pane_collapsed(true); },
+                [this] { toggle_agent_pane(); }});
+        m_status_row->set_agent_pane_toggle([this] { toggle_agent_pane(); });
+        m_status_row->set_agent_pane_collapsed(m_agent_pane_collapsed);
 
         // The header posts its after-swap line into the thread. Wiring it here
         // rather than giving StatusRow the AgentHost keeps the header free of
@@ -277,6 +308,8 @@ void ShellController::apply_agent_pane_width()
 {
     if (m_theme == nullptr || m_frame == nullptr || m_center_sizer == nullptr || m_agent_pane == nullptr)
         return;
+    if (m_agent_pane_collapsed)
+        return;
     const AgentPaneMetrics& metrics = m_theme->metrics().agent_pane;
     const int min_width = m_frame->FromDIP(metrics.min_width);
     const int workspace_min_width = m_frame->FromDIP(metrics.workspace_min_width);
@@ -287,12 +320,33 @@ void ShellController::apply_agent_pane_width()
     m_center_sizer->Layout();
 }
 
+void ShellController::set_agent_pane_collapsed(bool collapsed)
+{
+    if (m_agent_pane == nullptr || m_agent_resize_handle == nullptr || m_agent_pane_collapsed == collapsed)
+        return;
+    m_agent_pane_collapsed = collapsed;
+    // Hidden, never destroyed: the conversation, the loaded page, and the MCP
+    // runtime all outlive a collapse. A hidden sizer item takes no space, so
+    // the workspace grows into the whole width with no second width policy.
+    m_agent_pane->Show(!collapsed);
+    m_agent_resize_handle->Show(!collapsed);
+    if (m_status_row != nullptr)
+        m_status_row->set_agent_pane_collapsed(collapsed);
+    // Expanding re-applies the width policy, which lays out on its way; a
+    // collapsed pane has no width to apply, so it lays out here.
+    if (collapsed)
+        m_center_sizer->Layout();
+    else
+        apply_agent_pane_width();
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();
     if (!m_installed)
         return;
     m_installed = false;
+    m_agent_pane_collapsed = false;
     m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
     m_frame->Unbind(wxEVT_SIZE, &ShellController::on_frame_size, this);
 
