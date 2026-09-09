@@ -3,6 +3,7 @@
 # binary, so nothing here links libslic3r_gui.
 add_executable(jusprin_tests
     test_spool_store.cpp
+    test_host_locale.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
 )
 
@@ -13,7 +14,10 @@ target_include_directories(jusprin_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/deps_src
 )
-target_link_libraries(jusprin_tests PRIVATE Catch2WithMain nlohmann_json)
+# test_common carries the macOS framework link (CoreFoundation) that
+# HostLocale.hpp needs there; on Windows and Linux it adds nothing but the
+# shared test defines.
+target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_json)
 
 orcaslicer_discover_tests(jusprin_tests)
 
