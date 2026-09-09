@@ -1,0 +1,136 @@
+In this OrcaSlicer/JusPrin fork, `show_mcp_connection_dialog` in `src/slic3r/GUI/JusPrin/Shell/McpConnectionDialog.cpp` (lines ~212-366, declared at `McpConnectionDialog.hpp:15`) has no callers anywhere in `src/` or `tests/`. It was the old native wxWidgets "Connect AI tools" dialog. Commit a6fa6ed9e6 ("Move AI-tool connection into Agent setup") moved that flow into the React Agent panel (`src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupLocalTool.tsx`) and removed the button that opened the dialog, but left the dialog's implementation in place.
+
+The other two functions in the same file, `run_mcp_setup_command` and `start_mcp_setup_command`, ARE still used — `src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp:50` calls `start_mcp_setup_command` to run client CLI setup commands on behalf of the web UI. Keep those.
+
+Task: verify `show_mcp_connection_dialog` is genuinely unreachable (grep src/, tests/, and any platform-conditional code), then delete it and any helpers/includes that exist only to serve it. `tests/shell/shell_harness.cpp:58` includes the header — check whether it still needs to. Confirm the build still succeeds:
+
+    cmake --build build/arm64 --config RelWithDebInfo --target all --
+
+This file is fork-owned (under src/slic3r/GUI/JusPrin/), so per agent-docs/jusprin/fork-stewardship.md it adds no rebase burden.
+
+---
+
+do you need anything from me? say it in plain eng concise
+
+---
+
+rename it to better name. commit after you have tested it
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[757/934] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/RelWithDebInfo/GUI/JusPrin/Shell/McpConnectionDialog.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[800/934] Linking CXX executable src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/jusprin-mcp</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[906/934] Linking CXX executable deps_src/hints/RelWithDebInfo/hintsToPot.app/Contents/MacOS/hintsToPot</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[917/934] Linking CXX executable tests/libnest2d/RelWithDebInfo/libnest2d_tests.app/Contents/MacOS/libnest2d_tests
+[918/934] Linking CXX executable tests/workspace/RelWithDebInfo/workspace_contract_tests.app/Contents/MacOS/workspace_contract_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[919/934] Linking CXX executable src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/OrcaSlicer</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[920/934] Linking CXX executable tests/slic3rutils/RelWithDebInfo/slic3rutils_tests.app/Contents/MacOS/slic3rutils_tests
+[921/934] Linking CXX executable tests/brand/RelWithDebInfo/brand_tokens_tests.app/Contents/MacOS/brand_tokens_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[922/934] Linking CXX executable tests/jusprin/RelWithDebInfo/jusprin_tests.app/Contents/MacOS/jusprin_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[923/934] Linking CXX executable tests/agent/RelWithDebInfo/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[926/934] Linking CXX executable tests/sla_print/RelWithDebInfo/sla_print_tests.app/Contents/MacOS/sla_print_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[927/934] Linking CXX executable tests/workspace/RelWithDebInfo/JusPrinWorkspaceHarness.app/Contents/MacOS/JusPrinWorkspaceHarness</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[929/934] Linking CXX executable tests/libslic3r/RelWithDebInfo/libslic3r_tests.app/Contents/MacOS/libslic3r_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[931/934] Linking CXX executable tests/fff_print/RelWithDebInfo/fff_print_tests.app/Contents/MacOS/fff_print_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10t74164</task-id>
+<summary>Monitor event: "JusPrin build errors and link steps"</summary>
+<event>[932/934] Linking CXX executable tests/shell/RelWithDebInfo/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
