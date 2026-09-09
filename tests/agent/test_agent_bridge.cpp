@@ -1875,6 +1875,32 @@ TEST_CASE("mcp_connect reports a missing helper instead of writing settings", "[
     CHECK((*status)["payload"]["error"]["code"] == "helper_missing");
 }
 
+namespace {
+
+// The CLI is discovered by McpCatalog::command_on_path, which searches PATH for
+// the command name platform-dressed: "claude.exe" split on ';' under Windows,
+// bare "claude" split on ':' elsewhere. The fixture below has to match that
+// shape on both, or the search looks for a name the test never created.
+#ifdef _WIN32
+constexpr char kPathSeparator = ';';
+constexpr const char* kExecutableSuffix = ".exe";
+#else
+constexpr char kPathSeparator = ':';
+constexpr const char* kExecutableSuffix = "";
+#endif
+
+void set_path_env(const std::string& value)
+{
+#ifdef _WIN32
+    // setenv is POSIX; MSVC offers _putenv_s with the arguments reversed.
+    _putenv_s("PATH", value.c_str());
+#else
+    setenv("PATH", value.c_str(), 1);
+#endif
+}
+
+} // namespace
+
 TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
 {
     Harness harness;
@@ -1884,13 +1910,13 @@ TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
     std::filesystem::permissions(helper, std::filesystem::perms::owner_all);
     const auto bin = directory.root / "bin";
     std::filesystem::create_directories(bin);
-    const auto claude = bin / "claude";
+    const auto claude = bin / (std::string("claude") + kExecutableSuffix);
     { std::ofstream(claude) << "#!/bin/sh\n"; }
     std::filesystem::permissions(claude, std::filesystem::perms::owner_all);
     const char* previous = std::getenv("PATH");
     const std::string restored = previous ? previous : "";
-    const std::string path = bin.u8string() + ":" + restored;
-    setenv("PATH", path.c_str(), 1);
+    const std::string path = bin.u8string() + kPathSeparator + restored;
+    set_path_env(path);
     AgentHost::McpConnectSettings settings;
     settings.helper_path = helper.u8string();
     settings.launcher_path = helper.u8string();
@@ -1904,7 +1930,7 @@ TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
     });
     harness.handshake();
     harness.deliver("mcp_connect", json{{"toolId", "claude"}});
-    setenv("PATH", restored.c_str(), 1);
+    set_path_env(restored);
     REQUIRE(seen.size() >= 2);
     CHECK(seen[0] == claude.u8string());
     CHECK(std::find(seen.begin(), seen.end(), "--discovery") != seen.end());
