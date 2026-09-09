@@ -1,0 +1,1 @@
+the chat pannel on the right is resizable. Now I also want to add UI elements so that it's collapsible. Check to see what are design options that will work well for all three platforms, Windows, Mac, and Linux.
