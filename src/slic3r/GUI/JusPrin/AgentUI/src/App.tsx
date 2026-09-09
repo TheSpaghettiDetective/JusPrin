@@ -317,6 +317,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
           onRefresh={() => client.send('mcp_catalog', {})}
           onPreview={(toolId) => client.send('mcp_preview', { toolId })}
           onConnect={(toolId) => client.send('mcp_connect', { toolId })}
+          onReveal={(toolId) => client.send('reveal_path', { toolId })}
           onBack={() => setSetupScreen('chooser')}
           onDone={closeSetup}
         />

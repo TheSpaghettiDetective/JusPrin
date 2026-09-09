@@ -287,7 +287,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation, Protocol::kRevertToRevision,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
-                                              Protocol::kMcpPreview, Protocol::kMcpConnect});
+                                              Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -1844,6 +1844,10 @@ TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup
     REQUIRE(preview != nullptr);
     CHECK((*preview)["payload"]["next"].get<std::string>().find("\"url\"") == std::string::npos);
     CHECK((*preview)["payload"]["next"].get<std::string>().find("command") != std::string::npos);
+    // No JusPrin entry in the file yet, so there is no previous entry to show.
+    // The field is absent rather than the string "null", which the page could
+    // not tell from a real entry.
+    CHECK_FALSE((*preview)["payload"].contains("previous"));
     harness.deliver("mcp_connect", json{{"toolId", "cursor"}});
     const json* status = harness.last_of_type("mcp_status");
     REQUIRE(status != nullptr);
@@ -1852,6 +1856,36 @@ TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup
     const json written = json::parse(in);
     CHECK(written["mcpServers"]["jusprin"]["command"] == helper.u8string());
     CHECK_FALSE(written["mcpServers"]["jusprin"].contains("url"));
+}
+
+TEST_CASE("reveal_path resolves a tool id to the host's own config path", "[agent][mcp_setup]")
+{
+    Harness harness;
+    JusPrinTest::McpDirectory directory;
+    const auto home = directory.root / "home";
+    std::filesystem::create_directories(home / ".cursor");
+    const auto cursor_config = home / ".cursor" / "mcp.json";
+    { std::ofstream(cursor_config) << "{}\n"; }
+    AgentHost::McpConnectSettings settings;
+    settings.home = home;
+    settings.config_home = directory.root / "config";
+    harness.host.configure_mcp_connect(settings);
+    std::vector<std::string> revealed;
+    harness.host.set_reveal_path_handler([&](const std::string& path) { revealed.push_back(path); });
+    harness.handshake();
+
+    harness.deliver("reveal_path", json{{"toolId", "cursor"}});
+    REQUIRE(revealed.size() == 1);
+    CHECK(revealed.front() == cursor_config.u8string());
+
+    // A path the page invents never reaches the shell: only a tool id is
+    // accepted, and only one the catalog knows.
+    harness.deliver("reveal_path", json{{"toolId", "not-a-tool"}});
+    harness.deliver("reveal_path", json{{"path", "/etc/passwd"}});
+    CHECK(revealed.size() == 1);
+    const json* error = harness.last_of_type("bridge_error");
+    REQUIRE(error != nullptr);
+    CHECK((*error)["payload"]["code"] == "invalid_payload");
 }
 
 TEST_CASE("mcp_connect reports a missing helper instead of writing settings", "[agent][mcp_setup]")

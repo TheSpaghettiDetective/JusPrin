@@ -1,2 +1,10 @@
 # Set the default behavior, in case people don't have core.autocrlf set.
 * text=auto
+
+# The Agent page is a generated single-file bundle, built from the template
+# above it. On Windows the template checks out with CRLF and vite copies those
+# endings into the output, so the same sources produce a different blob on
+# Windows and macOS. Pin both to LF: the bundle is committed, and a whole-file
+# ending flip is a 461 KB spurious diff every time the build platform changes.
+src/slic3r/GUI/JusPrin/AgentUI/index.html text eol=lf
+resources/jusprin/agent/index.html text eol=lf

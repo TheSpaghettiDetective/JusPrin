@@ -29,7 +29,8 @@ export type PageMessageType =
   | 'setup_cancel'
   | 'mcp_catalog'
   | 'mcp_preview'
-  | 'mcp_connect';
+  | 'mcp_connect'
+  | 'reveal_path';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -161,7 +162,10 @@ export interface McpCatalogPayload {
 export interface McpPreviewPayload {
   toolId: string;
   path: string;
-  previous: string;
+  // Absent when the file has no JusPrin entry yet. The host omits the field
+  // rather than sending a serialised null, so "nothing there yet" stays
+  // distinguishable from a real entry the user should read.
+  previous?: string;
   next: string;
   root: string;
 }

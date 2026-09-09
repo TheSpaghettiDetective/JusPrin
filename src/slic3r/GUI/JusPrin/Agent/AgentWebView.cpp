@@ -1,6 +1,7 @@
 #include "AgentWebView.hpp"
 
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
@@ -50,6 +51,14 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
         start_mcp_setup_command(this, arguments, [complete = std::move(done)](McpSetupResult result) {
             complete(result.success, std::move(result.diagnostic));
         });
+    });
+    // The host resolves which file this is; it only lacks a way to show it.
+    // Deferred rather than called inline: this runs inside the web view's
+    // script-message handler, and handing the file manager the main thread
+    // before that handler returns is a way to stall the view's own message
+    // pump. Nothing here depends on the reveal having happened.
+    m_host->set_reveal_path_handler([this](const std::string& path) {
+        CallAfter([path] { desktop_open_any_folder(path); });
     });
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);

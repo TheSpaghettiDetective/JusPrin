@@ -99,6 +99,53 @@ TEST_CASE("MCP JSON setup preserves unrelated bytes and keeps a recovery backup"
     CHECK(Mcp::apply_config_edit(again).empty());
 }
 
+TEST_CASE("MCP setup indents the inserted entry like its siblings", "[mcp][connections]")
+{
+    JusPrinTest::McpDirectory directory;
+    const auto path = directory.path();
+    const std::string original = "{\n  \"mcpServers\": {\n    \"other\": {\n      \"command\": \"keep\"\n    }\n  }\n}\n";
+    fixture(path, original);
+    const json server{{"command", "helper"}, {"args", json::array({"--discovery", "/tmp/mcp.json"})}};
+    const auto edit = Mcp::prepare_json_connection(path, "mcpServers", server);
+
+    // The file is one people open and edit by hand, and the review screen
+    // promises their other settings are left alone. An entry at column 0
+    // among indented siblings reads as the file having been reformatted.
+    CHECK(edit.after.find("\n    \"jusprin\": {") != std::string::npos);
+    CHECK(edit.after.find("\n\"jusprin\"") == std::string::npos);
+    CHECK(edit.after.find("      \"command\": \"helper\"") != std::string::npos);
+    // No blank line left where the brace's own newline used to fall.
+    CHECK(edit.after.find("\n\n") == std::string::npos);
+    // The sibling is untouched and the whole file still parses.
+    const auto written = json::parse(edit.after);
+    CHECK(written["mcpServers"]["other"]["command"] == "keep");
+    CHECK(written["mcpServers"]["jusprin"] == server);
+
+    // An empty map still gets an indented entry rather than a flush-left one.
+    fixture(path, "{\n  \"mcpServers\": {}\n}\n");
+    const auto empty = Mcp::prepare_json_connection(path, "mcpServers", server);
+    CHECK(empty.after.find("\n    \"jusprin\": {") != std::string::npos);
+    CHECK(json::parse(empty.after)["mcpServers"]["jusprin"] == server);
+}
+
+TEST_CASE("MCP setup reports an absent JusPrin entry as absent, not as null", "[mcp][connections]")
+{
+    JusPrinTest::McpDirectory directory;
+    const auto path = directory.path();
+    const json server{{"command", "helper"}};
+
+    // A file that already holds another server but no jusprin entry: there is
+    // no previous entry, and saying so is not the same as showing one.
+    fixture(path, "{\"mcpServers\": {\"other\": {\"command\": \"keep\"}}}");
+    CHECK(Mcp::prepare_json_connection(path, "mcpServers", server).previous.is_null());
+
+    // And a file that does hold one reports it.
+    fixture(path, "{\"mcpServers\": {\"jusprin\": {\"command\": \"old\"}}}");
+    const auto second = Mcp::prepare_json_connection(path, "mcpServers", server);
+    REQUIRE_FALSE(second.previous.is_null());
+    CHECK(second.previous["command"] == "old");
+}
+
 TEST_CASE("MCP setup handles new files and missing or empty server maps", "[mcp][connections]")
 {
     JusPrinTest::McpDirectory directory;

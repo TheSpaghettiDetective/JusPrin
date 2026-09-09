@@ -28,7 +28,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "context",     "appearance",  "tools",
                                                  "conversations", "revisions", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
-                                                 "mcp_setup", "system_notes"};
+                                                 "mcp_setup", "system_notes", "reveal_path"};
     return values;
 }
 
@@ -54,6 +54,10 @@ inline constexpr const char* kSetupCancel        = "setup_cancel";
 inline constexpr const char* kMcpCatalog         = "mcp_catalog";
 inline constexpr const char* kMcpPreview         = "mcp_preview";
 inline constexpr const char* kMcpConnect         = "mcp_connect";
+// Reveal one host-known file in the desktop's file manager. The page names a
+// catalog tool, never a path: the host resolves it, so nothing the page can
+// say reaches the shell.
+inline constexpr const char* kRevealPath         = "reveal_path";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
 import { SetupScreenTitle } from './Setup';
 
-type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved' | 'error';
+type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved';
 
 export interface SetupLocalToolProps {
   catalog: McpCatalogPayload | null;
@@ -11,6 +11,7 @@ export interface SetupLocalToolProps {
   onRefresh: () => void;
   onPreview: (toolId: string) => void;
   onConnect: (toolId: string) => void;
+  onReveal: (toolId: string) => void;
   onBack: () => void;
   onDone: () => void;
 }
@@ -37,6 +38,62 @@ function errorCopy(status: McpStatusPayload, tool?: McpToolInfo, path?: string):
   return { title: 'The setup command failed.', body: status.error?.message ?? status.diagnostic ?? 'Try again.' };
 }
 
+// The error lives on the screen that produced it, in the slot above the
+// buttons, so the command or the diff the user was reading stays visible.
+// Each code carries the one way out the design gives it.
+function SetupInlineError({
+  status,
+  tool,
+  path,
+  onReveal,
+  onReviewAgain,
+}: {
+  status: McpStatusPayload;
+  tool?: McpToolInfo;
+  path?: string;
+  onReveal: (toolId: string) => void;
+  onReviewAgain: (toolId: string) => void;
+}) {
+  const [details, setDetails] = useState(false);
+  const copy = errorCopy(status, tool, path);
+  const code = status.error?.code ?? '';
+  const diagnostic = status.diagnostic ?? '';
+  // A failed CLI reports the same string as the body text and as the raw
+  // output. It belongs in the disclosure, not twice on the screen.
+  const bodyIsDiagnostic = diagnostic !== '' && diagnostic === copy.body;
+  return (
+    <div className="setup-error-slot">
+      <div className="setup-error" role="alert" data-testid="setup-local-error">
+        <strong>{copy.title}</strong>
+        {!bodyIsDiagnostic && <p>{copy.body}</p>}
+        {tool && (code === 'write_failed' || code === 'timeout') && (
+          <button type="button" className="link" onClick={() => onReveal(tool.id)}>
+            Show file
+          </button>
+        )}
+        {tool && code === 'cli_missing' && (
+          <button type="button" className="link" onClick={() => copyText(tool.text)}>
+            Copy
+          </button>
+        )}
+        {tool && code === 'stale_preview' && (
+          <button type="button" className="link" onClick={() => onReviewAgain(tool.id)}>
+            Review again
+          </button>
+        )}
+      </div>
+      {diagnostic && (
+        <div className="setup-error-details">
+          <button type="button" onClick={() => setDetails(!details)}>
+            {details ? '▾' : '▸'} Technical output
+          </button>
+          {details && <pre>{diagnostic}</pre>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 async function copyText(text: string) {
   await navigator.clipboard.writeText(text);
 }
@@ -48,6 +105,7 @@ export function SetupLocalTool({
   onRefresh,
   onPreview,
   onConnect,
+  onReveal,
   onBack,
   onDone,
 }: SetupLocalToolProps) {
@@ -56,6 +114,15 @@ export function SetupLocalTool({
   const [advanced, setAdvanced] = useState(false);
   const [copied, setCopied] = useState(false);
   const [awaitingStatus, setAwaitingStatus] = useState(false);
+  const [error, setError] = useState<McpStatusPayload | null>(null);
+  // Each status envelope is acted on once. Without this, dismissing an error
+  // and starting another attempt would re-read the same payload and put the
+  // banner straight back.
+  const handled = useRef<McpStatusPayload | null>(null);
+  // The screen a connect was dispatched from. A failing connect reports
+  // 'writing' before it reports the error, so by then the user is on the
+  // progress screen -- which has no error slot and no way out.
+  const origin = useRef<Step>('pick');
 
   useEffect(() => {
     onRefresh();
@@ -64,15 +131,22 @@ export function SetupLocalTool({
   }, []);
 
   useEffect(() => {
+    if (handled.current === status) return;
+    handled.current = status;
+    if (status.phase === 'error') {
+      // An error does not navigate the user onward; it puts them back where
+      // they were, with the command or the diff still in front of them.
+      setAwaitingStatus(false);
+      setError(status);
+      setStep((current) => (current === 'saving' ? origin.current : current));
+      return;
+    }
+    setError(null);
     if (!awaitingStatus) return;
     if (status.phase === 'writing') setStep('saving');
     if (status.phase === 'saved') {
       setAwaitingStatus(false);
       setStep('saved');
-    }
-    if (status.phase === 'error') {
-      setAwaitingStatus(false);
-      setStep('error');
     }
   }, [status, awaitingStatus]);
 
@@ -82,6 +156,7 @@ export function SetupLocalTool({
     setSelectedId(item.id);
     setCopied(false);
     setAdvanced(false);
+    setError(null);
     if (item.cli) setStep('prepare');
     else {
       onPreview(item.id);
@@ -89,24 +164,48 @@ export function SetupLocalTool({
     }
   };
 
+  const connect = (toolId: string) => {
+    origin.current = step;
+    setError(null);
+    setAwaitingStatus(true);
+    onConnect(toolId);
+  };
+
   const copyCommand = async (text: string) => {
     await copyText(text);
     setCopied(true);
   };
 
+  const reviewAgain = (toolId: string) => {
+    setError(null);
+    onPreview(toolId);
+  };
+
+  const errorSlot = error ? (
+    <SetupInlineError
+      status={error}
+      tool={tool}
+      path={preview?.path ?? tool?.configPath}
+      onReveal={onReveal}
+      onReviewAgain={reviewAgain}
+    />
+  ) : null;
+
   if (step === 'saving') {
     return (
       <div className="pane-state setup" data-testid="setup-local-saving">
-        <h1>Writing settings…</h1>
-        <p>JusPrin is saving the connection. This usually takes a second.</p>
+        <h1>{tool?.name ?? 'AI tool'}</h1>
+        <p>Writing settings…</p>
         <div className="setup-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={40}>
           <span style={{ width: '40%' }} />
         </div>
+        <p className="footnote">Can’t be stopped once started; it takes a moment.</p>
       </div>
     );
   }
 
   if (step === 'saved') {
+    const name = tool?.name ?? 'the AI tool';
     return (
       <div className="pane-state setup" data-testid="setup-local-saved">
         <p className="setup-kicker">
@@ -114,42 +213,25 @@ export function SetupLocalTool({
           Connected
         </p>
         <h1>{tool?.name ?? 'AI tool'} can see this project</h1>
-        <p>Open a chat there and ask it to work with the model in JusPrin. Changes still need your approval here.</p>
         {status.backup && (
           <p className="setup-path">
             Backup: <span>{status.backup}</span>
           </p>
         )}
         <p className="setup-eyebrow">What to expect</p>
+        <ul className="setup-expect">
+          <li>Keep JusPrin open while {name} uses it — the helper doesn’t launch it.</li>
+          <li>You won’t need to set this up again after a normal JusPrin restart.</li>
+        </ul>
+        <p className="setup-eyebrow">What to do next</p>
         <ol className="setup-expect">
-          <li>Restart the AI tool if it was already running.</li>
+          <li>Restart {name} if it was already running.</li>
           <li>Ask it about the open project.</li>
-          <li>Approve or reject proposals in this panel.</li>
+          <li>Approve or reject its proposals in this panel.</li>
         </ol>
         <button className="primary" onClick={onDone}>
           Done
         </button>
-      </div>
-    );
-  }
-
-  if (step === 'error') {
-    const copy = errorCopy(status, tool, preview?.path ?? tool?.configPath);
-    return (
-      <div className="pane-state setup" data-testid="setup-local-error">
-        <SetupScreenTitle label="Can’t connect" onBack={() => setStep('pick')} />
-        <div className="setup-error" role="alert">
-          <strong>{copy.title}</strong>
-          <p>{copy.body}</p>
-        </div>
-        <div className="setup-actions">
-          {tool?.cli && (
-            <button className="link" onClick={() => tool && copyText(tool.text)}>
-              Copy
-            </button>
-          )}
-          <button onClick={() => setStep(tool?.cli ? 'prepare' : 'review')}>Review again</button>
-        </div>
       </div>
     );
   }
@@ -165,19 +247,14 @@ export function SetupLocalTool({
             {copied ? 'Copied' : 'Copy'}
           </button>
         </div>
+        <p className="setup-manual">Running it yourself? Paste it in a terminal, then restart {tool.name}.</p>
         <p className="footnote">
           Keep JusPrin open while you use {tool.name}; the helper doesn’t launch it. Restarting JusPrin later won’t need
           this again.
         </p>
+        {errorSlot}
         <div className="setup-actions">
-          <button
-            className="primary"
-            onClick={() => {
-              setAwaitingStatus(true);
-              onConnect(tool.id);
-            }}
-            disabled={!catalog?.helperPresent}
-          >
+          <button className="primary" onClick={() => connect(tool.id)} disabled={!catalog?.helperPresent}>
             Connect…
           </button>
           <button onClick={() => setStep('pick')}>Close</button>
@@ -202,23 +279,28 @@ export function SetupLocalTool({
     return (
       <div className="pane-state setup" data-testid="setup-local-review">
         <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={() => setStep('pick')} />
-        <p>JusPrin will write only the JusPrin entry. Everything else in the file stays as it is.</p>
+        <p className="setup-consent">
+          Allow this AI tool to read the open project and propose changes? Changes still require approval inside
+          JusPrin.
+        </p>
         <p className="setup-path">{preview?.path ?? tool?.configPath}</p>
         <p className="setup-eyebrow">JusPrin will edit</p>
         <div className="setup-diff">
-          <pre className="setup-diff-before">{preview?.previous || '{}'}</pre>
+          {preview?.previous === undefined ? (
+            // Nothing to compare against on a first connection. Say so, rather
+            // than printing an empty object the reader has to interpret.
+            <p className="setup-diff-absent">No JusPrin entry yet — this adds one.</p>
+          ) : (
+            <pre className="setup-diff-before">{preview.previous}</pre>
+          )}
           <pre className="setup-diff-after">{preview?.next || ''}</pre>
         </div>
-        <p className="footnote">Other servers in this file stay unchanged.</p>
+        <p className="footnote">Your other settings stay as they are. The existing file is backed up first.</p>
+        {errorSlot}
         <div className="setup-actions">
           <button
             className="primary"
-            onClick={() => {
-              if (selectedId) {
-                setAwaitingStatus(true);
-                onConnect(selectedId);
-              }
-            }}
+            onClick={() => selectedId && connect(selectedId)}
             disabled={!preview || !catalog?.helperPresent}
           >
             Connect

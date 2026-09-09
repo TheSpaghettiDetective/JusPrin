@@ -2,7 +2,7 @@
 // plays the native side of the bridge while the real page runs in jsdom.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { App } from './App';
@@ -731,6 +731,49 @@ describe('App agent setup', () => {
     fireEvent.click(screen.getByTestId('setup-row-api-key'));
   }
 
+  // Both branches of the flow start here: 'claude' runs a CLI command,
+  // 'cursor' edits a settings file.
+  function openToolCatalog() {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    fireEvent.click(screen.getByTestId('setup-row-connect-tool'));
+    host.deliver('mcp_catalog', {
+      helperPresent: true,
+      liveUrl: 'http://127.0.0.1:9/mcp',
+      tools: [
+        {
+          id: 'claude',
+          name: 'Claude Code',
+          detected: false,
+          cli: true,
+          text: "claude mcp add --scope user --transport stdio jusprin -- '/tmp/jusprin-mcp' --discovery '/tmp/mcp.json'",
+          configPath: '/home/u/.claude.json',
+        },
+        {
+          id: 'cursor',
+          name: 'Cursor',
+          detected: true,
+          cli: false,
+          text: '{"mcpServers":{"jusprin":{"command":"/tmp/jusprin-mcp","args":["--discovery","/tmp/mcp.json"]}}}',
+          configPath: '/tmp/mcp.json',
+        },
+      ],
+    });
+  }
+
+  function openCursorReview() {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    host.deliver('mcp_preview', {
+      toolId: 'cursor',
+      path: '/tmp/mcp.json',
+      previous: '{}',
+      next: '{"command":"/tmp/jusprin-mcp","args":["--discovery","/tmp/mcp.json"]}',
+      root: 'mcpServers',
+    });
+  }
+
   it('walks from the offer to the three ways of connecting an Agent', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' } }));
@@ -873,13 +916,22 @@ describe('App agent setup', () => {
     expect(screen.getByTestId('setup-local-review')).toBeInTheDocument();
     expect(screen.getByText('/tmp/mcp.json')).toBeInTheDocument();
     expect(screen.queryByText(/http:\/\/127.0.0.1/)).not.toBeInTheDocument();
+    // The screen asks permission, and promises the backup before the user
+    // commits rather than after.
+    expect(screen.getByText(/Allow this AI tool to read the open project/)).toBeInTheDocument();
+    expect(screen.getByText(/The existing file is backed up first/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
     expect(host.lastOfType('mcp_connect')?.payload).toMatchObject({ toolId: 'cursor' });
     host.deliver('mcp_status', { phase: 'writing', toolId: 'cursor' });
     expect(screen.getByTestId('setup-local-saving')).toBeInTheDocument();
+    expect(screen.getByText(/Can’t be stopped once started/)).toBeInTheDocument();
     host.deliver('mcp_status', { phase: 'saved', toolId: 'cursor', backup: '/tmp/mcp.json.bak' });
     expect(screen.getByTestId('setup-local-saved')).toBeInTheDocument();
     expect(screen.getByText(/Backup:/)).toBeInTheDocument();
+    // The two operational facts reach the config-file branch, which never
+    // sees the prepare screen's footnote.
+    expect(screen.getByText(/Keep JusPrin open while Cursor uses it/)).toBeInTheDocument();
+    expect(screen.getByText(/won’t need to set this up again/)).toBeInTheDocument();
   });
 
   it('copies a CLI command instead of embedding a loopback URL', async () => {
@@ -905,9 +957,161 @@ describe('App agent setup', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
     expect(screen.getByText(/--discovery/)).toBeInTheDocument();
+    // A user running the command by hand is told what to do with it.
+    expect(screen.getByText('Running it yourself? Paste it in a terminal, then restart Claude Code.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     expect(writeText).toHaveBeenCalled();
     expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
+  });
+
+  it('says there is no JusPrin entry yet instead of rendering a serialised null', () => {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    // The host omits `previous` when the file holds no JusPrin entry — which
+    // is what every user sees the first time, on the screen where they grant
+    // an external tool access to their project.
+    host.deliver('mcp_preview', {
+      toolId: 'cursor',
+      path: '/tmp/mcp.json',
+      next: '{"command":"/tmp/jusprin-mcp"}',
+      root: 'mcpServers',
+    });
+
+    const review = screen.getByTestId('setup-local-review');
+    expect(review).toBeInTheDocument();
+    expect(review).not.toHaveTextContent('null');
+    expect(screen.getByText('No JusPrin entry yet — this adds one.')).toBeInTheDocument();
+    // The new entry is still shown.
+    expect(review).toHaveTextContent('"command"');
+  });
+
+  it('reports a failed write on the review screen without discarding the diff', () => {
+    openCursorReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    // The host reports the write starting before it reports the failure.
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'cursor' });
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'cursor',
+      error: { code: 'write_failed', message: 'Permission denied', retryable: true },
+    });
+
+    // The user stays where they were, still looking at the change.
+    expect(screen.getByTestId('setup-local-review')).toBeInTheDocument();
+    expect(screen.getByTestId('setup-local-review')).toHaveTextContent('"command"');
+    expect(screen.getByTestId('setup-local-error')).toHaveTextContent('Can’t write /tmp/mcp.json.');
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument();
+
+    // The file the user has to go and look at can be revealed, by tool id.
+    fireEvent.click(screen.getByRole('button', { name: 'Show file' }));
+    expect(host.lastOfType('reveal_path')?.payload).toMatchObject({ toolId: 'cursor' });
+  });
+
+  it('reports a missing client on the prepare screen without discarding the command', () => {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
+    // The host reports the write starting before it reports the failure.
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'claude',
+      error: { code: 'cli_missing', message: 'not installed', retryable: true },
+    });
+
+    expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
+    expect(screen.getByText(/--discovery/)).toBeInTheDocument();
+    const banner = screen.getByTestId('setup-local-error');
+    expect(banner).toHaveTextContent('Claude Code isn’t installed.');
+    // The way out for this one is to take the command away and run it later.
+    expect(within(banner).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    // Nothing to reveal here, and no raw output to unfold.
+    expect(screen.queryByRole('button', { name: 'Show file' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Technical output/ })).not.toBeInTheDocument();
+  });
+
+  it('offers a fresh look at a file that changed under the review', () => {
+    openCursorReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    // The host reports the write starting before it reports the failure.
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'cursor' });
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'cursor',
+      error: { code: 'stale_preview', message: 'changed after the preview', retryable: true },
+    });
+    expect(screen.getByTestId('setup-local-error')).toHaveTextContent('The file changed since you reviewed it.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review again' }));
+    expect(host.lastOfType('mcp_preview')?.payload).toMatchObject({ toolId: 'cursor' });
+    expect(screen.queryByTestId('setup-local-error')).not.toBeInTheDocument();
+  });
+
+  it('keeps the raw output of a timed-out command behind a disclosure', () => {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
+    // The host reports the write starting before it reports the failure.
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'claude',
+      diagnostic: 'claude: the command timed out after 30s',
+      error: { code: 'timeout', message: 'the command timed out after 30s', retryable: true },
+    });
+
+    expect(screen.getByTestId('setup-local-error')).toHaveTextContent('Timed out.');
+    expect(screen.queryByText(/timed out after 30s/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Technical output/ }));
+    expect(screen.getByText(/timed out after 30s/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show file' }));
+    expect(host.lastOfType('reveal_path')?.payload).toMatchObject({ toolId: 'claude' });
+  });
+
+  it('shows raw command output once, behind the disclosure rather than as the body', () => {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
+    // A failed CLI reports the same text through both fields. The banner is
+    // the title alone; the raw text belongs in the disclosure.
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'claude',
+      diagnostic: 'exit 1: no such command',
+      error: { code: 'command_failed', message: 'exit 1: no such command', retryable: true },
+    });
+
+    expect(screen.getByTestId('setup-local-error')).toHaveTextContent('The setup command failed.');
+    expect(screen.getByTestId('setup-local-error')).not.toHaveTextContent('no such command');
+    fireEvent.click(screen.getByRole('button', { name: /Technical output/ }));
+    expect(screen.getByText('exit 1: no such command')).toBeInTheDocument();
+  });
+
+  it('drops a stale error when the user picks a different tool', () => {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
+    // The host reports the write starting before it reports the failure.
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'claude',
+      error: { code: 'cli_missing', message: 'not installed', retryable: true },
+    });
+    expect(screen.getByTestId('setup-local-error')).toBeInTheDocument();
+
+    // The banner must not follow the user onto a screen it no longer applies to.
+    fireEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    host.deliver('mcp_preview', {
+      toolId: 'cursor',
+      path: '/tmp/mcp.json',
+      previous: '{}',
+      next: '{"command":"/tmp/jusprin-mcp"}',
+      root: 'mcpServers',
+    });
+    expect(screen.getByTestId('setup-local-review')).toBeInTheDocument();
+    expect(screen.queryByTestId('setup-local-error')).not.toBeInTheDocument();
   });
 });

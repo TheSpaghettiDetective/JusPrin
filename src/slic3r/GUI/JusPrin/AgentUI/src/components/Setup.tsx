@@ -80,7 +80,7 @@ export function SetupChooser({ onUseApiKey, onConnectTool, onDismiss }: SetupCho
         </button>
       </div>
       <p className="footnote">
-        Change this any time in Preferences › Agent. Nothing here is saved in the project.
+        You can change this later. Nothing here is saved in the project.
       </p>
     </div>
   );
@@ -186,7 +186,7 @@ export function SetupApiKey({ setup, onCheck, onCancel, onBack }: SetupApiKeyPro
         </div>
 
         <p className="footnote">
-          Which model to use is decided for you — there is a picker under Preferences, and you should not need it.
+          Which model to use is decided for you.
         </p>
       </div>
     </div>
