@@ -34,6 +34,14 @@ namespace Slic3r::GUI::JusPrin {
 
 namespace {
 
+// Joining a wxString to a narrow literal decodes that literal through the
+// locale's encoding -- UTF-8 on macOS, the ANSI code page on Windows, where
+// these separators come out as the two or three characters their UTF-8 bytes
+// happen to spell. Naming them once, decoded explicitly, keeps a separator
+// from being written the unsafe way again.
+const wxString& middle_dot() { static const wxString s = wxString::FromUTF8(" \xC2\xB7 "); return s; }
+const wxString& em_dash()    { static const wxString s = wxString::FromUTF8(" \xE2\x80\x94 "); return s; }
+
 #ifdef __WXMSW__
 const wxEventTypeTag<wxBookCtrlEvent>& page_changed_event() { return wxEVT_BOOKCTRL_PAGE_CHANGED; }
 #else
@@ -250,9 +258,9 @@ void StatusRow::refresh_workspace_status()
     if (check) m_review_panel->set_report(slice_identity(),m_reviews->findings(slice_identity()));
     auto* plate = m_plater.get_partplate_list().get_curr_plate();
     wxString label = wxString::Format(_L("Plate %d"),state.plate_number);
-    if (plate && !plate->get_plate_name().empty()) label += " · " + wxString::FromUTF8(plate->get_plate_name());
-    if (state.slicing) label += " · " + _L("Slicing…") + wxString::Format(" %.0f%%",plate ? std::clamp(double(plate->get_slicing_percent()),0.,100.) : 0.);
-    else label += " · " + (state.sliced ? _L("sliced") : _L("not sliced"));
+    if (plate && !plate->get_plate_name().empty()) label += middle_dot() + wxString::FromUTF8(plate->get_plate_name());
+    if (state.slicing) label += middle_dot() + _L("Slicing…") + wxString::Format(" %.0f%%",plate ? std::clamp(double(plate->get_slicing_percent()),0.,100.) : 0.);
+    else label += middle_dot() + (state.sliced ? _L("sliced") : _L("not sliced"));
     m_plate_label->SetLabel(label);
     m_workspace_status->Layout();
     if (layout) m_workspace_status->GetParent()->Layout();
@@ -373,8 +381,8 @@ wxString StatusRow::project_summary() const
 {
     wxString name = m_plater.get_project_name();
     if (name.empty()) name = _L("Untitled");
-    if (m_plater.is_project_dirty()) name += " — " + _L("Unsaved changes");
-    return name + "\n" + _L("Prints") + wxString::FromUTF8(" \xC2\xB7 ") +
+    if (m_plater.is_project_dirty()) name += em_dash() + _L("Unsaved changes");
+    return name + "\n" + _L("Prints") + middle_dot() +
            wxString::Format("%d",int(m_persistence.document().physical_print_count()));
 }
 
