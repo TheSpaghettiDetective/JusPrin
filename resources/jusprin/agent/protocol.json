@@ -15,7 +15,8 @@
     "agent_setup",
     "conversation_management",
     "mcp_setup",
-    "system_notes"
+    "system_notes",
+    "reveal_path"
   ],
   "pageMessageTypes": [
     "hello",
@@ -37,7 +38,8 @@
     "setup_cancel",
     "mcp_catalog",
     "mcp_preview",
-    "mcp_connect"
+    "mcp_connect",
+    "reveal_path"
   ],
   "hostMessageTypes": [
     "hello_ack",

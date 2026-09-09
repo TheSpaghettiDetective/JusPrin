@@ -1,6 +1,7 @@
 #include "AgentWebView.hpp"
 
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
@@ -51,6 +52,8 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
             complete(result.success, std::move(result.diagnostic));
         });
     });
+    // The host resolves which file this is; it only lacks a way to show it.
+    m_host->set_reveal_path_handler([](const std::string& path) { desktop_open_any_folder(path); });
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);
 

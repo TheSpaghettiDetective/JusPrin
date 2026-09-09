@@ -820,6 +820,8 @@ void AgentHost::on_page_message(const std::string& envelope_json)
         handle_mcp_preview(envelope_id, payload);
     else if (type == Protocol::kMcpConnect)
         handle_mcp_connect(envelope_id, payload);
+    else if (type == Protocol::kRevealPath)
+        handle_reveal_path(envelope_id, payload);
     else
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
@@ -1970,6 +1972,22 @@ void AgentHost::set_mcp_cli_runner(McpCliRunner runner)
     m_mcp_cli = std::move(runner);
 }
 
+void AgentHost::set_reveal_path_handler(RevealPathFn reveal)
+{
+    m_reveal_path = std::move(reveal);
+}
+
+std::vector<Mcp::CatalogItem> AgentHost::mcp_catalog_items() const
+{
+    Mcp::CatalogPaths paths;
+    paths.home = m_mcp_connect.home;
+    paths.config_home = m_mcp_connect.config_home;
+    paths.windows = m_mcp_connect.windows;
+    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
+    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
+    return Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+}
+
 void AgentHost::send_mcp_status(const std::string& phase, const std::string& tool_id, const std::string& correlation_id,
                                 const std::string& backup, const std::optional<AgentError>& error,
                                 const std::string& diagnostic)
@@ -1984,13 +2002,7 @@ void AgentHost::send_mcp_status(const std::string& phase, const std::string& too
 
 void AgentHost::handle_mcp_catalog(const std::string& envelope_id)
 {
-    Mcp::CatalogPaths paths;
-    paths.home = m_mcp_connect.home;
-    paths.config_home = m_mcp_connect.config_home;
-    paths.windows = m_mcp_connect.windows;
-    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
-    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
-    const auto items = Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+    const auto items = mcp_catalog_items();
     json tools = json::array();
     for (const auto& item : items) {
         json tool{{"id", item.entry.id},
@@ -2018,13 +2030,7 @@ void AgentHost::handle_mcp_preview(const std::string& envelope_id, const std::st
 {
     const json payload = json::parse(payload_json, nullptr, false);
     const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
-    Mcp::CatalogPaths paths;
-    paths.home = m_mcp_connect.home;
-    paths.config_home = m_mcp_connect.config_home;
-    paths.windows = m_mcp_connect.windows;
-    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
-    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
-    const auto items = Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+    const auto items = mcp_catalog_items();
     const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
     if (found == items.end() || found->entry.cli) {
         send_bridge_error("invalid_payload", "mcp_preview requires a file-based tool.", envelope_id);
@@ -2056,13 +2062,7 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
     }
     const json payload = json::parse(payload_json, nullptr, false);
     const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
-    Mcp::CatalogPaths paths;
-    paths.home = m_mcp_connect.home;
-    paths.config_home = m_mcp_connect.config_home;
-    paths.windows = m_mcp_connect.windows;
-    if (paths.home.empty()) paths = Mcp::default_catalog_paths();
-    const auto command = m_mcp_connect.launcher_path.empty() ? m_mcp_connect.helper_path : m_mcp_connect.launcher_path;
-    const auto items = Mcp::make_catalog(command, m_mcp_discovery_path, paths, m_mcp_connect.launch_arguments);
+    const auto items = mcp_catalog_items();
     const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
     if (found == items.end()) {
         send_bridge_error("invalid_payload", "Unknown MCP tool.", envelope_id);
@@ -2121,6 +2121,25 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
             send_mcp_status("error", tool_id, envelope_id, {}, AgentError{code, diagnostic, true}, diagnostic);
         }
     });
+}
+
+void AgentHost::handle_reveal_path(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
+    // The page names a tool; the path comes from the catalog. A path the page
+    // supplied would be a page-controlled string handed to the shell.
+    const auto items = mcp_catalog_items();
+    const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
+    if (found == items.end() || found->config_path.empty()) {
+        send_bridge_error("invalid_payload", "Unknown MCP tool.", envelope_id);
+        return;
+    }
+    if (!m_reveal_path) {
+        send_bridge_error("unsupported", "This build cannot open a file manager.", envelope_id);
+        return;
+    }
+    m_reveal_path(found->config_path.u8string());
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

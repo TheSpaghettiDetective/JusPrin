@@ -29,7 +29,8 @@ export type PageMessageType =
   | 'setup_cancel'
   | 'mcp_catalog'
   | 'mcp_preview'
-  | 'mcp_connect';
+  | 'mcp_connect'
+  | 'reveal_path';
 
 export type HostMessageType =
   | 'hello_ack'

@@ -1199,9 +1199,14 @@ input[type='radio']:checked {
 /* Agent setup. The screens replace the dock body in place, so they reuse
    .pane-state's metrics and only add the card, the provider tabs, and the
    key row. */
+/* The setup screens are the only pane states taller than the dock: a diff, a
+   command and an error banner can all be on screen at once. They scroll, so
+   the actions at the bottom stay reachable in a short window. */
 .pane-state.setup {
   justify-content: flex-start;
   align-self: stretch;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .setup-card {
@@ -1454,6 +1459,7 @@ button.wide {
 /* Deliberately the UI face, not the technical one: these blocks are copy
    the user reads, and the surrounding card already frames them. */
 .setup-command pre,
+.setup-error-details pre,
 .setup-advanced pre {
   flex: 1;
   min-width: 0;
@@ -1555,4 +1561,40 @@ button.wide {
 
 .setup-error-inline {
   color: var(--status-danger);
+}
+
+/* The one slot an error may occupy: directly above the buttons of whichever
+   screen produced it, leaving the command or the diff visible behind it. */
+.setup-error-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+/* The same disclosure as .setup-advanced, without its bottom-anchoring: this
+   one belongs to the banner directly above it. */
+.setup-error-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.setup-error .link {
+  margin-top: 4px;
+}
+
+/* The consent question, weighted above the paragraphs around it. */
+.pane-state .setup-consent {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+/* An instruction for the user running the command by hand; grouped with the
+   command box above it rather than with the footnote below. */
+.setup-manual {
+  margin-top: -8px;
 }
