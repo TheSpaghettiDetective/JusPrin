@@ -109,6 +109,27 @@ void set_harness_appearance(bool dark);
 namespace Slic3r::GUI::JusPrin {
 namespace {
 
+// Labels reach the widgets through _L, which decodes its narrow literal as
+// UTF-8 explicitly (I18N.hpp). wxString's own narrow constructor instead
+// decodes through the locale's encoding: UTF-8 on macOS, but the ANSI code
+// page on Windows, where the three bytes of "…" become three separate
+// characters. A lookup written as a bare literal therefore matches on macOS
+// and silently misses on Windows -- silently because a missing row reads as
+// "the menu does not contain this", which is what several of these checks
+// assert. Every name below that carries a non-ASCII character goes through
+// here so both sides decode the same way.
+wxString ui_name(const char* utf8) { return wxString::FromUTF8(utf8); }
+
+// The same hazard for a name read back out of a widget: menu_row_names hands
+// back UTF-8, and letting that std::string convert itself to wxString would
+// re-decode it through the locale and undo the round trip on Windows.
+wxString ui_name(const std::string& utf8) { return wxString::FromUTF8(utf8.c_str()); }
+
+// wxString::ToStdString() narrows through that same locale converter and
+// returns an empty string when a character will not fit the code page. Names
+// compared as std::string are read as UTF-8 for the same reason.
+std::string ui_text(const wxString& name) { return name.ToUTF8().data(); }
+
 struct HarnessState
 {
     enum class Mode {
@@ -600,7 +621,7 @@ private:
         auto* menu = visible_header_menu();
         check(menu && menu->IsShown(),"header_action_menu_visible");
         auto* check_item = menu ? wxWindow::FindWindowByName("Check print",menu) : nullptr;
-        check(check_item && wxWindow::FindWindowByName("Print all plates…",menu),"header_menu_has_contextual_actions");
+        check(check_item && wxWindow::FindWindowByName(ui_name("Print all plates…"),menu),"header_menu_has_contextual_actions");
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         check(menu && menu->GetScreenRect().GetRight() == arrow->GetScreenRect().GetRight(),"header_menu_right_edge_matches_split_button");
         // The trigger must read as held down (and show an up chevron) for as
@@ -633,20 +654,39 @@ private:
             });
     }
 
-    // Clicks a keeps_open row the way a pointer does -- through the popup's own
-    // mouse re-dispatch, the path verify_menu_in_place_navigation established
-    // -- and lets the deferred rebuild run. Returns the menu that replaced it.
+    // Clicks a menu row the way the platform's own pointer reaches it.
+    //
+    // Orca's PopupWindow installs a mouse re-dispatcher under __WXOSX__ only
+    // (Widgets/PopupWindow.hpp): there the popup receives the event and
+    // forwards it to the child under the pointer, so posting to the popup is
+    // what a real click does. Windows delivers to the child window directly
+    // and nothing forwards, so a click posted to the popup arrives nowhere and
+    // the row is never invoked -- the menu simply stays as it was, which reads
+    // as "the row did nothing" rather than as a broken click.
+    void click_row(HeaderMenu* menu, wxWindow* row)
+    {
+#ifdef __WXOSX__
+        wxWindow* target = menu;
+        const wxPoint at = row->GetPosition() + wxPoint(row->GetSize().x / 2, row->GetSize().y / 2);
+#else
+        wxWindow* target = row;
+        const wxPoint at(row->GetSize().x / 2, row->GetSize().y / 2);
+#endif
+        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
+            wxMouseEvent mouse(type);
+            mouse.SetPosition(at);
+            mouse.SetEventObject(target);
+            target->GetEventHandler()->ProcessEvent(mouse);
+        }
+    }
+
+    // Clicks a keeps_open row and lets the deferred rebuild run. Returns the
+    // menu that replaced it.
     HeaderMenu* click_menu_row(HeaderMenu* menu, const wxString& name)
     {
         auto* row = dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(name, menu));
         if (row == nullptr || !row->IsEnabled()) return nullptr;
-        const wxPoint in_row = row->GetPosition() + wxPoint(row->GetSize().x / 2, row->GetSize().y / 2);
-        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
-            wxMouseEvent mouse(type);
-            mouse.SetPosition(in_row);
-            mouse.SetEventObject(menu);
-            menu->GetEventHandler()->ProcessEvent(mouse);
-        }
+        click_row(menu, row);
         wxYield();
         return visible_header_menu();
     }
@@ -657,7 +697,7 @@ private:
     {
         std::vector<std::string> names;
         for (auto* child : menu->GetChildren())
-            if (auto* button = dynamic_cast<HeaderButton*>(child)) names.push_back(button->GetName().ToStdString());
+            if (auto* button = dynamic_cast<HeaderButton*>(child)) names.push_back(ui_text(button->GetName()));
         return names;
     }
 
@@ -675,12 +715,12 @@ private:
         check(menu != nullptr, "spool_menu_opens_for_the_generic_filter");
         if (menu == nullptr) return;
 
-        menu = click_menu_row(menu, "Other spool…");
+        menu = click_menu_row(menu, ui_name("Other spool…"));
         check(menu != nullptr, "other_spool_step_opens");
         if (menu == nullptr) return;
         const std::size_t unfiltered_rows = menu_row_names(menu).size();
 
-        menu = click_menu_row(menu, "Generic preset…");
+        menu = click_menu_row(menu, ui_name("Generic preset…"));
         check(menu != nullptr, "generic_preset_step_opens");
         if (menu == nullptr) return;
 
@@ -701,8 +741,8 @@ private:
             if (names[i] != "Import a preset file…") listed.push_back(names[i]);
         std::string branded; // an alias the vendor test must have excluded
         for (const auto& filament : SetupCommands::compatible_filaments()) {
-            if (filament.vendor == SetupCommands::kGenericVendor) expected.push_back(filament.alias.ToStdString());
-            else if (branded.empty()) branded = filament.alias.ToStdString();
+            if (filament.vendor == SetupCommands::kGenericVendor) expected.push_back(ui_text(filament.alias));
+            else if (branded.empty()) branded = ui_text(filament.alias);
         }
         std::sort(listed.begin(), listed.end());
         std::sort(expected.begin(), expected.end());
@@ -712,7 +752,7 @@ private:
               "generic_step_drops_a_branded_preset");
 
         // Back must reach the full list again, not leave the menu.
-        menu = click_menu_row(menu, names.front());
+        menu = click_menu_row(menu, ui_name(names.front()));
         check(menu != nullptr && menu_row_names(menu).size() == unfiltered_rows,
               "generic_step_returns_to_the_full_list");
         if (menu == nullptr) return;
@@ -727,7 +767,7 @@ private:
         // is where Filament settings… now lives, one step in from the list.
         if (type == Preset::TYPE_PRINTER) {
             installed_shell()->status_row()->open_printer_menu();
-            choose_header_item("Printer settings…",
+            choose_header_item(ui_name("Printer settings…"),
                 [self=shared_from_this(),type] { self->verify_header_setup_open(type); });
             return;
         }
@@ -742,7 +782,7 @@ private:
         if (row == nullptr) return;
         row->invoke_row_action();
         m_frame->CallAfter([self=shared_from_this(),type] {
-            self->choose_header_item("Filament settings…",
+            self->choose_header_item(ui_name("Filament settings…"),
                 [self,type] { self->verify_header_setup_open(type); });
         });
     }
@@ -789,7 +829,15 @@ private:
         // where this app is frontmost -- which is the run that would otherwise
         // write a chip with a ring on it.
         wxYield();
-        row->SetFocus();
+        // Focus has to land on a window that can actually hold it, and that is
+        // not the row: wxPanel::SetFocus() forwards to a child -- on Windows,
+        // one of the very chip halves this is clearing -- and
+        // SetFocusIgnoringChildren() on a panel that is not itself focusable
+        // leaves focus exactly where it was. Either way the ring the next line
+        // asserts against would be the one this line drew. The canvas takes
+        // focus on every platform and is not part of the header being
+        // photographed.
+        m_plater->canvas3D()->get_wxglcanvas()->SetFocus();
         wxYield();
         check(!chip_half_open(), "chip_is_at_rest_before_capture");
         check(!chip->printer_half().HasFocus() && !chip->spool_half().HasFocus(),
@@ -864,17 +912,10 @@ private:
         check(plate != nullptr && plate->IsEnabled(), "plate_row_is_live_with_the_sidebar_hidden");
         if (plate == nullptr || !plate->IsEnabled()) { menu->Dismiss(); return; }
 
-        // Drive it the way a pointer does, through the popup's own mouse
-        // re-dispatch, not by synthesising the button event: a real click was
-        // observed to close the menu where the button event does not, so the
-        // defect lives somewhere in this path.
-        const wxPoint in_row = plate->GetPosition() + wxPoint(plate->GetSize().x / 2, plate->GetSize().y / 2);
-        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
-            wxMouseEvent mouse(type);
-            mouse.SetPosition(in_row);
-            mouse.SetEventObject(menu);
-            menu->GetEventHandler()->ProcessEvent(mouse);
-        }
+        // Drive it the way a pointer does, not by synthesising the button
+        // event: a real click was observed to close the menu where the button
+        // event does not, so the defect lives somewhere in this path.
+        click_row(menu, plate);
 
         // The rebuild is deferred past the click, so let the queue drain.
         wxYield();
@@ -884,7 +925,7 @@ private:
         // The sub-step replaced the rows: the root's Nozzle row is gone and a
         // back row named Plate heads the list.
         check(wxWindow::FindWindowByName("Nozzle", after) == nullptr, "plate_substep_replaced_the_rows");
-        check(wxWindow::FindWindowByName("Printer settings…", after) == nullptr, "plate_substep_hides_root_rows");
+        check(wxWindow::FindWindowByName(ui_name("Printer settings…"), after) == nullptr, "plate_substep_hides_root_rows");
         after->close();
         wxYield();
         // Dismissing must also clear the anchor's open state, or the chip keeps
