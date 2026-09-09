@@ -4,7 +4,7 @@
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
-#include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
+#include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"

@@ -55,7 +55,7 @@
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
-#include "slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
+#include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"

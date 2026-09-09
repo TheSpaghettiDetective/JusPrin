@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ShellTheme.hpp"
 #include <functional>
 #include <string>
 #include <vector>
@@ -12,6 +11,4 @@ struct McpSetupResult { bool success; std::string diagnostic; };
 McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& argv);
 void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& arguments,
                              std::function<void(McpSetupResult)> done);
-void show_mcp_connection_dialog(wxWindow* parent, const ShellTheme& theme, const std::string& discovery_path,
-                                const std::string& live_url, const std::string& startup_error);
 }

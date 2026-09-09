@@ -42,8 +42,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/CanvasPresentationController.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
-    GUI/JusPrin/Shell/McpConnectionDialog.cpp
-    GUI/JusPrin/Shell/McpConnectionDialog.hpp
+    GUI/JusPrin/Shell/McpSetupCommand.cpp
+    GUI/JusPrin/Shell/McpSetupCommand.hpp
     GUI/JusPrin/Mcp/McpConnections.hpp
     GUI/JusPrin/Mcp/McpCatalog.cpp
     GUI/JusPrin/Mcp/McpCatalog.hpp
