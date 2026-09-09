@@ -1,0 +1,13 @@
+In the JusPrin repo, `src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts` imports `resources/jusprin/ui/design-tokens.json` and applies only the `semantic` group (colours) as CSS custom properties on the document root. The `dimension` group — the spacing scale, the radius scale, and the type roles — is never applied, so `src/slic3r/GUI/JusPrin/AgentUI/src/styles.css` hard-codes every size and radius as a literal px value.
+This is why the Agent panel drifted off the design system: when `dimension.radius.standard` moved from 4 to 6 (commit 8d6f29020e), the panel's eleven 4px radii silently became off-scale, and nothing caught it. Commits 4fce662163 and cd353772cb fixed the values by hand, but the same drift can happen again on the next token change.
+The task: make the panel's dimensions track the token file the way its colours already do.
+
+1. Extend `applyAppearance` (or add a sibling function called at the same point in `src/main.tsx`) to emit the `dimension` group as CSS custom properties — e.g. `--radius-standard`, `--radius-compact`, `--radius-window`, `--radius-pill`, and the spacing scale.
+2. Replace the literal radius and spacing values in `styles.css` with those variables.
+3. Watch out for first-paint: the variables are set by JavaScript after the stylesheet loads, so either declare fallback defaults in a `:root` block in the stylesheet or set the properties before the first render. Check for a flash of unstyled corners in the browser harness before calling it done.
+4. `--radius-pill: 9999px` is currently declared directly in `styles.css` with a comment explaining that dimension tokens are not plumbed. That comment and the local declaration should be removed once the plumbing exists.
+
+Verification: `cd src/slic3r/GUI/JusPrin/AgentUI && npm ci && npx vitest run` (65 tests), then `npm run build` and compare screenshots before and after — nothing should move.
+Consider also adding a test that fails when a literal px radius appears in `styles.css`, so the drift cannot silently return.
+
+check @agent-docs to understand the constraints we have wrt applying jusprin brand styles
