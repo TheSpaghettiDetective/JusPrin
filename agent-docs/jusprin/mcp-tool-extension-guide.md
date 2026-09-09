@@ -303,6 +303,167 @@ The OpenAI adapter preserves the registry schemas and uses non-strict function c
 
 Update the actual table when implementation changes names, limits, or ownership. The source registry remains authoritative; this table explains why the surface exists.
 
+## Process-settings tools: contract and hazards
+
+The settings tools are the reference implementation of this guide. What
+follows is the part of their design that stays true after the work is done;
+the implementation handoff that produced it is retired. Re-read this section
+before expanding the write allowlist or adding a tool that changes a preset.
+
+### Standing decisions
+
+1. Settings are data: four generic tools over searchable records, never one
+   tool per setting.
+2. Only the active FFF process preset's edited configuration is in scope. No
+   `scope` field, and no printer, filament, plate, object, or modifier layer
+   until each is a separately tested capability.
+3. Metadata, parsing, and serialization come from Orca's own
+   `print_config_def` and config option machinery. There is no parallel table
+   of types, enum values, ranges, units, or aliases.
+4. Search and read cover every process-setting definition; mutation is a
+   reviewed allowlist. Every search and read record says whether the key is
+   writable; other keys return `unsupported_setting_mutation`. Expand the list
+   only after the real-adapter tests cover the option type, its dependency
+   behavior, and the visible UI update for each new key.
+5. A batch applies whole or not at all, through `Tab::load_config`, the path
+   Orca itself uses to load a config into a preset. Never mutate the config
+   behind the visible preset UI and imitate the notifications.
+6. Process preset edits are not in project Undo. Results say so and return
+   the previous values so a caller can propose the inverse.
+7. A preview that finds invalid settings is a successful call with
+   `valid: false`. Malformed input is a tool error.
+8. All values cross JSON as strings in their canonical Orca serialization;
+   callers may send numbers or booleans and the decoder converts them. All
+   Orca ids cross JSON as strings.
+
+### Error codes
+
+| Condition | Code |
+|---|---|
+| key not in the definition table | `unknown_setting` with suggestions |
+| key not a process option | `unsupported_scope` |
+| readable key outside the allowlist | `unsupported_setting_mutation` |
+| parse failure, bound violation, or layer height outside the printer's range | `invalid_setting_value` with `allowed` or bounds |
+| spiral-mode conflict or a validator message on a touched key | `incompatible_settings` with the conflicting keys |
+| session or revision mismatch, or a before value moved since preview | `stale_workspace` with expected and current |
+| user rejected in JusPrin | `approval_rejected` |
+| client cancelled or the app closed | `cancelled` |
+| no FFF project or no process preset | `workspace_unavailable` |
+| the batch call failed after validation | `execution_failed` |
+| malformed arguments | `invalid_arguments` |
+
+Preview never fails for content reasons. Apply fails with the first blocking
+code and mutates nothing. Never convert an invariant failure into success.
+
+### Orca entry points the tools use
+
+- **Atomic batch:** `Tab::load_config(const DynamicPrintConfig&)` in
+  `src/slic3r/GUI/Tab.cpp` diffs against the edited preset, sets every changed
+  key, then runs `update_dirty()`, `reload_config()`, and `update()` once.
+  `TabPrint::update()` runs the FFF normalizer and reaches
+  `Plater::on_config_change`, which invalidates slicing as a sidebar edit
+  would. Apply is therefore: build a config holding only the changed keys and
+  call `wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff)`.
+- **Parsing:** clone the edited config and `set_deserialize(key, text)` per
+  key; Orca throws for unknown keys and unparseable values. Canonical value is
+  `option->serialize()` after parsing.
+- **Bounds and enums:** `ConfigOptionDef` in `src/libslic3r/Config.hpp`
+  (`type`, `label`, `category`, `tooltip`, `sidetext`, `min`, `max`, `mode`,
+  `readonly`, `enum_values`, `enum_labels`). Treat `min` and `max` as absent
+  when they are the float limits.
+- **Validation:** `Slic3r::validate(const FullPrintConfig&)` in
+  `src/libslic3r/PrintConfig.cpp`, fed from `preset_bundle->full_config()`
+  with the patched keys applied. Messages for touched keys are blocking;
+  messages for untouched keys are warnings, because the preset was already
+  invalid. `Print::validate` is a slicing-time check and is not part of
+  preview, as in Orca's own UI.
+- **Dirty state:** `PresetCollection::current_dirty_options()` and
+  `current_different_from_parent_options()`; the preset name is
+  `prints.get_edited_preset().name`. The Tab's per-option revert buttons read
+  the same data, so they keep working after a tool apply.
+
+### The normalizer can open dialogs and rewrite values
+
+`update_print_fff_config` and `toggle_print_fff_options` in
+`src/slic3r/GUI/ConfigManipulation.cpp` run inside `TabPrint::update()` after
+every batch and evaluate every rule against the whole post-batch config, not
+only the changed keys. Some rules open a modal dialog and then rewrite a
+value; others rewrite silently. A modal opened from inside a tool execution
+blocks the GUI thread while the request waits, and a silent rewrite makes the
+result lie unless it is reported.
+
+Two rules follow. Preview evaluates the same rule set against a clone, using
+the printer preset and filament count the adapter can read, so a rule that
+fires because of a pre-existing value is reported too. Dialog rules are
+blocking issues; silent rules are warnings that name the dependent key and
+its predicted value (`normalized_dependency`), and apply lists the actual
+rewrite under `normalized`. Preview reuses Orca's `ConfigManipulation` on the
+clone with no presentation callbacks rather than copying its option tables.
+
+Rules reachable through the current allowlist, as audited when the tools
+were built. Line numbers drift; search for the condition text.
+
+| Rule in Orca | Reached by | Effect | Preview must |
+|---|---|---|---|
+| `layer_height` at or below epsilon | `layer_height` | modal, reset to 0.2 | refuse with `invalid_setting_value` and the minimum |
+| `layer_height` above the printer's `max_layer_height` when that exceeds 0.2 | `layer_height` | modal, clamp | refuse with `invalid_setting_value` and the printer's maximum |
+| `seam_slope_type` not `None` and absolute `seam_slope_start_height` at or above `layer_height` | lowering `layer_height` | modal, start height reset to 0 | refuse with `incompatible_settings`; evaluate percent values through `get_abs_value`, 100% or above also trips it |
+| `spiral_mode` on and not all of `wall_loops` 1, `top_shell_layers` 0, `sparse_infill_density` 0 | those three keys | yes/no dialog, several keys rewritten either way | refuse with `incompatible_settings` naming `spiral_mode` |
+| `sparse_infill_pattern` without multiline support while `fill_multiline` is above 1 | `sparse_infill_pattern` | silent: `fill_multiline` reset to 1 | predict and report as `normalized_dependency` |
+| support-gap rounding block | none; it is inside `#if 0` | inactive | do not predict a change that does not happen |
+
+Every active dialog predicate must be checked, including pre-existing
+invalid ironing spacing, first-layer height, XY and elephant-foot
+compensation, alternate-extra-wall, infill-lock depth, and fuzzy-skin
+settings; spiral mode also checks support, enforced support layers, thin
+walls, overhang reversal, timelapse, and wrapping detection. The real-adapter
+test asserts that no top-level dialog appears during apply for any
+allowlisted key under every row above, and that every predicted silent
+rewrite appears in the result with its actual value. A rule found later that
+a tool can trigger is a defect in the preview, not accepted behavior. Adding
+a key to the allowlist means re-reading both functions for every place that
+key is read and extending this table.
+
+### Approval binds the values the user saw
+
+Apply is previewed three times. The client previews and sees before and
+after values. At proposal time the coordinator previews again on the GUI
+thread, so an invalid patch fails at once without an approval card, and
+stores that result as the confirmed set the user approves; the approval
+title names the keys from it. At execution the adapter previews a third time
+against the then-current config and compares every before value against the
+confirmed set: a moved value is `stale_workspace`, a blocking issue is
+`invalid_settings`, and neither mutates. Client-supplied values are never
+trusted as before values. Where Orca normalized a value differently from the
+preview, the actual value is returned and the key is listed under
+`normalized`; the mutation happened, so that is a success with an honest
+report.
+
+### Registry facts worth knowing
+
+- `ToolExecutionCoordinator::execute` dispatches on `ToolHandler` with
+  explicit blocks; add a block per tool, not a generic dispatch table.
+- `kInvalidatingReasons` is one global mask and includes `Settings`, so any
+  pending proposal fails with `stale_revision` when the user edits a setting
+  in the GUI. A per-tool mask is a later refinement if evals show friction.
+- `ToolRegistry::validate_output` accepts a closed schema vocabulary: `type`,
+  `properties`, `required`, `additionalProperties`, `items`, `minimum`,
+  `maxItems`. Any other keyword throws; extend the validator with a test
+  before using a new keyword.
+- Codex CLI needs `tool_timeout_sec` raised above its 60-second default for
+  approval-gated calls.
+
+### Upstream seams the tool system owns
+
+Two added lines in `src/CMakeLists.txt`, eight in
+`src/dev-utils/platform/unix/build_linux_image.sh.in`, and one additive
+`notify_project_state_changed(ProjectStateChangeReason::Settings)` call at
+the end of `Plater::on_config_change`. `Plater.cpp` is the fork's busiest
+file; when that function changes upstream, the natural resolution is "keep
+both". No line in `Tab.cpp`, `ConfigManipulation.cpp`, or `PrintConfig.cpp`
+changes; the normalizer hazards are handled by refusing the inputs in
+fork-owned code.
+
 ## Proportional security growth
 
 Keep the local baseline: automatic startup with the JusPrin Agent panel, numeric loopback binding, Origin validation, request limits, and existing mutation approval. Bearer authentication is absent: local processes with socket access can inspect exposed data and propose actions. Origin validation protects a browser boundary, not local-process identity. Do not extend this unauthenticated design to remote access.
