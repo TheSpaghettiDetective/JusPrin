@@ -4,7 +4,10 @@
 // and project replacement, fallback, and restoration of stock presentation.
 //
 // Modes:
-//   --dark-ui / --light-ui  macOS process-only appearance for visual checks
+//   --dark-ui / --light-ui  process-only appearance for visual checks. macOS
+//              sets the Cocoa appearance; Windows writes dark_color_mode into
+//              the run's own config, the only input GUI_App::dark_mode reads
+//              there (the registry read in check_dark_mode is compiled out).
 //   (default)  automated shell checks, exits with the result
 //   --stock    automated stock-mode checks (shell disabled via app config)
 //   --manual   installs nothing extra and leaves the app open for a human
@@ -44,6 +47,11 @@
 //              The synchronous Prepare-only slice command made this reachable
 //              on 2026-09-04. The no-auto-preview policy now also leaves the
 //              unopened Preview's plate selection unchanged.
+//   --recomputing-capture <output-directory>
+//              slices the fixture, scales the cube to 120 mm and re-slices,
+//              asserts the setup card reads "re-slicing…" while the slice
+//              runs, and writes recomputing-agent-pane.png and
+//              recomputing-shell.png to the directory (handoff item 6)
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
@@ -75,6 +83,8 @@
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <wx/app.h>
+#include <wx/dcmemory.h>
+#include <wx/dcscreen.h>
 #include <wx/glcanvas.h>
 #include <wx/dialog.h>
 #include <wx/scrolwin.h>
@@ -149,7 +159,8 @@ struct HarnessState
         Mcp,
         McpSetup,
         ManualMcp,
-        LiveAgentUnavailable
+        LiveAgentUnavailable,
+        RecomputingCapture
     };
 
     std::atomic<int>  result{-1};
@@ -164,6 +175,7 @@ struct HarnessState
     bool header_visual{false};
     bool review_visual{false};
     std::optional<bool> dark_appearance;
+    fs::path capture_dir;
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
@@ -302,12 +314,17 @@ public:
                 verify_unavailable_agent();
                 return;
             }
+            if (m_state->mode == HarnessState::Mode::RecomputingCapture) {
+                verify_canvas_interaction();
+                wait_for_agent_page("recomputing", [self = shared_from_this()] { self->begin_recomputing_capture(); });
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::SliceAllCold) {
-                begin_slice_all_cold();
+                wait_for_agent_page("cold", [self = shared_from_this()] { self->begin_slice_all_cold(); });
                 return;
             }
             verify_canvas_interaction();
-            begin_slice_check();
+            wait_for_agent_page("shell", [self = shared_from_this()] { self->begin_slice_check(); });
         } catch (const std::exception& error) {
             fail(std::string("exception: ") + error.what());
         } catch (...) {
@@ -1228,6 +1245,163 @@ private:
                    });
     }
 
+    // The Agent page's failure surface is its own Retry pane, and no fixture
+    // mode looked at it: a WebView2 controller that failed to come up
+    // (Windows ERROR_INVALID_STATE, delivered as wxWEBVIEW_NAV_ERR_OTHER) left
+    // the pane on "could not connect" while the run reported failures=0.
+    // AgentWebView shows that pane on a load error at once and on a silent
+    // page after kHandshakeDeadlineMs (20 s), so "handshake or error pane" is
+    // bounded by that deadline; the margin here is only for a page that
+    // neither connects nor admits it. Automated modes stop at once instead of
+    // spending the 900 s run deadline on a page that is not coming; fixture
+    // modes still hand over, with the failure counted, so it can be looked at.
+    void wait_for_agent_page(const std::string& prefix, std::function<void()> next)
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.webview() != nullptr, prefix + "_agent_webview_created");
+        const auto give_up = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+        wait_until([&web_view, give_up] {
+            return web_view.host().handshake_complete() || web_view.bridge_error_shown() ||
+                   std::chrono::steady_clock::now() >= give_up;
+        }, prefix + "_agent_page_settled", [self = shared_from_this(), prefix, next = std::move(next)] {
+            AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+            const bool up = web_view.host().handshake_complete();
+            self->check(up, prefix + "_agent_page_handshake_complete");
+            self->check(!web_view.bridge_error_shown(), prefix + "_agent_page_shows_no_bridge_error");
+            if (!up && self->m_state->mode != HarnessState::Mode::ManualMcp) {
+                self->fail(prefix + ": the Agent page did not complete its handshake");
+                return;
+            }
+            next();
+        });
+    }
+
+    // Handoff item 6. The setup card's "recomputing" state exists only while
+    // a background slice runs on a plate that already has an estimate to
+    // strike through (OrcaWorkspaceAdapter::snapshot, the remembered-estimate
+    // branch), and a 20 mm cube slices faster than a person can photograph
+    // it. So the second slice is made slow -- the same cube at 6x is 120 mm
+    // on a side, 600 layers instead of 100 -- and the pictures are taken from
+    // in here, at the moment request_slice() returns.
+    void begin_recomputing_capture()
+    {
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] { return active_plate_sliced_and_idle(); }, "recomputing_first_slice_completes",
+                   [self = shared_from_this()] { self->reslice_for_recomputing(); });
+    }
+
+    bool active_plate_sliced_and_idle() const
+    {
+        const PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
+        return plate != nullptr && plate->is_slice_result_valid() && !m_plater->is_background_process_slicing();
+    }
+
+    std::optional<Workspace::WorkspacePlate> active_workspace_plate() const
+    {
+        const auto snapshot = installed_workspace_snapshot();
+        for (const auto& plate : snapshot.plates)
+            if (plate.active) return plate;
+        return std::nullopt;
+    }
+
+    void reslice_for_recomputing()
+    {
+        // The estimate the card strikes through is remembered only when a
+        // snapshot is read while the slice is valid and idle. The page reads
+        // one on its own; reading one here makes that a check, not a race.
+        const auto before = active_workspace_plate();
+        check(before && before->estimate.has_value() &&
+              before->estimate_status == Workspace::EstimateStatus::Current,
+              "recomputing_plate_has_a_current_estimate");
+
+        // The instance transform is what the scale gizmo changes, so Orca's
+        // own apply() sees a model change and invalidates the plate through
+        // the path a person's edit takes.
+        ModelObject* object = m_plater->model().objects.front();
+        object->instances.front()->set_scaling_factor(Vec3d(6.0, 6.0, 6.0));
+        object->ensure_on_bed();
+        m_plater->update(false, true);
+        auto* row = installed_shell()->status_row();
+        row->refresh();
+        check(!row->action_state().sliced, "recomputing_scale_invalidates_the_slice");
+
+        row->request_slice();
+        check(m_plater->is_background_process_slicing(), "recomputing_reslice_starts");
+        // Native truth first, so this cannot pass on a plate that never left
+        // "stale".
+        const auto during = active_workspace_plate();
+        check(during && during->estimate_status == Workspace::EstimateStatus::Recomputing,
+              "workspace_reports_recomputing_while_slicing");
+        // Then the page, which learns of the slice over the bridge. The probe
+        // is asked on every tick and the wait ends the moment the slice does,
+        // so a slice that beats the page is a failure and not a hang.
+        persistence().set_draft({});
+        wait_until([this] {
+            return persistence().draft().rfind("card=", 0) == 0 || !m_plater->is_background_process_slicing();
+        }, "recomputing_card_probe_settled",
+        [self = shared_from_this()] { self->capture_recomputing_card(); },
+        [] { probe_setup_card(); });
+    }
+
+    // Reports only once the card carries the recomputing markup
+    // (SetupCard.tsx: .superseded is the struck estimate, .estimate-note is
+    // "re-slicing…"), so an unanswered probe and a stale card look the same:
+    // no draft.
+    static void probe_setup_card()
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "(function(){"
+            "  var card = document.querySelector('[data-testid=\"current-setup\"]');"
+            "  var note = card && card.querySelector('.estimate-note');"
+            "  var struck = card && card.querySelector('.superseded');"
+            "  if (note && struck && window.__jusprinTest)"
+            "    window.__jusprinTest.setDraft('card=' + note.textContent + '|' + struck.textContent);"
+            "})()");
+    }
+
+    void capture_recomputing_card()
+    {
+        const std::string probe = persistence().draft();
+        const bool observed = probe.rfind("card=", 0) == 0;
+        check(observed, "setup_card_renders_recomputing_while_slicing");
+        check(observed && probe.find("re-slicing") != std::string::npos, "setup_card_note_reads_re_slicing");
+        std::cout << "HARNESS CARD PROBE " << probe << std::endl;
+        persistence().set_draft({});
+        // The pictures must show the state the probe saw.
+        check(m_plater->is_background_process_slicing(), "recomputing_still_slicing_at_capture");
+        wxYield();
+        write_screen_capture(installed_shell()->agent_pane()->GetScreenRect(), "recomputing-agent-pane");
+        write_screen_capture(m_frame->GetScreenRect(), "recomputing-shell");
+        wait_until([this] { return active_plate_sliced_and_idle(); }, "recomputing_reslice_completes",
+                   [self = shared_from_this()] {
+                       const auto after = self->active_workspace_plate();
+                       self->check(after && after->estimate_status == Workspace::EstimateStatus::Current,
+                                   "recomputing_returns_to_current");
+                       self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "recomputing_teardown_project");
+                       self->finish();
+                   });
+    }
+
+    // What is on the screen, not what a widget would draw: the card is
+    // WebView2 content, which no snapshot() can paint offscreen. Needs the
+    // frame on a visible desktop; at 100% scaling GetScreenRect() and the
+    // screen DC share pixels (see handoff item 4 before trusting 150%/200%).
+    void write_screen_capture(const wxRect& rect, const std::string& name)
+    {
+        fs::create_directories(m_state->capture_dir);
+        wxScreenDC screen;
+        wxBitmap   bitmap(rect.GetWidth(), rect.GetHeight());
+        {
+            wxMemoryDC memory(bitmap);
+            memory.Blit(0, 0, rect.GetWidth(), rect.GetHeight(), &screen, rect.GetLeft(), rect.GetTop());
+        }
+        const std::string file = (m_state->capture_dir / (name + ".png")).string();
+        const bool ok = bitmap.IsOk() && bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
+        check(ok, "captured_" + name);
+        if (ok) std::cout << "HARNESS ARTIFACT " << name << " " << file
+                          << " " << rect.GetWidth() << "x" << rect.GetHeight() << std::endl;
+    }
+
     // Phase 2: the packaged React page in the real WKWebView completes the
     // versioned handshake, a scripted user message round-trips through the
     // real script-message channel and streams to completion, native selection
@@ -1666,7 +1840,16 @@ private:
         return messages.back()["result"];
     }
 
+    // Both MCP modes hand the Agent pane to a real client or a person, so
+    // the page has to be up before the fixture is worth preparing.
     void prepare_mcp_slice(std::function<void()> next)
+    {
+        wait_for_agent_page("mcp_fixture", [self = shared_from_this(), next = std::move(next)]() mutable {
+            self->slice_mcp_fixture(std::move(next));
+        });
+    }
+
+    void slice_mcp_fixture(std::function<void()> next)
     {
         installed_shell()->status_row()->request_slice();
         wait_until([this] {
@@ -2869,10 +3052,10 @@ int main(int argc, char** argv)
     for (int index = 1; index < argc; ++index) {
         const std::string argument(argv[index]);
         if (argument == "--dark-ui" || argument == "--light-ui") {
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_WIN32)
             state->dark_appearance = argument == "--dark-ui";
 #else
-            std::cerr << "Appearance overrides are supported only by the macOS harness\n";
+            std::cerr << "Appearance overrides are supported only by the macOS and Windows harnesses\n";
             return 2;
 #endif
         }
@@ -2908,6 +3091,14 @@ int main(int argc, char** argv)
         }
         else if (argument == "--live-agent-unavailable")
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
+        else if (argument == "--recomputing-capture") {
+            if (++index == argc) {
+                std::cerr << "--recomputing-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::RecomputingCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else
             gui_arguments.emplace_back(argv[index]);
     }
@@ -2931,6 +3122,18 @@ int main(int argc, char** argv)
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
         }
+#ifdef _WIN32
+        // On Windows GUI_App::dark_mode() honours dark_color_mode alone, and
+        // AppConfig::set_defaults writes "0" when the key is absent, so the
+        // system theme is never consulted. Seeding the key here reaches
+        // Update_dark_mode_flag and NppDarkMode::InitDarkMode before any
+        // window exists, the same path the Preferences toggle takes.
+        if (state->dark_appearance) {
+            const std::string anchor = "\"language\": \"en_US\",";
+            config.replace(config.find(anchor), anchor.size(),
+                           anchor + "\n    \"dark_color_mode\": \"" + (*state->dark_appearance ? "1" : "0") + "\",");
+        }
+#endif
         if (state->mode == HarnessState::Mode::ManualUnconfigured) {
             // No provider, no key, no consent: exactly what a fresh install
             // looks like before anyone sets an Agent up.
