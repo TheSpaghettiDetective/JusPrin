@@ -129,6 +129,8 @@ Use the existing native component density and established SVG icon library. Func
 - Parameter control: 120×26 DIP, 4 DIP radius, 14 DIP text.
 - Icon button: 26×26 DIP, 16 DIP icon, 4 DIP radius.
 - Expanded button: at least 32 DIP high, 12×8 DIP padding, 4 DIP radius.
+- Agent-pane divider: transparent 8 DIP pointer target with a centered 2 DIP line; the line changes from subtle to strong on hover and to the primary action color while dragging.
+- Agent-pane width: minimum 320 DIP; its maximum follows the window width while preserving at least 320 DIP for the workspace.
 
 Every interactive component must define normal, hover, pressed, disabled, focused, success, warning, and error states where relevant. Status must combine color with an icon and plain-language label.
 

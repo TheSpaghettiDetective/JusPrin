@@ -82,6 +82,12 @@ struct ChipMetrics      { int height{0}; int radius{0}; };
 struct MenuRowMetrics   { int height{0}; int radius{0}; int side_inset{0}; };
 struct PopoverMetrics   { int padding_y{0}; int row_gap{0}; int radius{0}; };
 struct StatusRowMetrics { int height{0}; };
+struct AgentPaneMetrics {
+    int min_width{0};
+    int workspace_min_width{0};
+    int resize_handle_width{0};
+    int resize_handle_line_width{0};
+};
 struct SwatchMetrics    { int size{0}; int radius{0}; };
 
 // Geometry from the token file's dimension and component sections. Every
@@ -110,6 +116,7 @@ struct ShellMetrics
     MenuRowMetrics   menu_row;
     PopoverMetrics   popover;
     StatusRowMetrics status_row;
+    AgentPaneMetrics agent_pane;
     SwatchMetrics    swatch;
 };
 

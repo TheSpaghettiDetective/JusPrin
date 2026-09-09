@@ -53,6 +53,9 @@ public:
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
+    void on_frame_size(wxSizeEvent& event);
+    void request_agent_pane_width(int width);
+    void apply_agent_pane_width();
 
     const ShellTheme* m_theme{nullptr};
     wxTimer m_runtime_timer{this};
@@ -64,9 +67,11 @@ private:
 
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
+    wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
     wxBoxSizer* m_workspace_sizer{nullptr};
     wxWindow* m_workspace_status{nullptr};
+    int m_agent_pane_preferred_width{0};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

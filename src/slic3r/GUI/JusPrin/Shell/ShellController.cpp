@@ -16,13 +16,98 @@
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
+#include <wx/dcbuffer.h>
+#include <wx/panel.h>
 #include <wx/sizer.h>
 
+#include <algorithm>
+#include <functional>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin {
 
 namespace {
+
+class AgentPaneResizeHandle final : public wxPanel
+{
+public:
+    using WidthGetter = std::function<int()>;
+    using WidthSetter = std::function<void(int)>;
+
+    AgentPaneResizeHandle(wxWindow* parent, const ShellTheme& theme, WidthGetter get_width, WidthSetter set_width)
+        : wxPanel(parent, wxID_ANY, wxDefaultPosition,
+                  parent->FromDIP(wxSize(theme.metrics().agent_pane.resize_handle_width, -1)),
+                  wxBORDER_NONE)
+        , m_theme(theme)
+        , m_get_width(std::move(get_width))
+        , m_set_width(std::move(set_width))
+    {
+        SetName(_L("Resize Agent panel"));
+        SetToolTip(_L("Drag to resize the Agent panel"));
+        SetMinSize(parent->FromDIP(wxSize(m_theme.metrics().agent_pane.resize_handle_width, -1)));
+        SetCursor(wxCursor(wxCURSOR_SIZEWE));
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+
+        Bind(wxEVT_PAINT, &AgentPaneResizeHandle::on_paint, this);
+        Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) { m_hovered = true; Refresh(); });
+        Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) { m_hovered = false; Refresh(); });
+        Bind(wxEVT_LEFT_DOWN, &AgentPaneResizeHandle::on_left_down, this);
+        Bind(wxEVT_LEFT_UP, &AgentPaneResizeHandle::on_left_up, this);
+        Bind(wxEVT_MOTION, &AgentPaneResizeHandle::on_motion, this);
+        Bind(wxEVT_MOUSE_CAPTURE_LOST, [this](wxMouseCaptureLostEvent&) { m_dragging = false; Refresh(); });
+    }
+
+private:
+    void on_paint(wxPaintEvent&)
+    {
+        wxAutoBufferedPaintDC dc(this);
+        const ShellPalette& palette = m_theme.palette(wxGetApp().dark_mode());
+        dc.SetBackground(wxBrush(palette.surface_subtle));
+        dc.Clear();
+
+        const wxColour divider = m_dragging ? palette.action_primary :
+                                 m_hovered  ? palette.border_strong : palette.border_subtle;
+        const int line_width = FromDIP(m_theme.metrics().agent_pane.resize_handle_line_width);
+        dc.SetPen(wxPen(divider, line_width));
+        const int center = GetClientSize().x / 2;
+        dc.DrawLine(center, 0, center, GetClientSize().y);
+    }
+
+    void on_left_down(wxMouseEvent& event)
+    {
+        m_drag_origin_x = ClientToScreen(event.GetPosition()).x;
+        m_drag_origin_width = m_get_width();
+        m_dragging = true;
+        CaptureMouse();
+        Refresh();
+    }
+
+    void on_left_up(wxMouseEvent&)
+    {
+        if (!m_dragging)
+            return;
+        m_dragging = false;
+        if (HasCapture())
+            ReleaseMouse();
+        Refresh();
+    }
+
+    void on_motion(wxMouseEvent& event)
+    {
+        if (!m_dragging || !HasCapture())
+            return;
+        const int pointer_x = ClientToScreen(event.GetPosition()).x;
+        m_set_width(m_drag_origin_width + m_drag_origin_x - pointer_x);
+    }
+
+    const ShellTheme& m_theme;
+    WidthGetter m_get_width;
+    WidthSetter m_set_width;
+    bool m_hovered{false};
+    bool m_dragging{false};
+    int m_drag_origin_x{0};
+    int m_drag_origin_width{0};
+};
 
 std::unique_ptr<ShellController>& shell_slot()
 {
@@ -96,6 +181,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
+        m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.min_width);
+        m_agent_resize_handle = new AgentPaneResizeHandle(
+            &frame, *m_theme,
+            [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
+            [this](int width) { request_agent_pane_width(width); });
 
         // The header posts its after-swap line into the thread. Wiring it here
         // rather than giving StatusRow the AgentHost keeps the header free of
@@ -120,6 +210,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_workspace_status = m_status_row->create_workspace_status(&frame);
         m_workspace_sizer->Add(m_workspace_status,0,wxEXPAND);
         m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
+        m_center_sizer->Add(m_agent_resize_handle, 0, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
         main_sizer.Insert(0, m_status_row, 0, wxEXPAND);
         main_sizer.Add(m_center_sizer, 1, wxEXPAND);
@@ -145,11 +236,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // The frame may outlive a runtime detach, so use a tracked event sink
         // and disconnect it when uninstalling the controller.
         frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
+        frame.Bind(wxEVT_SIZE, &ShellController::on_frame_size, this);
 
         m_installed = true;
         apply_current_appearance();
         m_status_row->refresh();
         frame.Layout();
+        apply_agent_pane_width();
     } catch (...) {
         m_installed = true; // let uninstall() undo whatever was applied
         uninstall();
@@ -167,6 +260,33 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
     event.Skip();
 }
 
+void ShellController::on_frame_size(wxSizeEvent& event)
+{
+    event.Skip();
+    if (m_installed)
+        apply_agent_pane_width();
+}
+
+void ShellController::request_agent_pane_width(int width)
+{
+    m_agent_pane_preferred_width = width;
+    apply_agent_pane_width();
+}
+
+void ShellController::apply_agent_pane_width()
+{
+    if (m_theme == nullptr || m_frame == nullptr || m_center_sizer == nullptr || m_agent_pane == nullptr)
+        return;
+    const AgentPaneMetrics& metrics = m_theme->metrics().agent_pane;
+    const int min_width = m_frame->FromDIP(metrics.min_width);
+    const int workspace_min_width = m_frame->FromDIP(metrics.workspace_min_width);
+    const int handle_width = m_frame->FromDIP(metrics.resize_handle_width);
+    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width);
+    const int width = std::clamp(m_agent_pane_preferred_width, min_width, max_width);
+    m_center_sizer->SetItemMinSize(m_agent_pane, width, -1);
+    m_center_sizer->Layout();
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();
@@ -174,6 +294,7 @@ void ShellController::uninstall()
         return;
     m_installed = false;
     m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
+    m_frame->Unbind(wxEVT_SIZE, &ShellController::on_frame_size, this);
 
     m_prepare_canvas_presentation.detach();
     m_plater->get_collapse_toolbar().set_enabled(m_saved_collapse_toolbar_enabled);
@@ -183,6 +304,8 @@ void ShellController::uninstall()
 
     if (m_center_sizer != nullptr) {
         if (m_workspace_sizer) m_workspace_sizer->Detach(m_tabpanel);
+        if (m_agent_resize_handle != nullptr)
+            m_center_sizer->Detach(m_agent_resize_handle);
         if (m_agent_pane != nullptr)
             m_center_sizer->Detach(m_agent_pane);
         m_main_sizer->Detach(m_center_sizer);
@@ -199,6 +322,10 @@ void ShellController::uninstall()
     if (m_status_row != nullptr) {
         m_status_row->Destroy();
         m_status_row = nullptr;
+    }
+    if (m_agent_resize_handle != nullptr) {
+        m_agent_resize_handle->Destroy();
+        m_agent_resize_handle = nullptr;
     }
     if (m_agent_pane != nullptr) {
         m_agent_pane->Destroy();
@@ -218,6 +345,8 @@ void ShellController::apply_current_appearance()
         m_status_row->apply_appearance(dark);
     if (m_agent_pane != nullptr)
         m_agent_pane->apply_appearance(dark);
+    if (m_agent_resize_handle != nullptr)
+        m_agent_resize_handle->Refresh();
 }
 
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)

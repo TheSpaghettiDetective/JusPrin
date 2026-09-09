@@ -2308,6 +2308,47 @@ private:
 
     void verify_resize()
     {
+        auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+        auto* pane = installed_shell()->agent_pane();
+        check(divider != nullptr && divider->IsShown(), "agent_resize_handle_shown");
+        check(divider != nullptr && divider->GetSize().x == divider->FromDIP(8),
+              "agent_resize_handle_matches_token_width");
+        if (divider != nullptr) {
+            auto drag = [divider](int delta_x) {
+                const wxPoint start(divider->GetClientSize().x / 2, divider->GetClientSize().y / 2);
+                wxMouseEvent down(wxEVT_LEFT_DOWN);
+                down.SetPosition(start);
+                down.SetEventObject(divider);
+                divider->GetEventHandler()->ProcessEvent(down);
+                wxMouseEvent motion(wxEVT_MOTION);
+                motion.SetPosition(start + wxPoint(delta_x, 0));
+                motion.SetEventObject(divider);
+                divider->GetEventHandler()->ProcessEvent(motion);
+                wxMouseEvent up(wxEVT_LEFT_UP);
+                up.SetPosition(start + wxPoint(delta_x, 0));
+                up.SetEventObject(divider);
+                divider->GetEventHandler()->ProcessEvent(up);
+                wxYield();
+            };
+
+            const int original_pane_width = pane->GetSize().x;
+            drag(-divider->FromDIP(120));
+            check(pane->GetSize().x > original_pane_width, "agent_panel_mouse_drag_grows_width");
+
+            drag(divider->FromDIP(2000));
+            check(pane->GetSize().x == pane->FromDIP(320), "agent_panel_drag_stops_at_minimum_width");
+
+            drag(-divider->FromDIP(2000));
+            const int expected_max = std::max(pane->FromDIP(320),
+                m_frame->GetClientSize().x - pane->FromDIP(320) - divider->GetSize().x);
+            check(pane->GetSize().x == expected_max, "agent_panel_drag_uses_available_window_width");
+            check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
+                  "agent_panel_drag_preserves_workspace_width");
+
+            drag(pane->GetSize().x - original_pane_width);
+            check(pane->GetSize().x == original_pane_width, "agent_panel_width_can_be_restored");
+        }
+
         const wxSize original = m_frame->GetSize();
         m_frame->SetSize(original + wxSize(120, 80));
         m_frame->Layout();

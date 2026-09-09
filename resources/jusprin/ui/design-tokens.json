@@ -260,6 +260,12 @@
     "statusRow": {
       "height": 34
     },
+    "agentPane": {
+      "minWidth": 320,
+      "workspaceMinWidth": 320,
+      "resizeHandleWidth": 8,
+      "resizeHandleLineWidth": 2
+    },
     "swatch": {
       "size": 24,
       "radius": 4

@@ -88,6 +88,10 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.popover.row_gap == 0);
     CHECK(m.popover.radius == 8);
     CHECK(m.status_row.height == 34);
+    CHECK(m.agent_pane.min_width == 320);
+    CHECK(m.agent_pane.workspace_min_width == 320);
+    CHECK(m.agent_pane.resize_handle_width == 8);
+    CHECK(m.agent_pane.resize_handle_line_width == 2);
     CHECK(m.swatch.size == 24);
 
     CHECK(m.button.icon.width == 26);

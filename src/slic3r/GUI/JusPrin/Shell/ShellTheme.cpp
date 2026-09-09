@@ -175,6 +175,12 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
 
     m.status_row.height = parse_int(component.at("statusRow"), "component.statusRow", "height");
 
+    const nlohmann::json& agent_pane = component.at("agentPane");
+    m.agent_pane.min_width                = parse_int(agent_pane, "component.agentPane", "minWidth");
+    m.agent_pane.workspace_min_width      = parse_int(agent_pane, "component.agentPane", "workspaceMinWidth");
+    m.agent_pane.resize_handle_width      = parse_int(agent_pane, "component.agentPane", "resizeHandleWidth");
+    m.agent_pane.resize_handle_line_width = parse_int(agent_pane, "component.agentPane", "resizeHandleLineWidth");
+
     const nlohmann::json& swatch = component.at("swatch");
     m.swatch.size   = parse_int(swatch, "component.swatch", "size");
     m.swatch.radius = parse_int(swatch, "component.swatch", "radius");
