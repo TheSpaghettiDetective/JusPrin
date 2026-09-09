@@ -1,0 +1,13 @@
+push current code to remote. start the windows gcp vm in elegoo-backend project. rdp to vm and install claude code. I will login there
+
+---
+
+install claude code desktop app
+
+---
+
+this vm is very slow. also the disk is probably not big enough. how can we make it faster and bigger disk? just propose your plan
+
+---
+
+do tier 0 and tier 1, resize to 500gb
