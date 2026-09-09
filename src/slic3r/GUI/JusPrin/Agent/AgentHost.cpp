@@ -2041,14 +2041,17 @@ void AgentHost::handle_mcp_preview(const std::string& envelope_id, const std::st
         const auto edit = Mcp::prepare_json_connection(found->config_path, found->json_root, value.at(found->json_root).at("jusprin"));
         m_mcp_edit = edit;
         m_mcp_edit_tool = tool_id;
-        send_envelope(Protocol::kMcpPreview,
-                      json{{"toolId", tool_id},
-                           {"path", edit.path.u8string()},
-                           {"previous", edit.previous.dump(2)},
-                           {"next", edit.next.dump(2)},
-                           {"root", found->json_root}}
-                          .dump(),
-                      envelope_id);
+        json payload{{"toolId", tool_id},
+                     {"path", edit.path.u8string()},
+                     {"next", edit.next.dump(2)},
+                     {"root", found->json_root}};
+        // "No JusPrin entry yet" is a state, not a value. Serialising it would
+        // send the string "null", which the page cannot tell from a real
+        // entry; omitting the field says plainly that there is nothing to
+        // show, and the page renders that as its own thing.
+        if (!edit.previous.is_null())
+            payload["previous"] = edit.previous.dump(2);
+        send_envelope(Protocol::kMcpPreview, payload.dump(), envelope_id);
     } catch (const std::exception& error) {
         send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", error.what(), true});
     }

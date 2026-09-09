@@ -113,12 +113,45 @@ std::optional<Span> member(const std::string& text, Span object, const std::stri
     return std::nullopt;
 }
 
+// The leading whitespace of the line `position` sits on.
+std::string line_indent(const std::string& text, std::size_t position)
+{
+    const auto newline = text.rfind('\n', position);
+    const auto start = newline == std::string::npos ? 0 : newline + 1;
+    const auto first = text.find_first_not_of(" \t", start);
+    return text.substr(start, (first == std::string::npos ? position : first) - start);
+}
+
 void insert_member(std::string& source, const std::string& masked, Span object, const std::string& key, const json& value)
 {
     // Insert immediately after '{'. Existing comments/trailing commas remain
     // byte-for-byte intact, with a separator only when the object has members.
     const auto parsed = json::parse(masked.substr(object.begin, object.end - object.begin));
-    source.insert(object.begin + 1, "\n" + json(key).dump() + ": " + value.dump(2) + (parsed.empty() ? "\n" : ",\n"));
+    // The entry has to look like it belongs: this is a file people open and
+    // edit by hand, and the review screen promises their other settings are
+    // left as they are. An entry written at column 0 among indented siblings
+    // reads as the file having been reformatted around it.
+    const auto first_member = masked.find_first_not_of(" \t\r\n", object.begin + 1);
+    const std::string indent = !parsed.empty() && first_member < object.end
+                                   ? line_indent(masked, first_member)
+                                   : line_indent(masked, object.begin) + "  ";
+    // dump(2) indents its continuation lines from column 0; shift them under
+    // the new member.
+    std::string entry = json(key).dump() + ": " + value.dump(2);
+    for (auto i = entry.find('\n'); i != std::string::npos; i = entry.find('\n', i + 1 + indent.size()))
+        entry.insert(i + 1, indent);
+
+    std::string insertion = "\n" + indent + entry;
+    if (parsed.empty()) {
+        insertion += "\n" + line_indent(masked, object.begin);
+    } else {
+        insertion += ",";
+        // The brace was already followed by a newline; reuse it instead of
+        // adding one and leaving a blank line where the old one fell.
+        if (object.begin + 1 >= source.size() || source[object.begin + 1] != '\n')
+            insertion += "\n" + indent;
+    }
+    source.insert(object.begin + 1, insertion);
 }
 
 void write_file(const fs::path& path, const std::string& bytes, fs::perms permissions)

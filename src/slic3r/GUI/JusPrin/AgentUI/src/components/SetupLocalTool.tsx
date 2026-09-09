@@ -286,7 +286,13 @@ export function SetupLocalTool({
         <p className="setup-path">{preview?.path ?? tool?.configPath}</p>
         <p className="setup-eyebrow">JusPrin will edit</p>
         <div className="setup-diff">
-          <pre className="setup-diff-before">{preview?.previous || '{}'}</pre>
+          {preview?.previous === undefined ? (
+            // Nothing to compare against on a first connection. Say so, rather
+            // than printing an empty object the reader has to interpret.
+            <p className="setup-diff-absent">No JusPrin entry yet — this adds one.</p>
+          ) : (
+            <pre className="setup-diff-before">{preview.previous}</pre>
+          )}
           <pre className="setup-diff-after">{preview?.next || ''}</pre>
         </div>
         <p className="footnote">Your other settings stay as they are. The existing file is backed up first.</p>

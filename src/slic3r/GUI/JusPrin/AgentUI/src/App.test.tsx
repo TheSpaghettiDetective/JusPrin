@@ -965,6 +965,27 @@ describe('App agent setup', () => {
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
   });
 
+  it('says there is no JusPrin entry yet instead of rendering a serialised null', () => {
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    // The host omits `previous` when the file holds no JusPrin entry — which
+    // is what every user sees the first time, on the screen where they grant
+    // an external tool access to their project.
+    host.deliver('mcp_preview', {
+      toolId: 'cursor',
+      path: '/tmp/mcp.json',
+      next: '{"command":"/tmp/jusprin-mcp"}',
+      root: 'mcpServers',
+    });
+
+    const review = screen.getByTestId('setup-local-review');
+    expect(review).toBeInTheDocument();
+    expect(review).not.toHaveTextContent('null');
+    expect(screen.getByText('No JusPrin entry yet — this adds one.')).toBeInTheDocument();
+    // The new entry is still shown.
+    expect(review).toHaveTextContent('"command"');
+  });
+
   it('reports a failed write on the review screen without discarding the diff', () => {
     openCursorReview();
     fireEvent.click(screen.getByRole('button', { name: 'Connect' }));

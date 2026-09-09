@@ -1510,6 +1510,17 @@ button.wide {
   border-left: 3px solid var(--status-success);
 }
 
+/* Stands in for the "before" block on a first connection, where there is no
+   prior entry to show. */
+.pane-state .setup-diff-absent {
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-standard);
+  background: var(--surface-subtle);
+  font: var(--font-label);
+}
+
 .setup-progress {
   width: 100%;
   height: 6px;

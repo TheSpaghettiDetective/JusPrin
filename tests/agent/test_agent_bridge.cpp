@@ -1844,6 +1844,10 @@ TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup
     REQUIRE(preview != nullptr);
     CHECK((*preview)["payload"]["next"].get<std::string>().find("\"url\"") == std::string::npos);
     CHECK((*preview)["payload"]["next"].get<std::string>().find("command") != std::string::npos);
+    // No JusPrin entry in the file yet, so there is no previous entry to show.
+    // The field is absent rather than the string "null", which the page could
+    // not tell from a real entry.
+    CHECK_FALSE((*preview)["payload"].contains("previous"));
     harness.deliver("mcp_connect", json{{"toolId", "cursor"}});
     const json* status = harness.last_of_type("mcp_status");
     REQUIRE(status != nullptr);

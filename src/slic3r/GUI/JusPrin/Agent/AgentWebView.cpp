@@ -53,7 +53,13 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
         });
     });
     // The host resolves which file this is; it only lacks a way to show it.
-    m_host->set_reveal_path_handler([](const std::string& path) { desktop_open_any_folder(path); });
+    // Deferred rather than called inline: this runs inside the web view's
+    // script-message handler, and handing the file manager the main thread
+    // before that handler returns is a way to stall the view's own message
+    // pump. Nothing here depends on the reveal having happened.
+    m_host->set_reveal_path_handler([this](const std::string& path) {
+        CallAfter([path] { desktop_open_any_folder(path); });
+    });
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);
 
