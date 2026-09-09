@@ -142,6 +142,48 @@ Every interactive component must define normal, hover, pressed, disabled, focuse
 - Light secondary text measures 6.89:1 on White.
 - Dark secondary text measures 10.95:1 on Ink.
 
+## Writing UI code
+
+Rules for anyone, human or agent, adding or changing a JusPrin surface. They
+exist because every value that is typed by hand drifts from Figma and from
+the other side of the app within weeks; today's guards catch most of it, but
+only if the code goes through the token file in the first place.
+
+1. **Never type a color, radius, font, or control size.** Every one comes
+   from `resources/jusprin/ui/design-tokens.json`. Native code reads it
+   through `ShellTheme`: `palette(dark)` for color, `metrics()` for radii,
+   spacing, and per-component sizes, `font(role)` and `mono_font(role)` for
+   type. A stock `wxStaticText`, `wxTextCtrl`, or OrcaSlicer `Button` is
+   dressed through `Shell/ShellRecipes.hpp`, never by calling its setters
+   with literals. The Agent page uses only `var(--…)`: `--<group>-<name>` for
+   color, `--radius-<name>`, `--font-<role>`, `--font-mono-<role>`, and
+   `--button-<recipe>-padding`.
+2. **If the value you need has no token, add the token first.** Put it in
+   the JSON, extend the guard in `tests/brand/test_brand_tokens.cpp` so a
+   later edit cannot silently move it, then read it from code. Do not write
+   the number "for now": the guards cannot see a literal that is already
+   there, and the next reader cannot tell a decision from an accident. A
+   value that exists in Figma but not in the roles or scales is a design
+   decision to raise, not a reason to type it.
+3. **Layout spacing may stay literal, on the scale.** Padding between
+   regions, gaps, and margins use 4, 8, 12, 16, 20, 24, 32, 40, or 48 DIP.
+   Control padding is not layout spacing; it comes from a button recipe.
+4. **Pick the nearest role, never a bespoke size.** The roles are the whole
+   type system. Bold at a body or label size is a role of its own; if a
+   surface seems to need a size that no role has, see rule 2.
+5. **Read the code on `jusprin-newui`, not old commit messages or Figma,
+   when they disagree.** The header's chip and menu dimensions were once
+   changed to match Figma and reverted because they looked worse; the
+   token file records what stayed.
+6. **Run the guards before calling UI work done:** `brand_tokens_tests`,
+   `shell_theme_tests`, and `npm test` in `AgentUI`. Then look at the surface
+   in the running app; the guards prove the code went through the tokens,
+   not that the result looks right.
+7. **Upstream files are off limits for style.** OrcaSlicer's own screens are
+   retinted through the hooks `BrandPalette.cpp` installs and nothing else;
+   see [Fork stewardship](fork-stewardship.md). Their radii and fonts stay
+   OrcaSlicer's until the surface is replaced.
+
 ## Runtime application in the native app
 
 The token file is applied to the running application in three layers. All

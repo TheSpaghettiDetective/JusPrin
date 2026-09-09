@@ -26,7 +26,7 @@ Do not cherry-pick the full POC commit sequence. Its commits mix durable seams w
 
 | Historical path on `jusprin-v2-poc` | Use it when |
 |---|---|
-| `agent-docs/orca-feature-discovery.md` | Tracing the complete source reasoning behind the canonical product definition |
+| `agent-docs/jusprin/orca-feature-discovery.md` | Tracing the complete source reasoning behind the canonical product definition |
 | `agent-docs/native-ui-rewrite-plan.md` | Reviewing the original shell, gizmo, object pane, annotation, and Agent implementation sequence |
 | `agent-docs/native-ui-risk-and-verification.md` | Reviewing the evidence-led risk method and original evidence ledger |
 | `agent-docs/spike-webgl2-viewport.md` | Understanding why Electron/WebGL was investigated and then explicitly superseded |
