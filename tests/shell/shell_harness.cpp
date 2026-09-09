@@ -100,6 +100,12 @@
 #include <thread>
 #include <vector>
 
+#ifdef _WIN32
+// For reading this process's real command line as UTF-16; see utf8_argument.
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 namespace fs = boost::filesystem;
 
 #ifdef __APPLE__
@@ -213,9 +219,19 @@ public:
                     // shell's rendered external approval cards remain live.
                     if (self->m_state->review_visual) {
                         auto* row = installed_shell()->status_row();
+                        // Both of these do nothing at all when the slice
+                        // identity is invalid: the report attaches to a slice
+                        // that cannot be matched, and request_check_print
+                        // returns before it navigates. Naming the identity
+                        // separates "the fixture had nothing to report on" from
+                        // "the report was made and the panel still did not
+                        // appear", which the mode's silence used to conflate.
+                        self->check(row->slice_identity().valid(), "review_visual_has_a_slice_to_report_on");
                         installed_shell()->workspace()->slice_reviews()->report(row->slice_identity(),row->slice_identity(),
                             {"Test fixture: inspect the opening and the support contact before printing."});
                         row->request_check_print();
+                        self->check(self->m_notebook->GetSelection() == MainFrame::tpPreview,
+                                    "review_visual_reaches_preview");
                     } else if (self->m_state->header_visual) {
                         installed_shell()->status_row()->show_action_menu();
                     } else {
@@ -1615,7 +1631,17 @@ private:
             return plate && plate->is_slice_result_valid() && !m_plater->is_background_process_slicing();
         }, "mcp_fixture_has_real_slice", [self = shared_from_this(), next] {
             installed_shell()->status_row()->request_prepare();
-            self->wait_until([self] { return !self->m_plater->is_preview_shown(); }, "mcp_fixture_prepare", next);
+            // The tab has to be named, not merely "not Preview": request_prepare
+            // asks the notebook to select Prepare, and Notebook::SetSelection
+            // abandons a vetoed change without saying so. Home satisfies "not
+            // Preview" too, so a check written that way passes whether the
+            // navigation happened or never ran -- and Home is where the fixture
+            // was in fact being left, with the whole workspace status row (plate
+            // label, review panel, return button) hidden because that row only
+            // shows on Prepare or Preview.
+            self->wait_until([self] {
+                return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown();
+            }, "mcp_fixture_prepare", next);
         });
     }
 
@@ -2481,6 +2507,41 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 } // namespace
 } // namespace Slic3r::GUI::JusPrin
 
+namespace {
+
+// The argument the parent sent, as the bytes it sent.
+//
+// run_mcp_setup_command hands wxExecute a wide argv built with
+// wxString::FromUTF8, so Windows receives the argument intact -- but the CRT
+// then builds this process's narrow argv by converting that command line to
+// the ANSI code page, where the fixture literal's CJK has no representation
+// and is replaced before main is even entered. Nothing the parent does can
+// prevent that. Windows keeps the real command line in UTF-16, so read the
+// argument from there and re-encode it as the UTF-8 the parent will search
+// the output for. Off Windows the narrow argv already carries those bytes.
+std::string utf8_argument(int index, char** argv)
+{
+#ifdef _WIN32
+    int count = 0;
+    wchar_t** wide = ::CommandLineToArgvW(::GetCommandLineW(), &count);
+    if (wide == nullptr) return argv[index];
+    std::string text;
+    if (index < count) {
+        const int bytes = ::WideCharToMultiByte(CP_UTF8, 0, wide[index], -1, nullptr, 0, nullptr, nullptr);
+        if (bytes > 1) {
+            text.resize(std::size_t(bytes) - 1);
+            ::WideCharToMultiByte(CP_UTF8, 0, wide[index], -1, text.data(), bytes, nullptr, nullptr);
+        }
+    }
+    ::LocalFree(wide);
+    return text;
+#else
+    return argv[index];
+#endif
+}
+
+} // namespace
+
 int main(int argc, char** argv)
 {
     // A real subprocess for setup tests, with no GUI or external configuration.
@@ -2494,7 +2555,7 @@ int main(int argc, char** argv)
         }
         if (mode == "delayed") std::this_thread::sleep_for(std::chrono::milliseconds(800));
         if (mode == "large") std::cout << std::string(256 * 1024, 'x');
-        std::cout << argv[3] << '\n';
+        std::cout << utf8_argument(3, argv) << '\n';
         std::cerr << "fixture stderr\n";
         return mode == "failure" ? 7 : 0;
     }
