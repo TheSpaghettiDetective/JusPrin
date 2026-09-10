@@ -1,0 +1,95 @@
+it looks like there are change events like these fired from orcaslicer. check repo for what kinds of events are being fired, and list them here.
+
+---
+
+what are the flags mean? use plain english
+
+---
+
+isn't Transform or Plates necessarily a hisotry?
+
+---
+
+what do you mean by "timeline"?
+
+---
+
+Do a systematic analysis to see to come up with a proposal for a clean design that decide what event should go into the timeline, and give me your rationale behind it in plain English. Upper style.
+
+---
+
+<task-notification>
+<task-id>aa118139d983fdb67</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/375eed19-9b01-4a89-90e7-e19e7f3154ad/tasks/aa118139d983fdb67.output</output-file>
+<status>completed</status>
+<summary>Agent "Inventory edits vs change notifications" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Many edits that change the print result never produce Objects, Transform or Plates, so they would not create a manufacturing revision. You were right that `update()` does not notify: neither `Plater::update()` (Plater.cpp:14531) nor `Plater::priv::update()` (Plater.cpp:5486). `Plater::changed_object()`, `changed_objects()` and `schedule_background_process()` don't notify either (Plater.cpp:17326-17381). Only `object_list_changed()` and `changed_mesh()` do, and `changed_mesh()` does it through `object_list_changed()` (Plater.cpp:17322).
+
+The snapshot-only paths use `take_snapshot`, which passes None (Plater.cpp:11716). `notify_project_state_changed` adds History when undo/redo availability flips (PlaterProjectState.cpp:36-39), but never Objects, Transform or Plates. Undo/redo itself does carry Objects, Transform and Plates (Plater.cpp:11906).
+
+| # | Edit | Reaches notification? | Flags | Evidence |
+|---|---|---|---|---|
+| 1 | Mirror | **No** (snapshot only) | None/History | `mirror_selection` → `do_mirror` posts only `EVT_GLCANVAS_SCHEDULE_BACKGROUND_PROCESS` (GLCanvas3D.cpp:2460, 5348). There is no `INSTANCE_MIRRORED` binding. |
+| 1 | Place on face | Yes | Transform, Plates, History | `do_rotate` (GLGizmoFlatten.cpp:30) → ROTATED (GLCanvas3D.cpp:5145) → Plater.cpp:5177/5172 |
+| 1 | Drop to bed / center | Yes | same | `Selection::drop` posts MOVED (Selection.cpp:556); center → `do_move` (Selection.cpp:522) |
+| 1 | Reset rotation / scale | Yes | same | GizmoObjectManipulation.cpp:593 (`do_rotate`); reset scale → `change_scale_value` → `do_scale` (GizmoObjectManipulation.cpp:472) |
+| 2 | Numeric move/rotate/scale | Yes | same | GizmoObjectManipulation.cpp:336, 365, 393, 472. They pass an empty snapshot name, but `do_*` still posts MOVED/ROTATED/SCALED (GLCanvas3D.cpp:5023/5145/5237) |
+| 3 | Support, seam, color (MMU), fuzzy-skin painting | **No** | None/History | Snapshot at GLGizmoPainterBase.cpp:972; `update_model_object` only posts SCHEDULE_BACKGROUND_PROCESS (GLGizmoSeam.cpp:321, GLGizmoFdmSupports.cpp:584, GLGizmoMmuSegmentation.cpp:708, GLGizmoFuzzySkin.cpp:384). MMU exit sends FORCE_UPDATE → `update()` only (GLGizmoMmuSegmentation.cpp:812, Plater.cpp:5176) |
+| 3 | Brim ears | **No** | none | GLGizmoBrimEars.cpp:856-864 |
+| 3 | Remove painting (object list) | **No** | None/History | GUI_ObjectList.cpp:2673-2696 |
+| 4 | Cut | **Yes** (inferred) | Objects, Plates, History | `apply_cut_object_to_model` → `load_model_objects` → `object_list_changed` (Plater.cpp:14987 → 7204). Inferred because I didn't check the `split_object` flag. |
+| 4 | Simplify | Yes | Objects, Plates, History | GLGizmoSimplify.cpp:560 → `changed_mesh` → Plater.cpp:17322 |
+| 4 | Repair (CGAL) | Yes | same | GUI_ObjectList.cpp:6149 → `changed_mesh` |
+| 4 | Split to objects | Yes | same | Plater.cpp:7715 `load_model_objects` → 7204 |
+| 4 | Split to parts / merge parts | **No** | None/History | GUI_ObjectList.cpp:2929, 3186 → `changed_object` only |
+| 4 | Mesh boolean (gizmo) | **No**, unless inputs are deleted | None; Objects if deleted | `update()` only (GLGizmoMeshBoolean.cpp:499); `delete_from_model_and_list` (line 495) notifies (GUI_ObjectList.cpp:4329) |
+| 4 | Text, emboss, SVG | **No** | None/History | EmbossJob.cpp:452, 1162; GLGizmoText.cpp:1615; GLGizmoSVG.cpp:325 — all `update()` or `changed_object` |
+| 5 | Add part/modifier/negative volume/blocker/enforcer | **No** | Selection only | GUI_ObjectList.cpp:2176/2463 snapshot, then `selection_changed()` → `EVT_OBJ_LIST_OBJECT_SELECT` → Plater.cpp:5116 |
+| 5 | Change part type | **No** | None | GUI_ObjectList.cpp:5530 |
+| 6 | Per-object/part settings (TabPrintModel) | **No** | None/History | Tab.cpp:3173 snapshot; `notify_changed` → `object_config_options_changed` (no notify). `TabPrint::update` skips `on_config_changed` when the type is TYPE_MODEL (Tab.cpp:~2915). Legacy ObjectSettings: GUI_ObjectSettings.cpp:123/168. |
+| 7 | Object/part filament | **No** | None/History | `update_filament_in_config` (GUI_ObjectList.cpp:6381; snapshot + `update()`); `set_extruder_for_selected_items` (GUI_ObjectList.cpp:6587, 6657) |
+| 8 | Layer ranges | **No** | None/History | GUI_ObjectList.cpp:4549-4712 → `changed_object` |
+| 8 | Variable layer height (manual, adaptive, smooth, reset) | **No** | None or none | GLCanvas3D.cpp:643-716: only SCHEDULE_BACKGROUND_PROCESS; manual edit takes a snapshot (line 711) |
+| 9 | Plate settings dialog (bed type, sequences, spiral, name) | **No** | none | Plater.cpp:17968-18018 (`set_plater_dirty`, `update()`); TabPrintPlate: snapshot only (Tab.cpp:3346) |
+| 9 | Plate lock / rename | **No** | None/History | Plater.cpp:18218-18219, 18263 |
+| 10 | Arrange, orient, fill bed | **No** | None/History | Snapshot (Plater.cpp:17237/10937/14937); job `finalize` only calls `update()` / `reload_all_plates` (ArrangeJob.cpp:702-734, OrientJob.cpp:219, FillBedJob.cpp:331-349) |
+| 10 | Move wipe/prime tower | **No** | None/History | `do_move` only sets `object_moved` for real objects; the tower branch doesn't (GLCanvas3D.cpp:4980, 5022) |
+| 11 | Custom G-code / color change / pause from layer slider | **No** (not even a snapshot) | none | Plater.cpp:5258-5277 |
+| 12 | Import/load files | Yes | Objects, Plates, History | `load_model_objects` → Plater.cpp:7204 |
+| 12 | Add primitive (new object) | **No** | None | GUI_ObjectList.cpp:2555 → `load_mesh_object`; no `object_list_changed` found |
+| 12 | Increase/decrease instances, set copies | **No** | Selection | Plater.cpp:14811-14895 (`p-&gt;update()`, `selection_changed`). Decrease that removes the whole object goes through `remove` → `delete_object_from_model` → Plater.cpp:7502 (Objects) |
+| 12 | Paste / clone | **No** | Selection | Selection.cpp:3340 → `paste_objects_into_list` → `changed_objects` (GUI_ObjectList.cpp:1454). The fork's `duplicate_object` does notify (Plater.cpp:14656). |
+| 13 | Sidebar preset combos, bed type combo | Yes | Settings only | Plater.cpp:9472, 9594, 9639; PresetComboBoxes.cpp:287/1057/1592 → Plater.cpp:16922 |
+| 13 | Tab value edit / Tab preset switch | Yes | Settings only | Tab `update()` → `MainFrame::on_config_changed` → `on_config_change` (Tab.cpp:~2918, MainFrame.cpp:4036). Skipped while `inside_snapshot_capture()`. |
+| 14 | Reload from disk / replace with STL | **No** | None/History | Plater.cpp:8670, 8819, 9112 |
+| 14 | Toggle printable | **No** | None | GUI_ObjectList.cpp:6805 |
+
+**(a) Slicing.** "Slice plate" (Plater.cpp:10173-10186) doesn't call `select_plate`. "Slice all" does, at Plater.cpp:10209 and again at 10101 for each following plate. Each call goes through `Plater::select_plate` → `PartPlateList::select_plate`. That emits Plates|History (PartPlate.cpp:4803), but only when the plate index actually changes and the list is initialized. So slice-all will look like a Plates change to your consumer. Other callers also switch plates this way: project load (Plater.cpp:6963-6979), preview thumbnails through `select_sliced_plate` (Plater.cpp:17827), and plate clicks (Plater.cpp:18185-18252).
+
+**(b) Plate switching.** Snapshots are taken twice:
+- `Plater::select_plate` takes `take_snapshot("select partplate!")` every time, even for the same plate (Plater.cpp:17668).
+- `PartPlateList::select_plate` takes another only if the index changed and the list is initialized (PartPlate.cpp:4781-4784).
+
+Both run through `take_snapshot`, so they notify with None. Then, only if the plate changed, `PartPlateList::select_plate` notifies with Plates|History inside a transaction (PartPlate.cpp:4773-4775, 4802-4803). As a result, merely switching the active plate counts as a Plates change, even though nothing about the print changed.
+
+Inferred rather than fully traced: the cut path's final notification, and "Add primitive" producing no notification (I checked only the lines shown in `load_mesh_object`).</result>
+<usage><subagent_tokens>139565</subagent_tokens><tool_uses>56</tool_uses><duration_ms>362256</duration_ms></usage>
+</task-notification>
+
+---
+
+where does orcaslicer save print/filament/printer settings changes? what do you mean by "settings in force"? When I amm in orcaslicer, what can I do to save those settings? When I save those settings, what happens?
+
+---
+
+if the save icon in the settings tab triggers preset saving dialog, what triggers project saving?
+
+---
+
+I don't think I can save to system presets, right? I can only save to user presets
+
+---
+
+what does the project file include? a bunch of presets, plus the selected one, plus edited items that are yet to be saved as presets?
