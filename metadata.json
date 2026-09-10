@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M267XBX7TGRK3Y5MDCHBHB8X",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/design-system.md",
+    "resources/jusprin/agent/index.html",
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/README.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.preview.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.hpp",
+    "tests/brand/test_brand_tokens.cpp",
+    "tests/jusprin/test_shell_theme.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6054,
+    "cache_creation_tokens": 1164656,
+    "cache_read_tokens": 65531039,
+    "output_tokens": 199279,
+    "api_call_count": 207
+  }
+}
