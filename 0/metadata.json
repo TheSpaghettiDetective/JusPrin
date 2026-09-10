@@ -1,0 +1,81 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M25VY71V831AR6AC3HHREPBV",
+  "session_id": "598f26fe-b466-4336-928e-14d10d45e1f7",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-10T14:36:01.047397Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "save_step_count": 3,
+  "files_touched": [
+    "agent-docs/jusprin/fake-bambu-printer-handoff.md",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "e08a772e6221",
+  "checkpoint_transcript_start": 1659,
+  "transcript_lines_at_start": 1659,
+  "compact_transcript_start": 265,
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 845,
+    "cache_read_tokens": 527246,
+    "output_tokens": 736,
+    "api_call_count": 1,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-10T14:36:00.546654Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 2007,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2007,
+    "total_lines_changed": 2583,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
