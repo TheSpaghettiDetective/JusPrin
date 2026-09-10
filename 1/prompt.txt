@@ -1,0 +1,1 @@
+delete the folder you created. I mean copy /Users/kenneth/Projects/JusPrin/agent-docs/jusprin/revision-timeline-handoff.md to folder ~/Downloads on gcp vm jusprin-win-test ,
