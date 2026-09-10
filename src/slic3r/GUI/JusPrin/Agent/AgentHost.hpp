@@ -148,6 +148,11 @@ private:
     void send_context();
     void send_conversations();
 
+    // Reads one page envelope and routes it. Split from on_page_message so a
+    // fault anywhere in reading or handling a message is caught in one place,
+    // with that message's own type and id still in hand.
+    void dispatch_page_message(const std::string& envelope_json, std::string& type, std::string& envelope_id);
+
     void handle_hello(const std::string& envelope_id, const std::string& payload_json);
     void handle_user_message(const std::string& envelope_id, const std::string& payload_json);
     void handle_stop(const std::string& payload_json);

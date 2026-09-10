@@ -1,4 +1,5 @@
 #include "AgentHost.hpp"
+#include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 
@@ -749,34 +750,50 @@ void AgentHost::on_page_message(const std::string& envelope_json)
 {
     ++m_messages_received;
 
-    json envelope = json::parse(envelope_json, nullptr, false);
-    if (envelope.is_discarded() || !envelope.is_object()) {
-        send_bridge_error("malformed_json", "The page sent an envelope that is not valid JSON.");
-        return;
+    // The page and this host ship in the same build, so an envelope that will
+    // not parse, or a payload missing a field the page is required to send,
+    // cannot happen unless the page is broken. A user can do nothing with such
+    // a report. Reading strictly below lets nlohmann name the missing key or
+    // the wrong type, and the fault travels on to GUI_App's handler, which
+    // logs it and reports it once.
+    //
+    // Catching here buys the one thing that handler cannot see - which message
+    // carried the fault - and then hands the fault straight back.
+    std::string type;
+    std::string envelope_id;
+    try {
+        dispatch_page_message(envelope_json, type, envelope_id);
+    } catch (const json::exception& error) {
+        throw RuntimeError("jusprin-agent-bridge: " + (type.empty() ? std::string("envelope") : type) + " " +
+                           (envelope_id.empty() ? std::string("(no id)") : envelope_id) + ": " + error.what());
     }
+}
+
+void AgentHost::dispatch_page_message(const std::string& envelope_json, std::string& type, std::string& envelope_id)
+{
+    const json envelope = json::parse(envelope_json);
+    // Not a check on our own build but a filter: anything else able to reach
+    // this handler is not speaking our protocol, and its messages are not ours
+    // to read. Answering rather than throwing keeps that a normal outcome.
     if (envelope.value("protocol", "") != Protocol::kName) {
         send_bridge_error("wrong_protocol", "The envelope does not carry the jusprin-agent-bridge protocol name.");
         return;
     }
-    if (!envelope.contains("type") || !envelope["type"].is_string() || !envelope.contains("id") || !envelope["id"].is_string()) {
-        send_bridge_error("malformed_envelope", "The envelope is missing its type or id.");
-        return;
-    }
-    const std::string type        = envelope["type"].get<std::string>();
-    const std::string envelope_id = envelope["id"].get<std::string>();
-    const std::string payload     = envelope.contains("payload") ? envelope["payload"].dump() : std::string("{}");
+    type        = envelope.at("type").get<std::string>();
+    envelope_id = envelope.at("id").get<std::string>();
+    const std::string payload = envelope.contains("payload") ? envelope["payload"].dump() : std::string("{}");
 
     if (type == Protocol::kHello) {
         handle_hello(envelope_id, payload);
         return;
     }
 
-    if (!envelope.contains("version") || !envelope["version"].is_number_integer() ||
-        envelope["version"].get<int>() != Protocol::kVersion) {
-        send_bridge_error("unsupported_version", "The envelope version does not match the negotiated protocol version.",
-                          envelope_id);
-        return;
-    }
+    // The handshake above negotiates the version, and both sides of it ship
+    // together, so a mismatch here is a broken page rather than an old one.
+    const int version = envelope.at("version").get<int>();
+    if (version != Protocol::kVersion)
+        throw RuntimeError("jusprin-agent-bridge: envelope version " + std::to_string(version) +
+                           " does not match the negotiated protocol version " + std::to_string(Protocol::kVersion));
     if (!m_handshake) {
         send_bridge_error("handshake_required", "A hello handshake is required before other messages.", envelope_id);
         return;
@@ -870,14 +887,9 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
         send_bridge_error("setup_busy", "Finish or cancel Agent configuration before sending a message.", envelope_id);
         return;
     }
-    const json payload = json::parse(payload_json, nullptr, false);
-    if (!payload.is_object() || !payload.contains("clientMessageId") || !payload["clientMessageId"].is_string() ||
-        !payload.contains("text") || !payload["text"].is_string()) {
-        send_bridge_error("invalid_payload", "user_message requires a clientMessageId and text.", envelope_id);
-        return;
-    }
-    const std::string client_id = payload["clientMessageId"].get<std::string>();
-    const std::string text      = payload["text"].get<std::string>();
+    const json payload = json::parse(payload_json);
+    const std::string client_id = payload.at("clientMessageId").get<std::string>();
+    const std::string text      = payload.at("text").get<std::string>();
 
     std::vector<std::string> requested_attachments;
     if (payload.contains("attachmentIds") && payload["attachmentIds"].is_array())
@@ -960,11 +972,7 @@ void AgentHost::send_attachment_updated(const AttachmentRecord& record, const st
 
 void AgentHost::handle_attach_file(const std::string& envelope_id, const std::string& payload_json)
 {
-    const json payload = json::parse(payload_json, nullptr, false);
-    if (!payload.is_object()) {
-        send_bridge_error("invalid_payload", "attach_file requires an object payload.", envelope_id);
-        return;
-    }
+    const json payload = json::parse(payload_json);
     const std::string client_id = payload.value("clientAttachmentId", "");
     const std::string name      = payload.value("name", "");
     std::string       source    = payload.value("source", "picker");
@@ -1054,12 +1062,8 @@ void AgentHost::handle_attach_file(const std::string& envelope_id, const std::st
 
 void AgentHost::handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json)
 {
-    const json payload = json::parse(payload_json, nullptr, false);
-    const std::string id = payload.is_object() ? payload.value("attachmentId", "") : std::string();
-    if (id.empty()) {
-        send_bridge_error("invalid_payload", "remove_attachment requires an attachmentId.", envelope_id);
-        return;
-    }
+    const json payload   = json::parse(payload_json);
+    const std::string id = payload.at("attachmentId").get<std::string>();
     ProjectStateDocument& document = m_persistence.document();
     const std::optional<std::string> removed_dir = document.remove_staged_attachment(id);
     if (!removed_dir) {
@@ -1140,14 +1144,9 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
 
 void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::string& payload_json)
 {
-    const json payload = json::parse(payload_json, nullptr, false);
-    if (!payload.is_object() || !payload.contains("actionId") || !payload["actionId"].is_string() ||
-        !payload.contains("decision") || !payload["decision"].is_string()) {
-        send_bridge_error("invalid_payload", "tool_decision requires an actionId and a decision.", envelope_id);
-        return;
-    }
-    const std::string action_id = payload["actionId"].get<std::string>();
-    const std::string decision  = payload["decision"].get<std::string>();
+    const json payload = json::parse(payload_json);
+    const std::string action_id = payload.at("actionId").get<std::string>();
+    const std::string decision  = payload.at("decision").get<std::string>();
     if (decision != "approve" && decision != "reject") {
         send_bridge_error("invalid_payload", "tool_decision decision must be \"approve\" or \"reject\".", envelope_id);
         return;
@@ -1215,15 +1214,10 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_rename_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
-    const json payload = json::parse(payload_json, nullptr, false);
-    if (!payload.is_object() || !payload.contains("title") || !payload["title"].is_string() ||
-        !payload.contains("conversationId") || !payload["conversationId"].is_string()) {
-        send_bridge_error("invalid_payload", "Rename requires a chat and a title.", envelope_id);
-        return;
-    }
-    const std::string id = payload["conversationId"].get<std::string>();
-    if (!is_valid_utf8(payload["title"].get<std::string>()) ||
-        !m_persistence.document().rename_conversation(id, payload["title"].get<std::string>())) {
+    const json payload   = json::parse(payload_json);
+    const std::string id = payload.at("conversationId").get<std::string>();
+    const std::string title = payload.at("title").get<std::string>();
+    if (!is_valid_utf8(title) || !m_persistence.document().rename_conversation(id, title)) {
         send_bridge_error("rename_failed", "Use a non-empty, single-line title of at most 120 characters for an existing chat.",
                           envelope_id);
         return;
@@ -1428,11 +1422,7 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
         send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
         return;
     }
-    const json payload = json::parse(payload_json, nullptr, false);
-    if (!payload.is_object()) {
-        send_bridge_error("invalid_payload", "setup_check_key requires an object payload.", envelope_id);
-        return;
-    }
+    const json payload = json::parse(payload_json);
 
     SetupCredentials credentials;
     credentials.provider = payload.value("provider", "");
@@ -2028,14 +2018,15 @@ void AgentHost::handle_mcp_catalog(const std::string& envelope_id)
 
 void AgentHost::handle_mcp_preview(const std::string& envelope_id, const std::string& payload_json)
 {
-    const json payload = json::parse(payload_json, nullptr, false);
-    const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
+    const json payload        = json::parse(payload_json);
+    const std::string tool_id = payload.at("toolId").get<std::string>();
     const auto items = mcp_catalog_items();
     const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
-    if (found == items.end() || found->entry.cli) {
-        send_bridge_error("invalid_payload", "mcp_preview requires a file-based tool.", envelope_id);
-        return;
-    }
+    // The catalog is a fixed table, and the page can only name an id this host
+    // sent it, carrying the cli flag that says which tools have a file to
+    // preview at all. Asking to preview anything else is a broken page.
+    if (found == items.end() || found->entry.cli)
+        throw RuntimeError("jusprin-agent-bridge: mcp_preview names no file-based tool: " + tool_id);
     try {
         const auto value = json::parse(found->entry.text);
         const auto edit = Mcp::prepare_json_connection(found->config_path, found->json_root, value.at(found->json_root).at("jusprin"));
@@ -2063,14 +2054,12 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
         send_bridge_error("busy", "A connection is already being saved.", envelope_id);
         return;
     }
-    const json payload = json::parse(payload_json, nullptr, false);
-    const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
+    const json payload        = json::parse(payload_json);
+    const std::string tool_id = payload.at("toolId").get<std::string>();
     const auto items = mcp_catalog_items();
     const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
-    if (found == items.end()) {
-        send_bridge_error("invalid_payload", "Unknown MCP tool.", envelope_id);
-        return;
-    }
+    if (found == items.end())
+        throw RuntimeError("jusprin-agent-bridge: mcp_connect names an unknown tool: " + tool_id);
     if (!std::filesystem::is_regular_file(m_mcp_connect.helper_path)) {
         send_mcp_status("error", tool_id, envelope_id, {},
                         AgentError{"helper_missing", "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin.", true});
@@ -2128,16 +2117,14 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
 
 void AgentHost::handle_reveal_path(const std::string& envelope_id, const std::string& payload_json)
 {
-    const json payload = json::parse(payload_json, nullptr, false);
-    const auto tool_id = payload.is_object() ? payload.value("toolId", "") : "";
+    const json payload        = json::parse(payload_json);
+    const std::string tool_id = payload.at("toolId").get<std::string>();
     // The page names a tool; the path comes from the catalog. A path the page
     // supplied would be a page-controlled string handed to the shell.
     const auto items = mcp_catalog_items();
     const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
-    if (found == items.end() || found->config_path.empty()) {
-        send_bridge_error("invalid_payload", "Unknown MCP tool.", envelope_id);
-        return;
-    }
+    if (found == items.end())
+        throw RuntimeError("jusprin-agent-bridge: reveal_path names an unknown tool: " + tool_id);
     if (!m_reveal_path) {
         send_bridge_error("unsupported", "This build cannot open a file manager.", envelope_id);
         return;

@@ -9,6 +9,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
+#include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -343,22 +344,70 @@ TEST_CASE("an unsupported page version is rejected and other traffic requires th
         CHECK((*error)["payload"]["code"] == "handshake_required");
     }
 
-    SECTION("a non-hello envelope with a wrong version is refused") {
+    // The page and this host ship together, so a version the handshake did not
+    // negotiate, or an envelope this host cannot read, means the page is broken.
+    // Neither is a state a user can act on, so neither is reported to the page:
+    // the fault propagates and the app's own handler logs it.
+    SECTION("a non-hello envelope with a wrong version is a broken page") {
         harness.handshake();
-        harness.deliver("state_request", json::object(), 99);
-        const json* error = harness.last_of_type("bridge_error");
-        REQUIRE(error != nullptr);
-        CHECK((*error)["payload"]["code"] == "unsupported_version");
+        const std::size_t before = harness.sent.size();
+        CHECK_THROWS_AS(harness.deliver("state_request", json::object(), 99), Slic3r::RuntimeError);
+        CHECK(harness.sent.size() == before);
     }
 
-    SECTION("malformed and unknown messages produce bridge errors") {
+    SECTION("an envelope this host cannot read is a broken page") {
         harness.handshake();
-        harness.host.on_page_message("this is not json");
-        REQUIRE(harness.last_of_type("bridge_error") != nullptr);
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "malformed_json");
+        const std::size_t before = harness.sent.size();
+        CHECK_THROWS_AS(harness.host.on_page_message("this is not json"), Slic3r::RuntimeError);
+        // Valid JSON, our protocol, but no id for the reply to correlate with.
+        CHECK_THROWS_AS(harness.host.on_page_message(
+                            json{{"protocol", Protocol::kName}, {"version", Protocol::kVersion},
+                                 {"type", "state_request"}}.dump()),
+                        Slic3r::RuntimeError);
+        CHECK(harness.sent.size() == before);
+    }
 
+    SECTION("an unknown message type is still answered") {
+        harness.handshake();
         harness.deliver("launch_missiles");
         CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_type");
+    }
+
+    SECTION("another protocol's envelope is filtered, not treated as a fault") {
+        harness.handshake();
+        harness.host.on_page_message(json{{"protocol", "someone-else"}, {"version", 1}, {"id", "x"},
+                                          {"type", "state_request"}}.dump());
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "wrong_protocol");
+    }
+}
+
+TEST_CASE("a payload missing a required field is a broken page", "[agent][protocol]")
+{
+    Harness harness;
+    harness.handshake();
+
+    // Each of these fields is one the page is required to send. Missing or
+    // wrongly typed, it cannot be the user's doing and there is nothing for
+    // them to act on, so the fault propagates instead of being described.
+    const std::size_t before = harness.sent.size();
+    CHECK_THROWS_AS(harness.deliver("user_message", json{{"clientMessageId", "c-1"}}), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", 7}}),
+                    Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("tool_decision", json{{"decision", "approve"}}), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("remove_attachment", json::object()), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("rename_conversation", json{{"title", "t"}}), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("reveal_path", json{{"toolId", "not-a-tool"}}), Slic3r::RuntimeError);
+    CHECK(harness.sent.size() == before);
+
+    // The message names itself in the diagnosis: "key not found" alone would
+    // not say which of the page's messages carried the fault.
+    try {
+        harness.deliver("user_message", json{{"clientMessageId", "c-1"}});
+        FAIL("expected a throw");
+    } catch (const Slic3r::RuntimeError& error) {
+        const std::string what = error.what();
+        CHECK(what.find("user_message") != std::string::npos);
+        CHECK(what.find("text") != std::string::npos);
     }
 }
 
@@ -1879,13 +1928,12 @@ TEST_CASE("reveal_path resolves a tool id to the host's own config path", "[agen
     CHECK(revealed.front() == cursor_config.u8string());
 
     // A path the page invents never reaches the shell: only a tool id is
-    // accepted, and only one the catalog knows.
-    harness.deliver("reveal_path", json{{"toolId", "not-a-tool"}});
-    harness.deliver("reveal_path", json{{"path", "/etc/passwd"}});
+    // accepted, and only one the catalog knows. Neither refusal reaches the
+    // shell, and neither is described to the page: the catalog is a fixed
+    // table, so a name outside it can only come from a broken page.
+    CHECK_THROWS_AS(harness.deliver("reveal_path", json{{"toolId", "not-a-tool"}}), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("reveal_path", json{{"path", "/etc/passwd"}}), Slic3r::RuntimeError);
     CHECK(revealed.size() == 1);
-    const json* error = harness.last_of_type("bridge_error");
-    REQUIRE(error != nullptr);
-    CHECK((*error)["payload"]["code"] == "invalid_payload");
 }
 
 TEST_CASE("mcp_connect reports a missing helper instead of writing settings", "[agent][mcp_setup]")
