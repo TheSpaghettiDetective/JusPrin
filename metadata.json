@@ -3,7 +3,7 @@
   "checkpoint_id": "01M26PE75PTZ9VN5JWWJ5310WH",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 3,
+  "checkpoints_count": 5,
   "files_touched": [
     ".gitignore",
     "src/slic3r/GUI/JusPrin/AgentUI/.gitignore"
@@ -22,13 +22,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 90128,
-    "cache_creation_tokens": 342122,
-    "cache_read_tokens": 20264356,
-    "output_tokens": 96489,
-    "api_call_count": 135
+    "input_tokens": 91138,
+    "cache_creation_tokens": 607352,
+    "cache_read_tokens": 25128512,
+    "output_tokens": 161478,
+    "api_call_count": 174
   }
 }

@@ -1,0 +1,9 @@
+no reason to carve out renaming as an exception.  If the spec offers no rationale for why renaming should be an exception, remove it from the spec.  I think the cleanest way to solve this is to save raw change events as is. And it's the UI code that merge consecutive events for viewing purpose.  This way, we miss all the complexity that comes with a synchronous process that combines things,  which can be very messy, right?  tell me if you don't think it's a good design.  Don't worry about the instance count for now.  Given this, what's your new proposal?
+
+---
+
+writes in detail the goal, the decision and the rationale in a handoff document for another agent to work on. don't commit the handoff doc
+
+---
+
+why did you tell it to leave it alone? The existing "manufacturing hash" can't be reused. The code that tracks whether a slice is out of date already has a fingerprint. It covers only preset names and object positions, and it deliberately ignores object names. The handoff tells the next agent to leave it alone.
