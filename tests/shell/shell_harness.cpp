@@ -2424,14 +2424,57 @@ private:
             check(pane->GetSize().x > original_pane_width, "agent_panel_still_resizable_after_collapse");
             drag(pane->GetSize().x - original_pane_width);
             check(pane->GetSize().x == original_pane_width, "agent_panel_width_restored_after_collapse");
+
+            // Both checks below need a pane that is not sitting at its own
+            // minimum: only a pane wide enough to have width taken from it
+            // exercises the width policy at all.
+            const wxSize whole = m_frame->GetSize();
+            m_frame->SetSize(m_frame->FromDIP(760), whole.y);
+            m_frame->Layout();
+            wxYield();
+
+            // A drag that runs past the edge of a narrow window asks for a
+            // width the pane cannot have. That width must not be banked: the
+            // pane would take it, at the workspace's expense, as soon as the
+            // window grew enough to allow it.
+            drag(-divider->FromDIP(3000));
+            const int narrow_max = pane->GetSize().x;
+            m_frame->SetSize(m_frame->FromDIP(1400), whole.y);
+            m_frame->Layout();
+            wxYield();
+            check(pane->GetSize().x == narrow_max,
+                  "agent_panel_over_drag_is_not_banked_for_a_larger_window");
+
+            // Shrinking the window while the pane is wider than the room left
+            // for it re-runs the width policy on every step. No Layout() call
+            // in the loop, on purpose: the point is what the frame's own size
+            // handlers leave behind, and an extra layout against the settled
+            // client size would repair a stale one before it could be seen.
+            drag(-divider->FromDIP(3000));
+            for (int width : {1200, 1000, 860, 760}) {
+                m_frame->SetSize(m_frame->FromDIP(width), whole.y);
+                wxYield();
+                verify_agent_pane_tiling("shrinking_to_" + std::to_string(width) + "_dip");
+            }
+            for (int width : {860, 1100, 1400}) {
+                m_frame->SetSize(m_frame->FromDIP(width), whole.y);
+                wxYield();
+                verify_agent_pane_tiling("growing_to_" + std::to_string(width) + "_dip");
+            }
+            m_frame->SetSize(whole);
+            m_frame->Layout();
+            wxYield();
+            drag(pane->GetSize().x - original_pane_width);
         }
 
         const wxSize original = m_frame->GetSize();
+        verify_agent_pane_tiling("before_resize");
         m_frame->SetSize(original + wxSize(120, 80));
         m_frame->Layout();
         StatusRow* row = installed_shell()->status_row();
         check(row->IsShown() && row->GetSize().GetWidth() > 0, "status_row_survives_resize");
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "canvas_survives_resize");
+        verify_agent_pane_tiling("after_grow");
         verify_header_layout();
         m_frame->SetSize(m_frame->FromDIP(900),original.y);
         m_frame->Layout();
@@ -2445,6 +2488,31 @@ private:
         row->refresh();
         m_frame->SetSize(original);
         m_frame->Layout();
+    }
+
+    // Workspace, divider and pane must tile the frame's client width exactly.
+    // Each one on its own can look right while the three together do not: a
+    // layout run against a stale width sizes some of them for the previous
+    // width, so they overlap and the pane covers part of the workspace.
+    void verify_agent_pane_tiling(const std::string& name)
+    {
+        auto* pane = installed_shell()->agent_pane();
+        auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+        if (pane == nullptr || divider == nullptr || installed_shell()->is_agent_pane_collapsed())
+            return;
+        const int client = m_frame->GetClientSize().x;
+        const wxRect workspace = m_notebook->GetRect();
+        const wxRect bar = divider->GetRect();
+        const wxRect agent = pane->GetRect();
+        const bool tiled = workspace.x == 0 && workspace.GetWidth() > 0 &&
+                           workspace.GetRight() + 1 == bar.x &&
+                           bar.GetRight() + 1 == agent.x &&
+                           agent.GetRight() + 1 == client;
+        check(tiled, "agent_panel_columns_tile_the_client_" + name);
+        if (!tiled)
+            std::cerr << "HARNESS DETAIL client=" << client << " workspace=" << workspace.x << "+"
+                      << workspace.GetWidth() << " divider=" << bar.x << "+" << bar.GetWidth()
+                      << " pane=" << agent.x << "+" << agent.GetWidth() << '\n';
     }
 
     void verify_header_layout()

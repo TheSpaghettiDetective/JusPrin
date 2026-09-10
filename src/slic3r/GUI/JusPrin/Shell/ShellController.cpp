@@ -298,9 +298,28 @@ void ShellController::on_frame_size(wxSizeEvent& event)
         apply_agent_pane_width();
 }
 
+int ShellController::agent_pane_width_within(int width) const
+{
+    if (m_theme == nullptr || m_frame == nullptr)
+        return width;
+    const AgentPaneMetrics& metrics = m_theme->metrics().agent_pane;
+    const int min_width = m_frame->FromDIP(metrics.min_width);
+    const int workspace_min_width = m_frame->FromDIP(metrics.workspace_min_width);
+    const int handle_width = m_frame->FromDIP(metrics.resize_handle_width);
+    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width);
+    return std::clamp(width, min_width, max_width);
+}
+
 void ShellController::request_agent_pane_width(int width)
 {
-    m_agent_pane_preferred_width = width;
+    // Remember what the pane can actually take, not what the pointer asked
+    // for. A drag that runs past the edge of a small window would otherwise
+    // record a width the pane never had, and the pane would claim it -- at the
+    // workspace's expense -- the next time the window grew enough to allow it.
+    // A width the window merely cannot afford right now is a different case:
+    // apply_agent_pane_width() narrows the pane without touching the
+    // preference, so growing the window restores the width the person chose.
+    m_agent_pane_preferred_width = agent_pane_width_within(width);
     apply_agent_pane_width();
 }
 
@@ -310,14 +329,15 @@ void ShellController::apply_agent_pane_width()
         return;
     if (m_agent_pane_collapsed)
         return;
-    const AgentPaneMetrics& metrics = m_theme->metrics().agent_pane;
-    const int min_width = m_frame->FromDIP(metrics.min_width);
-    const int workspace_min_width = m_frame->FromDIP(metrics.workspace_min_width);
-    const int handle_width = m_frame->FromDIP(metrics.resize_handle_width);
-    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width);
-    const int width = std::clamp(m_agent_pane_preferred_width, min_width, max_width);
+    const int width = agent_pane_width_within(m_agent_pane_preferred_width);
     m_center_sizer->SetItemMinSize(m_agent_pane, width, -1);
-    m_center_sizer->Layout();
+    // Lay out from the frame, not from m_center_sizer. A sizer lays itself out
+    // against the dimension it was last given, which during a frame resize is
+    // still the previous client width; the frame reads the current one from the
+    // window. Laying out the sizer directly leaves the workspace and the
+    // divider sized for the old width while the pane takes the new one, so they
+    // overlap, and the next resize swaps which of them is stale.
+    m_frame->Layout();
 }
 
 void ShellController::set_agent_pane_collapsed(bool collapsed)
@@ -335,7 +355,7 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
     // Expanding re-applies the width policy, which lays out on its way; a
     // collapsed pane has no width to apply, so it lays out here.
     if (collapsed)
-        m_center_sizer->Layout();
+        m_frame->Layout();
     else
         apply_agent_pane_width();
 }

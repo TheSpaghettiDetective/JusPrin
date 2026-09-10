@@ -61,6 +61,9 @@ public:
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
     void on_frame_size(wxSizeEvent& event);
+    // The width the pane may hold right now: at least its own minimum, and no
+    // more than what the frame can spare beside a usable workspace.
+    int  agent_pane_width_within(int width) const;
     void request_agent_pane_width(int width);
     void apply_agent_pane_width();
 
