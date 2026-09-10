@@ -7,3 +7,7 @@ handoff docs shouldn't be in gitignore file. what other files or files types tha
 ---
 
 keep *.log and /.vscode. remove others
+
+---
+
+commit
