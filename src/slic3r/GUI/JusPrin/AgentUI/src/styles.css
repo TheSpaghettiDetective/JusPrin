@@ -1,7 +1,7 @@
 /* Every color, radius, and type metric below resolves through a custom
    property that tokens.ts writes from resources/jusprin/ui/design-tokens.json:
-   --<group>-<name> for colors, --radius-<name> for radii, --font-<role> and
-   --font-mono-<role> for the `font` shorthand of each type role. Padding,
+   --<group>-<name> for colors, --radius-<name> for radii, --font-<role> for
+   the `font` shorthand of each type role and --font-code for code. Padding,
    margin, and gap stay literal but must sit on the spacing scale. styles.test.ts
    fails the build on any literal outside those rules. */
 
@@ -97,7 +97,7 @@ body {
   border: 0;
   border-radius: 0;
   background: transparent;
-  font: var(--font-mono-metadata);
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
@@ -167,8 +167,7 @@ body {
 }
 
 /* Colour alone marks the action, as it does on every other accent control in
-   the panel. There is no bold metadata role, and inheriting a larger bold role
-   inline would inflate the row it sits in. */
+   the panel. */
 .current-setup-note .action {
   color: var(--action-primary);
 }
@@ -204,13 +203,13 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Mono Label, text/secondary. One line: the clauses give way before the
+/* Metadata, text/secondary. One line: the clauses give way before the
    handle does, because the handle is the only way into the expansion. */
 .current-setup-cost {
   display: flex;
   align-items: baseline;
   white-space: nowrap;
-  font: var(--font-mono-metadata);
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
@@ -265,7 +264,7 @@ body {
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
   margin: 4px 0 0;
-  font: var(--font-mono-metadata);
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
@@ -300,7 +299,7 @@ body {
 
 .current-setup-base {
   margin-top: 4px !important;
-  font: var(--font-mono-metadata);
+  font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
@@ -540,12 +539,11 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .markdown-content code,
 .markdown-content pre {
-  font: var(--font-mono-body);
+  font: var(--font-code);
 }
 
 .markdown-content code {
   padding: 0 4px;
-  font: var(--font-mono-label);
   border-radius: var(--radius-standard);
   background: var(--surface-subtle);
 }
@@ -810,7 +808,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   border-radius: var(--radius-standard);
   background: var(--surface-subtle);
   color: var(--text-primary);
-  font: var(--font-mono-metadata);
+  font: var(--font-code);
   overflow-wrap: anywhere;
   user-select: text;
 }
@@ -1069,9 +1067,9 @@ input[type='radio']:checked {
   min-width: 0;
 }
 
-/* A filename is a technical value, so it takes the technical face. */
+/* A name the user gave the file, not a path, so it stays in the UI face. */
 .attachment-name {
-  font: var(--font-mono-label);
+  font: var(--font-label);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1329,7 +1327,7 @@ button.wide {
 }
 
 /* Shares the compact radius and height of the primary button beside it so
-   the key row reads as one control. A key is a technical value. */
+   the key row reads as one control. A key is code. */
 .setup-key-input {
   flex: 1;
   min-width: 0;
@@ -1338,7 +1336,7 @@ button.wide {
   border-radius: var(--radius-compact);
   background: var(--surface-canvas);
   color: var(--text-primary);
-  font: var(--font-mono-label);
+  font: var(--font-code);
 }
 
 .setup-key-input:focus {

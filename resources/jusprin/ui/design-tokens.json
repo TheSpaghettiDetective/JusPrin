@@ -132,10 +132,13 @@
       "fallback": "system GUI font",
       "cssFallback": "system-ui, sans-serif"
     },
-    "technical": {
-      "family": "system teletype",
-      "usage": "measurements, temperatures, filenames, machine status",
-      "cssFamily": "ui-monospace, SFMono-Regular, Menlo, monospace"
+    "code": {
+      "family": "system monospace",
+      "usage": "code, keys, file paths and IDs only; never names, words or measurements",
+      "cssFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "size": 12,
+      "lineHeight": 16,
+      "weight": 400
     },
     "roles": {
       "pageTitle": {
@@ -158,6 +161,16 @@
         "lineHeight": 20,
         "weight": 700
       },
+      "bodySmall": {
+        "size": 13,
+        "lineHeight": 18,
+        "weight": 400
+      },
+      "bodySmallBold": {
+        "size": 13,
+        "lineHeight": 18,
+        "weight": 700
+      },
       "label": {
         "size": 12,
         "lineHeight": 16,
@@ -172,6 +185,11 @@
         "size": 10,
         "lineHeight": 14,
         "weight": 400
+      },
+      "metadataBold": {
+        "size": 10,
+        "lineHeight": 14,
+        "weight": 700
       }
     }
   },

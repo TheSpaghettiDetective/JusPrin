@@ -55,10 +55,8 @@ void PrinterSpoolChip::set_printer(const wxString& nickname, const wxString& noz
     const wxString name = nickname.empty() ? _L("Select printer") : nickname;
     m_printer->SetLabel(name);
     HeaderRowDecoration decoration;
-    // "X1 Carbon · 0.4" reads as one line, with the nozzle in the teletype
-    // face the design system reserves for a measurement.
+    // "X1 Carbon · 0.4" reads as one line.
     decoration.detail        = nozzle;
-    decoration.technical     = true;
     decoration.detail_inline = true;
     decoration.trailing  = HeaderIcon::Caret;
     m_printer->set_decoration(std::move(decoration));

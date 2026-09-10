@@ -42,8 +42,8 @@ struct ShellPalette
 };
 
 // The text roles the token file defines under typography.roles.
-enum class TextRole { PageTitle, Section, Body, BodyBold, Label, LabelBold, Metadata };
-constexpr size_t kTextRoleCount = 7;
+enum class TextRole { PageTitle, Section, Body, BodyBold, BodySmall, BodySmallBold, Label, LabelBold, Metadata, MetadataBold };
+constexpr size_t kTextRoleCount = 10;
 
 // The numbers behind one text role. Sizes are DIP; weight is 400 or 700.
 struct TypeStyle
@@ -140,18 +140,12 @@ public:
     // and Linux). Requires wx to be initialised.
     const wxFont& font(TextRole role) const;
 
-    // The same role in the system teletype face at regular weight, for
-    // measurements, temperatures, filenames and machine status. Requires wx
-    // to be initialised.
-    const wxFont& mono_font(TextRole role) const;
-
 private:
     ShellPalette m_light;
     ShellPalette m_dark;
     ShellMetrics m_metrics;
     std::array<TypeStyle, kTextRoleCount> m_type_styles{};
     mutable std::array<wxFont, kTextRoleCount> m_fonts{};
-    mutable std::array<wxFont, kTextRoleCount> m_mono_fonts{};
 };
 
 } // namespace Slic3r::GUI::JusPrin

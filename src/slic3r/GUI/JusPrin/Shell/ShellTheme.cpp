@@ -66,13 +66,16 @@ int parse_int(const nlohmann::json& group, const std::string& path, const char* 
 TextRole parse_text_role(const nlohmann::json& recipe, const std::string& path)
 {
     const std::string name = recipe.at("textRole").get<std::string>();
-    if (name == "pageTitle") return TextRole::PageTitle;
-    if (name == "section")   return TextRole::Section;
-    if (name == "body")      return TextRole::Body;
-    if (name == "bodyBold")  return TextRole::BodyBold;
-    if (name == "label")     return TextRole::Label;
-    if (name == "labelBold") return TextRole::LabelBold;
-    if (name == "metadata")  return TextRole::Metadata;
+    if (name == "pageTitle")     return TextRole::PageTitle;
+    if (name == "section")       return TextRole::Section;
+    if (name == "body")          return TextRole::Body;
+    if (name == "bodyBold")      return TextRole::BodyBold;
+    if (name == "bodySmall")     return TextRole::BodySmall;
+    if (name == "bodySmallBold") return TextRole::BodySmallBold;
+    if (name == "label")         return TextRole::Label;
+    if (name == "labelBold")     return TextRole::LabelBold;
+    if (name == "metadata")      return TextRole::Metadata;
+    if (name == "metadataBold")  return TextRole::MetadataBold;
     throw std::runtime_error("design token " + path + ".textRole names an unknown role: " + name);
 }
 
@@ -204,13 +207,16 @@ ShellTheme ShellTheme::load_from_resources()
         theme.m_metrics = parse_metrics(tokens);
 
         const nlohmann::json& roles = tokens.at("typography").at("roles");
-        theme.m_type_styles[size_t(TextRole::PageTitle)] = parse_type_style(roles, "pageTitle");
-        theme.m_type_styles[size_t(TextRole::Section)]   = parse_type_style(roles, "section");
-        theme.m_type_styles[size_t(TextRole::Body)]      = parse_type_style(roles, "body");
-        theme.m_type_styles[size_t(TextRole::BodyBold)]  = parse_type_style(roles, "bodyBold");
-        theme.m_type_styles[size_t(TextRole::Label)]     = parse_type_style(roles, "label");
-        theme.m_type_styles[size_t(TextRole::LabelBold)] = parse_type_style(roles, "labelBold");
-        theme.m_type_styles[size_t(TextRole::Metadata)]  = parse_type_style(roles, "metadata");
+        theme.m_type_styles[size_t(TextRole::PageTitle)]     = parse_type_style(roles, "pageTitle");
+        theme.m_type_styles[size_t(TextRole::Section)]       = parse_type_style(roles, "section");
+        theme.m_type_styles[size_t(TextRole::Body)]          = parse_type_style(roles, "body");
+        theme.m_type_styles[size_t(TextRole::BodyBold)]      = parse_type_style(roles, "bodyBold");
+        theme.m_type_styles[size_t(TextRole::BodySmall)]     = parse_type_style(roles, "bodySmall");
+        theme.m_type_styles[size_t(TextRole::BodySmallBold)] = parse_type_style(roles, "bodySmallBold");
+        theme.m_type_styles[size_t(TextRole::Label)]         = parse_type_style(roles, "label");
+        theme.m_type_styles[size_t(TextRole::LabelBold)]     = parse_type_style(roles, "labelBold");
+        theme.m_type_styles[size_t(TextRole::Metadata)]      = parse_type_style(roles, "metadata");
+        theme.m_type_styles[size_t(TextRole::MetadataBold)]  = parse_type_style(roles, "metadataBold");
         return theme;
     } catch (const nlohmann::json::exception& error) {
         throw std::runtime_error(std::string("design token file could not be parsed: ") + error.what());
@@ -232,17 +238,6 @@ const wxFont& ShellTheme::font(TextRole role) const
     // chose and makes the em `size` px at 96 dpi, scaled by the window DPI.
     font.SetFractionalPointSize(style.size * 72.0 / 96.0);
 #endif
-    return font;
-}
-
-const wxFont& ShellTheme::mono_font(TextRole role) const
-{
-    wxFont& font = m_mono_fonts[size_t(role)];
-    if (font.IsOk())
-        return font;
-    // Sized from the built role font rather than the raw token so it follows
-    // the same platform point-size correction font() applies.
-    font = wxFont(wxFontInfo(this->font(role).GetFractionalPointSize()).Family(wxFONTFAMILY_TELETYPE));
     return font;
 }
 

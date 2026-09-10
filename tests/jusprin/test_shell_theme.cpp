@@ -113,7 +113,11 @@ TEST_CASE("the packaged token file yields the documented text roles", "[shell][t
     CHECK(theme.type_style(TextRole::Label).weight == 400);
     CHECK(theme.type_style(TextRole::LabelBold).weight == 700);
     CHECK(theme.type_style(TextRole::BodyBold).size == 14);
+    CHECK(theme.type_style(TextRole::BodySmall).size == 13);
+    CHECK(theme.type_style(TextRole::BodySmall).line_height == 18);
+    CHECK(theme.type_style(TextRole::BodySmallBold).weight == 700);
     CHECK(theme.type_style(TextRole::Metadata).size == 10);
+    CHECK(theme.type_style(TextRole::MetadataBold).weight == 700);
 }
 
 TEST_CASE("a token file without the component section is refused", "[shell][theme]")
@@ -141,13 +145,6 @@ TEST_CASE("fonts carry the role weight and are built once", "[shell][theme][wx]"
     const wxFont& body = theme.font(TextRole::Body);
     REQUIRE(body.IsOk());
     CHECK(body.GetWeight() == wxFONTWEIGHT_NORMAL);
-
-    const wxFont& technical = theme.mono_font(TextRole::Label);
-    REQUIRE(technical.IsOk());
-    CHECK(technical.IsFixedWidth());
-    CHECK(technical.GetWeight() == wxFONTWEIGHT_NORMAL);
-    CHECK(technical.GetPointSize() == theme.font(TextRole::Label).GetPointSize());
-    CHECK(&theme.mono_font(TextRole::Label) == &technical);
 
     CHECK(&theme.font(TextRole::Body) == &body);
 }

@@ -84,7 +84,6 @@ void PrinterMenu::show_root(const Ptr& self)
     HeaderMenuItem nozzle;
     nozzle.label                = _L("Nozzle");
     nozzle.decoration.detail    = nozzle_text(printer.nozzle);
-    nozzle.decoration.technical = true;
     nozzle.enabled              = !variants.empty();
     if (nozzle.enabled) {
         nozzle.decoration.trailing = HeaderIcon::Right;

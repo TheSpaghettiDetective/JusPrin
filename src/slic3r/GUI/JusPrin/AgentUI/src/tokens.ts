@@ -24,15 +24,11 @@ interface StaticTokens {
   dimension: { radius: Record<string, number> };
   typography: {
     ui: { family: string; cssFallback: string };
-    technical: { cssFamily: string };
+    code: TypeRole & { cssFamily: string };
     roles: Record<string, TypeRole>;
   };
   component: { button: Record<string, ButtonRecipe> };
 }
-
-// The three roles that also exist in the technical (monospace) face: Figma's
-// Mono Body, Mono Label, and Mono Metadata share the UI roles' metrics.
-const monoRoles = ['body', 'label', 'metadata'] as const;
 
 function fontShorthand(role: TypeRole, family: string): string {
   return `${role.weight} ${role.size}px/${role.lineHeight}px ${family}`;
@@ -50,7 +46,7 @@ export function staticVariableNames(): string[] {
   const { typography, component } = tokens as unknown as StaticTokens;
   return [
     ...Object.keys(typography.roles).map((name) => `--font-${kebab(name)}`),
-    ...monoRoles.map((name) => `--font-mono-${kebab(name)}`),
+    '--font-code',
     ...Object.entries(component.button)
       .filter(([, recipe]) => recipe.paddingX !== undefined && recipe.paddingY !== undefined)
       .map(([name]) => `--button-${kebab(name)}-padding`),
@@ -61,7 +57,7 @@ export function staticVariableNames(): string[] {
 // written once at startup:
 //   --radius-<name>       e.g. --radius-container: 8px
 //   --font-<role>         full `font` shorthand in the UI face, kebab-case
-//   --font-mono-<role>    the same metrics in the technical face
+//   --font-code           the one monospace role, for code, keys, paths, IDs
 //   --button-<recipe>-padding  "<y>px <x>px" from component.button; control
 //                         padding follows the recipes, not the spacing scale
 export function applyStaticTokens(): void {
@@ -74,10 +70,7 @@ export function applyStaticTokens(): void {
   for (const [name, role] of Object.entries(typography.roles)) {
     root.style.setProperty(`--font-${kebab(name)}`, fontShorthand(role, uiFamily));
   }
-  for (const name of monoRoles) {
-    const role = typography.roles[name];
-    root.style.setProperty(`--font-mono-${kebab(name)}`, fontShorthand(role, typography.technical.cssFamily));
-  }
+  root.style.setProperty('--font-code', fontShorthand(typography.code, typography.code.cssFamily));
   for (const [name, recipe] of Object.entries(component.button)) {
     if (recipe.paddingX === undefined || recipe.paddingY === undefined) continue;
     root.style.setProperty(`--button-${kebab(name)}-padding`, `${recipe.paddingY}px ${recipe.paddingX}px`);

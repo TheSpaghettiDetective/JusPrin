@@ -2812,7 +2812,6 @@ private:
             const int         token = theme->type_style(role).size;
             const std::string suffix = std::string("_em_is_") + std::to_string(token) + "_dip";
             check(font_em_pixels(theme->font(role)) == m_frame->FromDIP(token), std::string("font_") + name + suffix);
-            check(font_em_pixels(theme->mono_font(role)) == m_frame->FromDIP(token), std::string("mono_font_") + name + suffix);
         }
     }
 

@@ -79,7 +79,11 @@ Product UI uses fonts already shipped by OrcaSlicer:
 - HarmonyOS Sans SC Bold for hierarchy and actions.
 - NanumGothic for Korean and Sarabun for Thai where the existing application requires them.
 - The system GUI font as fallback.
-- The system teletype font only for measurements, temperatures, filenames, machine status, and other technical values.
+- The system monospace font only for code: API keys, file paths, commands, config text, and IDs such as hashes. Never for names, words, or measurements.
+
+HarmonyOS Sans SC draws every digit at the same width, so times, percentages,
+and other values that change in place do not shift in the UI face; they do
+not need the monospace one. The native shell has no monospace text.
 
 Never require Menlo or another platform-specific face. The broader marketing brand kit used Avenir Next for display and marketing; that is not the cross-platform product UI requirement.
 
@@ -89,15 +93,18 @@ Never require Menlo or another platform-specific face. The broader marketing bra
 | Section | 18/24 | Bold |
 | Body and control | 14/20 | Regular |
 | Body bold | 14/20 | Bold |
+| Body small | 13/18 | Regular |
+| Body small bold | 13/18 | Bold |
 | Label | 12/16 | Regular |
 | Label bold | 12/16 | Bold |
 | Dense metadata | 10/14 | Regular |
+| Dense metadata bold | 10/14 | Bold |
+| Code (system monospace) | 12/16 | Regular |
 
 The bold pairs exist for emphasis inside a run of the same size (a primary
 action beside secondary ones, the current row of a menu, a chip's name beside
-its detail). Technical values use the same size and line height as the role
-they sit in, the system teletype face, and regular weight; the token file
-carries no separate technical size.
+its detail). Code is a single role, `typography.code`, whatever size the
+text around it is.
 
 ## Layout and geometry
 
@@ -155,11 +162,11 @@ only if the code goes through the token file in the first place.
 1. **Never type a color, radius, font, or control size.** Every one comes
    from `resources/jusprin/ui/design-tokens.json`. Native code reads it
    through `ShellTheme`: `palette(dark)` for color, `metrics()` for radii,
-   spacing, and per-component sizes, `font(role)` and `mono_font(role)` for
-   type. A stock `wxStaticText`, `wxTextCtrl`, or OrcaSlicer `Button` is
+   spacing, and per-component sizes, `font(role)` for type. A stock
+   `wxStaticText`, `wxTextCtrl`, or OrcaSlicer `Button` is
    dressed through `Shell/ShellRecipes.hpp`, never by calling its setters
    with literals. The Agent page uses only `var(--…)`: `--<group>-<name>` for
-   color, `--radius-<name>`, `--font-<role>`, `--font-mono-<role>`, and
+   color, `--radius-<name>`, `--font-<role>`, `--font-code`, and
    `--button-<recipe>-padding`.
 2. **If the value you need has no token, add the token first.** Put it in
    the JSON, extend the guard in `tests/brand/test_brand_tokens.cpp` so a
@@ -198,8 +205,7 @@ three small, additive seams plus one attachment point.
    page) resolve every style through the token file, not only color.
    - Native: `ShellTheme` exposes `palette(dark)` for color, `metrics()` for
      the radius and spacing scales and the per-component sizes, `font(role)`
-     for the type roles above, and `mono_font(role)` for the same role in the
-     teletype face. It is loaded once, by `Brand/BrandPalette.cpp`, and passed
+     for the type roles above. It is loaded once, by `Brand/BrandPalette.cpp`, and passed
      by reference into every shell widget. Widgets that paint themselves read
      it directly; a stock `wxStaticText`, `wxTextCtrl`, or OrcaSlicer `Button`
      is dressed through the three functions in `Shell/ShellRecipes.hpp`, so no
@@ -209,8 +215,8 @@ three small, additive seams plus one attachment point.
    - Web: `AgentUI/src/tokens.ts` writes the semantic colors as
      `--<group>-<name>` on every appearance change, and once at startup the
      radii as `--radius-<name>` and each type role as a complete `font`
-     shorthand, `--font-<role>` in the UI face and `--font-mono-<role>` in the
-     technical face. The stylesheet may only say `var(--…)` for color, radius,
+     shorthand, `--font-<role>` in the UI face, plus `--font-code` for the one
+     monospace role. The stylesheet may only say `var(--…)` for color, radius,
      and type; `AgentUI/src/styles.test.ts` reads the stylesheet from disk and
      fails on any literal, and on any spacing value off the scale.
 2. **Retained OrcaSlicer surfaces** are retinted through the color tables
@@ -252,9 +258,9 @@ three small, additive seams plus one attachment point.
 contrast rules above or leaves a token in one mode without its counterpart in
 the other. The same test guards the radius, spacing, and type scales: the
 `dimension.radius`, `dimension.space`, and `typography.roles` tables must match
-the values in this document exactly, every component radius must be one of
-the scale values, and every button recipe must name a type role rather than a
-raw size.
+the values in this document exactly, `typography.code` must stay a single
+12/16 role, every component radius must be one of the scale values, and every
+button recipe must name a type role rather than a raw size.
 
 Known gaps, all deliberate: ImGui panels and canvas notifications keep the
 teal accent; the first-run setup wizard (an OrcaSlicer HTML page) is
@@ -270,7 +276,7 @@ Every high-fidelity product frame must:
 1. Include paired light and dark versions using the same semantic token names.
 2. State the mode, viewport, component variants, keyboard focus, and any deliberate exception.
 3. Use DIP, native density, and the standard radius scale.
-4. Use HarmonyOS Sans SC and system teletype for product UI.
+4. Use HarmonyOS Sans SC for product UI, and monospace only for code (Figma's Code style uses Roboto Mono as a stand-in for the system font).
 5. Show normal, hover, pressed, disabled, focus, error, warning, and success states as applicable.
 6. Test long filenames, localized labels, dense settings, empty states, and narrow windows.
 7. Use the original logo and existing functional icon system.

@@ -10,6 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SetupCard } from './SetupCard';
+import { applyStaticTokens } from '../tokens';
 import { EstimateStatus, PresetDeltaInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
 import tokens from '../../../../../../../resources/jusprin/ui/design-tokens.json';
 
@@ -67,6 +68,10 @@ describe('setup card preview', () => {
     if (!out) return;
 
     const css = readFileSync(resolve(__dirname, '../styles.css'), 'utf8');
+    // The type, radius and padding variables, from the same code the page runs
+    // at startup, so the preview shows the real fonts rather than a fallback.
+    applyStaticTokens();
+    const staticVars = document.documentElement.style.cssText;
     const semantic = (tokens as { semantic: Record<string, Record<string, Record<string, string>>> }).semantic;
     const varsFor = (mode: string) =>
       Object.entries(semantic[mode])
@@ -85,7 +90,7 @@ describe('setup card preview', () => {
 
     writeFileSync(out, `<!doctype html><meta charset="utf-8"><title>Setup card states</title>
 <style>
-:root { ${varsFor('light')} }
+:root { ${varsFor('light')} ${staticVars} }
 ${css}
 .dark { ${varsFor('dark')} }
 body { background: #f2f2f2; font-family: system-ui, sans-serif; padding: 16px; margin: 0; }

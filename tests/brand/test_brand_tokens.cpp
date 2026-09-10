@@ -191,10 +191,13 @@ TEST_CASE("the type roles are exactly the documented ones", "[brand]")
         {"pageTitle", {{"size", 24}, {"lineHeight", 30}, {"weight", 700}}},
         {"section",   {{"size", 18}, {"lineHeight", 24}, {"weight", 700}}},
         {"body",      {{"size", 14}, {"lineHeight", 20}, {"weight", 400}}},
-        {"bodyBold",  {{"size", 14}, {"lineHeight", 20}, {"weight", 700}}},
-        {"label",     {{"size", 12}, {"lineHeight", 16}, {"weight", 400}}},
-        {"labelBold", {{"size", 12}, {"lineHeight", 16}, {"weight", 700}}},
-        {"metadata",  {{"size", 10}, {"lineHeight", 14}, {"weight", 400}}},
+        {"bodyBold",      {{"size", 14}, {"lineHeight", 20}, {"weight", 700}}},
+        {"bodySmall",     {{"size", 13}, {"lineHeight", 18}, {"weight", 400}}},
+        {"bodySmallBold", {{"size", 13}, {"lineHeight", 18}, {"weight", 700}}},
+        {"label",         {{"size", 12}, {"lineHeight", 16}, {"weight", 400}}},
+        {"labelBold",     {{"size", 12}, {"lineHeight", 16}, {"weight", 700}}},
+        {"metadata",      {{"size", 10}, {"lineHeight", 14}, {"weight", 400}}},
+        {"metadataBold",  {{"size", 10}, {"lineHeight", 14}, {"weight", 700}}},
     };
     for (const auto& [role, spec] : expected) {
         INFO("typography.roles." << role);
@@ -267,9 +270,20 @@ TEST_CASE("the CSS font stacks are present", "[brand]")
     const json& typography = tokens.at("typography");
     for (const auto& [path, value] : {
              std::pair<const char*, json>{"typography.ui.cssFallback", typography.at("ui").value("cssFallback", json())},
-             std::pair<const char*, json>{"typography.technical.cssFamily", typography.at("technical").value("cssFamily", json())}}) {
+             std::pair<const char*, json>{"typography.code.cssFamily", typography.at("code").value("cssFamily", json())}}) {
         INFO(path);
         REQUIRE(value.is_string());
         CHECK_FALSE(value.get<std::string>().empty());
     }
+}
+
+// Monospace is for code, keys, file paths and IDs only, so it has one size
+// rather than a twin of every role.
+TEST_CASE("the code face is a single role", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& code = tokens.at("typography").at("code");
+    CHECK(code.value("size", json()) == 12);
+    CHECK(code.value("lineHeight", json()) == 16);
+    CHECK(code.value("weight", json()) == 400);
 }

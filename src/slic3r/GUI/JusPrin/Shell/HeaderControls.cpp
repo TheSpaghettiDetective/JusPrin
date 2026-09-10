@@ -219,11 +219,10 @@ const wxFont& HeaderButton::role_font() const
     return m_theme.font(TextRole::Body);
 }
 
-// Secondary text beside a label: the label role, in the teletype face when
-// it is a measurement.
+// Secondary text beside a label, in the label role.
 const wxFont& HeaderButton::detail_font() const
 {
-    return m_decoration.technical ? m_theme.mono_font(TextRole::Label) : m_theme.font(TextRole::Label);
+    return m_theme.font(TextRole::Label);
 }
 
 // How much of a row's width is reserved on the right for everything that is

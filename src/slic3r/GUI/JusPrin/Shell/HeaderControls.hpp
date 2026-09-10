@@ -37,14 +37,12 @@ struct HeaderRowDecoration
     // Leading dot. Set with a valid colour for a filled swatch; set with an
     // invalid colour for the dashed outline the "no spool yet" rows use.
     std::optional<wxColour> dot;
-    // Right-aligned secondary text. `technical` picks the teletype face the
-    // design system reserves for measurements.
+    // Right-aligned secondary text, in the label role.
     wxString   detail;
-    bool       technical{false};
     // Draws the detail immediately after the label, separated by a middot,
     // instead of right-aligning it. The chip's nozzle reads as part of one
-    // line -- "X1 Carbon · 0.4" -- while keeping the teletype face the design
-    // system reserves for a measurement, which one text run could not do.
+    // line -- "X1 Carbon · 0.4" -- while staying regular beside the bold
+    // printer name, which one text run could not do.
     bool       detail_inline{false};
     // Second line under the label, in text/secondary.
     wxString   sub_label;
