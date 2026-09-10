@@ -32,12 +32,11 @@ class AgentPaneResizeHandle final : public wxPanel
 {
 public:
     // What the divider needs from the shell: the pane's width now, a new
-    // width while dragging, and the two ways a drag ends in a closed pane.
+    // width while dragging, and the double click that closes the pane.
     struct Callbacks
     {
         std::function<int()>     width;
         std::function<void(int)> set_width;
-        std::function<void()>    collapse;
         std::function<void()>    toggle;
     };
 
@@ -106,15 +105,12 @@ private:
         if (!m_dragging || !HasCapture())
             return;
         const int pointer_x = ClientToScreen(event.GetPosition()).x;
-        const int width = m_drag_origin_width + m_drag_origin_x - pointer_x;
-        if (width < FromDIP(m_theme.metrics().agent_pane.drag_collapse_width)) {
-            // Ending the drag before collapsing releases the capture while
-            // this window is still shown; collapsing hides it.
-            end_drag();
-            m_callbacks.collapse();
-            return;
-        }
-        m_callbacks.set_width(width);
+        // A drag only ever sizes the pane; it stops at the minimum width and
+        // never closes it. Closing is deliberate -- the header button or a
+        // double click on this divider -- because a drag that closed the pane
+        // on its own would take the conversation off the screen as a side
+        // effect of aiming for a narrow one.
+        m_callbacks.set_width(m_drag_origin_width + m_drag_origin_x - pointer_x);
     }
 
     void end_drag()
@@ -213,7 +209,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             AgentPaneResizeHandle::Callbacks{
                 [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
                 [this](int width) { request_agent_pane_width(width); },
-                [this] { set_agent_pane_collapsed(true); },
                 [this] { toggle_agent_pane(); }});
         m_status_row->set_agent_pane_toggle([this] { toggle_agent_pane(); });
         m_status_row->set_agent_pane_collapsed(m_agent_pane_collapsed);

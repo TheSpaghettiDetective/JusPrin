@@ -180,7 +180,6 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.agent_pane.workspace_min_width      = parse_int(agent_pane, "component.agentPane", "workspaceMinWidth");
     m.agent_pane.resize_handle_width      = parse_int(agent_pane, "component.agentPane", "resizeHandleWidth");
     m.agent_pane.resize_handle_line_width = parse_int(agent_pane, "component.agentPane", "resizeHandleLineWidth");
-    m.agent_pane.drag_collapse_width      = parse_int(agent_pane, "component.agentPane", "dragCollapseWidth");
 
     const nlohmann::json& swatch = component.at("swatch");
     m.swatch.size   = parse_int(swatch, "component.swatch", "size");

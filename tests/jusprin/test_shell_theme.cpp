@@ -92,7 +92,6 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.agent_pane.workspace_min_width == 320);
     CHECK(m.agent_pane.resize_handle_width == 8);
     CHECK(m.agent_pane.resize_handle_line_width == 2);
-    CHECK(m.agent_pane.drag_collapse_width == 240);
     CHECK(m.swatch.size == 24);
 
     CHECK(m.button.icon.width == 26);

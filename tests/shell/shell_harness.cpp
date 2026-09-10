@@ -2358,9 +2358,13 @@ private:
             drag(-divider->FromDIP(120));
             check(pane->GetSize().x > original_pane_width, "agent_panel_mouse_drag_grows_width");
 
-            // Short of the collapse threshold, the minimum still holds.
-            drag(pane->GetSize().x - divider->FromDIP(280));
+            // However far a drag is pushed, it only sizes the pane: it stops
+            // at the minimum and never closes it, so aiming for a narrow pane
+            // cannot take the conversation off the screen by accident.
+            drag(divider->FromDIP(2000));
             check(pane->GetSize().x == pane->FromDIP(320), "agent_panel_drag_stops_at_minimum_width");
+            check(!installed_shell()->is_agent_pane_collapsed() && pane->IsShown() && divider->IsShown(),
+                  "agent_panel_drag_never_closes_the_pane");
 
             drag(-divider->FromDIP(2000));
             const int expected_max = std::max(pane->FromDIP(320),
@@ -2374,8 +2378,8 @@ private:
             check(toggle != nullptr && toggle->IsShown(), "agent_panel_toggle_shown");
             const int open_workspace_width = workspace_width();
 
-            drag(divider->FromDIP(2000));
-            check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_drag_past_threshold_collapses");
+            double_click();
+            check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_divider_double_click_collapses");
             check(!pane->IsShown() && !divider->IsShown(), "agent_panel_collapse_hides_pane_and_divider");
             check(workspace_width() > open_workspace_width, "agent_panel_collapse_widens_workspace");
             check(pane->web_view().host().mcp() != nullptr, "agent_panel_collapse_keeps_the_runtime");
@@ -2385,10 +2389,10 @@ private:
                   "agent_panel_toggle_reopens_the_pane");
             check(pane->GetSize().x == pane->FromDIP(320), "agent_panel_reopens_at_a_usable_width");
 
-            double_click();
-            check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_divider_double_click_collapses");
             press_toggle();
-            check(!installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_reopens_after_double_click");
+            check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_closes_the_pane");
+            press_toggle();
+            check(!installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_reopens_again");
 
             // The toggle's two states are one glyph with its right-hand column
             // filled or empty. No assertion on state can see which was drawn,

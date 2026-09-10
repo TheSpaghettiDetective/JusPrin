@@ -87,10 +87,6 @@ struct AgentPaneMetrics {
     int workspace_min_width{0};
     int resize_handle_width{0};
     int resize_handle_line_width{0};
-    // The pane width below which a drag closes the pane instead of stopping
-    // at the minimum. Below the minimum by design: it is the point at which a
-    // person is plainly pushing the pane away, not sizing it.
-    int drag_collapse_width{0};
 };
 struct SwatchMetrics    { int size{0}; int radius{0}; };
 
