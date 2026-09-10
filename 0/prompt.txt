@@ -1,0 +1,5 @@
+I want to test if the app behaves and looks correctly on windows. I can create a windows vm in the cloud. should I install claude code on that vm and use that claude code, or is it equally easy for me to tell claude code installed on my mac to use remote desktop to work on the remote windows vm?
+
+---
+
+For some reason, on my Mac, when the AI agents need to test UI, the novin often takes over the entire screen, and it looks like when I move my mouse to use my Mac even on another screen it'll interfere with the AI agent testing. Check online to see if it's actually true or it's just my hallucinating.
