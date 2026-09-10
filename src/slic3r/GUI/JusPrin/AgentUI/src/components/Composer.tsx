@@ -31,6 +31,24 @@ interface Props {
   onTyping?: () => void;
 }
 
+// The upward arrow the Figma Composer puts on the send control. It is drawn
+// inline rather than masked from resources/jusprin/ui/icons because that icon
+// set has no arrow yet; `currentColor` keeps it on the button's text token.
+function SendGlyph() {
+  return (
+    <svg className="send-glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        d="M8 13V3.5M8 3.5 3.75 7.75M8 3.5 12.25 7.75"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function Composer({
   disabled,
   disabledReason,
@@ -152,7 +170,9 @@ export function Composer({
         />
         <textarea
           aria-label="Message the Agent"
-          placeholder={disabled ? disabledReason ?? 'The Agent is not available' : 'Ask about your print…'}
+          placeholder={
+            disabled ? disabledReason ?? 'The Agent is not available' : 'Ask about this print or request a change…'
+          }
           value={text}
           disabled={disabled}
           onChange={(event) => {
@@ -166,12 +186,18 @@ export function Composer({
           rows={2}
         />
         {streaming ? (
-          <button onClick={onStop} aria-label="Stop generating">
-            Stop
+          <button type="button" className="composer-send" onClick={onStop} aria-label="Stop generating">
+            <span className="stop-glyph" aria-hidden="true" />
           </button>
         ) : (
-          <button className="primary" onClick={send} disabled={!canSend} aria-label="Send message">
-            Send
+          <button
+            type="button"
+            className="composer-send"
+            onClick={send}
+            disabled={!canSend}
+            aria-label="Send message"
+          >
+            <SendGlyph />
           </button>
         )}
       </div>

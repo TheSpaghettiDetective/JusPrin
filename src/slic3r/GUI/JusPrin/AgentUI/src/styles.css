@@ -341,6 +341,10 @@ body {
 .external-actions h2 { margin: 0 0 8px; font: var(--font-body-bold); }
 .external-actions .tool-card + .tool-card { margin-top: 8px; }
 
+/* The thread is canvas, not the page's subtle ground. It has to be: the
+   user's bubble is surface/subtle, so a subtle thread would dissolve it.
+   The 12px inset is kept rather than the mock's 16 so a message's edge
+   lines up with the setup card inset the same amount above it. */
 .message-list {
   min-height: 0;
   flex: 1;
@@ -349,6 +353,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: var(--surface-canvas);
 }
 
 /* Chat navigation: the header and configuration footer stay outside the
@@ -447,24 +452,59 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-label); color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
 .chat-error span { flex: 1; }
 
+/* Measured from the Figma Design System component "Chat Bubble" (node 9-126),
+   which has one property, Role, with the two variants below. Both hug their
+   content; 75% is the point at which a turn still reads as one side of a
+   conversation rather than as the whole column. */
 .message {
-  max-width: 92%;
+  max-width: 75%;
   padding: 8px 12px;
   border-radius: var(--radius-container);
+  /* Body Small, which the Chat Bubble component's text node carries. A turn
+     is read in a 429px column and there are a lot of them, so the thread sets
+     its own size rather than inheriting the page's Body. */
+  font: var(--font-body-small);
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
 
+/* Role=User: surface/subtle fill, text/primary, 8px radius. The fill is the
+   quiet one on purpose -- the user already knows what they said, and a
+   saturated slab of action/primary every other turn drowns the agent's
+   answer, which is the part being read. */
 .message.user {
   align-self: flex-end;
-  background: var(--action-primary);
-  color: var(--action-primaryText);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
 }
 
+/* Role=Agent: no fill and no stroke at all. The 20px disc is the only mark
+   of authorship, so the answer sits on the canvas as prose rather than
+   inside a card. */
 .message.assistant {
   align-self: flex-start;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+}
+
+.message-content {
+  min-width: 0;
+}
+
+/* 20px, action/primary. No nudge: the disc and the Body line box are both
+   20px, so top-aligning them puts the disc on the first line exactly as the
+   component has it. */
+.agent-avatar {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--action-primary);
 }
 
 /* A host note is a statement of fact about the project, not a turn in the
@@ -603,11 +643,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   color: var(--text-secondary);
 }
 
-.message.user .meta {
-  color: var(--action-primaryText);
-  opacity: 0.8;
-}
-
 .message .error {
   margin-top: 4px;
   font: var(--font-label);
@@ -723,18 +758,82 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-card.copy-card { border-left-color: var(--border-focus); }
 .history-card.print-card { border-left-color: var(--status-success); }
 
-.history-card header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.history-card header > div {
+/* The card rests as its <summary>; the forensic detail stays mounted in the
+   sibling block that the disclosure reveals. */
+.history-summary {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.history-summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-summary-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.history-title {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   min-width: 0;
+}
+
+.history-time {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font: var(--font-metadata);
+  white-space: nowrap;
+}
+
+/* Figma sets the resting lines at 13px, which is between Label and Body and
+   has no token; Label is the nearest role the token file emits. */
+.history-line {
+  min-width: 0;
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+
+/* A build's short output hash: an ID, which is what the code face is now
+   reserved for. */
+.history-line code {
+  color: var(--text-secondary);
+  font: var(--font-code);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.history-note {
+  color: var(--status-warning);
+}
+
+/* The disclosure arrow reads the open state; a marker of our own survives the
+   `display: flex` that removes the engine's default one. */
+.history-disclosure {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font: var(--font-metadata);
+}
+
+.history-disclosure::after {
+  content: '\25B8';
+}
+
+.history-details[open] .history-disclosure::after {
+  content: '\25BE';
+}
+
+.history-detail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* An eyebrow, like .current-setup-eyebrow and .setup-eyebrow. */
@@ -835,7 +934,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 @media (max-width: 320px) {
   .message-list { padding: 8px; }
   .history-card { padding: 8px; }
-  .history-card header { flex-direction: column; }
+  .history-summary-head { flex-wrap: wrap; }
   .history-facts,
   .history-stats { grid-template-columns: minmax(0, 1fr); }
 }
@@ -993,10 +1092,26 @@ input[type='radio']:checked {
   outline-offset: -4px;
 }
 
+/* The Figma Composer is one bordered field: the leading control, the text
+   field, and the send control share a single rounded container. Figma's
+   padding is 12/10/8/10; 10 is off the spacing scale, so the vertical inset
+   rounds to 8. */
 .composer-row {
   display: flex;
   gap: 8px;
-  align-items: flex-end;
+  align-items: center;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
+}
+
+/* The field gave up its own outline to the container, so the container has to
+   carry a ring of the same weight the global :focus-visible rule draws --
+   a 1px border changing colour is not an equal replacement for a 2px one. */
+.composer-row:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 1px var(--border-focus);
 }
 
 .composer-attachments {
@@ -1005,21 +1120,66 @@ input[type='radio']:checked {
   gap: 8px;
 }
 
-.attach-button {
+/* Both end controls take the same 28x28 slot so the row never shifts when
+   Send swaps for Stop. */
+.attach-button,
+.composer-send {
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   padding: 0;
+  border: none;
   border-radius: var(--radius-standard);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-raised);
-  color: var(--text-primary);
   cursor: pointer;
 }
 
+.attach-button:hover:enabled,
+.composer-send:hover:enabled {
+  border-color: transparent;
+}
+
+.attach-button {
+  background: transparent;
+  color: var(--action-primary);
+}
+
 .attach-button:disabled {
-  opacity: 0.5;
+  color: var(--action-disabledText);
   cursor: default;
+}
+
+.composer-send {
+  background: var(--action-primary);
+  color: var(--action-primaryText);
+}
+
+.composer-send:hover:enabled {
+  background: var(--action-primaryHover);
+}
+
+.composer-send:active:enabled {
+  background: var(--action-primaryPressed);
+}
+
+.composer-send:disabled {
+  background: var(--action-disabled);
+  color: var(--action-disabledText);
+  cursor: default;
+}
+
+.composer-send .send-glyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* A plain square: the smallest radius token (4px) would round an 8px glyph
+   into a circle. */
+.composer-send .stop-glyph {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: currentColor;
 }
 
 .attach-button .attach-glyph {
@@ -1113,21 +1273,22 @@ input[type='radio']:checked {
   margin-top: 8px;
 }
 
+/* The container owns the border and the padding; the field is transparent. */
 .composer textarea {
   flex: 1;
+  min-width: 0;
   resize: none;
   font: inherit;
-  padding: 8px;
-  border-radius: var(--radius-standard);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-canvas);
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
   min-height: 36px;
   max-height: 120px;
 }
 
 .composer textarea:focus {
-  border-color: var(--border-focus);
+  outline: none;
 }
 
 /* Full-pane states */

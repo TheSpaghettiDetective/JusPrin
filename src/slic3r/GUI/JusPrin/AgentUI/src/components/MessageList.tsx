@@ -102,31 +102,39 @@ export function MessageList({
         ) : (
         <div key={message.id} className="message-group">
           <div className={`message ${message.role}`}>
-            {message.text &&
-              (message.role === 'assistant' ? (
-                <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
-              ) : (
-                <span>{message.text}</span>
-              ))}
-            {message.attachments && message.attachments.length > 0 && (
-              <div className="message-attachments">
-                {message.attachments.map((id) => {
-                  const attachment = attachmentsById.get(id);
-                  return attachment ? <AttachmentChip key={id} attachment={attachment} /> : null;
-                })}
-              </div>
-            )}
-            {message.state === 'failed' && message.error && (
-              <div className="error">
-                {message.error.message}
-                {message.error.retryable && (
-                  <div>
-                    <button onClick={() => onRetry(message.id)}>Retry</button>
-                  </div>
-                )}
-              </div>
-            )}
-            {message.state === 'stopped' && <div className="meta">Stopped</div>}
+            {/* The agent does not speak in a bubble: a 20px action/primary
+                disc stands beside plain text, as the Figma "Chat Bubble"
+                component's Agent variant has it. Purely decorative -- the
+                author is already carried by the role class and by the
+                bubble the user's turn keeps. */}
+            {message.role === 'assistant' && <span className="agent-avatar" aria-hidden="true" />}
+            <div className="message-content">
+              {message.text &&
+                (message.role === 'assistant' ? (
+                  <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
+                ) : (
+                  <span>{message.text}</span>
+                ))}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="message-attachments">
+                  {message.attachments.map((id) => {
+                    const attachment = attachmentsById.get(id);
+                    return attachment ? <AttachmentChip key={id} attachment={attachment} /> : null;
+                  })}
+                </div>
+              )}
+              {message.state === 'failed' && message.error && (
+                <div className="error">
+                  {message.error.message}
+                  {message.error.retryable && (
+                    <div>
+                      <button onClick={() => onRetry(message.id)}>Retry</button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {message.state === 'stopped' && <div className="meta">Stopped</div>}
+            </div>
           </div>
           {toolActivities
             .filter((activity) => activity.correlationId === message.id)
