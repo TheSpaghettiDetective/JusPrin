@@ -190,7 +190,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     try {
         m_workspace = std::make_unique<Workspace::OrcaWorkspaceAdapter>(*plater);
 
-        // Conversation and revision state, stored inside the project's
+        // Conversation state, stored inside the project's
         // auxiliary directory and mirrored to a per-project local recovery
         // store under the application data dir.
         Agent::ProjectPersistence::Config persistence_config;

@@ -285,7 +285,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
     CHECK(page_types == std::set<std::string>{Protocol::kHello, Protocol::kStateRequest, Protocol::kUserMessage,
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
                                               Protocol::kToolCancel, Protocol::kCreateConversation,
-                                              Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation, Protocol::kRevertToRevision,
+                                              Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath});
@@ -295,7 +295,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kContext, Protocol::kAppearance, Protocol::kAgentStatus,
                                               Protocol::kMessageAdded, Protocol::kAssistantStarted, Protocol::kAssistantDelta,
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
-                                              Protocol::kAssistantStopped, Protocol::kToolActivity, Protocol::kRevisionAdded,
+                                              Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
                                               Protocol::kMcpStatus,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated});
@@ -1025,11 +1025,10 @@ TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][too
 }
 
 TEST_CASE("deterministic build export and physical print records use the native coordinator",
-          "[agent][history][revert]")
+          "[agent][history]")
 {
     Harness harness;
     harness.handshake();
-    const std::string target_revision = harness.persistence.document().current_revision_id();
     harness.workspace.set_plate_sliced(harness.workspace.snapshot().plates[0].id, true);
 
     auto run_record_tool = [&harness](const std::string& command, const std::string& client_id) {
@@ -1067,17 +1066,9 @@ TEST_CASE("deterministic build export and physical print records use the native 
     REQUIRE(harness.workspace.duplicate_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
     harness.deliver("state_request");
     CHECK((*harness.last_of_type("state"))["payload"]["builds"][0]["stale"] == true);
-
-    harness.deliver("revert_to_revision", json{{"revisionId", target_revision}});
-    const json* reverted = harness.last_of_type("state");
-    REQUIRE(reverted != nullptr);
-    CHECK((*reverted)["payload"]["builds"].empty());
-    CHECK((*reverted)["payload"]["exportedCopies"].empty());
-    REQUIRE((*reverted)["payload"]["physicalPrints"].size() == 1);
-    const json surviving_print = (*reverted)["payload"]["physicalPrints"][0];
-    CHECK(surviving_print["timelineRemoved"] == true);
-    CHECK(surviving_print["outputHash"] == build["outputHash"]);
-    CHECK(surviving_print["statistics"]["layerCount"] == 124);
+    const json print = (*harness.last_of_type("state"))["payload"]["physicalPrints"][0];
+    CHECK(print["outputHash"] == build["outputHash"]);
+    CHECK(print["statistics"]["layerCount"] == 124);
 }
 
 TEST_CASE("conversations are created and switched over the bridge", "[agent][conversations]")
@@ -1140,81 +1131,6 @@ TEST_CASE("the draft lives in the recovery store and clears when sent", "[agent]
     harness.send_user_message("half-typed thought, finished", "c-d1");
     CHECK(harness.persistence.draft().empty());
     harness.pump_all();
-}
-
-TEST_CASE("manufacturing changes surface as revisions over the bridge", "[agent][revisions]")
-{
-    Harness harness;
-    harness.handshake();
-
-    // Adoption captured the initial revision before the handshake.
-    const json* state = harness.last_of_type("state");
-    REQUIRE((*state)["payload"]["revisions"].size() == 1);
-    CHECK((*state)["payload"]["revisions"][0]["cause"] == "initial");
-    CHECK((*state)["payload"]["revisions"][0]["current"] == true);
-
-    const Workspace::WorkspaceSnapshot before = harness.workspace.snapshot();
-    REQUIRE(harness.workspace.rename_object(before.plates[0].objects[0].id, "renamed-cube").succeeded());
-
-    const json* added = harness.last_of_type("revision_added");
-    REQUIRE(added != nullptr);
-    CHECK((*added)["payload"]["revision"]["current"] == true);
-    CHECK((*added)["payload"]["revision"]["revertible"] == true);
-
-    SECTION("selection changes do not create revisions") {
-        const std::size_t revision_events = harness.of_type("revision_added").size();
-        REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[1].id).succeeded());
-        CHECK(harness.of_type("revision_added").size() == revision_events);
-    }
-}
-
-TEST_CASE("revert here restores native state and truncates every conversation", "[agent][revert]")
-{
-    Harness harness;
-    harness.handshake();
-
-    harness.send_user_message("first message", "c-r1");
-    harness.pump_all();
-
-    // The revert target: the revision created by the first change. The first
-    // exchange happened before it and survives; everything after it goes.
-    REQUIRE(harness.workspace.rename_object(harness.workspace.snapshot().plates[0].objects[0].id, "renamed-once").succeeded());
-    const std::string target_revision = harness.persistence.document().current_revision_id();
-
-    REQUIRE(harness.workspace.rename_object(harness.workspace.snapshot().plates[0].objects[0].id, "renamed-twice").succeeded());
-    harness.send_user_message("second message, after the change", "c-r2");
-    harness.pump_all();
-    harness.deliver("create_conversation", json{{"title", "Later"}});
-    harness.send_user_message("third message in a later conversation", "c-r3");
-    harness.pump_all();
-    REQUIRE(harness.persistence.document().conversations().size() == 2);
-
-    harness.deliver("revert_to_revision", json{{"revisionId", target_revision}});
-
-    // The native project is back at the target revision's state...
-    CHECK(harness.workspace.snapshot().plates[0].objects[0].name == "renamed-once");
-    // ...the reconstructed state was pushed...
-    const json* state = harness.last_of_type("state");
-    REQUIRE(state != nullptr);
-    // ...later editable entries are gone across every conversation: the
-    // post-change message and the whole later conversation.
-    CHECK((*state)["payload"]["conversations"].size() == 1);
-    const json& conversation = (*state)["payload"]["conversation"];
-    REQUIRE(conversation.size() == 2);
-    CHECK(conversation[0]["text"] == "first message");
-    // ...and later revisions are removed with the target current again.
-    for (const json& revision : (*state)["payload"]["revisions"])
-        CHECK(revision["current"] == (revision["id"] == target_revision));
-    CHECK(harness.persistence.document().current_revision_id() == target_revision);
-    // Native history keeps no redo path back to the removed state.
-    CHECK_FALSE(harness.workspace.snapshot().can_redo);
-
-    SECTION("reverting to an unknown revision fails without changes") {
-        const std::size_t conversation_count = harness.host.conversation().size();
-        harness.deliver("revert_to_revision", json{{"revisionId", "r-999"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "revert_failed");
-        CHECK(harness.host.conversation().size() == conversation_count);
-    }
 }
 
 TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")

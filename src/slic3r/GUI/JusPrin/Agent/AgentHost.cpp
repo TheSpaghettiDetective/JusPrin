@@ -125,17 +125,6 @@ json activity_json(const ToolActivity& activity)
     return result;
 }
 
-json revision_json(const RevisionInfo& revision, const std::string& current_revision_id)
-{
-    return json{{"id", revision.id},
-                {"createdAt", revision.created_at},
-                {"cause", revision.cause},
-                {"conversationId", revision.conversation_id},
-                {"afterMessageId", revision.after_message_id},
-                {"current", revision.id == current_revision_id},
-                {"revertible", !revision.snapshot_file.empty()}};
-}
-
 json statistics_json(const SliceStatistics& statistics)
 {
     return json{{"printTimeSeconds", statistics.print_time_seconds},
@@ -153,7 +142,6 @@ json build_json(const BuildRecord& record, const WorkspaceSnapshot& snapshot)
                 {"seq", record.seq},
                 {"createdAt", record.created_at},
                 {"projectId", record.project_id},
-                {"revisionId", record.revision_id},
                 {"conversationId", record.conversation_id},
                 {"afterMessageId", record.after_message_id},
                 {"plateIndex", record.plate_index},
@@ -187,9 +175,8 @@ json exported_copy_json(const ExportedCopyRecord& record)
                 {"modified", modified}};
 }
 
-json physical_print_json(const PhysicalPrintRecord& record, const ProjectStateDocument& document)
+json physical_print_json(const PhysicalPrintRecord& record)
 {
-    const bool timeline_removed = !record.revision_id.empty() && !document.find_revision(record.revision_id).has_value();
     return json{{"id", record.id},
                 {"seq", record.seq},
                 {"startedAt", record.started_at},
@@ -198,7 +185,6 @@ json physical_print_json(const PhysicalPrintRecord& record, const ProjectStateDo
                 {"failure", record.failure},
                 {"buildId", record.build_id},
                 {"projectId", record.project_id},
-                {"revisionId", record.revision_id},
                 {"conversationId", record.conversation_id},
                 {"afterMessageId", record.after_message_id},
                 {"plateIndex", record.plate_index},
@@ -208,8 +194,7 @@ json physical_print_json(const PhysicalPrintRecord& record, const ProjectStateDo
                 {"manufacturingInputHash", record.manufacturing_input_hash},
                 {"outputHash", record.output_hash},
                 {"gcodeHash", record.gcode_hash},
-                {"statistics", statistics_json(record.statistics)},
-                {"timelineRemoved", timeline_removed}};
+                {"statistics", statistics_json(record.statistics)}};
 }
 
 // --- Attachments ---------------------------------------------------------
@@ -565,11 +550,6 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     // the attribution starts from that history rather than from empty.
     rebuild_agent_authored();
     m_persistence.set_document_replaced_listener([this]() { on_document_replaced(); });
-    m_persistence.set_revision_listener([this](const RevisionInfo& revision) {
-        if (m_handshake)
-            send_envelope(Protocol::kRevisionAdded,
-                          json{{"revision", revision_json(revision, m_persistence.document().current_revision_id())}}.dump());
-    });
 }
 
 AgentHost::~AgentHost()
@@ -580,7 +560,6 @@ AgentHost::~AgentHost()
     // The persistence object outlives this host (the shell controller owns
     // both); drop the callbacks that capture `this`.
     m_persistence.set_document_replaced_listener({});
-    m_persistence.set_revision_listener({});
 }
 
 void AgentHost::start_mcp(const std::string& discovery_path)
@@ -685,10 +664,6 @@ void AgentHost::send_state(const std::string& correlation_id)
     for (const ToolActivity& activity : merged)
         tool_activities.push_back(activity_json(activity));
 
-    json revisions = json::array();
-    for (const RevisionInfo& revision : document.revisions())
-        revisions.push_back(revision_json(revision, document.current_revision_id()));
-
     json attachments = json::array();
     for (const AttachmentRecord& record : document.attachments()) {
         json entry = attachment_json(record);
@@ -706,7 +681,7 @@ void AgentHost::send_state(const std::string& correlation_id)
         exported_copies.push_back(exported_copy_json(record));
     json physical_prints = json::array();
     for (const PhysicalPrintRecord& record : document.physical_prints())
-        physical_prints.push_back(physical_print_json(record, document));
+        physical_prints.push_back(physical_print_json(record));
 
     json payload{{"agent", json{{"status", availability_name(m_availability)}}},
                  {"appearance", m_dark ? "dark" : "light"},
@@ -716,7 +691,6 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"streamingMessageId", m_stream ? json(m_stream->message.id) : json(nullptr)},
                  {"conversationBusy", m_stream.has_value() || !m_tool_continuations.empty()},
                  {"toolActivities", std::move(tool_activities)},
-                 {"revisions", std::move(revisions)},
                  {"draft", m_persistence.draft()},
                  {"attachments", std::move(attachments)},
                  {"builds", std::move(builds)},
@@ -819,8 +793,6 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_rename_conversation(envelope_id, payload);
     else if (type == Protocol::kDeleteConversation)
         handle_delete_conversation(envelope_id, payload);
-    else if (type == Protocol::kRevertToRevision)
-        handle_revert_to_revision(envelope_id, payload);
     else if (type == Protocol::kDraftUpdate)
         handle_draft_update(payload);
     else if (type == Protocol::kAttachFile)
@@ -1254,23 +1226,6 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
     send_state(envelope_id);
 }
 
-void AgentHost::handle_revert_to_revision(const std::string& envelope_id, const std::string& payload_json)
-{
-    cancel_conversation_title();
-    if (agent_busy() || m_tools.any_running()) {
-        send_bridge_error("busy", "Finish or stop the current activity before reverting.", envelope_id);
-        return;
-    }
-    const json        payload     = json::parse(payload_json, nullptr, false);
-    const std::string revision_id = payload.is_object() ? payload.value("revisionId", "") : std::string();
-
-    const ProjectPersistence::RevertResult result = m_persistence.revert_to_revision(revision_id);
-    if (!result.ok)
-        send_bridge_error("revert_failed", result.error, envelope_id);
-    // On success the document-replaced listener has already pushed the full
-    // reconstructed state.
-}
-
 void AgentHost::handle_draft_update(const std::string& payload_json)
 {
     const json payload = json::parse(payload_json, nullptr, false);
@@ -1318,7 +1273,6 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
         }
         BuildRecord record;
         record.project_id               = document.project_id();
-        record.revision_id              = document.current_revision_id();
         record.conversation_id          = conversation;
         record.after_message_id         = activity.correlation_id;
         record.plate_index              = plate_index;
@@ -1371,7 +1325,6 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
     PhysicalPrintRecord record;
     record.build_id                 = build->id;
     record.project_id               = build->project_id;
-    record.revision_id              = build->revision_id;
     record.conversation_id          = conversation;
     record.after_message_id         = activity.correlation_id;
     record.plate_index              = build->plate_index;

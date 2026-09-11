@@ -487,15 +487,9 @@ public:
     virtual std::string auxiliary_data_dir() const = 0;
 
     // Writes the current authoritative project (model, plates, settings) to a
-    // portable project archive at file_path, excluding auxiliary data — so an
-    // archive can serve as a manufacturing-state checkpoint or a clean copy
-    // without dragging consumer files (or other checkpoints) along.
+    // portable project archive at file_path, excluding auxiliary data — so a
+    // clean copy carries no consumer files along.
     virtual CommandResult export_project_archive(const std::string& file_path) = 0;
-
-    // Replaces the current authoritative project with the archive's content.
-    // This is a project replacement: the session changes, prior IDs become
-    // stale, native history is cleared, and a Project change is published.
-    virtual CommandResult restore_project_archive(const std::string& file_path) = 0;
 
     // Imports a model or project file's geometry into the CURRENT project,
     // adding objects rather than replacing the project. It is a single

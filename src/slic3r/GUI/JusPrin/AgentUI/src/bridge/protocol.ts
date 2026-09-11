@@ -21,7 +21,6 @@ export type PageMessageType =
   | 'switch_conversation'
   | 'rename_conversation'
   | 'delete_conversation'
-  | 'revert_to_revision'
   | 'draft_update'
   | 'attach_file'
   | 'remove_attachment'
@@ -47,7 +46,6 @@ export type HostMessageType =
   | 'assistant_failed'
   | 'assistant_stopped'
   | 'tool_activity'
-  | 'revision_added'
   | 'bridge_error'
   | 'attachment_updated'
   | 'setup_status'
@@ -282,19 +280,6 @@ export interface ConversationInfo {
   preview?: string;
 }
 
-// One entry of the linear manufacturing-revision timeline shared by every
-// conversation. `revertible` is false when the checkpoint could not be
-// captured; `current` marks the project's present revision.
-export interface RevisionInfo {
-  id: string;
-  createdAt: string;
-  cause: string;
-  conversationId: string;
-  afterMessageId: string;
-  current: boolean;
-  revertible: boolean;
-}
-
 export interface SliceStatisticsInfo {
   printTimeSeconds: number;
   filamentMm: number;
@@ -308,7 +293,6 @@ export interface BuildInfo {
   seq: number;
   createdAt: string;
   projectId: string;
-  revisionId: string;
   conversationId: string;
   afterMessageId: string;
   plateIndex: number;
@@ -347,7 +331,6 @@ export interface PhysicalPrintInfo {
   failure: string;
   buildId: string;
   projectId: string;
-  revisionId: string;
   conversationId: string;
   afterMessageId: string;
   plateIndex: number;
@@ -358,7 +341,6 @@ export interface PhysicalPrintInfo {
   outputHash: string;
   gcodeHash: string;
   statistics: SliceStatisticsInfo;
-  timelineRemoved: boolean; // derived from revision retention, never persisted
 }
 
 export interface StatePayload {
@@ -370,7 +352,6 @@ export interface StatePayload {
   conversation: WireMessage[]; // messages of the active conversation
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
-  revisions: RevisionInfo[];
   builds: BuildInfo[];
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];

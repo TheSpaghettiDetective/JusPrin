@@ -53,7 +53,7 @@ public:
     //   text starting with "/export"   -> records a verified exported copy of
     //                                     the latest build;
     //   text starting with "/print"    -> records a completed physical print
-    //                                     in the non-revertible ledger;
+    //                                     in the ledger;
     //   text containing "duplicate"    -> proposes duplicating the selected
     //                                     object (approval required);
     //   anything else                  -> a streamed summary of the workspace

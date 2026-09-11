@@ -12,7 +12,6 @@
 #include <fstream>
 #include <map>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -245,23 +244,6 @@ public:
                             CommandResult::failure(WorkspaceError::UnavailableOperation, "Writing the archive failed");
     }
 
-    CommandResult restore_project_archive(const std::string& file_path) override
-    {
-        std::ifstream in(file_path, std::ios::binary);
-        if (!in.is_open())
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "The archive does not exist");
-        std::stringstream buffer;
-        buffer << in.rdbuf();
-        const nlohmann::json archive = nlohmann::json::parse(buffer.str(), nullptr, false);
-        if (archive.is_discarded() || !archive.is_object() || !archive.contains("snapshot"))
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "The archive is not a fake workspace archive");
-        // A restore is a project replacement: new session, fresh auxiliary
-        // dir (mirroring the real adapter, whose model adopts a new backup
-        // path), cleared history.
-        replace_project(snapshot_from_json(archive["snapshot"]));
-        return CommandResult::success();
-    }
-
     CommandResult import_model(const std::string& file_path) override
     {
         std::ifstream in(file_path, std::ios::binary);
@@ -440,41 +422,6 @@ private:
                                                        {"printerPreset", snapshot.setup.printer_preset},
                                                        {"filamentPreset", snapshot.setup.filament_preset}}},
                               {"plates", std::move(plates)}};
-    }
-
-    static WorkspaceSnapshot snapshot_from_json(const nlohmann::json& value)
-    {
-        WorkspaceSnapshot snapshot;
-        snapshot.setup.project_name   = value["setup"].value("projectName", "");
-        snapshot.setup.printer_preset = value["setup"].value("printerPreset", "");
-        snapshot.setup.filament_preset = value["setup"].value("filamentPreset", "");
-        for (const nlohmann::json& plate_json : value.value("plates", nlohmann::json::array())) {
-            WorkspacePlate plate;
-            plate.id     = PlateId(ProjectSessionId(1), plate_json.value("id", std::uint64_t(0)));
-            plate.name   = plate_json.value("name", "");
-            plate.active = plate_json.value("active", false);
-            plate.sliced = plate_json.value("sliced", false);
-            for (const nlohmann::json& object_json : plate_json.value("objects", nlohmann::json::array())) {
-                WorkspaceObject object;
-                object.id   = ObjectId(ProjectSessionId(1), object_json.value("id", std::uint64_t(0)));
-                object.name = object_json.value("name", "");
-                for (const nlohmann::json& instance_json : object_json.value("instances", nlohmann::json::array())) {
-                    ObjectTransform transform;
-                    if (instance_json.contains("position"))
-                        transform.position = instance_json["position"].get<std::array<double, 3>>();
-                    if (instance_json.contains("rotation"))
-                        transform.rotation = instance_json["rotation"].get<std::array<double, 3>>();
-                    if (instance_json.contains("scale"))
-                        transform.scale = instance_json["scale"].get<std::array<double, 3>>();
-                    object.instances.push_back(transform);
-                }
-                plate.objects.push_back(std::move(object));
-            }
-            if (plate.active)
-                snapshot.active_plate = plate.id;
-            snapshot.plates.push_back(std::move(plate));
-        }
-        return snapshot;
     }
 
     void install_snapshot(WorkspaceSnapshot snapshot)

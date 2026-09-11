@@ -385,33 +385,12 @@ CommandResult OrcaWorkspaceAdapter::export_project_archive(const std::string& fi
     if (canvas == nullptr || !canvas->is_initialized())
         return CommandResult::failure(WorkspaceError::UnavailableOperation,
                                       "The canvas is not ready to render the archive's thumbnails yet");
-    // SkipAuxiliary keeps consumer files (and earlier checkpoints) out of the
-    // archive; the remaining strategy matches an ordinary project save.
+    // SkipAuxiliary keeps consumer files out of the archive; the remaining
+    // strategy matches an ordinary project save.
     const SaveStrategy strategy = SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh |
                                   SaveStrategy::SkipAuxiliary;
     if (m_plater.export_3mf(boost::filesystem::path(file_path), strategy) < 0)
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project archive could not be written");
-    return CommandResult::success();
-}
-
-CommandResult OrcaWorkspaceAdapter::restore_project_archive(const std::string& file_path)
-{
-    wxASSERT(wxIsMainThread());
-    boost::system::error_code ec;
-    if (!boost::filesystem::is_regular_file(file_path, ec) || boost::filesystem::file_size(file_path, ec) == 0)
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "The project archive does not exist");
-
-    // The core of Plater::load_project without its dialogs or filename
-    // bookkeeping: one coalesced project-replacement event, the stock reset
-    // and load paths, and no undo history reaching back across the boundary.
-    ProjectStateTransaction transaction = m_plater.project_state_transaction();
-    m_plater.reset(false);
-    const std::vector<boost::filesystem::path> paths{boost::filesystem::path(file_path)};
-    const std::vector<size_t> loaded =
-        m_plater.load_files(paths, LoadStrategy::LoadModel | LoadStrategy::LoadConfig | LoadStrategy::Silence);
-    m_plater.clear_undo_redo_stack_main();
-    if (loaded.empty())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project archive could not be loaded");
     return CommandResult::success();
 }
 
@@ -427,8 +406,7 @@ CommandResult OrcaWorkspaceAdapter::import_model(const std::string& file_path)
         // One coalesced, undoable manufacturing change: the snapshot's History
         // change and the importer's Objects change commit as a single workspace
         // revision. LoadModel is the additive, geometry-only strategy — it adds
-        // objects to the current project rather than replacing it. (Transaction
-        // nesting is supported; restore_project_archive relies on it too.)
+        // objects to the current project rather than replacing it.
         ProjectStateTransaction transaction = m_plater.project_state_transaction();
         m_plater.take_snapshot("Import model");
         m_plater.load_files(std::vector<boost::filesystem::path>{boost::filesystem::path(file_path)},

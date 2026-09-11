@@ -235,7 +235,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
                                       {"materialCost", 0.44},
                                       {"layerCount", 124}}
                                          .dump();
-        reply.chunks = chunk_words("I can preserve the active plate's revision, settings, slice statistics, and immutable hashes as a build record.");
+        reply.chunks = chunk_words("I can preserve the active plate's settings, slice statistics, and immutable hashes as a build record.");
         reply.tool           = request;
         reply.tool_run_ticks = 2;
         return reply;
@@ -253,7 +253,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         ToolRequest request;
         request.tool           = "record_physical_print";
         request.arguments_json = json{{"outcome", "completed"}}.dump();
-        reply.chunks = chunk_words("I can add a completed physical-print fact linked to the latest build. This ledger entry will survive project Revert.");
+        reply.chunks = chunk_words("I can add a completed physical-print fact linked to the latest build.");
         reply.tool           = request;
         reply.tool_run_ticks = 3;
         return reply;

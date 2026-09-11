@@ -51,7 +51,6 @@ declare global {
       switchConversation(conversationId: string): void;
       renameConversation(conversationId: string, title: string): void;
       deleteConversation(conversationId: string): void;
-      revert(revisionId: string): void;
       setDraft(text: string): void;
       openSetup(): void;
       checkKey(provider: string, apiKey: string): void;
@@ -182,10 +181,6 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     client.send('tool_cancel', { actionId });
   };
 
-  const sendRevert = (revisionId: string) => {
-    client.send('revert_to_revision', { revisionId });
-  };
-
   const checkKey = (provider: string, apiKey: string) => {
     client.send('setup_check_key', { provider, apiKey });
   };
@@ -219,7 +214,6 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       switchConversation: (conversationId: string) => client.send('switch_conversation', { conversationId }),
       renameConversation: (conversationId, title) => client.send('rename_conversation', { conversationId, title }),
       deleteConversation: (conversationId) => client.send('delete_conversation', { conversationId }),
-      revert: sendRevert,
       setDraft: (text: string) => client.send('draft_update', { text }),
       openSetup: () => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); },
       checkKey,
@@ -296,14 +290,12 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
           toolActivities={state.toolActivities}
-          revisions={state.revisions.filter((revision) => revision.conversationId === state.activeConversationId)}
           builds={state.builds}
           exportedCopies={state.exportedCopies}
           physicalPrints={state.physicalPrints}
           onRetry={(messageId) => client.send('retry_message', { messageId })}
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
-          onRevert={sendRevert}
         />
       );
     if (setupScreen === 'chooser')

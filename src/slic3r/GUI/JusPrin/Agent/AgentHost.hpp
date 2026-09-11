@@ -163,7 +163,6 @@ private:
     void handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_rename_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_delete_conversation(const std::string& envelope_id, const std::string& payload_json);
-    void handle_revert_to_revision(const std::string& envelope_id, const std::string& payload_json);
     void handle_draft_update(const std::string& payload_json);
     void handle_attach_file(const std::string& envelope_id, const std::string& payload_json);
     void handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json);

@@ -1,8 +1,7 @@
 #pragma once
 
-// Immutable manufacturing facts stored with a JusPrin project. Builds and
-// exported copies belong to the editable project timeline; physical prints
-// form a separate factual ledger and therefore survive Revert.
+// Immutable manufacturing facts stored with a JusPrin project: builds,
+// exported copies, and the physical-print ledger.
 
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
@@ -28,7 +27,6 @@ struct BuildRecord
     std::uint64_t seq{0};
     std::string   created_at;
     std::string   project_id;
-    std::string   revision_id;
     std::string   conversation_id;
     std::string   after_message_id;
     std::size_t   plate_index{0};
@@ -69,7 +67,6 @@ struct PhysicalPrintRecord
     std::string   failure;
     std::string   build_id;
     std::string   project_id;
-    std::string   revision_id;
     std::string   conversation_id;
     std::string   after_message_id;
     std::size_t   plate_index{0};

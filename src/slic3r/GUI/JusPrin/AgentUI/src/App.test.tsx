@@ -79,7 +79,6 @@ function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
     conversation: [],
     streamingMessageId: null,
     toolActivities: [],
-    revisions: [],
     builds: [],
     exportedCopies: [],
     physicalPrints: [],
@@ -179,7 +178,7 @@ describe('App', () => {
     expect(screen.getByRole('list')).toHaveTextContent('Add a brim');
   });
 
-  it('renders build copy and retained physical-print facts with derived statuses', () => {
+  it('renders build copy and physical-print facts with derived statuses', () => {
     const hash = 'a'.repeat(64);
     const statistics = { printTimeSeconds: 3720, filamentMm: 1842.5, materialGrams: 14.7, materialCost: 0.44, layerCount: 124 };
     render(<App getTransport={() => host.transport} />);
@@ -187,7 +186,7 @@ describe('App', () => {
       host,
       emptyState({
         builds: [{
-          id: 'b-1', seq: 10, createdAt: '2026-08-30T00:00:00Z', projectId: 'project-1', revisionId: 'r-2',
+          id: 'b-1', seq: 10, createdAt: '2026-08-30T00:00:00Z', projectId: 'project-1',
           conversationId: 'conv-1', afterMessageId: '', plateIndex: 0, plateName: 'Plate 1',
           printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
           slicerVersion: 'JusPrin deterministic Phase 6', configurationProvenance: 'A very long configuration provenance value that must wrap at narrow widths',
@@ -200,17 +199,16 @@ describe('App', () => {
         }],
         physicalPrints: [{
           id: 'p-1', seq: 12, startedAt: '2026-08-30T00:00:00Z', endedAt: '2026-08-30T01:02:00Z',
-          outcome: 'completed', failure: '', buildId: 'b-1', projectId: 'project-1', revisionId: 'r-2',
+          outcome: 'completed', failure: '', buildId: 'b-1', projectId: 'project-1',
           conversationId: 'conv-1', afterMessageId: 'removed-message', plateIndex: 0, plateName: 'Plate 1',
           printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
-          gcodeHash: hash, statistics, timelineRemoved: true,
+          gcodeHash: hash, statistics,
         }],
       }),
     );
 
     expect(screen.getByLabelText('Build b-1')).toHaveTextContent('Stale');
     expect(screen.getByLabelText('Exported copy e-1')).toHaveTextContent('Checksum verified');
-    expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Project timeline removed');
     expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Test Printer 0.4');
     expect(screen.getAllByTitle(hash).length).toBeGreaterThanOrEqual(6);
   });
@@ -520,37 +518,6 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     expect(screen.queryByRole('button', { name: 'Open chat: Conversation 1' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open chat: Other project chat' })).toBeInTheDocument();
-  });
-
-  it('renders revision markers and requires explicit confirmation to revert', async () => {
-    render(<App getTransport={() => host.transport} />);
-    connect(
-      host,
-      emptyState({
-        conversation: [{ id: 'm-1', role: 'user', state: 'complete', text: 'change it', attempt: 1 }],
-        revisions: [
-          { id: 'r-1', createdAt: 't', cause: 'initial', conversationId: 'conv-1', afterMessageId: '', current: false, revertible: true },
-          { id: 'r-2', createdAt: 't', cause: 'contents', conversationId: 'conv-1', afterMessageId: 'm-1', current: true, revertible: true },
-        ],
-      }),
-    );
-
-    expect(screen.getByTestId('revision-r-1')).toHaveTextContent('Project start');
-    expect(screen.getByTestId('revision-r-2')).toHaveTextContent('current');
-    // The current revision offers no revert control.
-    expect(screen.getAllByText('Revert here')).toHaveLength(1);
-
-    await userEvent.click(screen.getByText('Revert here'));
-    // Nothing is sent until the destructive action is explicitly confirmed.
-    expect(host.lastOfType('revert_to_revision')).toBeUndefined();
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('cannot be undone');
-
-    await userEvent.click(screen.getByText('Keep everything'));
-    expect(host.lastOfType('revert_to_revision')).toBeUndefined();
-
-    await userEvent.click(screen.getByText('Revert here'));
-    await userEvent.click(screen.getByText('Revert permanently'));
-    expect(host.lastOfType('revert_to_revision')!.payload).toEqual({ revisionId: 'r-1' });
   });
 
   it('reports the draft to the host and restores it on reconnect', async () => {

@@ -35,7 +35,7 @@ const hash = 'a71f8c04'.repeat(8);
 const statistics = { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 };
 
 const build = (id: string, stale: boolean): BuildInfo => ({
-  id, seq: 10, createdAt: '2026-08-30T13:04:00Z', projectId: 'project-1', revisionId: 'r-2',
+  id, seq: 10, createdAt: '2026-08-30T13:04:00Z', projectId: 'project-1',
   conversationId: 'conv-1', afterMessageId: 'm4', plateIndex: 0, plateName: 'Plate 1',
   printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
   slicerVersion: 'JusPrin deterministic Phase 6', configurationProvenance: '0.20mm Standard @BBL X1C, 5 changes',
@@ -51,9 +51,9 @@ const copy: ExportedCopyInfo = {
 const print: PhysicalPrintInfo = {
   id: 'p-1', seq: 12, startedAt: '2026-08-30T13:09:00Z', endedAt: '2026-08-30T14:13:00Z',
   outcome: 'failed', failure: 'Layer shift reported near layer 62.', buildId: 'b-1', projectId: 'project-1',
-  revisionId: 'r-2', conversationId: 'conv-1', afterMessageId: 'm4', plateIndex: 0, plateName: 'Plate 1',
+  conversationId: 'conv-1', afterMessageId: 'm4', plateIndex: 0, plateName: 'Plate 1',
   printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
-  gcodeHash: hash, statistics, timelineRemoved: false,
+  gcodeHash: hash, statistics,
 };
 
 const noop = () => {};
@@ -65,14 +65,12 @@ function thread(builds: BuildInfo[], copies: ExportedCopyInfo[], prints: Physica
       attachments={[]}
       streamingMessageId={null}
       toolActivities={[]}
-      revisions={[]}
       builds={builds}
       exportedCopies={copies}
       physicalPrints={prints}
       onRetry={noop}
       onToolDecision={noop}
       onToolCancel={noop}
-      onRevert={noop}
     />,
   );
 }

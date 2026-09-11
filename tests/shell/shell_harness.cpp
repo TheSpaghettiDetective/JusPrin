@@ -1,6 +1,6 @@
 // Runs the complete native application and verifies the production JusPrin
 // shell through Phase 6: installation, Prepare/Slice/Check print, the typed
-// Agent bridge and tools, persistence/Revert, manufacturing history, resize
+// Agent bridge and tools, persistence, manufacturing history, resize
 // and project replacement, fallback, and restoration of stock presentation.
 //
 // Modes:
@@ -167,8 +167,8 @@ struct HarnessState
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
-    // Phase 4 added real project saves, reopen, and checkpoint exports on
-    // top of two full slices; 300 s was regularly exhausted mid-flow. The
+    // Phase 4 added real project saves and reopen on top of two full
+    // slices; 300 s was regularly exhausted mid-flow. The
     // warm Slice-all scenario adds up to two more plate slices.
     std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(900)};
     Mode mode{Mode::Shell};
@@ -2222,8 +2222,8 @@ private:
     }
 
     // Phase 4: conversations, project-owned persistence, save/reopen,
-    // Revert here, import identity, and the clean-sharing copy — all against
-    // the real application and real 3MF archives.
+    // import identity, and the clean-sharing copy — all against the real
+    // application and real 3MF archives.
     Agent::ProjectPersistence& persistence() { return *installed_shell()->persistence(); }
 
     void agent_conversations()
@@ -2294,7 +2294,7 @@ private:
         m_saved_project_id  = persistence().document().project_id();
         m_saved_project_file = (fs::temp_directory_path() / fs::unique_path("jusprin-phase4-%%%%.3mf")).string();
         // The same strategy Plater::save_project uses, silenced; the
-        // auxiliary dir (with state.json and checkpoints) is included.
+        // auxiliary dir (with state.json) is included.
         const auto save_started = std::chrono::steady_clock::now();
         check(m_plater->export_3mf(boost::filesystem::path(m_saved_project_file),
                                    SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence) >= 0,
@@ -2304,7 +2304,8 @@ private:
         const std::string saved_bytes((std::istreambuf_iterator<char>(saved)), std::istreambuf_iterator<char>());
         m_saved_project_bytes = saved_bytes.size();
         check(saved_bytes.find("JusPrin/state.json") != std::string::npos, "saved_archive_contains_state_json");
-        check(saved_bytes.find(".snapshot") != std::string::npos, "saved_archive_contains_checkpoints");
+        // JusPrin keeps no project copies of its own inside the project.
+        check(saved_bytes.find(".snapshot") == std::string::npos, "saved_archive_has_no_project_copies");
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "phase4_new_project");
         wait_until(
@@ -2323,8 +2324,6 @@ private:
                         const auto messages = self->persistence().document().messages(
                             self->persistence().document().active_conversation_id());
                         self->check(!messages.empty(), "saved_messages_survive_reopen");
-                        self->check(!self->persistence().document().revisions().empty(),
-                                    "saved_revisions_survive_reopen");
                         self->agent_phase6_history();
                     });
             });
@@ -2332,18 +2331,15 @@ private:
 
     // Phase 6: record one real sliced plate as a deterministic build, then an
     // exported copy and completed physical print through the same page ->
-    // Agent -> approval coordinator path. Change manufacturing input, confirm
-    // derived staleness, and Revert past the print: editable history goes away
-    // while the factual print ledger remains.
+    // Agent -> approval coordinator path, and confirm that changing the
+    // manufacturing input makes the build's derived staleness visible.
     void agent_phase6_history()
     {
-        m_phase6_objects_before  = m_plater->model().objects.size();
-        m_phase6_target_revision = persistence().document().current_revision_id();
-        check(!m_phase6_target_revision.empty(), "phase6_target_revision_known");
+        const std::size_t objects_before = m_plater->model().objects.size();
         check(m_plater->duplicate_object(0) >= 0, "phase6_manufacturing_change_before_build");
         wait_until(
-            [this] { return persistence().document().current_revision_id() != m_phase6_target_revision; },
-            "phase6_source_revision_captured", [self = shared_from_this()] {
+            [this, objects_before] { return m_plater->model().objects.size() > objects_before; },
+            "phase6_manufacturing_change_applied", [self = shared_from_this()] {
                 installed_shell()->status_row()->request_slice();
                 self->wait_until(
                     [self] {
@@ -2431,11 +2427,11 @@ private:
                         return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
                                self->persistence().document().physical_prints().size() == 1;
                     },
-                    "phase6_physical_print_recorded", [self] { self->phase6_verify_and_revert(); });
+                    "phase6_physical_print_recorded", [self] { self->phase6_verify_records(); });
             });
     }
 
-    void phase6_verify_and_revert()
+    void phase6_verify_records()
     {
         check(installed_shell()->status_row()->project_summary()
                   .Contains(wxString::FromUTF8("Prints \xC2\xB7 1")),
@@ -2445,8 +2441,7 @@ private:
         const Agent::PhysicalPrintRecord print = persistence().document().physical_prints().front();
         check(build.manufacturing_input_hash.size() == 64 && build.output_hash.size() == 64,
               "phase6_build_has_sha256_provenance");
-        check(build.revision_id == print.revision_id && build.plate_name == print.plate_name,
-              "phase6_print_keeps_revision_and_plate");
+        check(build.plate_name == print.plate_name, "phase6_print_keeps_plate");
         check(!print.printer.empty() && !print.material.empty() && !print.started_at.empty() && !print.ended_at.empty(),
               "phase6_print_keeps_setup_and_times");
         check(print.outcome == "completed" && print.gcode_hash == build.output_hash,
@@ -2461,37 +2456,12 @@ private:
                 const auto current = Agent::manufacturing_input_hash(self->installed_workspace_snapshot(), plate_index);
                 return current && *current != input_hash;
             },
-            "phase6_old_build_becomes_stale", [self = shared_from_this()] {
-                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-                WebView::RunScript(web_view.webview(),
-                                   wxString::FromUTF8("window.__jusprinTest && window.__jusprinTest.revert('" +
-                                                      self->m_phase6_target_revision + "')"));
-                self->wait_until(
-                    [self] { return self->persistence().document().current_revision_id() == self->m_phase6_target_revision; },
-                    "phase6_revert_completed", [self] { self->phase6_verify_retention(); });
-            });
+            "phase6_old_build_becomes_stale", [self = shared_from_this()] { self->agent_import_and_clean_share(); });
     }
 
     Workspace::WorkspaceSnapshot installed_workspace_snapshot() const
     {
         return installed_shell()->workspace()->snapshot();
-    }
-
-    void phase6_verify_retention()
-    {
-        check(m_plater->model().objects.size() == m_phase6_objects_before,
-              "phase6_revert_restores_native_state");
-        check(!m_plater->can_redo_project(), "phase6_revert_leaves_no_redo");
-        check(persistence().document().builds().empty() && persistence().document().exported_copies().empty(),
-              "phase6_revert_removes_later_editable_history");
-        const auto prints = persistence().document().physical_prints();
-        check(prints.size() == 1, "phase6_physical_print_survives_revert");
-        check(!prints.empty() && !persistence().document().find_revision(prints.front().revision_id).has_value(),
-              "phase6_print_source_timeline_removed");
-        check(!prints.empty() && prints.front().outcome == "completed" && prints.front().gcode_hash.size() == 64 &&
-                  prints.front().statistics.layer_count == 124,
-              "phase6_surviving_print_facts_exact");
-        agent_import_and_clean_share();
     }
 
     void agent_import_and_clean_share()
@@ -2510,16 +2480,8 @@ private:
         const std::string clean_bytes((std::istreambuf_iterator<char>(clean)), std::istreambuf_iterator<char>());
         check(clean_bytes.find("3D/3dmodel.model") != std::string::npos, "clean_copy_is_a_project_archive");
         check(clean_bytes.find("JusPrin/state.json") == std::string::npos, "clean_copy_has_no_conversation_state");
-        check(clean_bytes.find(".snapshot") == std::string::npos, "clean_copy_has_no_checkpoints");
 
-        const Agent::ProjectPersistence::CheckpointStats& stats = persistence().stats();
-        std::cerr << "HARNESS BENCH checkpoint_captures=" << stats.captures
-                  << " capture_failures=" << stats.capture_failures
-                  << " total_snapshot_bytes=" << stats.total_snapshot_bytes
-                  << " last_capture_ms=" << stats.last_capture_ms
-                  << " last_restore_ms=" << stats.last_restore_ms
-                  << " saved_project_bytes=" << m_saved_project_bytes
-                  << " save_ms=" << m_save_ms << '\n';
+        std::cerr << "HARNESS BENCH saved_project_bytes=" << m_saved_project_bytes << " save_ms=" << m_save_ms << '\n';
         boost::system::error_code ec;
         fs::remove(m_saved_project_file, ec);
         fs::remove(clean_path, ec);
@@ -2965,8 +2927,6 @@ private:
     std::uint64_t                 m_wait_ticks{0};
     nlohmann::json                m_settings_original, m_settings_patch;
     std::size_t                   m_objects_before_tool{0};
-    std::size_t                   m_phase6_objects_before{0};
-    std::string                   m_phase6_target_revision;
     std::string                   m_saved_project_id;
     std::string                   m_saved_project_file;
     std::string                   m_live_action_id;

@@ -87,7 +87,7 @@ private:
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.
     std::unique_ptr<Workspace::OrcaWorkspaceAdapter> m_workspace;
-    // Project-owned conversation state and revision checkpoints; constructed
+    // Project-owned conversation state; constructed
     // after the workspace and before the pane, destroyed in reverse.
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
 

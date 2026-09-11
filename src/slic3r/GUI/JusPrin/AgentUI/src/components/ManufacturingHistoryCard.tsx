@@ -53,13 +53,12 @@ function Statistics({ statistics }: { statistics: SliceStatisticsInfo }) {
   );
 }
 
-function Facts({ plate, printer, material, revision }: { plate: string; printer: string; material: string; revision: string }) {
+function Facts({ plate, printer, material }: { plate: string; printer: string; material: string }) {
   return (
     <dl className="history-facts">
       <div><dt>Plate</dt><dd>{plate || 'Unnamed plate'}</dd></div>
       <div><dt>Printer</dt><dd>{printer || 'Not recorded'}</dd></div>
       <div><dt>Material</dt><dd>{material || 'Not recorded'}</dd></div>
-      <div><dt>Revision</dt><dd>{revision || 'Not available'}</dd></div>
     </dl>
   );
 }
@@ -107,7 +106,7 @@ export function ManufacturingHistoryCard({ entry }: { entry: ManufacturingHistor
             {build.stale && <span className="history-line history-note">The project changed after this build — slice again to match the plate.</span>}
           </HistorySummary>
           <div className="history-detail">
-            <Facts plate={build.plateName} printer={build.printer} material={build.material} revision={build.revisionId} />
+            <Facts plate={build.plateName} printer={build.printer} material={build.material} />
             <Statistics statistics={build.statistics} />
             <dl className="history-hashes">
               <HashValue label="Input SHA-256" value={build.manufacturingInputHash} />
@@ -166,8 +165,7 @@ export function ManufacturingHistoryCard({ entry }: { entry: ManufacturingHistor
           {print.failure && <span className="history-line history-note">{print.failure}</span>}
         </HistorySummary>
         <div className="history-detail">
-          {print.timelineRemoved && <p className="timeline-removed" role="status">Project timeline removed</p>}
-          <Facts plate={print.plateName} printer={print.printer} material={print.material} revision={print.revisionId} />
+          <Facts plate={print.plateName} printer={print.printer} material={print.material} />
           <dl className="history-facts">
             <div><dt>Started</dt><dd>{print.startedAt}</dd></div>
             <div><dt>Ended</dt><dd>{print.endedAt}</dd></div>

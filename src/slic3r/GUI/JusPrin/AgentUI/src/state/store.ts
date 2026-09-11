@@ -13,7 +13,6 @@ import {
   Envelope,
   ExportedCopyInfo,
   PhysicalPrintInfo,
-  RevisionInfo,
   SetupStatusPayload,
   StatePayload,
   ToolActivityInfo,
@@ -40,7 +39,6 @@ export interface AgentUiState {
   streamingMessageId: string | null;
   conversationBusy: boolean;
   toolActivities: ToolActivityInfo[];
-  revisions: RevisionInfo[];
   builds: BuildInfo[];
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
@@ -70,7 +68,6 @@ export const initialState: AgentUiState = {
   streamingMessageId: null,
   conversationBusy: false,
   toolActivities: [],
-  revisions: [],
   builds: [],
   exportedCopies: [],
   physicalPrints: [],
@@ -143,7 +140,6 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         streamingMessageId: full.streamingMessageId,
         conversationBusy: full.conversationBusy ?? full.streamingMessageId !== null,
         toolActivities: full.toolActivities ?? [],
-        revisions: full.revisions ?? [],
         builds: full.builds ?? [],
         exportedCopies: full.exportedCopies ?? [],
         physicalPrints: full.physicalPrints ?? [],
@@ -234,13 +230,6 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         messages: upsert(state.messages, { ...message, state: 'stopped' }),
         streamingMessageId: state.streamingMessageId === id ? null : state.streamingMessageId,
       };
-    }
-    case 'revision_added': {
-      const revision = payload.revision as RevisionInfo;
-      const cleared = state.revisions.map((r) => ({ ...r, current: false }));
-      const index = cleared.findIndex((r) => r.id === revision.id);
-      const revisions = index < 0 ? [...cleared, revision] : cleared.map((r, i) => (i === index ? revision : r));
-      return { ...state, revisions };
     }
     case 'tool_activity': {
       const activity = payload.activity as ToolActivityInfo;

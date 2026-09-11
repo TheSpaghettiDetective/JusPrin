@@ -26,7 +26,7 @@ inline const std::vector<std::string>& capabilities()
 {
     static const std::vector<std::string> values{"streaming",   "stop",        "retry",
                                                  "context",     "appearance",  "tools",
-                                                 "conversations", "revisions", "attachments",
+                                                 "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path"};
     return values;
@@ -45,7 +45,6 @@ inline constexpr const char* kSwitchConversation = "switch_conversation";
 inline constexpr const char* kRenameConversation = "rename_conversation";
 inline constexpr const char* kDeleteConversation = "delete_conversation";
 inline constexpr const char* kConversationsUpdated = "conversations_updated";
-inline constexpr const char* kRevertToRevision   = "revert_to_revision";
 inline constexpr const char* kDraftUpdate        = "draft_update";
 inline constexpr const char* kAttachFile         = "attach_file";
 inline constexpr const char* kRemoveAttachment   = "remove_attachment";
@@ -73,7 +72,6 @@ inline constexpr const char* kAssistantCompleted = "assistant_completed";
 inline constexpr const char* kAssistantFailed    = "assistant_failed";
 inline constexpr const char* kAssistantStopped   = "assistant_stopped";
 inline constexpr const char* kToolActivity       = "tool_activity";
-inline constexpr const char* kRevisionAdded      = "revision_added";
 inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
 inline constexpr const char* kSetupStatus        = "setup_status";

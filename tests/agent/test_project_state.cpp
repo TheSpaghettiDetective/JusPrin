@@ -1,7 +1,7 @@
 // Contract tests for the project state document (schema round-trip,
 // unknown-field preservation, migration, corruption) and for
 // ProjectPersistence against the fake workspace (project-boundary adoption,
-// revision capture, recovery merge, revert atomicity). GUI-free.
+// recovery merge, attachments). GUI-free.
 
 #include <catch2/catch_all.hpp>
 
@@ -117,8 +117,6 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     activity.state          = ToolState::Succeeded;
     document.upsert_activity(activity, kT);
 
-    document.add_revision("contents", "revisions/r-1.snapshot", conversation, kT);
-
     ProjectStateDocument reloaded;
     REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
 
@@ -132,8 +130,6 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     REQUIRE(reloaded.activities().size() == 1);
     CHECK(reloaded.activities()[0].state == ToolState::Succeeded);
     CHECK(reloaded.activities()[0].source == ToolSource::Agent);
-    REQUIRE(reloaded.revisions().size() == 1);
-    CHECK(reloaded.current_revision_id() == reloaded.revisions()[0].id);
 
     SECTION("counters continue after a reload so IDs stay unique") {
         const std::string next_id = reloaded.allocate_message_id();
@@ -217,7 +213,6 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     activity.correlation_id = message.id;
     activity.state = ToolState::Succeeded;
     document.upsert_activity(activity, kT);
-    document.add_revision("Keep model history", "snapshot.3mf", first, kT);
     BuildRecord build;
     build.conversation_id = first;
     document.add_build(build, kT);
@@ -233,7 +228,6 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     CHECK(document.messages(first).empty());
     CHECK(document.attachments().empty());
     CHECK(document.activities().empty());
-    CHECK(document.revisions().size() == 1);
     CHECK(document.builds().size() == 1);
     CHECK(document.physical_prints().size() == 1);
     CHECK_FALSE(document.delete_conversation(first, kT));
@@ -329,11 +323,9 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
     ProjectStateDocument document;
     document.initialize_identity("project-1", "lineage-1", kT);
     const std::string conversation = document.active_conversation_id();
-    const std::string revision = document.add_revision("initial", "revisions/r-1.snapshot", conversation, kT);
 
     BuildRecord build;
     build.project_id = document.project_id();
-    build.revision_id = revision;
     build.conversation_id = conversation;
     build.plate_index = 0;
     build.plate_name = "Plate 1";
@@ -358,7 +350,6 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
     PhysicalPrintRecord print;
     print.build_id = build_id;
     print.project_id = document.project_id();
-    print.revision_id = revision;
     print.conversation_id = conversation;
     print.plate_name = build.plate_name;
     print.printer = build.printer;
@@ -382,76 +373,37 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
     CHECK(reloaded.physical_prints()[0].gcode_hash == build.output_hash);
     const json persisted = json::parse(reloaded.dump());
     CHECK_FALSE(persisted["builds"][0].contains("stale"));
-    CHECK_FALSE(persisted["physicalPrints"][0].contains("timelineRemoved"));
 }
 
-TEST_CASE("revert removes later builds and copies but retains the physical print ledger",
-          "[project-state][history][revert]")
+// Documents written before the timeline stopped saving project copies carry a
+// revision list, a current-revision pointer and revisionId on every record.
+// No such file shipped outside the team, so nothing migrates them: the extra
+// fields are simply never read again, and the chat they sit beside is intact.
+TEST_CASE("a document from the revision-timeline era loads with its chat intact", "[project-state][schema]")
 {
+    const json old_doc = json{
+        {"schemaVersion", ProjectStateDocument::kSchemaVersion},
+        {"project", json{{"projectId", "p-old"}, {"lineageId", "l-old"}, {"createdAt", kT}}},
+        {"counters", json{{"nextSeq", 5}, {"nextMessage", 2}, {"nextRevision", 3}, {"nextBuild", 2}}},
+        {"activeConversationId", "c-1"},
+        {"currentRevisionId", "r-2"},
+        {"conversations", json::array({json{{"id", "c-1"}, {"seq", 1}, {"title", "Bracket"}, {"createdAt", kT},
+                                            {"messages", json::array({json{{"id", "m-1"}, {"seq", 2},
+                                                                           {"role", "user"}, {"text", "hello"},
+                                                                           {"createdAt", kT}}})}}})},
+        {"revisions", json::array({json{{"id", "r-1"}, {"seq", 3}, {"cause", "initial"},
+                                        {"snapshotFile", "revisions/r-1.snapshot.3mf"}}})},
+        {"builds", json::array({json{{"id", "b-1"}, {"seq", 4}, {"revisionId", "r-1"}, {"plateName", "Plate 1"}}})}};
+
     ProjectStateDocument document;
-    document.initialize_identity("project-1", "lineage-1", kT);
-    const std::string conversation = document.active_conversation_id();
-    const std::string target = document.add_revision("initial", "revisions/r-1.snapshot", conversation, kT);
-    const std::string later = document.add_revision("contents", "", conversation, kT); // no recoverable later snapshot
-
-    BuildRecord build;
-    build.project_id = document.project_id();
-    build.revision_id = later;
-    build.conversation_id = conversation;
-    build.manufacturing_input_hash = sha256_hex("later input");
-    build.output_hash = sha256_hex("later gcode");
-    const std::string build_id = document.add_build(build, kT);
-    ExportedCopyRecord copy;
-    copy.build_id = build_id;
-    copy.expected_output_hash = build.output_hash;
-    document.add_exported_copy(copy, kT);
-    PhysicalPrintRecord print;
-    print.build_id = build_id;
-    print.project_id = document.project_id();
-    print.revision_id = later;
-    print.outcome = "completed";
-    print.output_hash = build.output_hash;
-    print.gcode_hash = build.output_hash;
-    document.add_physical_print(print, kT);
-
-    REQUIRE(document.revert_to_revision(target).has_value());
-    CHECK(document.builds().empty());
-    CHECK(document.exported_copies().empty());
-    REQUIRE(document.physical_prints().size() == 1);
-    CHECK(document.physical_prints()[0].revision_id == later);
-    CHECK_FALSE(document.find_revision(later).has_value());
-}
-
-TEST_CASE("revert truncates later entries across conversations", "[project-state][revert]")
-{
-    ProjectStateDocument document;
-    document.initialize_identity("p-1", "l-1", kT);
-    const std::string first = document.active_conversation_id();
-    document.append_message(first, user_message(document.allocate_message_id(), "before", "c-1"), kT);
-    document.add_revision("initial", "revisions/r-1.snapshot", first, kT);
-    const std::string target = document.add_revision("contents", "revisions/r-2.snapshot", first, kT);
-
-    document.append_message(first, user_message(document.allocate_message_id(), "after", "c-2"), kT);
-    const std::string later = document.create_conversation("Later", kT);
-    document.append_message(later, user_message(document.allocate_message_id(), "in later", "c-3"), kT);
-    document.add_revision("transform", "revisions/r-3.snapshot", later, kT);
-
-    const auto result = document.revert_to_revision(target);
-    REQUIRE(result.has_value());
-    CHECK(result->removed_snapshot_files == std::vector<std::string>{"revisions/r-3.snapshot"});
-    CHECK(result->kept_snapshot_files ==
-          std::vector<std::string>{"revisions/r-1.snapshot", "revisions/r-2.snapshot"});
-
-    CHECK(document.conversations().size() == 1);
-    REQUIRE(document.messages(first).size() == 1);
-    CHECK(document.messages(first)[0].text == "before");
-    CHECK(document.revisions().size() == 2);
-    CHECK(document.current_revision_id() == target);
-    CHECK(document.active_conversation_id() == first);
-
-    SECTION("reverting to an unknown revision does nothing") {
-        CHECK_FALSE(document.revert_to_revision("r-999").has_value());
-    }
+    REQUIRE(document.load(old_doc.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(document.messages("c-1").size() == 1);
+    CHECK(document.messages("c-1")[0].text == "hello");
+    REQUIRE(document.builds().size() == 1);
+    CHECK(document.builds()[0].plate_name == "Plate 1");
+    // New entries continue the saved sequence rather than reusing it.
+    document.append_message("c-1", user_message(document.allocate_message_id(), "again", "c-2"), kT);
+    CHECK(json::parse(document.dump())["conversations"][0]["messages"][1]["seq"] == 5);
 }
 
 TEST_CASE("interrupted streams and runs are normalized on recovery", "[project-state][recovery]")
@@ -474,7 +426,7 @@ TEST_CASE("interrupted streams and runs are normalized on recovery", "[project-s
     CHECK_FALSE(document.normalize_interrupted_state());
 }
 
-TEST_CASE("adoption creates identity, initial revision, and both stores", "[persistence][adoption]")
+TEST_CASE("adoption creates identity and both stores", "[persistence][adoption]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
     const std::string recovery_root = unique_temp_dir("recovery");
@@ -487,29 +439,24 @@ TEST_CASE("adoption creates identity, initial revision, and both stores", "[pers
     CHECK(replaced == 1);
     CHECK(persistence.document().has_identity());
     CHECK(persistence.document().conversations().size() == 1);
-    REQUIRE(persistence.document().revisions().size() == 1);
-    CHECK(persistence.document().revisions()[0].cause == "initial");
     CHECK(fs::is_regular_file(persistence.state_file_path()));
-    CHECK(fs::is_regular_file(fs::path(persistence.jusprin_data_dir()) / persistence.document().revisions()[0].snapshot_file));
     CHECK(fs::is_regular_file(fs::path(persistence.recovery_dir()) / "state.json"));
-    CHECK(persistence.stats().captures == 1);
+    // JusPrin keeps no copy of the project: the JusPrin data dir holds the
+    // state file alone.
+    CHECK(std::distance(fs::directory_iterator(persistence.jusprin_data_dir()), fs::directory_iterator()) == 1);
 }
 
-TEST_CASE("manufacturing changes capture revisions; selection does not", "[persistence][revisions]")
+TEST_CASE("model edits write no project copies", "[persistence][adoption]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
     ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
     persistence.attach();
-    const std::size_t revisions_before = persistence.document().revisions().size();
+    const std::uint64_t doc_revision = persistence.document().doc_revision();
 
     REQUIRE(workspace.select_object(workspace.snapshot().plates[0].objects[0].id).succeeded());
-    CHECK(persistence.document().revisions().size() == revisions_before);
-
     REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "renamed").succeeded());
-    REQUIRE(persistence.document().revisions().size() == revisions_before + 1);
-    const RevisionInfo captured = persistence.document().revisions().back();
-    CHECK(captured.cause.find("contents") != std::string::npos);
-    CHECK(fs::is_regular_file(fs::path(persistence.jusprin_data_dir()) / captured.snapshot_file));
+    CHECK(persistence.document().doc_revision() == doc_revision);
+    CHECK(std::distance(fs::directory_iterator(persistence.jusprin_data_dir()), fs::directory_iterator()) == 1);
 }
 
 TEST_CASE("saved state is adopted on reopen and merged with newer recovery", "[persistence][recovery]")
@@ -634,66 +581,6 @@ TEST_CASE("a project replacement adopts the new project's own state", "[persiste
     CHECK(persistence.document().conversations().size() == 1);
 }
 
-TEST_CASE("revert failures leave the document and files untouched", "[persistence][revert]")
-{
-    Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
-    persistence.attach();
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "renamed").succeeded());
-    const std::string target = persistence.document().revisions().front().id; // initial
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "renamed-again").succeeded());
-    const std::size_t revisions_before = persistence.document().revisions().size();
-
-    SECTION("missing checkpoint file") {
-        fs::remove(fs::path(persistence.jusprin_data_dir()) /
-                   persistence.document().find_revision(target)->snapshot_file);
-        const auto result = persistence.revert_to_revision(target);
-        CHECK_FALSE(result.ok);
-        CHECK(persistence.document().revisions().size() == revisions_before);
-        CHECK(workspace.snapshot().plates[0].objects[0].name == "renamed-again");
-    }
-
-    SECTION("unreadable checkpoint content") {
-        write_text(fs::path(persistence.jusprin_data_dir()) /
-                       persistence.document().find_revision(target)->snapshot_file,
-                   "garbage");
-        const auto result = persistence.revert_to_revision(target);
-        CHECK_FALSE(result.ok);
-        CHECK(persistence.document().revisions().size() == revisions_before);
-        CHECK(workspace.snapshot().plates[0].objects[0].name == "renamed-again");
-    }
-
-    SECTION("reverting to the current revision is refused") {
-        const auto result = persistence.revert_to_revision(persistence.document().current_revision_id());
-        CHECK_FALSE(result.ok);
-    }
-}
-
-TEST_CASE("a successful revert keeps earlier checkpoints usable", "[persistence][revert]")
-{
-    Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
-    persistence.attach();
-    const std::string initial = persistence.document().current_revision_id();
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "renamed-once").succeeded());
-    const std::string middle = persistence.document().current_revision_id();
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "renamed-twice").succeeded());
-
-    REQUIRE(persistence.revert_to_revision(middle).ok);
-    CHECK(workspace.snapshot().plates[0].objects[0].name == "renamed-once");
-    CHECK(persistence.document().revisions().size() == 2);
-    // The earlier checkpoint travelled to the new auxiliary dir and still
-    // supports a further revert.
-    REQUIRE(persistence.revert_to_revision(initial).ok);
-    CHECK(workspace.snapshot().plates[0].objects[0].name == "cube-a");
-
-    SECTION("the reverted state is what a reopen would load") {
-        const json on_disk = json::parse(read_text(persistence.state_file_path()));
-        CHECK(on_disk["currentRevisionId"] == initial);
-        CHECK(on_disk["revisions"].size() == 1);
-    }
-}
-
 TEST_CASE("a clean-sharing copy carries no JusPrin state", "[persistence][clean-share]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
@@ -797,76 +684,6 @@ TEST_CASE("staged attachments can be removed but sent ones are durable", "[proje
     CHECK(reloaded.messages(reloaded.active_conversation_id())[0].attachment_ids == std::vector<std::string>{a2});
 }
 
-TEST_CASE("revert keeps referenced attachments but drops composer attachments", "[project-state][attachments][revert]")
-{
-    ProjectStateDocument document;
-    document.initialize_identity("p-1", "l-1", kT);
-    const std::string conversation = document.active_conversation_id();
-
-    // Before the revision target: a1 sent-and-still-referenced, a3 staged and
-    // never sent, a4 staged now but sent by a later (removed) message.
-    const std::string a1 = document.allocate_attachment_id();
-    document.add_attachment(staged_attachment(a1, "a1.txt", "text"), kT);
-    const std::string a3 = document.allocate_attachment_id();
-    document.add_attachment(staged_attachment(a3, "a3.txt", "text"), kT);
-    const std::string a4 = document.allocate_attachment_id();
-    document.add_attachment(staged_attachment(a4, "a4.txt", "text"), kT);
-
-    ConversationMessage kept = user_message(document.allocate_message_id(), "keep", "c-1");
-    kept.attachment_ids      = {a1};
-    document.append_message(conversation, kept, kT);
-    document.mark_attachments_sent({a1});
-
-    const std::string target = document.add_revision("initial", "revisions/r-1.snapshot", conversation, kT);
-
-    // After the target: a2 created and sent, plus the message that also sends a4.
-    const std::string a2 = document.allocate_attachment_id();
-    document.add_attachment(staged_attachment(a2, "a2.txt", "text"), kT);
-    ConversationMessage later = user_message(document.allocate_message_id(), "later", "c-2");
-    later.attachment_ids      = {a2, a4};
-    document.append_message(conversation, later, kT);
-    document.mark_attachments_sent({a2, a4});
-    document.add_revision("contents", "revisions/r-2.snapshot", conversation, kT);
-
-    const auto result = document.revert_to_revision(target);
-    REQUIRE(result.has_value());
-    // Kept: a1 (sent and still referenced). Dropped: a3 (unsent composer
-    // state), a4 (sent by the truncated message), and a2 (created after the
-    // target). IDs come from the monotonic allocator, so compare against the
-    // variables, not literals.
-    CHECK(result->kept_attachment_dirs == std::vector<std::string>{"attachments/" + a1});
-    CHECK(result->removed_attachment_dirs ==
-          std::vector<std::string>{"attachments/" + a3, "attachments/" + a4, "attachments/" + a2});
-
-    std::vector<std::string> remaining;
-    for (const AttachmentRecord& record : document.attachments())
-        remaining.push_back(record.id);
-    CHECK(remaining == std::vector<std::string>{a1});
-}
-
-TEST_CASE("a successful revert clears unsent recovery state", "[persistence][attachments][revert]")
-{
-    Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
-    persistence.attach();
-    const std::string target = persistence.document().current_revision_id();
-
-    const std::string staged = persistence.document().allocate_attachment_id();
-    persistence.document().add_attachment(staged_attachment(staged, "unsent.txt", "text"), kT);
-    REQUIRE(persistence.write_attachment_blob("attachments/" + staged + "/unsent.txt", "UNSENT"));
-    persistence.set_draft("half-written prompt");
-    persistence.commit();
-    persistence.flush();
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "later").succeeded());
-
-    REQUIRE(persistence.revert_to_revision(target).ok);
-    CHECK(persistence.draft().empty());
-    CHECK_FALSE(persistence.document().find_attachment(staged).has_value());
-    CHECK_FALSE(fs::exists(fs::path(persistence.jusprin_data_dir()) / "attachments" / staged));
-    const json recovery_meta = json::parse(read_text(fs::path(persistence.recovery_dir()) / "recovery.json"));
-    CHECK(recovery_meta["draft"] == "");
-}
-
 TEST_CASE("attachment blobs are written under the project and cleaned up", "[persistence][attachments]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
@@ -882,50 +699,4 @@ TEST_CASE("attachment blobs are written under the project and cleaned up", "[per
 
     persistence.remove_attachment_dir("attachments/a-1");
     CHECK_FALSE(fs::exists(blob));
-}
-
-TEST_CASE("revert copies kept attachment blobs forward and drops orphaned ones", "[persistence][attachments][revert]")
-{
-    Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
-    persistence.attach();
-    ProjectStateDocument& document = persistence.document();
-
-    // A sent attachment that will survive a revert to the revision after it.
-    const std::string a1 = document.allocate_attachment_id();
-    document.add_attachment(staged_attachment(a1, "keep.txt", "text"), kT);
-    REQUIRE(persistence.write_attachment_blob("attachments/" + a1 + "/keep.txt", "KEEP"));
-    ConversationMessage m1 = user_message(document.allocate_message_id(), "keep", "c-1");
-    m1.attachment_ids      = {a1};
-    document.append_message(document.active_conversation_id(), m1, kT);
-    document.mark_attachments_sent({a1});
-    persistence.commit();
-    persistence.flush();
-
-    // A manufacturing change captures the revision we will revert to.
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "r2").succeeded());
-    const std::string target = persistence.document().revisions().back().id;
-
-    // A later attachment that the revert must orphan.
-    const std::string a2 = document.allocate_attachment_id();
-    document.add_attachment(staged_attachment(a2, "drop.txt", "text"), kT);
-    REQUIRE(persistence.write_attachment_blob("attachments/" + a2 + "/drop.txt", "DROP"));
-    ConversationMessage m2 = user_message(document.allocate_message_id(), "later", "c-2");
-    m2.attachment_ids      = {a2};
-    document.append_message(document.active_conversation_id(), m2, kT);
-    document.mark_attachments_sent({a2});
-    persistence.commit();
-    persistence.flush();
-    REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "r3").succeeded());
-
-    const ProjectPersistence::RevertResult reverted = persistence.revert_to_revision(target);
-    REQUIRE(reverted.ok);
-
-    // The kept blob now lives under the replacement project's auxiliary dir;
-    // the orphaned one was never copied forward.
-    const fs::path new_dir = fs::path(persistence.jusprin_data_dir());
-    CHECK(read_text(new_dir / "attachments" / a1 / "keep.txt") == "KEEP");
-    CHECK_FALSE(fs::exists(new_dir / "attachments" / a2 / "drop.txt"));
-    CHECK(persistence.document().find_attachment(a1).has_value());
-    CHECK_FALSE(persistence.document().find_attachment(a2).has_value());
 }

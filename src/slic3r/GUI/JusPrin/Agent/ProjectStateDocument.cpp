@@ -222,7 +222,6 @@ BuildRecord read_build(const json& entry)
     record.seq                      = entry.value("seq", std::uint64_t(0));
     record.created_at               = entry.value("createdAt", "");
     record.project_id               = entry.value("projectId", "");
-    record.revision_id              = entry.value("revisionId", "");
     record.conversation_id          = entry.value("conversationId", "");
     record.after_message_id         = entry.value("afterMessageId", "");
     record.plate_index              = entry.value("plateIndex", std::size_t(0));
@@ -231,7 +230,7 @@ BuildRecord read_build(const json& entry)
     record.material                 = entry.value("material", "");
     record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
     record.output_hash              = entry.value("outputHash", "");
-    record.slicer_version           = entry.value("slicerVersion", "");
+    record.slicer_version          = entry.value("slicerVersion", "");
     record.configuration_provenance = entry.value("configurationProvenance", "");
     if (entry.contains("statistics"))
         record.statistics = read_statistics(entry["statistics"]);
@@ -268,7 +267,6 @@ PhysicalPrintRecord read_physical_print(const json& entry)
     record.failure                  = entry.value("failure", "");
     record.build_id                 = entry.value("buildId", "");
     record.project_id               = entry.value("projectId", "");
-    record.revision_id              = entry.value("revisionId", "");
     record.conversation_id          = entry.value("conversationId", "");
     record.after_message_id         = entry.value("afterMessageId", "");
     record.plate_index              = entry.value("plateIndex", std::size_t(0));
@@ -277,7 +275,7 @@ PhysicalPrintRecord read_physical_print(const json& entry)
     record.material                 = entry.value("material", "");
     record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
     record.output_hash              = entry.value("outputHash", "");
-    record.gcode_hash               = entry.value("gcodeHash", "");
+    record.gcode_hash              = entry.value("gcodeHash", "");
     if (entry.contains("statistics"))
         record.statistics = read_statistics(entry["statistics"]);
     return record;
@@ -341,19 +339,6 @@ ToolActivity read_activity(const json& entry)
     return activity;
 }
 
-RevisionInfo read_revision(const json& entry)
-{
-    RevisionInfo revision;
-    revision.id               = entry.value("id", "");
-    revision.seq              = entry.value("seq", std::uint64_t(0));
-    revision.created_at       = entry.value("createdAt", "");
-    revision.cause            = entry.value("cause", "");
-    revision.snapshot_file    = entry.value("snapshotFile", "");
-    revision.conversation_id  = entry.value("conversationId", "");
-    revision.after_message_id = entry.value("afterMessageId", "");
-    return revision;
-}
-
 json fresh_document()
 {
     return json{{"schemaVersion", ProjectStateDocument::kSchemaVersion},
@@ -361,15 +346,12 @@ json fresh_document()
                 {"project", json{{"projectId", ""}, {"lineageId", ""}, {"createdAt", ""}}},
                 {"counters", json{{"nextSeq", std::uint64_t(1)}, {"nextMessage", std::uint64_t(1)},
                                   {"nextAction", std::uint64_t(1)}, {"nextConversation", std::uint64_t(1)},
-                                  {"nextRevision", std::uint64_t(1)}, {"nextAttachment", std::uint64_t(1)},
-                                  {"nextBuild", std::uint64_t(1)}, {"nextExport", std::uint64_t(1)},
-                                  {"nextPrint", std::uint64_t(1)}}},
+                                  {"nextAttachment", std::uint64_t(1)}, {"nextBuild", std::uint64_t(1)},
+                                  {"nextExport", std::uint64_t(1)}, {"nextPrint", std::uint64_t(1)}}},
                 {"activeConversationId", ""},
-                {"currentRevisionId", ""},
                 {"conversations", json::array()},
                 {"toolActivities", json::array()},
                 {"attachments", json::array()},
-                {"revisions", json::array()},
                 {"builds", json::array()},
                 {"exportedCopies", json::array()},
                 {"physicalPrints", json::array()}};
@@ -801,7 +783,6 @@ std::string ProjectStateDocument::add_build(BuildRecord record, const std::strin
                {"seq", next_seq()},
                {"createdAt", timestamp},
                {"projectId", record.project_id},
-               {"revisionId", record.revision_id},
                {"conversationId", record.conversation_id},
                {"afterMessageId", record.after_message_id},
                {"plateIndex", record.plate_index},
@@ -854,7 +835,6 @@ std::string ProjectStateDocument::add_physical_print(PhysicalPrintRecord record,
                                            {"failure", record.failure},
                                            {"buildId", record.build_id},
                                            {"projectId", record.project_id},
-                                           {"revisionId", record.revision_id},
                                            {"conversationId", record.conversation_id},
                                            {"afterMessageId", record.after_message_id},
                                            {"plateIndex", record.plate_index},
@@ -932,169 +912,6 @@ bool ProjectStateDocument::normalize_interrupted_state()
     if (changed)
         touch();
     return changed;
-}
-
-std::string ProjectStateDocument::peek_next_revision_id() const
-{
-    return "r-" + std::to_string(m_doc["counters"].value("nextRevision", std::uint64_t(1)));
-}
-
-std::string ProjectStateDocument::add_revision(const std::string& cause,
-                                               const std::string& snapshot_file,
-                                               const std::string& conversation_id,
-                                               const std::string& timestamp)
-{
-    const std::uint64_t number = m_doc["counters"].value("nextRevision", std::uint64_t(1));
-    m_doc["counters"]["nextRevision"] = number + 1;
-    const std::string id = "r-" + std::to_string(number);
-
-    std::string after_message_id;
-    if (const json* conversation = conversation_json(conversation_id);
-        conversation != nullptr && !(*conversation)["messages"].empty())
-        after_message_id = (*conversation)["messages"].back().value("id", "");
-
-    m_doc["revisions"].push_back(json{{"id", id},
-                                      {"seq", next_seq()},
-                                      {"createdAt", timestamp},
-                                      {"cause", cause},
-                                      {"snapshotFile", snapshot_file},
-                                      {"conversationId", conversation_id},
-                                      {"afterMessageId", after_message_id}});
-    m_doc["currentRevisionId"] = id;
-    touch();
-    return id;
-}
-
-std::vector<RevisionInfo> ProjectStateDocument::revisions() const
-{
-    std::vector<RevisionInfo> result;
-    for (const json& entry : m_doc["revisions"])
-        result.push_back(read_revision(entry));
-    return result;
-}
-
-std::optional<RevisionInfo> ProjectStateDocument::find_revision(const std::string& revision_id) const
-{
-    for (const json& entry : m_doc["revisions"])
-        if (entry.value("id", "") == revision_id)
-            return read_revision(entry);
-    return std::nullopt;
-}
-
-std::string ProjectStateDocument::current_revision_id() const { return m_doc.value("currentRevisionId", ""); }
-
-bool ProjectStateDocument::set_revision_snapshot(const std::string& revision_id, const std::string& snapshot_file)
-{
-    for (json& entry : m_doc["revisions"])
-        if (entry.value("id", "") == revision_id && entry.value("snapshotFile", "").empty()) {
-            entry["snapshotFile"] = snapshot_file;
-            touch();
-            return true;
-        }
-    return false;
-}
-
-std::optional<ProjectStateDocument::TruncateResult> ProjectStateDocument::revert_to_revision(const std::string& revision_id)
-{
-    const std::optional<RevisionInfo> target = find_revision(revision_id);
-    if (!target)
-        return std::nullopt;
-    const std::uint64_t cutoff = target->seq;
-
-    TruncateResult result;
-    // Conversations created after the cutoff are later editable entries too.
-    json& conversations = m_doc["conversations"];
-    conversations.erase(std::remove_if(conversations.begin(), conversations.end(),
-                                       [cutoff](const json& entry) {
-                                           return entry.value("seq", std::uint64_t(0)) > cutoff;
-                                       }),
-                        conversations.end());
-    for (json& conversation : conversations) {
-        json& messages = conversation["messages"];
-        messages.erase(std::remove_if(messages.begin(), messages.end(),
-                                      [cutoff](const json& entry) { return entry.value("seq", std::uint64_t(0)) > cutoff; }),
-                       messages.end());
-    }
-    json& activities = m_doc["toolActivities"];
-    activities.erase(std::remove_if(activities.begin(), activities.end(),
-                                    [cutoff](const json& entry) { return entry.value("seq", std::uint64_t(0)) > cutoff; }),
-                     activities.end());
-    json& revisions = m_doc["revisions"];
-    for (const json& entry : revisions) {
-        const std::string file = entry.value("snapshotFile", "");
-        if (file.empty())
-            continue;
-        if (entry.value("seq", std::uint64_t(0)) > cutoff)
-            result.removed_snapshot_files.push_back(file);
-        else
-            result.kept_snapshot_files.push_back(file);
-    }
-    revisions.erase(std::remove_if(revisions.begin(), revisions.end(),
-                                   [cutoff](const json& entry) { return entry.value("seq", std::uint64_t(0)) > cutoff; }),
-                    revisions.end());
-
-    // Builds and exported copies are editable timeline entries. A copy also
-    // disappears if its source build no longer exists after truncation.
-    json& builds = m_doc["builds"];
-    builds.erase(std::remove_if(builds.begin(), builds.end(),
-                                [cutoff](const json& entry) {
-                                    return entry.value("seq", std::uint64_t(0)) > cutoff;
-                                }),
-                 builds.end());
-    std::set<std::string> kept_build_ids;
-    for (const json& entry : builds)
-        kept_build_ids.insert(entry.value("id", ""));
-    json& copies = m_doc["exportedCopies"];
-    copies.erase(std::remove_if(copies.begin(), copies.end(),
-                                [cutoff, &kept_build_ids](const json& entry) {
-                                    return entry.value("seq", std::uint64_t(0)) > cutoff ||
-                                           kept_build_ids.find(entry.value("buildId", "")) == kept_build_ids.end();
-                                }),
-                 copies.end());
-    // physicalPrints is intentionally untouched: it is a factual ledger, not
-    // recoverable editable project state.
-
-    // Attachments: keep only sent blobs still owned by a surviving message.
-    // Staged/error records are unsent composer working state and a destructive
-    // Revert discards them regardless of when they were staged.
-    std::set<std::string> referenced;
-    for (const json& conversation : conversations)
-        for (const json& message : conversation["messages"])
-            if (message.contains("attachments") && message["attachments"].is_array())
-                for (const json& id : message["attachments"])
-                    if (id.is_string())
-                        referenced.insert(id.get<std::string>());
-    json& attachments = m_doc["attachments"];
-    for (const json& entry : attachments) {
-        const AttachmentRecord record = read_attachment(entry);
-        const std::uint64_t    seq    = entry.value("seq", std::uint64_t(0));
-        const bool unsent             = record.state != "sent";
-        const bool orphaned_sent      = record.state == "sent" && referenced.find(record.id) == referenced.end();
-        if (seq > cutoff || unsent || orphaned_sent)
-            result.removed_attachment_dirs.push_back(record.relative_dir());
-        else
-            result.kept_attachment_dirs.push_back(record.relative_dir());
-    }
-    attachments.erase(std::remove_if(attachments.begin(), attachments.end(),
-                                     [cutoff, &referenced](const json& entry) {
-                                         const std::string state = entry.value("state", "");
-                                         const std::string id    = entry.value("id", "");
-                                         const bool unsent = state != "sent";
-                                         const bool orphaned_sent =
-                                             state == "sent" && referenced.find(id) == referenced.end();
-                                         return entry.value("seq", std::uint64_t(0)) > cutoff || unsent || orphaned_sent;
-                                     }),
-                      attachments.end());
-
-    m_doc["currentRevisionId"] = revision_id;
-
-    // The active conversation may have been created after the cutoff.
-    bool active_exists = conversation_json(active_conversation_id()) != nullptr;
-    if (!active_exists && !m_doc["conversations"].empty())
-        m_doc["activeConversationId"] = m_doc["conversations"].front().value("id", "");
-
-    touch();
-    return result;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

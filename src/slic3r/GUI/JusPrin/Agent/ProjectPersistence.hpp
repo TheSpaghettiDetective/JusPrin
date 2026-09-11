@@ -2,18 +2,16 @@
 
 // Binds the semantic project document to its storage and to the workspace:
 //
-//  - state.json and revision checkpoints live under <auxiliary_data_dir>/
+//  - state.json and attachment blobs live under <auxiliary_data_dir>/
 //    JusPrin/, which Orca embeds in the project archive on save and extracts
 //    on open — so an explicit save carries the conversation state saved so
 //    far, exactly as of that save;
 //  - a local recovery store (keyed by project identity, outside the project)
 //    mirrors newer working state — the current draft and everything written
-//    since the last explicit save — and wins at adoption when it is newer;
-//  - manufacturing changes reported by the workspace produce revision
-//    checkpoints through IWorkspace::export_project_archive;
-//  - Revert here restores a checkpoint through the workspace and atomically
-//    truncates every editable later entry, keeping no redo branch, while the
-//    separate physical-print ledger remains factual and non-revertible.
+//    since the last explicit save — and wins at adoption when it is newer.
+//
+// JusPrin never saves or restores project state of its own: Orca's project
+// file is the only copy of the model.
 //
 // Project boundaries follow the auxiliary directory: it changes whenever the
 // authoritative project is replaced by a load or a new project, and stays
@@ -64,15 +62,14 @@ public:
     // The configured clock, for consumers stamping document entries.
     std::string timestamp() const { return m_config.clock(); }
 
-    // Fired after the document has been replaced by an adoption or a revert;
-    // the consumer must rebuild everything it derived from the old document.
+    // Fired after the document has been replaced by an adoption; the consumer
+    // must rebuild everything it derived from the old document.
     void set_document_replaced_listener(std::function<void()> listener) { m_document_replaced = std::move(listener); }
-    void set_revision_listener(std::function<void(const RevisionInfo&)> listener) { m_revision_added = std::move(listener); }
 
     // Fired when the manufacturing ledger gains an entry or the document is
-    // replaced. Deliberately a separate slot from the two Agent-owned
-    // listeners above so shell surfaces outside the Agent pane -- the status
-    // row's print count -- can observe the ledger without competing for them.
+    // replaced. Deliberately a separate slot from the Agent-owned listener
+    // above so shell surfaces outside the Agent pane -- the status row's print
+    // count -- can observe the ledger without competing for it.
     void set_ledger_listener(std::function<void()> listener) { m_ledger_changed = std::move(listener); }
     void notify_ledger_changed() const
     {
@@ -92,13 +89,6 @@ public:
     void               set_draft(const std::string& text);
     const std::string& draft() const { return m_draft; }
 
-    struct RevertResult
-    {
-        bool        ok{false};
-        std::string error;
-    };
-    RevertResult revert_to_revision(const std::string& revision_id);
-
     // -- Attachment blobs ---------------------------------------------------
     // Blobs live under <JusPrin data dir>/attachments/<id>/<name>. The host
     // owns the semantic record; persistence owns only the bytes on disk.
@@ -113,19 +103,9 @@ public:
     // dir); used when a staged attachment is discarded.
     void remove_attachment_dir(const std::string& relative_dir);
 
-    // A clean-sharing copy: the project without conversations, revision
-    // history, or any other auxiliary content.
+    // A clean-sharing copy: the project without conversations or any other
+    // auxiliary content.
     Workspace::CommandResult export_clean_copy(const std::string& file_path);
-
-    struct CheckpointStats
-    {
-        std::size_t    captures{0};
-        std::size_t    capture_failures{0};
-        std::uintmax_t total_snapshot_bytes{0};
-        double         last_capture_ms{-1.0};
-        double         last_restore_ms{-1.0};
-    };
-    const CheckpointStats& stats() const { return m_stats; }
 
     // Storage locations (resolved fresh; the auxiliary dir moves with the
     // project).
@@ -139,8 +119,6 @@ private:
     bool heal_if_directory_moved();
     void adopt_current_project(bool in_place_reset);
     void start_fresh_identity();
-    void capture_revision(const std::string& cause);
-    void retry_initial_capture();
     void write_state_to(const std::string& directory) const;
     void write_recovery_meta() const;
     void load_recovery_meta();
@@ -150,22 +128,14 @@ private:
     Workspace::WorkspaceSubscription m_subscription;
     ProjectStateDocument             m_document;
 
-    std::function<void()>                         m_document_replaced;
-    std::function<void(const RevisionInfo&)>      m_revision_added;
-    std::function<void()>                         m_ledger_changed;
+    std::function<void()> m_document_replaced;
+    std::function<void()> m_ledger_changed;
 
     std::string m_attached_aux_dir;
     std::string m_draft;
     bool        m_dirty{false};
-    bool        m_in_revert{false};
     bool        m_attached{false};
     bool        m_boundary_pending{false};
-    // The initial checkpoint could not be captured (adoption before the
-    // canvas could render); retried on later events until a manufacturing
-    // change makes the initial state unrecoverable.
-    bool        m_initial_capture_pending{false};
-
-    CheckpointStats m_stats;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -649,35 +649,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   color: var(--status-danger);
 }
 
-/* Manufacturing revision markers */
-.revision-marker {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-self: stretch;
-  padding: 4px 8px;
-  border-left: 3px solid var(--border-strong);
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
-.revision-marker.current {
-  border-left-color: var(--status-success);
-}
-
-.revision-marker .revision-confirm {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--status-danger);
-  border-radius: var(--radius-container);
-  color: var(--text-primary);
-  background: var(--surface-raised);
-}
-
 .message-group {
   display: flex;
   flex-direction: column;
@@ -856,15 +827,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .history-status.success { color: var(--status-success); border-color: var(--status-success); }
 .history-status.warning { color: var(--status-warning); border-color: var(--status-warning); }
-
-.timeline-removed {
-  margin: 0 0 8px;
-  padding: 4px 8px;
-  border-radius: var(--radius-standard);
-  background: var(--surface-selected);
-  color: var(--text-primary);
-  font: var(--font-body-bold);
-}
 
 .history-facts,
 .history-stats,

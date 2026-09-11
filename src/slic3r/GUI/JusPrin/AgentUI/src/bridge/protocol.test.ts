@@ -14,7 +14,6 @@ describe('protocol constants', () => {
     expect(PAGE_CAPABILITIES).toEqual(protocolJson.capabilities);
     expect(PAGE_CAPABILITIES).toContain('tools');
     expect(PAGE_CAPABILITIES).toContain('conversations');
-    expect(PAGE_CAPABILITIES).toContain('revisions');
     expect(PAGE_CAPABILITIES).toContain('agent_setup');
     expect(PAGE_CAPABILITIES).toContain('mcp_setup');
   });
@@ -32,7 +31,6 @@ describe('protocol constants', () => {
       'switch_conversation',
       'rename_conversation',
       'delete_conversation',
-      'revert_to_revision',
       'draft_update',
       'attach_file',
       'remove_attachment',
@@ -46,7 +44,6 @@ describe('protocol constants', () => {
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');
     expect(protocolJson.hostMessageTypes).toContain('tool_activity');
-    expect(protocolJson.hostMessageTypes).toContain('revision_added');
     expect(protocolJson.hostMessageTypes).toContain('bridge_error');
     expect(protocolJson.hostMessageTypes).toContain('attachment_updated');
     expect(protocolJson.hostMessageTypes).toContain('mcp_catalog');

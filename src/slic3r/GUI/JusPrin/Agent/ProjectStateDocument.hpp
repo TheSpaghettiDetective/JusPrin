@@ -1,16 +1,16 @@
 #pragma once
 
 // The portable, versioned semantic state of a JusPrin project: conversations,
-// their messages and tool activity records, the linear editable revision and
-// build timeline, and the non-revertible physical-print ledger. Serialized as
-// Auxiliaries/JusPrin/state.json inside the
-// project archive and mirrored to the local recovery store.
+// their messages and tool activity records, attachments, and the
+// manufacturing history (builds, exported copies, physical prints).
+// Serialized as Auxiliaries/JusPrin/state.json inside the project archive and
+// mirrored to the local recovery store.
 //
 // The document is backed by one JSON tree that is edited in place, so
 // optional fields written by other (newer) builds survive a load-edit-save
 // cycle untouched. Every entry carries a monotonically increasing global
-// sequence number `seq`; "later than revision R" is defined as seq > R.seq
-// across every conversation, which is what Revert here truncates. GUI-free.
+// sequence number `seq`, which orders entries across every conversation.
+// GUI-free.
 
 #include "AgentProtocol.hpp"
 #include "ManufacturingHistory.hpp"
@@ -33,17 +33,6 @@ struct ConversationInfo
     std::string updated_at;
     std::string preview;
     std::uint64_t activity_seq{0};
-};
-
-struct RevisionInfo
-{
-    std::string   id;
-    std::uint64_t seq{0};
-    std::string   created_at;
-    std::string   cause;            // human-readable reason summary
-    std::string   snapshot_file;    // relative to the JusPrin data dir; empty when capture failed
-    std::string   conversation_id;  // conversation active when the change happened
-    std::string   after_message_id; // last message at capture time (may be empty)
 };
 
 // Metadata for one attachment. The blob lives under
@@ -112,8 +101,9 @@ public:
     // description of the current config. Empty until the first change.
     std::string setup_intent(const std::string& conversation_id) const;
     bool        set_setup_intent(const std::string& conversation_id, const std::string& intent);
-    // Erases chat content and returns orphaned attachment directories. Project
-    // revisions/builds/physical prints retain their historical conversation IDs.
+    // Erases chat content and returns orphaned attachment directories. Builds,
+    // exported copies and physical prints retain their historical
+    // conversation IDs.
     std::optional<std::vector<std::string>> delete_conversation(const std::string& conversation_id,
                                                                const std::string& timestamp);
 
@@ -152,9 +142,7 @@ public:
     std::vector<std::string> mark_attachments_sent(const std::vector<std::string>& attachment_ids);
 
     // -- Manufacturing history --------------------------------------------
-    // Add-only immutable records. Builds and copies belong to the editable
-    // revision timeline; physical prints belong to the separate factual
-    // ledger and are never removed by Revert.
+    // Add-only immutable records.
     std::string add_build(BuildRecord record, const std::string& timestamp);
     std::string add_exported_copy(ExportedCopyRecord record, const std::string& timestamp);
     std::string add_physical_print(PhysicalPrintRecord record, const std::string& timestamp);
@@ -166,37 +154,6 @@ public:
     std::size_t                      physical_print_count() const;
     std::optional<BuildRecord>       find_build(const std::string& build_id) const;
     std::optional<BuildRecord>       latest_build() const;
-
-    // -- Revisions ----------------------------------------------------------
-    // The id add_revision will assign next — lets a caller name the snapshot
-    // file before recording the revision entry.
-    std::string peek_next_revision_id() const;
-    std::string add_revision(const std::string& cause,
-                             const std::string& snapshot_file,
-                             const std::string& conversation_id,
-                             const std::string& timestamp);
-    std::vector<RevisionInfo> revisions() const;
-    std::optional<RevisionInfo> find_revision(const std::string& revision_id) const;
-    std::string current_revision_id() const;
-    // Backfills the checkpoint of a revision whose capture failed at the
-    // time (e.g. before the canvas could render); true when the revision
-    // exists and had no snapshot.
-    bool set_revision_snapshot(const std::string& revision_id, const std::string& snapshot_file);
-
-    struct TruncateResult
-    {
-        std::vector<std::string> removed_snapshot_files;
-        std::vector<std::string> kept_snapshot_files;
-        // Attachment blob directories (relative to the JusPrin data dir) that
-        // the truncation orphaned or preserved; the storage layer deletes the
-        // former and copies the latter forward across a project replacement.
-        std::vector<std::string> removed_attachment_dirs;
-        std::vector<std::string> kept_attachment_dirs;
-    };
-    // Removes every editable entry (messages, activities, revisions, builds,
-    // exported copies, composer state) with seq greater than the revision's
-    // across all conversations, and makes it current. Physical prints remain.
-    std::optional<TruncateResult> revert_to_revision(const std::string& revision_id);
 
     // Raw access for tests and serialization helpers.
     const nlohmann::json& raw() const { return m_doc; }

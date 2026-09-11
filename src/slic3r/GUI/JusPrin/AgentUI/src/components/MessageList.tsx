@@ -1,15 +1,13 @@
 // Conversation transcript with stable scroll anchoring: the list follows new
 // content only while the reader is at the bottom; scrolling up to reread
 // pins the viewport until they return to the bottom. Tool activity cards
-// render beneath the assistant message that proposed them, and revision
-// markers of this conversation render where they happened.
+// render beneath the assistant message that proposed them.
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { AttachmentInfo, BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, RevisionInfo, ToolActivityInfo } from '../bridge/protocol';
+import { AttachmentInfo, BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
 import { MarkdownMessage } from './MarkdownMessage';
-import { RevisionMarker } from './RevisionMarker';
 import { ToolActivityCard } from './ToolActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 
@@ -18,14 +16,12 @@ interface Props {
   attachments: AttachmentInfo[];
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
-  revisions: RevisionInfo[]; // already filtered to this conversation
   builds: BuildInfo[];
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   onRetry: (messageId: string) => void;
   onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
-  onRevert: (revisionId: string) => void;
   // The setup card's expansion is a layer over this thread; the thread dims
   // rather than being covered, so the conversation stays legibly there.
   dimmed?: boolean;
@@ -36,14 +32,12 @@ export function MessageList({
   attachments,
   streamingMessageId,
   toolActivities,
-  revisions,
   builds,
   exportedCopies,
   physicalPrints,
   onRetry,
   onToolDecision,
   onToolCancel,
-  onRevert,
   dimmed,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
@@ -60,12 +54,8 @@ export function MessageList({
   useLayoutEffect(() => {
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, revisions, builds, exportedCopies, physicalPrints, followBottom]);
+  }, [messages, toolActivities, builds, exportedCopies, physicalPrints, followBottom]);
 
-  const markersAfter = (messageId: string) => revisions.filter((r) => r.afterMessageId === messageId);
-  const leadingMarkers = revisions.filter(
-    (r) => r.afterMessageId === '' || !messages.some((m) => m.id === r.afterMessageId),
-  );
   const history: ManufacturingHistoryEntry[] = [
     ...builds.map((record) => ({ kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
     ...exportedCopies.map((record) => ({ kind: 'copy' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
@@ -79,9 +69,6 @@ export function MessageList({
   return (
     <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      {leadingMarkers.map((revision) => (
-        <RevisionMarker key={revision.id} revision={revision} onRevert={onRevert} />
-      ))}
       {leadingHistory.map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
       {messages.length === 0 && (
         <div className="notice">
@@ -146,9 +133,6 @@ export function MessageList({
                 onCancel={onToolCancel}
               />
             ))}
-          {markersAfter(message.id).map((revision) => (
-            <RevisionMarker key={revision.id} revision={revision} onRevert={onRevert} />
-          ))}
           {historyAfter(message.id).map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
         </div>
         ),
