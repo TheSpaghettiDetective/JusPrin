@@ -1,0 +1,5 @@
+what's the commadn to build and launch the app?
+
+---
+
+is there a bash scrip tot build on mac?
