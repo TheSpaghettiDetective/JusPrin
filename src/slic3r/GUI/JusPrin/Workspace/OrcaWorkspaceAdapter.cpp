@@ -499,13 +499,11 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
         // the undo already recorded, so the baseline just follows it.
         if (touched(ProjectStateChangeReason::Settings))
             record_settings_edits(/*report=*/!m_plater.inside_snapshot_capture());
-        if (touched(ProjectStateChangeReason::Modified))
-            publish_edit({EditKind::Mark});
     }
     remember_current_ids();
 
     const WorkspaceChangeReasons reasons = workspace_reasons(change.reasons);
-    // An undo step or a dirty mark alone is no workspace change, and must not
+    // An undo step alone is no workspace change, and must not
     // clear the reason a slice about to be invalidated will report.
     if (reasons == WorkspaceChangeReasons::None)
         return;

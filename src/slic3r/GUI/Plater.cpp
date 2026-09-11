@@ -4441,7 +4441,7 @@ struct Plater::priv
     bool need_update() const { return m_need_update; }
     void set_need_update(bool need_update) { m_need_update = need_update; }
 
-    void set_plater_dirty(bool is_dirty) { dirty_state.set_plater_dirty(is_dirty); if (is_dirty) q->notify_project_state_changed(ProjectStateChangeReason::Modified); }
+    void set_plater_dirty(bool is_dirty) { dirty_state.set_plater_dirty(is_dirty); }
     bool is_project_dirty() const { return dirty_state.is_dirty(); }
     bool is_presets_dirty() const { return dirty_state.is_presets_dirty(); }
     void update_project_dirty_from_presets()

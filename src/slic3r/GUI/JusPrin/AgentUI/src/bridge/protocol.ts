@@ -287,8 +287,7 @@ export interface ConversationInfo {
 //   undo     label is the step undone;  redo: the step redone
 //   setting  label is the setting's name; from/to/preset say the rest
 //   preset   a whole preset was switched; label is the new preset
-//   mark     the project was marked modified without an undo step
-export type ChangeKind = 'step' | 'undo' | 'redo' | 'setting' | 'preset' | 'mark';
+export type ChangeKind = 'step' | 'undo' | 'redo' | 'setting' | 'preset';
 
 export interface ChangeInfo {
   seq: number;

@@ -43,7 +43,7 @@ struct ChangeEntry
 {
     std::uint64_t seq{0};
     std::string   created_at;
-    std::string   kind;            // step|undo|redo|setting|preset|mark
+    std::string   kind;            // step|undo|redo|setting|preset
     std::string   actor;           // person|agent
     std::string   label;           // as the workspace reported it; may be empty
     std::string   from, to, preset; // setting only

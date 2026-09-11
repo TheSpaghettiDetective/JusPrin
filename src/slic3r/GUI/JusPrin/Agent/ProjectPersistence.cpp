@@ -80,7 +80,6 @@ const char* edit_kind_name(Workspace::EditKind kind)
     case Workspace::EditKind::Redo: return "redo";
     case Workspace::EditKind::Setting: return "setting";
     case Workspace::EditKind::Preset: return "preset";
-    case Workspace::EditKind::Mark: return "mark";
     }
     throw std::logic_error("Unknown workspace edit kind");
 }

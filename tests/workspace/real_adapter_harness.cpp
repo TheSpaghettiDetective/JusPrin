@@ -414,12 +414,6 @@ private:
         m_plater->mirror(X);
         check(steps_since(edits_before_mirror) == 1, "mirror_is_one_change_log_step");
 
-        // The dirty mark without an undo step: custom G-code from the slider,
-        // the plate settings dialog, filament mapping, brim ears.
-        const std::size_t edits_before_mark = m_edits.size();
-        m_plater->set_plater_dirty(true);
-        check(m_edits.size() == edits_before_mark + 1 && m_edits.back().kind == EditKind::Mark,
-              "dirty_mark_is_one_change_log_mark");
         // The transform check below starts from no selection, as it did
         // before these checks existed.
         m_plater->deselect_all();

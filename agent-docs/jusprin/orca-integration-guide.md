@@ -109,14 +109,11 @@ records an undo step is covered with no fork code.
   moved. A changed preset name is one switch, not a list of keys. Undo and redo
   restore configuration as part of the step already recorded, so during
   `inside_snapshot_capture()` the baseline follows without an entry.
-- **Edits without an undo step** (custom G-code from the slider, the plate
-  settings dialog, filament mapping, brim ears, the project cover image) reach
-  the adapter through one line in `Plater::priv::set_plater_dirty`, which
-  notifies with `ProjectStateChangeReason::Modified` when the project is
-  marked dirty. They are recorded as a neutral entry.
-- **Accepted holes.** Plate rename takes no undo step and never marks the
-  project dirty, so it is not recorded. The cover image cannot be told apart
-  from the other dirty-mark callers.
+- **Not recorded: edits that take no undo step.** Custom G-code from the
+  slider, the plate settings dialog, filament mapping, brim ears, and the
+  project cover image only mark the project dirty; plate rename does not even
+  do that. The timeline mockup draws none of them, so no OrcaSlicer seam
+  exists for them.
 - **Edits are their own feed.** `IWorkspace::subscribe_edits` is separate from
   `WorkspaceChanged` so that recording an edit never changes the revision.
   The tool coordinator holds `IWorkspace::AgentEdit` while it executes, which

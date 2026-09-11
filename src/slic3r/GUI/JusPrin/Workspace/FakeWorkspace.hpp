@@ -131,9 +131,6 @@ public:
         save_undo(std::move(name));
         publish(WorkspaceChangeReasons::History);
     }
-
-    // An edit that marks the project modified without an undo step.
-    void mark_modified_for_testing() { publish_edit({EditKind::Mark}); }
     // The real adapter reads this from the OS; a fixture states it outright so
     // a test can describe a machine with no regional currency at all.
     void set_currency_for_testing(std::string code) { m_currency = std::move(code); }

@@ -70,8 +70,6 @@ function title(run: ChangeRun): ReactNode {
           Switched to <strong>{last.label}</strong>
         </>
       );
-    case 'mark':
-      return 'Project changed';
   }
 }
 

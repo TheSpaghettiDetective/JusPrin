@@ -264,8 +264,7 @@ enum class EditActor : std::uint8_t { Person, Agent };
 //   Redo     the undo history moved forward; label is the step redone
 //   Setting  one setting's value in force changed; label is its display name
 //   Preset   a whole preset was switched; label is the new preset's name
-//   Mark     the project was marked modified without an undo step; no label
-enum class EditKind : std::uint8_t { Step, Undo, Redo, Setting, Preset, Mark };
+enum class EditKind : std::uint8_t { Step, Undo, Redo, Setting, Preset };
 
 struct WorkspaceEdit
 {

@@ -94,13 +94,6 @@ TEST_CASE("The workspace reports each real edit, and nothing else, to the change
     workspace.record_step_for_testing("");
     CHECK(log.edits.back().kind == EditKind::Step);
     CHECK(log.edits.back().label.empty());
-
-    const std::uint64_t revision = workspace.snapshot().revision;
-    workspace.mark_modified_for_testing();
-    CHECK(log.edits.back().kind == EditKind::Mark);
-    // An edit is not a workspace change, so recording one can never make a
-    // pending Agent proposal stale.
-    CHECK(workspace.snapshot().revision == revision);
 }
 
 TEST_CASE("Edits made inside an Agent edit scope are the Agent's", "[workspace][changes]")

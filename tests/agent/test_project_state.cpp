@@ -757,7 +757,7 @@ TEST_CASE("the change log records each edit after the conversation item it follo
     }
 }
 
-TEST_CASE("settings, preset switches and dirty marks are logged", "[persistence][changes]")
+TEST_CASE("settings changes and preset switches are logged", "[persistence][changes]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
     ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
@@ -765,10 +765,9 @@ TEST_CASE("settings, preset switches and dirty marks are logged", "[persistence]
 
     workspace.set_setting_for_testing("wall_loops", "5");
     workspace.set_process_preset_for_testing("Strong");
-    workspace.mark_modified_for_testing();
 
     const std::vector<ChangeEntry> changes = persistence.document().changes();
-    REQUIRE(changes.size() == 3);
+    REQUIRE(changes.size() == 2);
     CHECK(changes[0].kind == "setting");
     CHECK_FALSE(changes[0].label.empty());
     CHECK(changes[0].to == "5");
@@ -776,7 +775,6 @@ TEST_CASE("settings, preset switches and dirty marks are logged", "[persistence]
     CHECK(changes[0].preset == "Fixture process");
     CHECK(changes[1].kind == "preset");
     CHECK(changes[1].label == "Strong");
-    CHECK(changes[2].kind == "mark");
     // Only a setting carries values in the saved entry.
     const json saved = json::parse(persistence.document().dump())["changes"];
     CHECK(saved[0].contains("from"));
