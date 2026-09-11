@@ -1492,6 +1492,43 @@ private:
         check(probe.find("3 steps merged") != std::string::npos, "timeline_mirrors_merge_into_one_row");
         check(probe.find("\xE2\x86\x92") != std::string::npos, "timeline_setting_row_reads_from_to");
         persistence().set_draft({});
+        wait_until([this] { return persistence().draft().rfind("spacing=", 0) == 0; }, "timeline_spacing_measured",
+                   [self = shared_from_this()] { self->check_timeline_spacing(); }, [] { probe_spacing(); });
+    }
+
+    // The thread's spacing as laid out, against the corrected Figma frame:
+    // items 12 apart; padding 4 top, 16 sides and bottom; 8 inside a turn;
+    // 4 from the reply's last line of text to "Answered · nothing changed";
+    // and 12 from the turn to the change run after it.
+    static void probe_spacing()
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "(function(){"
+            "  var list = document.querySelector('.message-list');"
+            "  if (!list || !window.__jusprinTest) return;"
+            // The reply the hand edits follow; the /build reply before it is
+            // answered too, but a history card follows that one.
+            "  var turn = Array.prototype.filter.call(document.querySelectorAll('.answered-turn'), function (t) {"
+            "    var n = t.parentElement.nextElementSibling; return n && n.className === 'change-rows'; })[0];"
+            "  if (!turn) return;"
+            "  var group = turn.parentElement, next = group.nextElementSibling;"
+            "  var s = getComputedStyle(list);"
+            "  var text = document.createRange();"
+            "  text.selectNodeContents(turn.querySelector('.message-content'));"
+            "  var answered = turn.querySelector('.answered-state').getBoundingClientRect();"
+            "  window.__jusprinTest.setDraft('spacing=' + [s.rowGap, s.paddingTop, s.paddingRight, s.paddingBottom,"
+            "    s.paddingLeft, getComputedStyle(group).rowGap,"
+            "    Math.round(answered.top - text.getBoundingClientRect().bottom),"
+            "    Math.round(next.getBoundingClientRect().top - group.getBoundingClientRect().bottom)].join(','));"
+            "})()");
+    }
+
+    void check_timeline_spacing()
+    {
+        const std::string spacing = persistence().draft();
+        std::cout << "HARNESS TIMELINE SPACING " << spacing << std::endl;
+        check(spacing == "spacing=12px,4px,16px,16px,16px,8px,4,12", "timeline_spacing_matches_figma");
+        persistence().set_draft({});
         // The thread follows new content, but a late reflow can leave the last
         // row just below the fold; the picture must show the newest rows.
         WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
