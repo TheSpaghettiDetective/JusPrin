@@ -1544,6 +1544,19 @@ private:
     void write_screen_capture(const wxRect& rect, const std::string& name)
     {
         fs::create_directories(m_state->capture_dir);
+        // A screen blit photographs whatever covers the frame, and another
+        // application's window on the same desktop is enough to ruin it. Hold
+        // the frame on top for the capture, and give WebView2 time to repaint
+        // the area it gets back.
+        const long style = m_frame->GetWindowStyleFlag();
+        m_frame->SetWindowStyleFlag(style | wxSTAY_ON_TOP);
+        m_frame->Raise();
+        for (int settle = 0; settle < 10; ++settle) {
+            wxYield();
+            wxMilliSleep(50);
+        }
+        struct RestoreStyle { wxFrame* frame; long style; ~RestoreStyle() { frame->SetWindowStyleFlag(style); } }
+            restore{m_frame, style};
         wxScreenDC screen;
         wxBitmap   bitmap(rect.GetWidth(), rect.GetHeight());
         {

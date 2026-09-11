@@ -345,14 +345,17 @@ body {
    user's bubble is surface/subtle, so a subtle thread would dissolve it.
    The 12px inset is kept rather than the mock's 16 so a message's edge
    lines up with the setup card inset the same amount above it. */
+/* The thread (Figma "Timeline"): message groups, change runs and history
+   entries are its items, 12 apart; 4 at the top under the pinned setup band,
+   16 at the sides and bottom. */
 .message-list {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 4px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   background: var(--surface-canvas);
 }
 
@@ -956,7 +959,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 @media (max-width: 320px) {
-  .message-list { padding: 8px; }
   .history-card { padding: 8px; }
   .history-summary-head { flex-wrap: wrap; }
   .history-facts,

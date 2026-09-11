@@ -5,7 +5,7 @@
 // the manufacturing history render after the conversation item they follow,
 // in the order they happened.
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { AttachmentInfo, BuildInfo, ChangeInfo, ExportedCopyInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
@@ -187,26 +187,31 @@ export function MessageList({
             </div>
           </div>
         );
+        // The message group is one thread item: the turn and the tool cards
+        // it proposed, 8 apart. What follows it -- change runs and history
+        // entries -- are thread items of their own.
         return (
-          <div key={message.id} className="message-group">
-            {answeredWithoutChange(message) ? (
-              <div className="answered-turn">
-                {bubble}
-                <div className="answered-state">Answered · nothing changed</div>
-              </div>
-            ) : (
-              bubble
-            )}
-            {activitiesOf(message.id).map((activity) => (
-              <ToolActivityCard
-                key={activity.actionId}
-                activity={activity}
-                onDecision={onToolDecision}
-                onCancel={onToolCancel}
-              />
-            ))}
+          <Fragment key={message.id}>
+            <div className="message-group">
+              {answeredWithoutChange(message) ? (
+                <div className="answered-turn">
+                  {bubble}
+                  <div className="answered-state">Answered · nothing changed</div>
+                </div>
+              ) : (
+                bubble
+              )}
+              {activitiesOf(message.id).map((activity) => (
+                <ToolActivityCard
+                  key={activity.actionId}
+                  activity={activity}
+                  onDecision={onToolDecision}
+                  onCancel={onToolCancel}
+                />
+              ))}
+            </div>
             <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} />
-          </div>
+          </Fragment>
         );
       })}
     </div>

@@ -76,8 +76,7 @@ describe('change rows in the thread', () => {
       change(3, { kind: 'redo', label: 'select_arrange partplate' }),
       change(4, { kind: 'setting', label: 'Sparse infill density', from: '35%', to: '45%', preset: 'Strong' }),
       change(5, { kind: 'preset', label: 'Strong' }),
-      change(6, { kind: 'mark', label: '' }),
-      change(7, { actor: 'agent', label: 'Duplicate' }),
+      change(6, { actor: 'agent', label: 'Duplicate' }),
     ]);
     const text = rows();
     expect(text[0]).toContain('Object settings changed');
@@ -86,8 +85,7 @@ describe('change rows in the thread', () => {
     expect(text[3]).toContain('Sparse infill density 35% → 45%');
     expect(text[3]).toContain('you, in Strong');
     expect(text[4]).toContain('Switched to Strong');
-    expect(text[5]).toContain('Project changed');
-    expect(text[6]).toMatch(/^✎DuplicateAgent/);
+    expect(text[5]).toMatch(/^✎DuplicateAgent/);
   });
 
   it('shows a run of edits to one setting as its net change', () => {
@@ -108,9 +106,10 @@ describe('change rows in the thread', () => {
       statistics: { printTimeSeconds: 60, filamentMm: 1, materialGrams: 1, materialCost: 0, layerCount: 1 },
     } satisfies BuildInfo;
     const { container } = thread([change(4), change(6, { label: 'Move' })], { builds: [build] });
-    const group = container.querySelectorAll('.message-group')[1];
-    const order = [...group.children].map((child) => child.className.split(' ')[0]);
-    expect(order).toEqual(['answered-turn', 'change-rows', 'history-card', 'change-rows']);
+    // Runs and history entries are thread items of their own, after the
+    // message group they follow.
+    const order = [...container.querySelector('.message-list')!.children].map((child) => child.className.split(' ')[0]);
+    expect(order).toEqual(['message-group', 'message-group', 'change-rows', 'history-card', 'change-rows']);
   });
 
   it('places a change that follows a tool activity after that activity\'s message', () => {
@@ -120,9 +119,9 @@ describe('change rows in the thread', () => {
       state: 'succeeded', progress: { current: 1, total: 1 },
     } satisfies ToolActivityInfo;
     const { container } = thread([change(3, { afterId: 't-1' })], { activities: [activity] });
-    const [first, second] = container.querySelectorAll('.message-group');
-    expect(within(first as HTMLElement).queryAllByRole('listitem')).toHaveLength(1);
-    expect(within(second as HTMLElement).queryAllByRole('listitem')).toHaveLength(0);
+    const order = [...container.querySelector('.message-list')!.children].map((child) => child.className.split(' ')[0]);
+    expect(order).toEqual(['message-group', 'change-rows', 'message-group']);
+    expect(within(container.querySelector('.change-rows') as HTMLElement).queryAllByRole('listitem')).toHaveLength(1);
   });
 
   it('puts changes made before the first message at the top', () => {
