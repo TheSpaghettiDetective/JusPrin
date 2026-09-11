@@ -35,6 +35,22 @@ struct ConversationInfo
     std::uint64_t activity_seq{0};
 };
 
+// One entry of the change log: an edit the workspace reported, stored raw.
+// The Agent page groups consecutive entries for display; nothing here merges,
+// words, or delays them, so the grouping can change without touching saved
+// data.
+struct ChangeEntry
+{
+    std::uint64_t seq{0};
+    std::string   created_at;
+    std::string   kind;            // step|undo|redo|setting|preset|mark
+    std::string   actor;           // person|agent
+    std::string   label;           // as the workspace reported it; may be empty
+    std::string   from, to, preset; // setting only
+    std::string   conversation_id; // the conversation active at the time
+    std::string   after_id;        // the conversation item it follows; empty before the first
+};
+
 // Metadata for one attachment. The blob lives under
 // <JusPrin data dir>/attachments/<id>/<stored_name>; this record is the
 // portable, saved description of it. `state` is "staged" while the attachment
@@ -154,6 +170,15 @@ public:
     std::size_t                      physical_print_count() const;
     std::optional<BuildRecord>       find_build(const std::string& build_id) const;
     std::optional<BuildRecord>       latest_build() const;
+
+    // -- Change log -----------------------------------------------------------
+    // Appends with the next seq, placed in the active conversation after its
+    // most recent item. Returns the entry as stored.
+    ChangeEntry              add_change(ChangeEntry entry, const std::string& timestamp);
+    std::vector<ChangeEntry> changes() const;
+    // The conversation's most recent message or tool activity, by seq; empty
+    // when it has none.
+    std::string last_item_id(const std::string& conversation_id) const;
 
     // Raw access for tests and serialization helpers.
     const nlohmann::json& raw() const { return m_doc; }

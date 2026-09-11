@@ -354,7 +354,24 @@ json fresh_document()
                 {"attachments", json::array()},
                 {"builds", json::array()},
                 {"exportedCopies", json::array()},
-                {"physicalPrints", json::array()}};
+                {"physicalPrints", json::array()},
+                {"changes", json::array()}};
+}
+
+ChangeEntry read_change(const json& entry)
+{
+    ChangeEntry change;
+    change.seq             = entry.value("seq", std::uint64_t(0));
+    change.created_at      = entry.value("createdAt", "");
+    change.kind            = entry.value("kind", "");
+    change.actor           = entry.value("actor", "");
+    change.label           = entry.value("label", "");
+    change.from            = entry.value("from", "");
+    change.to              = entry.value("to", "");
+    change.preset          = entry.value("preset", "");
+    change.conversation_id = entry.value("conversationId", "");
+    change.after_id        = entry.value("afterId", "");
+    return change;
 }
 
 } // namespace
@@ -891,6 +908,63 @@ std::optional<BuildRecord> ProjectStateDocument::latest_build() const
     if (m_doc["builds"].empty())
         return std::nullopt;
     return read_build(m_doc["builds"].back());
+}
+
+ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::string& timestamp)
+{
+    entry.conversation_id = active_conversation_id();
+    entry.after_id        = last_item_id(entry.conversation_id);
+    entry.seq             = next_seq();
+    entry.created_at      = timestamp;
+    json record{{"seq", entry.seq},
+                {"createdAt", entry.created_at},
+                {"kind", entry.kind},
+                {"actor", entry.actor},
+                {"label", entry.label},
+                {"conversationId", entry.conversation_id},
+                {"afterId", entry.after_id}};
+    if (entry.kind == "setting") {
+        record["from"]   = entry.from;
+        record["to"]     = entry.to;
+        record["preset"] = entry.preset;
+    }
+    m_doc["changes"].push_back(std::move(record));
+    touch();
+    return entry;
+}
+
+std::vector<ChangeEntry> ProjectStateDocument::changes() const
+{
+    std::vector<ChangeEntry> result;
+    for (const json& entry : m_doc["changes"])
+        result.push_back(read_change(entry));
+    return result;
+}
+
+std::string ProjectStateDocument::last_item_id(const std::string& conversation_id) const
+{
+    const json* conversation = conversation_json(conversation_id);
+    if (conversation == nullptr)
+        return {};
+    std::string   last_id;
+    std::uint64_t last_seq = 0;
+    std::set<std::string> message_ids;
+    for (const json& message : (*conversation)["messages"]) {
+        message_ids.insert(message.value("id", ""));
+        if (message.value("seq", std::uint64_t(0)) >= last_seq) {
+            last_seq = message.value("seq", std::uint64_t(0));
+            last_id  = message.value("id", "");
+        }
+    }
+    // A tool activity belongs to the conversation of the message that
+    // proposed it; one from an external MCP client belongs to none.
+    for (const json& activity : m_doc["toolActivities"])
+        if (message_ids.count(activity.value("correlationId", "")) != 0 &&
+            activity.value("seq", std::uint64_t(0)) >= last_seq) {
+            last_seq = activity.value("seq", std::uint64_t(0));
+            last_id  = activity.value("actionId", "");
+        }
+    return last_id;
 }
 
 bool ProjectStateDocument::normalize_interrupted_state()

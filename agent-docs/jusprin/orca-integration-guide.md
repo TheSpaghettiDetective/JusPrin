@@ -72,6 +72,56 @@ from the source of truth.
 Do not implement a second history stack in JusPrin. OrcaSlicer must continue to
 own snapshots, restoration order, selection restoration, and object identity.
 
+### The change log reads what OrcaSlicer already keeps
+
+The Agent panel's timeline rows come from a change log: one saved entry per
+real edit, with a kind, OrcaSlicer's own raw name, an actor, and the
+conversation item it follows. JusPrin never saves or restores project state for
+it. `OrcaWorkspaceAdapter` detects edits from state OrcaSlicer already
+maintains, not from which code path ran, so a new OrcaSlicer feature that
+records an undo step is covered with no fork code.
+
+- **Model edits are undo steps.** A step counts when OrcaSlicer's own
+  `snapshot_modifies_project` accepts it (Action, GizmoAction, or
+  ProjectSeparator, and a name not ending in "!"). The same rule drives the
+  unsaved-changes asterisk and the auto-backup. Selection steps and plate
+  switching ("select partplate!") are excluded by it, and slicing never
+  records a step. ProjectSeparator steps are project boundaries, not edits.
+- **Every step reaches the adapter.** `take_snapshot` notifies with
+  `ProjectStateChangeReason::UndoStep`. Before this, it notified with `None`,
+  which the hub dropped unless undo availability changed, so a second rotation
+  or a paint stroke reached no observer at all. `UndoStep` maps to no
+  workspace reason: it never advances the revision or stales a proposal.
+- **Detect by timestamp, not index.** Trimming drops old steps from the front.
+  The uncaptured topmost placeholder (`is_topmost()`) carries the timestamp the
+  next named step will reuse, so it is skipped and remembered as the first
+  unreported timestamp. `Stack::clear()` restarts timestamps at zero, so the
+  adapter resets its baseline at every project replacement (new, open, or
+  in-place reset, which all publish `project_replaced`). When the active
+  position moves without a new step, that is undo or redo, named by the first
+  real step between the two positions.
+- **Seven real edits have empty step names** (delete instances or parts, layer
+  ranges, the printable and auto-drop toggles). The page shows a fixed
+  fallback for them.
+- **Settings are not in the undo history.** On a `Settings` notification the
+  adapter re-reads the print, filament, and printer presets through the same
+  `preset_deltas_of` the setup card uses, and reports each value in force that
+  moved. A changed preset name is one switch, not a list of keys. Undo and redo
+  restore configuration as part of the step already recorded, so during
+  `inside_snapshot_capture()` the baseline follows without an entry.
+- **Edits without an undo step** (custom G-code from the slider, the plate
+  settings dialog, filament mapping, brim ears, the project cover image) reach
+  the adapter through one line in `Plater::priv::set_plater_dirty`, which
+  notifies with `ProjectStateChangeReason::Modified` when the project is
+  marked dirty. They are recorded as a neutral entry.
+- **Accepted holes.** Plate rename takes no undo step and never marks the
+  project dirty, so it is not recorded. The cover image cannot be told apart
+  from the other dirty-mark callers.
+- **Edits are their own feed.** `IWorkspace::subscribe_edits` is separate from
+  `WorkspaceChanged` so that recording an edit never changes the revision.
+  The tool coordinator holds `IWorkspace::AgentEdit` while it executes, which
+  is how an edit is attributed to the Agent rather than to the person.
+
 ### Existing command paths are valuable and should be reused
 
 Duplicate, remove, transform, snapshot, undo, and redo behavior already exists

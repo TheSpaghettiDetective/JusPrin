@@ -235,6 +235,21 @@ private:
         tab->on_roll_back_value(false);
         check(!m_workspace->snapshot().setup.process_preset_dirty, "settings_native_revert_clears_dirty");
         tab->load_config(original);
+
+        // Saving a preset folds the value in force into it: the delta
+        // disappears while nothing in force changes, so the change log must
+        // not report a setting change. The save is simulated by writing the
+        // value into the selected preset, which is what a save stores.
+        tab->load_config(gui_edit);
+        const std::string saved_walls = prints.get_selected_preset().config.opt_serialize("wall_loops");
+        const std::size_t edits_before_save = m_edits.size();
+        prints.get_selected_preset().config.set_deserialize_strict("wall_loops", "5");
+        m_plater->notify_project_state_changed(ProjectStateChangeReason::Settings);
+        check(std::none_of(m_edits.begin() + static_cast<std::ptrdiff_t>(edits_before_save), m_edits.end(),
+                           [](const WorkspaceEdit& edit) { return edit.kind == EditKind::Setting; }),
+              "saved_preset_is_not_a_setting_change");
+        prints.get_selected_preset().config.set_deserialize_strict("wall_loops", saved_walls);
+        tab->load_config(original);
         check(dialogs.count == 0, "settings_no_modal_dialog_reached");
     }
 
@@ -286,9 +301,15 @@ private:
             check(observed.revision == change.revision, "event_snapshot_revision_agrees");
             check(observed.session == change.session, "event_snapshot_session_agrees");
         });
+        m_edit_subscription = m_workspace->subscribe_edits([this](const WorkspaceEdit& edit) { m_edits.push_back(edit); });
 
         const WorkspaceSnapshot initial = m_workspace->snapshot();
         verify_process_settings();
+        // The change log reads settings from the presets' own differences.
+        check(std::any_of(m_edits.begin(), m_edits.end(), [](const WorkspaceEdit& edit) {
+                  return edit.kind == EditKind::Setting && !edit.label.empty() && edit.before != edit.after;
+              }),
+              "change_log_records_setting_edits");
         check(initial.plates.size() >= 2, "initial_snapshot_has_multiple_plates");
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");
         check(object_count(initial) == 2, "initial_snapshot_has_two_objects");
@@ -301,6 +322,7 @@ private:
                     m_second = object.id;
         check(static_cast<bool>(m_first) && static_cast<bool>(m_second), "stable_object_ids_discovered");
 
+        const std::size_t edits_before_selection = m_edits.size();
         const std::size_t before_adapter_selection = m_changes.size();
         check(m_workspace->select_object(m_first).succeeded(), "adapter_selection_command");
         check(m_changes.size() == before_adapter_selection + 1 &&
@@ -313,17 +335,31 @@ private:
         check(m_changes.size() == before_native_selection + 1 &&
                   has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Selection),
               "native_selection_observed_by_adapter");
+        // Selection records "!"-named or Selection-type undo steps; neither is
+        // a real edit.
+        check(m_edits.size() == edits_before_selection, "selection_is_not_a_change_log_edit");
 
+        const std::size_t edits_before_rename = m_edits.size();
         check(m_workspace->rename_object(m_first, "Adapter Renamed").succeeded(), "adapter_rename");
         check(find_object(m_workspace->snapshot(), m_first)->name == "Adapter Renamed", "adapter_rename_projected");
+        const auto steps_since = [this](std::size_t from) {
+            return std::count_if(m_edits.begin() + static_cast<std::ptrdiff_t>(from), m_edits.end(),
+                                 [](const WorkspaceEdit& edit) { return edit.kind == EditKind::Step; });
+        };
+        check(steps_since(edits_before_rename) == 1, "rename_is_one_change_log_step");
+        const std::string rename_step = m_edits.empty() ? std::string() : m_edits.back().label;
         const std::size_t before_adapter_undo = m_changes.size();
         check(m_workspace->undo().succeeded(), "rename_undo");
+        check(!m_edits.empty() && m_edits.back().kind == EditKind::Undo && m_edits.back().label == rename_step,
+              "undo_is_logged_with_the_step_undone");
         check(m_changes.size() == before_adapter_undo + 1 &&
                   has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
               "adapter_undo_observed_once");
         check(find_object(m_workspace->snapshot(), m_first)->name != "Adapter Renamed", "rename_undo_projected");
         const std::size_t before_adapter_redo = m_changes.size();
         check(m_workspace->redo().succeeded(), "rename_redo");
+        check(!m_edits.empty() && m_edits.back().kind == EditKind::Redo && m_edits.back().label == rename_step,
+              "redo_is_logged_with_the_step_redone");
         check(m_changes.size() == before_adapter_redo + 1 &&
                   has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
               "adapter_redo_observed_once");
@@ -363,6 +399,30 @@ private:
                   has_reason(m_changes.back().reasons, WorkspaceChangeReasons::History),
               "native_redo_observed_once");
         check(find_object(m_workspace->snapshot(), m_second)->name == "Native Renamed", "native_redo_projected");
+
+        // Switching the active plate records a "select partplate!" step,
+        // which the "!" rule excludes: not an edit.
+        const std::size_t edits_before_plate_switch = m_edits.size();
+        m_plater->select_plate(1);
+        m_plater->select_plate(0);
+        check(m_edits.size() == edits_before_plate_switch, "plate_switch_is_not_a_change_log_edit");
+
+        // Mirror reaches no project-state notification of its own; the undo
+        // step it records is what the change log reads.
+        check(m_workspace->select_object(m_first).succeeded(), "select_for_mirror");
+        const std::size_t edits_before_mirror = m_edits.size();
+        m_plater->mirror(X);
+        check(steps_since(edits_before_mirror) == 1, "mirror_is_one_change_log_step");
+
+        // The dirty mark without an undo step: custom G-code from the slider,
+        // the plate settings dialog, filament mapping, brim ears.
+        const std::size_t edits_before_mark = m_edits.size();
+        m_plater->set_plater_dirty(true);
+        check(m_edits.size() == edits_before_mark + 1 && m_edits.back().kind == EditKind::Mark,
+              "dirty_mark_is_one_change_log_mark");
+        // The transform check below starts from no selection, as it did
+        // before these checks existed.
+        m_plater->deselect_all();
 
         const bool was_shown = m_plater->IsShown();
         m_plater->Show(false);
@@ -594,6 +654,8 @@ private:
     std::unique_ptr<OrcaWorkspaceAdapter> m_workspace;
     WorkspaceSubscription                 m_subscription;
     std::vector<WorkspaceChanged>         m_changes;
+    WorkspaceSubscription                 m_edit_subscription;
+    std::vector<WorkspaceEdit>            m_edits;
     ObjectId                              m_first;
     ObjectId                              m_second;
     ObjectId                              m_duplicate;

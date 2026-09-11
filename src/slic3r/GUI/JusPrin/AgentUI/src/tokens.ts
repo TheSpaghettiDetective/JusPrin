@@ -27,7 +27,7 @@ interface StaticTokens {
     code: TypeRole & { cssFamily: string };
     roles: Record<string, TypeRole>;
   };
-  component: { button: Record<string, ButtonRecipe> };
+  component: { button: Record<string, ButtonRecipe>; threadRow: { lineGap: number } };
 }
 
 function fontShorthand(role: TypeRole, family: string): string {
@@ -50,6 +50,7 @@ export function staticVariableNames(): string[] {
     ...Object.entries(component.button)
       .filter(([, recipe]) => recipe.paddingX !== undefined && recipe.paddingY !== undefined)
       .map(([name]) => `--button-${kebab(name)}-padding`),
+    '--thread-row-line-gap',
   ];
 }
 
@@ -60,6 +61,8 @@ export function staticVariableNames(): string[] {
 //   --font-code           the one monospace role, for code, keys, paths, IDs
 //   --button-<recipe>-padding  "<y>px <x>px" from component.button; control
 //                         padding follows the recipes, not the spacing scale
+//   --thread-row-line-gap the space between a thread row's title and its
+//                         metadata line, an internal size of the row
 export function applyStaticTokens(): void {
   const { dimension, typography, component } = tokens as unknown as StaticTokens;
   const root = document.documentElement;
@@ -75,6 +78,7 @@ export function applyStaticTokens(): void {
     if (recipe.paddingX === undefined || recipe.paddingY === undefined) continue;
     root.style.setProperty(`--button-${kebab(name)}-padding`, `${recipe.paddingY}px ${recipe.paddingX}px`);
   }
+  root.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
 }
 
 export function applyAppearance(appearance: Appearance): void {

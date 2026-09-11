@@ -401,6 +401,8 @@ TEST_CASE("a document from the revision-timeline era loads with its chat intact"
     CHECK(document.messages("c-1")[0].text == "hello");
     REQUIRE(document.builds().size() == 1);
     CHECK(document.builds()[0].plate_name == "Plate 1");
+    // The old revisions draw no rows: the change log starts empty.
+    CHECK(document.changes().empty());
     // New entries continue the saved sequence rather than reusing it.
     document.append_message("c-1", user_message(document.allocate_message_id(), "again", "c-2"), kT);
     CHECK(json::parse(document.dump())["conversations"][0]["messages"][1]["seq"] == 5);
@@ -451,11 +453,10 @@ TEST_CASE("model edits write no project copies", "[persistence][adoption]")
     Workspace::FakeWorkspace workspace(small_snapshot());
     ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
     persistence.attach();
-    const std::uint64_t doc_revision = persistence.document().doc_revision();
 
     REQUIRE(workspace.select_object(workspace.snapshot().plates[0].objects[0].id).succeeded());
     REQUIRE(workspace.rename_object(workspace.snapshot().plates[0].objects[0].id, "renamed").succeeded());
-    CHECK(persistence.document().doc_revision() == doc_revision);
+    persistence.flush();
     CHECK(std::distance(fs::directory_iterator(persistence.jusprin_data_dir()), fs::directory_iterator()) == 1);
 }
 
@@ -699,4 +700,85 @@ TEST_CASE("attachment blobs are written under the project and cleaned up", "[per
 
     persistence.remove_attachment_dir("attachments/a-1");
     CHECK_FALSE(fs::exists(blob));
+}
+
+TEST_CASE("the change log records each edit after the conversation item it follows", "[persistence][changes]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    std::vector<ChangeEntry> pushed;
+    persistence.set_change_listener([&pushed](const ChangeEntry& change) { pushed.push_back(change); });
+    persistence.attach();
+    ProjectStateDocument& document     = persistence.document();
+    const std::string     conversation = document.active_conversation_id();
+    const auto            cube         = workspace.snapshot().plates[0].objects[0].id;
+
+    // Before any conversation item.
+    REQUIRE(workspace.rename_object(cube, "first").succeeded());
+    // After a message.
+    const std::string message = document.allocate_message_id();
+    document.append_message(conversation, user_message(message, "hello", "c-1"), kT);
+    REQUIRE(workspace.rename_object(cube, "second").succeeded());
+    // After the tool activity that message proposed, by the Agent.
+    ToolActivity activity;
+    activity.action_id      = document.allocate_action_id();
+    activity.correlation_id = message;
+    activity.state          = ToolState::Running;
+    document.upsert_activity(activity, kT);
+    {
+        const Workspace::IWorkspace::AgentEdit agent(workspace);
+        REQUIRE(workspace.duplicate_object(cube).succeeded());
+    }
+    // Selection and slicing are not edits.
+    REQUIRE(workspace.select_object(cube).succeeded());
+    workspace.set_plate_sliced(workspace.snapshot().plates[0].id, true);
+
+    const std::vector<ChangeEntry> changes = document.changes();
+    REQUIRE(changes.size() == 3);
+    CHECK(changes[0].kind == "step");
+    CHECK(changes[0].label == "Rename Object");
+    CHECK(changes[0].actor == "person");
+    CHECK(changes[0].after_id.empty());
+    CHECK(changes[1].after_id == message);
+    CHECK(changes[2].after_id == activity.action_id);
+    CHECK(changes[2].actor == "agent");
+    for (const ChangeEntry& change : changes)
+        CHECK(change.conversation_id == conversation);
+    CHECK(changes[0].seq < changes[1].seq);
+    CHECK(changes[1].seq < changes[2].seq);
+    CHECK(pushed.size() == 3);
+
+    SECTION("the log survives a reload") {
+        ProjectStateDocument reloaded;
+        REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+        REQUIRE(reloaded.changes().size() == 3);
+        CHECK(reloaded.changes()[2].actor == "agent");
+        CHECK(reloaded.changes()[2].after_id == activity.action_id);
+    }
+}
+
+TEST_CASE("settings, preset switches and dirty marks are logged", "[persistence][changes]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+
+    workspace.set_setting_for_testing("wall_loops", "5");
+    workspace.set_process_preset_for_testing("Strong");
+    workspace.mark_modified_for_testing();
+
+    const std::vector<ChangeEntry> changes = persistence.document().changes();
+    REQUIRE(changes.size() == 3);
+    CHECK(changes[0].kind == "setting");
+    CHECK_FALSE(changes[0].label.empty());
+    CHECK(changes[0].to == "5");
+    CHECK(changes[0].from != "5");
+    CHECK(changes[0].preset == "Fixture process");
+    CHECK(changes[1].kind == "preset");
+    CHECK(changes[1].label == "Strong");
+    CHECK(changes[2].kind == "mark");
+    // Only a setting carries values in the saved entry.
+    const json saved = json::parse(persistence.document().dump())["changes"];
+    CHECK(saved[0].contains("from"));
+    CHECK_FALSE(saved[1].contains("from"));
 }

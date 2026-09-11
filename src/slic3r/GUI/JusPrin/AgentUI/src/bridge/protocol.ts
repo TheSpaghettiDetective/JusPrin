@@ -51,7 +51,8 @@ export type HostMessageType =
   | 'setup_status'
   | 'mcp_catalog'
   | 'mcp_preview'
-  | 'mcp_status';
+  | 'mcp_status'
+  | 'change_added';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -280,6 +281,28 @@ export interface ConversationInfo {
   preview?: string;
 }
 
+// One entry of the change log: an edit the workspace reported, stored raw.
+// The page merges consecutive identical edits into one row for display.
+//   step     a real undo step; label is OrcaSlicer's step name, maybe empty
+//   undo     label is the step undone;  redo: the step redone
+//   setting  label is the setting's name; from/to/preset say the rest
+//   preset   a whole preset was switched; label is the new preset
+//   mark     the project was marked modified without an undo step
+export type ChangeKind = 'step' | 'undo' | 'redo' | 'setting' | 'preset' | 'mark';
+
+export interface ChangeInfo {
+  seq: number;
+  createdAt: string;
+  kind: ChangeKind;
+  actor: 'person' | 'agent';
+  label: string;
+  from?: string;
+  to?: string;
+  preset?: string;
+  conversationId: string;
+  afterId: string; // the message or tool activity it follows; '' before the first
+}
+
 export interface SliceStatisticsInfo {
   printTimeSeconds: number;
   filamentMm: number;
@@ -355,6 +378,7 @@ export interface StatePayload {
   builds: BuildInfo[];
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
+  changes?: ChangeInfo[]; // absent from hosts without the change_log capability
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;

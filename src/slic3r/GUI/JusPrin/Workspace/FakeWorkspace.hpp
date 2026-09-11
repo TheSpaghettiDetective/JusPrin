@@ -97,6 +97,8 @@ public:
         if (result.succeeded()) {
             for (auto& plate : m_snapshot.plates)
                 plate.sliced = false;
+            for (const SettingChange& change : applied.changes)
+                publish_setting_edit(change.key, change.before, change.after);
             publish(WorkspaceChangeReasons::Settings);
         }
         return result;
@@ -105,9 +107,12 @@ public:
     // Fixture-only seams for pre-existing dependencies and an unannounced edit.
     void set_setting_for_testing(const std::string& key, std::string value, bool notify = true)
     {
+        const std::string before = m_settings.values.at(key);
         m_settings.values.at(key) = std::move(value);
-        if (notify)
+        if (notify) {
+            publish_setting_edit(key, before, m_settings.values.at(key));
             publish(WorkspaceChangeReasons::Settings);
+        }
     }
     void set_settings_available_for_testing(bool available) { m_settings_available = available; }
     // Switching presets moves the baseline the deltas are measured from, which
@@ -115,8 +120,20 @@ public:
     void set_process_preset_for_testing(std::string name)
     {
         m_process_preset = std::move(name);
+        publish_edit({EditKind::Preset, EditActor::Person, m_process_preset});
         publish(WorkspaceChangeReasons::Settings);
     }
+
+    // A real undo step that changes nothing the fake projects, named as
+    // OrcaSlicer names its steps (possibly empty), e.g. one paint stroke.
+    void record_step_for_testing(std::string name)
+    {
+        save_undo(std::move(name));
+        publish(WorkspaceChangeReasons::History);
+    }
+
+    // An edit that marks the project modified without an undo step.
+    void mark_modified_for_testing() { publish_edit({EditKind::Mark}); }
     // The real adapter reads this from the OS; a fixture states it outright so
     // a test can describe a machine with no regional currency at all.
     void set_currency_for_testing(std::string code) { m_currency = std::move(code); }
@@ -145,7 +162,7 @@ public:
         if (object != nullptr && object->name == name)
             return CommandResult::failure(WorkspaceError::NoChange, "Object already has that name");
 
-        save_undo();
+        save_undo("Rename Object");
         for_each_object(id, [&name](WorkspaceObject& item) { item.name = name; });
         publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
         return CommandResult::success();
@@ -160,7 +177,7 @@ public:
         if (source == nullptr)
             return CommandResult::failure(WorkspaceError::MissingObject, "Object is unavailable");
 
-        save_undo();
+        save_undo("Duplicate");
         const ObjectId new_id(m_session, ++m_last_object_id);
         WorkspaceObject copy = *source;
         copy.id              = new_id;
@@ -180,7 +197,7 @@ public:
         if (CommandResult validation = validate(id); !validation.succeeded())
             return validation;
 
-        save_undo();
+        save_undo("Delete Object");
         for (WorkspacePlate& plate : m_snapshot.plates) {
             plate.objects.erase(std::remove_if(plate.objects.begin(), plate.objects.end(),
                                                [id](const WorkspaceObject& item) { return item.id == id; }),
@@ -206,7 +223,10 @@ public:
         m_redo.emplace_back(m_snapshot);
         m_snapshot = std::move(m_undo.back());
         m_undo.pop_back();
+        m_redo_names.push_back(std::move(m_undo_names.back()));
+        m_undo_names.pop_back();
         remember_ids();
+        publish_edit({EditKind::Undo, EditActor::Person, m_redo_names.back()});
         publish(changes_between(before, m_snapshot) | WorkspaceChangeReasons::History);
         return CommandResult::success();
     }
@@ -220,7 +240,10 @@ public:
         m_undo.emplace_back(m_snapshot);
         m_snapshot = std::move(m_redo.back());
         m_redo.pop_back();
+        m_undo_names.push_back(std::move(m_redo_names.back()));
+        m_redo_names.pop_back();
         remember_ids();
+        publish_edit({EditKind::Redo, EditActor::Person, m_undo_names.back()});
         publish(changes_between(before, m_snapshot) | WorkspaceChangeReasons::History);
         return CommandResult::success();
     }
@@ -256,7 +279,7 @@ public:
         if (name.empty())
             name = "Imported model";
 
-        save_undo();
+        save_undo("Import model");
         const ObjectId new_id(m_session, ++m_last_object_id);
         WorkspaceObject object;
         object.id   = new_id;
@@ -374,6 +397,8 @@ private:
         m_session = next_session();
         m_undo.clear();
         m_redo.clear();
+        m_undo_names.clear();
+        m_redo_names.clear();
         m_known_object_ids.clear();
         m_last_object_id = 0;
         if (!keep_aux_dir)
@@ -468,10 +493,24 @@ private:
                                       "Object does not exist in the current project session");
     }
 
-    void save_undo()
+    // Like OrcaSlicer's take_snapshot: the step is recorded, and reported to
+    // the change log, before the action changes anything.
+    void save_undo(std::string name)
     {
         m_undo.emplace_back(m_snapshot);
+        m_undo_names.push_back(name);
         m_redo.clear();
+        m_redo_names.clear();
+        publish_edit({EditKind::Step, EditActor::Person, std::move(name)});
+    }
+
+    void publish_setting_edit(const std::string& key, const std::string& before, const std::string& after)
+    {
+        const auto definition = std::find_if(m_settings.definitions.begin(), m_settings.definitions.end(),
+                                             [&](const auto& candidate) { return candidate.key == key; });
+        publish_edit({EditKind::Setting, EditActor::Person,
+                      definition == m_settings.definitions.end() ? key : definition->label, before, after,
+                      m_process_preset});
     }
 
     void remember_ids()
@@ -533,6 +572,8 @@ private:
     WorkspaceSnapshot             m_snapshot;
     std::vector<WorkspaceSnapshot> m_undo;
     std::vector<WorkspaceSnapshot> m_redo;
+    std::vector<std::string>       m_undo_names;
+    std::vector<std::string>       m_redo_names;
     std::set<ObjectId>             m_known_object_ids;
     std::uint64_t                  m_last_object_id{0};
     WorkspaceChangeHub             m_changes;

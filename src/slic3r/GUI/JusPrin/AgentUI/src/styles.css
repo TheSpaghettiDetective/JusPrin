@@ -655,6 +655,68 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   gap: 8px;
 }
 
+/* A reply that changed nothing says so beneath itself (Figma "Answered
+   response"): inset by the avatar's width, 4px under the text. The reply's
+   own bottom padding is that 4px, so the pair stacks with no gap. */
+.answered-turn {
+  display: flex;
+  flex-direction: column;
+}
+
+.answered-state {
+  padding-left: 20px;
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+
+/* The change log between the turns (Figma "Hand edits"). Rows are
+   third-layer content: hairlines above and below the group, no bubble, no
+   controls. */
+.change-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: stretch;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.change-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.change-icon {
+  flex: 0 0 auto;
+  color: var(--action-primary);
+  font: var(--font-label);
+}
+
+.change-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thread-row-line-gap);
+  min-width: 0;
+}
+
+.change-title {
+  color: var(--text-primary);
+  font: var(--font-body-small);
+  overflow-wrap: anywhere;
+}
+
+.change-title strong {
+  font: var(--font-body-small-bold);
+}
+
+.change-meta {
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+
 /* Native tool action cards. */
 .tool-card {
   align-self: stretch;

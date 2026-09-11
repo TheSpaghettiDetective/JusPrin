@@ -10,6 +10,7 @@
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
+#include "slic3r/Utils/UndoRedo.hpp"
 
 #include <boost/filesystem.hpp>
 
@@ -126,6 +127,36 @@ std::vector<PresetDelta> preset_deltas_of(const PresetCollection& prints, const 
     return result;
 }
 
+// The settings edited between two readings of one preset. A key's value in
+// force is its delta's value, or the preset's own value when it has no delta.
+std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before, const std::vector<PresetDelta>& after,
+                                         const PresetCollection& collection)
+{
+    const std::string& preset = collection.get_edited_preset().name;
+    const auto find = [](const std::vector<PresetDelta>& deltas, const std::string& key) {
+        const auto found = std::find_if(deltas.begin(), deltas.end(), [&key](const PresetDelta& delta) { return delta.key == key; });
+        return found == deltas.end() ? nullptr : &*found;
+    };
+    std::vector<WorkspaceEdit> edits;
+    for (const PresetDelta& delta : after) {
+        const PresetDelta* earlier = find(before, delta.key);
+        const std::string& was     = earlier != nullptr ? earlier->value : delta.preset;
+        if (was != delta.value)
+            edits.push_back({EditKind::Setting, EditActor::Person, delta.label, was, delta.value, preset});
+    }
+    // A delta disappears when the setting is put back to the preset's value,
+    // and also when the preset is saved with the value in it -- which changes
+    // nothing in force. So the value now in force decides.
+    for (const PresetDelta& delta : before)
+        if (find(after, delta.key) == nullptr) {
+            const ConfigOption* option = collection.get_edited_preset().config.option(delta.key);
+            const std::string   now    = option != nullptr ? option->serialize() : delta.preset;
+            if (now != delta.value)
+                edits.push_back({EditKind::Setting, EditActor::Person, delta.label, delta.value, now, preset});
+        }
+    return edits;
+}
+
 } // namespace
 
 OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
@@ -142,6 +173,8 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &OrcaWorkspaceAdapter::on_slice_status_changed, this);
     m_known_slice_state = current_slice_state();
     remember_current_ids();
+    remember_history();
+    record_settings_edits(/*report=*/false);
 }
 
 OrcaWorkspaceAdapter::~OrcaWorkspaceAdapter()
@@ -450,25 +483,108 @@ CommandResult OrcaWorkspaceAdapter::id_error(ObjectId id) const
 void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& change)
 {
     wxASSERT(wxIsMainThread());
+    const auto touched = [&](ProjectStateChangeReason reason) {
+        return (static_cast<std::uint32_t>(change.reasons) & static_cast<std::uint32_t>(reason)) != 0;
+    };
     if (change.project_replaced) {
         m_session = ProjectSessionId(change.project_session);
         m_known_object_ids.clear();
+        // A new or opened project starts its own history and presets; nothing
+        // in it is an edit.
+        remember_history();
+        record_settings_edits(/*report=*/false);
+    } else {
+        record_history_edits();
+        // Undo and redo restore the configuration they saved; that is part of
+        // the undo already recorded, so the baseline just follows it.
+        if (touched(ProjectStateChangeReason::Settings))
+            record_settings_edits(/*report=*/!m_plater.inside_snapshot_capture());
+        if (touched(ProjectStateChangeReason::Modified))
+            publish_edit({EditKind::Mark});
     }
     remember_current_ids();
+
+    const WorkspaceChangeReasons reasons = workspace_reasons(change.reasons);
+    // An undo step or a dirty mark alone is no workspace change, and must not
+    // clear the reason a slice about to be invalidated will report.
+    if (reasons == WorkspaceChangeReasons::None)
+        return;
     // Orca invalidates the slice as a consequence of this change and only then
     // posts EVT_SLICE_STATUS_CHANGED, so the reason is still the newest one
     // when the slice watcher runs. Naming only the actions a person would
     // recognise; anything else leaves the card saying nothing rather than
     // attributing the loss to something the reader did not do.
-    const auto touched = [&](ProjectStateChangeReason reason) {
-        return (static_cast<std::uint32_t>(change.reasons) & static_cast<std::uint32_t>(reason)) != 0;
-    };
     if (touched(ProjectStateChangeReason::Transform))     m_last_change_reason = "you moved the object";
     else if (touched(ProjectStateChangeReason::Objects))  m_last_change_reason = "the objects changed";
     else if (touched(ProjectStateChangeReason::Settings)) m_last_change_reason = "a setting changed";
     else                                                  m_last_change_reason.clear();
 
-    publish_change(workspace_reasons(change.reasons));
+    publish_change(reasons);
+}
+
+void OrcaWorkspaceAdapter::remember_history()
+{
+    const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
+    const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
+    // The uncaptured topmost placeholder holds the timestamp the next step
+    // will be recorded under.
+    m_first_unreported_step = snapshots.empty()             ? 0 :
+                              snapshots.back().is_topmost() ? snapshots.back().timestamp :
+                                                              snapshots.back().timestamp + 1;
+    m_seen_active_step = stack.active_snapshot_time();
+}
+
+void OrcaWorkspaceAdapter::record_history_edits()
+{
+    const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
+    const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
+    bool recorded = false;
+    for (const UndoRedo::Snapshot& snapshot : snapshots) {
+        if (snapshot.timestamp < m_first_unreported_step || snapshot.is_topmost())
+            continue;
+        recorded = true;
+        // A project separator is a project boundary, reported as one.
+        if (snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
+            UndoRedo::snapshot_modifies_project(snapshot))
+            publish_edit({EditKind::Step, EditActor::Person, snapshot.name});
+    }
+    const std::size_t active = stack.active_snapshot_time();
+    if (!recorded && active != m_seen_active_step) {
+        // The active position moved without a new step: undo or redo. The
+        // steps between the two positions were undone or redone; the first
+        // real one names the move.
+        const std::size_t from = std::min(active, m_seen_active_step);
+        const std::size_t to   = std::max(active, m_seen_active_step);
+        const auto named = std::find_if(snapshots.begin(), snapshots.end(), [from, to](const UndoRedo::Snapshot& snapshot) {
+            return snapshot.timestamp >= from && snapshot.timestamp < to && !snapshot.is_topmost() &&
+                   UndoRedo::snapshot_modifies_project(snapshot);
+        });
+        if (named != snapshots.end())
+            publish_edit({active < m_seen_active_step ? EditKind::Undo : EditKind::Redo, EditActor::Person, named->name});
+    }
+    remember_history();
+}
+
+void OrcaWorkspaceAdapter::record_settings_edits(bool report)
+{
+    PresetBundle& presets = *wxGetApp().preset_bundle;
+    const std::vector<const PresetCollection*> collections{static_cast<const PresetCollection*>(&presets.prints),
+                                                           static_cast<const PresetCollection*>(&presets.filaments),
+                                                           static_cast<const PresetCollection*>(&presets.printers)};
+    std::vector<PresetReading> now;
+    for (const PresetCollection* collection : collections)
+        now.push_back({collection->get_edited_preset().name,
+                       preset_deltas_of(*collection, collection->current_dirty_options())});
+    if (report && m_presets.size() == now.size())
+        for (std::size_t index = 0; index < now.size(); ++index) {
+            if (m_presets[index].name != now[index].name) {
+                publish_edit({EditKind::Preset, EditActor::Person, now[index].name});
+                continue;
+            }
+            for (const WorkspaceEdit& edit : setting_edits(m_presets[index].deltas, now[index].deltas, *collections[index]))
+                publish_edit(edit);
+        }
+    m_presets = std::move(now);
 }
 
 void OrcaWorkspaceAdapter::publish_change(WorkspaceChangeReasons reasons)

@@ -297,7 +297,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
-                                              Protocol::kMcpStatus,
+                                              Protocol::kMcpStatus, Protocol::kChangeAdded,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated});
 }
 
@@ -1131,6 +1131,42 @@ TEST_CASE("the draft lives in the recovery store and clears when sent", "[agent]
     harness.send_user_message("half-typed thought, finished", "c-d1");
     CHECK(harness.persistence.draft().empty());
     harness.pump_all();
+}
+
+TEST_CASE("the change log reaches the page in state, then entry by entry", "[agent][changes]")
+{
+    Harness harness;
+    harness.handshake();
+    CHECK((*harness.last_of_type("state"))["payload"]["changes"].empty());
+
+    REQUIRE(harness.workspace.rename_object(harness.workspace.snapshot().plates[0].objects[0].id, "by hand").succeeded());
+    REQUIRE(harness.last_of_type("change_added") != nullptr);
+    // A copy: the envelope list grows (and may move) with the next delivery.
+    const json change = (*harness.last_of_type("change_added"))["payload"]["change"];
+    CHECK(change["kind"] == "step");
+    CHECK(change["actor"] == "person");
+    CHECK(change["conversationId"] == harness.persistence.document().active_conversation_id());
+
+    harness.deliver("state_request");
+    REQUIRE((*harness.last_of_type("state"))["payload"]["changes"].size() == 1);
+    CHECK((*harness.last_of_type("state"))["payload"]["changes"][0]["seq"] == change["seq"]);
+}
+
+TEST_CASE("an approved Agent edit is logged as the Agent's, after its tool activity", "[agent][changes][tools]")
+{
+    Harness harness;
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const json proposed = propose_duplicate(harness, "c-change-agent");
+    const std::string action_id = proposed["actionId"].get<std::string>();
+    harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
+    pump_tools_to_completion(harness);
+
+    const json* added = harness.last_of_type("change_added");
+    REQUIRE(added != nullptr);
+    CHECK((*added)["payload"]["change"]["actor"] == "agent");
+    CHECK((*added)["payload"]["change"]["afterId"] == action_id);
+    CHECK(harness.of_type("change_added").size() == 1);
 }
 
 TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")

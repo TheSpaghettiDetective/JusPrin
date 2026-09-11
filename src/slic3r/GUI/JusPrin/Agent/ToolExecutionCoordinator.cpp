@@ -274,6 +274,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         fail(activity, "stale_revision", "The project changed before this action could execute. Propose it again.");
         return;
     }
+    // Whatever this action changes is the Agent's, in the change log.
+    const Workspace::IWorkspace::AgentEdit agent_edit(m_workspace);
     const ToolDefinition* definition = m_registry.find(activity.tool);
     if (definition == nullptr) {
         fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");

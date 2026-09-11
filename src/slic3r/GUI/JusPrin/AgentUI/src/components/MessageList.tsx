@@ -1,12 +1,15 @@
 // Conversation transcript with stable scroll anchoring: the list follows new
 // content only while the reader is at the bottom; scrolling up to reread
 // pins the viewport until they return to the bottom. Tool activity cards
-// render beneath the assistant message that proposed them.
+// render beneath the assistant message that proposed them; the change log and
+// the manufacturing history render after the conversation item they follow,
+// in the order they happened.
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { AttachmentInfo, BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
+import { AttachmentInfo, BuildInfo, ChangeInfo, ExportedCopyInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
+import { ChangeRows } from './ChangeRows';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
@@ -19,6 +22,7 @@ interface Props {
   builds: BuildInfo[];
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
+  changes: ChangeInfo[]; // already filtered to this conversation
   onRetry: (messageId: string) => void;
   onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
@@ -26,6 +30,43 @@ interface Props {
   // rather than being covered, so the conversation stays legibly there.
   dimmed?: boolean;
 }
+
+// What follows one conversation item: history cards and runs of changes, in
+// seq order. Consecutive changes form one block, which draws as one group.
+type TimelineBlock =
+  | { kind: 'history'; seq: number; entry: ManufacturingHistoryEntry }
+  | { kind: 'changes'; seq: number; changes: ChangeInfo[] };
+
+function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[]): TimelineBlock[] {
+  const items = [
+    ...history.map((entry) => ({ seq: entry.seq, history: entry, change: undefined })),
+    ...changes.map((change) => ({ seq: change.seq, history: undefined, change })),
+  ].sort((a, b) => a.seq - b.seq);
+  const blocks: TimelineBlock[] = [];
+  for (const item of items) {
+    const previous = blocks[blocks.length - 1];
+    if (item.change && previous?.kind === 'changes') previous.changes.push(item.change);
+    else if (item.change) blocks.push({ kind: 'changes', seq: item.seq, changes: [item.change] });
+    else blocks.push({ kind: 'history', seq: item.seq, entry: item.history! });
+  }
+  return blocks;
+}
+
+function TimelineBlocks({ blocks }: { blocks: TimelineBlock[] }) {
+  return (
+    <>
+      {blocks.map((block) =>
+        block.kind === 'history' ? (
+          <ManufacturingHistoryCard key={`${block.entry.kind}-${block.entry.record.id}`} entry={block.entry} />
+        ) : (
+          <ChangeRows key={`changes-${block.seq}`} changes={block.changes} />
+        ),
+      )}
+    </>
+  );
+}
+
+const inFlight = new Set(['pending', 'approved', 'running']);
 
 export function MessageList({
   messages,
@@ -35,6 +76,7 @@ export function MessageList({
   builds,
   exportedCopies,
   physicalPrints,
+  changes,
   onRetry,
   onToolDecision,
   onToolCancel,
@@ -54,22 +96,42 @@ export function MessageList({
   useLayoutEffect(() => {
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, builds, exportedCopies, physicalPrints, followBottom]);
+  }, [messages, toolActivities, builds, exportedCopies, physicalPrints, changes, followBottom]);
 
   const history: ManufacturingHistoryEntry[] = [
     ...builds.map((record) => ({ kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
     ...exportedCopies.map((record) => ({ kind: 'copy' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
     ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
-  ].sort((a, b) => a.seq - b.seq);
+  ];
+  const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
+  // A change follows a message or one of its tool activities; both place it
+  // after that message's group.
+  const messageOfItem = new Map<string, string>();
+  for (const message of messages) {
+    messageOfItem.set(message.id, message.id);
+    for (const activity of activitiesOf(message.id)) messageOfItem.set(activity.actionId, message.id);
+  }
+  const changesAfter = (messageId: string) => changes.filter((change) => messageOfItem.get(change.afterId) === messageId);
+  const leadingChanges = changes.filter((change) => !messageOfItem.has(change.afterId));
   const historyAfter = (messageId: string) => history.filter((entry) => entry.afterMessageId === messageId);
   const leadingHistory = history.filter(
     (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
   );
 
+  // A finished reply that changed nothing says so (Figma "Answered
+  // response"). Only the Agent's own changes count against it; the person
+  // editing by hand while it answered is not the Agent changing something.
+  const answeredWithoutChange = (message: Message) =>
+    message.role === 'assistant' &&
+    message.state === 'complete' &&
+    message.id !== streamingMessageId &&
+    !activitiesOf(message.id).some((activity) => inFlight.has(activity.state)) &&
+    !changesAfter(message.id).some((change) => change.actor === 'agent');
+
   return (
     <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      {leadingHistory.map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
+      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} />
       {messages.length === 0 && (
         <div className="notice">
           <h2>Ask the Agent about your print</h2>
@@ -79,15 +141,16 @@ export function MessageList({
           </p>
         </div>
       )}
-      {messages.map((message) =>
-        message.role === 'note' ? (
-          <div key={message.id} className="message-group">
-            <div className="message note" role="status">
-              {message.text}
+      {messages.map((message) => {
+        if (message.role === 'note')
+          return (
+            <div key={message.id} className="message-group">
+              <div className="message note" role="status">
+                {message.text}
+              </div>
             </div>
-          </div>
-        ) : (
-        <div key={message.id} className="message-group">
+          );
+        const bubble = (
           <div className={`message ${message.role}`}>
             {/* The agent does not speak in a bubble: a 20px action/primary
                 disc stands beside plain text, as the Figma "Chat Bubble"
@@ -123,9 +186,18 @@ export function MessageList({
               {message.state === 'stopped' && <div className="meta">Stopped</div>}
             </div>
           </div>
-          {toolActivities
-            .filter((activity) => activity.correlationId === message.id)
-            .map((activity) => (
+        );
+        return (
+          <div key={message.id} className="message-group">
+            {answeredWithoutChange(message) ? (
+              <div className="answered-turn">
+                {bubble}
+                <div className="answered-state">Answered · nothing changed</div>
+              </div>
+            ) : (
+              bubble
+            )}
+            {activitiesOf(message.id).map((activity) => (
               <ToolActivityCard
                 key={activity.actionId}
                 activity={activity}
@@ -133,10 +205,10 @@ export function MessageList({
                 onCancel={onToolCancel}
               />
             ))}
-          {historyAfter(message.id).map((entry) => <ManufacturingHistoryCard key={`${entry.kind}-${entry.record.id}`} entry={entry} />)}
-        </div>
-        ),
-      )}
+            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} />
+          </div>
+        );
+      })}
     </div>
   );
 }

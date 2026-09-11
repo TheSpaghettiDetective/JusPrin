@@ -240,6 +240,15 @@ TEST_CASE("the Agent pane resize geometry is explicit", "[brand]")
         "component.agentPane");
 }
 
+// A thread row (a hand edit, a G-code destination) stacks its title over its
+// metadata line with this gap. It is an internal size of the row, like button
+// padding, so it lives here rather than on the spacing scale.
+TEST_CASE("the thread row's line gap is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}}, "component.threadRow");
+}
+
 TEST_CASE("every component radius comes from the radius scale", "[brand]")
 {
     const json tokens = load_tokens();

@@ -52,6 +52,12 @@
 //              asserts the setup card reads "re-slicing…" while the slice
 //              runs, and writes recomputing-agent-pane.png and
 //              recomputing-shell.png to the directory (handoff item 6)
+//   --timeline-capture <output-directory>
+//              records a build, asks a question the Agent answers without a
+//              change, mirrors the object three times and edits a print
+//              setting by hand, asserts the thread's change rows and the
+//              "Answered · nothing changed" marker, and writes
+//              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
@@ -161,7 +167,8 @@ struct HarnessState
         McpSetup,
         ManualMcp,
         LiveAgentUnavailable,
-        RecomputingCapture
+        RecomputingCapture,
+        TimelineCapture
     };
 
     std::atomic<int>  result{-1};
@@ -318,6 +325,11 @@ public:
             if (m_state->mode == HarnessState::Mode::RecomputingCapture) {
                 verify_canvas_interaction();
                 wait_for_agent_page("recomputing", [self = shared_from_this()] { self->begin_recomputing_capture(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::TimelineCapture) {
+                verify_canvas_interaction();
+                wait_for_agent_page("timeline", [self = shared_from_this()] { self->begin_timeline_capture(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::SliceAllCold) {
@@ -1382,6 +1394,147 @@ private:
                        self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "recomputing_teardown_project");
                        self->finish();
                    });
+    }
+
+    // Revision-timeline handoff B10: the thread the Figma frame
+    // "print-timeline-panel-full · no revert" draws, built from real edits so
+    // the rows come through the adapter, persistence and the bridge exactly
+    // as a person's would. A recorded build gives a history card, a question
+    // the Agent answers without a change gives the "nothing changed" marker,
+    // three mirrors give one merged row, and a Tab edit gives a setting row.
+    void begin_timeline_capture()
+    {
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] { return active_plate_sliced_and_idle(); }, "timeline_fixture_sliced",
+                   [self = shared_from_this()] { self->timeline_record_build(); });
+    }
+
+    void timeline_record_build()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t activities_before = web_view.host().tools().activities().size();
+        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/build')");
+        wait_until([&web_view, activities_before] {
+            const auto& activities = web_view.host().tools().activities();
+            return activities.size() > activities_before && activities.back().tool == "record_build" &&
+                   activities.back().state == Agent::ToolState::Pending;
+        }, "timeline_build_proposed", [self = shared_from_this()] {
+            AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+            const std::string action_id = web_view.host().tools().activities().back().action_id;
+            WebView::RunScript(web_view.webview(),
+                               wxString::FromUTF8("window.__jusprinTest.decide('" + action_id + "', 'approve')"));
+            self->wait_until([self, &web_view] {
+                return self->persistence().document().builds().size() == 1 && !web_view.host().stream_active();
+            }, "timeline_build_recorded", [self] { self->timeline_ask(); });
+        });
+    }
+
+    void timeline_ask()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t before = web_view.host().conversation().size();
+        WebView::RunScript(web_view.webview(), "window.__jusprinTest.send('Will it need supports?')");
+        wait_until([&web_view, before] {
+            const auto messages = web_view.host().conversation();
+            return messages.size() >= before + 2 && messages.back().role == Agent::MessageRole::Assistant &&
+                   messages.back().state == Agent::MessageState::Complete;
+        }, "timeline_reply_completes", [self = shared_from_this()] { self->timeline_edit_by_hand(); });
+    }
+
+    void timeline_edit_by_hand()
+    {
+        const std::size_t changes_before = persistence().document().changes().size();
+        check(m_plater->select_object(0), "timeline_object_selected");
+        for (int mirror = 0; mirror < 3; ++mirror)
+            m_plater->mirror(Slic3r::X);
+        const std::string density =
+            wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize("sparse_infill_density") == "35%" ?
+                "45%" : "35%";
+        DynamicPrintConfig diff;
+        diff.set_deserialize_strict("sparse_infill_density", density);
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff);
+
+        const auto changes = persistence().document().changes();
+        const auto added = [&](const std::string& kind) {
+            return std::count_if(changes.begin() + static_cast<std::ptrdiff_t>(changes_before), changes.end(),
+                                 [&kind](const Agent::ChangeEntry& change) { return change.kind == kind; });
+        };
+        check(added("step") == 3, "timeline_three_mirrors_are_three_steps");
+        check(added("setting") >= 1, "timeline_tab_edit_is_a_setting_change");
+        check(std::all_of(changes.begin() + static_cast<std::ptrdiff_t>(changes_before), changes.end(),
+                          [](const Agent::ChangeEntry& change) { return change.actor == "person"; }),
+              "timeline_hand_edits_are_the_persons");
+
+        persistence().set_draft({});
+        wait_until([this] { return persistence().draft().rfind("timeline=", 0) == 0; }, "timeline_rows_rendered",
+                   [self = shared_from_this()] { self->capture_timeline(); }, [] { probe_timeline(); });
+    }
+
+    // Reports the rendered rows once the merged mirror row is on the page, so
+    // an unanswered probe and a page still catching up look the same: no draft.
+    static void probe_timeline()
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "(function(){"
+            "  var rows = Array.prototype.map.call(document.querySelectorAll('.change-row'),"
+            "    function (row) { return row.textContent; });"
+            "  var answered = document.querySelectorAll('.answered-state').length;"
+            "  if (window.__jusprinTest && rows.join('|').indexOf('3 steps merged') >= 0)"
+            "    window.__jusprinTest.setDraft('timeline=' + answered + '|' + rows.join('|'));"
+            "})()");
+    }
+
+    void capture_timeline()
+    {
+        const std::string probe = persistence().draft();
+        std::cout << "HARNESS TIMELINE PROBE " << probe << std::endl;
+        check(probe.rfind("timeline=", 0) == 0 && probe.substr(9, 1) != "0", "timeline_reply_says_nothing_changed");
+        check(probe.find("3 steps merged") != std::string::npos, "timeline_mirrors_merge_into_one_row");
+        check(probe.find("\xE2\x86\x92") != std::string::npos, "timeline_setting_row_reads_from_to");
+        persistence().set_draft({});
+        // The thread follows new content, but a late reflow can leave the last
+        // row just below the fold; the picture must show the newest rows.
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+                           "(function(){ var list = document.querySelector('.message-list');"
+                           "  if (list) list.scrollTop = list.scrollHeight; })()");
+        auto ticks = std::make_shared<int>(0);
+        wait_until([ticks] { return ++*ticks > 10; }, "timeline_thread_scrolled_to_end", [self = shared_from_this()] {
+            wxYield();
+            const bool dark = self->m_state->dark_appearance.value_or(false);
+            self->write_screen_capture(installed_shell()->agent_pane()->GetScreenRect(),
+                                       std::string("timeline-agent-pane-") + (dark ? "dark" : "light"));
+            self->timeline_new_project_starts_fresh();
+        });
+    }
+
+    // OrcaSlicer's undo timestamps restart with a new project, so the adapter
+    // must reset what it has seen: the new project's log starts empty, and
+    // its first edit is its first entry.
+    void timeline_new_project_starts_fresh()
+    {
+        const std::string before = persistence().document().project_id();
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "timeline_teardown_project");
+        wait_until([this, before] {
+            return persistence().document().has_identity() && persistence().document().project_id() != before;
+        }, "timeline_new_project_adopted", [self = shared_from_this()] {
+            self->check(self->persistence().document().changes().empty(), "timeline_new_project_starts_an_empty_change_log");
+            const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+            self->m_plater->load_files(std::vector<std::string>{cube},
+                                       LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+                                       false);
+            const std::size_t after_load = self->persistence().document().changes().size();
+            for (const Agent::ChangeEntry& change : self->persistence().document().changes())
+                std::cout << "HARNESS TIMELINE AFTER LOAD " << change.kind << " '" << change.label << "'" << std::endl;
+            // A real undo step in the new project. Its timestamp restarts
+            // from zero with the new history; had the adapter kept the old
+            // project's baseline, this step would go unreported.
+            self->check(self->m_plater->select_object(0), "timeline_new_project_object_selected");
+            self->m_plater->mirror(Slic3r::X);
+            const auto changes = self->persistence().document().changes();
+            self->check(changes.size() == after_load + 1 && changes.back().kind == "step",
+                        "timeline_first_edit_after_new_project_is_logged");
+            self->finish();
+        });
     }
 
     // What is on the screen, not what a widget would draw: the card is
@@ -3095,6 +3248,14 @@ int main(int argc, char** argv)
                 return 2;
             }
             state->mode = HarnessState::Mode::RecomputingCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--timeline-capture") {
+            if (++index == argc) {
+                std::cerr << "--timeline-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::TimelineCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
         else

@@ -175,6 +175,23 @@ json exported_copy_json(const ExportedCopyRecord& record)
                 {"modified", modified}};
 }
 
+json change_json(const ChangeEntry& change)
+{
+    json result{{"seq", change.seq},
+                {"createdAt", change.created_at},
+                {"kind", change.kind},
+                {"actor", change.actor},
+                {"label", change.label},
+                {"conversationId", change.conversation_id},
+                {"afterId", change.after_id}};
+    if (change.kind == "setting") {
+        result["from"]   = change.from;
+        result["to"]     = change.to;
+        result["preset"] = change.preset;
+    }
+    return result;
+}
+
 json physical_print_json(const PhysicalPrintRecord& record)
 {
     return json{{"id", record.id},
@@ -550,6 +567,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     // the attribution starts from that history rather than from empty.
     rebuild_agent_authored();
     m_persistence.set_document_replaced_listener([this]() { on_document_replaced(); });
+    m_persistence.set_change_listener([this](const ChangeEntry& change) {
+        if (m_handshake)
+            send_envelope(Protocol::kChangeAdded, json{{"change", change_json(change)}}.dump());
+    });
 }
 
 AgentHost::~AgentHost()
@@ -560,6 +581,7 @@ AgentHost::~AgentHost()
     // The persistence object outlives this host (the shell controller owns
     // both); drop the callbacks that capture `this`.
     m_persistence.set_document_replaced_listener({});
+    m_persistence.set_change_listener({});
 }
 
 void AgentHost::start_mcp(const std::string& discovery_path)
@@ -682,6 +704,9 @@ void AgentHost::send_state(const std::string& correlation_id)
     json physical_prints = json::array();
     for (const PhysicalPrintRecord& record : document.physical_prints())
         physical_prints.push_back(physical_print_json(record));
+    json changes = json::array();
+    for (const ChangeEntry& change : document.changes())
+        changes.push_back(change_json(change));
 
     json payload{{"agent", json{{"status", availability_name(m_availability)}}},
                  {"appearance", m_dark ? "dark" : "light"},
@@ -696,6 +721,7 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"builds", std::move(builds)},
                  {"exportedCopies", std::move(exported_copies)},
                  {"physicalPrints", std::move(physical_prints)},
+                 {"changes", std::move(changes)},
                  {"context", context_json(snapshot, agent_authored_keys(snapshot),
                                           m_persistence.document().setup_intent(active))}};
     send_envelope(Protocol::kState, payload.dump(), correlation_id);

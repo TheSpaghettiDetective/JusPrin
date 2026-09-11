@@ -284,6 +284,9 @@
       "resizeHandleWidth": 8,
       "resizeHandleLineWidth": 2
     },
+    "threadRow": {
+      "lineGap": 2
+    },
     "swatch": {
       "size": 24,
       "radius": 4

@@ -28,7 +28,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "context",     "appearance",  "tools",
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
-                                                 "mcp_setup", "system_notes", "reveal_path"};
+                                                 "mcp_setup", "system_notes", "reveal_path", "change_log"};
     return values;
 }
 
@@ -76,6 +76,8 @@ inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
 inline constexpr const char* kSetupStatus        = "setup_status";
 inline constexpr const char* kMcpStatus          = "mcp_status";
+// One new change log entry; the full list travels in `state`.
+inline constexpr const char* kChangeAdded        = "change_added";
 
 } // namespace Protocol
 

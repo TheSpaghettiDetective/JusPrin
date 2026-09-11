@@ -253,6 +253,31 @@ struct WorkspaceChanged
 
 using WorkspaceChangedCallback = std::function<void(const WorkspaceChanged&)>;
 
+// Who made an edit: the person, unless the Agent executor holds an
+// IWorkspace::AgentEdit scope while its command runs.
+enum class EditActor : std::uint8_t { Person, Agent };
+
+// What kind of edit the change log records.
+//   Step     a real undo step: OrcaSlicer's snapshot_modifies_project rule;
+//            label is OrcaSlicer's own step name, which may be empty
+//   Undo     the undo history moved back; label is the step undone
+//   Redo     the undo history moved forward; label is the step redone
+//   Setting  one setting's value in force changed; label is its display name
+//   Preset   a whole preset was switched; label is the new preset's name
+//   Mark     the project was marked modified without an undo step; no label
+enum class EditKind : std::uint8_t { Step, Undo, Redo, Setting, Preset, Mark };
+
+struct WorkspaceEdit
+{
+    EditKind    kind{EditKind::Step};
+    EditActor   actor{EditActor::Person};
+    std::string label;
+    // Setting only: the value before and after, and the preset it was edited in.
+    std::string before, after, preset;
+};
+
+using WorkspaceEditCallback = std::function<void(const WorkspaceEdit&)>;
+
 class WorkspaceSubscription
 {
 public:
@@ -287,6 +312,7 @@ private:
     std::function<void()> m_unsubscribe;
 
     friend class WorkspaceChangeHub;
+    friend class WorkspaceEditHub;
 };
 
 // A delivery is safe to queue: it owns no workspace or observer and becomes a
@@ -404,6 +430,54 @@ private:
     std::shared_ptr<State> m_state;
 };
 
+// Delivers edits synchronously, in the order the workspace detects them. Edits
+// are a feed of their own, separate from WorkspaceChanged: they do not
+// advance the revision, so recording them can never make a pending Agent
+// proposal stale.
+class WorkspaceEditHub
+{
+public:
+    WorkspaceEditHub() : m_state(std::make_shared<State>()) {}
+    WorkspaceEditHub(const WorkspaceEditHub&) = delete;
+    WorkspaceEditHub& operator=(const WorkspaceEditHub&) = delete;
+    ~WorkspaceEditHub() { m_state->observers.clear(); }
+
+    WorkspaceSubscription subscribe(WorkspaceEditCallback callback)
+    {
+        const std::uint64_t id = m_state->next_observer_id++;
+        m_state->observers.emplace(id, std::move(callback));
+        std::weak_ptr<State> weak_state = m_state;
+        return WorkspaceSubscription([weak_state, id]() {
+            if (auto state = weak_state.lock())
+                state->observers.erase(id);
+        });
+    }
+
+    void publish(const WorkspaceEdit& edit)
+    {
+        std::shared_ptr<State> state = m_state;
+        std::vector<std::uint64_t> observer_ids;
+        for (const auto& observer : state->observers)
+            observer_ids.emplace_back(observer.first);
+        for (const std::uint64_t id : observer_ids) {
+            const auto observer = state->observers.find(id);
+            if (observer == state->observers.end())
+                continue;
+            WorkspaceEditCallback callback = observer->second;
+            callback(edit);
+        }
+    }
+
+private:
+    struct State
+    {
+        std::uint64_t                                  next_observer_id{1};
+        std::map<std::uint64_t, WorkspaceEditCallback> observers;
+    };
+
+    std::shared_ptr<State> m_state;
+};
+
 struct SettingDefinition
 {
     std::string key, type, label, category, description, unit;
@@ -499,8 +573,36 @@ public:
     virtual CommandResult import_model(const std::string& file_path) = 0;
 
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
+
+    // The change log's feed: every edit, delivered synchronously as the
+    // workspace detects it and stamped with the actor in force.
+    WorkspaceSubscription subscribe_edits(WorkspaceEditCallback callback) { return m_edits.subscribe(std::move(callback)); }
+
+    // Held by the Agent executor around a command, so the edits the command
+    // causes are attributed to the Agent. Everything else is the person's.
+    class AgentEdit
+    {
+    public:
+        explicit AgentEdit(IWorkspace& workspace) : m_workspace(workspace) { ++m_workspace.m_agent_edits; }
+        ~AgentEdit() { --m_workspace.m_agent_edits; }
+        AgentEdit(const AgentEdit&) = delete;
+        AgentEdit& operator=(const AgentEdit&) = delete;
+
+    private:
+        IWorkspace& m_workspace;
+    };
+
+protected:
+    void publish_edit(WorkspaceEdit edit)
+    {
+        edit.actor = m_agent_edits > 0 ? EditActor::Agent : EditActor::Person;
+        m_edits.publish(edit);
+    }
+
 private:
     std::shared_ptr<SliceReviews> m_slice_reviews{std::make_shared<SliceReviews>()};
+    WorkspaceEditHub              m_edits;
+    int                           m_agent_edits{0};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

@@ -65,6 +65,8 @@ public:
     // Fired after the document has been replaced by an adoption; the consumer
     // must rebuild everything it derived from the old document.
     void set_document_replaced_listener(std::function<void()> listener) { m_document_replaced = std::move(listener); }
+    // Fired after each workspace edit has been appended to the change log.
+    void set_change_listener(std::function<void(const ChangeEntry&)> listener) { m_change_added = std::move(listener); }
 
     // Fired when the manufacturing ledger gains an entry or the document is
     // replaced. Deliberately a separate slot from the Agent-owned listener
@@ -116,6 +118,7 @@ public:
 private:
     void notify_document_replaced();
     void on_workspace_changed(const Workspace::WorkspaceChanged& change);
+    void on_edit(const Workspace::WorkspaceEdit& edit);
     bool heal_if_directory_moved();
     void adopt_current_project(bool in_place_reset);
     void start_fresh_identity();
@@ -126,10 +129,12 @@ private:
     Workspace::IWorkspace&           m_workspace;
     Config                           m_config;
     Workspace::WorkspaceSubscription m_subscription;
+    Workspace::WorkspaceSubscription m_edit_subscription;
     ProjectStateDocument             m_document;
 
-    std::function<void()> m_document_replaced;
-    std::function<void()> m_ledger_changed;
+    std::function<void()>                   m_document_replaced;
+    std::function<void(const ChangeEntry&)> m_change_added;
+    std::function<void()>                   m_ledger_changed;
 
     std::string m_attached_aux_dir;
     std::string m_draft;

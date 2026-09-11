@@ -15,7 +15,8 @@
     "conversation_management",
     "mcp_setup",
     "system_notes",
-    "reveal_path"
+    "reveal_path",
+    "change_log"
   ],
   "pageMessageTypes": [
     "hello",
@@ -59,6 +60,7 @@
     "setup_status",
     "mcp_catalog",
     "mcp_preview",
-    "mcp_status"
+    "mcp_status",
+    "change_added"
   ]
 }

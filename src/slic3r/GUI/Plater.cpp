@@ -4441,7 +4441,7 @@ struct Plater::priv
     bool need_update() const { return m_need_update; }
     void set_need_update(bool need_update) { m_need_update = need_update; }
 
-    void set_plater_dirty(bool is_dirty) { dirty_state.set_plater_dirty(is_dirty); }
+    void set_plater_dirty(bool is_dirty) { dirty_state.set_plater_dirty(is_dirty); if (is_dirty) q->notify_project_state_changed(ProjectStateChangeReason::Modified); }
     bool is_project_dirty() const { return dirty_state.is_dirty(); }
     bool is_presets_dirty() const { return dirty_state.is_presets_dirty(); }
     void update_project_dirty_from_presets()
@@ -11713,7 +11713,7 @@ void Plater::priv::take_snapshot(const std::string& snapshot_name, const UndoRed
     // Save the last active preset name of a particular printer technology.
     ((this->printer_technology == ptFFF) ? m_last_fff_printer_profile_name : m_last_sla_printer_profile_name) = wxGetApp().preset_bundle->printers.get_selected_preset_name();
     BOOST_LOG_TRIVIAL(info) << "Undo / Redo snapshot taken: " << snapshot_name << ", Undo / Redo stack memory: " << Slic3r::format_memsize_MB(this->undo_redo_stack().memsize()) << log_memory_info();
-    q->notify_project_state_changed(ProjectStateChangeReason::None);
+    q->notify_project_state_changed(ProjectStateChangeReason::UndoStep);
 }
 
 void Plater::priv::undo()

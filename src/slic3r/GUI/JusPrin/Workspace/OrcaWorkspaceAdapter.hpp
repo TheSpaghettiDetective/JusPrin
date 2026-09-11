@@ -65,6 +65,25 @@ private:
     void publish_change(WorkspaceChangeReasons reasons);
     void remember_current_ids() const;
 
+    // The change log reads what happened from state OrcaSlicer already keeps:
+    // its undo history for model edits, and the presets' differences for
+    // settings. So a feature that records an undo step is covered without a
+    // line of fork code.
+    void record_history_edits();
+    void remember_history();
+    void record_settings_edits(bool report);
+    struct PresetReading
+    {
+        std::string              name;
+        std::vector<PresetDelta> deltas;
+    };
+    // The timestamp the next undo step will take, and the active position in
+    // the history at the last look. Timestamps restart when a project is
+    // created or opened, so both are reset at every project replacement.
+    std::size_t                m_first_unreported_step{0};
+    std::size_t                m_seen_active_step{0};
+    std::vector<PresetReading> m_presets; // process, filament, printer
+
     Plater&                         m_plater;
     ProjectSessionId                m_session;
     WorkspaceChangeHub              m_changes;

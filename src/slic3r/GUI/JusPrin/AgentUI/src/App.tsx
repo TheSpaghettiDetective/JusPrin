@@ -293,6 +293,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
           builds={state.builds}
           exportedCopies={state.exportedCopies}
           physicalPrints={state.physicalPrints}
+          changes={state.changes.filter((change) => change.conversationId === state.activeConversationId)}
           onRetry={(messageId) => client.send('retry_message', { messageId })}
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}

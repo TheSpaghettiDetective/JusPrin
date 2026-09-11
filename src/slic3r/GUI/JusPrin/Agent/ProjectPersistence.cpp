@@ -72,6 +72,19 @@ bool write_file(const fs::path& path, const std::string& content)
     return !ec;
 }
 
+const char* edit_kind_name(Workspace::EditKind kind)
+{
+    switch (kind) {
+    case Workspace::EditKind::Step: return "step";
+    case Workspace::EditKind::Undo: return "undo";
+    case Workspace::EditKind::Redo: return "redo";
+    case Workspace::EditKind::Setting: return "setting";
+    case Workspace::EditKind::Preset: return "preset";
+    case Workspace::EditKind::Mark: return "mark";
+    }
+    throw std::logic_error("Unknown workspace edit kind");
+}
+
 } // namespace
 
 ProjectPersistence::ProjectPersistence(Workspace::IWorkspace& workspace, Config config)
@@ -84,6 +97,25 @@ ProjectPersistence::ProjectPersistence(Workspace::IWorkspace& workspace, Config 
     m_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
         on_workspace_changed(change);
     });
+    m_edit_subscription = m_workspace.subscribe_edits([this](const Workspace::WorkspaceEdit& edit) { on_edit(edit); });
+}
+
+void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
+{
+    // The edit belongs to whatever project is really open now.
+    resolve_pending_boundary();
+    ChangeEntry entry;
+    entry.kind   = edit_kind_name(edit.kind);
+    entry.actor  = edit.actor == Workspace::EditActor::Agent ? "agent" : "person";
+    entry.label  = edit.label;
+    entry.from   = edit.before;
+    entry.to     = edit.after;
+    entry.preset = edit.preset;
+    const ChangeEntry stored = m_document.add_change(std::move(entry), m_config.clock());
+    // A paint session is a burst of edits; the owner's pacing timer writes them.
+    commit();
+    if (m_change_added)
+        m_change_added(stored);
 }
 
 void ProjectPersistence::attach()

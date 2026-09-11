@@ -53,6 +53,87 @@ static_assert(!std::is_convertible_v<std::uint64_t, PlateId>);
 static_assert(!std::is_convertible_v<std::uint64_t, ObjectId>);
 static_assert(!std::is_copy_constructible_v<WorkspaceSubscription>);
 
+namespace {
+
+struct EditLog
+{
+    std::vector<WorkspaceEdit> edits;
+    WorkspaceSubscription      subscription;
+    explicit EditLog(IWorkspace& workspace)
+        : subscription(workspace.subscribe_edits([this](const WorkspaceEdit& edit) { edits.push_back(edit); }))
+    {}
+};
+
+} // namespace
+
+TEST_CASE("The workspace reports each real edit, and nothing else, to the change log", "[workspace][changes]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    EditLog log(workspace);
+
+    REQUIRE(workspace.select_object(object_id(workspace, 100)).succeeded());
+    const PlateId plate = workspace.snapshot().plates[0].id;
+    workspace.set_plate_sliced(plate, true);
+    workspace.set_plate_sliced(plate, false);
+    CHECK(log.edits.empty());
+
+    REQUIRE(workspace.rename_object(object_id(workspace, 100), "Bracket").succeeded());
+    REQUIRE(log.edits.size() == 1);
+    CHECK(log.edits[0].kind == EditKind::Step);
+    CHECK(log.edits[0].label == "Rename Object");
+    CHECK(log.edits[0].actor == EditActor::Person);
+
+    REQUIRE(workspace.undo().succeeded());
+    REQUIRE(workspace.redo().succeeded());
+    REQUIRE(log.edits.size() == 3);
+    CHECK(log.edits[1].kind == EditKind::Undo);
+    CHECK(log.edits[1].label == "Rename Object");
+    CHECK(log.edits[2].kind == EditKind::Redo);
+    CHECK(log.edits[2].label == "Rename Object");
+
+    workspace.record_step_for_testing("");
+    CHECK(log.edits.back().kind == EditKind::Step);
+    CHECK(log.edits.back().label.empty());
+
+    const std::uint64_t revision = workspace.snapshot().revision;
+    workspace.mark_modified_for_testing();
+    CHECK(log.edits.back().kind == EditKind::Mark);
+    // An edit is not a workspace change, so recording one can never make a
+    // pending Agent proposal stale.
+    CHECK(workspace.snapshot().revision == revision);
+}
+
+TEST_CASE("Edits made inside an Agent edit scope are the Agent's", "[workspace][changes]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    EditLog log(workspace);
+    {
+        const IWorkspace::AgentEdit agent(workspace);
+        REQUIRE(workspace.duplicate_object(object_id(workspace, 100)).succeeded());
+    }
+    REQUIRE(workspace.rename_object(object_id(workspace, 100), "By hand").succeeded());
+    REQUIRE(log.edits.size() == 2);
+    CHECK(log.edits[0].actor == EditActor::Agent);
+    CHECK(log.edits[1].actor == EditActor::Person);
+}
+
+TEST_CASE("A settings edit names the setting, both values and the preset; a switch is one edit", "[workspace][changes]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    EditLog log(workspace);
+    workspace.set_setting_for_testing("wall_loops", "5");
+    REQUIRE(log.edits.size() == 1);
+    CHECK(log.edits[0].kind == EditKind::Setting);
+    CHECK(log.edits[0].after == "5");
+    CHECK(log.edits[0].before != "5");
+    CHECK(log.edits[0].preset == "Fixture process");
+    CHECK_FALSE(log.edits[0].label.empty());
+    workspace.set_process_preset_for_testing("Strong");
+    REQUIRE(log.edits.size() == 2);
+    CHECK(log.edits[1].kind == EditKind::Preset);
+    CHECK(log.edits[1].label == "Strong");
+}
+
 TEST_CASE("Process settings search is bounded, deterministic, and supplies correction metadata", "[workspace][settings]")
 {
     FakeWorkspace workspace(sample_workspace());

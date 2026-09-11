@@ -21,7 +21,12 @@ enum class ProjectStateChangeReason : std::uint32_t {
     Transform = 1u << 3,
     Plates    = 1u << 4,
     Project   = 1u << 5,
-    Settings  = 1u << 6
+    Settings  = 1u << 6,
+    // An undo step was recorded. Observers read the undo history itself for
+    // what it was; the step may be a selection that changes nothing.
+    UndoStep  = 1u << 7,
+    // The project was marked modified by an edit that records no undo step.
+    Modified  = 1u << 8
 };
 
 constexpr ProjectStateChangeReason operator|(ProjectStateChangeReason lhs, ProjectStateChangeReason rhs)

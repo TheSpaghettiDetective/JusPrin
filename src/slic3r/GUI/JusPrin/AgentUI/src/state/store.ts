@@ -9,6 +9,7 @@ import {
   Appearance,
   AttachmentInfo,
   BuildInfo,
+  ChangeInfo,
   ConversationInfo,
   Envelope,
   ExportedCopyInfo,
@@ -42,6 +43,7 @@ export interface AgentUiState {
   builds: BuildInfo[];
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
+  changes: ChangeInfo[];
   draft: string;
   // Staged (composer) and sent (history) attachments, keyed by id in the UI.
   attachments: AttachmentInfo[];
@@ -71,6 +73,7 @@ export const initialState: AgentUiState = {
   builds: [],
   exportedCopies: [],
   physicalPrints: [],
+  changes: [],
   draft: '',
   attachments: [],
   context: null,
@@ -143,6 +146,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         builds: full.builds ?? [],
         exportedCopies: full.exportedCopies ?? [],
         physicalPrints: full.physicalPrints ?? [],
+        changes: full.changes ?? [],
         draft: full.draft ?? '',
         attachments: full.attachments ?? [],
         context: full.context,
@@ -230,6 +234,12 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         messages: upsert(state.messages, { ...message, state: 'stopped' }),
         streamingMessageId: state.streamingMessageId === id ? null : state.streamingMessageId,
       };
+    }
+    case 'change_added': {
+      const change = payload.change as ChangeInfo;
+      // seq is unique across the document; a redelivery changes nothing.
+      if (state.changes.some((known) => known.seq === change.seq)) return state;
+      return { ...state, changes: [...state.changes, change] };
     }
     case 'tool_activity': {
       const activity = payload.activity as ToolActivityInfo;
