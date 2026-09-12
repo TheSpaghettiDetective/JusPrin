@@ -71,6 +71,10 @@ public:
     bool select_spool(const std::string& spool_id);
     // The spools the chip would list right now, most recently used first.
     std::vector<Workspace::Spool> listed_spools();
+    // The one store, for readers that need spools of a printer other than the
+    // current one -- Home's printer column lists them all. A second store over
+    // the same file would be a second writer, so the shell shares this one.
+    Workspace::SpoolStore* spool_store() const { return m_spools.get(); }
     // Remembers a spool for the current printer, as the spool menu's
     // "Use this spool" step does, without selecting it.
     Workspace::Spool remember_spool(const std::string& filament_preset, const std::string& colour,

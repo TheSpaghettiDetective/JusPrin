@@ -1,0 +1,418 @@
+/* Every color, radius, and type metric below resolves through a custom
+   property that tokens.ts writes from resources/jusprin/ui/design-tokens.json:
+   --<group>-<name> for colors, --radius-<name> for radii, --font-<role> for
+   the `font` shorthand of each type role, and the --project-card-*,
+   --printer-card-* and --status-dot-* card geometry. Padding, margin, and gap
+   stay literal but must sit on the spacing scale. styles.test.ts fails the
+   build on any literal outside those rules. */
+
+/* The product font ships with OrcaSlicer, but it is registered as a private
+   font of the native process and the web view renders in a separate process
+   that cannot see it. The Latin subset shared with the Agent page is embedded
+   so Home uses the same face as the native shell; CJK text falls through to
+   the system font. */
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  font-weight: 400;
+  font-style: normal;
+  src: url('../../WebShared/fonts/HarmonyOS_Sans_SC_Regular_latin.woff') format('woff');
+}
+@font-face {
+  font-family: 'HarmonyOS Sans SC';
+  font-weight: 700;
+  font-style: normal;
+  src: url('../../WebShared/fonts/HarmonyOS_Sans_SC_Bold_latin.woff') format('woff');
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+}
+
+.app.connecting {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.app.connecting h1 {
+  font: var(--font-section);
+  margin: 0;
+}
+
+.app.connecting p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.footnote {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* Gallery: takes the width the printer rail leaves. */
+.gallery {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.gallery-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.section-label {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.empty {
+  color: var(--text-secondary);
+}
+
+/* As many columns as fit: the track floor sets the column count, and the card
+   carries its own ceiling. The bound has to sit on the card rather than on the
+   track -- auto-fill counts tracks by their maximum, so minmax(240px, 320px)
+   fits two 320px columns at 1280 where three 293px ones belong. At 1280 this
+   is 3 columns of 293, at 1920 six of 245. */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--project-card-min-width), 1fr));
+  justify-content: start;
+  gap: 16px;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--project-card-max-width);
+  padding: 0;
+  text-align: left;
+  font: var(--font-body);
+  color: inherit;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--project-card-radius);
+  box-shadow: var(--elevation-subtle);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* Tinted, not filled: the tint has to differ from an ordinary card or it
+   stops reading as a state. Filling the card with the status color hid the
+   status text; a grey tint read as disabled. */
+.project-card.printing {
+  background: var(--surface-subtle);
+  border-color: var(--status-success);
+}
+
+/* No ground of its own: the frame takes the card's, so a card without an
+   image, or a squarer render inside a 4:3 frame, reads as one surface rather
+   than as a lighter box stacked on a tinted strip. */
+.project-thumbnail {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--project-card-thumbnail-aspect);
+  overflow: hidden;
+}
+
+/* The model is fitted whole and never cropped. The image is taken out of
+   flow: in flow, its intrinsic height becomes the frame's minimum content
+   height and overrides the ratio, which turned every card with a real .3mf
+   thumbnail square in the app while cards without one stayed 4:3. */
+.project-thumbnail img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.project-thumbnail-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.project-footer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: var(--project-card-footer-height);
+  padding: 0 12px;
+}
+
+/* A long project name truncates; it never reflows the grid. */
+.project-title {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-card.printing .project-status {
+  color: var(--status-success);
+}
+
+.status-dot {
+  flex: 0 0 auto;
+  width: var(--status-dot-size);
+  height: var(--status-dot-size);
+  border-radius: var(--radius-pill);
+  background: var(--text-secondary);
+}
+
+.status-dot.printing {
+  background: var(--status-success);
+}
+
+/* Printer rail: a fixed column, full height beside the gallery. */
+.printer-column {
+  flex: 0 0 var(--printer-card-column-width);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 24px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.printer-column .section-label {
+  margin-bottom: 8px;
+}
+
+.printer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--printer-card-padding);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--printer-card-radius);
+  box-shadow: var(--elevation-subtle);
+}
+
+.printer-card.collapsed {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.printer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.printer-name {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.printer-job {
+  font: var(--font-body-small);
+  color: var(--status-success);
+}
+
+.printer-progress {
+  height: var(--printer-card-progress-height);
+  border-radius: var(--radius-pill);
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.printer-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--status-success);
+}
+
+.printer-detail {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.printer-spools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.printer-material {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+/* Without the border the black spool vanishes on the dark card and the white
+   one on the light card. */
+.spool-swatch {
+  width: var(--swatch-size);
+  height: var(--swatch-size);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--swatch-radius);
+}
+
+.button-primary,
+.button-secondary,
+.add-printer,
+.launch-monitor {
+  font: var(--font-body);
+  padding: var(--button-secondary-padding);
+  border-radius: var(--radius-standard);
+  cursor: pointer;
+}
+
+.button-primary {
+  color: var(--action-primary-text);
+  background: var(--action-primary);
+  border: 1px solid var(--action-primary);
+}
+
+.button-primary:hover {
+  background: var(--action-primary-hover);
+  border-color: var(--action-primary-hover);
+}
+
+/* Import and Launch monitor are outlined, not plain text: as text they
+   stopped reading as controls. */
+.button-secondary,
+.launch-monitor {
+  color: var(--action-secondary-text);
+  background: var(--action-secondary);
+  border: 1px solid var(--action-secondary-border);
+}
+
+.button-secondary:hover,
+.launch-monitor:hover {
+  background: var(--action-secondary-hover);
+}
+
+.launch-monitor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.add-printer {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+}
+
+.add-printer:hover {
+  background: var(--action-secondary-hover);
+}
+
+/* The gallery's scroller sits right beside the rail's divider, so a platform
+   scrollbar reads as a second, heavier line. It is drawn as a thin subtle
+   thumb over no track instead, leaving one divider on screen. */
+.gallery,
+.printer-column {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.gallery::-webkit-scrollbar,
+.printer-column::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gallery::-webkit-scrollbar-track,
+.printer-column::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Transparent at rest: the design draws one divider beside the rail, and a
+   thumb sitting against it reads as a second heavier line. It appears when the
+   pointer is over the surface it scrolls. */
+.gallery::-webkit-scrollbar-thumb,
+.printer-column::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-pill);
+}
+
+.gallery:hover::-webkit-scrollbar-thumb,
+.printer-column:hover::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+}
+
+.gallery::-webkit-scrollbar-thumb:hover,
+.printer-column::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* Glyphs take the size and colour of the text beside them. */
+.glyph {
+  flex: 0 0 auto;
+  width: var(--glyph-size);
+  height: var(--glyph-size);
+}
+
+.printer-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.printer-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

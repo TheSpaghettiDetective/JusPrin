@@ -1,17 +1,12 @@
-// Bridge client for the Agent page: the shared transport and handshake bound
-// to this page's protocol identity. It renders nothing; the app consumes its
-// connection state and the host envelopes it validates. Reload safety comes
-// from the protocol design: every hello is answered with complete native
-// state, and outgoing user messages carry stable client IDs the host
-// deduplicates.
+// Bridge client for the Home page: the shared transport and handshake bound to
+// this page's protocol identity.
 
 import { SharedBridgeClient } from '@shared/bridgeClient';
+import type { BridgeClientOptions } from '@shared/bridgeClient';
 import { PAGE_CAPABILITIES, PROTOCOL_NAME, PROTOCOL_VERSION } from './protocol';
 
 export type { ConnectionState, Transport, BridgeClientOptions } from '@shared/bridgeClient';
 export { nativeTransport } from '@shared/bridgeClient';
-
-import type { BridgeClientOptions } from '@shared/bridgeClient';
 
 export class BridgeClient extends SharedBridgeClient {
   constructor(options: BridgeClientOptions) {

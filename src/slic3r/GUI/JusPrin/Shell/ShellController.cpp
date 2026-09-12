@@ -6,6 +6,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -229,9 +230,21 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // The page handshake gates delivery, not native MCP execution.
         m_runtime_timer.Start(33);
 
+        // Home is a fork-owned panel beside the Notebook, not one of its pages.
+        // The Notebook keeps every page it had, so upstream keeps the meaning
+        // of its indices: the dialog parents that ask for page 0, the
+        // predicates that key off GetSelection(), and any future cast of a
+        // page all still find the window they expect. The shell owns only
+        // which of the two is on screen for tpHome.
+        m_home = new Home::HomeWebView(&frame, *m_theme, frame, m_status_row->spool_store());
+        m_home->Hide();
+
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
-        m_center_sizer->Add(&tabpanel, 1, wxEXPAND);
+        m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
+        m_workspace_sizer->Add(&tabpanel, 1, wxEXPAND);
+        m_workspace_sizer->Add(m_home, 1, wxEXPAND);
+        m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_agent_resize_handle, 0, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
         main_sizer.Insert(0, m_status_row, 0, wxEXPAND);
@@ -260,7 +273,12 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
         frame.Bind(wxEVT_SIZE, &ShellController::on_frame_size, this);
 
+        // A member function rather than a lambda so uninstall() can take it
+        // off again: the Notebook outlives this controller.
+        tabpanel.Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
+
         m_installed = true;
+        on_page_changed();
         apply_current_appearance();
         m_status_row->refresh();
         frame.Layout();
@@ -380,6 +398,7 @@ void ShellController::uninstall()
     m_agent_pane_collapsed = false;
     m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
     m_frame->Unbind(wxEVT_SIZE, &ShellController::on_frame_size, this);
+    m_tabpanel->Unbind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
 
     m_prepare_canvas_presentation.detach();
     m_plater->get_collapse_toolbar().set_enabled(m_saved_collapse_toolbar_enabled);
@@ -388,7 +407,11 @@ void ShellController::uninstall()
     m_tabpanel->GetBtnsListCtrl()->Show();
 
     if (m_center_sizer != nullptr) {
-        m_center_sizer->Detach(m_tabpanel);
+        if (m_workspace_sizer != nullptr) {
+            m_workspace_sizer->Detach(m_tabpanel);
+            if (m_home != nullptr)
+                m_workspace_sizer->Detach(m_home);
+        }
         if (m_agent_resize_handle != nullptr)
             m_center_sizer->Detach(m_agent_resize_handle);
         if (m_agent_pane != nullptr)
@@ -396,6 +419,7 @@ void ShellController::uninstall()
         m_main_sizer->Detach(m_center_sizer);
         delete m_center_sizer;
         m_center_sizer = nullptr;
+        m_workspace_sizer = nullptr;
     }
     if (m_status_row != nullptr)
         m_main_sizer->Detach(m_status_row);
@@ -414,6 +438,13 @@ void ShellController::uninstall()
         m_agent_pane->Destroy();
         m_agent_pane = nullptr;
     }
+    if (m_home != nullptr) {
+        m_home->Destroy();
+        m_home = nullptr;
+    }
+    // The Notebook is hidden only while Home is up, so the stock presentation
+    // gets it back shown.
+    m_tabpanel->Show();
     // After the pane (and with it the Agent host) is gone.
     m_persistence.reset();
     m_workspace.reset();
@@ -428,8 +459,43 @@ void ShellController::apply_current_appearance()
         m_status_row->apply_appearance(dark);
     if (m_agent_pane != nullptr)
         m_agent_pane->apply_appearance(dark);
+    if (m_home != nullptr)
+        m_home->apply_appearance(dark);
     if (m_agent_resize_handle != nullptr)
         m_agent_resize_handle->Refresh();
+}
+
+// Home is a screen before a project, not a workspace: the Agent pilots a
+// project, so its panel has nothing to act on here and the design does not
+// show it. It is collapsed while Home is up and restored to whatever the
+// person had chosen on the way out.
+//
+// The gallery is a view of state that changes while another screen is in front
+// -- a project saved, a print started -- so it is refreshed on the way in
+// rather than kept live behind the canvas.
+void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
+{
+    on_page_changed();
+    event.Skip();
+}
+
+void ShellController::on_page_changed()
+{
+    if (!m_installed || m_home == nullptr || m_tabpanel == nullptr)
+        return;
+    const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
+    if (home)
+        m_home->refresh();
+    // Home and the Notebook share the workspace slot, so exactly one is shown.
+    // The Notebook is only hidden while Home is the selection: post_init
+    // selects the Prepare tab to map the GL canvas before it initialises
+    // OpenGL, and this handler runs on that selection, so the Notebook is
+    // shown at the moment the canvas has to be on screen.
+    m_home->Show(home);
+    m_tabpanel->Show(!home);
+    if (m_workspace_sizer != nullptr)
+        m_workspace_sizer->Layout();
+    set_agent_pane_collapsed(home ? true : m_agent_pane_user_collapsed);
 }
 
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)

@@ -170,6 +170,45 @@ TEST_CASE("the radius scale is exactly the documented one", "[brand]")
         "dimension.radius");
 }
 
+// The three elevation tiers, from the Design System page's elevation refs.
+// They live outside `semantic` because a shadow is not a color and the
+// semantic section is guarded as hex-only, but they are per-mode all the same:
+// the geometry is one set of numbers and only the opacity changes, which is
+// the rule the design states and the reason a mode switch cannot move a card.
+TEST_CASE("the elevation scale is exactly the documented one", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& elevation = tokens.at("elevation");
+    const std::map<std::string, std::map<std::string, double>> expected = {
+        {"subtle", {{"offsetX", 0}, {"offsetY", 2}, {"blur", 8}, {"spread", 0}, {"light", 0.08}, {"dark", 0.24}}},
+        {"medium", {{"offsetX", 0}, {"offsetY", 4}, {"blur", 12}, {"spread", 0}, {"light", 0.12}, {"dark", 0.32}}},
+        {"strong", {{"offsetX", 0}, {"offsetY", 8}, {"blur", 24}, {"spread", 0}, {"light", 0.16}, {"dark", 0.40}}},
+    };
+    for (const auto& [tier, spec] : expected) {
+        INFO("elevation." << tier);
+        REQUIRE(elevation.contains(tier));
+        const json& actual = elevation.at(tier);
+        for (const char* field : {"offsetX", "offsetY", "blur", "spread"}) {
+            INFO("elevation." << tier << "." << field);
+            CHECK(actual.at(field).get<double>() == spec.at(field));
+        }
+        // Pure black in both modes; a tinted shadow was the thing the design
+        // audit removed.
+        CHECK(actual.at("color") == "#000000");
+        for (const char* mode : {"light", "dark"}) {
+            INFO("elevation." << tier << ".opacity." << mode);
+            CHECK(actual.at("opacity").at(mode).get<double>() == spec.at(mode));
+        }
+        // A shadow that moved between modes would shift the surface it sits
+        // on; only its weight may change.
+        CHECK(actual.at("opacity").at("dark").get<double>() > actual.at("opacity").at("light").get<double>());
+    }
+    for (const auto& [tier, spec] : elevation.items()) {
+        INFO("elevation." << tier << " is not a documented tier");
+        CHECK(expected.count(tier) == 1);
+    }
+}
+
 TEST_CASE("the spacing scale is exactly the documented one", "[brand]")
 {
     const json tokens = load_tokens();
@@ -247,6 +286,50 @@ TEST_CASE("the thread row's line gap is explicit", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}}, "component.threadRow");
+}
+
+// Home's gallery sizes its own cards: as many columns as fit between these
+// bounds, each card a 4:3 thumbnail over a fixed footer. The numbers are
+// agent-docs/jusprin/home-screen-handoff.md section 2, and the responsive
+// column count it tabulates only holds while they do.
+TEST_CASE("the project card geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& card = tokens.at("component").at("projectCard");
+    require_exact_table<int>(card,
+        {{"minWidth", 240}, {"maxWidth", 320}, {"footerHeight", 64},
+         {"thumbnailAspectWidth", 4}, {"thumbnailAspectHeight", 3}, {"radius", 12}},
+        "component.projectCard");
+    CHECK(card.at("minWidth").get<int>() < card.at("maxWidth").get<int>());
+}
+
+// The printer column is a fixed rail, not a share of the window: the gallery
+// takes the width that is left. A printing printer's progress bar is the one
+// size inside the card that is not padding.
+TEST_CASE("the printer card geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("printerCard"),
+        {{"columnWidth", 320}, {"progressHeight", 4}, {"padding", 16}, {"radius", 12}},
+        "component.printerCard");
+}
+
+// Home sizes its inline glyphs -- the printer beside a name, the monitor on
+// its button -- from the smallest step of this scale, so it must stay the
+// smallest and stay 16.
+TEST_CASE("the icon scale is exactly the documented one", "[brand]")
+{
+    const json tokens = load_tokens();
+    const std::vector<int> sizes = tokens.at("component").at("icon").at("sizes").get<std::vector<int>>();
+    CHECK(sizes == std::vector<int>{16, 20, 24});
+}
+
+// One dot marks a printing project card and a printing printer. Only the
+// color separates the states, so the size must not drift between the two.
+TEST_CASE("the status dot is one size", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("statusDot"), {{"size", 8}}, "component.statusDot");
 }
 
 TEST_CASE("every component radius comes from the radius scale", "[brand]")
