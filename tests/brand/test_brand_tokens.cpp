@@ -170,6 +170,45 @@ TEST_CASE("the radius scale is exactly the documented one", "[brand]")
         "dimension.radius");
 }
 
+// The three elevation tiers, from the Design System page's elevation refs.
+// They live outside `semantic` because a shadow is not a color and the
+// semantic section is guarded as hex-only, but they are per-mode all the same:
+// the geometry is one set of numbers and only the opacity changes, which is
+// the rule the design states and the reason a mode switch cannot move a card.
+TEST_CASE("the elevation scale is exactly the documented one", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& elevation = tokens.at("elevation");
+    const std::map<std::string, std::map<std::string, double>> expected = {
+        {"subtle", {{"offsetX", 0}, {"offsetY", 2}, {"blur", 8}, {"spread", 0}, {"light", 0.08}, {"dark", 0.24}}},
+        {"medium", {{"offsetX", 0}, {"offsetY", 4}, {"blur", 12}, {"spread", 0}, {"light", 0.12}, {"dark", 0.32}}},
+        {"strong", {{"offsetX", 0}, {"offsetY", 8}, {"blur", 24}, {"spread", 0}, {"light", 0.16}, {"dark", 0.40}}},
+    };
+    for (const auto& [tier, spec] : expected) {
+        INFO("elevation." << tier);
+        REQUIRE(elevation.contains(tier));
+        const json& actual = elevation.at(tier);
+        for (const char* field : {"offsetX", "offsetY", "blur", "spread"}) {
+            INFO("elevation." << tier << "." << field);
+            CHECK(actual.at(field).get<double>() == spec.at(field));
+        }
+        // Pure black in both modes; a tinted shadow was the thing the design
+        // audit removed.
+        CHECK(actual.at("color") == "#000000");
+        for (const char* mode : {"light", "dark"}) {
+            INFO("elevation." << tier << ".opacity." << mode);
+            CHECK(actual.at("opacity").at(mode).get<double>() == spec.at(mode));
+        }
+        // A shadow that moved between modes would shift the surface it sits
+        // on; only its weight may change.
+        CHECK(actual.at("opacity").at("dark").get<double>() > actual.at("opacity").at("light").get<double>());
+    }
+    for (const auto& [tier, spec] : elevation.items()) {
+        INFO("elevation." << tier << " is not a documented tier");
+        CHECK(expected.count(tier) == 1);
+    }
+}
+
 TEST_CASE("the spacing scale is exactly the documented one", "[brand]")
 {
     const json tokens = load_tokens();

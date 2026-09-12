@@ -78,7 +78,9 @@ describe('styles.css stays on the design tokens', () => {
     expect(emitted).toContain('--project-card-min-width');
     expect(emitted).toContain('--printer-card-column-width');
     const requested = [
-      ...css.matchAll(/var\((--(?:font|button|project-card|printer-card|status-dot|swatch|glyph)-[\w-]+)\)/g),
+      ...css.matchAll(
+        /var\((--(?:font|button|project-card|printer-card|status-dot|swatch|glyph|elevation)-[\w-]+)\)/g,
+      ),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);
     expect(requested.filter((name) => !emitted.has(name))).toEqual([]);
@@ -172,6 +174,21 @@ describe('styles.css stays on the design tokens', () => {
     const rule = css.match(/\.project-thumbnail\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
     expect(rule![0]).not.toMatch(/background/);
+  });
+
+  // Both cards rest just above the surface, which is the Subtle tier. The
+  // design's audit replaced thirteen ad-hoc shadows with three tiers, so a
+  // literal here is the thing that must not come back.
+  it('lifts both cards with the subtle elevation token', () => {
+    for (const selector of [/\.project-card\s*\{[^}]*\}/, /\.printer-card\s*\{[^}]*\}/]) {
+      const rule = css.match(selector);
+      expect(rule).not.toBeNull();
+      expect(rule![0]).toMatch(/box-shadow:\s*var\(--elevation-subtle\)/);
+    }
+    // A shadow written out by hand would carry its own colour and escape the
+    // token file; the only box-shadow allowed to name a colour is none.
+    const literal = offending(/box-shadow\s*:(?![^;]*var\()/);
+    expect(literal).toEqual([]);
   });
 
   // Without the border the black spool vanishes on the dark card and the white

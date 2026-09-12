@@ -94,6 +94,34 @@ export function applySharedStaticTokens(): void {
   }
 }
 
+interface ElevationTier {
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  spread: number;
+  color: string;
+  opacity: Record<string, number>;
+}
+
+function elevationTiers(): Record<string, ElevationTier> {
+  return (tokens as unknown as { elevation: Record<string, ElevationTier> }).elevation;
+}
+
+// Every --elevation-<tier> variable applyAppearance writes. They are appearance
+// variables rather than static ones: the geometry is shared across modes but
+// the opacity is not, so the value is rewritten whenever the mode changes.
+export function elevationVariableNames(): string[] {
+  return Object.keys(elevationTiers()).map((tier) => `--elevation-${kebab(tier)}`);
+}
+
+// "#000000" + 0.24 -> "rgba(0, 0, 0, 0.24)". The token keeps the colour as hex
+// so it reads like every other colour in the file; CSS needs it with an alpha.
+function rgba(hex: string, opacity: number): string {
+  const value = hex.replace('#', '');
+  const channel = (at: number) => parseInt(value.slice(at, at + 2), 16);
+  return `rgba(${channel(0)}, ${channel(2)}, ${channel(4)}, ${opacity})`;
+}
+
 export function applyAppearance(appearance: Appearance): void {
   const semantic = (tokens as { semantic: Record<string, SemanticMode> }).semantic;
   const mode = semantic[appearance] ?? semantic.light;
@@ -102,6 +130,13 @@ export function applyAppearance(appearance: Appearance): void {
     for (const [name, value] of Object.entries(values)) {
       if (typeof value === 'string') root.style.setProperty(`--${group}-${name}`, value);
     }
+  }
+  for (const [tier, shadow] of Object.entries(elevationTiers())) {
+    const opacity = shadow.opacity[appearance] ?? shadow.opacity.light;
+    root.style.setProperty(
+      `--elevation-${kebab(tier)}`,
+      `${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blur}px ${shadow.spread}px ${rgba(shadow.color, opacity)}`,
+    );
   }
   root.dataset.appearance = appearance;
 }

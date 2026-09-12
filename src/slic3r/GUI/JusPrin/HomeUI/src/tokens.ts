@@ -10,6 +10,7 @@ import tokens from '@resources/jusprin/ui/design-tokens.json';
 import {
   applyPixelTokens,
   applySharedStaticTokens,
+  elevationVariableNames,
   pixelVariableNames,
   sharedStaticVariableNames,
 } from '@shared/tokens';
@@ -52,6 +53,7 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('printer-card', component.printerCard),
     ...pixelVariableNames('status-dot', component.statusDot),
     ...pixelVariableNames('swatch', component.swatch),
+    ...elevationVariableNames(),
     GLYPH,
   ];
 }

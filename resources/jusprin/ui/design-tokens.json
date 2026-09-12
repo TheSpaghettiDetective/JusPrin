@@ -213,6 +213,41 @@
       "pill": 9999
     }
   },
+  "elevation": {
+    "subtle": {
+      "offsetX": 0,
+      "offsetY": 2,
+      "blur": 8,
+      "spread": 0,
+      "color": "#000000",
+      "opacity": {
+        "light": 0.08,
+        "dark": 0.24
+      }
+    },
+    "medium": {
+      "offsetX": 0,
+      "offsetY": 4,
+      "blur": 12,
+      "spread": 0,
+      "color": "#000000",
+      "opacity": {
+        "light": 0.12,
+        "dark": 0.32
+      }
+    },
+    "strong": {
+      "offsetX": 0,
+      "offsetY": 8,
+      "blur": 24,
+      "spread": 0,
+      "color": "#000000",
+      "opacity": {
+        "light": 0.16,
+        "dark": 0.4
+      }
+    }
+  },
   "component": {
     "button": {
       "compact": {

@@ -129,6 +129,7 @@ body {
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--project-card-radius);
+  box-shadow: var(--elevation-subtle);
   overflow: hidden;
   cursor: pointer;
 }
@@ -239,6 +240,7 @@ body {
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--printer-card-radius);
+  box-shadow: var(--elevation-subtle);
 }
 
 .printer-card.collapsed {
