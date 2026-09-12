@@ -6,6 +6,7 @@
 // gallery rather than showing an empty screen that looks like "no projects".
 
 #include "HomeHost.hpp"
+#include "OrcaHomeBackend.hpp"
 
 #include <wx/panel.h>
 
@@ -49,8 +50,10 @@ private:
     void on_load_error(wxWebViewEvent& event);
     void show_page_error(const wxString& reason);
 
-    const ShellTheme&         m_theme;
-    std::unique_ptr<HomeHost> m_host;
+    const ShellTheme&                 m_theme;
+    // The backend outlives the host that reads through it.
+    std::unique_ptr<OrcaHomeBackend>  m_backend;
+    std::unique_ptr<HomeHost>         m_host;
     wxWebView*                m_webview{nullptr};
     wxStaticText*             m_error{nullptr};
 };

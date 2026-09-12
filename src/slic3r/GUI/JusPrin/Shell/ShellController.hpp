@@ -73,6 +73,7 @@ private:
     // Applies what the Notebook's current page implies for the shell: Home
     // refreshes its gallery and takes the Agent panel off the screen.
     void on_page_changed();
+    void on_notebook_page_changed(wxBookCtrlEvent& event);
     void on_frame_size(wxSizeEvent& event);
     // The width the pane may hold right now: at least its own minimum, and no
     // more than what the frame can spare beside a usable workspace.
@@ -90,10 +91,8 @@ private:
 
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
-    // The Notebook's tpHome page, in place of the stock one it displaced.
+    // Shown in the Notebook's slot while the Notebook's selection is tpHome.
     Home::HomeWebView* m_home{nullptr};
-    // The displaced stock page, kept alive so uninstall can hand it back.
-    wxWindow* m_stock_home_page{nullptr};
     wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
     wxBoxSizer* m_workspace_sizer{nullptr};

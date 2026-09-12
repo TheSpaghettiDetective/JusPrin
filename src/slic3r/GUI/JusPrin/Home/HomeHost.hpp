@@ -1,29 +1,21 @@
 #pragma once
 
 // The native side of the jusprin-home-bridge protocol: it answers the page's
-// handshake, assembles the Home snapshot from OrcaSlicer's own recent-project
-// history and device layer, and turns the page's messages into the actions the
-// shell already owns. It holds no project or printer state of its own -- every
-// hello is answered with a complete snapshot, so a page reload is always
-// recoverable.
+// handshake, sends the snapshot the backend assembles, and turns the page's
+// messages into backend actions. It holds no project or printer state of its
+// own -- every hello is answered with a complete snapshot, so a page reload is
+// always recoverable.
 //
-// The transport is injected, so this class carries no wx window and can be
-// driven from a test or from HomeWebView alike.
+// No wx and no Orca types: the transport is injected and the application is
+// reached through IHomeBackend, so the protocol can be exercised in a GUI-free
+// test with a fake backend.
 
-#include "HomeSnapshot.hpp"
+#include "HomeBackend.hpp"
 
 #include <nlohmann/json_fwd.hpp>
 
 #include <functional>
 #include <string>
-
-namespace Slic3r { namespace GUI {
-class MainFrame;
-}} // namespace Slic3r::GUI
-
-namespace Slic3r { namespace GUI { namespace JusPrin { namespace Workspace {
-class SpoolStore;
-}}}} // namespace Slic3r::GUI::JusPrin::Workspace
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -33,9 +25,7 @@ public:
     // Receives one serialised envelope to hand to the page.
     using Send = std::function<void(const std::string&)>;
 
-    // `spools` may be null: the shell owns the one store, and Home renders
-    // without swatches rather than opening a second writer to the same file.
-    HomeHost(MainFrame& frame, Workspace::SpoolStore* spools, Send send);
+    HomeHost(IHomeBackend& backend, Send send);
 
     // A (re)load invalidates the handshake; nothing but hello is answered
     // until the new page introduces itself.
@@ -54,13 +44,12 @@ private:
     Snapshot collect() const;
     void     send(const std::string& type, const nlohmann::json& payload, const std::string& correlation = {});
 
-    MainFrame&             m_frame;
-    Workspace::SpoolStore* m_spools{nullptr};
-    Send                   m_send;
-    bool                   m_connected{false};
-    unsigned long long     m_sent{0};
-    unsigned long long     m_received{0};
-    unsigned long long     m_next_id{1};
+    IHomeBackend&      m_backend;
+    Send               m_send;
+    bool               m_connected{false};
+    unsigned long long m_sent{0};
+    unsigned long long m_received{0};
+    unsigned long long m_next_id{1};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

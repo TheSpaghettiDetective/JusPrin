@@ -33,7 +33,8 @@ boost::filesystem::path home_page_path()
 HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame, Workspace::SpoolStore* spools)
     : wxPanel(parent, wxID_ANY), m_theme(theme)
 {
-    m_host = std::make_unique<HomeHost>(frame, spools, [this](const std::string& envelope) {
+    m_backend = std::make_unique<OrcaHomeBackend>(frame, spools);
+    m_host    = std::make_unique<HomeHost>(*m_backend, [this](const std::string& envelope) {
         if (m_webview == nullptr)
             return;
         wxString script = "window.__jusprinBridge && window.__jusprinBridge.deliver(";
@@ -76,8 +77,9 @@ HomeWebView::~HomeWebView()
 {
     // The webview outlives this frame's teardown callbacks in wx's child
     // destruction order; drop the host first so it cannot run script against a
-    // dying view.
+    // dying view, then the backend it reads through.
     m_host.reset();
+    m_backend.reset();
 }
 
 void HomeWebView::apply_appearance(bool dark)
