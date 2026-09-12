@@ -1,0 +1,9 @@
+Does your design mean that now there are two mechanisms to track operations such as rotation or move? If that's the case, it's not very error-prone. For example, if the user restored to a point in the history, what will happen if the user presses undo ?  In the past, you are freaking bad at referencing the same thing with multiple names. And by doing so, you confuse yourself and me. Please stop doing that. Use consistent terminologies when you reference to any new concept that you're bringing up. And try and stay with plain English.
+
+---
+
+Are you saying that the undue history is the source of truth and the changelog is derived value?  If so,  When the project is closed and reopened, the undue history will be lost from the memory, right? Are you trying to build a system where the source of truth will by default be gone? That sounds like the most ridiculous design I've ever heard. Try to explain to me how your design holds water using plain English. For complex problems like this, you need to cut to the cord of the problem. And once you have done that, you will arrive at a very solid design. And that solid design usually can be explained concisely using plain English. You need to learn this from human beings, you know.
+
+---
+
+So can I think of a copy as the entire project file minus mesh (unless mesh changes)? If so, lay out the cheaper copy using orca's auto-backup
