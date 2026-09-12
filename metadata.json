@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2B8BHFC6ARNXZWNN9E9X5C9",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "agent-docs/jusprin/orca-feature-discovery.md",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrimaryPrintAction.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/SliceReviewPanel.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SliceReviewPanel.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/StatusRow.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/SliceReview.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/agent/test_mcp_bridge.cpp",
+    "tests/agent/test_mcp_runtime.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_primary_print_action.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/agent/test_tool_registry.cpp",
+    "tests/jusprin/test_shell_theme.cpp",
+    "tests/mcp/test_linux_package.py",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 394857,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 13532288,
+    "output_tokens": 44102,
+    "api_call_count": 113
+  }
+}
