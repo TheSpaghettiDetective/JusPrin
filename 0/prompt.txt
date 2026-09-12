@@ -1,0 +1,21 @@
+delete the folder you created. I mean copy /Users/kenneth/Projects/JusPrin/agent-docs/jusprin/revision-timeline-handoff.md to folder ~/Downloads on gcp vm jusprin-win-test ,
+
+---
+
+jsut to be sure: we are talking about saving only the jusprin subfolder in the .3mf file. anything outside the jusprin subfolder will be a straight copy, right?
+
+---
+
+How is the restorability accomplished in the current code or in your design? For instance, if a user manipulates the object by moving it around or rotating it. Will these actions being restorable the project is saved and reopened?
+
+---
+
+What do you mean by copies?  Define copies in plain English.  Use the styogram to help me understand conceptually what happens when rotate is performed and how close and reopening the project will work as expected.
+
+---
+
+saving duplciate copies are stupid. what's the alternative? in vanilla Orcaslicer, Undo/redo history exists only in memory and is never written to the .3MF file, right? if so, should we start saving hsitory to jusprin auxiliary folder? this sounds messy and error-prone
+
+---
+
+Does your design mean that now there are two mechanisms to track operations such as rotation or move? If that's the case, it's not very error-prone. For example, if the user restored to a point in the history, what will happen if the user presses undo ?
