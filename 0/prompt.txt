@@ -1,0 +1,3 @@
+check the code base to see how currently changes are saved my understanding is as as follows. Let me know if my understanding are inaccurate or incomplete:
+
+One the app never automatically saves the three MF files or the settings change two The app will check if any of those have been modified when the project is about to close. Th3 If any of those are modified, the app will ask the user if they want to save it. If the modification is about the 3D model itself, it'll save to the the dot three mm file without prompt. But if the modifications about the settings, it'll ask the user if the change needs to be saved to the user preset or the project file itself.
