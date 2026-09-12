@@ -152,6 +152,27 @@ into the strip at construction. The Phase 1 production shell reached a
 19-added-line upstream footprint this way where the POC's reparenting shell
 needed edits across eight upstream files.
 
+The same measurement gives the rule for every fork-owned screen that comes
+after the shell. OrcaSlicer's surfaces (the stock homepage, Prepare, Preview,
+Monitor, the settings tabs) stay inside the Notebook, because their
+correctness depends on it. Fork-owned surfaces (the header, the Agent pane,
+Home, and whatever follows) live outside it, as siblings of the Notebook in a
+fork-owned sizer, shown and hidden by the shell. The shell *reads* the
+Notebook's selection to decide what to show and *never edits its page list*:
+no `RemovePage`, `InsertPage`, or reparenting of a stock page. Removing or
+replacing a page hands the fork the meaning of that index. Upstream keeps
+addressing it by number — `tpHome` as a dialog parent, the target of
+`EVT_LOAD_URL`, the tab `post_init` returns to — and every one of those lands
+on the fork's widget with no conflict and no error. If a fork surface truly
+must be a page, append it last, where no upstream code addresses it.
+
+Navigation between screens stays a Notebook selection change even when the
+screen being left is fork-owned. Menu and shortcut enabling, undo and redo
+availability, and slice-status updates all read `GetSelection()`, so the
+selection must remain the one record of which OrcaSlicer surface is active.
+Showing Prepare any other way leaves those predicates answering for the wrong
+page, silently.
+
 Some stock behavior is already exposed as an event idiom rather than a
 function. Upstream itself drives plate slicing from two places with the same
 sequence — the slice button and the Cmd+R shortcut both run
