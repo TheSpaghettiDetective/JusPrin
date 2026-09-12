@@ -1,0 +1,17 @@
+read @/Users/kenneth/Projects/JusPrin/agent-docs/jusprin/revision-thin-copy-spike-handoff.md and tell me what the goal is
+
+---
+
+will this file format be compatible with other tools that support .3mf file format?
+
+---
+
+so a "thin file" is a separate file invisible to the user? probably in the data folder for jusprin?
+
+---
+
+Do you think that you have enough information to implement this? If you think you do, describe the file structure of the top .3mf file.
+
+---
+
+So the mesh is already in the 3D/Objects/ folder.  And we're duplicating them in the meshes/ subfolder?
