@@ -235,7 +235,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px;
+  padding: var(--printer-card-padding);
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--printer-card-radius);

@@ -297,12 +297,13 @@
       "footerHeight": 64,
       "thumbnailAspectWidth": 4,
       "thumbnailAspectHeight": 3,
-      "radius": 8
+      "radius": 12
     },
     "printerCard": {
       "columnWidth": 320,
       "progressHeight": 4,
-      "radius": 8
+      "padding": 16,
+      "radius": 12
     },
     "statusDot": {
       "size": 8

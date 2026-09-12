@@ -259,7 +259,7 @@ TEST_CASE("the project card geometry is explicit", "[brand]")
     const json& card = tokens.at("component").at("projectCard");
     require_exact_table<int>(card,
         {{"minWidth", 240}, {"maxWidth", 320}, {"footerHeight", 64},
-         {"thumbnailAspectWidth", 4}, {"thumbnailAspectHeight", 3}, {"radius", 8}},
+         {"thumbnailAspectWidth", 4}, {"thumbnailAspectHeight", 3}, {"radius", 12}},
         "component.projectCard");
     CHECK(card.at("minWidth").get<int>() < card.at("maxWidth").get<int>());
 }
@@ -271,7 +271,7 @@ TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("printerCard"),
-        {{"columnWidth", 320}, {"progressHeight", 4}, {"radius", 8}},
+        {{"columnWidth", 320}, {"progressHeight", 4}, {"padding", 16}, {"radius", 12}},
         "component.printerCard");
 }
 
