@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2B1HQ6B64FYJ64EGSAAPAV9",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "agent-docs/jusprin/revision-copy-cost-handoff.md",
+    "agent-docs/jusprin/revision-timeline-handoff.md",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2696,
+    "cache_creation_tokens": 331273,
+    "cache_read_tokens": 17076669,
+    "output_tokens": 84769,
+    "api_call_count": 98,
+    "subagent_tokens": {
+      "input_tokens": 1812,
+      "cache_creation_tokens": 636599,
+      "cache_read_tokens": 7860799,
+      "output_tokens": 27277,
+      "api_call_count": 63
+    }
+  }
+}

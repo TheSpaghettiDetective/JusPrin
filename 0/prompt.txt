@@ -1,0 +1,197 @@
+read @/Users/kenneth/Projects/JusPrin/agent-docs/jusprin/revision-timeline-handoff.md tell me what the goal is
+
+---
+
+check the code yourself. check the figma design in https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=0-1 in claude in chrome. then provide your assessment if the design (nobody agreed except the author) is optimal. if you can offer a better design, speak up
+
+---
+
+Grouping contradicts the Figma - ok
+Labels need more than undo names. - do whatever that is the simplest. it's ok to not exactly follow figma design.
+Coverage holes - these holes are fine
+Copy cost at Send - ok. spin up a subagent to measure it.
+Staleness - what's yoru suggestion?
+
+now give me your verdict again
+
+---
+
+<task-notification>
+<task-id>ac797cfec6e8b58c7</task-id>
+<tool-use-id>toolu_01KuS1ezKnELery5CKqpdiQL</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/ac797cfec6e8b58c7.output</output-file>
+<status>completed</status>
+<summary>Agent "Measure project export cost" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The build is progressing (roughly 220/703 steps at the last check; the CMake re-run rebuilt the precompiled headers, so the whole RelWithDebInfo tree is recompiling). Nothing else I need is independent of it finishing, so I'll wait for the completion notification.</result>
+<usage><subagent_tokens>144207</subagent_tokens><tool_uses>31</tool_uses><duration_ms>331746</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bgvtojopy</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/bgvtojopy.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for the subagent's export_bench_harness build to exit" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac797cfec6e8b58c7</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/ac797cfec6e8b58c7.output</output-file>
+<status>completed</status>
+<summary>Agent "Measure project export cost" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The benchmark process has just started (7 s of wall clock). I'll wait for its completion notification rather than poll.</result>
+<usage><subagent_tokens>146350</subagent_tokens><tool_uses>35</tool_uses><duration_ms>3110689</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac797cfec6e8b58c7</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/ac797cfec6e8b58c7.output</output-file>
+<status>completed</status>
+<summary>Agent "Measure project export cost" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Everything else I need now depends on the clean rerun finishing, so I'll wait for its notification.</result>
+<usage><subagent_tokens>185410</subagent_tokens><tool_uses>52</tool_uses><duration_ms>4086753</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac797cfec6e8b58c7</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/ac797cfec6e8b58c7.output</output-file>
+<status>completed</status>
+<summary>Agent "Measure project export cost" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The clean rerun is in progress (loads take roughly 5 s + 20 s + 50 s at -O0, plus about a minute of exports); the only thing I need next is its result, so I'll wait for the completion notification.</result>
+<usage><subagent_tokens>189562</subagent_tokens><tool_uses>56</tool_uses><duration_ms>4133485</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac797cfec6e8b58c7</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/ac797cfec6e8b58c7.output</output-file>
+<status>completed</status>
+<summary>Agent "Measure project export cost" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Result: full project export cost vs mesh size
+
+All numbers are from `build/arm64` **RelWithDebInfo**, which this repo compiles at **-O0** (`CMakeLists.txt:544-548` rewrites `-O2` to `-O0` for Clang). The shipping Release config is -O3 and was not built (empty `build/arm64/src/*/Release/`; a full -O3 build is roughly an hour). Treat the absolute milliseconds as an upper bound; the ratios and the "where the time goes" split are what to trust. The earlier "170 ms / 31 KB" figure came from the same -O0 harness config, so it is comparable.
+
+Machine: Apple M2 Pro, 12 cores, 32 GB, macOS 26.3. One sphere mesh per project, one plate, the default Bambu X1C profile from `tests/data/jusprin/harness.conf`. "Mesh size" = binary STL bytes (50 B/triangle); the in-memory `indexed_triangle_set` is about a third of that.
+
+| Mesh (STL) | Triangles | `export_project_archive` ms (3 runs) | 3MF bytes | Serialization only (`store_bbs_3mf`, no thumbnails) | 3MF bytes |
+|---|---|---|---|---|---|
+| 0.1 MB (baseline) | 1,980 | 120 / 121 / 121 | 88,886 | 25 ms | 37,405 |
+| 5.0 MB | 100,172 | 1,054 / 1,059 / 1,055 | 1,223,539 | 936-942 ms | 1,149,231 |
+| 20.0 MB | 400,056 | 3,757 / 3,748 / 3,727 | 4,621,424 | 3,593-3,620 ms | 4,554,866 |
+| 49.9 MB | 998,000 | 8,337 / 8,356 / 8,350 | 9,347,393 | 8,255-8,312 ms | 9,285,383 |
+
+Findings:
+- **Cost is linear, about 8.3-10.5 ms per 1,000 triangles at -O0.** A 1M-triangle project blocks the UI for ~8.3 s per timeline row; a 100k one for ~1 s.
+- **The export is on the UI thread.** `OrcaWorkspaceAdapter::export_project_archive` asserts `wxIsMainThread()` (`OrcaWorkspaceAdapter.cpp:378`) and the harness confirmed `main_thread=1`; `ProjectPersistence::capture_revision` calls it synchronously from the workspace-change handler (`ProjectPersistence.cpp:172, 303-315`).
+- **Almost all of it is mesh serialization, not thumbnails.** Thumbnail rendering + `publish()` + plate bookkeeping is a fixed ~95-140 ms (the 2k-triangle case: 120 ms total vs 25 ms store-only; this matches the old 170 ms for a two-plate project = 2 plates x 4 GL thumbnails). Everything above that is `_BBS_3MF_Exporter::_add_mesh_to_object_stream` (`bbs_3mf.cpp:7142`) writing vertices/triangles as XML text through `format_coordinate`, then deflating at `MZ_DEFAULT_LEVEL` (`bbs_3mf.cpp:6751`). For 1M triangles the uncompressed model part is 82.8 MB of text, compressed to 9.3 MB; the PNG thumbnails are ~60 KB.
+- A second run with two harness instances overlapping (see caveats) gave the same numbers within 1%, so they are stable.
+
+## Model copy: mesh buffers are shared, not deep-copied
+
+Verified in code and measured:
+- `ModelVolume` holds `std::shared_ptr&lt;const TriangleMesh&gt; m_mesh` (`Model.hpp:1040`) and its copy constructor is `= default` (`Model.hpp:1030`), so copying shares the buffer. `Model::assign_copy` -&gt; `ModelObject::new_copy` -&gt; `ModelObject::assign_copy` -&gt; `new ModelVolume(*volume)` (`Model.cpp:59-110, 1121-1160`) never touches mesh data. `TriangleMesh` itself holds `indexed_triangle_set its` by value (`TriangleMesh.hpp:158`), so copying a *TriangleMesh* is a deep copy.
+- Measured `Model copy(plater.model())`: **0.13 ms (100k), 0.20 ms (400k), 0.25 ms (1M)**; after the copy `mesh_ptr()` of source and copy are the same pointer (`mesh_ptr_shared=1`). A deliberate deep `TriangleMesh` copy costs 0.5 / 2.2 / 6.3 ms respectively, so even a fully private copy would be cheap.
+- Mutation paths are copy-on-write in the normal case: `ModelVolume::transform_this_mesh` builds a new `TriangleMesh` and `set_mesh`es it (`Model.cpp:2896-2900`). Two exceptions mutate through `const_cast` in place: `center_geometry_after_creation` (`Model.cpp:2606`) and `scale_geometry_after_creation` (`Model.cpp:2886`, commented "could only be called before the meshes ... are shared"). Both are creation-time paths; a worker export would need to be started after them, or from a deep copy.
+- Hypothesis probe: `store_bbs_3mf` run on a `std::thread` from the shared-mesh `Model` copy, with `store_to_3mf_structure` plate data and `full_config_secure()` taken on the UI thread first, produced byte-identical archives (1,149,231 / 4,554,866 / 9,285,383 bytes) at the same speed as on the main thread (944 / 3,590 / 8,288 ms). `bbs_3mf.cpp` references no `wxGetApp`/GUI globals. This is one successful run, not a thread-safety proof; the thumbnails (the fixed ~100 ms) must stay on the GL/UI thread.
+
+## How it was measured
+
+- Temporary harness `export_bench_harness.cpp` (kept at `/private/tmp/claude/.../scratchpad/export_bench_harness.measured-copy.cpp`), modeled on `tests/workspace/real_adapter_harness.cpp`: boots `GUI_App` with an isolated temp `--datadir` + `harness.conf`, waits for `GLCanvas3D::is_initialized()`, then per size: `new_project`, `its_make_sphere(50, 2*pi/sqrt(N))`, `its_write_stl_binary`, `Plater::load_files`, center on plate 0, `reload_scene`, then 3x `OrcaWorkspaceAdapter::export_project_archive`, 3x direct `store_bbs_3mf` with the same `SaveStrategy` (Silence|SplitModel|ShareMesh|SkipAuxiliary|Zip64) and no thumbnails, 3x `Model` copy, 3x `TriangleMesh` copy, 1x worker-thread store. Timing via `steady_clock` around the call, sizes via `file_size`.
+- Built by temporarily appending an `add_executable(export_bench_harness ...)` block to `tests/workspace/CMakeLists.txt` (`cmake --build build/arm64 --config RelWithDebInfo --target export_bench_harness`); that edit is reverted, `git status` is clean, and the harness bundles were deleted from `build/arm64/tests/workspace/*/`. Because the CMakeLists revert changed its mtime, the next `cmake --build build/arm64` will re-run CMake once (the generated ninja still names the target until then); the earlier re-run rebuilt the PCH and the whole RelWithDebInfo tree (48 min), so budget for that.
+
+## Things that made the numbers less reliable
+
+1. **-O0 build.** Explained above; the most important caveat for an absolute UI-thread budget.
+2. **Load time is also huge:** `load_files` took 5.2 s / 20 s / 49 s for the same meshes at -O0, which suggests the same order-of-magnitude penalty applies to the export figures.
+3. **A first version of the harness livelocked** (self-reposting `CallAfter` poll starving the nested `YieldFor` in WebView creation; the exact trap documented at `tests/shell/shell_harness.cpp:2838`); it was replaced by a one-shot `wxTimer` poll. During one measured run a stuck copy of the old harness was spinning one core; a clean rerun on a quiet machine matched it within 1%, and the clean run's numbers are the ones in the table.
+4. **A second harness process appeared from the same scratchpad** (launched with `timeout 560`, and the scratch source was edited and the CMake edit reverted while this session ran) — apparently a parallel copy of this task. Its results equal the clean rerun; nothing else was driven, and no instance that this session did not start was killed.
+5. The harness process segfaults at exit after `HARNESS RESULT PASS` (exit 139), the known inherited teardown crash with volumes loaded; it does not affect the measurements.
+6. Only one plate, one object, a single-vendor profile, no painting or per-object config; multi-plate projects add ~100 ms of thumbnails per plate, and multiple objects serialize each mesh separately.</result>
+<usage><subagent_tokens>196608</subagent_tokens><tool_uses>58</tool_uses><duration_ms>4437008</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bz8q59fu5</task-id>
+<tool-use-id>toolu_01JNssHUo9knoYrqGrtVixN2</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/bz8q59fu5.output</output-file>
+<status>failed</status>
+<summary>Background command "Build libslic3r_gui in Release configuration in the background" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bi22xzotq</task-id>
+<summary>Monitor event: "Release build of libslic3r_gui (ninja pid 31447)"</summary>
+<event>release build finished: [609/609] errors=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bi22xzotq</task-id>
+<tool-use-id>toolu_01AZPFcgVJzz9M1MrakZz8zo</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/28d33b5a-3e97-48b6-8eaf-5192f6d7d30d/tasks/bi22xzotq.output</output-file>
+<status>completed</status>
+<summary>Monitor "Release build of libslic3r_gui (ninja pid 31447)" stream ended</summary>
+</task-notification>
+
+---
+
+say this in plain eng output style
+
+---
+
+document this "Copy cost at Send" issue, including subagent's experiment, and our discussion, to a separate handoff doc for another agent to address. 
+
+for other issues:
+
+Grouping contradicts the Figma - ok
+Labels need more than undo names. - do whatever that is the simplest. it's ok to not exactly follow figma design.
+Coverage holes - these holes are fine
+
+for the staleness issue, here is the decision:
+
+Updated. Two G-code entries now: `a71f 8c04` sent to the X1C (one row, "Reprint this G-code"), and `4f9c b2e1` with a verified export plus a struck-through modified copy ("Export again"). Stale badge, "BUILD n", the empty-copies state and the live print are gone; the failed print now references its G-code hash and dropped its own Reprint button. Notes column rewritten to match.
+Prompt for the other agent:
+Update the ORCA chat-panel mockup: "build" and "artifact" merge into "G-code"; remove the live print.
+Concept change. Slicing no longer writes anything to the thread — users slice repeatedly and it's UI state, not history. A thread entry is created only when a G-code leaves the project: exported to disk or sent to a printer. That entry is called G-code (not "build", not "artifact"). Its name is the file's hash.
+Make these changes and nothing else:
+
+1. Rename every "BUILD n" entry to "G-CODE" + short hash (e.g. `G-CODE 4f9c b2e1`). Keep the same third-layer treatment (full-bleed band, hairlines, no bubble, no revert control). Keep time · weight · layers as the headline.
+2. Delete the stale badge and its "project changed since this build" line. Position in the thread already shows a G-code is older than later edits.
+3. Delete the "0 destinations / no copies made" state. An entry cannot exist without at least one destination.
+4. Destinations become rows directly under the headline (no "COPIES · n" sub-header needed). Exporting and sending the same slice result group under one entry. Row types:
+   * Export to disk: filename, location, "verified just now" with a check. If the hash no longer matches: whole row ~55% opacity, filename struck through, "modified outside the project", and an Export again action. Never delete the row.
+   * Sent to printer: "Sent to ‹printer›", time, "on the printer's SD". No verification state — nothing can be checked on a printer. Action: Reprint this G-code (sends that exact file, not a fresh slice).
+5. Print event entries reference the file: "…G-code 4f9c b2e1" instead of "Build 2". Remove the Reprint button from print events; it lives on the G-code entry. Keep Discuss this failure.
+6. Remove the "PRINTING NOW" live-progress entry entirely. Live progress belongs to the printer's monitor, not the chat. Prints only appear in the thread as terminal outcomes (finished / failed).
+7. Revert confirmation copy: "…discards the N entries below, including the G-code you exported. Files already on disk or the printer stay where they are." Revert truncates everything below, G-code entries included; only the record goes, never the files.
+
+Unchanged: header and chat switcher, pinned Current setup card, user bubbles, agent turns with collapsed/expanded diffs, "Answered · nothing changed" marker, coalesced manual-edit entries, the ask box, colours and type.
+
+
+refresh the figma design in the browser for the updated design. also pull from remote for the updated code.
+
+Now update /Users/kenneth/Projects/JusPrin/agent-docs/jusprin/revision-timeline-handoff.md  to reflect what we have talked about.
+
+---
+
+copy /Users/kenneth/Projects/JusPrin/agent-docs/jusprin/revision-timeline-handoff.md to jusprin-win-test
