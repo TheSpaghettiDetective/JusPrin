@@ -1,0 +1,13 @@
+0f67d2fd04b89f98c678e1733fdbad8e0a60336d already removed (agent-webview-bridge-handoff.md. why is it still here? Genuine question. don't change anything.
+
+---
+
+handoff docs shouldn't be in gitignore file. what other files or files types that shouldn't be in gitignore are there?
+
+---
+
+keep *.log and /.vscode. remove others
+
+---
+
+commit
