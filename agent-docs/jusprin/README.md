@@ -13,10 +13,6 @@ Read these documents in order:
 7. [POC reference](poc-reference.md) — exact pointers to the spike-only documents, code, commits, logs, screenshots, and generated brand artifacts left on `jusprin-v2-poc`.
 8. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, approval and verification requirements.
 
-Per-screen handoffs, read alongside the above when working on that screen:
-
-- [Home screen](home-screen-handoff.md) — the project gallery and printer column: responsive rules, tokens, where the code attaches, and the questions it leaves open.
-
 Printer UI without hardware (Bambu in-process fake; control file; isolated app): [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md). Print-host (Klipper/Moonraker) simulation stays on `jusprin-newui-fakeprinter`.
 
 ## Governing decisions
