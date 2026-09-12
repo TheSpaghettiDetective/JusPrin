@@ -269,7 +269,6 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.sliced = plate->is_slice_result_valid();
         const std::uint64_t plate_key = plate->id().id;
         if (projected_plate.sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result()) {
-            projected_plate.slice_result_id = plate->get_slice_result()->id;
             projected_plate.estimate        = estimate_of(*plate->get_slice_result());
             projected_plate.estimate_status = EstimateStatus::Current;
             // The figure this plate can currently defend, kept so a slice in

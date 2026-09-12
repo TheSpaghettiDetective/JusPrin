@@ -79,8 +79,6 @@ private:
     AgentPane* m_agent_pane{nullptr};
     wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
-    wxBoxSizer* m_workspace_sizer{nullptr};
-    wxWindow* m_workspace_status{nullptr};
     int m_agent_pane_preferred_width{0};
     bool m_agent_pane_collapsed{false};
 

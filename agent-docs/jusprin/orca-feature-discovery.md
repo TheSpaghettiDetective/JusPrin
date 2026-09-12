@@ -470,6 +470,8 @@ Do not always show time and material estimates in Prepare. Show them there only 
 
 ## 2.8 Check print: print-plan verification
 
+> **Ideation only. Need validation.**
+
 This surface answers: **What will the printer actually do?**
 
 OrcaSlicer’s Preview capability is not merely an expert visualization. It is the last opportunity to discover a bad plan before material and machine time are consumed. In the AI-first product it should become **Check print**, a temporary mode that changes the main canvas into a sliced verification view.

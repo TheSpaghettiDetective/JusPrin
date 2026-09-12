@@ -199,7 +199,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         Agent::AgentRuntime agent = Agent::load_agent_runtime(wxGetApp().app_config);
 
-        m_status_row = new StatusRow(&frame, *m_theme, *plater, tabpanel, *m_persistence, m_workspace->slice_reviews());
+        m_status_row = new StatusRow(&frame, *m_theme, *plater, tabpanel, *m_persistence);
         m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
@@ -231,11 +231,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
-        m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
-        m_workspace_sizer->Add(&tabpanel,1,wxEXPAND);
-        m_workspace_status = m_status_row->create_workspace_status(&frame);
-        m_workspace_sizer->Add(m_workspace_status,0,wxEXPAND);
-        m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
+        m_center_sizer->Add(&tabpanel, 1, wxEXPAND);
         m_center_sizer->Add(m_agent_resize_handle, 0, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
         main_sizer.Insert(0, m_status_row, 0, wxEXPAND);
@@ -300,7 +296,6 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
             m_status_row->Destroy();
             m_status_row = nullptr;
         }
-        m_workspace_status = nullptr;
         m_persistence.reset();
         m_workspace.reset();
     }
@@ -393,7 +388,7 @@ void ShellController::uninstall()
     m_tabpanel->GetBtnsListCtrl()->Show();
 
     if (m_center_sizer != nullptr) {
-        if (m_workspace_sizer) m_workspace_sizer->Detach(m_tabpanel);
+        m_center_sizer->Detach(m_tabpanel);
         if (m_agent_resize_handle != nullptr)
             m_center_sizer->Detach(m_agent_resize_handle);
         if (m_agent_pane != nullptr)
@@ -401,9 +396,7 @@ void ShellController::uninstall()
         m_main_sizer->Detach(m_center_sizer);
         delete m_center_sizer;
         m_center_sizer = nullptr;
-        m_workspace_sizer = nullptr;
     }
-    if (m_workspace_status) { m_workspace_status->Destroy(); m_workspace_status = nullptr; }
     if (m_status_row != nullptr)
         m_main_sizer->Detach(m_status_row);
     if (m_main_sizer->GetItem(m_tabpanel) == nullptr)

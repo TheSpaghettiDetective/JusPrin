@@ -46,7 +46,6 @@ public:
             }
         for (auto& plate : result.plates)
             if (!plate.sliced) {
-                plate.slice_result_id = 0;
                 // A fixture may describe an estimate the plate can no longer
                 // defend -- recomputing or stale -- but never a current one.
                 if (plate.estimate_status == EstimateStatus::Current) plate.estimate.reset();
@@ -343,7 +342,6 @@ public:
         for (WorkspacePlate& plate : m_snapshot.plates)
             if (plate.id == id && plate.sliced != sliced) {
                 plate.sliced = sliced;
-                if (sliced) ++plate.slice_result_id;
                 publish(WorkspaceChangeReasons::Plates);
                 return;
             }

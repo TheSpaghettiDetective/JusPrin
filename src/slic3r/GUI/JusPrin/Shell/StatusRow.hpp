@@ -2,24 +2,23 @@
 
 #include "ShellTheme.hpp"
 #include "PrimaryPrintAction.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/SliceReview.hpp"
 
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 
 #include <wx/panel.h>
 #include <wx/weakref.h>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <vector>
 
 class wxBookCtrlEvent;
 class wxWindowDestroyEvent;
 class Notebook;
-class wxStaticText;
-namespace Slic3r { class SlicingStatusEvent; }
 
 namespace Slic3r::GUI {
 class Plater;
@@ -32,7 +31,6 @@ class ProjectPersistence;
 namespace Slic3r::GUI::JusPrin {
 class HeaderButton;
 class PrinterSpoolChip;
-class SliceReviewPanel;
 
 // Home navigation, a centered setup selector, and right-aligned print actions.
 // Project identity and physical-print count live in the overflow menu. It
@@ -45,8 +43,7 @@ public:
               const ShellTheme&          theme,
               Plater&                    plater,
               Notebook&                  tabpanel,
-              Agent::ProjectPersistence& persistence,
-              std::shared_ptr<Workspace::SliceReviews> reviews);
+              Agent::ProjectPersistence& persistence);
     ~StatusRow() override;
 
     void apply_appearance(bool dark);
@@ -54,11 +51,9 @@ public:
 
     // Native behavior entry points, shared by the controls and native harness.
     void request_slice(bool all = false);
-    void request_check_print();
     void request_prepare();
     void request_action(PrintAction action);
     PrintActionState action_state() const;
-    Workspace::SliceIdentity slice_identity() const;
     void request_home();
     // Closes the Agent panel if it is open and opens it if it is closed.
     // Does nothing until ShellController has supplied the toggle.
@@ -84,7 +79,6 @@ public:
     wxString printer_text() const;
     wxString spool_text() const;
     wxString project_summary() const;
-    wxWindow* create_workspace_status(wxWindow* parent);
 
     // The spool the project currently corresponds to, seeding one for a
     // printer that has none so the chip never shows an empty right half.
@@ -105,18 +99,16 @@ private:
     void on_spool_selected(const Workspace::Spool& spool);
     void refresh_chip();
     void layout_header();
+    std::tuple<std::uint64_t, std::uint64_t, std::uint64_t> print_target_identity() const;
     wxString action_label(PrintAction action, bool primary = false) const;
     void on_slice_status_changed(wxCommandEvent& event);
     void on_tab_changed(wxBookCtrlEvent& event);
     void on_tabpanel_destroyed(wxWindowDestroyEvent& event);
-    void on_slicing_progress(SlicingStatusEvent& event);
-    void refresh_workspace_status();
 
     const ShellTheme&          m_theme;
     Plater&                    m_plater;
     Notebook&                  m_tabpanel;
     Agent::ProjectPersistence& m_persistence;
-    std::shared_ptr<Workspace::SliceReviews> m_reviews;
 
     HeaderButton*     m_home_button{nullptr};
     PrinterSpoolChip* m_chip{nullptr};
@@ -124,10 +116,6 @@ private:
     HeaderButton* m_menu_button{nullptr};
     HeaderButton* m_overflow_button{nullptr};
     HeaderButton* m_agent_toggle{nullptr};
-    wxWeakRef<wxPanel> m_workspace_status;
-    wxWeakRef<SliceReviewPanel> m_review_panel;
-    wxWeakRef<wxStaticText> m_plate_label;
-    wxWeakRef<HeaderButton> m_return_button;
 
     // Remembered spools are machine facts, so they live beside the
     // application data rather than in the project archive.

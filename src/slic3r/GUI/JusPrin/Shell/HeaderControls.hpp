@@ -17,7 +17,7 @@ namespace Slic3r::GUI::JusPrin {
 // lighter strokes the menu rows use.
 // PanelOpen and PanelClosed are one control's two states: a window with its
 // right-hand panel filled in, or the same window with that panel empty.
-enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Slice, Eye, Plates, Export, Print, Cancel,
+enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Slice, Plates, Export, Print, Cancel,
                         PanelOpen, PanelClosed };
 
 // ChipLeft and ChipRight are the two halves of the printer/spool chip. Each is

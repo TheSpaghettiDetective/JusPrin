@@ -4,8 +4,6 @@
 #include "PrinterSpoolChip.hpp"
 #include "SetupCommands.hpp"
 #include "SpoolMenu.hpp"
-#include "ShellRecipes.hpp"
-#include "SliceReviewPanel.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -19,9 +17,7 @@
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Plater.hpp"
-#include "slic3r/GUI/BackgroundSlicingProcess.hpp"
 #include <wx/sizer.h>
-#include <wx/stattext.h>
 #include <wx/msgdlg.h>
 #include <wx/weakref.h>
 #include <wx/dcbuffer.h>
@@ -58,14 +54,12 @@ StatusRow::StatusRow(wxWindow*                  parent,
                      const ShellTheme&          theme,
                      Plater&                    plater,
                      Notebook&                  tabpanel,
-                     Agent::ProjectPersistence& persistence,
-                     std::shared_ptr<Workspace::SliceReviews> reviews)
+                     Agent::ProjectPersistence& persistence)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_plater(plater)
     , m_tabpanel(tabpanel)
     , m_persistence(persistence)
-    , m_reviews(std::move(reviews))
 {
     SetName("Project header");
     Workspace::SpoolStore::Config spool_config;
@@ -127,9 +121,7 @@ StatusRow::StatusRow(wxWindow*                  parent,
     // separately. Persistence outlives this row in both teardown orders, and
     // the destructor clears the slot.
     m_persistence.set_ledger_listener([this]() { refresh(); });
-    m_reviews->set_listener([this]() { refresh(); });
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
-    m_plater.Bind(EVT_SLICING_UPDATE, &StatusRow::on_slicing_progress, this);
     m_tabpanel.Bind(page_changed_event(), &StatusRow::on_tab_changed, this);
     // The tab panel and this row are siblings, so wx may destroy either one
     // first at shutdown; only unbind while the tab panel still exists.
@@ -139,10 +131,8 @@ StatusRow::StatusRow(wxWindow*                  parent,
 StatusRow::~StatusRow()
 {
     m_persistence.set_ledger_listener(nullptr);
-    m_reviews->set_listener(nullptr);
     if (m_tabpanel_alive) {
         m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
-        m_plater.Unbind(EVT_SLICING_UPDATE, &StatusRow::on_slicing_progress, this);
         m_tabpanel.Unbind(wxEVT_DESTROY, &StatusRow::on_tabpanel_destroyed, this);
         m_tabpanel.Unbind(page_changed_event(), &StatusRow::on_tab_changed, this);
     }
@@ -152,16 +142,6 @@ void StatusRow::on_slice_status_changed(wxCommandEvent& event)
 {
     refresh();
     event.Skip();
-}
-
-void StatusRow::on_slicing_progress(SlicingStatusEvent& event)
-{
-    // Let Orca update the owning PartPlate first. This observes progress; it
-    // never changes worker state or replaces the native slicing handler.
-    event.Skip();
-    m_plater.CallAfter([self=wxWeakRef<StatusRow>(this)] {
-        if (self && self->m_tabpanel_alive) self->refresh_workspace_status();
-    });
 }
 
 void StatusRow::on_tab_changed(wxBookCtrlEvent& event)
@@ -185,7 +165,6 @@ void StatusRow::apply_appearance(bool dark)
     for (auto* button : {m_home_button,m_slice_button,m_menu_button,m_overflow_button,m_agent_toggle})
         button->set_dark(dark);
     m_chip->set_dark(dark);
-    refresh_workspace_status();
     Refresh();
 }
 
@@ -199,9 +178,8 @@ void StatusRow::refresh()
     const auto actions = primary_print_action(state);
     m_slice_button->SetLabel(action_label(actions.primary.action, true));
     m_slice_button->Enable(actions.primary.enabled);
-    m_slice_button->set_icon(actions.primary.action == PrintAction::CheckPrint ? HeaderIcon::Eye :
-                            actions.primary.action == PrintAction::Print ? HeaderIcon::Print : HeaderIcon::Slice);
-    m_slice_button->set_status(!state.slicing && actions.primary.enabled, state.needs_review);
+    m_slice_button->set_icon(actions.primary.action == PrintAction::Print ? HeaderIcon::Print : HeaderIcon::Slice);
+    m_slice_button->set_status(!state.slicing && actions.primary.enabled, false);
     m_menu_button->set_icon(state.slicing ? HeaderIcon::Cancel : HeaderIcon::Down);
     m_menu_button->SetToolTip(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
     m_menu_button->SetName(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
@@ -209,74 +187,6 @@ void StatusRow::refresh()
     m_menu_button->Show(!actions.menu.empty());
     m_slice_button->set_attached(!actions.menu.empty());
     layout_header();
-    refresh_workspace_status();
-}
-
-wxWindow* StatusRow::create_workspace_status(wxWindow* parent)
-{
-    auto* panel = new wxPanel(parent);
-    m_workspace_status = panel;
-    auto* vertical = new wxBoxSizer(wxVERTICAL);
-    auto* review = new SliceReviewPanel(panel,m_theme,[self=wxWeakRef<StatusRow>(this)](
-        Workspace::SliceIdentity identity, const std::vector<std::string>& displayed) {
-        if (self && self->m_tabpanel_alive && self->m_tabpanel.GetSelection() == MainFrame::tpPreview &&
-            self->m_plater.is_preview_shown() && identity == self->slice_identity()) {
-            self->m_reviews->acknowledge_displayed(identity,displayed);
-            return true;
-        }
-        return false;
-    });
-    m_review_panel = review;
-    vertical->Add(review,0,wxEXPAND);
-    auto* strip = new wxBoxSizer(wxHORIZONTAL);
-    auto* label = new wxStaticText(panel,wxID_ANY,wxEmptyString,wxDefaultPosition,wxDefaultSize,wxST_ELLIPSIZE_END);
-    label->SetName("Active plate status");
-    style_label(*label,m_theme,TextRole::Label,m_theme.palette(m_dark).text_secondary);
-    m_plate_label = label;
-    strip->Add(label,1,wxALIGN_CENTER_VERTICAL | wxLEFT,FromDIP(16));
-    auto* back = new HeaderButton(panel,m_theme,HeaderStyle::Quiet,_L("Back to Prepare"),HeaderIcon::Back);
-    back->Bind(wxEVT_BUTTON,[self=wxWeakRef<StatusRow>(this)](wxCommandEvent&) { if (self) self->request_prepare(); });
-    m_return_button = back;
-    strip->Add(back,0,wxRIGHT,FromDIP(8));
-    strip->SetMinSize(wxSize(-1,FromDIP(m_theme.metrics().status_row.height)));
-    vertical->Add(strip,0,wxEXPAND);
-    panel->SetSizer(vertical);
-    refresh_workspace_status();
-    return panel;
-}
-
-void StatusRow::refresh_workspace_status()
-{
-    if (!m_workspace_status || !m_tabpanel_alive) return;
-    const auto& palette = m_theme.palette(m_dark);
-    m_workspace_status->SetBackgroundColour(palette.surface_canvas);
-    m_plate_label->SetForegroundColour(palette.text_secondary);
-    m_return_button->set_dark(m_dark);
-    m_review_panel->set_dark(m_dark);
-    const auto state = action_state();
-    const bool workspace = m_tabpanel.GetSelection() == MainFrame::tp3DEditor || m_tabpanel.GetSelection() == MainFrame::tpPreview;
-    bool layout = m_workspace_status->Show(workspace);
-    const bool preview = m_tabpanel.GetSelection() == MainFrame::tpPreview;
-    const bool check = preview && state.preview && state.sliced && !state.slicing;
-    layout = m_review_panel->Show(check) || layout;
-    layout = m_return_button->Show(preview) || layout;
-    if (check) m_review_panel->set_report(slice_identity(),m_reviews->findings(slice_identity()));
-    auto* plate = m_plater.get_partplate_list().get_curr_plate();
-    wxString label = wxString::Format(_L("Plate %d"),state.plate_number);
-    if (plate && !plate->get_plate_name().empty()) label += middle_dot() + wxString::FromUTF8(plate->get_plate_name());
-    if (state.slicing) label += middle_dot() + _L("Slicing…") + wxString::Format(" %.0f%%",plate ? std::clamp(double(plate->get_slicing_percent()),0.,100.) : 0.);
-    else label += middle_dot() + (state.sliced ? _L("sliced") : _L("not sliced"));
-    m_plate_label->SetLabel(label);
-    m_workspace_status->Layout();
-    if (layout) m_workspace_status->GetParent()->Layout();
-}
-
-Workspace::SliceIdentity StatusRow::slice_identity() const
-{
-    auto* plate = m_plater.get_partplate_list().get_curr_plate();
-    return {m_plater.project_state_session(), plate ? plate->id().id : 0,
-            plate && plate->is_slice_result_valid() && !m_plater.is_background_process_slicing() && plate->get_slice_result() ?
-                plate->get_slice_result()->id : 0};
 }
 
 PrintActionState StatusRow::action_state() const
@@ -287,7 +197,6 @@ PrintActionState StatusRow::action_state() const
     state.slicing = m_plater.is_background_process_slicing();
     state.plate_number = plates.get_curr_plate_index() + 1;
     state.plate_count = plates.get_plate_count();
-    state.preview = m_plater.is_preview_shown();
     const bool editable = !m_plater.only_gcode_mode() && !m_plater.using_exported_file();
     for (int i = 0; i < state.plate_count; ++i) {
         auto* item = plates.get_plate(i);
@@ -310,7 +219,6 @@ PrintActionState StatusRow::action_state() const
         supports_all = host && host->value == htSimplyPrint;
     }
     state.can_print_all = supports_all && plates.is_all_slice_results_ready_for_print();
-    state.needs_review = m_reviews->needs_review(slice_identity());
     return state;
 }
 
@@ -321,37 +229,41 @@ wxString StatusRow::action_label(PrintAction action, bool primary) const
     case PrintAction::Slice: return _L("Slice");
     case PrintAction::SliceAll: return _L("Slice all plates");
     case PrintAction::Cancel: return primary ? _L("Slicing…") : _L("Cancel");
-    case PrintAction::CheckPrint: return _L("Check print");
     case PrintAction::Print: return primary ? (state.plate_count > 1 ? wxString::Format(_L("Print plate %d"), state.plate_number) : _L("Print")) : _L("Print…");
     case PrintAction::PrintAll: return _L("Print all plates…");
     case PrintAction::Export: return _L("Export sliced file…");
-    case PrintAction::Prepare: return _L("Back to Prepare");
     }
     throw std::logic_error("Unknown print action");
 }
 
+std::tuple<std::uint64_t, std::uint64_t, std::uint64_t> StatusRow::print_target_identity() const
+{
+    auto* plate = m_plater.get_partplate_list().get_curr_plate();
+    return {m_plater.project_state_session(), plate ? plate->id().id : 0,
+            plate && plate->is_slice_result_valid() && !m_plater.is_background_process_slicing() && plate->get_slice_result() ?
+                plate->get_slice_result()->id : 0};
+}
+
 void StatusRow::show_action_menu()
 {
-    const auto identity = slice_identity();
+    const auto identity = print_target_identity();
     const auto state = action_state();
     const auto actions = primary_print_action(state);
     std::vector<HeaderMenuItem> menu;
     for (const auto& item : actions.menu) {
         HeaderIcon icon = HeaderIcon::Slice;
-        if (item.action == PrintAction::CheckPrint) icon = HeaderIcon::Eye;
-        else if (item.action == PrintAction::Print) icon = HeaderIcon::Print;
+        if (item.action == PrintAction::Print) icon = HeaderIcon::Print;
         else if (item.action == PrintAction::PrintAll || item.action == PrintAction::SliceAll) icon = HeaderIcon::Plates;
         else if (item.action == PrintAction::Export) icon = HeaderIcon::Export;
-        else if (item.action == PrintAction::Prepare) icon = HeaderIcon::Back;
         else if (item.action == PrintAction::Cancel) icon = HeaderIcon::Cancel;
         wxString detail;
         if (item.action == PrintAction::PrintAll)
             detail = wxString::Format(_L("%d sliced"), state.sliced_count);
-        menu.push_back({action_label(item.action), icon, detail, item.enabled, item.action == PrintAction::Export || item.action == PrintAction::Prepare,
+        menu.push_back({action_label(item.action), icon, detail, item.enabled, item.action == PrintAction::Export,
             [this,identity,action=item.action] {
                 // The menu describes one plate/result. A later plate switch or
                 // project replacement must not retarget that displayed command.
-                if (slice_identity() == identity) request_action(action);
+                if (print_target_identity() == identity) request_action(action);
             }});
     }
     if (!menu.empty()) (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_menu_button);
@@ -565,8 +477,6 @@ void StatusRow::request_action(PrintAction action)
     case PrintAction::Slice: request_slice(); return;
     case PrintAction::SliceAll: request_slice(true); return;
     case PrintAction::Cancel: m_plater.cancel_slicing(); return;
-    case PrintAction::CheckPrint: request_check_print(); return;
-    case PrintAction::Prepare: request_prepare(); return;
     case PrintAction::Print:
     case PrintAction::PrintAll: {
         auto& presets = *wxGetApp().preset_bundle;
@@ -598,19 +508,6 @@ void StatusRow::request_slice(bool all)
     SimpleEvent event(all ? EVT_GLTOOLBAR_SLICE_ALL : EVT_GLTOOLBAR_SLICE_PLATE);
     m_plater.GetEventHandler()->ProcessEvent(event);
     refresh();
-}
-
-void StatusRow::request_check_print()
-{
-    const auto identity = slice_identity();
-    if (!identity.valid()) return;
-    m_tabpanel.SetSelection(MainFrame::tpPreview);
-    // Preview selection is asynchronous. The report's actual paint callback
-    // acknowledges the displayed findings; entering Preview alone does not.
-    m_plater.CallAfter([self = wxWeakRef<StatusRow>(this)] {
-        if (!self || !self->m_tabpanel_alive) return;
-        self->refresh();
-    });
 }
 
 void StatusRow::request_prepare()

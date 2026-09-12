@@ -1,6 +1,4 @@
 #pragma once
-#include "SliceReview.hpp"
-
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -116,7 +114,6 @@ struct WorkspacePlate
     // the authoritative plate state on every snapshot, never cached.
     bool                         sliced{false};
     std::vector<WorkspaceObject> objects;
-    std::uint64_t                slice_result_id{0}; // zero while invalid or slicing
     // The plate's estimate: current, being recomputed, or stale. Absent only
     // when this plate has never been sliced in this session.
     std::optional<SliceEstimate> estimate;
@@ -531,9 +528,6 @@ class IWorkspace
 {
 public:
     virtual ~IWorkspace() = default;
-    // Shared, session-only presentation metadata for the native header and
-    // tool coordinator. Does not dirty a project or advance its revision.
-    std::shared_ptr<SliceReviews> slice_reviews() const { return m_slice_reviews; }
 
     // The production implementation must be called and observed synchronously
     // on the GUI thread. It never mutates Orca from a background thread. Each
@@ -572,7 +566,6 @@ public:
     virtual CommandResult import_model(const std::string& file_path) = 0;
 
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
-
     // The change log's feed: every edit, delivered synchronously as the
     // workspace detects it and stamped with the actor in force.
     WorkspaceSubscription subscribe_edits(WorkspaceEditCallback callback) { return m_edits.subscribe(std::move(callback)); }
@@ -599,7 +592,6 @@ protected:
     }
 
 private:
-    std::shared_ptr<SliceReviews> m_slice_reviews{std::make_shared<SliceReviews>()};
     WorkspaceEditHub              m_edits;
     int                           m_agent_edits{0};
 };

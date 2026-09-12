@@ -67,8 +67,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/SpoolMenu.hpp
     GUI/JusPrin/Shell/SetupCommands.cpp
     GUI/JusPrin/Shell/SetupCommands.hpp
-    GUI/JusPrin/Shell/SliceReviewPanel.cpp
-    GUI/JusPrin/Shell/SliceReviewPanel.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
     GUI/JusPrin/Workspace/FakeWorkspace.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
@@ -77,7 +75,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/PlaterProjectState.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
-    GUI/JusPrin/Workspace/SliceReview.hpp
     GUI/JusPrin/Workspace/SpoolStore.cpp
     GUI/JusPrin/Workspace/SpoolStore.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp

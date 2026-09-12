@@ -161,7 +161,7 @@ TEST_CASE("the recipes dress stock controls from the theme", "[shell][theme][wx]
     const ButtonMetrics& buttons = theme.metrics().button;
 
     auto* frame  = new wxFrame(nullptr, wxID_ANY, "recipes");
-    auto* label  = new wxStaticText(frame, wxID_ANY, "Active plate status");
+    auto* label  = new wxStaticText(frame, wxID_ANY, "Fixture label");
     auto* field  = new wxTextCtrl(frame, wxID_ANY);
     auto* button = new Button(frame, "Retry");
 

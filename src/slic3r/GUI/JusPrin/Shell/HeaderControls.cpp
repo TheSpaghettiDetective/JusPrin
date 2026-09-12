@@ -63,12 +63,6 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         gc.DrawEllipse(1.5,1.5,13,13);
         line({{6,4.5},{11,8},{6,11.5},{6,4.5}});
         break;
-    case HeaderIcon::Eye: {
-        auto p = gc.CreatePath();
-        p.MoveToPoint(1,8); p.AddCurveToPoint(5,2,11,2,15,8);
-        p.AddCurveToPoint(11,14,5,14,1,8); gc.StrokePath(p);
-        gc.DrawEllipse(6,6,4,4); break;
-    }
     case HeaderIcon::Plates:
         line({{2,5},{8,2},{14,5},{8,8},{2,5}});
         line({{2,8},{8,11},{14,8}}); line({{2,11},{8,14},{14,11}}); break;
