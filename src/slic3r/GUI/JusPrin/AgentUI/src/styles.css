@@ -13,13 +13,13 @@
   font-family: 'HarmonyOS Sans SC';
   font-weight: 400;
   font-style: normal;
-  src: url('./fonts/HarmonyOS_Sans_SC_Regular_latin.woff') format('woff');
+  src: url('../../WebShared/fonts/HarmonyOS_Sans_SC_Regular_latin.woff') format('woff');
 }
 @font-face {
   font-family: 'HarmonyOS Sans SC';
   font-weight: 700;
   font-style: normal;
-  src: url('./fonts/HarmonyOS_Sans_SC_Bold_latin.woff') format('woff');
+  src: url('../../WebShared/fonts/HarmonyOS_Sans_SC_Bold_latin.woff') format('woff');
 }
 
 * {

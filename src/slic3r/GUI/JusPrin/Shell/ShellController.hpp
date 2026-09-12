@@ -24,6 +24,10 @@ class AgentPane;
 class ShellTheme;
 class StatusRow;
 
+namespace Home {
+class HomeWebView;
+}
+
 // Installs the JusPrin production presentation inside the existing MainFrame
 // layout and can restore the stock presentation exactly. The stock widget
 // hierarchy stays constructed and functional: the Notebook keeps its pages and
@@ -55,11 +59,20 @@ public:
     // conversation, its loaded page, and its MCP runtime while hidden, and
     // reopening restores the width it last held this session.
     void set_agent_pane_collapsed(bool collapsed);
-    void toggle_agent_pane() { set_agent_pane_collapsed(!m_agent_pane_collapsed); }
+    // A person's own choice, remembered across the visits to Home that
+    // collapse the pane on their behalf.
+    void toggle_agent_pane()
+    {
+        m_agent_pane_user_collapsed = !m_agent_pane_collapsed;
+        set_agent_pane_collapsed(m_agent_pane_user_collapsed);
+    }
     bool is_agent_pane_collapsed() const { return m_agent_pane_collapsed; }
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
+    // Applies what the Notebook's current page implies for the shell: Home
+    // refreshes its gallery and takes the Agent panel off the screen.
+    void on_page_changed();
     void on_frame_size(wxSizeEvent& event);
     // The width the pane may hold right now: at least its own minimum, and no
     // more than what the frame can spare beside a usable workspace.
@@ -77,12 +90,18 @@ private:
 
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
+    // The Notebook's tpHome page, in place of the stock one it displaced.
+    Home::HomeWebView* m_home{nullptr};
+    // The displaced stock page, kept alive so uninstall can hand it back.
+    wxWindow* m_stock_home_page{nullptr};
     wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
     wxBoxSizer* m_workspace_sizer{nullptr};
     wxWindow* m_workspace_status{nullptr};
     int m_agent_pane_preferred_width{0};
     bool m_agent_pane_collapsed{false};
+    // What the person last asked for, as opposed to what Home imposes.
+    bool m_agent_pane_user_collapsed{false};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

@@ -4,7 +4,9 @@
 add_executable(jusprin_tests
     test_spool_store.cpp
     test_host_locale.cpp
+    test_home_snapshot.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
 )
 
 target_compile_definitions(jusprin_tests PRIVATE

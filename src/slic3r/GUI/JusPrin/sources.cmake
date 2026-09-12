@@ -28,6 +28,12 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Agent/ToolResults.cpp
     GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Home/HomeSnapshot.cpp
+    GUI/JusPrin/Home/HomeSnapshot.hpp
+    GUI/JusPrin/Home/HomeHost.cpp
+    GUI/JusPrin/Home/HomeHost.hpp
+    GUI/JusPrin/Home/HomeWebView.cpp
+    GUI/JusPrin/Home/HomeWebView.hpp
     GUI/JusPrin/Mcp/McpProtocol.cpp
     GUI/JusPrin/Mcp/McpProtocol.hpp
     GUI/JusPrin/Mcp/McpServer.cpp

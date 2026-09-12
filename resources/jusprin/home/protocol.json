@@ -1,0 +1,29 @@
+{
+  "name": "jusprin-home-bridge",
+  "version": 1,
+  "capabilities": [
+    "projects",
+    "printers",
+    "appearance",
+    "project_actions",
+    "printer_actions"
+  ],
+  "pageMessageTypes": [
+    "hello",
+    "state_request",
+    "open_project",
+    "new_project",
+    "import_project",
+    "launch_monitor",
+    "add_printer"
+  ],
+  "hostMessageTypes": [
+    "hello_ack",
+    "hello_reject",
+    "state",
+    "projects",
+    "printers",
+    "appearance",
+    "bridge_error"
+  ]
+}

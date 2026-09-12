@@ -291,6 +291,22 @@
       "size": 24,
       "radius": 4
     },
+    "projectCard": {
+      "minWidth": 240,
+      "maxWidth": 320,
+      "footerHeight": 64,
+      "thumbnailAspectWidth": 4,
+      "thumbnailAspectHeight": 3,
+      "radius": 8
+    },
+    "printerCard": {
+      "columnWidth": 320,
+      "progressHeight": 4,
+      "radius": 8
+    },
+    "statusDot": {
+      "size": 8
+    },
     "icon": {
       "sizes": [
         16,

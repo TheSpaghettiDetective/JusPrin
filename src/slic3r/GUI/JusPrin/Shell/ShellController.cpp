@@ -6,6 +6,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -229,6 +230,34 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // The page handshake gates delivery, not native MCP execution.
         m_runtime_timer.Start(33);
 
+        // Home is a fork-owned page that takes the Notebook's tpHome slot. The
+        // stock WebViewPanel is detached, not destroyed, and handed back on
+        // uninstall.
+        //
+        // It has to be a Notebook page rather than a panel shown beside a
+        // hidden Notebook: the Prepare page owns the GL canvas, and a Notebook
+        // that is hidden at startup never realises it, which leaves the canvas
+        // black for the rest of the session. Page visibility stays the
+        // Notebook's own job, exactly as in stock.
+        m_home = new Home::HomeWebView(&tabpanel, *m_theme, frame, m_status_row->spool_store());
+        m_stock_home_page = tabpanel.GetPage(MainFrame::tpHome);
+        tabpanel.RemovePage(MainFrame::tpHome);
+        m_stock_home_page->Hide();
+        tabpanel.InsertPage(MainFrame::tpHome, m_home, wxEmptyString, "tab_home_active", "tab_home_active", false);
+        // Select Home outright, rather than restoring the index the Notebook
+        // reported before the swap. RemovePage and InsertPage each move the
+        // selection index and show or hide pages as they go, and they can
+        // leave the index naming one page while another is the shown one.
+        // MainFrame::select_tab() only calls SetSelection when the index
+        // differs from the one asked for, so from that state the Prepare page
+        // is never actually shown -- and post_init, finding the GL canvas not
+        // on screen, postpones OpenGL initialisation and never returns to it.
+        // The canvas then stays black for the rest of the session.
+        //
+        // This runs during MainFrame construction, where Home is the landing
+        // page, and post_init selects whatever it wants immediately after.
+        tabpanel.SetSelection(size_t(MainFrame::tpHome));
+
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
         m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
@@ -264,7 +293,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
         frame.Bind(wxEVT_SIZE, &ShellController::on_frame_size, this);
 
+        tabpanel.Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, [this](wxBookCtrlEvent& event) {
+            on_page_changed();
+            event.Skip();
+        });
+
         m_installed = true;
+        on_page_changed();
         apply_current_appearance();
         m_status_row->refresh();
         frame.Layout();
@@ -421,6 +456,23 @@ void ShellController::uninstall()
         m_agent_pane->Destroy();
         m_agent_pane = nullptr;
     }
+    // Give the Notebook its stock Home page back, in the slot this shell
+    // borrowed, and take the fork's page out with it.
+    if (m_home != nullptr) {
+        const int selection = m_tabpanel->GetSelection();
+        m_tabpanel->RemovePage(MainFrame::tpHome);
+        if (m_stock_home_page != nullptr) {
+            m_tabpanel->InsertPage(MainFrame::tpHome, m_stock_home_page, wxEmptyString, "tab_home_active",
+                                   "tab_home_active", false);
+            m_stock_home_page->Show();
+            m_stock_home_page = nullptr;
+        }
+        if (selection >= 0 && size_t(selection) < m_tabpanel->GetPageCount())
+            m_tabpanel->SetSelection(size_t(selection));
+        m_home->Destroy();
+        m_home = nullptr;
+    }
+    m_tabpanel->Show();
     // After the pane (and with it the Agent host) is gone.
     m_persistence.reset();
     m_workspace.reset();
@@ -435,8 +487,28 @@ void ShellController::apply_current_appearance()
         m_status_row->apply_appearance(dark);
     if (m_agent_pane != nullptr)
         m_agent_pane->apply_appearance(dark);
+    if (m_home != nullptr)
+        m_home->apply_appearance(dark);
     if (m_agent_resize_handle != nullptr)
         m_agent_resize_handle->Refresh();
+}
+
+// Home is a screen before a project, not a workspace: the Agent pilots a
+// project, so its panel has nothing to act on here and the design does not
+// show it. It is collapsed while Home is up and restored to whatever the
+// person had chosen on the way out.
+//
+// The gallery is a view of state that changes while another screen is in front
+// -- a project saved, a print started -- so it is refreshed on the way in
+// rather than kept live behind the canvas.
+void ShellController::on_page_changed()
+{
+    if (!m_installed || m_home == nullptr || m_tabpanel == nullptr)
+        return;
+    const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
+    if (home)
+        m_home->refresh();
+    set_agent_pane_collapsed(home ? true : m_agent_pane_user_collapsed);
 }
 
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
