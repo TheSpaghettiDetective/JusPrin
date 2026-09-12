@@ -1,0 +1,21 @@
+read github PR 36. the coding agent read your fork-stewardship and design-system docs late — after the work. one of the problems about this pr is the way to slot Home in adds hidden coupling. OrcaSlicer asks for "whatever's in the first tab" in three places and now gets my panel. Harmless today; it's the kind of thing that breaks quietly later. but i suspect that there are other issues,  especially around fork-stewardship.
+
+ review of the PR to tell me if the way the coding agents implemented the homepage is in the right direction.  Keep in mind that this project is to hide the legacy UI and replace it with our own. And we want to do it in a way that is decoupled from the upstream code as possible.
+
+---
+
+what is HomeSnapshot ? what is HomeHost ? how was the prepare screen implemented in jusprin-newui branch? the home screen shuold go to the prepare screen. do we need to fundamentally redesign the fork-owned UI hieranchy to acheieve higher level of decoupling from upstream UI?
+
+---
+
+Home going to Prepare. That is a Notebook selection change, and it should stay one. The header's Home button already toggles between page 0 and page 1, and the PR's open, new, and import actions all end by selecting page 1. That is correct: dozens of upstream predicates for menus, shortcuts, undo and redo, and slice status key off the Notebook's current selection, so the selection must remain the single source of truth for which OrcaSlicer surface is active. Neither approach to attaching Home changes that.
+
+repeat in plain eng.
+
+---
+
+post this review as a comment on PR 36.
+
+---
+
+write the sibling-panel rule into fork-stewardship.md
