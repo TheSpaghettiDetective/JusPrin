@@ -126,6 +126,11 @@ Before release completion, cover:
 
 Classify localized CSS, focus, packaging, or backend problems as platform defects unless evidence shows they require a different architecture.
 
+A Windows verification machine without a GPU needs software GL provisioned into
+each build tree before the 3D canvas renders at all; an unprovisioned tree shows
+a black canvas and one warning line. See
+[headless Windows GL](headless-gl-handoff.md).
+
 ## Implementation evidence record
 
 For every production area, record:
