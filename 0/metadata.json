@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2BXK430DV1G65E2JNTYCPS3",
+  "session_id": "01a09639-8647-7212-bea5-feb11044350d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-12T23:00:16.300704Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "agent-docs/jusprin/home-screen-handoff.md"
+  ],
+  "agent": "Codex",
+  "model": "gpt-reserve",
+  "turn_id": "2c7e63b7268a",
+  "checkpoint_transcript_start": 908,
+  "transcript_lines_at_start": 908,
+  "compact_transcript_start": 122,
+  "token_usage": {
+    "input_tokens": 214593,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4809984,
+    "output_tokens": 6791,
+    "api_call_count": 28
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-12T23:00:15.816778Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 154,
+    "total_committed": 154,
+    "total_lines_changed": 158,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
