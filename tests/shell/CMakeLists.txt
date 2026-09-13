@@ -1,6 +1,7 @@
 if (SLIC3R_GUI)
     add_executable(shell_integration_harness
         shell_harness.cpp
+        fake_printer_recognition.cpp
     )
     target_compile_definitions(shell_integration_harness PRIVATE
         JUSPRIN_SOURCE_DIR=R"\(${CMAKE_SOURCE_DIR}\)"

@@ -82,9 +82,11 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterRecognition.hpp"
+#include "fake_printer_recognition.hpp"
+#include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/ParamsPanel.hpp"
@@ -509,27 +511,40 @@ private:
         wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_printer_menu_opens_setup",
                    [self = shared_from_this(), then = std::move(then)] {
                        self->m_setup_scrim = printer_setup_dialog()->GetParent();
+                       self->m_setup_has_scrim = true;
                        then();
                    });
     }
 
-    // The network printer and the no-agent state cannot come from this
-    // machine, so these open the modal through the launcher's own run step
-    // with inputs the test supplies. Recognition is the deterministic one.
+    // Recognition, a network printer, and a missing agent cannot come from
+    // this machine, so these flows build the modal here with the fake
+    // recognizer and the inputs the test supplies. The app's own path from
+    // the menu to the modal is covered by the Escape, close, and manual flows.
     void open_printer_setup_with(const std::string& label, std::vector<PrinterSetup::DiscoveredPrinter> discovered,
                                  bool agent_connected, bool start_on_first_printer, std::function<void()> then)
     {
         m_frame->CallAfter([discovered = std::move(discovered), agent_connected, start_on_first_printer]() mutable {
-            auto controller = PrinterSetup::make_printer_setup_controller(
-                *wxGetApp().plater(), std::make_unique<PrinterSetup::DeterministicPrinterRecognition>());
+            Plater& plater = *wxGetApp().plater();
+            auto apply = [&plater](const PrinterSetup::PrinterCandidate& candidate, std::string& error) {
+                return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
+                                                                 candidate.variant, candidate.default_material, error);
+            };
+            auto controller = std::make_unique<PrinterSetup::PrinterSetupController>(
+                PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
+                std::make_unique<PrinterSetup::FakePrinterRecognition>(), std::move(apply));
             if (start_on_first_printer) controller->use_discovered(discovered.front());
             const ShellTheme theme = ShellTheme::load_from_resources();
-            PrinterSetup::run_printer_setup(wxGetApp().mainframe, theme, wxGetApp().dark_mode(), std::move(controller),
-                                            std::move(discovered), agent_connected);
+            PrinterSetup::PrinterSetupDialog dialog(
+                wxGetApp().mainframe, theme, wxGetApp().dark_mode(), std::move(controller), std::move(discovered),
+                agent_connected, [] { installed_shell()->open_agent_setup(); },
+                [](const PrinterSetup::DiscoveredPrinter& printer, const std::string& code, wxString& error) {
+                    return SetupCommands::set_printer_access_code(printer.stable_id, code, error);
+                });
+            dialog.ShowModal();
         });
         wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_opens_setup",
                    [self = shared_from_this(), then = std::move(then)] {
-                       self->m_setup_scrim = printer_setup_dialog()->GetParent();
+                       self->m_setup_has_scrim = false;
                        then();
                    });
     }
@@ -551,7 +566,8 @@ private:
         wait_until([] { return printer_setup_dialog() == nullptr; }, label + "_closes_setup",
                    [self = shared_from_this(), label, expected_printer, then = std::move(then)] {
             self->wait_until_settled(label + "_settled", [self, label, expected_printer, then] {
-                self->check(!self->m_setup_scrim, label + "_scrim_destroyed");
+                if (self->m_setup_has_scrim)
+                    self->check(!self->m_setup_scrim, label + "_scrim_destroyed");
                 self->check(self->m_frame->IsShown() && self->m_frame->IsEnabled(), label + "_main_frame_usable");
                 self->check(selected_printer() == expected_printer, label + "_printer_is_expected");
                 then();
@@ -589,7 +605,7 @@ private:
 
     void verify_setup_choices()
     {
-        open_printer_setup_from_menu("setup_choices", [self = shared_from_this()] {
+        open_printer_setup_with("setup_choices", {}, true, false, [self = shared_from_this()] {
             type_description("the ender with the touchscreen");
             auto* next = setup_control("Next");
             self->check(next && next->IsEnabled(), "setup_next_enabled_by_description");
@@ -3401,6 +3417,9 @@ private:
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
     wxWeakRef<wxWindow>           m_setup_scrim;
+    // Only the app's own entry point dims the window; a modal the harness
+    // builds itself has no scrim to check.
+    bool                          m_setup_has_scrim{false};
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
@@ -3582,8 +3601,6 @@ int main(int argc, char** argv)
     fs::create_directories(data_directory / "log");
     if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
         wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
-    if (state->mode == HarnessState::Mode::PrinterSetup)
-        wxSetEnv("JUSPRIN_PRINTER_RECOGNITION_MOCK", "1");
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
         // The setup key check in this scenario must exercise the real host,
         // page, and HTTP transport without reaching a real provider. A closed

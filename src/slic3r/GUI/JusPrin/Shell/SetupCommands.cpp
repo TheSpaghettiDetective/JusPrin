@@ -358,6 +358,26 @@ bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
     }
 }
 
+bool set_printer_access_code(const std::string& dev_id, const std::string& code, wxString& error)
+{
+    // ConnectPrinterDialog::on_button_confirm's rule and its one call.
+    const bool valid = std::all_of(code.begin(), code.end(), [](char c) {
+        return ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+    });
+    if (!valid) {
+        error = _L("Invalid input.");
+        return false;
+    }
+    DeviceManager* devices = wxGetApp().getDeviceManager();
+    MachineObject* machine = devices ? devices->get_my_machine(dev_id) : nullptr;
+    if (!machine) {
+        error = _L("This printer is no longer on your network.");
+        return false;
+    }
+    machine->set_user_access_code(code);
+    return true;
+}
+
 bool select_bed_type(Plater& plater, int bed_type_value)
 {
     const std::vector<BedType>& supported = plater.sidebar().get_cur_combox_bed_types();
