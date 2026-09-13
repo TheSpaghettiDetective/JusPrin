@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2DEJVVC88M76YFQCSJFV4EZ",
+  "strategy": "manual-commit",
+  "branch": "jusprin-add-printer-flow",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterRecognition.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterRecognition.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupTypes.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellRecipes.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/agent/CMakeLists.txt",
+    "tests/agent/test_printer_recognition.cpp",
+    "tests/brand/test_brand_tokens.cpp",
+    "tests/jusprin/CMakeLists.txt",
+    "tests/jusprin/test_printer_setup.cpp",
+    "tests/jusprin/test_shell_theme.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 923559,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 54495488,
+    "output_tokens": 103981,
+    "api_call_count": 439
+  }
+}
