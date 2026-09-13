@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
+import { PlusGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
 
@@ -53,10 +54,12 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           <span className="section-label">Projects</span>
           <div className="gallery-actions">
             <button type="button" className="button-secondary" onClick={() => client.send('import_project', {})}>
+              <UploadGlyph />
               Import
             </button>
             <button type="button" className="button-primary" onClick={() => client.send('new_project', {})}>
-              + New
+              <PlusGlyph />
+              New
             </button>
           </div>
         </header>

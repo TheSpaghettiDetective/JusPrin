@@ -309,13 +309,20 @@ body {
 .button-secondary,
 .add-printer,
 .launch-monitor {
-  font: var(--font-body);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--button-secondary-icon-gap);
+  font: var(--font-body-small);
   padding: var(--button-secondary-padding);
   border-radius: var(--radius-standard);
   cursor: pointer;
 }
 
 .button-primary {
+  gap: var(--button-primary-icon-gap);
+  font: var(--font-body-small-bold);
+  padding: var(--button-primary-padding);
+  border-radius: var(--radius-compact);
   color: var(--action-primary-text);
   background: var(--action-primary);
   border: 1px solid var(--action-primary);

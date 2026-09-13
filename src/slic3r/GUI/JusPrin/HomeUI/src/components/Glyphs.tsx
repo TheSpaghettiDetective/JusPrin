@@ -21,3 +21,21 @@ export function MonitorGlyph() {
     </svg>
   );
 }
+
+export function UploadGlyph() {
+  return (
+    <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M8 10.5V2" strokeLinecap="round" />
+      <path d="M4.3 5.7 8 2l3.7 3.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 10v2.5A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5V10" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function PlusGlyph() {
+  return (
+    <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+      <path d="M8 2v12M2 8h12" strokeLinecap="round" />
+    </svg>
+  );
+}

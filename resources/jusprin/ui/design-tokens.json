@@ -293,7 +293,15 @@
         "paddingX": 12,
         "paddingY": 6,
         "radius": 4,
-        "textRole": "body"
+        "iconGap": 6,
+        "textRole": "bodySmall"
+      },
+      "primary": {
+        "paddingX": 16,
+        "paddingY": 8,
+        "radius": 8,
+        "iconGap": 6,
+        "textRole": "bodySmallBold"
       }
     },
     "chip": {

@@ -169,7 +169,7 @@ describe('Home', () => {
     const host = start();
     host.deliver('state', state());
     await userEvent.click(screen.getByText('Import'));
-    await userEvent.click(screen.getByText('+ New'));
+    await userEvent.click(screen.getByText('New'));
     await userEvent.click(screen.getByText('Launch monitor'));
     await userEvent.click(screen.getByText('+ Add printer'));
     expect(host.lastOfType('import_project')).toBeDefined();

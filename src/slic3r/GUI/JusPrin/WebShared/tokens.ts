@@ -21,6 +21,7 @@ export interface TypeRole {
 interface ButtonRecipe {
   paddingX?: number;
   paddingY?: number;
+  iconGap?: number;
 }
 
 interface StaticTokens {
@@ -68,6 +69,9 @@ export function sharedStaticVariableNames(): string[] {
     ...Object.entries(component.button)
       .filter(([, recipe]) => recipe.paddingX !== undefined && recipe.paddingY !== undefined)
       .map(([name]) => `--button-${kebab(name)}-padding`),
+    ...Object.entries(component.button)
+      .filter(([, recipe]) => recipe.iconGap !== undefined)
+      .map(([name]) => `--button-${kebab(name)}-icon-gap`),
   ];
 }
 
@@ -78,6 +82,8 @@ export function sharedStaticVariableNames(): string[] {
 //   --font-code           the one monospace role, for code, keys, paths, IDs
 //   --button-<recipe>-padding  "<y>px <x>px" from component.button; control
 //                         padding follows the recipes, not the spacing scale
+//   --button-<recipe>-icon-gap  the space between a button's icon and its
+//                         label, also a recipe-internal size, not a layout gap
 export function applySharedStaticTokens(): void {
   const { dimension, typography, component } = tokens as unknown as StaticTokens;
   const root = document.documentElement;
@@ -89,6 +95,10 @@ export function applySharedStaticTokens(): void {
     root.style.setProperty(`--font-${kebab(name)}`, fontShorthand(role, uiFamily));
   }
   root.style.setProperty('--font-code', fontShorthand(typography.code, typography.code.cssFamily));
+  for (const [name, recipe] of Object.entries(component.button)) {
+    if (recipe.iconGap === undefined) continue;
+    root.style.setProperty(`--button-${kebab(name)}-icon-gap`, `${recipe.iconGap}px`);
+  }
   for (const [name, recipe] of Object.entries(component.button)) {
     if (recipe.paddingX === undefined || recipe.paddingY === undefined) continue;
     root.style.setProperty(`--button-${kebab(name)}-padding`, `${recipe.paddingY}px ${recipe.paddingX}px`);
