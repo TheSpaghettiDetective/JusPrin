@@ -259,6 +259,17 @@ public:
                 return;
             }
             verify_shell_installed();
+            verify_agent_pane_follows_page([self = shared_from_this()] { self->run_shell_mode(); });
+        } catch (const std::exception& error) {
+            fail(std::string("exception: ") + error.what());
+        } catch (...) {
+            fail("unknown exception");
+        }
+    }
+
+    void run_shell_mode()
+    {
+        try {
             if (m_state->mode == HarnessState::Mode::PrinterSetup) {
                 verify_printer_setup();
                 return;
@@ -768,7 +779,12 @@ private:
               "overflow_summary_shows_empty_print_count");
         verify_header_layout();
         verify_type_roles_render_at_token_size();
-        check(shell->agent_pane() != nullptr && shell->agent_pane()->IsShown(), "agent_pane_shown");
+        // Startup lands on Home, and Home collapses the Agent pane on the
+        // person's behalf. verify_agent_pane_follows_page checks it returns on
+        // Prepare.
+        check(m_notebook->GetSelection() == MainFrame::tpHome, "shell_starts_on_home");
+        check(shell->agent_pane() != nullptr && shell->is_agent_pane_collapsed() && !shell->agent_pane()->IsShown(),
+              "agent_pane_collapsed_on_home");
         check(shell->agent_pane()->web_view().host().mcp() != nullptr, "shell_starts_mcp_automatically");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_hidden");
         check(!m_plater->is_sidebar_available(), "sidebar_marked_unavailable");
@@ -791,6 +807,64 @@ private:
         check(second_install_failed, "second_install_rejected");
         check(installed_shell()->is_installed() && installed_shell()->status_row()->IsShown(),
               "shell_survives_rejected_install");
+    }
+
+    struct PaneStep
+    {
+        int                   tab;
+        std::string           name;
+        std::function<void()> on_arrival;
+    };
+
+    // Home always collapses the Agent pane; leaving Home restores what the
+    // person last chose on Prepare, in both directions. Ends back on Home,
+    // where every mode started before this check existed.
+    void verify_agent_pane_follows_page(std::function<void()> next)
+    {
+        ShellController* shell = installed_shell();
+        auto collapsed = [shell] { return shell->is_agent_pane_collapsed() && !shell->agent_pane()->IsShown(); };
+        auto expanded  = [shell] { return !shell->is_agent_pane_collapsed() && shell->agent_pane()->IsShown(); };
+        auto steps = std::make_shared<std::vector<PaneStep>>(std::vector<PaneStep>{
+            {MainFrame::tp3DEditor, "agent_pane_prepare_first_visit", [this, shell, collapsed, expanded] {
+                 check(expanded(), "agent_pane_shown_on_prepare");
+                 shell->toggle_agent_pane();
+                 check(collapsed(), "agent_pane_user_collapses_on_prepare");
+             }},
+            {MainFrame::tpHome, "agent_pane_home_after_user_collapse",
+             [this, collapsed] { check(collapsed(), "agent_pane_collapsed_on_home_after_user_collapse"); }},
+            {MainFrame::tp3DEditor, "agent_pane_prepare_after_user_collapse", [this, shell, collapsed, expanded] {
+                 check(collapsed(), "agent_pane_user_collapse_restored_on_prepare");
+                 shell->toggle_agent_pane();
+                 check(expanded(), "agent_pane_user_expands_on_prepare");
+             }},
+            {MainFrame::tpHome, "agent_pane_home_after_user_expand",
+             [this, collapsed] { check(collapsed(), "agent_pane_collapsed_on_home_after_user_expand"); }},
+            {MainFrame::tp3DEditor, "agent_pane_prepare_after_user_expand",
+             [this, expanded] { check(expanded(), "agent_pane_user_expand_restored_on_prepare"); }},
+            {MainFrame::tpHome, "agent_pane_returns_home", [] {}},
+        });
+        run_pane_steps(steps, 0, std::move(next));
+    }
+
+    void run_pane_steps(std::shared_ptr<std::vector<PaneStep>> steps, size_t index, std::function<void()> next)
+    {
+        if (index == steps->size()) {
+            next();
+            return;
+        }
+        const PaneStep& step = (*steps)[index];
+        // The header's own navigation: Home toggles between Home and Prepare.
+        StatusRow* row = installed_shell()->status_row();
+        if (step.tab == MainFrame::tpHome || m_notebook->GetSelection() == MainFrame::tpHome)
+            row->request_home();
+        else
+            row->request_prepare();
+        const int tab = step.tab;
+        wait_until([this, tab] { return m_notebook->GetSelection() == tab; }, step.name,
+                   [self = shared_from_this(), steps, index, next] {
+                       (*steps)[index].on_arrival();
+                       self->run_pane_steps(steps, index + 1, next);
+                   });
     }
 
     wxSizer* frame_main_sizer()
