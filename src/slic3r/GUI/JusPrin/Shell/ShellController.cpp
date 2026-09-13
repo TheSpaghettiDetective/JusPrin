@@ -8,7 +8,6 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -23,7 +22,6 @@
 #include <wx/sizer.h>
 
 #include <algorithm>
-#include <cstdlib>
 #include <functional>
 #include <stdexcept>
 
@@ -285,16 +283,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_status_row->refresh();
         frame.Layout();
         apply_agent_pane_width();
-        // UI-test hook: like the deterministic recognizer, this is inert in a
-        // normal launch and lets an isolated scratch-datadir run capture the
-        // modal without driving another JusPrin instance. It fires before
-        // post_init, so on macOS the startup splash can cover the modal; open
-        // the flow from Home's Add printer instead when clicking through it.
-        if (std::getenv("JUSPRIN_OPEN_PRINTER_SETUP"))
-            wxGetApp().CallAfter([this] {
-                if (m_installed && m_frame && m_theme && m_plater)
-                    PrinterSetup::show_printer_setup(m_frame, *m_theme, wxGetApp().dark_mode(), *m_plater);
-            });
     } catch (...) {
         m_installed = true; // let uninstall() undo whatever was applied
         uninstall();
