@@ -70,7 +70,10 @@
 #include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../agent/mcp_test_client.hpp"
@@ -467,6 +470,13 @@ private:
     {
         auto* dialog = printer_setup_dialog();
         return dialog ? status_row_labels(dialog) : wxString();
+    }
+
+    // What a half of the header chip reads on screen: "Printer" or "Spool".
+    static wxString chip_label(wxWindow* row, const char* half)
+    {
+        wxWindow* control = wxWindow::FindWindowByName(half, row);
+        return control ? control->GetLabel() : wxString();
     }
 
     static wxTextCtrl* setup_description() { return dynamic_cast<wxTextCtrl*>(setup_control("What printer do you have?")); }
@@ -1418,10 +1428,10 @@ private:
         const auto second = row->remember_spool(spools.front().filament_preset, other_colour, "Harness Second Spool");
         check(row->listed_spools().size() == spools.size() + 1, "remembering_a_spool_adds_one_row");
 
-        const wxString before = row->spool_text();
+        const wxString before = chip_label(row, "Spool");
         check(row->select_spool(second.id), "select_spool_applies_a_remembered_spool");
-        check(row->spool_text() == wxString::FromUTF8(second.name), "chip_shows_the_swapped_spool");
-        check(row->spool_text() != before, "the_chip_actually_changed");
+        check(chip_label(row, "Spool") == wxString::FromUTF8(second.name), "chip_shows_the_swapped_spool");
+        check(chip_label(row, "Spool") != before, "the_chip_actually_changed");
         // The project itself moved, not just the label.
         check(SetupCommands::current_colour().Lower() == wxString::FromUTF8(other_colour).Lower(),
               "swap_writes_the_colour_into_the_project");
@@ -1449,7 +1459,7 @@ private:
         check(row->select_spool(crossed.id), "select_spool_switches_to_another_preset");
         check(SetupCommands::current_filament().preset_name == other_preset,
               "the_project_is_on_the_new_filament_preset");
-        check(row->spool_text() == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
+        check(chip_label(row, "Spool") == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
     }
 
     void verify_header_setup_open(Preset::Type type)
@@ -3434,6 +3444,40 @@ private:
     bool                  m_idle_seen{false};
 };
 
+// The app ships no stand-in Agent, so each mode's Agent is installed here
+// through the host's own set_agent, the call setup uses when a key verifies.
+void install_harness_agent(HarnessState::Mode mode)
+{
+    ShellController* shell = installed_shell();
+    if (shell == nullptr)
+        return; // stock mode: the shell is disabled, so there is no Agent panel
+    Agent::AgentHost& host = shell->agent_pane()->web_view().host();
+    switch (mode) {
+    case HarnessState::Mode::LiveAgentUnavailable:
+    case HarnessState::Mode::ManualUnconfigured:
+        return;
+    case HarnessState::Mode::LiveAgent:
+    case HarnessState::Mode::ManualLiveAgent: {
+        // Without a key the live checks report the missing service themselves.
+        const char* key = std::getenv("OPENAI_API_KEY");
+        if (key == nullptr || *key == '\0')
+            return;
+        Agent::OpenAIResponsesConfig config;
+        config.api_key = key;
+        config.usage_listener = [](std::uint64_t input, std::uint64_t output, std::uint64_t total) {
+            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << input
+                      << " output_tokens=" << output << " total_tokens=" << total << '\n';
+        };
+        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), Agent::make_openai_http_transport()),
+                       Agent::AgentAvailability::Ready);
+        return;
+    }
+    default:
+        host.set_agent(std::make_unique<Agent::DeterministicMockAgent>(), Agent::AgentAvailability::Ready);
+        return;
+    }
+}
+
 void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 {
     if (state->stop)
@@ -3449,6 +3493,7 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 #ifdef __APPLE__
         if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
+        install_harness_agent(state->mode);
         if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
             state->mode == HarnessState::Mode::ManualUnconfigured)
             return;
@@ -3599,8 +3644,6 @@ int main(int argc, char** argv)
     if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
     fs::create_directories(data_directory / "log");
-    if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
-        wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
         // The setup key check in this scenario must exercise the real host,
         // page, and HTTP transport without reaching a real provider. A closed
@@ -3627,19 +3670,12 @@ int main(int argc, char** argv)
                            anchor + "\n    \"dark_color_mode\": \"" + (*state->dark_appearance ? "1" : "0") + "\",");
         }
 #endif
-        if (state->mode == HarnessState::Mode::ManualUnconfigured) {
-            // No provider, no key, no consent: exactly what a fresh install
-            // looks like before anyone sets an Agent up.
-            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": true,\n    \"provider\": \"mock\"\n  }";
-            const std::string to   = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
-            const std::size_t pos  = config.find(from);
-            if (pos != std::string::npos)
-                config.replace(pos, from.size(), to);
-        }
         if (state->mode == HarnessState::Mode::LiveAgent ||
             state->mode == HarnessState::Mode::ManualLiveAgent ||
             state->mode == HarnessState::Mode::LiveAgentUnavailable) {
-            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": true,\n    \"provider\": \"mock\"\n  }";
+            // The base config has the Agent off: no provider, no key, no
+            // consent, exactly what a fresh install looks like.
+            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
                                       state->mode == HarnessState::Mode::ManualLiveAgent;
             const std::string consent = live_enabled ? "true" : "false";

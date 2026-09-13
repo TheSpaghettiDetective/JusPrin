@@ -244,9 +244,6 @@ void OpenAIResponsesAgent::parse_sse_frame(const std::string& frame)
         return;
     }
     const std::string type = event.value("type", "");
-    if (std::getenv("JUSPRIN_AGENT_RECORD_USAGE") != nullptr &&
-        (type == "response.completed" || type == "response.failed" || type == "response.incomplete" || type == "error"))
-        std::cerr << "JUSPRIN LIVE EVENT type=" << (type.empty() ? "missing" : type) << '\n';
     if (type == "response.output_text.delta" && event.contains("delta") && event["delta"].is_string())
         m_events.push_back(AgentEvent::delta(event["delta"].get<std::string>()));
     else if (type == "response.completed" && event.contains("response"))

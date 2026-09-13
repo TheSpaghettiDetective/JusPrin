@@ -4,7 +4,7 @@
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace JusPrinTest;

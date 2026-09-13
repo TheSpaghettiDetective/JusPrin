@@ -453,8 +453,6 @@ Workspace::Spool StatusRow::remember_spool(const std::string& filament_preset, c
     return m_spools->add(std::move(spool));
 }
 
-wxString StatusRow::printer_text() const { return m_chip->printer_half().GetLabel(); }
-wxString StatusRow::spool_text() const { return m_chip->spool_half().GetLabel(); }
 
 void StatusRow::show_overflow_menu()
 {

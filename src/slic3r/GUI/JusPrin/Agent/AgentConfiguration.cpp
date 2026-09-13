@@ -1,13 +1,11 @@
 #include "AgentConfiguration.hpp"
 
-#include "DeterministicMockAgent.hpp"
 #include "OpenAIResponsesAgent.hpp"
 #include "libslic3r/AppConfig.hpp"
 
 #include <wx/secretstore.h>
 
 #include <cstdlib>
-#include <iostream>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -26,9 +24,6 @@ std::string secret_user_for(const std::string& provider) { return provider + "_a
 
 std::string configured_key(const std::string& provider)
 {
-    if (provider == "openai")
-        if (const char* key = std::getenv("OPENAI_API_KEY"); key != nullptr && *key != '\0')
-            return key;
     wxSecretStore store = wxSecretStore::GetDefault();
     if (!store.IsOk())
         return {};
@@ -63,11 +58,6 @@ AgentRuntime load_agent_runtime(AppConfig* config)
         runtime.unavailable_reason = "The Agent is not enabled.";
         return runtime;
     }
-    if (runtime.provider == "mock") {
-        runtime.service = std::make_unique<DeterministicMockAgent>();
-        runtime.availability = AgentAvailability::Ready;
-        return runtime;
-    }
     if (runtime.provider != "openai") {
         runtime.unavailable_reason = "The configured Agent provider is not supported.";
         return runtime;
@@ -83,12 +73,6 @@ AgentRuntime load_agent_runtime(AppConfig* config)
         openai.model = config->get(kSection, "model");
     if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
         openai.endpoint = endpoint;
-    if (std::getenv("JUSPRIN_AGENT_RECORD_USAGE") != nullptr) {
-        openai.usage_listener = [](std::uint64_t input, std::uint64_t output, std::uint64_t total) {
-            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << input
-                      << " output_tokens=" << output << " total_tokens=" << total << '\n';
-        };
-    }
     if (openai.api_key.empty()) {
         runtime.unavailable_reason = "No OpenAI API key is configured.";
         return runtime;

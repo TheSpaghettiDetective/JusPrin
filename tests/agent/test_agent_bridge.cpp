@@ -10,10 +10,10 @@
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "libslic3r/Exception.hpp"
-#include "slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.hpp"
+#include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 #include "mcp_test_directory.hpp"
 
 #include <nlohmann/json.hpp>

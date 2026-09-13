@@ -2,7 +2,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 
 #include <algorithm>
 #include <set>

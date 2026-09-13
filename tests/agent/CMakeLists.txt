@@ -22,7 +22,7 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpRuntime.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AgentSetup.cpp
-    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.cpp
+    ${CMAKE_SOURCE_DIR}/tests/jusprin_support/DeterministicMockAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ManufacturingHistory.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterRecognition.cpp

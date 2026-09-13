@@ -1,12 +1,13 @@
 #pragma once
 
-// Deterministic mock Agent for the first production release. It produces the
-// same semantic activity a future Agent or MCP adapter must produce (streamed
-// assistant replies with success, failure, and retry behavior, plus typed
-// tool requests for the native coordinator) so the host, bridge, and page
-// cannot special-case mock behavior. GUI-free.
+// Deterministic stand-in Agent for tests. It produces the same semantic
+// activity a real Agent or MCP adapter must produce (streamed assistant
+// replies with success, failure, and retry behavior, plus typed tool requests
+// for the native coordinator) so the host, bridge, and page cannot
+// special-case it. The app does not ship it; the harness installs it through
+// AgentHost::set_agent. GUI-free.
 
-#include "AgentService.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 
 #include <deque>
 
