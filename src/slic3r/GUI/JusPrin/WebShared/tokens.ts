@@ -56,12 +56,13 @@ export function pixelVariableNames(prefix: string, values: Record<string, unknow
   return Object.keys(values).map((name) => `--${prefix}-${kebab(name)}`);
 }
 
-// Every --font-* and --button-* variable applySharedStaticTokens writes, so a
-// page's styles test can check that its stylesheet only asks for variables
-// that exist.
+// Every --radius-*, --font-*, and --button-* variable applySharedStaticTokens
+// writes, so a page's styles test can check that its stylesheet only asks
+// for variables that exist.
 export function sharedStaticVariableNames(): string[] {
-  const { typography, component } = tokens as unknown as StaticTokens;
+  const { dimension, typography, component } = tokens as unknown as StaticTokens;
   return [
+    ...Object.keys(dimension.radius).map((name) => `--radius-${kebab(name)}`),
     ...Object.keys(typography.roles).map((name) => `--font-${kebab(name)}`),
     '--font-code',
     ...Object.entries(component.button)
@@ -81,7 +82,7 @@ export function applySharedStaticTokens(): void {
   const { dimension, typography, component } = tokens as unknown as StaticTokens;
   const root = document.documentElement;
   for (const [name, value] of Object.entries(dimension.radius)) {
-    root.style.setProperty(`--radius-${name}`, `${value}px`);
+    root.style.setProperty(`--radius-${kebab(name)}`, `${value}px`);
   }
   const uiFamily = `'${typography.ui.family}', ${typography.ui.cssFallback}`;
   for (const [name, role] of Object.entries(typography.roles)) {
@@ -122,13 +123,34 @@ function rgba(hex: string, opacity: number): string {
   return `rgba(${channel(0)}, ${channel(2)}, ${channel(4)}, ${opacity})`;
 }
 
+// The one place a semantic color's CSS variable name is built, so
+// semanticVariableNames() and applyAppearance() cannot drift apart the way
+// applyAppearance's own kebab-casing once drifted from the rest of this file.
+function semanticVariableName(group: string, name: string): string {
+  return `--${group}-${kebab(name)}`;
+}
+
+// Every --<group>-<name> variable applyAppearance writes, so a page's styles
+// test can check that its stylesheet only asks for variables that exist. Both
+// modes name the same variables, so light is enough to enumerate them.
+export function semanticVariableNames(): string[] {
+  const semantic = (tokens as { semantic: Record<string, SemanticMode> }).semantic;
+  const names: string[] = [];
+  for (const [group, values] of Object.entries(semantic.light)) {
+    for (const [name, value] of Object.entries(values)) {
+      if (typeof value === 'string') names.push(semanticVariableName(group, name));
+    }
+  }
+  return names;
+}
+
 export function applyAppearance(appearance: Appearance): void {
   const semantic = (tokens as { semantic: Record<string, SemanticMode> }).semantic;
   const mode = semantic[appearance] ?? semantic.light;
   const root = document.documentElement;
   for (const [group, values] of Object.entries(mode)) {
     for (const [name, value] of Object.entries(values)) {
-      if (typeof value === 'string') root.style.setProperty(`--${group}-${name}`, value);
+      if (typeof value === 'string') root.style.setProperty(semanticVariableName(group, name), value);
     }
   }
   for (const [tier, shadow] of Object.entries(elevationTiers())) {

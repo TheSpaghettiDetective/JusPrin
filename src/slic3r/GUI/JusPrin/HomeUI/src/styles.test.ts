@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { semanticVariableNames } from '@shared/tokens';
 import { staticVariableNames } from './tokens';
 
 const SPACING_SCALE = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48];
@@ -73,13 +74,14 @@ describe('styles.css stays on the design tokens', () => {
   });
 
   it('asks only for variables that tokens.ts emits', () => {
-    const emitted = new Set(staticVariableNames());
+    const emitted = new Set([...staticVariableNames(), ...semanticVariableNames()]);
     expect(emitted).toContain('--font-body-bold');
     expect(emitted).toContain('--project-card-min-width');
     expect(emitted).toContain('--printer-card-column-width');
+    expect(emitted).toContain('--action-primary-text');
     const requested = [
       ...css.matchAll(
-        /var\((--(?:font|button|project-card|printer-card|status-dot|swatch|glyph|elevation)-[\w-]+)\)/g,
+        /var\((--(?:radius|font|button|project-card|printer-card|status-dot|swatch|glyph|elevation|action|text|surface|border|status)-[\w-]+)\)/g,
       ),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);

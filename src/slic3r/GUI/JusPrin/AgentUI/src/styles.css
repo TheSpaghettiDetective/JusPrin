@@ -1009,23 +1009,23 @@ button.primary {
   padding: 8px 16px;
   border-radius: var(--radius-compact);
   background: var(--action-primary);
-  color: var(--action-primaryText);
+  color: var(--action-primary-text);
   font: var(--font-body-bold);
 }
 
 button.primary:hover:enabled {
-  background: var(--action-primaryHover);
+  background: var(--action-primary-hover);
   border-color: transparent;
 }
 
 button.primary:active:enabled {
-  background: var(--action-primaryPressed);
+  background: var(--action-primary-pressed);
   border-color: transparent;
 }
 
 button.primary:disabled {
   background: var(--action-primary);
-  color: var(--action-primaryText);
+  color: var(--action-primary-text);
   opacity: 0.4;
 }
 
@@ -1083,7 +1083,7 @@ button.link:hover:enabled,
 button.link:active:enabled {
   background: transparent;
   border: none;
-  color: var(--action-primaryHover);
+  color: var(--action-primary-hover);
 }
 
 input[type='radio'] {
@@ -1170,26 +1170,26 @@ input[type='radio']:checked {
 }
 
 .attach-button:disabled {
-  color: var(--action-disabledText);
+  color: var(--action-disabled-text);
   cursor: default;
 }
 
 .composer-send {
   background: var(--action-primary);
-  color: var(--action-primaryText);
+  color: var(--action-primary-text);
 }
 
 .composer-send:hover:enabled {
-  background: var(--action-primaryHover);
+  background: var(--action-primary-hover);
 }
 
 .composer-send:active:enabled {
-  background: var(--action-primaryPressed);
+  background: var(--action-primary-pressed);
 }
 
 .composer-send:disabled {
   background: var(--action-disabled);
-  color: var(--action-disabledText);
+  color: var(--action-disabled-text);
   cursor: default;
 }
 
@@ -1462,7 +1462,7 @@ button.wide {
 }
 
 .setup-row:disabled {
-  color: var(--action-disabledText);
+  color: var(--action-disabled-text);
   cursor: default;
 }
 
@@ -1493,7 +1493,7 @@ button.wide {
 
 .setup-tab.selected {
   background: var(--action-primary);
-  color: var(--action-primaryText);
+  color: var(--action-primary-text);
 }
 
 .setup-tab.selected:hover:enabled {
@@ -1502,7 +1502,7 @@ button.wide {
 
 .setup-tab:disabled {
   background: var(--action-disabled);
-  color: var(--action-disabledText);
+  color: var(--action-disabled-text);
   cursor: default;
 }
 
