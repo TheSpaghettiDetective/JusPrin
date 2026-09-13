@@ -62,6 +62,15 @@ private:
     wxFrame* m_window{nullptr};
 };
 
+// Both entry points, Home and the printer menu, belong to the shell.
+ShellController& required_shell()
+{
+    ShellController* shell = installed_shell();
+    if (!shell || !shell->agent_pane())
+        throw std::logic_error("Add a printer opened without the JusPrin shell installed");
+    return *shell;
+}
+
 // ConnectPrinterDialog::on_button_confirm: an access code is letters and
 // digits, and it is handed to the machine as the user's code.
 bool connect_with_access_code(const DiscoveredPrinter& printer, const std::string& code, wxString& error)
@@ -85,14 +94,31 @@ bool connect_with_access_code(const DiscoveredPrinter& printer, const std::strin
 
 } // namespace
 
+std::unique_ptr<PrinterSetupController> make_printer_setup_controller(
+    Plater& plater, std::unique_ptr<IPrinterRecognitionService> recognition)
+{
+    auto apply = [&plater](const PrinterCandidate& candidate, std::string& error) {
+        return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
+                                                         candidate.variant, candidate.default_material, error);
+    };
+    return std::make_unique<PrinterSetupController>(PrinterCatalog::load(Slic3r::resources_dir()),
+                                                    std::move(recognition), std::move(apply));
+}
+
+void run_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark,
+                       std::unique_ptr<PrinterSetupController> controller,
+                       std::vector<DiscoveredPrinter> discovered, bool agent_connected)
+{
+    ShellController* shell = &required_shell();
+    ModalScrim scrim(owner, theme.palette(dark), theme.metrics().printer_setup.scrim_alpha);
+    PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), std::move(discovered),
+                              agent_connected, [shell] { shell->open_agent_setup(); }, connect_with_access_code);
+    dialog.ShowModal();
+}
+
 void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
 {
-    // Both entry points, Home and the printer menu, belong to the shell.
-    ShellController* shell = installed_shell();
-    if (!shell || !shell->agent_pane())
-        throw std::logic_error("Add a printer opened without the JusPrin shell installed");
-
-    PrinterCatalog catalog = PrinterCatalog::load(Slic3r::resources_dir());
+    ShellController& shell = required_shell();
     const bool use_mock = std::getenv("JUSPRIN_PRINTER_RECOGNITION_MOCK") != nullptr;
     OpenAIPrinterRecognitionConfig config;
     if (!use_mock && wxGetApp().app_config) {
@@ -110,43 +136,11 @@ void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Pla
     else
         recognition = std::make_unique<OpenAIPrinterRecognition>(std::move(config),
                                                                   Agent::make_openai_http_transport());
-    auto apply = [&plater](const PrinterCandidate& candidate, std::string& error) {
-        return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
-                                                         candidate.variant, candidate.default_material, error);
-    };
-    auto controller = std::make_unique<PrinterSetupController>(std::move(catalog), std::move(recognition),
-                                                                std::move(apply));
-    std::vector<DiscoveredPrinter> discovered = discover_printers();
     // The same answer the Agent panel gives when it shows its empty state.
-    bool agent_connected = shell->agent_pane()->web_view().host().availability() == Agent::AgentAvailability::Ready;
-    // Explicit developer scenarios make every handed-off Figma state
-    // inspectable in an isolated app without a live API request or hardware.
-    if (use_mock) {
-        const std::string scenario = std::getenv("JUSPRIN_PRINTER_SETUP_SCENARIO")
-            ? std::getenv("JUSPRIN_PRINTER_SETUP_SCENARIO") : "";
-        if (scenario == "recognized" || scenario == "ambiguous") {
-            PrinterEvidence evidence;
-            evidence.description = scenario == "recognized"
-                ? "Bambu Lab A1 mini" : "the ender with the touchscreen";
-            controller->recognize(std::move(evidence));
-            controller->poll();
-        } else if (scenario == "network") {
-            DiscoveredPrinter printer{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true};
-            printer.nozzle_diameter = 0.4;
-            printer.ams_name = "AMS lite";
-            printer.spools = {{"Bambu PLA Matte", "#2E6FD9"}, {"Bambu PLA Basic", "#F5F5F0"},
-                              {"Bambu PETG HF", "#1A1A1A"}, {"Bambu PLA Silk", "#C0392B"}};
-            discovered = {printer};
-            controller->use_discovered(discovered.front());
-        } else if (scenario == "no_agent") {
-            discovered = {{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true}};
-            agent_connected = false;
-        }
-    }
-    ModalScrim scrim(owner, theme.palette(dark), theme.metrics().printer_setup.scrim_alpha);
-    PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), std::move(discovered),
-                              agent_connected, [shell] { shell->open_agent_setup(); }, connect_with_access_code);
-    dialog.ShowModal();
+    const bool agent_connected =
+        shell.agent_pane()->web_view().host().availability() == Agent::AgentAvailability::Ready;
+    run_printer_setup(owner, theme, dark, make_printer_setup_controller(plater, std::move(recognition)),
+                      discover_printers(), agent_connected);
 }
 
 void show_printer_setup(wxWindow* owner, bool dark, Plater& plater)

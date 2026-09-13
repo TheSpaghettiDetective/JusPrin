@@ -82,7 +82,9 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterRecognition.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/ParamsPanel.hpp"
@@ -511,6 +513,37 @@ private:
                    });
     }
 
+    // The network printer and the no-agent state cannot come from this
+    // machine, so these open the modal through the launcher's own run step
+    // with inputs the test supplies. Recognition is the deterministic one.
+    void open_printer_setup_with(const std::string& label, std::vector<PrinterSetup::DiscoveredPrinter> discovered,
+                                 bool agent_connected, bool start_on_first_printer, std::function<void()> then)
+    {
+        m_frame->CallAfter([discovered = std::move(discovered), agent_connected, start_on_first_printer]() mutable {
+            auto controller = PrinterSetup::make_printer_setup_controller(
+                *wxGetApp().plater(), std::make_unique<PrinterSetup::DeterministicPrinterRecognition>());
+            if (start_on_first_printer) controller->use_discovered(discovered.front());
+            const ShellTheme theme = ShellTheme::load_from_resources();
+            PrinterSetup::run_printer_setup(wxGetApp().mainframe, theme, wxGetApp().dark_mode(), std::move(controller),
+                                            std::move(discovered), agent_connected);
+        });
+        wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_opens_setup",
+                   [self = shared_from_this(), then = std::move(then)] {
+                       self->m_setup_scrim = printer_setup_dialog()->GetParent();
+                       then();
+                   });
+    }
+
+    static PrinterSetup::DiscoveredPrinter fake_network_printer()
+    {
+        PrinterSetup::DiscoveredPrinter printer{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true};
+        printer.nozzle_diameter = 0.4;
+        printer.ams_name = "AMS lite";
+        printer.spools = {{"Bambu PLA Matte", "#2E6FD9"}, {"Bambu PLA Basic", "#F5F5F0"},
+                          {"Bambu PETG HF", "#1A1A1A"}, {"Bambu PLA Silk", "#C0392B"}};
+        return printer;
+    }
+
     // Waits for the modal to go, then for the loop to go idle so a deferred
     // Destroy() of the scrim has run before it is checked.
     void after_setup_closes(const std::string& label, const std::string& expected_printer, std::function<void()> then)
@@ -529,7 +562,6 @@ private:
     void verify_printer_setup()
     {
         check(selected_printer() == kSetupFixturePrinter, "setup_fixture_printer_selected");
-        wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
         open_printer_setup_from_menu("setup_escape", [self = shared_from_this()] {
             auto* dialog = printer_setup_dialog();
             wxWindow* scrim = dialog->GetParent();
@@ -658,9 +690,7 @@ private:
 
     void verify_setup_network()
     {
-        wxSetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO", "network");
-        open_printer_setup_from_menu("setup_network", [self = shared_from_this()] {
-            wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
+        open_printer_setup_with("setup_network", {fake_network_printer()}, true, true, [self = shared_from_this()] {
             const wxString labels = setup_labels();
             self->check(labels.Contains(ui_name("Found on your network · 01P00A3B")) && labels.Contains("A1 mini"),
                         "setup_network_state_shows_connection_and_model");
@@ -692,9 +722,7 @@ private:
 
     void verify_setup_no_agent()
     {
-        wxSetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO", "no_agent");
-        open_printer_setup_from_menu("setup_no_agent", [self = shared_from_this()] {
-            wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
+        open_printer_setup_with("setup_no_agent", {fake_network_printer()}, false, false, [self = shared_from_this()] {
             self->check(setup_labels().Contains("No agent connected") && setup_control("Set up the agent") &&
                         setup_control("set it up myself") && setup_control("Use this") && !setup_description(),
                         "setup_no_agent_offers_agent_setup_and_network");
