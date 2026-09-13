@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2DEM9GCKH0B7HGS7B304G6R",
+  "strategy": "manual-commit",
+  "branch": "claude/new-button-visibility-8a0302",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/Glyphs.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/WebShared/tokens.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 326,
+    "cache_creation_tokens": 273863,
+    "cache_read_tokens": 32001208,
+    "output_tokens": 104708,
+    "api_call_count": 163,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}

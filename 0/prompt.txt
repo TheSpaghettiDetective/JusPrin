@@ -1,0 +1,189 @@
+check why the text on the "new" button, the one next to the "import" button, is barely visible. don't just fix it. find out if this means some systematic error in our styling implementation
+
+---
+
+<task-notification>
+<task-id>a01c1d3796987ec4c</task-id>
+<tool-use-id>toolu_01Qjy1FDJdc95eBbCYB4A4j4</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-figma-design-file-42aa00/630e0855-bb34-4656-8024-2567f92243f3/tasks/a01c1d3796987ec4c.output</output-file>
+<status>completed</status>
+<summary>Agent "Find New button styling and token usage" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Summary
+
+The "+ New" button's low‑contrast text is a real bug, but it is **not** a color-value mistake on the New button itself — the New button's CSS correctly references design tokens. The root cause is a **naming bug in the shared token-application code** (`WebShared/tokens.ts`) that silently breaks every *multi-word* semantic color variable (`primaryText`, `primaryHover`, `secondaryBorder`, etc.) across **both** HomeUI and AgentUI. HomeUI's CSS follows the documented kebab-case convention and is therefore visibly broken; AgentUI's CSS instead (non-compliantly) uses the same broken camelCase names the buggy JS actually emits, so it "looks fine" only by accident.
+
+### 1. Where the buttons are defined
+
+`/Users/kenneth/Projects/JusPrin/.claude/worktrees/figma-design-file-42aa00/src/slic3r/GUI/JusPrin/HomeUI/src/App.tsx:55-60`
+```tsx
+&lt;button type="button" className="button-secondary" onClick={() =&gt; client.send('import_project', {})}&gt;
+  Import
+&lt;/button&gt;
+&lt;button type="button" className="button-primary" onClick={() =&gt; client.send('new_project', {})}&gt;
+  + New
+&lt;/button&gt;
+```
+
+CSS rules: `/Users/kenneth/Projects/JusPrin/.claude/worktrees/figma-design-file-42aa00/src/slic3r/GUI/JusPrin/HomeUI/src/styles.css:308-341`
+```css
+.button-primary {
+  color: var(--action-primary-text);      /* line 319 — never gets set → falls back to inherited body color */
+  background: var(--action-primary);      /* line 320 — correctly set */
+  border: 1px solid var(--action-primary);
+}
+.button-secondary,
+.launch-monitor {
+  color: var(--action-secondary-text);    /* line 333 — also never gets set */
+  background: var(--action-secondary);    /* line 334 — correctly set */
+  border: 1px solid var(--action-secondary-border);  /* line 335 — also never gets set */
+}
+```
+There are **zero hardcoded hex/rgba literals** in this file (verified by grep, and enforced by a Vitest guard — see below), so the New button is *not* using a raw color — it's using a token reference that resolves to nothing.
+
+### 2. The token file and the actual bug
+
+Token source: `resources/jusprin/ui/design-tokens.json`, `semantic.light.action` / `semantic.dark.action`:
+```
+light: primary=#3A2D64, primaryText=#FFFFFF, secondary=#FFFFFF, secondaryText=#17131F, secondaryBorder=#E8DFEB
+```
+These values are fine (white text on the dark‑purple primary background is high contrast).
+
+The bug is in `/Users/kenneth/Projects/JusPrin/.claude/worktrees/figma-design-file-42aa00/src/slic3r/GUI/JusPrin/WebShared/tokens.ts:125-133` (`applyAppearance`, shared by both HomeUI and AgentUI):
+```ts
+for (const [group, values] of Object.entries(mode)) {
+  for (const [name, value] of Object.entries(values)) {
+    if (typeof value === 'string') root.style.setProperty(`--${group}-${name}`, value);
+  }
+}
+```
+This writes `--action-primaryText`, `--action-secondaryText`, `--action-secondaryBorder`, `--action-primaryHover`, etc. — **camelCase, not kebab-case** — because it never calls the file's own `kebab()` helper. Contrast with the sibling functions in the *same file* that do it correctly:
+- `applyPixelTokens` (line 51): `` `--${prefix}-${kebab(name)}` ``
+- `applySharedStaticTokens` (line 88): `` `--font-${kebab(name)}` ``
+
+So `--action-primary-text` (what HomeUI's CSS asks for) is never actually set. The `color` declaration is invalid/unresolved and falls back to the inherited value — `body { color: var(--text-primary) }` = `#17131F` (near‑black, set correctly because "primary" is a single word needing no kebab conversion). Result: near-black text (`#17131F`) on a dark indigo background (`#3A2D64`) for "+ New" — exactly the barely-visible pill in the screenshot.
+
+### 3. Why "Import" looks fine — it's a coincidence, not a fix
+
+`.button-secondary` background is `--action-secondary` = `#FFFFFF` (white, single-word, sets correctly). Its `color: var(--action-secondary-text)` is *equally broken* (also never set), so it too falls back to inherited `--text-primary` = `#17131F`. But dark text (#17131F) on a **white** background is high contrast — so the Import button accidentally reads fine, while the New button, with the *same underlying bug*, sits on a dark background and becomes unreadable. Both buttons are broken identically; only one is visually exposed.
+
+### 4. design-system.md's stated rule
+
+`agent-docs/jusprin/design-system.md`, "Writing UI code" (line 162-170):
+&gt; **1. Never type a color, radius, font, or control size.** Every one comes from `resources/jusprin/ui/design-tokens.json`. ... The Agent page uses only `var(--…)`: `--&lt;group&gt;-&lt;name&gt;` for color, `--radius-&lt;name&gt;`, `--font-&lt;role&gt;`, `--font-code`, and `--button-&lt;recipe&gt;-padding`.
+
+And "Runtime application in the native app" (line 215-218):
+&gt; **Web:** `AgentUI/src/tokens.ts` writes the semantic colors as `--&lt;group&gt;-&lt;name&gt;` on every appearance change...
+
+So the documented contract for a color variable name is `--&lt;group&gt;-&lt;name&gt;`, where `&lt;name&gt;` should be the kebab-cased token key — exactly what HomeUI's stylesheet (correctly) assumes and what `applyAppearance()` fails to produce.
+
+### 5. Is this isolated or systemic?
+
+**Systemic — it's a bug in the shared token-application utility, not a per-button typo.** Concrete evidence:
+
+- All 10 multi-word keys in the `action` semantic group (`primaryHover`, `primaryPressed`, `primaryText`, `secondaryHover`, `secondaryPressed`, `secondaryText`, `secondaryBorder`, `dangerText`, `dangerBorder`, `disabledText`), plus `text.onAction` and `status.successOnAction`, are affected in **both** light and dark modes — 12 distinct broken CSS custom-property names, system-wide.
+- In `HomeUI/src/styles.css` this currently manifests as **7 broken `var()` references**: `--action-primary-text` (319), `--action-primary-hover` (325, 326), `--action-secondary-text` (333), `--action-secondary-border` (335), `--action-secondary-hover` (340, 359).
+- `AgentUI/src/styles.css` (1800+ lines) never triggers the visible symptom, but only because it uses the *same broken camelCase* names the JS actually emits — e.g. `var(--action-primaryText)` (line 1012, 1028, 1179, 1496), `var(--action-primaryHover)` (1017, 1086, 1183), `var(--action-primaryPressed)` (1022, 1187), `var(--action-disabledText)` (1173, 1192, 1465, 1505). That is itself a violation of the documented `--&lt;group&gt;-&lt;name&gt;` (kebab) convention — AgentUI's authors apparently discovered the actual (buggy) runtime variable names and coded against those rather than the documented kebab convention, masking the underlying bug instead of fixing it.
+- There are **no hardcoded hex/rgba literals** anywhere in `HomeUI/src/styles.css` or `AgentUI/src/styles.css` (both are 0 per grep) — the "Never type a color" rule is otherwise followed diligently, and is mechanically enforced by `styles.test.ts`'s "carries no literal color" check in both projects.
+- The native C++ side (`Brand/BrandPalette.cpp`) does contain many raw hex literals, but those are the *documented, intentional* mapping table described in design-system.md §"Retained OrcaSlicer surfaces" (`StateColor::SetColorOverrides` mapping upstream OrcaSlicer literals to semantic tokens) — not a violation.
+
+**Testing gap that let this ship:** Both `HomeUI/src/styles.test.ts:75-87` and `AgentUI/src/styles.test.ts:79` have a test titled "asks only for variables that tokens.ts emits," but the regex only covers the *static* token groups:
+```ts
+/var\((--(?:font|button|project-card|printer-card|status-dot|swatch|glyph|elevation)-[\w-]+)\)/g   // HomeUI
+/var\((--(?:font|button)-[\w-]+)\)/g                                                                 // AgentUI
+```
+Neither pattern includes `action`, `text`, `surface`, `border`, or `status` — the semantic/appearance color groups — so no test in the repo actually verifies that a `var(--action-primary-text)` reference corresponds to a variable `applyAppearance()` really sets. That's why this shipped undetected in HomeUI, and why AgentUI's workaround-via-camelCase went unnoticed as a documented-convention violation.
+
+### Fix locus (for reference, not applied — investigation only)
+The one-line fix is in `WebShared/tokens.ts:131`: change `` `--${group}-${name}` `` to `` `--${group}-${kebab(name)}` ``. That alone would fix the New button, but it would simultaneously break every AgentUI CSS rule that currently (incorrectly) references the camelCase names, so those ~15+ AgentUI `var()` call sites would need to be updated to kebab-case in the same change, and the `styles.test.ts` "asks only for variables that tokens.ts emits" check in both projects should be extended to cover the semantic color groups so this class of bug is caught by CI going forward.</result>
+<usage><subagent_tokens>79291</subagent_tokens><tool_uses>23</tool_uses><duration_ms>187543</duration_ms></usage>
+</task-notification>
+
+---
+
+yes. fix it and test your fix. after that, search the codebase to see if there are other places that make similar error
+
+---
+
+<task-notification>
+<task-id>b7jz1cg2k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-figma-design-file-42aa00/630e0855-bb34-4656-8024-2567f92243f3/tasks/b7jz1cg2k.output</output-file>
+<status>completed</status>
+<summary>Background command "Start a static file server for the visual check harness" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0b96dc05456b6dca</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-figma-design-file-42aa00/630e0855-bb34-4656-8024-2567f92243f3/tasks/a0b96dc05456b6dca.output</output-file>
+<status>completed</status>
+<summary>Agent "Search codebase for similar camelCase/kebab-case token bugs" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Audit results
+
+Scope covered: `AgentUI/src` (incl. `tokens.ts`, `bridge/protocol.ts`, all `components/*.tsx`, `state/store.ts`), `HomeUI/src` (same layout), `WebShared/tokens.ts` + `bridgeClient.ts`, the native `Agent/`, `Home/`, `Mcp/`, `Shell/`, `Workspace/` C++ trees, and `resources/jusprin/{agent,home}/protocol.json`.
+
+### High confidence — worth a closer look (latent risk, same mechanism as the bug you fixed)
+
+**1. `AgentUI/src/components/ToolActivityCard.tsx:30`**
+```tsx
+&lt;div className={`tool-card state-${activity.state}`} data-testid={`tool-${activity.actionId}`}&gt;
+```
+`activity.state` is `ToolStateName` (`'pending' | 'approved' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'rejected'`), built by string interpolation with **no case conversion at all** (not even a `kebab()` call), then matched in `styles.css:772-777` via literal selectors `.tool-card.state-cancelled`, `.state-rejected`, `.state-failed`.
+- Same bug class: a dynamically-built class name derived from a protocol-defined string enum, with the naming convention (kebab-case, hyphen-joined words) enforced only by convention, not by a shared conversion function.
+- Not broken today: every current value in `ToolStateName` is a single word, so there's nothing to mis-case (exactly like your `--radius-*` finding pre-fix).
+- Risk: if a future host update adds a multi-word state (e.g. hypothetically `"awaitingApproval"` instead of a new snake_case value), this becomes `state-awaitingApproval`, CSS asks for `.state-awaiting-approval`, and the rule silently doesn't match — an invisible styling regression identical in shape to the one you just fixed. Confidence this will bite: low-medium (the protocol's `ToolStateName`/`ActionClassName`/`ChangeKind`/`AttachmentKind` unions are consistently single-word today), but it's the exact same "raw interpolation, no shared normalizer" pattern.
+
+### Medium confidence — root-cause pattern present, but not a CSS mismatch
+
+**2. Hand-typed camelCase JSON field names duplicated across many C++ call sites (no shared mapping function), matched only by convention against the hand-typed TS interfaces**
+
+Examples:
+- `src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp` — dozens of sites building `json{...}` literals by hand: `"sessionId"`, `"clientMessageId"`, `"inReplyTo"`, `"correlationId"`, `"actionId"`, `"actionClass"`, `"requiresApproval"`, `"expectedRevision"` (see `activity_json()` at lines 105-126, `send_envelope()` at 635-648, `AgentHost.cpp:889`, `1516`, `1545`, `1800`).
+- `src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp:105-108,128` — repeats the same `"clientMessageId"` / `"inReplyTo"` keys independently of `AgentHost.cpp`.
+- `src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp:176,179,230-268` and `src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp:31,172` and `src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp:54` and `src/slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.cpp:117,204,269` — all independently retype `"sessionId"`.
+- `src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp:44-71` — `"thumbnailUrl"`, `"canLaunchMonitor"`, `"statusText"`, `"connectionText"`, `"nozzleText"`, `"materialLabel"`, `"progressPercent"` all typed by hand once here (single site for Home, lower risk than Agent's scattered version).
+
+Why this is the same root-cause class you called out in point 2: there is no single "C++ struct field → wire field name" conversion function analogous to `kebab()`; each call site spells the camelCase JSON key out by hand as a string literal, and the TS side (`AgentUI/src/bridge/protocol.ts`, `HomeUI/src/bridge/protocol.ts`) independently spells the same name as a TS interface property. Nothing enforces the two stay byte-for-byte identical except human care and (presumably) integration/contract tests elsewhere in the tree that weren't in the JusPrin GUI directory itself.
+
+Current status: I did **not** find an actual mismatch — every field I cross-checked (`sessionId`, `clientMessageId`, `inReplyTo`, `correlationId`, `actionId`, `actionClass`, `requiresApproval`, `expectedRevision`, `thumbnailUrl`, `canLaunchMonitor`, `statusText`, `connectionText`, `nozzleText`, `materialLabel`, `progressPercent`, `configPath`, `helperPresent`, `liveUrl`, `startupError`) matches exactly between C++ and TS today. So this is **not visibly or silently broken now** — it's a structural/process risk (drift potential on the next edit, e.g. a rename on one side without the other), not a live bug. I'm flagging it because it's the same "no single conversion function, matched by convention" shape as the tokens.ts bug, just one level more manual (there isn't even an automated string transform to get wrong — it's 100% hand-typed on both sides), so the failure mode on drift is the same: a field silently becomes `undefined`/absent rather than erroring.
+
+### Checked and found clean (no drift risk / already centralized correctly)
+
+- `src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts` and `HomeUI/src/tokens.ts` — both correctly route every dynamic name through `WebShared/tokens.ts`'s `kebab()`/`applyPixelTokens`/`pixelVariableNames` helpers; their few raw `setProperty` calls (`--thread-row-line-gap`, the aspect-ratio and `--glyph-size` variables in Home) use fixed literal strings, not per-key iteration, so there's no case-conversion opportunity to miss.
+- `AgentUI/src/styles.test.ts` and `HomeUI/src/styles.test.ts` — both import `staticVariableNames()`/`semanticVariableNames()` from the real `tokens.ts` files rather than reimplementing kebab-case logic, so the test can't drift from the implementation the way a hand-rolled duplicate would.
+- Message-type strings (`'state_request'`, `'draft_update'`, etc.) in `AgentProtocol.hpp`, `resources/jusprin/agent/protocol.json`, and `AgentUI/src/bridge/protocol.ts` are all consistently snake_case on both sides, and driven from the same JSON file via `import protocolJson from '@resources/...'` for name/version/capabilities — not hand-duplicated for those three fields specifically.
+- `ProjectCard.tsx`, `PrinterCard.tsx`, `ManufacturingHistoryCard.tsx` (`tone` prop) — use fixed single-word literal class names (`'printing'`, `'success'`, `'warning'`), not derived via any transform, so no mismatch risk.
+- `WebShared/bridgeClient.ts` — generic envelope handling, no dynamic name construction.
+- No other `setProperty`/`documentElement.style` calls exist anywhere under `AgentUI/`, `HomeUI/`, or `WebShared/` outside the three `tokens.ts` files (verified by grep across all `.ts`/`.tsx`, excluding `node_modules`).
+- No `snake_case` vs `camelCase` field mismatches found between the C++ Mcp/Agent/Home bridge JSON builders and the TS protocol interfaces for any field I sampled.
+
+### Bottom line, ranked
+
+1. **`ToolActivityCard.tsx:30`** (`state-${activity.state}`) — same bug class as your fix, currently dormant only because all enum values happen to be single words. Recommend either running it through `kebab()`-equivalent or asserting (in a test, like your styles tests already do) that `ToolStateName`/`ActionClassName` values stay single-word so this can't silently regress.
+2. **Hand-duplicated camelCase JSON keys across `AgentHost.cpp`/`ProjectStateDocument.cpp`/`ToolRegistry.cpp`/`ToolResults.cpp`/`OpenAIResponsesAgent.cpp`/`DeterministicMockAgent.cpp`** — no current mismatch, but it's the same "no shared conversion function" root cause one level more manual; a future rename on either side of the C++/TS boundary has nothing but code review to catch it.
+
+Nothing else in the `AgentUI`/`HomeUI`/`WebShared`/`Mcp` surfaces showed the specific "dynamically build a name from an object key, forget the conversion" pattern beyond what you already fixed.</result>
+<usage><subagent_tokens>106608</subagent_tokens><tool_uses>39</tool_uses><duration_ms>189311</duration_ms></usage>
+</task-notification>
+
+---
+
+no, leave it as-is, commit this.  Give me more background about why we currently have to handle the camel case vs kebab case problem.  Is this for communication between the JavaScript in the WebView and C++ or is it for something completely different?
+
+---
+
+so wha tyou said here is non-sense?
+
+One structural observation, not a bug: dozens of C++ call sites across Agent/AgentHost.cpp, Agent/ProjectStateDocument.cpp, Agent/ToolRegistry.cpp, and others independently hand-type the same camelCase JSON field names ("sessionId", "clientMessageId", etc.) that the TypeScript side also hand-types separately, with no single shared source of truth for the wire format. Nothing is mismatched today, but if either side is renamed without the other, it fails silently (field goes undefined) rather than erroring. This is a real architectural risk, but fixing it would mean introducing a shared schema/codegen for the whole bridge protocol — a much bigger change than this bug-fix task, so I'm just flagging it rather than touching it.
+
+---
+
+bring your fix to jusprin-newui branch.
+
+---
+
+also make sure the import and new buttons do not -match the mockups (attached). fix them. let me know if you need to access the original figma file to complete this job

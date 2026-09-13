@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2DEM9GCKH0B7HGS7B304G6R",
+  "session_id": "630e0855-bb34-4656-8024-2567f92243f3",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-13T13:17:13.094921Z",
+  "branch": "claude/new-button-visibility-8a0302",
+  "checkpoints_count": 4,
+  "save_step_count": 2,
+  "files_touched": [
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/Glyphs.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/WebShared/tokens.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "71a503165604",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 326,
+    "cache_creation_tokens": 273863,
+    "cache_read_tokens": 32001208,
+    "output_tokens": 104708,
+    "api_call_count": 163,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-13T13:17:12.744974Z",
+    "agent_lines": 50,
+    "agent_removed": 4,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 50,
+    "total_lines_changed": 54,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 50,
+      "agent_lines_removed": 4,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
