@@ -6,9 +6,13 @@ add_executable(jusprin_tests
     test_host_locale.cpp
     test_home_snapshot.cpp
     test_home_host.cpp
+    test_printer_setup.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeHost.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPhoto.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.cpp
 )
 
 target_compile_definitions(jusprin_tests PRIVATE

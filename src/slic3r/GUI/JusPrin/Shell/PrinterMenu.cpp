@@ -1,8 +1,7 @@
 #include "PrinterMenu.hpp"
 #include "SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
 
-#include "slic3r/GUI/ConfigWizard.hpp"
-#include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
@@ -22,11 +21,12 @@ HeaderMenuItem separator()
 
 } // namespace
 
-PrinterMenu::PrinterMenu(Plater& plater) : m_plater(plater) {}
+PrinterMenu::PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
+    : m_plater(plater), m_owner(owner), m_theme(theme), m_dark(dark) {}
 
 void PrinterMenu::open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor)
 {
-    auto self = std::make_shared<PrinterMenu>(plater);
+    auto self = std::make_shared<PrinterMenu>(owner, theme, dark, plater);
     self->m_menu = new HeaderMenu(owner, theme, dark, {});
     show_root(self);
     self->m_menu->open(anchor);
@@ -112,9 +112,10 @@ void PrinterMenu::show_root(const Ptr& self)
 
     HeaderMenuItem add;
     add.label = _L("Add a printer…");
-    // Deferred: this slice opens Orca's own wizard unchanged rather than the
-    // three-step sheet the design calls for.
-    add.invoke = [] { wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS); };
+    add.invoke = [self] {
+        if (wxWindow* owner = self->m_owner.get())
+            PrinterSetup::show_printer_setup(owner, self->m_theme, self->m_dark, self->m_plater);
+    };
     rows.push_back(std::move(add));
 
     menu->replace_items(std::move(rows));

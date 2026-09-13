@@ -117,6 +117,12 @@ void set_filament_colour(Plater& plater, const wxColour& colour);
 // update_objects_position_when_select_preset.
 bool select_printer_preset(Plater& plater, const std::string& preset_name);
 
+// Enables one shipped vendor/model/variant and selects its real system preset.
+// On a load failure the old AppConfig selections are restored and reloaded.
+bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
+                                const std::string& model_id, const std::string& variant,
+                                const std::string& default_filament, std::string& error);
+
 // Applies a bed type through Sidebar::set_bed_type_accord_combox, the public
 // method Orca itself uses; it notifies the combo, so Orca's own handler owns
 // the app-config write, the slice invalidation, and the re-render.

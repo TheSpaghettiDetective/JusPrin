@@ -58,4 +58,26 @@ void style_button(Button& button, const ShellTheme& theme, const ShellPalette& p
         std::pair(palette.action_secondary_text,  int(StateColor::Normal))));
 }
 
+void style_primary_button(Button& button, const ShellTheme& theme, const ShellPalette& palette,
+                          const ButtonRecipe& recipe)
+{
+    style_button(button, theme, palette, recipe);
+    StateColor background(
+        std::pair(palette.action_disabled,         int(StateColor::Disabled)),
+        std::pair(palette.action_primary_pressed,  int(StateColor::Pressed)),
+        std::pair(palette.action_primary_hover,    int(StateColor::Hovered)),
+        std::pair(palette.action_primary,          int(StateColor::Normal)));
+    background.setTakeFocusedAsHovered(false);
+    button.SetBackgroundColor(background);
+    StateColor border(
+        std::pair(palette.action_disabled, int(StateColor::Disabled)),
+        std::pair(palette.border_focus,    int(StateColor::Focused)),
+        std::pair(palette.action_primary,  int(StateColor::Normal)));
+    border.setTakeFocusedAsHovered(false);
+    button.SetBorderColor(border);
+    button.SetTextColor(StateColor(
+        std::pair(palette.action_disabled_text, int(StateColor::Disabled)),
+        std::pair(palette.action_primary_text,  int(StateColor::Normal))));
+}
+
 } // namespace Slic3r::GUI::JusPrin

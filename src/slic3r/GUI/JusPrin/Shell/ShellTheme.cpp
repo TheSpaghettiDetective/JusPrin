@@ -50,6 +50,7 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     palette.status_success          = parse_color(mode_tokens, "status", "success");
     palette.status_success_on_action = parse_color(mode_tokens, "status", "successOnAction");
     palette.status_danger           = parse_color(mode_tokens, "status", "danger");
+    palette.overlay_scrim            = parse_color(mode_tokens, "overlay", "scrim");
     return palette;
 }
 
@@ -135,6 +136,18 @@ ButtonMetrics parse_buttons(const nlohmann::json& buttons)
     b.expanded.padding_y  = parse_int(expanded, "component.button.expanded", "paddingY");
     b.expanded.radius     = parse_int(expanded, "component.button.expanded", "radius");
     b.expanded.text_role  = parse_text_role(expanded, "component.button.expanded");
+
+    const nlohmann::json& secondary = buttons.at("secondary");
+    b.secondary.padding_x = parse_int(secondary, "component.button.secondary", "paddingX");
+    b.secondary.padding_y = parse_int(secondary, "component.button.secondary", "paddingY");
+    b.secondary.radius = parse_int(secondary, "component.button.secondary", "radius");
+    b.secondary.text_role = parse_text_role(secondary, "component.button.secondary");
+
+    const nlohmann::json& primary = buttons.at("primary");
+    b.primary.padding_x  = parse_int(primary, "component.button.primary", "paddingX");
+    b.primary.padding_y  = parse_int(primary, "component.button.primary", "paddingY");
+    b.primary.radius     = parse_int(primary, "component.button.primary", "radius");
+    b.primary.text_role  = parse_text_role(primary, "component.button.primary");
     return b;
 }
 
@@ -187,6 +200,23 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& swatch = component.at("swatch");
     m.swatch.size   = parse_int(swatch, "component.swatch", "size");
     m.swatch.radius = parse_int(swatch, "component.swatch", "radius");
+
+    const nlohmann::json& printer_setup = component.at("printerSetup");
+    m.printer_setup.dialog_width = parse_int(printer_setup, "component.printerSetup", "dialogWidth");
+    m.printer_setup.initial_height = parse_int(printer_setup, "component.printerSetup", "initialHeight");
+    m.printer_setup.recognized_height = parse_int(printer_setup, "component.printerSetup", "recognizedHeight");
+    m.printer_setup.network_height = parse_int(printer_setup, "component.printerSetup", "networkHeight");
+    m.printer_setup.ambiguous_height = parse_int(printer_setup, "component.printerSetup", "ambiguousHeight");
+    m.printer_setup.evidence_field_height = parse_int(printer_setup, "component.printerSetup", "evidenceFieldHeight");
+    m.printer_setup.correction_field_height = parse_int(printer_setup, "component.printerSetup", "correctionFieldHeight");
+    m.printer_setup.photo_drop_height = parse_int(printer_setup, "component.printerSetup", "photoDropHeight");
+    m.printer_setup.network_row_height = parse_int(printer_setup, "component.printerSetup", "networkRowHeight");
+    m.printer_setup.artwork_size = parse_int(printer_setup, "component.printerSetup", "artworkSize");
+    m.printer_setup.candidate_min_height = parse_int(printer_setup, "component.printerSetup", "candidateMinHeight");
+    m.printer_setup.ambiguous_artwork_height = parse_int(printer_setup, "component.printerSetup", "ambiguousArtworkHeight");
+    m.printer_setup.scrim_alpha = parse_int(printer_setup, "component.printerSetup", "scrimAlpha");
+    m.printer_setup.radius = parse_int(printer_setup, "component.printerSetup", "radius");
+    m.printer_setup.control_radius = parse_int(printer_setup, "component.printerSetup", "controlRadius");
     return m;
 }
 

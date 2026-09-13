@@ -28,4 +28,8 @@ void style_text_field(wxTextCtrl& field, const ShellTheme& theme, const ShellPal
 // of the teal tables.
 void style_button(Button& button, const ShellTheme& theme, const ShellPalette& palette, const ButtonRecipe& recipe);
 
+// The same geometry recipe with the semantic primary action state table.
+void style_primary_button(Button& button, const ShellTheme& theme, const ShellPalette& palette,
+                          const ButtonRecipe& recipe);
+
 } // namespace Slic3r::GUI::JusPrin

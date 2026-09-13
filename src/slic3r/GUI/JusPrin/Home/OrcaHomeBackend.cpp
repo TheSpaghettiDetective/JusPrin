@@ -4,7 +4,6 @@
 
 #include "OrcaHomeBackend.hpp"
 
-#include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
@@ -12,6 +11,7 @@
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
 #include <wx/filename.h>
@@ -284,7 +284,8 @@ void OrcaHomeBackend::launch_monitor(const std::string& printer_id)
 
 void OrcaHomeBackend::add_printer()
 {
-    wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS);
+    if (Plater* plater = wxGetApp().plater())
+        PrinterSetup::show_printer_setup(&m_frame, dark(), *plater);
 }
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

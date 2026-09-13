@@ -14,6 +14,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <set>
 
 namespace Slic3r::GUI::JusPrin::SetupCommands {
 
@@ -282,6 +284,78 @@ bool select_printer_preset(Plater& plater, const std::string& preset_name)
         plater.on_config_change(presets->full_config());
     });
     return true;
+}
+
+bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
+                                const std::string& model_id, const std::string& variant,
+                                const std::string& default_filament, std::string& error)
+{
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    AppConfig* config = wxGetApp().app_config;
+    if (!presets || !config || vendor_id.empty() || model_id.empty() || variant.empty()) {
+        error = "Printer setup is unavailable because the preset system is not ready.";
+        return false;
+    }
+    const auto old_vendors = config->vendors();
+    const bool had_filaments = config->has_section(AppConfig::SECTION_FILAMENTS);
+    const auto old_filaments = had_filaments ? config->get_section(AppConfig::SECTION_FILAMENTS)
+                                             : std::map<std::string, std::string>();
+    const std::string old_printer = presets->printers.get_selected_preset_name();
+    auto rollback = [&]() -> std::string {
+        config->set_vendors(old_vendors);
+        config->set_section(AppConfig::SECTION_FILAMENTS, old_filaments);
+        try {
+            presets->load_presets(*config, ForwardCompatibilitySubstitutionRule::Enable,
+                                  {std::string(), std::string(), std::string(), std::string()});
+            if (!select_printer_preset(plater, old_printer))
+                return "The previous printer preset could not be selected again.";
+            if (wxGetApp().mainframe) wxGetApp().mainframe->update_side_preset_ui();
+        } catch (const std::exception& exception) {
+            return std::string("The previous preset configuration could not be reloaded: ") + exception.what();
+        }
+        return {};
+    };
+    try {
+        std::map<std::string, std::map<std::string, std::set<std::string>>> vendors;
+        vendors[vendor_id][model_id].insert(variant);
+        std::map<std::string, std::string> filaments;
+        if (!default_filament.empty()) filaments[default_filament] = "true";
+        bool applied = false;
+        bool selected = false;
+        plater.update_objects_position_when_select_preset([&] {
+            applied = presets->apply_vendor_config(vendors, filaments, config, false, model_id, variant,
+                                                   default_filament);
+            if (!applied) return;
+            const Preset* preset = presets->printers.find_system_preset_by_model_and_variant(model_id, variant);
+            Tab* tab = wxGetApp().get_tab(Preset::TYPE_PRINTER);
+            if (!preset || !tab) return;
+            tab->select_preset(preset->name);
+            plater.on_config_change(presets->full_config());
+            selected = true;
+        });
+        if (!applied) {
+            const std::string rollback_error = rollback();
+            error = rollback_error.empty()
+                ? "The printer profile could not be installed. Your previous setup is unchanged."
+                : "The printer profile could not be installed. " + rollback_error;
+            return false;
+        }
+        if (!selected) {
+            const std::string rollback_error = rollback();
+            error = rollback_error.empty()
+                ? "The installed profile could not be selected. Your previous setup is unchanged."
+                : "The installed profile could not be selected. " + rollback_error;
+            return false;
+        }
+        if (wxGetApp().mainframe) wxGetApp().mainframe->update_side_preset_ui();
+        presets->export_selections(*config);
+        return true;
+    } catch (const std::exception& exception) {
+        const std::string rollback_error = rollback();
+        error = std::string("The printer profile could not be loaded: ") + exception.what();
+        if (!rollback_error.empty()) error += " " + rollback_error;
+        return false;
+    }
 }
 
 bool select_bed_type(Plater& plater, int bed_type_value)

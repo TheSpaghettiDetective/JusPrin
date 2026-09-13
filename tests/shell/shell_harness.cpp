@@ -58,6 +58,12 @@
 //              setting by hand, asserts the thread's change rows and the
 //              "Answered · nothing changed" marker, and writes
 //              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
+//   --printer-setup
+//              drives the Add a printer modal from the printer menu with the
+//              deterministic recognizer: dismissal and scrim lifetime, the
+//              choice/Not this one/Start over/correction transitions, adding a
+//              shipped but disabled profile, the network state, Set it up
+//              myself, and install rollback
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
@@ -76,6 +82,8 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp"
+#include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/ParamsPanel.hpp"
 #include "slic3r/GUI/Tab.hpp"
@@ -94,6 +102,9 @@
 #include <wx/dcscreen.h>
 #include <wx/glcanvas.h>
 #include <wx/dialog.h>
+#include <wx/dnd.h>
+#include <wx/hyperlink.h>
+#include <wx/webview.h>
 #include <wx/process.h>
 #include <wx/stdpaths.h>
 #include <wx/textctrl.h>
@@ -167,7 +178,8 @@ struct HarnessState
         ManualMcp,
         LiveAgentUnavailable,
         RecomputingCapture,
-        TimelineCapture
+        TimelineCapture,
+        PrinterSetup
     };
 
     std::atomic<int>  result{-1};
@@ -247,6 +259,10 @@ public:
                 return;
             }
             verify_shell_installed();
+            if (m_state->mode == HarnessState::Mode::PrinterSetup) {
+                verify_printer_setup();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::McpSetup) {
                 verify_mcp_setup();
                 finish();
@@ -401,6 +417,313 @@ private:
         }
         const auto recovered = run_mcp_setup_command(m_frame, {executable, "--setup-child", "success", literal});
         check(recovered.success, "mcp_setup_succeeds_after_timeouts");
+    }
+
+    // --- Add a printer (--printer-setup) ---------------------------------
+    //
+    // The modal runs its own event loop, so every step below executes from
+    // this harness's poll timer inside that loop, the way a person's clicks
+    // would. Controls are found by the accessible names the dialog gives them.
+
+    static constexpr const char* kSetupFixturePrinter = "Bambu Lab X1 Carbon 0.4 nozzle";
+
+    static PrinterSetup::PrinterSetupDialog* printer_setup_dialog()
+    {
+        for (auto* window : wxTopLevelWindows)
+            if (auto* dialog = dynamic_cast<PrinterSetup::PrinterSetupDialog*>(window); dialog && dialog->IsShown())
+                return dialog;
+        return nullptr;
+    }
+
+    static GuideFrame* printer_wizard()
+    {
+        for (auto* window : wxTopLevelWindows)
+            if (auto* wizard = dynamic_cast<GuideFrame*>(window); wizard && wizard->IsShown()) return wizard;
+        return nullptr;
+    }
+
+    static wxWindow* setup_control(const char* name)
+    {
+        auto* dialog = printer_setup_dialog();
+        return dialog ? wxWindow::FindWindowByName(ui_name(name), dialog) : nullptr;
+    }
+
+    static std::size_t setup_control_count(const char* name)
+    {
+        std::size_t count = 0;
+        std::function<void(wxWindow*)> walk = [&](wxWindow* window) {
+            if (window->GetName() == ui_name(name)) ++count;
+            for (wxWindow* child : window->GetChildren()) walk(child);
+        };
+        if (auto* dialog = printer_setup_dialog()) walk(dialog);
+        return count;
+    }
+
+    static wxString setup_labels()
+    {
+        auto* dialog = printer_setup_dialog();
+        return dialog ? status_row_labels(dialog) : wxString();
+    }
+
+    static wxTextCtrl* setup_description() { return dynamic_cast<wxTextCtrl*>(setup_control("What printer do you have?")); }
+
+    static void press(wxWindow* control)
+    {
+        if (control == nullptr) return;
+        if (auto* link = dynamic_cast<wxHyperlinkCtrl*>(control)) {
+            wxHyperlinkEvent event(link, link->GetId(), link->GetURL());
+            link->GetEventHandler()->ProcessEvent(event);
+            return;
+        }
+        wxCommandEvent event(wxEVT_BUTTON, control->GetId());
+        event.SetEventObject(control);
+        control->GetEventHandler()->ProcessEvent(event);
+    }
+
+    // The description shows its prompt as text until it takes focus.
+    static void type_description(const char* text)
+    {
+        auto* field = setup_description();
+        if (field == nullptr) return;
+        wxFocusEvent focus(wxEVT_SET_FOCUS, field->GetId());
+        focus.SetEventObject(field);
+        field->GetEventHandler()->ProcessEvent(focus);
+        field->SetValue(ui_name(text));
+    }
+
+    static std::string selected_printer() { return wxGetApp().preset_bundle->printers.get_selected_preset_name(); }
+
+    void open_printer_setup_from_menu(const std::string& label, std::function<void()> then)
+    {
+        installed_shell()->status_row()->open_printer_menu();
+        HeaderMenu* menu = visible_header_menu();
+        wxWindow* row = menu ? wxWindow::FindWindowByName(ui_name("Add a printer…"), menu) : nullptr;
+        check(row != nullptr, label + "_printer_menu_has_add_printer");
+        if (row == nullptr) {
+            fail("the printer menu has no Add a printer row");
+            return;
+        }
+        click_row(menu, row);
+        wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_printer_menu_opens_setup",
+                   [self = shared_from_this(), then = std::move(then)] {
+                       self->m_setup_scrim = printer_setup_dialog()->GetParent();
+                       then();
+                   });
+    }
+
+    // Waits for the modal to go, then for the loop to go idle so a deferred
+    // Destroy() of the scrim has run before it is checked.
+    void after_setup_closes(const std::string& label, const std::string& expected_printer, std::function<void()> then)
+    {
+        wait_until([] { return printer_setup_dialog() == nullptr; }, label + "_closes_setup",
+                   [self = shared_from_this(), label, expected_printer, then = std::move(then)] {
+            self->wait_until_settled(label + "_settled", [self, label, expected_printer, then] {
+                self->check(!self->m_setup_scrim, label + "_scrim_destroyed");
+                self->check(self->m_frame->IsShown() && self->m_frame->IsEnabled(), label + "_main_frame_usable");
+                self->check(selected_printer() == expected_printer, label + "_printer_is_expected");
+                then();
+            });
+        });
+    }
+
+    void verify_printer_setup()
+    {
+        check(selected_printer() == kSetupFixturePrinter, "setup_fixture_printer_selected");
+        wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
+        open_printer_setup_from_menu("setup_escape", [self = shared_from_this()] {
+            auto* dialog = printer_setup_dialog();
+            wxWindow* scrim = dialog->GetParent();
+            self->check(dynamic_cast<wxFrame*>(scrim) != nullptr && scrim != self->m_frame && scrim->IsShown(),
+                        "setup_modal_is_parented_to_scrim");
+            self->check(dialog->IsModal() && self->m_frame->IsShown(), "setup_modal_over_shown_main_frame");
+            auto* next = setup_control("Next");
+            self->check(next != nullptr && !next->IsEnabled(), "setup_next_disabled_without_evidence");
+            self->check(setup_control("Close Add a printer") && setup_control("Set it up myself") &&
+                        setup_control("Choose a printer photo") && setup_description(),
+                        "setup_initial_controls_have_accessible_names");
+            wxKeyEvent escape(wxEVT_CHAR_HOOK);
+            escape.m_keyCode = WXK_ESCAPE;
+            escape.SetEventObject(dialog);
+            dialog->GetEventHandler()->ProcessEvent(escape);
+            self->after_setup_closes("setup_escape", kSetupFixturePrinter, [self] {
+                self->open_printer_setup_from_menu("setup_close_button", [self] {
+                    press(setup_control("Close Add a printer"));
+                    self->after_setup_closes("setup_close_button", kSetupFixturePrinter,
+                                             [self] { self->verify_setup_choices(); });
+                });
+            });
+        });
+    }
+
+    void verify_setup_choices()
+    {
+        open_printer_setup_from_menu("setup_choices", [self = shared_from_this()] {
+            type_description("the ender with the touchscreen");
+            auto* next = setup_control("Next");
+            self->check(next && next->IsEnabled(), "setup_next_enabled_by_description");
+            // A dropped photo joins what was typed; it must not wipe it.
+            auto* photo = setup_control("Choose a printer photo");
+            wxArrayString files;
+            files.Add(ui_name(std::string(JUSPRIN_SOURCE_DIR) + "/resources/images/OrcaSlicer.png"));
+            auto* target = photo ? dynamic_cast<wxFileDropTarget*>(photo->GetDropTarget()) : nullptr;
+            self->check(target && target->OnDropFiles(0, 0, files), "setup_photo_drop_accepted");
+            self->wait_until([] { return setup_labels().Contains("Photo: OrcaSlicer.png"); }, "setup_photo_drop_staged", [self] {
+                auto* field = setup_description();
+                self->check(field && field->GetValue() == "the ender with the touchscreen",
+                            "setup_photo_drop_keeps_typed_description");
+                type_description("the ender with the touchscreen");
+                press(setup_control("Next"));
+                self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_offers_two_models", [self] {
+                    self->check(setup_labels().Contains("Which one is yours?"), "setup_ambiguous_asks_which");
+                    self->check(selected_printer() == kSetupFixturePrinter, "setup_ambiguous_changes_nothing");
+                    press(setup_control("This one"));
+                    self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_choice_reaches_recognized", [self] {
+                        const wxString labels = setup_labels();
+                        self->check(labels.Contains("Ender-3 V2") && labels.Contains(ui_name("220 × 220 × 250 mm")),
+                                    "setup_recognized_reads_profile_details");
+                        self->check(selected_printer() == kSetupFixturePrinter, "setup_choice_changes_nothing");
+                        // Ender-3 V2 ships only a 0.4 variant. A correction on a
+                        // model picked from an ambiguous description must keep
+                        // that pick and report the nozzle as not applied.
+                        dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("I put a 0.6 nozzle on it");
+                        press(setup_control("Add this printer"));
+                        self->wait_until([] { return setup_labels().Contains("Not applied:") || setup_control_count("This one") > 0; },
+                                         "setup_correction_after_choice_resolves", [self] {
+                        self->check(setup_control_count("This one") == 0 && setup_labels().Contains("Creality Ender-3 V2") &&
+                                    !setup_labels().Contains("V2 Neo") && setup_labels().Contains("Not applied:"),
+                                    "setup_correction_after_choice_keeps_the_chosen_model");
+                        press(setup_control("Not this one"));
+                        self->wait_until([] { return setup_description() != nullptr; }, "setup_not_this_one_returns_to_initial", [self] {
+                            self->check(setup_description()->GetValue() == "the ender with the touchscreen" &&
+                                        setup_labels().Contains("Photo: OrcaSlicer.png"),
+                                        "setup_not_this_one_keeps_evidence_for_editing");
+                            press(setup_control("Next"));
+                            self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_again", [self] {
+                                press(setup_control("Start over"));
+                                self->wait_until([] { return setup_description() != nullptr; }, "setup_start_over_returns_to_initial", [self] {
+                                    self->check(setup_description()->GetValue().StartsWith("Say it any way"),
+                                                "setup_start_over_clears_description");
+                                    self->check(!setup_labels().Contains("Photo:"), "setup_start_over_clears_photo");
+                                    self->check(!setup_control("Next")->IsEnabled(), "setup_start_over_disables_next");
+                                    self->verify_setup_correction_and_add();
+                                });
+                            });
+                        });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    void verify_setup_correction_and_add()
+    {
+        // The longer model name must win over the shorter one it contains.
+        type_description("Creality Ender-3 V2 Neo");
+        press(setup_control("Next"));
+        wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_named_model_recognized",
+                   [self = shared_from_this()] {
+            self->check(setup_labels().Contains("Ender-3 V2 Neo"), "setup_named_model_is_the_longest_match");
+            dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("it's the Combo with the AMS");
+            press(setup_control("Add this printer"));
+            self->wait_until([] { return setup_labels().Contains("Not applied:"); }, "setup_unrepresentable_correction_stays_visible", [self] {
+                self->check(setup_labels().Contains("Ender-3 V2 Neo"), "setup_unrepresentable_correction_keeps_model");
+                self->check(selected_printer() == kSetupFixturePrinter, "setup_correction_changes_nothing");
+                self->check(!wxGetApp().app_config->vendors().count("Creality"), "setup_neo_not_enabled_before_confirmation");
+                press(setup_control("Add this printer"));
+                self->after_setup_closes("setup_add", "Creality Ender-3 V2 Neo 0.4 nozzle", [self] {
+                    const auto vendors = wxGetApp().app_config->vendors();
+                    const auto creality = vendors.find("Creality");
+                    self->check(creality != vendors.end() && creality->second.count("Creality Ender-3 V2 Neo") &&
+                                creality->second.at("Creality Ender-3 V2 Neo").count("0.4"),
+                                "setup_add_enables_the_shipped_model_variant");
+                    const auto bbl = vendors.find("BBL");
+                    self->check(bbl != vendors.end() && bbl->second.count("Bambu Lab X1 Carbon"),
+                                "setup_add_keeps_previously_enabled_printers");
+                    self->verify_setup_network();
+                });
+            });
+        });
+    }
+
+    void verify_setup_network()
+    {
+        wxSetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO", "network");
+        open_printer_setup_from_menu("setup_network", [self = shared_from_this()] {
+            wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
+            self->check(setup_labels().Contains(ui_name("Connected · LAN")) && setup_labels().Contains("A1 mini"),
+                        "setup_network_state_shows_connection_and_model");
+            press(setup_control("Not this one"));
+            self->wait_until([] { return setup_description() != nullptr; }, "setup_network_not_this_one_returns_to_initial", [self] {
+                self->check(setup_labels().Contains("01P00A3B"), "setup_network_row_shows_device_id");
+                press(setup_control("Use this"));
+                self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_network_use_this_reaches_confirmation", [self] {
+                    dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("I put a 0.6 nozzle on it");
+                    press(setup_control("Add this printer"));
+                    self->wait_until([] { return setup_control("Add this printer") && setup_labels().Contains("0.6 mm nozzle"); },
+                                     "setup_nozzle_correction_selects_the_variant", [self] {
+                        const wxString labels = setup_labels();
+                        self->check(labels.Contains(ui_name("Connected · LAN")), "setup_correction_keeps_network_evidence");
+                        self->check(!labels.Contains("Not applied:"), "setup_honoured_correction_not_reported_unresolved");
+                        press(setup_control("Close Add a printer"));
+                        self->after_setup_closes("setup_network", "Creality Ender-3 V2 Neo 0.4 nozzle",
+                                                 [self] { self->verify_setup_manual(); });
+                    });
+                });
+            });
+        });
+    }
+
+    void verify_setup_manual()
+    {
+        open_printer_setup_from_menu("setup_manual", [self = shared_from_this()] {
+            press(setup_control("Set it up myself"));
+            // The wizard adds its web view's script handler from a CallAfter and
+            // that call waits on the page. Cancelling before the page has loaded
+            // leaves it waiting on a hidden view forever, so wait for the load.
+            self->wait_until([] {
+                GuideFrame* wizard = printer_wizard();
+                if (wizard == nullptr || wxGetApp().is_adding_script_handler()) return false;
+                std::function<wxWebView*(wxWindow*)> find = [&](wxWindow* window) -> wxWebView* {
+                    if (auto* view = dynamic_cast<wxWebView*>(window)) return view;
+                    for (wxWindow* child : window->GetChildren())
+                        if (wxWebView* view = find(child)) return view;
+                    return nullptr;
+                };
+                wxWebView* view = find(wizard);
+                return view != nullptr && !view->IsBusy() && !view->GetCurrentURL().empty();
+            }, "setup_manual_opens_orca_printer_wizard", [self] {
+                self->check(printer_setup_dialog() == nullptr, "setup_manual_closes_add_printer_first");
+                printer_wizard()->EndModal(wxID_CANCEL);
+                self->wait_until([] { return printer_wizard() == nullptr; }, "setup_manual_wizard_cancelled", [self] {
+                    self->wait_until_settled("setup_manual_settled", [self] {
+                        self->check(!self->m_setup_scrim, "setup_manual_scrim_destroyed");
+                        self->check(selected_printer() == "Creality Ender-3 V2 Neo 0.4 nozzle",
+                                    "setup_manual_cancel_keeps_printer");
+                        self->verify_setup_install_commands();
+                    });
+                });
+            });
+        });
+    }
+
+    void verify_setup_install_commands()
+    {
+        const std::string before = selected_printer();
+        const auto vendors_before = wxGetApp().app_config->vendors();
+        std::string error;
+        const bool missing_variant = SetupCommands::install_and_select_printer(
+            *m_plater, "Creality", "Creality Ender-3 V2", "9.9", {}, error);
+        check(!missing_variant && !error.empty(), "setup_install_failure_reported");
+        check(selected_printer() == before, "setup_install_failure_keeps_previous_printer");
+        check(wxGetApp().app_config->vendors() == vendors_before, "setup_install_failure_restores_enabled_printers");
+
+        error.clear();
+        const bool enabled = SetupCommands::install_and_select_printer(
+            *m_plater, "BBL", "Bambu Lab X1 Carbon", "0.4", {}, error);
+        check(enabled && error.empty() && selected_printer() == kSetupFixturePrinter,
+              "setup_install_selects_an_already_enabled_profile");
+        finish();
     }
 
     void check(bool condition, const std::string& name)
@@ -3017,6 +3340,7 @@ private:
     std::unique_ptr<JusPrinTest::NativeMcpClient> m_mcp_client;
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
+    wxWeakRef<wxWindow>           m_setup_scrim;
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
@@ -3171,6 +3495,8 @@ int main(int argc, char** argv)
         }
         else if (argument == "--live-agent-unavailable")
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
+        else if (argument == "--printer-setup")
+            state->mode = HarnessState::Mode::PrinterSetup;
         else if (argument == "--recomputing-capture") {
             if (++index == argc) {
                 std::cerr << "--recomputing-capture requires an output directory\n";
@@ -3196,6 +3522,8 @@ int main(int argc, char** argv)
     fs::create_directories(data_directory / "log");
     if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
         wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
+    if (state->mode == HarnessState::Mode::PrinterSetup)
+        wxSetEnv("JUSPRIN_PRINTER_RECOGNITION_MOCK", "1");
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
         // The setup key check in this scenario must exercise the real host,
         // page, and HTTP transport without reaching a real provider. A closed

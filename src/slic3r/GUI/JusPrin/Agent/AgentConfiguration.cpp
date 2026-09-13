@@ -49,6 +49,8 @@ bool configured_true(const AppConfig* config, const char* key)
 
 } // namespace
 
+std::string load_provider_api_key(const std::string& provider) { return configured_key(provider); }
+
 AgentRuntime load_agent_runtime(AppConfig* config)
 {
     AgentRuntime runtime;
@@ -76,7 +78,7 @@ AgentRuntime load_agent_runtime(AppConfig* config)
     }
 
     OpenAIResponsesConfig openai;
-    openai.api_key = configured_key(runtime.provider);
+    openai.api_key = load_provider_api_key(runtime.provider);
     if (config != nullptr && !config->get(kSection, "model").empty())
         openai.model = config->get(kSection, "model");
     if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')

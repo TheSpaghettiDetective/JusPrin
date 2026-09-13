@@ -78,6 +78,9 @@
         "successOnAction": "#58B894",
         "danger": "#B44757",
         "warning": "#D49A2A"
+      },
+      "overlay": {
+        "scrim": "#17131F"
       }
     },
     "dark": {
@@ -119,6 +122,9 @@
         "successOnAction": "#174735",
         "danger": "#F07A8E",
         "warning": "#E9B960"
+      },
+      "overlay": {
+        "scrim": "#000000"
       }
     }
   },
@@ -333,6 +339,23 @@
     "swatch": {
       "size": 24,
       "radius": 4
+    },
+    "printerSetup": {
+      "dialogWidth": 500,
+      "initialHeight": 454,
+      "recognizedHeight": 432,
+      "networkHeight": 430,
+      "ambiguousHeight": 470,
+      "evidenceFieldHeight": 72,
+      "correctionFieldHeight": 36,
+      "photoDropHeight": 66,
+      "networkRowHeight": 44,
+      "artworkSize": 88,
+      "candidateMinHeight": 132,
+      "ambiguousArtworkHeight": 80,
+      "scrimAlpha": 88,
+      "radius": 12,
+      "controlRadius": 8
     },
     "projectCard": {
       "minWidth": 240,

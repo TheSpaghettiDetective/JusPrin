@@ -39,6 +39,7 @@ struct ShellPalette
     wxColour status_success;
     wxColour status_success_on_action;
     wxColour status_danger;
+    wxColour overlay_scrim;
 };
 
 // The text roles the token file defines under typography.roles.
@@ -76,6 +77,8 @@ struct ButtonMetrics
     ButtonRecipe parameter;
     ButtonRecipe icon;
     ButtonRecipe expanded;
+    ButtonRecipe secondary;
+    ButtonRecipe primary;
 };
 
 struct ChipMetrics      { int height{0}; int radius{0}; };
@@ -89,6 +92,23 @@ struct AgentPaneMetrics {
     int resize_handle_line_width{0};
 };
 struct SwatchMetrics    { int size{0}; int radius{0}; };
+struct PrinterSetupMetrics {
+    int dialog_width{0};
+    int initial_height{0};
+    int recognized_height{0};
+    int network_height{0};
+    int ambiguous_height{0};
+    int evidence_field_height{0};
+    int correction_field_height{0};
+    int photo_drop_height{0};
+    int network_row_height{0};
+    int artwork_size{0};
+    int candidate_min_height{0};
+    int ambiguous_artwork_height{0};
+    int scrim_alpha{0};
+    int radius{0};
+    int control_radius{0};
+};
 
 // Geometry from the token file's dimension and component sections. Every
 // value is DIP; callers wrap it in FromDIP().
@@ -118,6 +138,7 @@ struct ShellMetrics
     StatusRowMetrics status_row;
     AgentPaneMetrics agent_pane;
     SwatchMetrics    swatch;
+    PrinterSetupMetrics printer_setup;
 };
 
 class ShellTheme

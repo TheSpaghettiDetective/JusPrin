@@ -25,6 +25,11 @@ struct AgentRuntime
 // store. Project/recovery state never receives credentials.
 AgentRuntime load_agent_runtime(AppConfig* config);
 
+// Shared provider credential lookup for bounded, non-conversational features
+// such as printer recognition. It preserves the same developer override and
+// OS credential-store names as the Agent runtime.
+std::string load_provider_api_key(const std::string& provider);
+
 // Credential storage, keyed by provider. The OpenAI entry keeps the name
 // earlier builds wrote, so a key saved before this became multi-provider is
 // still found.

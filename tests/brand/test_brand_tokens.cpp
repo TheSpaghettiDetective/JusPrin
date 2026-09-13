@@ -314,6 +314,18 @@ TEST_CASE("the printer card geometry is explicit", "[brand]")
         "component.printerCard");
 }
 
+TEST_CASE("the add-printer dialog geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("printerSetup"),
+        {{"dialogWidth", 500}, {"initialHeight", 454}, {"recognizedHeight", 432},
+         {"networkHeight", 430}, {"ambiguousHeight", 470}, {"evidenceFieldHeight", 72},
+         {"correctionFieldHeight", 36}, {"photoDropHeight", 66}, {"networkRowHeight", 44},
+         {"artworkSize", 88}, {"candidateMinHeight", 132}, {"ambiguousArtworkHeight", 80},
+         {"scrimAlpha", 88}, {"radius", 12}, {"controlRadius", 8}},
+        "component.printerSetup");
+}
+
 // Home sizes its inline glyphs -- the printer beside a name, the monitor on
 // its button -- from the smallest step of this scale, so it must stay the
 // smallest and stay 16.
