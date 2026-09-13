@@ -126,10 +126,31 @@ Before release completion, cover:
 
 Classify localized CSS, focus, packaging, or backend problems as platform defects unless evidence shows they require a different architecture.
 
-A Windows verification machine without a GPU needs software GL provisioned into
-each build tree before the 3D canvas renders at all; an unprovisioned tree shows
-a black canvas and one warning line. See
-[headless Windows GL](headless-gl-handoff.md).
+### Software GL on Windows machines without a GPU
+
+A Windows machine with no graphics driver reports system GL 1.1, so the launcher
+(`src/OrcaSlicer_app_msvc.cpp`) loads `<exe dir>\mesa\opengl32.dll` instead.
+Nothing in CMake or this repository supplies that file or what it depends on, so
+provision every freshly configured build tree with
+`src/slic3r/GUI/JusPrin/Testing/windows-gl/provision-mesa-windows.ps1`.
+Placement is not interchangeable:
+
+| file | goes | because |
+| --- | --- | --- |
+| `opengl32.dll` | `mesa\` subfolder | the launcher loads it by that path; beside the executable it shadows the system GL and the app dies at launch |
+| `libgallium_wgl.dll` | beside the executable | the `opengl32.dll` stub imports it, and Windows resolves imports against the process directory |
+| `dxil.dll` | beside the executable | Mesa's `d3d12` driver signs translated shaders with it; Windows Server does not ship it, Windows SDKs carry it under `Redist\D3D\x64` |
+
+Each gap has its own silent signature:
+
+- **No `libgallium_wgl.dll`:** GL falls back to 1.1, the log has `glcontext not ready, postpone init` and no `got opengl version` line, and the canvas stays black for the whole session — the retry after a postponed init exists only on Linux.
+- **No `dxil.dll`:** GL initializes through `d3d12`, then the process exits with `0x80070057` on the first canvas draw, with no log line, no dialog, and no event-log entry. `slow_bootup` only moves this crash from startup to the first canvas paint.
+
+Confirm what actually loaded from the process's module list rather than from
+file presence. The log names the live driver: `4.6 … llvmpipe` is Mesa's software
+rasterizer, `4.2 … D3D12 (Microsoft Basic Render Driver)` is Mesa's `d3d12`
+driver on WARP. A fully provisioned tree renders under both;
+`GALLIUM_DRIVER=llvmpipe` selects the former.
 
 ## Implementation evidence record
 
