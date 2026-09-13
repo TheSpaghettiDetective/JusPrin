@@ -1,0 +1,23 @@
+./build_release_macos.sh -s -x -b -c RelWithDebInfo failed. figure out why
+
+---
+
+What does it take to reconfigure the build from scratch with llvm-ar/llvm-ranlib
+
+---
+
+run Option b
+
+---
+
+<task-notification>
+<task-id>ba0vcq8kr</task-id>
+<tool-use-id>toolu_01T9jubTtH6P2T4fU524DJZu</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/9ae90cf4-af8b-4ccc-8aac-553d289d0a98/tasks/ba0vcq8kr.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full slicer build from scratch in the background, logging output" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+leave the script as-is and keep this as a documented one-off recipe  in an appropriate document inside @agent-docs
