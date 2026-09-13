@@ -187,3 +187,7 @@ bring your fix to jusprin-newui branch.
 ---
 
 also make sure the import and new buttons do not -match the mockups (attached). fix them. let me know if you need to access the original figma file to complete this job
+
+---
+
+commit this
