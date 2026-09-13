@@ -1,0 +1,96 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2DC8SMCE8MSF01W9T3RNVR8",
+  "session_id": "630e0855-bb34-4656-8024-2567f92243f3",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-13T12:35:58.972903Z",
+  "branch": "claude/new-button-visibility-8a0302",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.test.ts",
+    "src/slic3r/GUI/JusPrin/WebShared/tokens.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "7db9141b1bd3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 102271,
+    "cache_read_tokens": 8574486,
+    "output_tokens": 31211,
+    "api_call_count": 70,
+    "subagent_tokens": {
+      "input_tokens": 96,
+      "cache_creation_tokens": 179609,
+      "cache_read_tokens": 3024000,
+      "output_tokens": 30017,
+      "api_call_count": 48
+    }
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-13T12:35:58.887745Z",
+    "agent_lines": 0,
+    "agent_removed": 5,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 19,
+    "total_committed": 6,
+    "total_lines_changed": 24,
+    "agent_percentage": 20.833333333333336,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 128,
+      "user_lines_removed": 81,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/launch.json": 12,
+        ".claude/settings.local.json": 40,
+        "src/slic3r/GUI/JusPrin/AgentUI/package-lock.json": 15,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css": 13,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts": 7,
+        "src/slic3r/GUI/JusPrin/HomeUI/package-lock.json": 15,
+        "src/slic3r/GUI/JusPrin/HomeUI/src/styles.test.ts": 4,
+        "src/slic3r/GUI/JusPrin/WebShared/tokens.ts": 22
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/AgentUI/package-lock.json": 10,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css": 13,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts": 3,
+        "src/slic3r/GUI/JusPrin/HomeUI/package-lock.json": 52,
+        "src/slic3r/GUI/JusPrin/HomeUI/src/styles.test.ts": 2,
+        "src/slic3r/GUI/JusPrin/WebShared/tokens.ts": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 52,
+      "agent_lines_removed": 24,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 52,
+      "agent_lines_removed": 24,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
