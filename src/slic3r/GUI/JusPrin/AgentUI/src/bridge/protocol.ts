@@ -52,7 +52,8 @@ export type HostMessageType =
   | 'mcp_catalog'
   | 'mcp_preview'
   | 'mcp_status'
-  | 'change_added';
+  | 'change_added'
+  | 'open_setup';
 
 export interface Envelope<T = unknown> {
   protocol: string;

@@ -389,6 +389,15 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
         apply_agent_pane_width();
 }
 
+void ShellController::open_agent_setup()
+{
+    m_agent_pane_user_collapsed = false;
+    if (m_tabpanel->GetSelection() == MainFrame::tpHome)
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    set_agent_pane_collapsed(false);
+    m_agent_pane->web_view().host().request_setup();
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();

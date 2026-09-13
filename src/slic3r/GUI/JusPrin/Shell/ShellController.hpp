@@ -67,6 +67,10 @@ public:
         set_agent_pane_collapsed(m_agent_pane_user_collapsed);
     }
     bool is_agent_pane_collapsed() const { return m_agent_pane_collapsed; }
+    // Takes the person to the Agent panel's own setup flow from anywhere in
+    // the shell: leaves Home for the workspace, opens the panel as their
+    // choice, and asks the page to open setup.
+    void open_agent_setup();
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);

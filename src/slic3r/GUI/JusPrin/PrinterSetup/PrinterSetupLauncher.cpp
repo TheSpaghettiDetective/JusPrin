@@ -7,16 +7,22 @@
 #include "PrinterSetupDialog.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Utils.hpp"
-#include "slic3r/GUI/ConfigWizard.hpp"
+#include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
 #include <wx/frame.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
@@ -56,10 +62,36 @@ private:
     wxFrame* m_window{nullptr};
 };
 
+// ConnectPrinterDialog::on_button_confirm: an access code is letters and
+// digits, and it is handed to the machine as the user's code.
+bool connect_with_access_code(const DiscoveredPrinter& printer, const std::string& code, wxString& error)
+{
+    const bool valid = std::all_of(code.begin(), code.end(), [](char c) {
+        return ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+    });
+    if (!valid) {
+        error = _L("Invalid input.");
+        return false;
+    }
+    DeviceManager* devices = wxGetApp().getDeviceManager();
+    MachineObject* machine = devices ? devices->get_my_machine(printer.stable_id) : nullptr;
+    if (!machine) {
+        error = _L("This printer is no longer on your network.");
+        return false;
+    }
+    machine->set_user_access_code(code);
+    return true;
+}
+
 } // namespace
 
 void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
 {
+    // Both entry points, Home and the printer menu, belong to the shell.
+    ShellController* shell = installed_shell();
+    if (!shell || !shell->agent_pane())
+        throw std::logic_error("Add a printer opened without the JusPrin shell installed");
+
     PrinterCatalog catalog = PrinterCatalog::load(Slic3r::resources_dir());
     const bool use_mock = std::getenv("JUSPRIN_PRINTER_RECOGNITION_MOCK") != nullptr;
     OpenAIPrinterRecognitionConfig config;
@@ -85,6 +117,8 @@ void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Pla
     auto controller = std::make_unique<PrinterSetupController>(std::move(catalog), std::move(recognition),
                                                                 std::move(apply));
     std::vector<DiscoveredPrinter> discovered = discover_printers();
+    // The same answer the Agent panel gives when it shows its empty state.
+    bool agent_connected = shell->agent_pane()->web_view().host().availability() == Agent::AgentAvailability::Ready;
     // Explicit developer scenarios make every handed-off Figma state
     // inspectable in an isolated app without a live API request or hardware.
     if (use_mock) {
@@ -97,12 +131,21 @@ void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Pla
             controller->recognize(std::move(evidence));
             controller->poll();
         } else if (scenario == "network") {
-            discovered = {{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true}};
+            DiscoveredPrinter printer{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true};
+            printer.nozzle_diameter = 0.4;
+            printer.ams_name = "AMS lite";
+            printer.spools = {{"Bambu PLA Matte", "#2E6FD9"}, {"Bambu PLA Basic", "#F5F5F0"},
+                              {"Bambu PETG HF", "#1A1A1A"}, {"Bambu PLA Silk", "#C0392B"}};
+            discovered = {printer};
             controller->use_discovered(discovered.front());
+        } else if (scenario == "no_agent") {
+            discovered = {{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true}};
+            agent_connected = false;
         }
     }
     ModalScrim scrim(owner, theme.palette(dark), theme.metrics().printer_setup.scrim_alpha);
-    PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), std::move(discovered));
+    PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), std::move(discovered),
+                              agent_connected, [shell] { shell->open_agent_setup(); }, connect_with_access_code);
     dialog.ShowModal();
 }
 

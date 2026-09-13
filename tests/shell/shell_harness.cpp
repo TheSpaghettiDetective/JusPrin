@@ -574,7 +574,9 @@ private:
                 type_description("the ender with the touchscreen");
                 press(setup_control("Next"));
                 self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_offers_two_models", [self] {
-                    self->check(setup_labels().Contains("Which one is yours?"), "setup_ambiguous_asks_which");
+                    self->check(!setup_labels().Contains("Which one is yours?") && setup_control("Say more") &&
+                                setup_control("Neither · it's not in the list"),
+                                "setup_ambiguous_matches_design");
                     self->check(selected_printer() == kSetupFixturePrinter, "setup_ambiguous_changes_nothing");
                     press(setup_control("This one"));
                     self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_choice_reaches_recognized", [self] {
@@ -599,13 +601,21 @@ private:
                                         "setup_not_this_one_keeps_evidence_for_editing");
                             press(setup_control("Next"));
                             self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_again", [self] {
-                                press(setup_control("Start over"));
+                                auto* more = dynamic_cast<wxTextCtrl*>(setup_control("Say more"));
+                                more->SetValue("it has a knob");
+                                wxCommandEvent enter(wxEVT_TEXT_ENTER, more->GetId());
+                                enter.SetEventObject(more);
+                                more->GetEventHandler()->ProcessEvent(enter);
+                                self->wait_until([] { return setup_control_count("This one") == 2 && setup_labels().Contains("it has a knob"); },
+                                                 "setup_say_more_re_recognizes", [self] {
+                                press(setup_control("Neither · it's not in the list"));
                                 self->wait_until([] { return setup_description() != nullptr; }, "setup_start_over_returns_to_initial", [self] {
                                     self->check(setup_description()->GetValue().StartsWith("Say it any way"),
                                                 "setup_start_over_clears_description");
                                     self->check(!setup_labels().Contains("Photo:"), "setup_start_over_clears_photo");
                                     self->check(!setup_control("Next")->IsEnabled(), "setup_start_over_disables_next");
                                     self->verify_setup_correction_and_add();
+                                });
                                 });
                             });
                         });
@@ -651,25 +661,47 @@ private:
         wxSetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO", "network");
         open_printer_setup_from_menu("setup_network", [self = shared_from_this()] {
             wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
-            self->check(setup_labels().Contains(ui_name("Connected · LAN")) && setup_labels().Contains("A1 mini"),
+            const wxString labels = setup_labels();
+            self->check(labels.Contains(ui_name("Found on your network · 01P00A3B")) && labels.Contains("A1 mini"),
                         "setup_network_state_shows_connection_and_model");
+            self->check(labels.Contains("0.4 mm nozzle") && labels.Contains("AMS lite") &&
+                        labels.Contains("Bambu PLA Matte") && labels.Contains("+ 3 more") &&
+                        labels.Contains("read from the printer just now") && !setup_control("Correction"),
+                        "setup_network_reads_the_printer_instead_of_assuming");
             press(setup_control("Not this one"));
             self->wait_until([] { return setup_description() != nullptr; }, "setup_network_not_this_one_returns_to_initial", [self] {
                 self->check(setup_labels().Contains("01P00A3B"), "setup_network_row_shows_device_id");
                 press(setup_control("Use this"));
-                self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_network_use_this_reaches_confirmation", [self] {
-                    dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("I put a 0.6 nozzle on it");
+                self->wait_until([] { return setup_control("Access code") != nullptr; }, "setup_network_use_this_reaches_confirmation", [self] {
+                    dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->SetValue("not valid!");
                     press(setup_control("Add this printer"));
-                    self->wait_until([] { return setup_control("Add this printer") && setup_labels().Contains("0.6 mm nozzle"); },
-                                     "setup_nozzle_correction_selects_the_variant", [self] {
-                        const wxString labels = setup_labels();
-                        self->check(labels.Contains(ui_name("Connected · LAN")), "setup_correction_keeps_network_evidence");
-                        self->check(!labels.Contains("Not applied:"), "setup_honoured_correction_not_reported_unresolved");
+                    self->wait_until([] { return setup_labels().Contains("Invalid input."); },
+                                     "setup_network_access_code_is_validated", [self] {
+                        self->check(dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->GetValue() == "not valid!",
+                                    "setup_rejected_access_code_stays_for_editing");
+                        self->check(selected_printer() == "Creality Ender-3 V2 Neo 0.4 nozzle",
+                                    "setup_rejected_access_code_changes_nothing");
                         press(setup_control("Close Add a printer"));
                         self->after_setup_closes("setup_network", "Creality Ender-3 V2 Neo 0.4 nozzle",
-                                                 [self] { self->verify_setup_manual(); });
+                                                 [self] { self->verify_setup_no_agent(); });
                     });
                 });
+            });
+        });
+    }
+
+    void verify_setup_no_agent()
+    {
+        wxSetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO", "no_agent");
+        open_printer_setup_from_menu("setup_no_agent", [self = shared_from_this()] {
+            wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
+            self->check(setup_labels().Contains("No agent connected") && setup_control("Set up the agent") &&
+                        setup_control("set it up myself") && setup_control("Use this") && !setup_description(),
+                        "setup_no_agent_offers_agent_setup_and_network");
+            press(setup_control("Set up the agent"));
+            self->after_setup_closes("setup_no_agent", "Creality Ender-3 V2 Neo 0.4 nozzle", [self] {
+                self->check(!installed_shell()->is_agent_pane_collapsed(), "setup_no_agent_opens_agent_panel");
+                self->verify_setup_manual();
             });
         });
     }

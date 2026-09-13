@@ -96,8 +96,6 @@ struct PrinterSetupMetrics {
     int dialog_width{0};
     int initial_height{0};
     int recognized_height{0};
-    int network_height{0};
-    int ambiguous_height{0};
     int evidence_field_height{0};
     int correction_field_height{0};
     int photo_drop_height{0};

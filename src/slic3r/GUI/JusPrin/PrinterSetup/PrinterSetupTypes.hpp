@@ -15,6 +15,15 @@ struct DiscoveredPrinter
     std::string device_model_id;
     std::string connection;
     bool connected{false};
+    // What the printer reported about itself; zero or empty when it has not said.
+    double nozzle_diameter{0.};
+    std::string ams_name;
+    struct Spool
+    {
+        std::string name;
+        std::string colour; // "#RRGGBB"
+    };
+    std::vector<Spool> spools;
 };
 
 struct PrinterEvidence

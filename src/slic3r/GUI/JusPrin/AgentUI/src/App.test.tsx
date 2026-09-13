@@ -691,6 +691,13 @@ describe('App agent setup', () => {
     host = new MockHost();
   });
 
+  it('opens setup when the host asks, as the dock button does', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+    host.deliver('open_setup', {});
+    expect(screen.getByTestId('setup-row-api-key')).toBeInTheDocument();
+  });
+
   function openApiKeyScreen() {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' } }));

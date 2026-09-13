@@ -148,6 +148,15 @@ bool PrinterSetupController::correct(const std::string& correction)
     return recognize(std::move(evidence));
 }
 
+bool PrinterSetupController::clarify(const std::string& detail)
+{
+    if (m_state != FlowState::Ambiguous || detail.empty()) return false;
+    PrinterEvidence evidence = m_evidence;
+    if (!evidence.description.empty()) evidence.description += "\n";
+    evidence.description += detail;
+    return recognize(std::move(evidence));
+}
+
 bool PrinterSetupController::confirm()
 {
     if (m_state != FlowState::Recognized || m_candidates.size() != 1 || !m_apply) return false;

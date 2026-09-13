@@ -189,6 +189,14 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
     client.send('setup_cancel', {});
   };
 
+  // The one way into setup: the dock's own button, and the host when another
+  // JusPrin surface sends the person here.
+  const openSetup = () => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); };
+
+  useEffect(() => {
+    if (state.setupRequests > 0) openSetup();
+  }, [state.setupRequests]);
+
   useEffect(() => {
     if (state.setup.phase !== 'verified') return;
     // The host installs the verified service right after saying so, so the
@@ -215,7 +223,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       renameConversation: (conversationId, title) => client.send('rename_conversation', { conversationId, title }),
       deleteConversation: (conversationId) => client.send('delete_conversation', { conversationId }),
       setDraft: (text: string) => client.send('draft_update', { text }),
-      openSetup: () => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); },
+      openSetup,
       checkKey,
       attach: (name: string, dataBase64: string, mime?: string) =>
         client.send('attach_file', {
@@ -327,7 +335,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
           }}
         />
       );
-    return <AgentNotConfiguredPane onSetUp={() => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); }} />;
+    return <AgentNotConfiguredPane onSetUp={openSetup} />;
   };
 
   return (

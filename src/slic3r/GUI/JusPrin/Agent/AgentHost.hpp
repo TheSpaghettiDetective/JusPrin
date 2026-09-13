@@ -68,6 +68,9 @@ public:
     void set_appearance(bool dark);
     void set_availability(AgentAvailability availability);
     void set_agent(AgentServicePtr agent, AgentAvailability availability);
+    // Opens the page's setup flow; held until the next handshake when the
+    // page is not connected yet.
+    void request_setup();
 
     bool              handshake_complete() const { return m_handshake; }
     bool              stream_active() const { return m_stream.has_value(); }
@@ -234,6 +237,7 @@ private:
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};
+    bool              m_setup_requested{false};
 
     std::optional<ActiveStream> m_stream;
     struct PendingTitle { std::string conversation_id; std::string text; };
