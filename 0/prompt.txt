@@ -169,3 +169,7 @@ Current status: I did **not** find an actual mismatch — every field I cross-ch
 Nothing else in the `AgentUI`/`HomeUI`/`WebShared`/`Mcp` surfaces showed the specific "dynamically build a name from an object key, forget the conversion" pattern beyond what you already fixed.</result>
 <usage><subagent_tokens>106608</subagent_tokens><tool_uses>39</tool_uses><duration_ms>189311</duration_ms></usage>
 </task-notification>
+
+---
+
+no, leave it as-is, commit this.  Give me more background about why we currently have to handle the camel case vs kebab case problem.  Is this for communication between the JavaScript in the WebView and C++ or is it for something completely different?
