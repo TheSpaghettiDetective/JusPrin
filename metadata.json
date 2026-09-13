@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2DM6QE2G8TMP6WZPXBJR6RV",
+  "strategy": "manual-commit",
+  "branch": "claude/harness-agent-pane-home-check",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1038,
+    "cache_creation_tokens": 101450,
+    "cache_read_tokens": 4393836,
+    "output_tokens": 24970,
+    "api_call_count": 38
+  }
+}
