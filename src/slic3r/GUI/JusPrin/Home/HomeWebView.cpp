@@ -14,6 +14,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
+#include <cstdlib>
+
 #include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -26,6 +28,16 @@ namespace {
 boost::filesystem::path home_page_path()
 {
     return boost::filesystem::path(resources_dir()) / "jusprin" / "home" / "index.html";
+}
+
+wxString home_page_url()
+{
+    if (const char* dev = std::getenv("JUSPRIN_HOME_DEV_URL"); dev != nullptr && *dev != '\0')
+        return wxString::FromUTF8(dev);
+    const boost::filesystem::path page = home_page_path();
+    if (!boost::filesystem::exists(page))
+        return {};
+    return wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
 }
 
 } // namespace
@@ -52,13 +64,12 @@ HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& f
 
     apply_appearance(GUI_App::dark_mode());
 
-    const boost::filesystem::path page = home_page_path();
-    if (!boost::filesystem::exists(page)) {
+    const wxString url = home_page_url();
+    if (url.empty()) {
         show_page_error(_L("The packaged Home page is missing from this build."));
         return;
     }
-    const wxString url = wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
-    m_webview          = WebView::CreateWebView(this, url);
+    m_webview = WebView::CreateWebView(this, url);
     if (m_webview == nullptr) {
         show_page_error(_L("The system web view could not be created."));
         return;

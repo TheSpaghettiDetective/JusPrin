@@ -12,6 +12,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
+#include <cstdlib>
+
 #include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -30,6 +32,22 @@ constexpr int kHandshakeTimerId = wxID_HIGHEST + 1802;
 boost::filesystem::path agent_page_path()
 {
     return boost::filesystem::path(resources_dir()) / "jusprin" / "agent" / "index.html";
+}
+
+wxString agent_page_url(bool embedded)
+{
+    wxString url;
+    if (const char* dev = std::getenv("JUSPRIN_AGENT_DEV_URL"); dev != nullptr && *dev != '\0') {
+        url = wxString::FromUTF8(dev);
+    } else {
+        const boost::filesystem::path page = agent_page_path();
+        if (!boost::filesystem::exists(page))
+            return {};
+        url = wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
+    }
+    if (embedded)
+        url += "?embedded=1";
+    return url;
 }
 
 } // namespace
@@ -86,13 +104,10 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     // detail text.
     apply_appearance(GUI_App::dark_mode());
 
-    const boost::filesystem::path page = agent_page_path();
-    if (!boost::filesystem::exists(page)) {
+    m_page_url = agent_page_url(embedded);
+    if (m_page_url.empty()) {
         show_bridge_error(_L("The packaged Agent page is missing from this build."));
     } else {
-        m_page_url = wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
-        if (embedded)
-            m_page_url += "?embedded=1";
         m_webview  = WebView::CreateWebView(this, m_page_url);
         if (m_webview == nullptr) {
             show_bridge_error(_L("The system web view could not be created."));

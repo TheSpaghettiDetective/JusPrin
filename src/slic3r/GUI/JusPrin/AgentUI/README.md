@@ -13,17 +13,25 @@ page from the host's `state` message.
 
 ## Building
 
-The C++ build does not require Node. The application loads the committed
-single-file bundle at `resources/jusprin/agent/index.html`; rebuild and commit
-that bundle whenever this package changes:
+CMake builds this page whenever an input changes (`npm ci` from the lockfile, then `npm run build`). The output is `resources/jusprin/agent/index.html`; it is generated, not committed. Node/npm is required unless you configure with `-DJUSPRIN_BUILD_WEB=OFF` and supply that file yourself.
 
 ```bash
-npm install
-npm run build   # type-checks, then writes resources/jusprin/agent/index.html
+cmake --build build/arm64 --config RelWithDebInfo --target jusprin_web
 ```
 
 The bundle must stay a single self-contained file (`vite-plugin-singlefile`):
 WKWebView does not reliably load `file:` subresources.
+
+To point the running app at a Vite dev server instead of the packaged file (hot
+module reload):
+
+```bash
+cd src/slic3r/GUI/JusPrin/AgentUI && npm run dev
+JUSPRIN_AGENT_DEV_URL=http://localhost:5173 ./build/arm64/src/OrcaSlicer.app/Contents/MacOS/OrcaSlicer
+```
+
+Adjust the binary path for your build tree and platform. The environment
+variable is read once at construction; there is no settings UI for it.
 
 ## Testing
 

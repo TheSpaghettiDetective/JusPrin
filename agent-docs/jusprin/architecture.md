@@ -121,7 +121,7 @@ The production Agent interface is a standalone local React/TypeScript package em
 - reload, startup, bridge-error, and unavailable-agent states;
 - no direct ownership of Orca project state.
 
-Windows uses WebView2, macOS uses WKWebView, and Linux uses WebKitGTK. Local resource packaging must work on all three. The demonstrated prototype used a single-file local bundle to avoid WKWebView `file:` subresource failures; production may keep that approach or register an equivalent local resource scheme.
+Windows uses WebView2, macOS uses WKWebView, and Linux uses WebKitGTK. Local resource packaging must work on all three. The demonstrated prototype used a single-file local bundle to avoid WKWebView `file:` subresource failures; production keeps that approach, and CMake now produces the bundle from the TypeScript/React sources.
 
 MCP and broad agent autonomy are later layers. They must use the same typed boundary rather than changing viewport ownership.
 

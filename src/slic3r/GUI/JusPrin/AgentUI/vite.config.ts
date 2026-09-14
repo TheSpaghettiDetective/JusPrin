@@ -14,6 +14,7 @@ export default defineConfig({
       '@shared': fileURLToPath(new URL('../WebShared', import.meta.url)),
     },
   },
+  server: { port: 5173, strictPort: true },
   build: {
     outDir: fileURLToPath(new URL('../../../../../resources/jusprin/agent', import.meta.url)),
     // protocol.json lives in the same directory and must survive builds.

@@ -25,6 +25,8 @@ cmake --build build --config RelWithDebInfo --target all --
 cmake --build . --config %build_type% --target ALL_BUILD -- -m
 ```
 
+Node/npm is required to build the Agent and Home pages, or configure with `-DJUSPRIN_BUILD_WEB=OFF` and supply the bundles.
+
 ## Testing
 
 Catch2 framework. Tests in `tests/` directory.
