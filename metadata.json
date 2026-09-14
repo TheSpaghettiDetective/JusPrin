@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2ENQ16DD8ZJ82SVFZK5WEQX",
+  "strategy": "manual-commit",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 18,
+  "files_touched": [
+    "agent-docs/jusprin/revision-copy-cost-handoff.md",
+    "agent-docs/jusprin/revision-thin-copy-spike-handoff.md",
+    "agent-docs/jusprin/revision-timeline-handoff.md",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl",
+    "tests/workspace/CMakeLists.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5288,
+    "cache_creation_tokens": 3297888,
+    "cache_read_tokens": 62637515,
+    "output_tokens": 254830,
+    "api_call_count": 208,
+    "subagent_tokens": {
+      "input_tokens": 682,
+      "cache_creation_tokens": 524200,
+      "cache_read_tokens": 1918678,
+      "output_tokens": 31776,
+      "api_call_count": 24
+    }
+  }
+}

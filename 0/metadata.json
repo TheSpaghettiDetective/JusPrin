@@ -1,0 +1,259 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2ENQ16DD8ZJ82SVFZK5WEQX",
+  "session_id": "8fb7ea15-3027-4bc1-a582-9c286517984f",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-14T00:40:23.322978Z",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 18,
+  "save_step_count": 18,
+  "files_touched": [
+    "agent-docs/jusprin/revision-copy-cost-handoff.md",
+    "agent-docs/jusprin/revision-thin-copy-spike-handoff.md",
+    "agent-docs/jusprin/revision-timeline-handoff.md",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl",
+    "tests/workspace/CMakeLists.txt"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "7c66d8651699",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 5288,
+    "cache_creation_tokens": 3297888,
+    "cache_read_tokens": 62637515,
+    "output_tokens": 254830,
+    "api_call_count": 208,
+    "subagent_tokens": {
+      "input_tokens": 682,
+      "cache_creation_tokens": 524200,
+      "cache_read_tokens": 1918678,
+      "output_tokens": 31776,
+      "api_call_count": 24
+    }
+  },
+  "session_metrics": {
+    "turn_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-14T00:40:22.950964Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 13721,
+    "human_modified": 913,
+    "human_removed": 0,
+    "total_committed": 13721,
+    "total_lines_changed": 18052,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 889,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-copy-cost-handoff.md": 229,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 620
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 58,
+      "user_lines_removed": 0,
+      "agent_lines_added": 849,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "tests/workspace/CMakeLists.txt": 18
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 852,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 891,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 496,
+      "user_lines_removed": 380,
+      "agent_lines_added": 891,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 43,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 413
+      },
+      "user_removed_per_file": {
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 7,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 373
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 454,
+      "user_lines_removed": 519,
+      "agent_lines_added": 891,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 44,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 370
+      },
+      "user_removed_per_file": {
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 7,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 512
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 84,
+      "user_lines_removed": 7,
+      "agent_lines_added": 802,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 44
+      },
+      "user_removed_per_file": {
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 7
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 84,
+      "user_lines_removed": 7,
+      "agent_lines_added": 802,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 44
+      },
+      "user_removed_per_file": {
+        "agent-docs/jusprin/revision-thin-copy-spike-handoff.md": 7
+      }
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 71,
+      "user_lines_removed": 0,
+      "agent_lines_added": 847,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 31
+      }
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 71,
+      "user_lines_removed": 0,
+      "agent_lines_added": 847,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 31
+      }
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 71,
+      "user_lines_removed": 0,
+      "agent_lines_added": 847,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/revision-timeline-handoff.md": 31
+      }
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 15,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 16,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 17,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 18,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 878,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
