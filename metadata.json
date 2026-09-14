@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2GMQ76DP1SMX429VCZ8YXHT",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/StatusRow.hpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 388,
+    "cache_creation_tokens": 104815,
+    "cache_read_tokens": 1513715,
+    "output_tokens": 40653,
+    "api_call_count": 14
+  }
+}

@@ -1,0 +1,16 @@
+Exactly right — confirmed directly. This is exactly the distinction:
+
+**Upstream's web pages are hand-written source, not build output.** I checked `resources/web/homepage/index.html` (and the other webview pages upstream ships — there are several: a homepage, a setup guide, a model browser, wipe-tower dialogs, etc.). It's plain, multi-file HTML: a `<link>` to a stylesheet, a handful of `<script src>` tags pulling in jQuery and other plain `.js` files, hand-indented markup you could open and edit directly in a text editor. There's no `package.json` anywhere in the codebase outside JusPrin's own folders, no bundler, no minification. Committing those files is completely normal — they *are* the source, nothing generated them.
+
+**JusPrin's Home/Agent pages are React+TypeScript, which can't run in a browser as-is.** `.tsx` files have to be compiled and bundled into plain JS before any browser (or WebView) can execute them — that's an unavoidable extra step React imposes that upstream's jQuery-and-plain-JS pages never needed. And because nothing in the CMake build invokes that compile step, the compiled result has to be committed too, or the app has nothing to load.
+
+So yes — the underlying reason traces straight back to the framework choice. Upstream stayed with vanilla HTML/JS specifically so their webviews could be edited and shipped as plain source with no toolchain involved; JusPrin's team chose React for the Home/Agent screens (for componentization, the existing AgentUI toolchain, hover/scroll grid behavior — per that commit message I found earlier), which bought them that development model at the cost of needing a committed compiled artifact alongside it.
+
+check the code to confirm this. then propose an option to ideally:
+
+* remove built artifacts from git.
+* rebuild from source whenever necessary.
+* hot module reload to speed up process.
+
+
+make sure your proposal respect the fork stewership in @agent-docs
