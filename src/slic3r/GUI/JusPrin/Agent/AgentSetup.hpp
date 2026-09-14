@@ -10,8 +10,8 @@
 //
 // GUI-free and poll-driven, mirroring IAgentService: transport callbacks only
 // queue work, and the owner releases outcomes from poll() on the GUI thread.
-// Persistence is injected, so this file never reaches the keychain or
-// AppConfig and stays linkable into the GUI-free contract tests.
+// Persistence is injected, so this file never reaches AppConfig and stays
+// linkable into the GUI-free contract tests.
 
 #include "AgentService.hpp"
 #include "OpenAIResponsesAgent.hpp"
@@ -57,7 +57,7 @@ public:
     virtual std::optional<SetupOutcome> poll() = 0;
 
     // Persists credentials that have just been verified. Reports failure
-    // rather than pretending: a key the keychain refused is a key the user
+    // rather than pretending: a key that was not stored is a key the user
     // will have to enter again next launch, and they are told so.
     virtual bool commit(const SetupCredentials& credentials) = 0;
 };

@@ -817,7 +817,7 @@ describe('App agent setup', () => {
       phase: 'verified',
       provider: 'openai',
       elapsedMs: 500,
-      warning: 'This key could not be saved to the system credential store.',
+      warning: 'This key could not be saved, so it will have to be entered again next time JusPrin starts.',
     });
     host.deliver('agent_status', { status: 'ready' });
 

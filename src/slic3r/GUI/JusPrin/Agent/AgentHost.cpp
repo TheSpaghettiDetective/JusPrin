@@ -1459,13 +1459,11 @@ void AgentHost::pump_setup()
     }
 
     // The provider answered, so the credentials are good. Persisting them can
-    // still fail on a machine with no usable credential store; the Agent works
-    // for this session either way, and the user is told which one happened
-    // rather than discovering it at the next launch.
+    // still fail; the Agent works for this session either way, and the user is
+    // told which one happened rather than discovering it at the next launch.
     std::string warning;
     if (m_setup_pending && !m_setup->commit(*m_setup_pending))
-        warning = "This key could not be saved to the system credential store, so it will have to be entered again "
-                  "next time JusPrin starts.";
+        warning = "This key could not be saved, so it will have to be entered again next time JusPrin starts.";
 
     send_setup_status("verified", {}, outcome->elapsed_ms, std::nullopt, warning);
     m_setup_pending.reset();

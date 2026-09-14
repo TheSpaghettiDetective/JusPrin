@@ -3,8 +3,6 @@
 #include "OpenAIResponsesAgent.hpp"
 #include "libslic3r/AppConfig.hpp"
 
-#include <wx/secretstore.h>
-
 #include <cstdlib>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -13,26 +11,7 @@ namespace {
 
 constexpr const char* kSection = "jusprin_agent";
 
-// Earlier builds stored the single OpenAI key under these exact names; the
-// OpenAI provider keeps them so an already-configured machine keeps working.
-std::string secret_service_for(const std::string& provider)
-{
-    return provider == "openai" ? "JusPrin Agent OpenAI" : "JusPrin Agent " + provider;
-}
-
-std::string secret_user_for(const std::string& provider) { return provider + "_api_key"; }
-
-std::string configured_key(const std::string& provider)
-{
-    wxSecretStore store = wxSecretStore::GetDefault();
-    if (!store.IsOk())
-        return {};
-    wxString username;
-    wxSecretValue value;
-    if (!store.Load(secret_service_for(provider), username, value) || !value.IsOk())
-        return {};
-    return std::string(static_cast<const char*>(value.GetData()), value.GetSize());
-}
+std::string api_key_item_for(const std::string& provider) { return provider + "_api_key"; }
 
 bool configured_true(const AppConfig* config, const char* key)
 {
@@ -44,7 +23,10 @@ bool configured_true(const AppConfig* config, const char* key)
 
 } // namespace
 
-std::string load_provider_api_key(const std::string& provider) { return configured_key(provider); }
+std::string load_provider_api_key(const AppConfig* config, const std::string& provider)
+{
+    return config == nullptr ? std::string() : config->get(kSection, api_key_item_for(provider));
+}
 
 AgentRuntime load_agent_runtime(AppConfig* config)
 {
@@ -68,7 +50,7 @@ AgentRuntime load_agent_runtime(AppConfig* config)
     }
 
     OpenAIResponsesConfig openai;
-    openai.api_key = load_provider_api_key(runtime.provider);
+    openai.api_key = load_provider_api_key(config, runtime.provider);
     if (config != nullptr && !config->get(kSection, "model").empty())
         openai.model = config->get(kSection, "model");
     if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
@@ -84,22 +66,6 @@ AgentRuntime load_agent_runtime(AppConfig* config)
     return runtime;
 }
 
-bool save_provider_api_key(const std::string& provider, const std::string& key)
-{
-    if (provider.empty() || key.empty())
-        return false;
-    wxSecretStore store = wxSecretStore::GetDefault();
-    if (!store.IsOk())
-        return false;
-    return store.Save(secret_service_for(provider), secret_user_for(provider), wxSecretValue(wxString::FromUTF8(key)));
-}
-
-bool delete_provider_api_key(const std::string& provider)
-{
-    wxSecretStore store = wxSecretStore::GetDefault();
-    return store.IsOk() && store.Delete(secret_service_for(provider));
-}
-
 AgentSetupServicePtr make_agent_setup(AppConfig* config)
 {
     // Committing is the only part of setup that touches the machine, so it
@@ -108,15 +74,17 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
     // about the key staying on this machine, and chose to continue: that is
     // the cloud consent load_agent_runtime() requires on the next launch.
     auto commit = [config](const SetupCredentials& credentials) {
-        if (!save_provider_api_key(credentials.provider, credentials.api_key))
+        if (config == nullptr || credentials.provider.empty() || credentials.api_key.empty())
             return false;
-        if (config == nullptr)
-            return false;
+        config->set(kSection, api_key_item_for(credentials.provider), credentials.api_key);
         config->set(kSection, "provider", credentials.provider);
         config->set(kSection, "enabled", "true");
         config->set(kSection, "cloud_consent", "true");
         if (!credentials.model.empty())
             config->set(kSection, "model", credentials.model);
+        // Written now, not at the next routine save, so a crash after setup
+        // does not lose a key the user was just told is stored.
+        config->save();
         return true;
     };
     std::string endpoint_override;

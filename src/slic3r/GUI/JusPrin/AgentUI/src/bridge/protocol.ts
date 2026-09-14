@@ -131,7 +131,7 @@ export interface AttachmentInfo {
 
 // Where a credential check has got to. 'verified' means the provider
 // answered and the Agent is being connected; 'warning' is set when the key
-// worked but could not be written to the machine's credential store.
+// worked but could not be written to JusPrin's settings.
 export type SetupPhase = 'idle' | 'checking' | 'verified' | 'error';
 
 export interface SetupStatusPayload {

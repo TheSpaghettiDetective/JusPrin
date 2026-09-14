@@ -46,8 +46,8 @@ export function AgentUnavailableNotice() {
       </p>
       <p>
         Enabling a cloud Agent requires your consent to send your message, the current project summary—including the
-        printer, plates, objects, and selection—and only the attachments you include. The API key stays in your
-        system credential store.
+        printer, plates, objects, and selection—and only the attachments you include. The API key is stored in
+        JusPrin’s settings on this computer.
       </p>
     </div>
   );

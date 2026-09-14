@@ -72,7 +72,7 @@ void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Pla
     if (wxGetApp().app_config) {
         const std::string consent = wxGetApp().app_config->get("jusprin_agent", "cloud_consent");
         if (consent == "true" || consent == "1")
-            config.api_key = Agent::load_provider_api_key("openai");
+            config.api_key = Agent::load_provider_api_key(wxGetApp().app_config, "openai");
         const std::string model = wxGetApp().app_config->get("jusprin_agent", "model");
         if (!model.empty()) config.model = model;
     }
