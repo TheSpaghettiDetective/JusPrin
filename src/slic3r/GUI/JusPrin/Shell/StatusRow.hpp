@@ -16,7 +16,6 @@
 #include <tuple>
 #include <vector>
 
-class wxBookCtrlEvent;
 class wxWindowDestroyEvent;
 class Notebook;
 
@@ -103,7 +102,6 @@ private:
     std::tuple<std::uint64_t, std::uint64_t, std::uint64_t> print_target_identity() const;
     wxString action_label(PrintAction action, bool primary = false) const;
     void on_slice_status_changed(wxCommandEvent& event);
-    void on_tab_changed(wxBookCtrlEvent& event);
     void on_tabpanel_destroyed(wxWindowDestroyEvent& event);
 
     const ShellTheme&          m_theme;

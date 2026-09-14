@@ -38,12 +38,6 @@ namespace {
 const wxString& middle_dot() { static const wxString s = wxString::FromUTF8(" \xC2\xB7 "); return s; }
 const wxString& em_dash()    { static const wxString s = wxString::FromUTF8(" \xE2\x80\x94 "); return s; }
 
-#ifdef __WXMSW__
-const wxEventTypeTag<wxBookCtrlEvent>& page_changed_event() { return wxEVT_BOOKCTRL_PAGE_CHANGED; }
-#else
-const wxEventTypeTag<wxBookCtrlEvent>& page_changed_event() { return wxEVT_NOTEBOOK_PAGE_CHANGED; }
-#endif
-
 // The header row is taller than any component recipe; no token names it. It
 // is not a spacing step either, so it is written once here.
 constexpr int kHeaderHeightDip = 56;
@@ -122,7 +116,6 @@ StatusRow::StatusRow(wxWindow*                  parent,
     // the destructor clears the slot.
     m_persistence.set_ledger_listener([this]() { refresh(); });
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
-    m_tabpanel.Bind(page_changed_event(), &StatusRow::on_tab_changed, this);
     // The tab panel and this row are siblings, so wx may destroy either one
     // first at shutdown; only unbind while the tab panel still exists.
     m_tabpanel.Bind(wxEVT_DESTROY, &StatusRow::on_tabpanel_destroyed, this);
@@ -134,17 +127,10 @@ StatusRow::~StatusRow()
     if (m_tabpanel_alive) {
         m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
         m_tabpanel.Unbind(wxEVT_DESTROY, &StatusRow::on_tabpanel_destroyed, this);
-        m_tabpanel.Unbind(page_changed_event(), &StatusRow::on_tab_changed, this);
     }
 }
 
 void StatusRow::on_slice_status_changed(wxCommandEvent& event)
-{
-    refresh();
-    event.Skip();
-}
-
-void StatusRow::on_tab_changed(wxBookCtrlEvent& event)
 {
     refresh();
     event.Skip();
@@ -172,7 +158,6 @@ void StatusRow::refresh()
 {
     refresh_chip();
     m_overflow_button->SetToolTip(project_summary());
-    m_home_button->SetLabel(m_tabpanel.GetSelection() == MainFrame::tpHome ? _L("Prepare") : _L("Home"));
 
     const auto state = action_state();
     const auto actions = primary_print_action(state);
@@ -329,7 +314,7 @@ wxString StatusRow::project_summary() const
 
 void StatusRow::request_home()
 {
-    m_tabpanel.SetSelection(m_tabpanel.GetSelection() == MainFrame::tpHome ? MainFrame::tp3DEditor : MainFrame::tpHome);
+    m_tabpanel.SetSelection(MainFrame::tpHome);
 }
 
 std::optional<Workspace::Spool> StatusRow::current_spool()

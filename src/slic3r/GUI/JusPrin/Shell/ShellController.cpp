@@ -509,10 +509,12 @@ void ShellController::on_page_changed()
     // selects the Prepare tab to map the GL canvas before it initialises
     // OpenGL, and this handler runs on that selection, so the Notebook is
     // shown at the moment the canvas has to be on screen.
+    // The header belongs to the workspace: its controls act on the open
+    // project, so Home, which has no project in front, shows no header.
     m_home->Show(home);
     m_tabpanel->Show(!home);
-    if (m_workspace_sizer != nullptr)
-        m_workspace_sizer->Layout();
+    m_status_row->Show(!home);
+    m_frame->Layout();
     set_agent_pane_collapsed(home ? true : m_agent_pane_user_collapsed);
 }
 

@@ -878,15 +878,14 @@ private:
         check(shell != nullptr && shell->is_installed(), "shell_installed");
         if (shell == nullptr)
             throw std::runtime_error("shell is not installed");
-        check(shell->status_row() != nullptr && shell->status_row()->IsShown(), "status_row_shown");
+        // Startup lands on Home, which shows no header and collapses the Agent
+        // pane on the person's behalf. verify_agent_pane_follows_page checks
+        // both return on Prepare, and checks the header's layout there.
+        check(m_notebook->GetSelection() == MainFrame::tpHome, "shell_starts_on_home");
+        check(shell->status_row() != nullptr && !shell->status_row()->IsShown(), "status_row_hidden_on_home");
         check(shell->status_row()->project_summary().Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
               "overflow_summary_shows_empty_print_count");
-        verify_header_layout();
         verify_type_roles_render_at_token_size();
-        // Startup lands on Home, and Home collapses the Agent pane on the
-        // person's behalf. verify_agent_pane_follows_page checks it returns on
-        // Prepare.
-        check(m_notebook->GetSelection() == MainFrame::tpHome, "shell_starts_on_home");
         check(shell->agent_pane() != nullptr && shell->is_agent_pane_collapsed() && !shell->agent_pane()->IsShown(),
               "agent_pane_collapsed_on_home");
         check(shell->agent_pane()->web_view().host().mcp() != nullptr, "shell_starts_mcp_automatically");
@@ -909,7 +908,7 @@ private:
             second_install_failed = true;
         }
         check(second_install_failed, "second_install_rejected");
-        check(installed_shell()->is_installed() && installed_shell()->status_row()->IsShown(),
+        check(installed_shell()->is_installed() && installed_shell()->status_row()->GetContainingSizer() != nullptr,
               "shell_survives_rejected_install");
     }
 
@@ -920,9 +919,10 @@ private:
         std::function<void()> on_arrival;
     };
 
-    // Home always collapses the Agent pane; leaving Home restores what the
-    // person last chose on Prepare, in both directions. Ends back on Home,
-    // where every mode started before this check existed.
+    // Home shows no header and always collapses the Agent pane; leaving Home
+    // shows the header and restores what the person last chose for the pane
+    // on Prepare, in both directions. Ends back on Home, where every mode
+    // started before this check existed.
     void verify_agent_pane_follows_page(std::function<void()> next)
     {
         ShellController* shell = installed_shell();
@@ -930,12 +930,16 @@ private:
         auto expanded  = [shell] { return !shell->is_agent_pane_collapsed() && shell->agent_pane()->IsShown(); };
         auto steps = std::make_shared<std::vector<PaneStep>>(std::vector<PaneStep>{
             {MainFrame::tp3DEditor, "agent_pane_prepare_first_visit", [this, shell, collapsed, expanded] {
+                 check(shell->status_row()->IsShown(), "status_row_shown_on_prepare");
+                 verify_header_layout();
                  check(expanded(), "agent_pane_shown_on_prepare");
                  shell->toggle_agent_pane();
                  check(collapsed(), "agent_pane_user_collapses_on_prepare");
              }},
-            {MainFrame::tpHome, "agent_pane_home_after_user_collapse",
-             [this, collapsed] { check(collapsed(), "agent_pane_collapsed_on_home_after_user_collapse"); }},
+            {MainFrame::tpHome, "agent_pane_home_after_user_collapse", [this, shell, collapsed] {
+                 check(!shell->status_row()->IsShown(), "status_row_hidden_on_return_to_home");
+                 check(collapsed(), "agent_pane_collapsed_on_home_after_user_collapse");
+             }},
             {MainFrame::tp3DEditor, "agent_pane_prepare_after_user_collapse", [this, shell, collapsed, expanded] {
                  check(collapsed(), "agent_pane_user_collapse_restored_on_prepare");
                  shell->toggle_agent_pane();
@@ -957,9 +961,10 @@ private:
             return;
         }
         const PaneStep& step = (*steps)[index];
-        // The header's own navigation: Home toggles between Home and Prepare.
+        // The header's Home button goes to Home; Home's own page returns to
+        // Prepare through the same request its backend makes.
         StatusRow* row = installed_shell()->status_row();
-        if (step.tab == MainFrame::tpHome || m_notebook->GetSelection() == MainFrame::tpHome)
+        if (step.tab == MainFrame::tpHome)
             row->request_home();
         else
             row->request_prepare();
@@ -1138,9 +1143,10 @@ private:
         wait_until([this] { return m_notebook->GetSelection() == MainFrame::tpHome &&
             m_notebook->GetPage(MainFrame::tpHome)->IsShown(); },"header_home_opens_native_home",
             [self=shared_from_this()] {
-                installed_shell()->status_row()->request_home();
+                self->check(!installed_shell()->status_row()->IsShown(), "header_hidden_on_home");
+                installed_shell()->status_row()->request_prepare();
                 self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(); },
-                    "header_home_returns_to_prepare",[self] {
+                    "home_returns_to_prepare",[self] {
                         self->verify_chip_keyboard();
                         self->verify_menu_in_place_navigation();
                         self->verify_generic_preset_filter();
