@@ -69,3 +69,22 @@ If this event is something the user would act on now, send a PushNotification. R
 <event>progress: [472/618] Building CXX object src/slic3r/CMakeFiles/libslic3</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>bdfxsuet4</task-id>
+<summary>Monitor event: "JusPrin build (detached) progress, errors, and exit status"</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdfxsuet4</task-id>
+<tool-use-id>toolu_01L2jSgoYezuwoao48hvF33Z</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-home-screen-top-bar-22b99d/8c1e8dd3-1475-48e9-9398-2d5eaa424bab/tasks/bdfxsuet4.output</output-file>
+<status>completed</status>
+<summary>Monitor "JusPrin build (detached) progress, errors, and exit status" stream ended</summary>
+</task-notification>
