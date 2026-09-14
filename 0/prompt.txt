@@ -1,0 +1,5 @@
+open figma https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=636-375 in cluade in browser, and figure out why the 18a - initial mockup seems blurred/covered comppared to other 3 such as 18b - recognized
+
+---
+
+yes set it to 100%
