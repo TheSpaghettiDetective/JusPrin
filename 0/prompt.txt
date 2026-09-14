@@ -1,0 +1,5 @@
+check if your commits are indeed on remote and local jusprin-newui
+
+---
+
+check why the text color problem is still not fixed. did you completely bark up the wrong tree?

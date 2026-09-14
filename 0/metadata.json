@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2GCG6SS546EKSY2394SJR66",
+  "session_id": "630e0855-bb34-4656-8024-2567f92243f3",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-14T16:37:46.335685Z",
+  "branch": "claude/new-button-visibility-8a0302",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "resources/jusprin/agent/index.html",
+    "resources/jusprin/home/index.html"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "f263d6e0aaff",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 370,
+    "cache_creation_tokens": 587130,
+    "cache_read_tokens": 39387731,
+    "output_tokens": 114065,
+    "api_call_count": 185
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-14T16:37:46.082311Z",
+    "agent_lines": 35,
+    "agent_removed": 35,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "total_lines_changed": 70,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
