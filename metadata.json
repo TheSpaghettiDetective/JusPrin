@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2ENQ8JCQ8VKHSSRHN5GH2WT",
+  "strategy": "manual-commit",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/McpConnectionDialog.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/McpConnectionDialog.hpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 102,
+    "cache_creation_tokens": 77521,
+    "cache_read_tokens": 4972922,
+    "output_tokens": 17745,
+    "api_call_count": 52
+  }
+}
