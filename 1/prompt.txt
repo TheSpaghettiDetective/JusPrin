@@ -1,0 +1,25 @@
+implement uit
+
+---
+
+have you tested it in real ui? also repeat what you said in plain eng
+
+---
+
+I don't understand what you are trying to say. In any case, being a good engineer, you're supposed to test thoroughly the code you have built. End-to-end testing, not just some sloppy unit testing. and also you are supposed to tell me if you have accomplished everything that's called out in the job or if not why not in plain English .  I'm your supervisor and you are supposed to keep my cognitive load low so that I can have my brain cycles for other more important things tell me only the things I need to know that mostly involves without not your task when that's planned if not why not
+
+---
+
+ignore linux and windows for now. finish the remaining tasks. don't stop until you are done or are completely blocked
+
+---
+
+continue
+
+---
+
+launch the app. check for yourself
+
+---
+
+I want to test hmr myself. give me the steps to test it
