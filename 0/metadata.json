@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2EYH6D1SFE19H95QZ9YD144",
+  "session_id": "39ab79c2-8166-4a6c-aab4-90964465ffbd",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-14T03:14:23.427422Z",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 10,
+  "save_step_count": 1,
+  "files_touched": [
+    "localization/i18n/en/OrcaSlicer_en.po"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "1ae5fd3534f3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 708,
+    "cache_creation_tokens": 1452799,
+    "cache_read_tokens": 142142690,
+    "output_tokens": 234685,
+    "api_call_count": 354
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-14T03:14:22.758795Z",
+    "agent_lines": 1,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "total_lines_changed": 2,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2EYH6D1SFE19H95QZ9YD144",
+  "strategy": "manual-commit",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "localization/i18n/en/OrcaSlicer_en.po"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 708,
+    "cache_creation_tokens": 1452799,
+    "cache_read_tokens": 142142690,
+    "output_tokens": 234685,
+    "api_call_count": 354
+  }
+}
