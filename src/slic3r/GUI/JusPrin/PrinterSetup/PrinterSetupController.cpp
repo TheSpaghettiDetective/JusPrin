@@ -40,7 +40,7 @@ bool PrinterSetupController::recognize(PrinterEvidence evidence)
     m_uncertain = false;
     m_unresolved_correction.clear();
     ++m_generation;
-    const auto choices = m_catalog.recognition_choices(m_evidence);
+    const auto choices = m_catalog.models();
     m_allowed_candidate_ids.clear();
     for (const PrinterCandidate* choice : choices)
         if (choice) m_allowed_candidate_ids.insert(choice->id);
@@ -80,14 +80,25 @@ void PrinterSetupController::accept(const RecognitionEvent& event)
     m_assumption = event.result->assumption;
     m_unresolved_correction = event.result->unresolved_correction;
     const RecognitionDisposition disposition = event.result->disposition;
-    if (disposition == RecognitionDisposition::Recognized && m_candidates.size() == 1 &&
-        event.result->confidence >= kRecognitionConfidenceThreshold) {
+    if (disposition == RecognitionDisposition::Recognized && m_candidates.size() == 1) {
+        // The provider names a model at its standard nozzle. A stated nozzle
+        // picks that variant; one the model does not ship is not applied.
+        const std::string& nozzle = event.result->nozzle_mm;
+        const PrinterCandidate& model = *m_candidates.front();
+        const auto& all = m_catalog.candidates();
+        const auto stated = std::find_if(all.begin(), all.end(), [&](const PrinterCandidate& item) {
+            return item.vendor_id == model.vendor_id && item.model_id == model.model_id && item.variant == nozzle;
+        });
+        if (stated != all.end())
+            m_candidates = {&*stated};
+        else if (!nozzle.empty())
+            m_unresolved_correction = nozzle + " mm nozzle" + (m_unresolved_correction.empty() ? "" : ", " + m_unresolved_correction);
         m_state = FlowState::Recognized;
     } else if ((disposition == RecognitionDisposition::Ambiguous && m_candidates.size() >= 2) ||
                (disposition != RecognitionDisposition::NoMatch && m_candidates.size() == 1)) {
-        // One surviving candidate here is either a low-confidence
-        // identification or an ambiguous answer whose other IDs failed
-        // validation. Either way the user chooses; nothing is presumed.
+        // One surviving candidate here is either an ambiguous answer with a
+        // single plausible model or one whose other IDs failed validation.
+        // Either way the user chooses; nothing is presumed.
         m_uncertain = m_candidates.size() == 1;
         m_state = FlowState::Ambiguous;
     } else {

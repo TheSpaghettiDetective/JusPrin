@@ -14,10 +14,6 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 enum class FlowState { Initial, Recognizing, Recognized, Ambiguous, Error, Complete };
 
-// A single recognized candidate below this provider confidence is offered as
-// a choice the user must make rather than presented as the identification.
-constexpr double kRecognitionConfidenceThreshold = 0.7;
-
 class PrinterSetupController
 {
 public:
@@ -34,8 +30,8 @@ public:
     const std::string& assumption() const { return m_assumption; }
     const std::string& error() const { return m_error; }
     bool retryable() const { return m_retryable; }
-    // Ambiguous because the provider was not confident, not because several
-    // models matched.
+    // Ambiguous with a single model: the provider could not settle the one
+    // plausible model, or its other IDs failed validation. The user chooses.
     bool uncertain() const { return m_uncertain; }
     const std::string& unresolved_correction() const { return m_unresolved_correction; }
     const PrinterCatalog& catalog() const { return m_catalog; }

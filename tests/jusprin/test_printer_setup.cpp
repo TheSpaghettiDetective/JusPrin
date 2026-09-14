@@ -57,10 +57,10 @@ std::vector<PrinterCandidate> fixtures()
 }
 
 RecognitionEvent result_event(std::uint64_t generation, RecognitionDisposition disposition,
-                              std::vector<std::string> ids, double confidence = 1., std::string unresolved = {})
+                              std::vector<std::string> ids, std::string unresolved = {}, std::string nozzle = {})
 {
     return {generation,
-            RecognitionResult{disposition, std::move(ids), "evidence", "assumption", confidence, std::move(unresolved)},
+            RecognitionResult{disposition, std::move(ids), "evidence", "assumption", std::move(nozzle), std::move(unresolved)},
             std::nullopt};
 }
 
@@ -110,8 +110,10 @@ TEST_CASE("recognition rejects a real catalogue ID that was not offered in that 
     auto* fake = recognition.get();
     PrinterSetupController controller(PrinterCatalog(fixtures()), std::move(recognition), {});
     REQUIRE(controller.recognize({"Bambu Lab A1 mini", {}, {}, {}}));
-    REQUIRE(std::find(fake->offered.begin(), fake->offered.end(), "v2") == fake->offered.end());
-    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"v2"}));
+    // Recognition is offered models; a non-standard nozzle variant is a real
+    // catalogue entry the provider was never shown.
+    CHECK(fake->offered == std::vector<std::string>{"a1", "v2", "neo"});
+    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"a1-06"}));
     controller.poll();
     CHECK(controller.state() == FlowState::Error);
     CHECK(controller.candidates().empty());
@@ -164,7 +166,7 @@ TEST_CASE("saying more about an ambiguous printer re-recognizes with the added d
     CHECK(fake->last_evidence.description == "the ender with the touchscreen\nit has a knob");
 }
 
-TEST_CASE("corrections are re-resolved to an offered installable variant", "[printer-setup]")
+TEST_CASE("a stated nozzle picks that installable variant of the named model", "[printer-setup]")
 {
     auto recognition = std::make_unique<FakeRecognition>();
     auto* fake = recognition.get();
@@ -173,13 +175,26 @@ TEST_CASE("corrections are re-resolved to an offered installable variant", "[pri
         [&](const PrinterCandidate& candidate, std::string&) { applied = candidate.id; return true; });
 
     REQUIRE(controller.recognize({"Bambu Lab A1 mini\nCorrection: 0.6 nozzle", {}, {}, {}}));
-    CHECK(std::find(fake->offered.begin(), fake->offered.end(), "a1-06") != fake->offered.end());
-    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"a1-06"}));
+    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"a1"}, {}, "0.6"));
     controller.poll();
     REQUIRE(controller.state() == FlowState::Recognized);
     CHECK(controller.candidates().front()->variant == "0.6");
+    CHECK(controller.unresolved_correction().empty());
     REQUIRE(controller.confirm());
     CHECK(applied == "a1-06");
+}
+
+TEST_CASE("a stated nozzle the model does not ship keeps the standard variant and is not applied", "[printer-setup]")
+{
+    auto recognition = std::make_unique<FakeRecognition>();
+    auto* fake = recognition.get();
+    PrinterSetupController controller(PrinterCatalog(fixtures()), std::move(recognition), {});
+    REQUIRE(controller.recognize(described("Ender-3 V2 with a 0.6 nozzle")));
+    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"v2"}, "AMS", "0.6"));
+    controller.poll();
+    REQUIRE(controller.state() == FlowState::Recognized);
+    CHECK(controller.candidates().front()->id == "v2");
+    CHECK(controller.unresolved_correction() == "0.6 mm nozzle, AMS");
 }
 
 TEST_CASE("no-match, unavailable service, and apply failures remain visible", "[printer-setup]")
@@ -238,7 +253,7 @@ TEST_CASE("start over cancels recognition and ignores its late callback", "[prin
     CHECK(fake->cancels > 0);
 }
 
-TEST_CASE("a low-confidence single identification is offered as a choice, not presumed", "[printer-setup]")
+TEST_CASE("the answer's disposition, not a confidence score, decides whether the user chooses", "[printer-setup]")
 {
     auto recognition = std::make_unique<FakeRecognition>();
     auto* fake = recognition.get();
@@ -246,10 +261,16 @@ TEST_CASE("a low-confidence single identification is offered as a choice, not pr
     PrinterSetupController controller(PrinterCatalog(fixtures()), std::move(recognition),
         [&](const PrinterCandidate&, std::string&) { ++applies; return true; });
 
-    SECTION("below the threshold") {
+    SECTION("one recognized model is presented as the match") {
+        REQUIRE(controller.recognize(described("Ender-3 V2")));
+        fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"v2"}));
+        controller.poll();
+        CHECK(controller.state() == FlowState::Recognized);
+        CHECK_FALSE(controller.uncertain());
+    }
+    SECTION("an ambiguous answer with one plausible model is offered as a choice") {
         REQUIRE(controller.recognize(described("Ender 3")));
-        fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"v2"},
-                                            kRecognitionConfidenceThreshold - 0.01));
+        fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Ambiguous, {"v2"}));
         controller.poll();
         REQUIRE(controller.state() == FlowState::Ambiguous);
         CHECK(controller.uncertain());
@@ -258,14 +279,6 @@ TEST_CASE("a low-confidence single identification is offered as a choice, not pr
         CHECK_FALSE(controller.uncertain());
         REQUIRE(controller.confirm());
         CHECK(applies == 1);
-    }
-    SECTION("at the threshold") {
-        REQUIRE(controller.recognize(described("Ender 3")));
-        fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"v2"},
-                                            kRecognitionConfidenceThreshold));
-        controller.poll();
-        CHECK(controller.state() == FlowState::Recognized);
-        CHECK_FALSE(controller.uncertain());
     }
     SECTION("an ambiguous answer with only one valid ID") {
         REQUIRE(controller.recognize(described("Ender 3")));
@@ -294,7 +307,7 @@ TEST_CASE("a correction keeps prior evidence and an unrepresentable one stays un
     CHECK(fake->last_evidence.description.find("Current match: Bambu Lab A1 mini 0.4 mm nozzle") != std::string::npos);
     CHECK(fake->last_evidence.description.find("Correction: it's the Combo with the AMS") != std::string::npos);
 
-    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"a1"}, 1.,
+    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Recognized, {"a1"},
                                         "the Combo with the AMS"));
     controller.poll();
     REQUIRE(controller.state() == FlowState::Recognized);

@@ -60,9 +60,9 @@ struct RecognitionResult
     std::vector<std::string> candidate_ids;
     std::string evidence_summary;
     std::string assumption;
-    // Provider self-assessment in [0, 1]. Diagnostic input only: the controller
-    // combines it with the disposition and the validated candidate count.
-    double confidence{0.};
+    // The nozzle diameter the evidence states, in millimetres; empty when it
+    // states none. The controller, not the provider, picks the variant.
+    std::string nozzle_mm;
     // The part of a user correction the returned candidate cannot represent.
     std::string unresolved_correction;
 };

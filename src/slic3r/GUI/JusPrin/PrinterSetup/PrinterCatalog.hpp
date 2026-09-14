@@ -20,10 +20,9 @@ public:
     const PrinterCandidate* find(const std::string& id) const;
     const PrinterCandidate* find_device_model(const std::string& device_model_id) const;
 
-    // Keeps provider context bounded. Text evidence gets the best lexical
-    // matches (including their nozzle variants); image-only evidence gets one
-    // default variant per model because a photo cannot establish nozzle size.
-    std::vector<const PrinterCandidate*> recognition_choices(const PrinterEvidence& evidence) const;
+    // One entry per printer model, which is what recognition is asked to name:
+    // the 0.4 mm variant where the model ships one, otherwise its first.
+    std::vector<const PrinterCandidate*> models() const;
 
 private:
     std::vector<PrinterCandidate> m_candidates;

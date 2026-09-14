@@ -3,7 +3,6 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -35,26 +34,6 @@ std::vector<std::string> split(const std::string& value, char delimiter)
     std::string part;
     while (std::getline(input, part, delimiter))
         if (!part.empty()) result.push_back(part);
-    return result;
-}
-
-std::string lower(std::string value)
-{
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char c) { return char(std::tolower(c)); });
-    return value;
-}
-
-std::set<std::string> words(const std::string& value)
-{
-    std::set<std::string> result;
-    std::string word;
-    for (unsigned char c : lower(value)) {
-        if (std::isalnum(c)) word.push_back(char(c));
-        else if (word.size() > 1) { result.insert(word); word.clear(); }
-        else word.clear();
-    }
-    if (word.size() > 1) result.insert(word);
     return result;
 }
 
@@ -193,34 +172,16 @@ const PrinterCandidate* PrinterCatalog::find_device_model(const std::string& dev
     return any == m_candidates.end() ? nullptr : &*any;
 }
 
-std::vector<const PrinterCandidate*> PrinterCatalog::recognition_choices(const PrinterEvidence& evidence) const
+std::vector<const PrinterCandidate*> PrinterCatalog::models() const
 {
-    struct Scored { const PrinterCandidate* candidate; int score; };
-    const auto evidence_words = words(evidence.description);
-    std::vector<Scored> scored;
-    scored.reserve(m_candidates.size());
-    for (const PrinterCandidate& candidate : m_candidates) {
-        int score = 0;
-        const auto candidate_words = words(candidate.vendor_name + " " + candidate.model_name + " " + candidate.variant);
-        for (const std::string& word : evidence_words)
-            if (candidate_words.count(word)) score += word.size() >= 4 ? 3 : 1;
-        if (!evidence.description.empty() && lower(evidence.description).find(lower(candidate.model_name)) != std::string::npos)
-            score += 20;
-        scored.push_back({&candidate, score});
-    }
-    std::stable_sort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score > b.score; });
-
     std::vector<const PrinterCandidate*> result;
-    std::set<std::string> models;
-    const bool has_text_match = !scored.empty() && scored.front().score > 0;
-    for (const Scored& item : scored) {
-        if (has_text_match) {
-            if (item.score == 0 || result.size() >= 60) break;
-            result.push_back(item.candidate);
-        } else if (models.insert(item.candidate->vendor_id + "\n" + item.candidate->model_id).second) {
-            result.push_back(item.candidate);
-            if (result.size() >= 400) break;
-        }
+    std::map<std::string, std::size_t> indexes;
+    for (const PrinterCandidate& candidate : m_candidates) {
+        const auto [found, inserted] = indexes.emplace(candidate.vendor_id + "\n" + candidate.model_id, result.size());
+        if (inserted)
+            result.push_back(&candidate);
+        else if (candidate.variant == "0.4" && result[found->second]->variant != "0.4")
+            result[found->second] = &candidate;
     }
     return result;
 }
