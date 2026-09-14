@@ -67,6 +67,10 @@ export interface AppProps {
   transportRetryMs?: number;
   transportRetryLimit?: number;
   draftDebounceMs?: number;
+  // A throwaway, setup-only instance (e.g. embedded in the Add a printer
+  // dialog rather than the docked panel): show only the setup sub-component,
+  // never the conversation header, chat list, or composer around it.
+  embedded?: boolean;
 }
 
 const errorTitles: Partial<Record<ConnectionState, string>> = {
@@ -75,7 +79,7 @@ const errorTitles: Partial<Record<ConnectionState, string>> = {
   incompatible: 'This Agent panel does not match this JusPrin build',
 };
 
-export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transportRetryLimit, draftDebounceMs }: AppProps) {
+export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transportRetryLimit, draftDebounceMs, embedded }: AppProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const stateRef = useRef<AgentUiState>(state);
   stateRef.current = state;
@@ -289,7 +293,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // setup screen. Setup replaces the body rather than covering it, so backing
   // out returns to exactly what was there before.
   const body = () => {
-    if (!notConfigured && view !== 'setup')
+    // An embedded, setup-only instance never has a conversation to show, so
+    // it always renders one of the setup screens below regardless of view.
+    if (!embedded && !notConfigured && view !== 'setup')
       return (
         <MessageList
           dimmed={setupExpanded}
@@ -337,6 +343,17 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       );
     return <AgentNotConfiguredPane onSetUp={openSetup} />;
   };
+
+  if (embedded) {
+    // No conversation header, chat list, composer, or external-tool banner --
+    // just the setup sub-component itself, at whatever size its host gives it.
+    return (
+      <div className="app app--embedded">
+        {errorNotice}
+        <div className="chat-content">{body()}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">

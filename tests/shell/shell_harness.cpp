@@ -555,9 +555,22 @@ private:
                 std::make_unique<PrinterSetup::FakePrinterRecognition>(), std::move(apply));
             if (start_on_first_printer) controller->use_discovered(discovered.front());
             const ShellTheme theme = ShellTheme::load_from_resources();
+            // Mirrors PrinterSetupLauncher.cpp's make_setup_webview: a second,
+            // throwaway AgentWebView with its own AgentService/AgentSetupService,
+            // never the docked pane's, and no start_mcp() call.
+            auto make_setup_webview = [&theme](wxWindow* parent) {
+                ShellController* shell = installed_shell();
+                Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+                auto webview = std::make_unique<AgentWebView>(
+                    parent, theme, *shell->workspace(), *shell->persistence(), runtime.availability,
+                    std::move(runtime.service), runtime.setup, /*embedded=*/true);
+                webview->apply_appearance(wxGetApp().dark_mode());
+                webview->SetName(_L("Agent setup"));
+                return webview;
+            };
             PrinterSetup::PrinterSetupDialog dialog(
                 wxGetApp().mainframe, theme, wxGetApp().dark_mode(), std::move(controller), std::move(discovered),
-                agent_connected, [] { installed_shell()->open_agent_setup(); },
+                agent_connected, make_setup_webview,
                 [](const PrinterSetup::DiscoveredPrinter& printer, const std::string& code, wxString& error) {
                     return SetupCommands::set_printer_access_code(printer.stable_id, code, error);
                 });
@@ -764,9 +777,14 @@ private:
                         setup_control("set it up myself") && setup_control("Use this") && !setup_description(),
                         "setup_no_agent_offers_agent_setup_and_network");
             press(setup_control("Set up the agent"));
-            self->after_setup_closes("setup_no_agent", "Creality Ender-3 V2 Neo 0.4 nozzle", [self] {
-                self->check(!installed_shell()->is_agent_pane_collapsed(), "setup_no_agent_opens_agent_panel");
-                self->verify_setup_manual();
+            // "Set up the agent" embeds the same setup flow in this dialog
+            // rather than closing it and redirecting to the docked panel.
+            self->wait_until([] { return setup_control("Agent setup") != nullptr; }, "setup_no_agent_embeds_setup_flow", [self] {
+                self->check(printer_setup_dialog() != nullptr, "setup_no_agent_dialog_stays_open");
+                self->check(!setup_labels().Contains("No agent connected"), "setup_no_agent_card_replaced_by_embedded_flow");
+                press(setup_control("Close Add a printer"));
+                self->after_setup_closes("setup_no_agent", "Creality Ender-3 V2 Neo 0.4 nozzle",
+                                         [self] { self->verify_setup_manual(); });
             });
         });
     }

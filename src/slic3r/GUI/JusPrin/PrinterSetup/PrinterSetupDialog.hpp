@@ -20,11 +20,20 @@ class wxTextCtrl;
 class wxWindow;
 class wxStaticText;
 
+namespace Slic3r::GUI::JusPrin {
+class AgentWebView;
+}
+
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 // Hands a network printer its LAN access code. Returns false with a message
 // the dialog shows when the code is rejected or the printer is gone.
 using ConnectFn = std::function<bool(const DiscoveredPrinter&, const std::string& access_code, wxString& error)>;
+
+// Builds a throwaway, setup-only AgentWebView parented to the dialog (no MCP
+// wiring, its own independent AgentService/AgentSetupService). Called at most
+// once per dialog, lazily, the first time "Set up the agent" is clicked.
+using MakeSetupWebViewFn = std::function<std::unique_ptr<Slic3r::GUI::JusPrin::AgentWebView>(wxWindow*)>;
 
 class PrinterSetupDialog final : public DPIDialog
 {
@@ -33,8 +42,9 @@ public:
                        std::unique_ptr<PrinterSetupController> controller,
                        std::vector<DiscoveredPrinter> discovered,
                        bool agent_connected,
-                       std::function<void()> open_agent_setup,
-                       ConnectFn connect);
+                       MakeSetupWebViewFn make_setup_webview,
+                       ConnectFn connect,
+                       std::function<void()> on_agent_configured = {});
     ~PrinterSetupDialog() override;
 
 protected:
@@ -72,7 +82,17 @@ private:
     std::unique_ptr<PrinterSetupController> m_controller;
     std::vector<DiscoveredPrinter> m_discovered;
     bool m_agent_connected{false};
-    std::function<void()> m_open_agent_setup;
+    MakeSetupWebViewFn m_make_setup_webview;
+    // Lazily built the first time "Set up the agent" is clicked; destroyed
+    // once its setup flow completes. Parented directly to the dialog (not to
+    // m_root's content sizer) so an unrelated rebuild() -- e.g. a DPI change
+    // while it is showing -- cannot destroy it along with the rest.
+    std::unique_ptr<Slic3r::GUI::JusPrin::AgentWebView> m_setup_webview;
+    bool m_showing_agent_setup{false};
+    wxTimer m_setup_pump_timer{this};
+    // Notifies the shell that the docked Agent panel's own availability may
+    // now be stale, once this dialog's embedded setup flow succeeds.
+    std::function<void()> m_on_agent_configured;
     ConnectFn m_connect;
     wxBoxSizer* m_root{nullptr};
     wxTextCtrl* m_description{nullptr};

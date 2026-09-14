@@ -40,7 +40,8 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
                            Agent::ProjectPersistence& persistence,
                            Agent::AgentAvailability   availability,
                            Agent::AgentServicePtr      agent,
-                           Agent::AgentSetupServicePtr setup)
+                           Agent::AgentSetupServicePtr setup,
+                           bool                        embedded)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode(),
@@ -90,6 +91,8 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
         show_bridge_error(_L("The packaged Agent page is missing from this build."));
     } else {
         m_page_url = wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
+        if (embedded)
+            m_page_url += "?embedded=1";
         m_webview  = WebView::CreateWebView(this, m_page_url);
         if (m_webview == nullptr) {
             show_bridge_error(_L("The system web view could not be created."));

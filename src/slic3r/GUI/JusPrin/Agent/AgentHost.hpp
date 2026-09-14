@@ -57,6 +57,13 @@ public:
     // reload); the owner uses it to cancel its connection deadline.
     void set_handshake_listener(std::function<void()> listener) { m_handshake_listener = std::move(listener); }
 
+    // Invoked once, right after pump_setup() persists a verified credential
+    // and installs the newly connected agent. A throwaway setup-only host
+    // (e.g. one embedded in a native dialog rather than the docked panel)
+    // uses this to know when to hand control back to its owner instead of
+    // polling availability().
+    void set_setup_completed_listener(std::function<void()> listener) { m_setup_completed_listener = std::move(listener); }
+
     // Call when the page starts (re)loading; the host requires a new
     // handshake before any other message and pauses stream delivery until the
     // page reconnects. Conversation state is unaffected.
@@ -234,6 +241,7 @@ private:
 
     SendFn                m_send;
     std::function<void()> m_handshake_listener;
+    std::function<void()> m_setup_completed_listener;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};

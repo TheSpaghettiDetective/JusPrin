@@ -8,6 +8,7 @@
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
@@ -88,10 +89,25 @@ void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Pla
     auto connect = [](const DiscoveredPrinter& printer, const std::string& code, wxString& error) {
         return SetupCommands::set_printer_access_code(printer.stable_id, code, error);
     };
+    // Builds a second, throwaway AgentWebView the first time "Set up the
+    // agent" is clicked: its own independent AgentService/AgentSetupService
+    // (never the docked pane's), and deliberately no start_mcp() call, since
+    // a setup-only surface has no need to announce itself for MCP discovery
+    // or contend with the docked pane's port/discovery file.
+    auto make_setup_webview = [&theme, dark, shell](wxWindow* parent) {
+        Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+        auto webview = std::make_unique<AgentWebView>(
+            parent, theme, *shell->workspace(), *shell->persistence(), runtime.availability,
+            std::move(runtime.service), runtime.setup, /*embedded=*/true);
+        webview->apply_appearance(dark);
+        webview->SetName(_L("Agent setup"));
+        return webview;
+    };
 
     ModalScrim scrim(owner, theme.palette(dark), theme.metrics().printer_setup.scrim_alpha);
     PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), discover_printers(),
-                              agent_connected, [shell] { shell->open_agent_setup(); }, connect);
+                              agent_connected, make_setup_webview, connect,
+                              [shell] { shell->mark_agent_config_possibly_changed(); });
     dialog.ShowModal();
 }
 

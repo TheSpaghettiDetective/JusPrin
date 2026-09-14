@@ -1472,6 +1472,8 @@ void AgentHost::pump_setup()
     // Configuration starts only between turns; messages and retries stay
     // blocked while the credential check is pending.
     set_agent(std::move(outcome->service), AgentAvailability::Ready);
+    if (m_setup_completed_listener)
+        m_setup_completed_listener();
 }
 
 void AgentHost::pump_tools()

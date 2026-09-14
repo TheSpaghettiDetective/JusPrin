@@ -4,6 +4,7 @@
 #include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 
@@ -104,13 +105,15 @@ PrinterSetupDialog::PrinterSetupDialog(wxWindow* parent, const ShellTheme& theme
                                        std::unique_ptr<PrinterSetupController> controller,
                                        std::vector<DiscoveredPrinter> discovered,
                                        bool agent_connected,
-                                       std::function<void()> open_agent_setup,
-                                       ConnectFn connect)
+                                       MakeSetupWebViewFn make_setup_webview,
+                                       ConnectFn connect,
+                                       std::function<void()> on_agent_configured)
     : DPIDialog(parent, wxID_ANY, _L("Add a printer"), wxDefaultPosition, wxDefaultSize,
                 wxBORDER_NONE),
       m_theme(theme), m_palette(theme.palette(dark)), m_controller(std::move(controller)),
       m_discovered(std::move(discovered)), m_agent_connected(agent_connected),
-      m_open_agent_setup(std::move(open_agent_setup)), m_connect(std::move(connect)), m_timer(this)
+      m_make_setup_webview(std::move(make_setup_webview)), m_connect(std::move(connect)), m_timer(this),
+      m_on_agent_configured(std::move(on_agent_configured))
 {
     SetBackgroundColour(m_palette.surface_raised);
     SetName(_L("Add a printer"));
@@ -127,7 +130,11 @@ PrinterSetupDialog::PrinterSetupDialog(wxWindow* parent, const ShellTheme& theme
     rebuild();
 }
 
-PrinterSetupDialog::~PrinterSetupDialog() { m_timer.Stop(); }
+PrinterSetupDialog::~PrinterSetupDialog()
+{
+    m_timer.Stop();
+    m_setup_pump_timer.Stop();
+}
 
 void PrinterSetupDialog::on_dpi_changed(const wxRect&) { rebuild(); }
 
@@ -192,6 +199,15 @@ void PrinterSetupDialog::rebuild()
     wxWindowUpdateLocker lock(this);
     m_description = nullptr;
     m_description_is_prompt = false;
+    // m_setup_webview outlives any single rebuild() -- including one from a
+    // DPI change while its setup flow is still showing -- so detach it from
+    // whatever content sizer currently holds it before that sizer's children
+    // are destroyed below.
+    if (m_setup_webview) {
+        if (wxSizer* current = m_setup_webview->GetContainingSizer())
+            current->Detach(m_setup_webview.get());
+        m_setup_webview->Hide();
+    }
     m_root->Clear(true);
     const auto& metrics = m_theme.metrics();
     auto* content = new wxBoxSizer(wxVERTICAL);
@@ -199,26 +215,35 @@ void PrinterSetupDialog::rebuild()
     // States whose content varies (a network printer's details, a list of
     // candidates, the no-agent card) take their fitted height.
     int target_height = metrics.printer_setup.initial_height;
-    switch (m_controller->state()) {
-    case FlowState::Initial:
-        if (m_agent_connected) {
-            build_initial(*content);
-        } else {
+    if (m_showing_agent_setup) {
+        // A wxWebView has no meaningful "fitted" content size the way a
+        // native control does, so this keeps the same fixed height the
+        // "no agent" card it replaces used; the page's own CSS already
+        // scrolls internally when its content runs taller (see Setup.tsx).
+        content->Add(m_setup_webview.get(), 1, wxEXPAND);
+        m_setup_webview->Show();
+    } else {
+        switch (m_controller->state()) {
+        case FlowState::Initial:
+            if (m_agent_connected) {
+                build_initial(*content);
+            } else {
+                target_height = 0;
+                build_no_agent(*content);
+            }
+            break;
+        case FlowState::Recognizing: build_recognizing(*content); break;
+        case FlowState::Recognized:
+            target_height = m_controller->evidence().discovered_device ? 0 : metrics.printer_setup.recognized_height;
+            build_recognized(*content);
+            break;
+        case FlowState::Ambiguous:
             target_height = 0;
-            build_no_agent(*content);
+            build_ambiguous(*content);
+            break;
+        case FlowState::Error: build_error(*content); break;
+        case FlowState::Complete: EndModal(wxID_OK); return;
         }
-        break;
-    case FlowState::Recognizing: build_recognizing(*content); break;
-    case FlowState::Recognized:
-        target_height = m_controller->evidence().discovered_device ? 0 : metrics.printer_setup.recognized_height;
-        build_recognized(*content);
-        break;
-    case FlowState::Ambiguous:
-        target_height = 0;
-        build_ambiguous(*content);
-        break;
-    case FlowState::Error: build_error(*content); break;
-    case FlowState::Complete: EndModal(wxID_OK); return;
     }
     m_root->Add(content, 1, wxEXPAND | wxALL, FromDIP(metrics.space_6));
     Layout();
@@ -363,9 +388,9 @@ void PrinterSetupDialog::build_initial(wxBoxSizer& content)
     content.Add(footer, 0, wxEXPAND);
 }
 
-// 18f. The Agent panel's own empty state is a page in the Agent web view and
-// cannot be hosted in this native modal, so the card is drawn here and its
-// action opens that panel's setup flow rather than a second one.
+// 18f. "Set up the agent" opens the same setup flow as the docked Agent
+// panel, but hosted in a second, throwaway AgentWebView embedded in this
+// dialog (see set_up_agent()) rather than redirecting to the docked one.
 void PrinterSetupDialog::build_no_agent(wxBoxSizer& content)
 {
     const auto& metrics = m_theme.metrics();
@@ -770,12 +795,46 @@ void PrinterSetupDialog::open_manual_setup()
 
 void PrinterSetupDialog::set_up_agent()
 {
-    EndModal(wxID_CANCEL);
-    wxGetApp().CallAfter([open = m_open_agent_setup] { open(); });
+    if (!m_setup_webview && m_make_setup_webview) {
+        m_setup_webview = m_make_setup_webview(this);
+        if (m_setup_webview) {
+            m_setup_webview->Hide();
+            // Runs once, when this throwaway host's own credential check
+            // succeeds. Deferred with CallAfter because it fires from inside
+            // AgentHost::pump_setup(), which is itself a member call on the
+            // very host m_setup_webview owns -- resetting m_setup_webview
+            // synchronously here would destroy that call's own object while
+            // it is still on the stack.
+            m_setup_webview->host().set_setup_completed_listener([this] {
+                m_showing_agent_setup = false;
+                m_agent_connected = true;
+                if (m_on_agent_configured)
+                    m_on_agent_configured();
+                CallAfter([this] {
+                    m_setup_pump_timer.Stop();
+                    m_setup_webview.reset();
+                    rebuild();
+                });
+            });
+            m_setup_webview->host().request_setup();
+            m_setup_pump_timer.Start(33);
+        }
+    }
+    if (!m_setup_webview)
+        return; // No factory wired (e.g. a degraded call site); nothing to show.
+    m_showing_agent_setup = true;
+    rebuild();
 }
 
-void PrinterSetupDialog::on_timer(wxTimerEvent&)
+void PrinterSetupDialog::on_timer(wxTimerEvent& event)
 {
+    if (m_setup_webview && event.GetId() == m_setup_pump_timer.GetId()) {
+        auto& host = m_setup_webview->host();
+        host.pump_stream();
+        host.pump_tools();
+        host.pump_setup();
+        return;
+    }
     const FlowState before = m_controller->state();
     m_controller->poll();
     if (m_controller->state() != before) {

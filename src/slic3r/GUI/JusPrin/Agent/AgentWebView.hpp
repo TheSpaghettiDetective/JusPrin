@@ -31,7 +31,12 @@ public:
                  Agent::ProjectPersistence&       persistence,
                  Agent::AgentAvailability         availability,
                  Agent::AgentServicePtr            agent = {},
-                 Agent::AgentSetupServicePtr       setup = {});
+                 Agent::AgentSetupServicePtr       setup = {},
+                 // A throwaway, setup-only instance (e.g. embedded in the Add
+                 // a printer dialog): loads the page with ?embedded=1 so it
+                 // renders only the setup sub-component (see App.tsx), never
+                 // the conversation header, chat list, or composer.
+                 bool                              embedded = false);
     ~AgentWebView() override;
 
     void apply_appearance(bool dark);

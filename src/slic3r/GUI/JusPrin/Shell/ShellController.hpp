@@ -72,6 +72,14 @@ public:
     // choice, and asks the page to open setup.
     void open_agent_setup();
 
+    // A throwaway AgentWebView embedded elsewhere (the Add a printer dialog's
+    // own setup flow) just wrote a working agent config that the docked
+    // pane's own AgentHost instance has no way to learn about on its own.
+    // on_page_changed() re-derives and pushes fresh availability into the
+    // docked pane the next time it would become relevant again, the same way
+    // it already refreshes Home's gallery on return.
+    void mark_agent_config_possibly_changed() { m_agent_config_possibly_changed = true; }
+
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
     // Applies what the Notebook's current page implies for the shell: Home
@@ -105,6 +113,8 @@ private:
     bool m_agent_pane_collapsed{false};
     // What the person last asked for, as opposed to what Home imposes.
     bool m_agent_pane_user_collapsed{false};
+    // Set by mark_agent_config_possibly_changed(), consumed by on_page_changed().
+    bool m_agent_config_possibly_changed{false};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.
