@@ -1,0 +1,5 @@
+copy a few *.3mf files from ~/Downloads to ~/Downloads on gcp vm jusprin-win-test
+
+---
+
+copy a few *.3mf files from ~/Downloads to c:\users\guitest\Downloads on gcp vm jusprin-win-test

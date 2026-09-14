@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2G4P3ATQR8B28W8B8CFYNW9",
+  "session_id": "0137ad33-1a7e-44e1-a125-58036ba80fb1",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-14T14:21:15.136283Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "c110e7c45210",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 34194,
+    "cache_read_tokens": 1119628,
+    "output_tokens": 3480,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-14T14:21:15.102188Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 5230,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5230,
+    "total_lines_changed": 6838,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 559,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "agent-docs/jusprin/add-printer-flow-handoff.md": 519
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 519,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
