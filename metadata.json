@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2EYH077HME1W1X2XE231TSC",
+  "strategy": "manual-commit",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "resources/jusprin/agent/index.html",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/main.tsx",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 706,
+    "cache_creation_tokens": 1452201,
+    "cache_read_tokens": 141470117,
+    "output_tokens": 234450,
+    "api_call_count": 353,
+    "subagent_tokens": {
+      "input_tokens": 82,
+      "cache_creation_tokens": 272006,
+      "cache_read_tokens": 2753712,
+      "output_tokens": 23503,
+      "api_call_count": 41
+    }
+  }
+}

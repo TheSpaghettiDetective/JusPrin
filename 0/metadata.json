@@ -1,0 +1,135 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2EYH077HME1W1X2XE231TSC",
+  "session_id": "39ab79c2-8166-4a6c-aab4-90964465ffbd",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-14T03:14:17.581704Z",
+  "branch": "claude/worktree-base-relocation-f911a5",
+  "checkpoints_count": 10,
+  "save_step_count": 6,
+  "files_touched": [
+    "resources/jusprin/agent/index.html",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/main.tsx",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "1ae5fd3534f3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 706,
+    "cache_creation_tokens": 1452201,
+    "cache_read_tokens": 141470117,
+    "output_tokens": 234450,
+    "api_call_count": 353,
+    "subagent_tokens": {
+      "input_tokens": 82,
+      "cache_creation_tokens": 272006,
+      "cache_read_tokens": 2753712,
+      "output_tokens": 23503,
+      "api_call_count": 41
+    }
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-14T03:14:16.926197Z",
+    "agent_lines": 237,
+    "agent_removed": 65,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 237,
+    "total_lines_changed": 302,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 178,
+      "agent_lines_removed": 36,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 41,
+      "user_lines_removed": 0,
+      "agent_lines_added": 237,
+      "agent_lines_removed": 65,
+      "user_added_per_file": {
+        ".claude/scheduled_tasks.lock": 1,
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 41,
+      "user_lines_removed": 0,
+      "agent_lines_added": 237,
+      "agent_lines_removed": 65,
+      "user_added_per_file": {
+        ".claude/scheduled_tasks.lock": 1,
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 41,
+      "user_lines_removed": 0,
+      "agent_lines_added": 237,
+      "agent_lines_removed": 65,
+      "user_added_per_file": {
+        ".claude/scheduled_tasks.lock": 1,
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 41,
+      "user_lines_removed": 0,
+      "agent_lines_added": 238,
+      "agent_lines_removed": 66,
+      "user_added_per_file": {
+        ".claude/scheduled_tasks.lock": 1,
+        ".claude/settings.local.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 41,
+      "user_lines_removed": 0,
+      "agent_lines_added": 238,
+      "agent_lines_removed": 66,
+      "user_added_per_file": {
+        ".claude/scheduled_tasks.lock": 1,
+        ".claude/settings.local.json": 40
+      }
+    }
+  ]
+}
