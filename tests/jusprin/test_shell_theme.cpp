@@ -106,8 +106,6 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.printer_setup.dialog_width == 500);
     CHECK(m.printer_setup.initial_height == 454);
     CHECK(m.printer_setup.recognized_height == 432);
-    CHECK(m.printer_setup.network_height == 430);
-    CHECK(m.printer_setup.ambiguous_height == 470);
     CHECK(m.printer_setup.evidence_field_height == 72);
     CHECK(m.printer_setup.correction_field_height == 36);
     CHECK(m.printer_setup.photo_drop_height == 66);

@@ -79,9 +79,6 @@ public:
     // "Use this spool" step does, without selecting it.
     Workspace::Spool remember_spool(const std::string& filament_preset, const std::string& colour,
                                     const std::string& name);
-    // What the chip's two halves currently read, for harness assertions.
-    wxString printer_text() const;
-    wxString spool_text() const;
     wxString project_summary() const;
 
     // The spool the project currently corresponds to, seeding one for a

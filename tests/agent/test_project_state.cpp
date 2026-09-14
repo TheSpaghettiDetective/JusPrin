@@ -7,7 +7,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
 

@@ -10,10 +10,10 @@
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "libslic3r/Exception.hpp"
-#include "slic3r/GUI/JusPrin/Agent/DeterministicMockAgent.hpp"
+#include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 #include "mcp_test_directory.hpp"
 
 #include <nlohmann/json.hpp>
@@ -297,7 +297,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
-                                              Protocol::kMcpStatus, Protocol::kChangeAdded,
+                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kOpenSetup,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated});
 }
 
@@ -1167,6 +1167,23 @@ TEST_CASE("an approved Agent edit is logged as the Agent's, after its tool activ
     CHECK((*added)["payload"]["change"]["actor"] == "agent");
     CHECK((*added)["payload"]["change"]["afterId"] == action_id);
     CHECK(harness.of_type("change_added").size() == 1);
+}
+
+TEST_CASE("a setup request reaches the page once, after the handshake if it has to wait", "[agent][setup]")
+{
+    Harness harness(AgentAvailability::Unavailable);
+    harness.host.request_setup();
+    CHECK(harness.of_type("open_setup").empty());
+
+    harness.handshake();
+    CHECK(harness.of_type("open_setup").size() == 1);
+
+    harness.host.reset_page();
+    harness.handshake();
+    CHECK(harness.of_type("open_setup").size() == 1);
+
+    harness.host.request_setup();
+    CHECK(harness.of_type("open_setup").size() == 2);
 }
 
 TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")

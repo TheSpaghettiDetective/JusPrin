@@ -54,6 +54,8 @@ export interface AgentUiState {
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
+  // Counts the host's requests to open setup; the app opens it on each change.
+  setupRequests: number;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
   needsResync: boolean;
@@ -81,6 +83,7 @@ export const initialState: AgentUiState = {
   mcpCatalog: null,
   mcpPreview: null,
   mcpStatus: { phase: 'idle' },
+  setupRequests: 0,
   needsResync: false,
   diagnostics: [],
 };
@@ -167,6 +170,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, agentStatus: payload.status as AgentStatus };
     case 'setup_status':
       return { ...state, setup: envelope.payload as SetupStatusPayload };
+    case 'open_setup':
+      return { ...state, setupRequests: state.setupRequests + 1 };
     case 'mcp_catalog':
       return { ...state, mcpCatalog: envelope.payload as McpCatalogPayload };
     case 'mcp_preview':

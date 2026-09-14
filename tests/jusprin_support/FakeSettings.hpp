@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SettingsSupport.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 
 #include <cmath>
 #include <iomanip>

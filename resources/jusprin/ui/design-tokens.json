@@ -344,8 +344,6 @@
       "dialogWidth": 500,
       "initialHeight": 454,
       "recognizedHeight": 432,
-      "networkHeight": 430,
-      "ambiguousHeight": 470,
       "evidenceFieldHeight": 72,
       "correctionFieldHeight": 36,
       "photoDropHeight": 66,

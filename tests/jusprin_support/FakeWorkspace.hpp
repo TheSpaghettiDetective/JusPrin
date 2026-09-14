@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Workspace.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "FakeSettings.hpp"
 
 #include <nlohmann/json.hpp>

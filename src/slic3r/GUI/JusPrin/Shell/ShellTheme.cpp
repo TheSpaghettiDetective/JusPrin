@@ -205,8 +205,6 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.printer_setup.dialog_width = parse_int(printer_setup, "component.printerSetup", "dialogWidth");
     m.printer_setup.initial_height = parse_int(printer_setup, "component.printerSetup", "initialHeight");
     m.printer_setup.recognized_height = parse_int(printer_setup, "component.printerSetup", "recognizedHeight");
-    m.printer_setup.network_height = parse_int(printer_setup, "component.printerSetup", "networkHeight");
-    m.printer_setup.ambiguous_height = parse_int(printer_setup, "component.printerSetup", "ambiguousHeight");
     m.printer_setup.evidence_field_height = parse_int(printer_setup, "component.printerSetup", "evidenceFieldHeight");
     m.printer_setup.correction_field_height = parse_int(printer_setup, "component.printerSetup", "correctionFieldHeight");
     m.printer_setup.photo_drop_height = parse_int(printer_setup, "component.printerSetup", "photoDropHeight");

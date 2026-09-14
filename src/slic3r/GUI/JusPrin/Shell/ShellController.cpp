@@ -389,6 +389,15 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
         apply_agent_pane_width();
 }
 
+void ShellController::open_agent_setup()
+{
+    m_agent_pane_user_collapsed = false;
+    if (m_tabpanel->GetSelection() == MainFrame::tpHome)
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    set_agent_pane_collapsed(false);
+    m_agent_pane->web_view().host().request_setup();
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();
@@ -486,6 +495,15 @@ void ShellController::on_page_changed()
     const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
     if (home)
         m_home->refresh();
+    // A throwaway setup webview elsewhere (the Add a printer dialog) may have
+    // written a working agent config since the docked pane last checked; push
+    // it in now, the same "refresh on the way in" pattern as Home's gallery
+    // above, rather than reloading the page or polling continuously.
+    if (m_agent_config_possibly_changed) {
+        m_agent_config_possibly_changed = false;
+        Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+        m_agent_pane->web_view().host().set_agent(std::move(runtime.service), runtime.availability);
+    }
     // Home and the Notebook share the workspace slot, so exactly one is shown.
     // The Notebook is only hidden while Home is the selection: post_init
     // selects the Prepare tab to map the GL canvas before it initialises

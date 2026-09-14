@@ -146,6 +146,24 @@ TEST_CASE("ambiguous and network choices apply only after confirmation", "[print
     CHECK(applied == "a1");
 }
 
+TEST_CASE("saying more about an ambiguous printer re-recognizes with the added detail", "[printer-setup]")
+{
+    auto recognition = std::make_unique<FakeRecognition>();
+    auto* fake = recognition.get();
+    PrinterSetupController controller(PrinterCatalog(fixtures()), std::move(recognition), {});
+
+    CHECK_FALSE(controller.clarify("it has a knob"));
+    REQUIRE(controller.recognize(described("the ender with the touchscreen")));
+    fake->events.push_back(result_event(fake->last_generation, RecognitionDisposition::Ambiguous, {"v2", "neo"}));
+    controller.poll();
+    REQUIRE(controller.state() == FlowState::Ambiguous);
+
+    CHECK_FALSE(controller.clarify(""));
+    REQUIRE(controller.clarify("it has a knob"));
+    CHECK(controller.state() == FlowState::Recognizing);
+    CHECK(fake->last_evidence.description == "the ender with the touchscreen\nit has a knob");
+}
+
 TEST_CASE("corrections are re-resolved to an offered installable variant", "[printer-setup]")
 {
     auto recognition = std::make_unique<FakeRecognition>();

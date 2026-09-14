@@ -1,7 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include "mcp_test_directory.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 #include <atomic>
 #include <fstream>
 #include <future>

@@ -58,18 +58,4 @@ private:
     bool m_busy{false};
 };
 
-// Used by tests and explicit developer mode. It follows the same poll-based
-// contract and never invents an identifier outside the supplied catalogue.
-class DeterministicPrinterRecognition final : public IPrinterRecognitionService
-{
-public:
-    bool ready() const override { return true; }
-    bool start(std::uint64_t generation, const PrinterEvidence& evidence,
-               const std::vector<const PrinterCandidate*>& choices) override;
-    void cancel() override { m_event.reset(); }
-    std::optional<RecognitionEvent> poll() override;
-private:
-    std::optional<RecognitionEvent> m_event;
-};
-
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

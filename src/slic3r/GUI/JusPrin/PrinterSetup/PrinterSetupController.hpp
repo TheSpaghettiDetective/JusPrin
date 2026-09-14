@@ -47,6 +47,8 @@ public:
     // Re-recognizes the current evidence with the correction and the current
     // match attached, keeping any photo and network device.
     bool correct(const std::string& correction);
+    // Re-recognizes an ambiguous description with the detail the user added.
+    bool clarify(const std::string& detail);
     bool confirm();
     // Repeats whatever failed: the apply step, or the recognition request.
     bool retry();

@@ -319,7 +319,7 @@ TEST_CASE("the add-printer dialog geometry is explicit", "[brand]")
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("printerSetup"),
         {{"dialogWidth", 500}, {"initialHeight", 454}, {"recognizedHeight", 432},
-         {"networkHeight", 430}, {"ambiguousHeight", 470}, {"evidenceFieldHeight", 72},
+         {"evidenceFieldHeight", 72},
          {"correctionFieldHeight", 36}, {"photoDropHeight", 66}, {"networkRowHeight", 44},
          {"artworkSize", 88}, {"candidateMinHeight", 132}, {"ambiguousArtworkHeight", 80},
          {"scrimAlpha", 88}, {"radius", 12}, {"controlRadius", 8}},

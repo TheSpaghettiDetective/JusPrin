@@ -70,7 +70,10 @@
 #include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../agent/mcp_test_client.hpp"
@@ -82,7 +85,11 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
+#include "fake_printer_recognition.hpp"
+#include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/ParamsPanel.hpp"
@@ -476,6 +483,13 @@ private:
         return dialog ? status_row_labels(dialog) : wxString();
     }
 
+    // What a half of the header chip reads on screen: "Printer" or "Spool".
+    static wxString chip_label(wxWindow* row, const char* half)
+    {
+        wxWindow* control = wxWindow::FindWindowByName(half, row);
+        return control ? control->GetLabel() : wxString();
+    }
+
     static wxTextCtrl* setup_description() { return dynamic_cast<wxTextCtrl*>(setup_control("What printer do you have?")); }
 
     static void press(wxWindow* control)
@@ -518,8 +532,65 @@ private:
         wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_printer_menu_opens_setup",
                    [self = shared_from_this(), then = std::move(then)] {
                        self->m_setup_scrim = printer_setup_dialog()->GetParent();
+                       self->m_setup_has_scrim = true;
                        then();
                    });
+    }
+
+    // Recognition, a network printer, and a missing agent cannot come from
+    // this machine, so these flows build the modal here with the fake
+    // recognizer and the inputs the test supplies. The app's own path from
+    // the menu to the modal is covered by the Escape, close, and manual flows.
+    void open_printer_setup_with(const std::string& label, std::vector<PrinterSetup::DiscoveredPrinter> discovered,
+                                 bool agent_connected, bool start_on_first_printer, std::function<void()> then)
+    {
+        m_frame->CallAfter([discovered = std::move(discovered), agent_connected, start_on_first_printer]() mutable {
+            Plater& plater = *wxGetApp().plater();
+            auto apply = [&plater](const PrinterSetup::PrinterCandidate& candidate, std::string& error) {
+                return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
+                                                                 candidate.variant, candidate.default_material, error);
+            };
+            auto controller = std::make_unique<PrinterSetup::PrinterSetupController>(
+                PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
+                std::make_unique<PrinterSetup::FakePrinterRecognition>(), std::move(apply));
+            if (start_on_first_printer) controller->use_discovered(discovered.front());
+            const ShellTheme theme = ShellTheme::load_from_resources();
+            // Mirrors PrinterSetupLauncher.cpp's make_setup_webview: a second,
+            // throwaway AgentWebView with its own AgentService/AgentSetupService,
+            // never the docked pane's, and no start_mcp() call.
+            auto make_setup_webview = [&theme](wxWindow* parent) {
+                ShellController* shell = installed_shell();
+                Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+                auto webview = std::make_unique<AgentWebView>(
+                    parent, theme, *shell->workspace(), *shell->persistence(), runtime.availability,
+                    std::move(runtime.service), runtime.setup, /*embedded=*/true);
+                webview->apply_appearance(wxGetApp().dark_mode());
+                webview->SetName(_L("Agent setup"));
+                return webview;
+            };
+            PrinterSetup::PrinterSetupDialog dialog(
+                wxGetApp().mainframe, theme, wxGetApp().dark_mode(), std::move(controller), std::move(discovered),
+                agent_connected, make_setup_webview,
+                [](const PrinterSetup::DiscoveredPrinter& printer, const std::string& code, wxString& error) {
+                    return SetupCommands::set_printer_access_code(printer.stable_id, code, error);
+                });
+            dialog.ShowModal();
+        });
+        wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_opens_setup",
+                   [self = shared_from_this(), then = std::move(then)] {
+                       self->m_setup_has_scrim = false;
+                       then();
+                   });
+    }
+
+    static PrinterSetup::DiscoveredPrinter fake_network_printer()
+    {
+        PrinterSetup::DiscoveredPrinter printer{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true};
+        printer.nozzle_diameter = 0.4;
+        printer.ams_name = "AMS lite";
+        printer.spools = {{"Bambu PLA Matte", "#2E6FD9"}, {"Bambu PLA Basic", "#F5F5F0"},
+                          {"Bambu PETG HF", "#1A1A1A"}, {"Bambu PLA Silk", "#C0392B"}};
+        return printer;
     }
 
     // Waits for the modal to go, then for the loop to go idle so a deferred
@@ -529,7 +600,8 @@ private:
         wait_until([] { return printer_setup_dialog() == nullptr; }, label + "_closes_setup",
                    [self = shared_from_this(), label, expected_printer, then = std::move(then)] {
             self->wait_until_settled(label + "_settled", [self, label, expected_printer, then] {
-                self->check(!self->m_setup_scrim, label + "_scrim_destroyed");
+                if (self->m_setup_has_scrim)
+                    self->check(!self->m_setup_scrim, label + "_scrim_destroyed");
                 self->check(self->m_frame->IsShown() && self->m_frame->IsEnabled(), label + "_main_frame_usable");
                 self->check(selected_printer() == expected_printer, label + "_printer_is_expected");
                 then();
@@ -540,7 +612,6 @@ private:
     void verify_printer_setup()
     {
         check(selected_printer() == kSetupFixturePrinter, "setup_fixture_printer_selected");
-        wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
         open_printer_setup_from_menu("setup_escape", [self = shared_from_this()] {
             auto* dialog = printer_setup_dialog();
             wxWindow* scrim = dialog->GetParent();
@@ -568,7 +639,7 @@ private:
 
     void verify_setup_choices()
     {
-        open_printer_setup_from_menu("setup_choices", [self = shared_from_this()] {
+        open_printer_setup_with("setup_choices", {}, true, false, [self = shared_from_this()] {
             type_description("the ender with the touchscreen");
             auto* next = setup_control("Next");
             self->check(next && next->IsEnabled(), "setup_next_enabled_by_description");
@@ -585,7 +656,9 @@ private:
                 type_description("the ender with the touchscreen");
                 press(setup_control("Next"));
                 self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_offers_two_models", [self] {
-                    self->check(setup_labels().Contains("Which one is yours?"), "setup_ambiguous_asks_which");
+                    self->check(!setup_labels().Contains("Which one is yours?") && setup_control("Say more") &&
+                                setup_control("Neither · it's not in the list"),
+                                "setup_ambiguous_matches_design");
                     self->check(selected_printer() == kSetupFixturePrinter, "setup_ambiguous_changes_nothing");
                     press(setup_control("This one"));
                     self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_choice_reaches_recognized", [self] {
@@ -610,13 +683,21 @@ private:
                                         "setup_not_this_one_keeps_evidence_for_editing");
                             press(setup_control("Next"));
                             self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_again", [self] {
-                                press(setup_control("Start over"));
+                                auto* more = dynamic_cast<wxTextCtrl*>(setup_control("Say more"));
+                                more->SetValue("it has a knob");
+                                wxCommandEvent enter(wxEVT_TEXT_ENTER, more->GetId());
+                                enter.SetEventObject(more);
+                                more->GetEventHandler()->ProcessEvent(enter);
+                                self->wait_until([] { return setup_control_count("This one") == 2 && setup_labels().Contains("it has a knob"); },
+                                                 "setup_say_more_re_recognizes", [self] {
+                                press(setup_control("Neither · it's not in the list"));
                                 self->wait_until([] { return setup_description() != nullptr; }, "setup_start_over_returns_to_initial", [self] {
                                     self->check(setup_description()->GetValue().StartsWith("Say it any way"),
                                                 "setup_start_over_clears_description");
                                     self->check(!setup_labels().Contains("Photo:"), "setup_start_over_clears_photo");
                                     self->check(!setup_control("Next")->IsEnabled(), "setup_start_over_disables_next");
                                     self->verify_setup_correction_and_add();
+                                });
                                 });
                             });
                         });
@@ -659,28 +740,51 @@ private:
 
     void verify_setup_network()
     {
-        wxSetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO", "network");
-        open_printer_setup_from_menu("setup_network", [self = shared_from_this()] {
-            wxUnsetEnv("JUSPRIN_PRINTER_SETUP_SCENARIO");
-            self->check(setup_labels().Contains(ui_name("Connected · LAN")) && setup_labels().Contains("A1 mini"),
+        open_printer_setup_with("setup_network", {fake_network_printer()}, true, true, [self = shared_from_this()] {
+            const wxString labels = setup_labels();
+            self->check(labels.Contains(ui_name("Found on your network · 01P00A3B")) && labels.Contains("A1 mini"),
                         "setup_network_state_shows_connection_and_model");
+            self->check(labels.Contains("0.4 mm nozzle") && labels.Contains("AMS lite") &&
+                        labels.Contains("Bambu PLA Matte") && labels.Contains("+ 3 more") &&
+                        labels.Contains("read from the printer just now") && !setup_control("Correction"),
+                        "setup_network_reads_the_printer_instead_of_assuming");
             press(setup_control("Not this one"));
             self->wait_until([] { return setup_description() != nullptr; }, "setup_network_not_this_one_returns_to_initial", [self] {
                 self->check(setup_labels().Contains("01P00A3B"), "setup_network_row_shows_device_id");
                 press(setup_control("Use this"));
-                self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_network_use_this_reaches_confirmation", [self] {
-                    dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("I put a 0.6 nozzle on it");
+                self->wait_until([] { return setup_control("Access code") != nullptr; }, "setup_network_use_this_reaches_confirmation", [self] {
+                    dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->SetValue("not valid!");
                     press(setup_control("Add this printer"));
-                    self->wait_until([] { return setup_control("Add this printer") && setup_labels().Contains("0.6 mm nozzle"); },
-                                     "setup_nozzle_correction_selects_the_variant", [self] {
-                        const wxString labels = setup_labels();
-                        self->check(labels.Contains(ui_name("Connected · LAN")), "setup_correction_keeps_network_evidence");
-                        self->check(!labels.Contains("Not applied:"), "setup_honoured_correction_not_reported_unresolved");
+                    self->wait_until([] { return setup_labels().Contains("Invalid input."); },
+                                     "setup_network_access_code_is_validated", [self] {
+                        self->check(dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->GetValue() == "not valid!",
+                                    "setup_rejected_access_code_stays_for_editing");
+                        self->check(selected_printer() == "Creality Ender-3 V2 Neo 0.4 nozzle",
+                                    "setup_rejected_access_code_changes_nothing");
                         press(setup_control("Close Add a printer"));
                         self->after_setup_closes("setup_network", "Creality Ender-3 V2 Neo 0.4 nozzle",
-                                                 [self] { self->verify_setup_manual(); });
+                                                 [self] { self->verify_setup_no_agent(); });
                     });
                 });
+            });
+        });
+    }
+
+    void verify_setup_no_agent()
+    {
+        open_printer_setup_with("setup_no_agent", {fake_network_printer()}, false, false, [self = shared_from_this()] {
+            self->check(setup_labels().Contains("No agent connected") && setup_control("Set up the agent") &&
+                        setup_control("set it up myself") && setup_control("Use this") && !setup_description(),
+                        "setup_no_agent_offers_agent_setup_and_network");
+            press(setup_control("Set up the agent"));
+            // "Set up the agent" embeds the same setup flow in this dialog
+            // rather than closing it and redirecting to the docked panel.
+            self->wait_until([] { return setup_control("Agent setup") != nullptr; }, "setup_no_agent_embeds_setup_flow", [self] {
+                self->check(printer_setup_dialog() != nullptr, "setup_no_agent_dialog_stays_open");
+                self->check(!setup_labels().Contains("No agent connected"), "setup_no_agent_card_replaced_by_embedded_flow");
+                press(setup_control("Close Add a printer"));
+                self->after_setup_closes("setup_no_agent", "Creality Ender-3 V2 Neo 0.4 nozzle",
+                                         [self] { self->verify_setup_manual(); });
             });
         });
     }
@@ -1416,10 +1520,10 @@ private:
         const auto second = row->remember_spool(spools.front().filament_preset, other_colour, "Harness Second Spool");
         check(row->listed_spools().size() == spools.size() + 1, "remembering_a_spool_adds_one_row");
 
-        const wxString before = row->spool_text();
+        const wxString before = chip_label(row, "Spool");
         check(row->select_spool(second.id), "select_spool_applies_a_remembered_spool");
-        check(row->spool_text() == wxString::FromUTF8(second.name), "chip_shows_the_swapped_spool");
-        check(row->spool_text() != before, "the_chip_actually_changed");
+        check(chip_label(row, "Spool") == wxString::FromUTF8(second.name), "chip_shows_the_swapped_spool");
+        check(chip_label(row, "Spool") != before, "the_chip_actually_changed");
         // The project itself moved, not just the label.
         check(SetupCommands::current_colour().Lower() == wxString::FromUTF8(other_colour).Lower(),
               "swap_writes_the_colour_into_the_project");
@@ -1447,7 +1551,7 @@ private:
         check(row->select_spool(crossed.id), "select_spool_switches_to_another_preset");
         check(SetupCommands::current_filament().preset_name == other_preset,
               "the_project_is_on_the_new_filament_preset");
-        check(row->spool_text() == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
+        check(chip_label(row, "Spool") == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
     }
 
     void verify_header_setup_open(Preset::Type type)
@@ -3415,6 +3519,9 @@ private:
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
     wxWeakRef<wxWindow>           m_setup_scrim;
+    // Only the app's own entry point dims the window; a modal the harness
+    // builds itself has no scrim to check.
+    bool                          m_setup_has_scrim{false};
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
@@ -3428,6 +3535,40 @@ private:
     bool                  m_idle_armed{false};
     bool                  m_idle_seen{false};
 };
+
+// The app ships no stand-in Agent, so each mode's Agent is installed here
+// through the host's own set_agent, the call setup uses when a key verifies.
+void install_harness_agent(HarnessState::Mode mode)
+{
+    ShellController* shell = installed_shell();
+    if (shell == nullptr)
+        return; // stock mode: the shell is disabled, so there is no Agent panel
+    Agent::AgentHost& host = shell->agent_pane()->web_view().host();
+    switch (mode) {
+    case HarnessState::Mode::LiveAgentUnavailable:
+    case HarnessState::Mode::ManualUnconfigured:
+        return;
+    case HarnessState::Mode::LiveAgent:
+    case HarnessState::Mode::ManualLiveAgent: {
+        // Without a key the live checks report the missing service themselves.
+        const char* key = std::getenv("OPENAI_API_KEY");
+        if (key == nullptr || *key == '\0')
+            return;
+        Agent::OpenAIResponsesConfig config;
+        config.api_key = key;
+        config.usage_listener = [](std::uint64_t input, std::uint64_t output, std::uint64_t total) {
+            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << input
+                      << " output_tokens=" << output << " total_tokens=" << total << '\n';
+        };
+        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), Agent::make_openai_http_transport()),
+                       Agent::AgentAvailability::Ready);
+        return;
+    }
+    default:
+        host.set_agent(std::make_unique<Agent::DeterministicMockAgent>(), Agent::AgentAvailability::Ready);
+        return;
+    }
+}
 
 void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 {
@@ -3444,6 +3585,7 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 #ifdef __APPLE__
         if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
+        install_harness_agent(state->mode);
         if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
             state->mode == HarnessState::Mode::ManualUnconfigured)
             return;
@@ -3594,10 +3736,6 @@ int main(int argc, char** argv)
     if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
     fs::create_directories(data_directory / "log");
-    if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::ManualLiveAgent)
-        wxSetEnv("JUSPRIN_AGENT_RECORD_USAGE", "1");
-    if (state->mode == HarnessState::Mode::PrinterSetup)
-        wxSetEnv("JUSPRIN_PRINTER_RECOGNITION_MOCK", "1");
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
         // The setup key check in this scenario must exercise the real host,
         // page, and HTTP transport without reaching a real provider. A closed
@@ -3624,19 +3762,12 @@ int main(int argc, char** argv)
                            anchor + "\n    \"dark_color_mode\": \"" + (*state->dark_appearance ? "1" : "0") + "\",");
         }
 #endif
-        if (state->mode == HarnessState::Mode::ManualUnconfigured) {
-            // No provider, no key, no consent: exactly what a fresh install
-            // looks like before anyone sets an Agent up.
-            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": true,\n    \"provider\": \"mock\"\n  }";
-            const std::string to   = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
-            const std::size_t pos  = config.find(from);
-            if (pos != std::string::npos)
-                config.replace(pos, from.size(), to);
-        }
         if (state->mode == HarnessState::Mode::LiveAgent ||
             state->mode == HarnessState::Mode::ManualLiveAgent ||
             state->mode == HarnessState::Mode::LiveAgentUnavailable) {
-            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": true,\n    \"provider\": \"mock\"\n  }";
+            // The base config has the Agent off: no provider, no key, no
+            // consent, exactly what a fresh install looks like.
+            const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
                                       state->mode == HarnessState::Mode::ManualLiveAgent;
             const std::string consent = live_enabled ? "true" : "false";

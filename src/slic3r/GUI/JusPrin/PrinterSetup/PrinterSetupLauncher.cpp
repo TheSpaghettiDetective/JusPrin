@@ -7,16 +7,19 @@
 #include "PrinterSetupDialog.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Utils.hpp"
-#include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
 #include <wx/frame.h>
 
-#include <cstdlib>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
@@ -60,49 +63,51 @@ private:
 
 void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
 {
-    PrinterCatalog catalog = PrinterCatalog::load(Slic3r::resources_dir());
-    const bool use_mock = std::getenv("JUSPRIN_PRINTER_RECOGNITION_MOCK") != nullptr;
+    // Both entry points, Home and the printer menu, belong to the shell.
+    ShellController* shell = installed_shell();
+    if (!shell || !shell->agent_pane())
+        throw std::logic_error("Add a printer opened without the JusPrin shell installed");
+
     OpenAIPrinterRecognitionConfig config;
-    if (!use_mock && wxGetApp().app_config) {
+    if (wxGetApp().app_config) {
         const std::string consent = wxGetApp().app_config->get("jusprin_agent", "cloud_consent");
         if (consent == "true" || consent == "1")
             config.api_key = Agent::load_provider_api_key("openai");
         const std::string model = wxGetApp().app_config->get("jusprin_agent", "model");
         if (!model.empty()) config.model = model;
     }
-    if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint && *endpoint)
-        config.endpoint = endpoint;
-    std::unique_ptr<IPrinterRecognitionService> recognition;
-    if (use_mock)
-        recognition = std::make_unique<DeterministicPrinterRecognition>();
-    else
-        recognition = std::make_unique<OpenAIPrinterRecognition>(std::move(config),
-                                                                  Agent::make_openai_http_transport());
+    auto recognition = std::make_unique<OpenAIPrinterRecognition>(std::move(config), Agent::make_openai_http_transport());
     auto apply = [&plater](const PrinterCandidate& candidate, std::string& error) {
         return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
                                                          candidate.variant, candidate.default_material, error);
     };
-    auto controller = std::make_unique<PrinterSetupController>(std::move(catalog), std::move(recognition),
-                                                                std::move(apply));
-    std::vector<DiscoveredPrinter> discovered = discover_printers();
-    // Explicit developer scenarios make every handed-off Figma state
-    // inspectable in an isolated app without a live API request or hardware.
-    if (use_mock) {
-        const std::string scenario = std::getenv("JUSPRIN_PRINTER_SETUP_SCENARIO")
-            ? std::getenv("JUSPRIN_PRINTER_SETUP_SCENARIO") : "";
-        if (scenario == "recognized" || scenario == "ambiguous") {
-            PrinterEvidence evidence;
-            evidence.description = scenario == "recognized"
-                ? "Bambu Lab A1 mini" : "the ender with the touchscreen";
-            controller->recognize(std::move(evidence));
-            controller->poll();
-        } else if (scenario == "network") {
-            discovered = {{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true}};
-            controller->use_discovered(discovered.front());
-        }
-    }
+    auto controller = std::make_unique<PrinterSetupController>(PrinterCatalog::load(Slic3r::resources_dir()),
+                                                                std::move(recognition), std::move(apply));
+    // The same answer the Agent panel gives when it shows its empty state.
+    const bool agent_connected =
+        shell->agent_pane()->web_view().host().availability() == Agent::AgentAvailability::Ready;
+    auto connect = [](const DiscoveredPrinter& printer, const std::string& code, wxString& error) {
+        return SetupCommands::set_printer_access_code(printer.stable_id, code, error);
+    };
+    // Builds a second, throwaway AgentWebView the first time "Set up the
+    // agent" is clicked: its own independent AgentService/AgentSetupService
+    // (never the docked pane's), and deliberately no start_mcp() call, since
+    // a setup-only surface has no need to announce itself for MCP discovery
+    // or contend with the docked pane's port/discovery file.
+    auto make_setup_webview = [&theme, dark, shell](wxWindow* parent) {
+        Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+        auto webview = std::make_unique<AgentWebView>(
+            parent, theme, *shell->workspace(), *shell->persistence(), runtime.availability,
+            std::move(runtime.service), runtime.setup, /*embedded=*/true);
+        webview->apply_appearance(dark);
+        webview->SetName(_L("Agent setup"));
+        return webview;
+    };
+
     ModalScrim scrim(owner, theme.palette(dark), theme.metrics().printer_setup.scrim_alpha);
-    PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), std::move(discovered));
+    PrinterSetupDialog dialog(scrim.owner_or(owner), theme, dark, std::move(controller), discover_printers(),
+                              agent_connected, make_setup_webview, connect,
+                              [shell] { shell->mark_agent_config_possibly_changed(); });
     dialog.ShowModal();
 }
 

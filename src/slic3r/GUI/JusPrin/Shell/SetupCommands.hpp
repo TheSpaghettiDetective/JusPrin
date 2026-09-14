@@ -123,6 +123,11 @@ bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
                                 const std::string& model_id, const std::string& variant,
                                 const std::string& default_filament, std::string& error);
 
+// Hands a network printer its LAN access code, as ConnectPrinterDialog does:
+// letters and digits only, stored as the user's code. False, with a message
+// for the person, when the code is invalid or the printer is gone.
+bool set_printer_access_code(const std::string& dev_id, const std::string& code, wxString& error);
+
 // Applies a bed type through Sidebar::set_bed_type_accord_combox, the public
 // method Orca itself uses; it notifies the combo, so Orca's own handler owns
 // the app-config write, the slice invalidation, and the re-render.

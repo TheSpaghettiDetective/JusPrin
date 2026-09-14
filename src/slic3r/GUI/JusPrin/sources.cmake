@@ -10,8 +10,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/AgentSetup.hpp
     GUI/JusPrin/Agent/AgentWebView.cpp
     GUI/JusPrin/Agent/AgentWebView.hpp
-    GUI/JusPrin/Agent/DeterministicMockAgent.cpp
-    GUI/JusPrin/Agent/DeterministicMockAgent.hpp
     GUI/JusPrin/Agent/ManufacturingHistory.cpp
     GUI/JusPrin/Agent/ManufacturingHistory.hpp
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
@@ -92,7 +90,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/SetupCommands.cpp
     GUI/JusPrin/Shell/SetupCommands.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
-    GUI/JusPrin/Workspace/FakeWorkspace.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
     GUI/JusPrin/Workspace/PlaterProjectState.cpp

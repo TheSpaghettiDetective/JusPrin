@@ -78,6 +78,9 @@ inline constexpr const char* kSetupStatus        = "setup_status";
 inline constexpr const char* kMcpStatus          = "mcp_status";
 // One new change log entry; the full list travels in `state`.
 inline constexpr const char* kChangeAdded        = "change_added";
+// Asks the page to open its own setup flow, as its "Set up the agent" button
+// does; sent when another JusPrin surface sends the person there.
+inline constexpr const char* kOpenSetup          = "open_setup";
 
 } // namespace Protocol
 

@@ -4,7 +4,7 @@
 #include "slic3r/GUI/JusPrin/Mcp/Bridge/Bridge.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/Bridge/HttpExchange.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 #include <mutex>
 
 using namespace Slic3r::GUI::JusPrin;

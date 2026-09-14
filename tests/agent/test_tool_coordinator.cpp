@@ -8,7 +8,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/FakeWorkspace.hpp"
+#include "../jusprin_support/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
 
