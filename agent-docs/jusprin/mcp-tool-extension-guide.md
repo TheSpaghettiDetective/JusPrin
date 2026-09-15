@@ -1,6 +1,6 @@
 # Guide for adding JusPrin tools
 
-**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The six-tool MCP catalog includes workspace inspection, slice-review reporting, and the verified process-settings workflow.
+**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The six-tool MCP catalog includes workspace inspection, slice-review reporting, and the verified process-settings workflow. A [candidate catalog](#candidate-catalog) derived from the product surfaces follows the implemented catalog record; nothing in it exists unless the catalog record says so.
 
 JusPrin has one tool system with multiple adapters. New capabilities are added to the shared registry, executed by `ToolExecutionCoordinator`, and implemented through the typed live-workspace boundary; the OpenAI and MCP adapters only translate that contract to their wire formats. This guide keeps the catalog small, honest, safe to evolve, and driven by real printing tasks rather than an abstract feature inventory.
 
@@ -39,6 +39,8 @@ Write down:
 
 If the failure can be fixed by a clearer description, a better result, or a more useful validation error, improve the existing definition instead of adding a tool.
 
+The candidate catalog later in this guide is a map, not a licence. A row there does not exempt a tool from this section; it records which product surface and eval family the tool would serve so the eval is easier to write, and it fixes the noun, class, and owner so two people do not build the same capability twice under different names.
+
 ## Decide whether this should be a tool
 
 Add or extend a tool when the Agent needs fresh authoritative state, deterministic computation owned by Orca, or a side effect in the live project.
@@ -76,6 +78,10 @@ The same rule applies to presets, project objects, plates, warnings, and slice r
 
 A new verb is justified when it has meaningfully different authorization, approval, atomicity, lifecycle, or result semantics. `slice_start` is not just another settings mutation: it starts asynchronous Orca work and has a different completion contract. That distinction deserves a tool.
 
+Use a preview/apply pair only where Orca rewrites, substitutes, or refuses what the caller asked for, so the caller must see the real consequence before proposing it: settings (the normalizer), preset selection (compatibility substitution and lost dirty edits), topology changes (resulting pieces), and preflight (mapping and readiness). Everywhere else the coordinator computes the after-state at proposal time and shows it on the approval card. A preview that would only echo its input is not a tool.
+
+Prefer typed reads with fixed schemas over one polymorphic record search. A model guesses less against `objects_list` and `project_details_get` than against a generic `records_search` whose result shape depends on a `kind` argument.
+
 ## Choose the narrowest honest scope
 
 Never put an enum value such as `printer | filament | process | object` in a schema unless every advertised value works in the fake and real adapter and has the documented inheritance behavior.
@@ -111,6 +117,15 @@ adapter call
 Do not let an adapter call `Plater`, `Model`, `PresetBundle`, wxWidgets, or slicing objects directly. Do not copy an Orca operation into JusPrin. When a required operation is trapped in presentation code, add the smallest behavior-oriented, product-neutral seam at its current owner.
 
 Changes in OrcaSlicer-owned files must satisfy [fork stewardship](fork-stewardship.md): keep the diff small and additive, record why the seam belongs there, identify upstream lines touched, and include rebase evidence.
+
+## JusPrin-owned project state
+
+Some product state has no Orca owner: the print intent, the pinned agent plan, semantic region annotations, physical facts the user confirmed about a printer, and the monitoring policy that authorizes automatic pausing. For these the "current Orca owner" step of the authority path is a JusPrin store; every other step stays. The rules:
+
+- **Storage.** Project-scoped state (intent, plan, regions) lives in the 3mf auxiliary directory under `jusprin/`, using the same persistence, healing, and revert copy-forward the Agent bridge already uses for conversation state. Printer-scoped state (confirmed facts, monitoring policy) lives in app data keyed by printer identity; confirmed facts carry an expiry because the physical world changes without telling the app.
+- **Revision.** Every write publishes a workspace change reason (`Intent`, `Plan`, `Regions`, `PrinterFacts`, `MonitoringPolicy`) so readers refresh and pending proposals are invalidated like any other edit.
+- **Undo.** None of this state is in Orca's undo stack. Results say `projectUndo: false`. Region annotations generate Orca artifacts (modifier volumes, enforcers, blockers, paint) that *are* in the undo stack, so project Undo can strand an annotation without its artifacts or an artifact without its annotation. `regions_list` reports both conditions and `regions_set` regenerates; a transform, cut, split, scale, or repair result lists the regions whose binding it broke.
+- **Provenance.** Any field that records a fact about the world or the user's wishes carries where it came from: `file` (read from the project or profile), `observed` (a sensor or printer report, with a timestamp), `agent_inferred`, or `user_confirmed`. A tool never promotes an inferred value to confirmed; only an approved write that shows the value on the card does. Printer reads distinguish `configured` from `observed` for the same fact and compute `mismatches` between them rather than leaving that to the model.
 
 ## Define the contract before the implementation
 
@@ -150,12 +165,12 @@ Inputs should express intent and identity, not transport or UI mechanics.
 
 - Send Orca IDs as JSON strings to preserve native width.
 - Use canonical setting keys and normalized values.
-- Preserve the existing camelCase input contracts: `duplicate_object` takes only `sessionId` and `objectId`; `import_model` takes only `sessionId` and `attachmentId`. They do not accept `expectedSessionId`, `expectedRevision`, or `count`. The coordinator captures session/revision at proposal time, invalidates pending proposals on relevant workspace events, and rechecks before executing. Selection-only changes do not redirect or invalidate a pinned object target.
+- `duplicate_object`, `import_model`, and `inspect_selection` are in-app fixtures, not released contracts. The candidate catalog retires them in favour of `objects_edit`, `object_import`, and the selection ids in `workspace_inspect`. Until its replacement lands, each fixture keeps its current camelCase inputs (`sessionId` plus `objectId` or `attachmentId`; no `expectedSessionId`, `expectedRevision`, or `count`), and the replacement's PR removes the fixture in the same change. The coordinator captures session/revision at proposal time, invalidates pending proposals on relevant workspace events, and rechecks before executing. Selection-only changes do not redirect or invalidate a pinned object target.
 - For a new read-modify-write operation that must detect changes since the caller's earlier read, design and test explicit expected-session/revision inputs in its own schema and decoder. Proposal-time checks alone do not prove the caller's earlier read is current; do not retrofit required arguments onto existing tools silently.
 - Batch changes that must be atomic.
 - Prefer explicit selectors over magic defaults, except when the name clearly promises the current selection or active plate.
 - Reject unknown fields and conflicting selectors.
-- For new AI-exposed tools, do not accept arbitrary filesystem paths. Use an attachment/import capability with a deliberate transfer and permission contract. Internal history-record fields such as an export destination are not permission for an AI adapter to read or write that path.
+- A filesystem path may cross the boundary only as an input to a tool whose approval card shows that exact path and whose executor touches the file only after approval. Approval is per call: it is not a standing grant, and it does not authorize any other tool to read or write that path. The candidate catalog has four such tools: `object_import_file`, `project_open`, `project_save`, and `export_file`. No read-only tool accepts a path, and internal history-record fields such as an export destination are not permission for an AI adapter to read or write that path. In-app clients keep the attachment route, which needs no path.
 - Do not make the model repeat data the server can read authoritatively at execution time.
 - Do not encode a large catalog as a schema enum; use bounded search and detail retrieval.
 
@@ -177,6 +192,15 @@ Every read tool should use one or more of:
 For new live-state contracts, include `sessionId` and `revision` when needed to identify and validate later calls. Preserve existing results: `workspace_inspect` returns both; `inspect_selection` returns object **names** and revision, not IDs or a session field. Use `workspace_inspect` for target IDs. The current duplication/import results return revision plus operation-specific fields; internal history-record results have their own schemas. MCP activity results also carry action ID, current session and revision in `_meta["io.jusprin/activity"]`. If an event says state changed, fetch a fresh snapshot; never treat the event itself as the new state.
 
 For MCP success, produce schema-valid `structuredContent` and a serialized text block describing the same result. Errors use the shared `{error: {code, message, details}}` envelope with `isError: true`, not the success output schema. The bridge removes modern-only result/cache fields for legacy clients. For `2025-03-26` it also omits `structuredContent` and catalog `outputSchema`/`title`, preserving the serialized text result; later supported revisions retain them. These are intentional compatibility projections, not conflicting tool definitions.
+
+### Image results
+
+Three candidate reads return a picture: `project_attachment_read` (a reference image), `view_render` (the prepared or sliced scene), and `printer_camera_snapshot`. The registry result carries the encoded image plus a structured block describing it (dimensions, camera or layer range, capture time), and each adapter projects that one result:
+
+- MCP: an `image` content block beside the text and structured result; on `2025-03-26` the same block, since image content predates structured content.
+- OpenAI: the text and structured block as the function result, and the image appended as an image input in the continuation, since function results are text-only.
+
+This is an adapter projection, not forked behavior. Both projections must be tested before the first image-returning tool ships. Cap every image (1280 pixels on the long edge, 2 MB) so one frame never dominates the context window, and never return an image the user has not allowed: camera frames require the privacy grant in Printer Configuration and otherwise fail with `camera_disabled`.
 
 ## Errors should teach the next valid call
 
@@ -202,11 +226,17 @@ Use the registry's action class, not naming conventions:
 
 - **Read-only:** cannot alter project, preset, disk, printer, or durable product state.
 - **Mutation:** a project/preset change or creation of a local artifact whose consequences are understood and are not classified as destructive. Requires the existing approval policy unless a separately reviewed policy says otherwise.
-- **Destructive:** the current policy includes revert, delete, overwrite, discard, print and export. Do not downgrade an existing classification based on whether you believe its effects are reversible. Always requires explicit current approval.
+- **Destructive:** the current policy includes revert, delete, overwrite, discard, print and export, and restoring a history snapshot through Undo or Redo, which discards the current state. Do not downgrade an existing classification based on whether you believe its effects are reversible. Always requires explicit current approval.
 
-Currently every non-read-only tool requires approval. There is no remembered-approval mechanism; `remembered_approval_allowed` only records a policy distinction for possible future work. The internal manufacturing-history entries retain their existing classifications and are not exposed to either AI adapter.
+Every non-read-only tool requires approval except under the computation-only policy below. There is no remembered-approval mechanism; `remembered_approval_allowed` only records a policy distinction for possible future work. The internal manufacturing-history entries retain their existing classifications and are not exposed to either AI adapter.
 
 A tool that "previews" changes is read-only only if fake and real tests prove it does not dirty presets, advance the workspace revision, create history, cancel slicing, or write files.
+
+### Computation-only mutations
+
+A mutation may run without an approval card when all of the following hold: it changes no project geometry, preset, file, printer, or durable product state; its only effects are computation, replacing a previously computed result, or recording the agent's own statement; and the person can see and reverse the effect in the UI. Three candidate tools qualify: `slice_start`, `activity_cancel`, and `plan_set`. Without this policy every "Check print" would cost an approval card, and the card stops meaning anything.
+
+The exemption is declared in the registry beside the action class, covered by the coordinator tests, and never applied to a tool whose effect touches disk or a printer. `slice_start` must refuse to pre-empt a slice the GUI started unless the caller passes `preempt: true`, and in that case the card appears.
 
 ## Asynchronous operations
 
@@ -229,7 +259,7 @@ The current coordinator stages execution through GUI ticks; it does not provide 
 Default to both adapters when both can satisfy the same input contract. A deliberate filter is appropriate when context is supplied differently:
 
 - `workspace_inspect` is exposed to both adapters so either can obtain a fresh completed slice identity after slicing, independently of the initial turn context;
-- attachment-based `import_model` remains in-app-only until MCP has a file-transfer contract; and
+- attachment-based import (`import_model` today, `object_import` in the candidate catalog) is in-app-only, and path-based `object_import_file` is MCP-only, because a file reaches the app through the conversation in one case and through an approved path in the other; that is two honest definitions, not one tool with forked behavior; and
 - a future MCP diagnostics tool may be MCP-only if it exists to establish the external connection.
 
 Document the reason beside the registry definition and test it. Exposure is not a place to fork behavior: if two adapters need different semantics, they need a better shared command or honestly separate definitions.
@@ -299,6 +329,138 @@ Settings search/read cover the active FFF process preset. The write allowlist is
 The OpenAI adapter preserves the registry schemas and uses non-strict function calling for optional arguments or dynamic patch maps, which OpenAI strict mode cannot express. Native registry validation remains authoritative. Stateless Responses continuations retain user context and all prior tool results; the live multi-tool regression covers this path.
 
 Update the actual table when implementation changes names, limits, or ownership. The source registry remains authoritative; this table explains why the surface exists.
+
+## Candidate catalog
+
+This is the end-state catalog derived surface by surface from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md). Each row names the surface it serves, so an eval can be written against it; none of it is implemented unless the catalog record above says so, and every row still owes the eval failure, owner trace, and test matrix this guide requires. Tiers are delivery order by the eval that unblocks them, not importance: Tier 1 closes the Prepare, Check, Print loop; Tier 2 adds meaning, geometry, and history; Tier 3 adds the machine, calibration, and expert diagnostics. Tier counts are 27, 14, and 11. If the Tier 1 eval passes without `presets_preview_select` or `printer_facts_confirm`, they slide to Tier 2; nothing depends on them.
+
+Conventions every row inherits: every read returns `sessionId` and `revision`; every write takes `expectedRevision`; handles for detected faces and holes carry the revision they were computed at and fail with `feature_expired` after it moves; facts carry provenance as defined under [JusPrin-owned project state](#jusprin-owned-project-state); long-running rows follow [Asynchronous operations](#asynchronous-operations) and return an action handle read through `activity_get`; every read states a hard cap and a truncation flag. Classes: **R** read-only, **M** mutation with approval, **M\*** mutation under the computation-only policy, **D** destructive.
+
+### Workspace
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `workspace_inspect` | 1 | R | Anchor read. Project identity and saved state; printer pointer (printer, nozzle, plate, filament per extruder); intent summary line; selected object ids; plate and object counts; slice state and current action handle per plate; pinned plan headline; top unresolved warning. `level` concise or detail. | workspace snapshot | 16 plates, 64 objects, 64 selected ids, labels 256 bytes |
+
+### Project knowledge and intent (surfaces 2.1, 2.3, Home)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `project_details_get` | 1 | R | Description, designer, license, safety and usage notes, assembly instructions, bill of materials and accessories, profile notes, attachment list. Each field carries provenance. `sections` selector. | `ModelInfo`, `ModelDesignInfo`, `ModelProfileInfo`; 3mf auxiliary files | 4 KB per field, 64 attachments |
+| `project_attachment_read` | 2 | R | One attachment by id; image or text result per [Image results](#image-results). | 3mf auxiliary directory | 2 MB image, 32 KB text with byte range |
+| `project_details_update` | 2 | M | Patch of the same fields, recording what the user said. The card shows every field before and after; never promotes an inferred value. | same | |
+| `intent_get` | 1 | R | Intended use, appearance versus function, load direction, accuracy class, critical dimensions, environment, surface quality, time budget, material and color, support contact rules, prototype or final. Provenance per field and an `unanswered` list. | JusPrin project state | 16 critical dimensions |
+| `intent_update` | 1 | M | Patch; the card shows the interpreted answer so the user confirms what the agent understood. | same | |
+| `project_versions_get` | 3 | R | Autosave and backup versions with timestamps, and recovery state for unsaved work. | Orca backup directory | 32 versions |
+| `project_open` | 3 | D | Exactly one of `path`, `new: true`, or `versionId`. Replaces the document; the card names the path or version and any unsaved work. | `Plater` load_project and load_files; backup restore | 32 import warnings |
+| `project_save` | 3 | D | Save to the current path or an explicit new one shown on the card. | `Plater` export_3mf | |
+
+### Printers and presets (surfaces 2.2, 2.9)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `printer_list` | 1 | R | Physical printers: id, model, connection kind and state, busy or idle, nozzle and materials when reported, `observedAt`. `query`, `cursor`. | `DeviceManager`; print host list | 25 per page |
+| `printer_state_get` | 1 | R | One printer: state, job progress with layer and remaining time, temperatures, fans and light, slot inventory with material, color, remaining and humidity, detected plate and nozzle, health alerts. Every observed value has provenance and a timestamp. With a project open: `mismatches` between configured and observed nozzle, plate, and filaments, and current `confirmedFacts`. | `MachineObject`; `PresetBundle` for the configured side | 16 slots, alerts, mismatches, facts |
+| `printer_facts_confirm` | 1 | M | Record a physical fact the user stated that the app cannot observe (plate installed, spool dry, glue applied, bed clear) with an expiry. The card is the confirmation; preflight shows the facts instead of asking again. | JusPrin per-printer state | 16 facts |
+| `presets_list` | 1 | R | Presets of one `type` with vendor, system or user, compatibility with the current printer and nozzle, selected flag. `query`, `compatibleOnly`, `cursor`. | `PresetBundle`, `PresetCollection` | 25 per page, descriptions 256 bytes |
+| `presets_preview_select` | 1 | R | Dry run of a selection patch: the substitutions Orca would make for compatibility, dirty edits that would be lost, resulting selection. Must be proven not to dirty presets or advance the revision. | `PresetBundle` compatibility evaluation without committing | |
+| `presets_select` | 1 | M | Patch of printer preset and nozzle, plate type, filament per extruder, process preset, applied in Orca's order so dependent updates run once. Result lists `substituted`. | `Tab` select_preset; bed type seam; filament combos via a product-neutral seam | |
+| `presets_save` | 2 | D | Persist the edited preset of one type as a named user profile, overwriting on name match. The card shows name and changed keys. | `Tab` save_preset | |
+
+### Settings (surface 2.7 method, expert layer)
+
+The four implemented tools, extended compatibly. `scope` (process, filament, printer) and `target` (object or modifier id) arrive as optional fields, each advertised only once its adapter is tested per standing decision 2 below. `settings_search` gains `writable` and `changedOnly` filters; the second answers "what deviates from the profile" for the expanded plan view without a separate tool. `settings_get` reports origin as system, user preset, project edit, or object override.
+
+### Objects, plates, and geometry (surfaces 2.4, 2.5)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `objects_list` | 1 | R | Job manifest: plates, objects, parts (model, negative, modifier, enforcer, blocker), instances, names, enabled, extruder, quantity, bounding box and position, override count, region count, print order. `plateId` or `objectIds` filter, `cursor`. | `Model`, `ModelObject`, `ModelVolume`, `PartPlateList` | 64 objects per page, 32 parts per object |
+| `object_analyze` | 1 | R | One object: dimensions and volume; mesh health; planar face groups and cylindrical holes with revision-scoped handles, area, normal, diameter, axis; overhang and support area for the current or a proposed orientation; overlaps; plate fit; likely duplicates elsewhere in the project; `measurements` between two handles. `include` list. | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` overhang evaluation; `PartPlate` collision and fit checks | 32 faces and holes by area; 16 overlaps, duplicates, measurements |
+| `object_transform` | 1 | M | Ordered operations on one object or instance: move, rotate, scale uniform or to a dimension, mirror, place on a face handle, auto-orient, drop to bed. One undo snapshot. Mirror and scale are named on the card. Auto-orient runs as an Orca job and returns an action handle. Result lists regions whose binding broke. | Selection and `GizmoObjectManipulation`; `OrientJob` | |
+| `objects_arrange` | 1 | M | Arrange one plate, all plates, or selected objects with spacing and rotation allowance. Runs as an Orca job; the terminal result lists objects that did not fit. | `ArrangeJob` | |
+| `objects_edit` | 1 | M | Batch: enable or disable, rename, set extruder, set quantity, move to plate, duplicate. One snapshot. Retires `duplicate_object`. | `Plater` and `ObjectList` operations via the workspace command | |
+| `object_reshape_preview` | 2 | R | Dry run of a topology change: resulting pieces with volumes and bounding boxes, support-area change, regions that would lose binding, an image. Must be proven not to dirty the model. | Cut utilities and split on a clone; `EmbossJob` glyph rendering | 1 image |
+| `object_reshape` | 2 | M | One operation: cut by plane keeping upper, lower, or both; split to objects or parts; merge listed objects; repair mesh; add text as a part. The card describes the result in words. | `Cut`, `ModelObject` split and merge, `TriangleMesh` repair, `EmbossJob` | |
+| `object_import` | 2 | M | In-app only. Add a model from a chat attachment id to a target plate. Retires `import_model`. | `Plater` load_files | 32 import warnings |
+| `object_import_file` | 2 | M | MCP only. Add a model from a path; the file is read only after the card showing that path is approved. | same | same |
+| `plates_edit` | 2 | M | Add, rename, set bed type, set print sequence or order, lock. | `PartPlateList` | |
+| `project_delete_items` | 2 | D | Delete objects, parts, plates, or region annotations by id. Result says whether project Undo covers each. | `Plater` remove; `PartPlateList` delete | |
+
+### Regions (surface 2.6)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `regions_list` | 2 | R | Annotations on one object or all: id, kind (smooth face, no support, support allowed, precision hole, reinforce, flexible, visible, hidden, seam preferred, seam forbidden, material or color), bound geometry, derived artifacts, and `bindingLost` or `artifactsMissing` flags. | JusPrin annotation store; `ModelVolume` and `FacetsAnnotation` for artifacts | 32 per object |
+| `regions_set` | 2 | M | Create, update, remove. Geometry is a face or hole handle, a primitive in object coordinates, or a direction with tolerance. Generates modifier volumes with settings, enforcers and blockers, seam and support paint, per-object overrides, and regenerates stale ones. The card shows the label and what will be generated. | `ModelObject` add_volume, `FacetsAnnotation`, `ModelConfig` | |
+
+### Plan (surface 2.7)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `plan_get` | 1 | R | The pinned plan plus computed context: profile deviations from `settings_search changedOnly`, estimates when a valid slice exists, bounded change history. | JusPrin plan store; dirty options; slice statistics | 2 KB per field, 16 decisions, 32 history entries |
+| `plan_set` | 1 | M\* | Orientation rationale, strategy per concern, unverified assumptions, compromises and risks, confidence per decision, alternatives considered. Computation-only: it is the agent's own statement and changes no Orca state. | JusPrin plan store | |
+
+### Slicing and Check print (surface 2.8)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `slice_start` | 1 | M\* | Slice one plate or all; returns an action handle. Refuses to pre-empt a GUI-started slice unless `preempt: true`, which brings the card. | `Plater` reslice; `BackgroundSlicingProcess` | |
+| `activity_get` | 1 | R | State of one action handle from any long-running row: pending, approval, running with bounded progress, terminal result or error, invalidated by a later edit. Plain read; no waiting. | `ToolActivity` | |
+| `activity_cancel` | 3 | M\* | Cancel through Orca's real path; reports whether cancellation won the race. | `BackgroundSlicingProcess` stop; job worker cancel | |
+| `slice_report` | 1 | R | Check print report for a sliced plate, by `sections`: summary (time, filament per extruder as length, weight, cost); Orca warnings; supports (volume, contact area, contact with annotated regions or detected holes, removal-difficulty heuristics); seams against visible or forbidden faces; overhangs and bridges past thresholds; first-layer contact; islands; collisions and toolpath outside the bed; material changes and purge; prime tower; intent checks such as time over budget. | `Print` statistics; `GCodeProcessor` result with conflicts and toolpath-outside; `PrintObject` support layers and seams; JusPrin annotations | 32 findings per list by severity |
+| `slice_layers` | 3 | R | Per-layer height, time, roles, speed range, fan, temperature, flow. Range and cursor. | `GCodeProcessor` result | 100 per page |
+| `slice_gcode_read` | 3 | R | Raw G-code by layer or line range. | plate G-code file | 64 KB per call |
+| `view_render` | 2 | R | Render the scene: mode prepare or preview, camera preset or angles, layer range and visibility toggles in preview mode. Prepare mode uses the thumbnail renderer; preview mode is a later capability on the same tool. | `GLCanvas3D` thumbnail rendering | 1 image |
+
+### Preflight, send, export (surfaces 2.9, 2.12)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `preflight_check` | 1 | R | For a plate and destination: job name, estimates, proposed filament-to-slot mapping with problems, plate and nozzle match, options with defaults and printer support (bed leveling, flow calibration, timelapse, first-layer inspection, plate detection, tangle detection, monitoring level), blocking problems, disabled-check warnings, applicable safety notes, confirmed facts. Returns a `preflightId` bound to project revision, slice identity, printer `observedAt`, and options, with an expiry. | mapping and readiness logic lifted from `SelectMachineDialog` behind a product-neutral seam; `MachineObject` | 16 mapping rows, problems, warnings |
+| `print_send` | 1 | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. The card is the explicit Send. | `PrintJob`, `SendJob` | |
+| `export_file` | 1 | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Proposal-time check surfaces license restrictions from project details on the card and in the result. | `Plater` export functions | |
+
+### Live printing (surface 2.10)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `printer_camera_snapshot` | 3 | R | One frame; requires the privacy grant, else `camera_disabled`. | `MachineObject` live view; Moonraker webcam snapshot | 1 image |
+| `printer_job_control` | 3 | D | Pause, resume, or stop the current job; the card states the agent's reason. | `MachineObject` task commands | |
+| `monitoring_policy_get` | 3 | R | The user-authorized conditions under which automatic pausing is allowed. Writing the policy is a Printer Configuration action, not a tool, until an eval shows otherwise. | JusPrin per-printer state | |
+
+### Calibration (surface 2.11)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `calibration_list` | 3 | R | Tests for the current printer and filament (flow dynamics, flow rate, temperature, pressure advance variants, retraction, max volumetric speed, VFA, junction deviation, input shaping) with parameters, safe ranges, automatic-measurement support, and machine-stored results where firmware reports them. | `CalibUtils`; `MachineObject` calibration queries | 16 tests, 32 stored results |
+| `calibration_generate` | 3 | M | Generate one test's geometry and configuration onto a new plate. Analysis is reasoning over a photo or camera frame; applying a result uses the settings tools on the filament scope and `presets_save`. | `CalibUtils` generators | |
+
+### History (surfaces 2.5, 2.7)
+
+| Tool | Tier | Class | Surface and contract | Owner | Bound |
+|---|---|---|---|---|---|
+| `history_get` | 2 | R | Undo and redo stacks as named snapshots with timestamps and the tool or GUI action that produced each; current position. | `UndoRedo` stack | 32 each side |
+| `history_restore` | 2 | D | Undo or redo to a snapshot id. Destructive because it discards current state. Reports preset and JusPrin-owned edits it does not reverse. | `Plater` undo_to, redo_to | |
+
+### Deliberately not tools
+
+One tool per setting or per "make it stronger" bundle; printing advice; preferences, cloud, firmware, plugins, sync, and update installation (user-owned per surface 2.12); manual axis movement, homing, fan and light detail, printer file storage (expert layer of Monitor); painting by stroke and the measure gizmo as UI (reached through regions, reshape, and analysis handles); asking the user a question (the conversation, or `intent_get`'s `unanswered` list for external clients); a second job engine, remembered approvals, or the MCP Tasks extension.
+
+### Prerequisites the catalog imposes on the machinery
+
+- `validate_output` needs `enum` (provenance, action state, region kind) and `maxLength` (capped text fields) before the first row using them merges; extend it with tests. Input unions such as the operation list in `object_transform` are the decoder's job, not the schema validator's.
+- Three owners are trapped in presentation code and need a product-neutral seam first: the mapping and readiness logic in `SelectMachineDialog` for `preflight_check`, plane and circle detection in the Measure gizmo for `object_analyze`, and offscreen preview rendering for `view_render` preview mode.
+- The JusPrin stores for intent, plan, regions, confirmed facts, and monitoring policy do not exist yet; the rules for them are under [JusPrin-owned project state](#jusprin-owned-project-state).
+- The image projections under [Image results](#image-results) must exist in both adapters before `project_attachment_read`, `view_render`, or `printer_camera_snapshot` ships.
+- The Tier 1 security review under [Proportional security growth](#proportional-security-growth).
+
+### Evals that gate each tier
+
+1. Open a one-object STL, state "decorative, front face visible, under five hours, PLA", and reach a sent job with no manual setting edits. Tier 1.
+2. A model with a precision hole and a support-heavy overhang: find the hole, annotate it as protected, show that supports no longer enter it after re-slicing, and place the seam on a hidden face. Tier 2.
+3. Stringing reported on a Bambu printer: list tests, generate a temperature tower, read the user's photo, propose a filament temperature, preview and apply it, save the profile with approval. Tier 3.
+4. Concurrent edit: the user changes a setting in the GUI while an external agent has a pending apply. The apply fails as stale and the agent recovers with one preview and one apply. Every tier.
 
 ## Process-settings tools: contract and hazards
 
@@ -471,12 +633,14 @@ Revisit the security design when one of these becomes true:
 - a browser or remote service must connect;
 - tokens or grants must survive an application restart;
 - multiple users or clients require different permissions;
-- tools can read arbitrary files or sensitive account/device data;
+- tools read or write files at caller-supplied paths, or read sensitive account/device data such as camera frames;
 - tools upload to a printer or begin a physical print;
-- unattended or remembered approvals expand; or
+- unattended or remembered approvals expand, including the computation-only exemption and any monitoring policy that authorizes automatic pausing; or
 - real usage makes forensic activity history a product requirement.
 
 At that point evaluate authenticated pairing, durable credential storage, per-client grants, tool scopes, TLS/remote policy, revocation, rate controls, privacy review, and a dedicated audit log. Add them in response to the concrete exposure; do not prebuild an enterprise control plane for local v1.
+
+Tier 1 of the candidate catalog trips three of these triggers on its own: `print_send` begins a physical print, `export_file` writes to a caller-supplied path, and `slice_start` and `plan_set` use the computation-only exemption. That review is therefore a gate on Tier 1, not a later concern. Its minimum outcome for a loopback-only v1 is a written answer to each tripped trigger and the per-call approval evidence for every path and printer tool.
 
 ## Verification commands and limits of current evidence
 
