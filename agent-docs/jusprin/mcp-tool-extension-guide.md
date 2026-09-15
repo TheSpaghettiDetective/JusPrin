@@ -80,7 +80,19 @@ A new verb is justified when it has meaningfully different authorization, approv
 
 Use a preview/apply pair only where Orca rewrites, substitutes, or refuses what the caller asked for, so the caller must see the real consequence before proposing it: settings (the normalizer), preset selection (compatibility substitution and lost dirty edits), topology changes (resulting pieces), and preflight (mapping and readiness). Everywhere else the coordinator computes the after-state at proposal time and shows it on the approval card. A preview that would only echo its input is not a tool.
 
-Prefer typed reads with fixed schemas over one polymorphic record search. A model guesses less against `objects_list` and `project_details_get` than against a generic `records_search` whose result shape depends on a `kind` argument.
+Prefer typed reads with fixed schemas over one polymorphic record search. Sections of `workspace_inspect` each keep their own fixed shape; a generic `records_search` whose result shape depends on a `kind` argument makes the model guess.
+
+## Tool budget and tool shape
+
+Tool count is bounded by what a turn loads, not by what the app can do. The evidence behind these rules: OpenAI's function-calling guidance keeps fewer than 20 functions available at the start of a turn and defers the rest; Anthropic's [tool-writing guidance](https://www.anthropic.com/engineering/writing-tools-for-agents) asks for a few tools targeting high-impact workflows and names "tools that merely wrap existing software functionality or API endpoints" as the common error; a [domain-oriented MCP study](https://arxiv.org/html/2608.22063v1) measured a generic thin-tool interface below raw SQL and domain-shaped tools far above both; and the "god tool" that dispatches many unrelated actions through one `action` parameter is a documented anti-pattern. The current five-tool MCP catalog measures about 1.9 KB per definition, two thirds of it output schema.
+
+- **Loading, for now.** Every registered tool loads on every turn in both adapters: the in-app adapter sends the full function list with each request, and MCP `tools/list` returns the whole catalog. This is the simplest correct behaviour and it keeps the tools array byte-identical across a chat, which is what OpenAI's prompt cache keys on. The budget of 20 definitions per turn is a measured trigger, not a gate: the live regression records definition bytes, input tokens, and cached tokens per request, and the journey catalog below will exceed 20 definitions from its first milestone. That is accepted until those measurements show selection errors or context pressure.
+- **Deferral, when the measurements say so.** Use the platform's own deferral, never a hand-rolled switcher. On the in-app side that is OpenAI's `tool_search` with `defer_loading: true` on the Responses API, documented for `gpt-5.4` and later; support on the pinned `gpt-5.4-mini` is unverified. On the MCP side clients defer on their own, as Claude Code does. Toolsets are the deferral unit, and OpenAI recommends fewer than ten functions per namespace. An enable-toolset tool that rewrites the tools array breaks the prompt cache on every switch and is not to be built.
+- **Shape each tool as a domain operation.** A tool does one thing a slicer user would name: place an object, lay out the plates, mark a region, set up the printer. Not a wrapper per Orca function, and not an interpreter for a list of unrelated commands. Optional facets of one operation are fine when each is independently typed and conflicting facets are rejected.
+- **Batch only where items share a shape.** A list of setting changes, a list of intent fields, a list of annotations, a list of per-object layout rows. A list that mixes transforms, imports, and deletes is the god tool and is refused.
+- **Fold reads into sections and detail levels** before adding a read tool. A new read tool is justified only by a different input contract (a search over a large catalog, a per-object analysis, a sliced-plate report) or an image result.
+- **Let call logs decide consolidation.** Two tools that transcripts show always called together are candidates to merge; two facets never used together are candidates to split. Consolidation follows evidence from evals, not the whiteboard.
+- **Do not advertise output schemas over MCP** unless a client is shown to use them; keep validating outputs internally. This is the cheapest halving of catalog cost available.
 
 ## Choose the narrowest honest scope
 
@@ -124,7 +136,7 @@ Some product state has no Orca owner: the print intent, the pinned agent plan, s
 
 - **Storage.** Project-scoped state (intent, plan, regions) lives in the 3mf auxiliary directory under `jusprin/`, using the same persistence, healing, and revert copy-forward the Agent bridge already uses for conversation state. Printer-scoped state (confirmed facts, monitoring policy) lives in app data keyed by printer identity; confirmed facts carry an expiry because the physical world changes without telling the app.
 - **Revision.** Every write publishes a workspace change reason (`Intent`, `Plan`, `Regions`, `PrinterFacts`, `MonitoringPolicy`) so readers refresh and pending proposals are invalidated like any other edit.
-- **Undo.** None of this state is in Orca's undo stack. Results say `projectUndo: false`. Region annotations generate Orca artifacts (modifier volumes, enforcers, blockers, paint) that *are* in the undo stack, so project Undo can strand an annotation without its artifacts or an artifact without its annotation. `regions_list` reports both conditions and `regions_set` regenerates; a transform, cut, split, scale, or repair result lists the regions whose binding it broke.
+- **Undo.** None of this state is in Orca's undo stack. Results say `projectUndo: false`. Region annotations generate Orca artifacts (modifier volumes, enforcers, blockers, paint) that *are* in the undo stack, so project Undo can strand an annotation without its artifacts or an artifact without its annotation. the `regions` section of `object_analyze` reports both conditions and `region_annotate` regenerates; a place, divide, or repair result lists the regions whose binding it broke.
 - **Provenance.** Any field that records a fact about the world or the user's wishes carries where it came from: `file` (read from the project or profile), `observed` (a sensor or printer report, with a timestamp), `agent_inferred`, or `user_confirmed`. A tool never promotes an inferred value to confirmed; only an approved write that shows the value on the card does. Printer reads distinguish `configured` from `observed` for the same fact and compute `mismatches` between them rather than leaving that to the model.
 
 ## Define the contract before the implementation
@@ -165,7 +177,7 @@ Inputs should express intent and identity, not transport or UI mechanics.
 
 - Send Orca IDs as JSON strings to preserve native width.
 - Use canonical setting keys and normalized values.
-- `duplicate_object`, `import_model`, and `inspect_selection` are in-app fixtures, not released contracts. The candidate catalog retires them in favour of `objects_edit`, `object_import`, and the selection ids in `workspace_inspect`. Until its replacement lands, each fixture keeps its current camelCase inputs (`sessionId` plus `objectId` or `attachmentId`; no `expectedSessionId`, `expectedRevision`, or `count`), and the replacement's PR removes the fixture in the same change. The coordinator captures session/revision at proposal time, invalidates pending proposals on relevant workspace events, and rechecks before executing. Selection-only changes do not redirect or invalidate a pinned object target.
+- `duplicate_object`, `import_model`, and `inspect_selection` are in-app fixtures, not released contracts. The candidate catalog retires them in favour of `plate_layout`, `object_import`, and the selection ids in `workspace_inspect`. Until its replacement lands, each fixture keeps its current camelCase inputs (`sessionId` plus `objectId` or `attachmentId`; no `expectedSessionId`, `expectedRevision`, or `count`), and the replacement's PR removes the fixture in the same change. The coordinator captures session/revision at proposal time, invalidates pending proposals on relevant workspace events, and rechecks before executing. Selection-only changes do not redirect or invalidate a pinned object target.
 - For a new read-modify-write operation that must detect changes since the caller's earlier read, design and test explicit expected-session/revision inputs in its own schema and decoder. Proposal-time checks alone do not prove the caller's earlier read is current; do not retrofit required arguments onto existing tools silently.
 - Batch changes that must be atomic.
 - Prefer explicit selectors over magic defaults, except when the name clearly promises the current selection or active plate.
@@ -237,6 +249,10 @@ A tool that "previews" changes is read-only only if fake and real tests prove it
 A mutation may run without an approval card when all of the following hold: it changes no project geometry, preset, file, printer, or durable product state; its only effects are computation, replacing a previously computed result, or recording the agent's own statement; and the person can see and reverse the effect in the UI. Three candidate tools qualify: `slice_start`, `activity_cancel`, and `plan_set`. Without this policy every "Check print" would cost an approval card, and the card stops meaning anything.
 
 The exemption is declared in the registry beside the action class, covered by the coordinator tests, and never applied to a tool whose effect touches disk or a printer. `slice_start` must refuse to pre-empt a slice the GUI started unless the caller passes `preempt: true`, and in that case the card appears.
+
+### Grouped approvals
+
+A plan is several operations, and the user should review it once. Every mutation accepts an optional `planId`. Proposals sharing a `planId` render as one approval card that lists each operation, its class, and the plan headline from `plan_set`; the user approves or rejects the group. The group's class is the highest class of any member, and the card names the member that made it destructive. Each member is still validated, staleness-checked, and executed as its own proposal in order, so MCP tool annotations stay truthful per tool and a member that fails stale stops the rest. Grouping is a coordinator feature; it is never a reason to build one tool that takes a list of unrelated commands.
 
 ## Asynchronous operations
 
@@ -332,135 +348,143 @@ Update the actual table when implementation changes names, limits, or ownership.
 
 ## Candidate catalog
 
-This is the end-state catalog derived surface by surface from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md). Each row names the surface it serves, so an eval can be written against it; none of it is implemented unless the catalog record above says so, and every row still owes the eval failure, owner trace, and test matrix this guide requires. Tiers are delivery order by the eval that unblocks them, not importance: Tier 1 closes the Prepare, Check, Print loop; Tier 2 adds meaning, geometry, and history; Tier 3 adds the machine, calibration, and expert diagnostics. Tier counts are 27, 14, and 11. If the Tier 1 eval passes without `presets_preview_select` or `printer_facts_confirm`, they slide to Tier 2; nothing depends on them.
+This is the end-state catalog derived surface by surface from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), shaped by the [tool budget and tool shape](#tool-budget-and-tool-shape) rules. Nothing in it is implemented unless the catalog record above says so, and every row still owes the eval failure, owner trace, and test matrix this guide requires. The count that matters is the number of definitions loaded per turn, not the total. The total here is 38. All of them load on every turn until the measurements under [tool budget and tool shape](#tool-budget-and-tool-shape) justify deferral; the toolsets below are the deferral units for that day and, until then, a naming and delivery grouping.
 
-Conventions every row inherits: every read returns `sessionId` and `revision`; every write takes `expectedRevision`; handles for detected faces and holes carry the revision they were computed at and fail with `feature_expired` after it moves; facts carry provenance as defined under [JusPrin-owned project state](#jusprin-owned-project-state); long-running rows follow [Asynchronous operations](#asynchronous-operations) and return an action handle read through `activity_get`; every read states a hard cap and a truncation flag. Classes: **R** read-only, **M** mutation with approval, **M\*** mutation under the computation-only policy, **D** destructive.
+Conventions every row inherits: every read returns `sessionId` and `revision`; every write takes `expectedRevision` and an optional `planId` for [grouped approval](#grouped-approvals); handles for detected faces and holes carry the revision they were computed at and fail with `feature_expired` after it moves; facts carry provenance as defined under [JusPrin-owned project state](#jusprin-owned-project-state); long-running rows follow [Asynchronous operations](#asynchronous-operations) and return an action handle whose state is read from the `slicing` section of `workspace_inspect`; every read states a hard cap and a truncation flag. Classes: **R** read-only, **M** mutation with approval, **M\*** mutation under the computation-only policy, **D** destructive.
 
-### Workspace
+### Toolsets and loading
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `workspace_inspect` | 1 | R | Anchor read. Project identity and saved state; printer pointer (printer, nozzle, plate, filament per extruder); intent summary line; selected object ids; plate and object counts; slice state and current action handle per plate; pinned plan headline; top unresolved warning. `level` concise or detail. | workspace snapshot | 16 plates, 64 objects, 64 selected ids, labels 256 bytes |
+| Toolset | Tools | Used for |
+|---|---|---|
+| `core` | 10 | Every turn: state, geometry facts, settings, intent, plan, slicing. |
+| `project` | 4 | Opening, saving, restoring, reading attachments. |
+| `setup` | 4 | Choosing or confirming printer, plate, filament, process preset. |
+| `geometry` | 5 | Placing, laying out, importing, deleting. |
+| `reshape` | 4 | Cutting, splitting, merging, repairing. |
+| `regions` | 1 | Marking local meaning. |
+| `check` | 3 | Inspecting a sliced result beyond the report. |
+| `output` | 3 | Preflight, send, export. |
+| `machine` | 3 | Other printers, camera, pause and stop. |
+| `calibration` | 2 | Calibration tests. |
 
-### Project knowledge and intent (surfaces 2.1, 2.3, Home)
+Both adapters load every registered tool on every turn. MCP `tools/list` returns the whole catalog and stays stable per build. The in-app adapter sends the whole function list with each request and keeps it byte-identical across a chat. The projection tests record the loaded bytes per adapter and the live regression records input and cached tokens per request; those numbers, not the toolset table, decide when deferral is adopted.
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `project_details_get` | 1 | R | Description, designer, license, safety and usage notes, assembly instructions, bill of materials and accessories, profile notes, attachment list. Each field carries provenance. `sections` selector. | `ModelInfo`, `ModelDesignInfo`, `ModelProfileInfo`; 3mf auxiliary files | 4 KB per field, 64 attachments |
-| `project_attachment_read` | 2 | R | One attachment by id; image or text result per [Image results](#image-results). | 3mf auxiliary directory | 2 MB image, 32 KB text with byte range |
-| `project_details_update` | 2 | M | Patch of the same fields, recording what the user said. The card shows every field before and after; never promotes an inferred value. | same | |
-| `intent_get` | 1 | R | Intended use, appearance versus function, load direction, accuracy class, critical dimensions, environment, surface quality, time budget, material and color, support contact rules, prototype or final. Provenance per field and an `unanswered` list. | JusPrin project state | 16 critical dimensions |
-| `intent_update` | 1 | M | Patch; the card shows the interpreted answer so the user confirms what the agent understood. | same | |
-| `project_versions_get` | 3 | R | Autosave and backup versions with timestamps, and recovery state for unsaved work. | Orca backup directory | 32 versions |
-| `project_open` | 3 | D | Exactly one of `path`, `new: true`, or `versionId`. Replaces the document; the card names the path or version and any unsaved work. | `Plater` load_project and load_files; backup restore | 32 import warnings |
-| `project_save` | 3 | D | Save to the current path or an explicit new one shown on the card. | `Plater` export_3mf | |
+### `core`
 
-### Printers and presets (surfaces 2.2, 2.9)
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `workspace_inspect` | R | The one read for current state. `sections` selects any of: `summary` (default: project identity and saved state, printer pointer, intent line, selection ids, plate and object counts, plan headline, top unresolved warning); `project` (description, designer, license, safety and usage notes, assembly, bill of materials, profile notes, attachment list, versions and recovery state, each with provenance); `intent` (the intent record with provenance and an `unanswered` list); `printer` (the selected printer: configured versus observed nozzle, plate, and filaments with timestamps, computed `mismatches`, `confirmedFacts`, job progress, temperatures, alerts, monitoring policy); `objects` (plates, objects, parts, instances, enabled, extruder, quantity, bounding box, override and region counts, print order); `plan` (the pinned plan, deviations from the profile, estimates when a slice is valid); `slicing` (state and action handle per plate, progress, invalidation); `history` (undo and redo snapshots). `level` concise or detail. | workspace snapshot; `MachineObject`; `PresetBundle`; JusPrin stores; `UndoRedo` | per section: 4 KB text fields, 64 attachments, 16 slots and alerts, 64 objects with cursor, 32 history entries |
+| `object_analyze` | R | Geometry facts for one object. `include` any of: `mesh` (dimensions, volume, health, units suspicion); `features` (planar face groups and cylindrical holes with revision-scoped handles); `orientations` (score each entry of `candidates`, or Orca's auto-orient candidates, for overhang area, support volume, bed contact, and which handles face down); `fit` (plate fit, overlaps, likely duplicates); `regions` (annotations and their `bindingLost` or `artifactsMissing` flags); `measure` (distances between two handles). | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` evaluation; `PartPlate` checks; JusPrin annotation store | 32 faces and holes by area; 8 candidates; 16 overlaps, duplicates, measurements; 32 regions |
+| `settings_search` | R | As implemented, plus `scope` and `target` as optional fields advertised per standing decision 2, and `writable` and `changedOnly` filters. `changedOnly` answers "what deviates from the profile". | `print_config_def`; dirty options | 25 per page |
+| `settings_get` | R | As implemented, plus optional `scope` and `target`; origin reported as system, user preset, project edit, or object override. | edited presets; `ModelConfig` | 32 keys |
+| `settings_preview_patch` | R | As implemented, extended to the same scopes and targets. | `ConfigManipulation` on a clone; `Slic3r::validate` | 32 keys |
+| `settings_apply_patch` | M | As implemented, extended to the same scopes and targets. Optional `persistAs` saves the resulting preset as a named user profile in the same approval, which makes the call destructive and the card says so. | `Tab` load_config and save_preset; `ModelConfig` | 32 keys |
+| `intent_update` | M | Record what the user said about the print: a same-shape list of `{field, value}` over the intent record. The card shows the interpreted answer so the user confirms the agent's understanding; provenance becomes `user_confirmed` only through this card. | JusPrin intent store | 32 fields |
+| `plan_set` | M\* | The agent's own statement: orientation rationale, strategy per concern, unverified assumptions, compromises and risks, confidence per decision, alternatives. Computation-only. | JusPrin plan store | 2 KB per field, 16 decisions |
+| `slice_start` | M\* | Slice one plate or all; returns an action handle. Refuses to pre-empt a GUI-started slice unless `preempt: true`, which brings the card. | `Plater` reslice; `BackgroundSlicingProcess` | |
+| `slice_report` | R | Check print report for a sliced plate, by `sections`: summary (time, filament per extruder as length, weight, cost); Orca warnings; supports (volume, contact area, contact with annotated regions or detected holes, removal-difficulty heuristics); seams against visible or forbidden faces; overhangs and bridges past thresholds; first-layer contact; islands; collisions and toolpath outside the bed; material changes and purge; prime tower; intent checks such as time over budget. | `Print` statistics; `GCodeProcessor` result; `PrintObject` supports and seams; JusPrin annotations | 32 findings per list by severity |
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `printer_list` | 1 | R | Physical printers: id, model, connection kind and state, busy or idle, nozzle and materials when reported, `observedAt`. `query`, `cursor`. | `DeviceManager`; print host list | 25 per page |
-| `printer_state_get` | 1 | R | One printer: state, job progress with layer and remaining time, temperatures, fans and light, slot inventory with material, color, remaining and humidity, detected plate and nozzle, health alerts. Every observed value has provenance and a timestamp. With a project open: `mismatches` between configured and observed nozzle, plate, and filaments, and current `confirmedFacts`. | `MachineObject`; `PresetBundle` for the configured side | 16 slots, alerts, mismatches, facts |
-| `printer_facts_confirm` | 1 | M | Record a physical fact the user stated that the app cannot observe (plate installed, spool dry, glue applied, bed clear) with an expiry. The card is the confirmation; preflight shows the facts instead of asking again. | JusPrin per-printer state | 16 facts |
-| `presets_list` | 1 | R | Presets of one `type` with vendor, system or user, compatibility with the current printer and nozzle, selected flag. `query`, `compatibleOnly`, `cursor`. | `PresetBundle`, `PresetCollection` | 25 per page, descriptions 256 bytes |
-| `presets_preview_select` | 1 | R | Dry run of a selection patch: the substitutions Orca would make for compatibility, dirty edits that would be lost, resulting selection. Must be proven not to dirty presets or advance the revision. | `PresetBundle` compatibility evaluation without committing | |
-| `presets_select` | 1 | M | Patch of printer preset and nozzle, plate type, filament per extruder, process preset, applied in Orca's order so dependent updates run once. Result lists `substituted`. | `Tab` select_preset; bed type seam; filament combos via a product-neutral seam | |
-| `presets_save` | 2 | D | Persist the edited preset of one type as a named user profile, overwriting on name match. The card shows name and changed keys. | `Tab` save_preset | |
+### `project`
 
-### Settings (surface 2.7 method, expert layer)
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `project_open` | D | Exactly one of `path`, `new: true`, or `versionId`. Explicit inputs for the choices Orca otherwise asks in dialogs: `loadProjectSettings` (project or keep), `unitConversion` (none, inches to millimetres), `oversized` (keep or scale to fit). Replaces the document; the card names the path or version and any unsaved work. | `Plater` load_project and load_files; backup restore | 32 import warnings |
+| `project_save` | D | Save to the current path or an explicit new one shown on the card. | `Plater` export_3mf | |
+| `project_attachment_read` | R | One attachment by id; image or text result per [Image results](#image-results). | 3mf auxiliary directory | 2 MB image, 32 KB text |
+| `history_restore` | D | Undo or redo to a snapshot id from the `history` section. Destructive because it discards current state. Reports preset and JusPrin-owned edits it does not reverse. | `Plater` undo_to, redo_to | |
 
-The four implemented tools, extended compatibly. `scope` (process, filament, printer) and `target` (object or modifier id) arrive as optional fields, each advertised only once its adapter is tested per standing decision 2 below. `settings_search` gains `writable` and `changedOnly` filters; the second answers "what deviates from the profile" for the expanded plan view without a separate tool. `settings_get` reports origin as system, user preset, project edit, or object override.
+### `setup`
 
-### Objects, plates, and geometry (surfaces 2.4, 2.5)
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `presets_list` | R | Presets of one `type` with vendor, system or user, compatibility with the current printer and nozzle, selected flag. `query`, `compatibleOnly`, `cursor`. | `PresetBundle` | 25 per page |
+| `printer_setup_preview` | R | Dry run of `printer_setup`: the substitutions Orca would make for compatibility, dirty edits that would be lost, resulting selection, and remaining mismatches against the observed printer. Must be proven not to dirty presets or advance the revision. | `PresetBundle` compatibility evaluation without committing | |
+| `printer_setup` | M | Establish the hardware for this job: printer preset and nozzle, plate type, filament per extruder, process preset, applied in Orca's order so dependent updates run once; plus `confirmFacts`, a same-shape list of physical facts the user stated that no sensor can see (plate installed, spool dry, glue applied, bed clear), each with an expiry. Result lists `substituted`. | `Tab` select_preset; bed type seam; filament combos via a product-neutral seam; JusPrin per-printer state | 16 facts |
+| `printer_list` | R | Physical printers known to the app: id, model, connection kind and state, busy or idle, nozzle and materials when reported, `observedAt`. Shared with `machine`. | `DeviceManager`; print host list | 25 per page |
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `objects_list` | 1 | R | Job manifest: plates, objects, parts (model, negative, modifier, enforcer, blocker), instances, names, enabled, extruder, quantity, bounding box and position, override count, region count, print order. `plateId` or `objectIds` filter, `cursor`. | `Model`, `ModelObject`, `ModelVolume`, `PartPlateList` | 64 objects per page, 32 parts per object |
-| `object_analyze` | 1 | R | One object: dimensions and volume; mesh health; planar face groups and cylindrical holes with revision-scoped handles, area, normal, diameter, axis; overhang and support area for the current or a proposed orientation; overlaps; plate fit; likely duplicates elsewhere in the project; `measurements` between two handles. `include` list. | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` overhang evaluation; `PartPlate` collision and fit checks | 32 faces and holes by area; 16 overlaps, duplicates, measurements |
-| `object_transform` | 1 | M | Ordered operations on one object or instance: move, rotate, scale uniform or to a dimension, mirror, place on a face handle, auto-orient, drop to bed. One undo snapshot. Mirror and scale are named on the card. Auto-orient runs as an Orca job and returns an action handle. Result lists regions whose binding broke. | Selection and `GizmoObjectManipulation`; `OrientJob` | |
-| `objects_arrange` | 1 | M | Arrange one plate, all plates, or selected objects with spacing and rotation allowance. Runs as an Orca job; the terminal result lists objects that did not fit. | `ArrangeJob` | |
-| `objects_edit` | 1 | M | Batch: enable or disable, rename, set extruder, set quantity, move to plate, duplicate. One snapshot. Retires `duplicate_object`. | `Plater` and `ObjectList` operations via the workspace command | |
-| `object_reshape_preview` | 2 | R | Dry run of a topology change: resulting pieces with volumes and bounding boxes, support-area change, regions that would lose binding, an image. Must be proven not to dirty the model. | Cut utilities and split on a clone; `EmbossJob` glyph rendering | 1 image |
-| `object_reshape` | 2 | M | One operation: cut by plane keeping upper, lower, or both; split to objects or parts; merge listed objects; repair mesh; add text as a part. The card describes the result in words. | `Cut`, `ModelObject` split and merge, `TriangleMesh` repair, `EmbossJob` | |
-| `object_import` | 2 | M | In-app only. Add a model from a chat attachment id to a target plate. Retires `import_model`. | `Plater` load_files | 32 import warnings |
-| `object_import_file` | 2 | M | MCP only. Add a model from a path; the file is read only after the card showing that path is approved. | same | same |
-| `plates_edit` | 2 | M | Add, rename, set bed type, set print sequence or order, lock. | `PartPlateList` | |
-| `project_delete_items` | 2 | D | Delete objects, parts, plates, or region annotations by id. Result says whether project Undo covers each. | `Plater` remove; `PartPlateList` delete | |
+### `geometry`
 
-### Regions (surface 2.6)
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `object_place` | M | Place one object for printing. Optional facets, each independently typed, conflicting ones rejected: `faceDown` (a face handle), `autoOrientFor` (minimal support, protect a face handle, strength along an axis), `rotateDegrees`, `position`, `scale` (factor or target dimension, or `unitsFix`), `mirrorAxis`, `dropToBed`, `arrangeAfter`. One undo snapshot. Mirror and scale are named on the card. Auto-orient runs as an Orca job and returns an action handle. Result lists regions whose binding broke. | Selection and `GizmoObjectManipulation`; `OrientJob` | |
+| `plate_layout` | M | Lay out the job: `objects`, a same-shape list of `{objectId, enabled?, quantity?, plateId?, extruder?, name?}`; `plates`, a same-shape list of `{plateId?, name?, bedType?, sequence?}` where a missing id adds a plate; `arrange` (none, plate id, all, or selected) with spacing and rotation allowance. One snapshot. Arrange runs as an Orca job and returns an action handle whose terminal result lists objects that did not fit. Retires `duplicate_object`. | `Plater`, `ObjectList`, `PartPlateList`; `ArrangeJob` | 64 object rows, 16 plate rows |
+| `object_import` | M | In-app only. Add a model from a chat attachment id to a target plate, with the same dialog-choice inputs as `project_open`. Retires `import_model`. | `Plater` load_files | 32 warnings |
+| `object_import_file` | M | MCP only. Same contract from a path; the file is read only after the card showing that path is approved. | same | same |
+| `project_delete_items` | D | Delete objects, parts, plates, or region annotations by id. Result says whether project Undo covers each. | `Plater` remove; `PartPlateList` delete; annotation store | 64 ids |
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `regions_list` | 2 | R | Annotations on one object or all: id, kind (smooth face, no support, support allowed, precision hole, reinforce, flexible, visible, hidden, seam preferred, seam forbidden, material or color), bound geometry, derived artifacts, and `bindingLost` or `artifactsMissing` flags. | JusPrin annotation store; `ModelVolume` and `FacetsAnnotation` for artifacts | 32 per object |
-| `regions_set` | 2 | M | Create, update, remove. Geometry is a face or hole handle, a primitive in object coordinates, or a direction with tolerance. Generates modifier volumes with settings, enforcers and blockers, seam and support paint, per-object overrides, and regenerates stale ones. The card shows the label and what will be generated. | `ModelObject` add_volume, `FacetsAnnotation`, `ModelConfig` | |
+### `reshape`
 
-### Plan (surface 2.7)
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `object_divide_preview` | R | Dry run of `object_divide`: resulting pieces with volumes and bounding boxes, support-area change, regions that would lose binding, an image. Must be proven not to dirty the model. | cut utilities and split on a clone | 1 image |
+| `object_divide` | M | Cut one object by a plane (position and normal; keep upper, lower, or both) or split it into its shells as objects or parts. The card describes the pieces in words. | `Cut`, `ModelObject` split | |
+| `object_merge` | M | Merge listed objects into one. | `ModelObject` merge | 16 ids |
+| `object_repair` | M | Repair a mesh; result carries the repair statistics. | `TriangleMesh` repair | |
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `plan_get` | 1 | R | The pinned plan plus computed context: profile deviations from `settings_search changedOnly`, estimates when a valid slice exists, bounded change history. | JusPrin plan store; dirty options; slice statistics | 2 KB per field, 16 decisions, 32 history entries |
-| `plan_set` | 1 | M\* | Orientation rationale, strategy per concern, unverified assumptions, compromises and risks, confidence per decision, alternatives considered. Computation-only: it is the agent's own statement and changes no Orca state. | JusPrin plan store | |
+Text embossing stays out until an eval needs it; when it does, it is its own tool on `EmbossJob`, not a facet of `object_divide`.
 
-### Slicing and Check print (surface 2.8)
+### `regions`
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `slice_start` | 1 | M\* | Slice one plate or all; returns an action handle. Refuses to pre-empt a GUI-started slice unless `preempt: true`, which brings the card. | `Plater` reslice; `BackgroundSlicingProcess` | |
-| `activity_get` | 1 | R | State of one action handle from any long-running row: pending, approval, running with bounded progress, terminal result or error, invalidated by a later edit. Plain read; no waiting. | `ToolActivity` | |
-| `activity_cancel` | 3 | M\* | Cancel through Orca's real path; reports whether cancellation won the race. | `BackgroundSlicingProcess` stop; job worker cancel | |
-| `slice_report` | 1 | R | Check print report for a sliced plate, by `sections`: summary (time, filament per extruder as length, weight, cost); Orca warnings; supports (volume, contact area, contact with annotated regions or detected holes, removal-difficulty heuristics); seams against visible or forbidden faces; overhangs and bridges past thresholds; first-layer contact; islands; collisions and toolpath outside the bed; material changes and purge; prime tower; intent checks such as time over budget. | `Print` statistics; `GCodeProcessor` result with conflicts and toolpath-outside; `PrintObject` support layers and seams; JusPrin annotations | 32 findings per list by severity |
-| `slice_layers` | 3 | R | Per-layer height, time, roles, speed range, fan, temperature, flow. Range and cursor. | `GCodeProcessor` result | 100 per page |
-| `slice_gcode_read` | 3 | R | Raw G-code by layer or line range. | plate G-code file | 64 KB per call |
-| `view_render` | 2 | R | Render the scene: mode prepare or preview, camera preset or angles, layer range and visibility toggles in preview mode. Prepare mode uses the thumbnail renderer; preview mode is a later capability on the same tool. | `GLCanvas3D` thumbnail rendering | 1 image |
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `region_annotate` | M | A same-shape list of annotations `{objectId, kind, geometry, regionId?}` where kind is one of smooth face, no support, support allowed, precision hole, reinforce, flexible, visible, hidden, seam preferred, seam forbidden, material or color, and geometry is a face or hole handle, a primitive in object coordinates, or a direction with tolerance. Generates modifier volumes with settings, enforcers and blockers, seam and support paint, and per-object overrides, and regenerates stale ones. The card shows each label and what will be generated. Read back through `object_analyze` `regions`; remove through `project_delete_items`. | `ModelObject` add_volume; `FacetsAnnotation`; `ModelConfig`; JusPrin annotation store | 32 per call |
 
-### Preflight, send, export (surfaces 2.9, 2.12)
+### `check`
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `preflight_check` | 1 | R | For a plate and destination: job name, estimates, proposed filament-to-slot mapping with problems, plate and nozzle match, options with defaults and printer support (bed leveling, flow calibration, timelapse, first-layer inspection, plate detection, tangle detection, monitoring level), blocking problems, disabled-check warnings, applicable safety notes, confirmed facts. Returns a `preflightId` bound to project revision, slice identity, printer `observedAt`, and options, with an expiry. | mapping and readiness logic lifted from `SelectMachineDialog` behind a product-neutral seam; `MachineObject` | 16 mapping rows, problems, warnings |
-| `print_send` | 1 | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. The card is the explicit Send. | `PrintJob`, `SendJob` | |
-| `export_file` | 1 | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Proposal-time check surfaces license restrictions from project details on the card and in the result. | `Plater` export functions | |
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `view_render` | R | Render the scene: mode prepare or preview, camera preset or angles, layer range and visibility toggles in preview mode. Prepare mode uses the thumbnail renderer; preview mode is a later capability on the same tool. | `GLCanvas3D` thumbnail rendering | 1 image |
+| `slice_inspect` | R | Expert detail for a sliced plate with identical inputs (`plateId`, layer or line range, `cursor`) and `view` of `layers` (height, time, roles, speed range, fan, temperature, flow per layer) or `gcode` (raw text). | `GCodeProcessor` result; plate G-code file | 100 layers or 64 KB per call |
+| `activity_cancel` | M\* | Cancel an action handle through Orca's real path; reports whether cancellation won the race. | `BackgroundSlicingProcess` stop; job worker cancel | |
 
-### Live printing (surface 2.10)
+### `output`
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `printer_camera_snapshot` | 3 | R | One frame; requires the privacy grant, else `camera_disabled`. | `MachineObject` live view; Moonraker webcam snapshot | 1 image |
-| `printer_job_control` | 3 | D | Pause, resume, or stop the current job; the card states the agent's reason. | `MachineObject` task commands | |
-| `monitoring_policy_get` | 3 | R | The user-authorized conditions under which automatic pausing is allowed. Writing the policy is a Printer Configuration action, not a tool, until an eval shows otherwise. | JusPrin per-printer state | |
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `preflight_check` | R | For a plate and destination: job name, estimates, proposed filament-to-slot mapping with problems, plate and nozzle match, options with defaults and printer support (bed leveling, flow calibration, timelapse, first-layer inspection, plate detection, tangle detection, monitoring level), blocking problems, disabled-check warnings, applicable safety notes, confirmed facts. Returns a `preflightId` bound to project revision, slice identity, printer `observedAt`, and options, with an expiry. | mapping and readiness logic lifted from `SelectMachineDialog` behind a product-neutral seam; `MachineObject` | 16 mapping rows, problems, warnings |
+| `print_send` | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. The card is the explicit Send. | `PrintJob`, `SendJob` | |
+| `export_file` | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Proposal-time check surfaces license restrictions from project details on the card and in the result. | `Plater` export functions | |
 
-### Calibration (surface 2.11)
+### `machine`
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `calibration_list` | 3 | R | Tests for the current printer and filament (flow dynamics, flow rate, temperature, pressure advance variants, retraction, max volumetric speed, VFA, junction deviation, input shaping) with parameters, safe ranges, automatic-measurement support, and machine-stored results where firmware reports them. | `CalibUtils`; `MachineObject` calibration queries | 16 tests, 32 stored results |
-| `calibration_generate` | 3 | M | Generate one test's geometry and configuration onto a new plate. Analysis is reasoning over a photo or camera frame; applying a result uses the settings tools on the filament scope and `presets_save`. | `CalibUtils` generators | |
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `printer_list` | R | As in `setup`. | | |
+| `printer_camera_snapshot` | R | One frame; requires the privacy grant, else `camera_disabled`. | `MachineObject` live view; Moonraker webcam snapshot | 1 image |
+| `printer_job_control` | D | Pause, resume, or stop the current job; the card states the agent's reason. Automatic pause under the monitoring policy is a later coordinator feature on this tool, not a new tool. | `MachineObject` task commands | |
 
-### History (surfaces 2.5, 2.7)
+### `calibration`
 
-| Tool | Tier | Class | Surface and contract | Owner | Bound |
-|---|---|---|---|---|---|
-| `history_get` | 2 | R | Undo and redo stacks as named snapshots with timestamps and the tool or GUI action that produced each; current position. | `UndoRedo` stack | 32 each side |
-| `history_restore` | 2 | D | Undo or redo to a snapshot id. Destructive because it discards current state. Reports preset and JusPrin-owned edits it does not reverse. | `Plater` undo_to, redo_to | |
+| Tool | Class | Contract | Owner | Bound |
+|---|---|---|---|---|
+| `calibration_list` | R | Tests for the current printer and filament with parameters, safe ranges, automatic-measurement support, and machine-stored results where firmware reports them. | `CalibUtils`; `MachineObject` calibration queries | 16 tests, 32 results |
+| `calibration_generate` | M | Generate one test's geometry and configuration onto a new plate. Analysis is reasoning over a photo or camera frame; applying a result uses `settings_apply_patch` on the filament scope with `persistAs`. | `CalibUtils` generators | |
+
+### Retired and folded
+
+Reads folded into `workspace_inspect` sections: project details, intent, printer state and mismatches, confirmed facts, monitoring policy, object manifest, plan, activity state, history, versions. Reads folded into `object_analyze`: region list, orientation scoring. Writes folded: `printer_facts_confirm` into `printer_setup`; `presets_save` into `settings_apply_patch` `persistAs`; transform, arrange, object edits, and plate edits into `object_place` and `plate_layout`; `slice_layers` and `slice_gcode_read` into `slice_inspect`. Not tools until an eval demands them: editing project details (a Project details drawer action), writing the monitoring policy (a Printer Configuration action), text embossing, and everything under "Deliberately not tools".
 
 ### Deliberately not tools
 
-One tool per setting or per "make it stronger" bundle; printing advice; preferences, cloud, firmware, plugins, sync, and update installation (user-owned per surface 2.12); manual axis movement, homing, fan and light detail, printer file storage (expert layer of Monitor); painting by stroke and the measure gizmo as UI (reached through regions, reshape, and analysis handles); asking the user a question (the conversation, or `intent_get`'s `unanswered` list for external clients); a second job engine, remembered approvals, or the MCP Tasks extension.
+One tool per setting or per "make it stronger" bundle; printing advice; preferences, cloud, firmware, plugins, sync, and update installation (user-owned per surface 2.12); manual axis movement, homing, fan and light detail, printer file storage (expert layer of Monitor); painting by stroke and the measure gizmo as UI (reached through regions and analysis handles); asking the user a question (the conversation, or the `unanswered` list for external clients); a second job engine, remembered approvals, or the MCP Tasks extension; a single write tool that interprets a list of unrelated commands.
 
 ### Prerequisites the catalog imposes on the machinery
 
-- `validate_output` needs `enum` (provenance, action state, region kind) and `maxLength` (capped text fields) before the first row using them merges; extend it with tests. Input unions such as the operation list in `object_transform` are the decoder's job, not the schema validator's.
-- Three owners are trapped in presentation code and need a product-neutral seam first: the mapping and readiness logic in `SelectMachineDialog` for `preflight_check`, plane and circle detection in the Measure gizmo for `object_analyze`, and offscreen preview rendering for `view_render` preview mode.
-- The JusPrin stores for intent, plan, regions, confirmed facts, and monitoring policy do not exist yet; the rules for them are under [JusPrin-owned project state](#jusprin-owned-project-state).
-- The image projections under [Image results](#image-results) must exist in both adapters before `project_attachment_read`, `view_render`, or `printer_camera_snapshot` ships.
+- `validate_output` needs `enum` (provenance, action state, region kind, section names) and `maxLength` before the first row using them merges; extend it with tests. Input unions such as the facets of `object_place` are the decoder's job, not the schema validator's.
+- Neither adapter needs new loading machinery. The projection tests need to record definition bytes per adapter, and the live regression needs to record input and cached tokens per request, so the deferral decision is evidence-based.
+- The coordinator needs [grouped approvals](#grouped-approvals) and the `planId` field on every mutation.
+- Three owners are trapped in presentation code and need a product-neutral seam first: mapping and readiness logic in `SelectMachineDialog` for `preflight_check`; plane and circle detection in the Measure gizmo for `object_analyze`; offscreen preview rendering for `view_render` preview mode. Import and open need the dialog choices (`loadProjectSettings`, `unitConversion`, `oversized`) reachable without the dialogs, the same hazard class as the settings normalizer.
+- The JusPrin stores for intent, plan, regions, confirmed facts, and monitoring policy do not exist yet; rules under [JusPrin-owned project state](#jusprin-owned-project-state).
+- The image projections under [Image results](#image-results) in both adapters before `project_attachment_read`, `view_render`, or `printer_camera_snapshot` ships.
 - The Tier 1 security review under [Proportional security growth](#proportional-security-growth).
 
-### Evals that gate each tier
+### Evals that gate delivery
 
-1. Open a one-object STL, state "decorative, front face visible, under five hours, PLA", and reach a sent job with no manual setting edits. Tier 1.
-2. A model with a precision hole and a support-heavy overhang: find the hole, annotate it as protected, show that supports no longer enter it after re-slicing, and place the seam on a hidden face. Tier 2.
-3. Stringing reported on a Bambu printer: list tests, generate a temperature tower, read the user's photo, propose a filament temperature, preview and apply it, save the profile with approval. Tier 3.
-4. Concurrent edit: the user changes a setting in the GUI while an external agent has a pending apply. The apply fails as stale and the agent recovers with one preview and one apply. Every tier.
+1. Open a one-object STL, state "decorative, front face visible, under five hours, PLA", and reach a sent job with no manual setting edits. Needs `core`, `project`, `setup`, `geometry`, `output`. Its transcript is also the first call log for consolidation: any two tools always called together are candidates to merge.
+2. A model with a precision hole and a support-heavy overhang: find the hole, annotate it as protected, show that supports no longer enter it after re-slicing, and place the seam on a hidden face. Needs `regions` and `check`.
+3. Stringing reported on a Bambu printer: list tests, generate a temperature tower, read the user's photo, propose a filament temperature, preview and apply it with `persistAs`. Needs `calibration` and the filament scope.
+4. Concurrent edit: the user changes a setting in the GUI while an external agent has a pending apply. The apply fails as stale and the agent recovers with one preview and one apply. Every toolset.
+5. Load measurement: the live regression reports, per request, definition bytes, input tokens, and cached tokens for the full catalog, and the transcript is reviewed for wrong-tool selections. These numbers decide whether deferral is adopted.
 
 ## Process-settings tools: contract and hazards
 
