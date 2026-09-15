@@ -1,0 +1,44 @@
+Now read @agent-docs/jusprin/orca-feature-discovery.md, and find out all the features that will be automated/assisted by ai agent. then analyze what info, actions, etc that the mcp tool needs to provide in order to support AI agent in serving these features. use this info to come up with a new tool catalog that you think is consistent with the mcp tool best practices. ignore the current catalog so that you won't be biased by it.
+
+---
+
+This is what the other agents came up with. Cross check that with yours to see if there are anything that you missed:
+
+Proposed tool catalog
+This is an end-state catalog organized around stable domain nouns. It should be introduced incrementally, with each tool justified by a real eval failure.
+Domain	Proposed tools	Contract and rationale
+Workspace	workspace_inspect	Concise project snapshot: session/revision, active plate, selections, setup summary, unresolved risks, current slice and print-job identities.
+Project records	project_records_search, project_record_get, artifact_get	Paginated access to plates, objects, parts, modifiers, attachments, and history. artifact_get returns bounded text or MCP image content, never filesystem paths.
+Project brief	project_brief_get, project_brief_preview_patch, project_brief_apply_patch	Holds user-authored knowledge and intent: safety, license, use, priorities, dimensions, support constraints, assembly facts. Apply requires approval and never converts inferred facts into confirmed facts.
+Equipment	equipment_search, equipment_get	Searches printers, nozzles, plates, materials, AMS slots, and compatible profiles. Results distinguish configured, sensor-observed, and user-confirmed state with timestamps and provenance.
+Project setup	setup_preview_patch, setup_apply_patch, setup_confirm_facts	Selects the project’s target printer/material mapping separately from recording physical facts. Changing configuration must never claim that hardware was physically changed.
+Geometry analysis	geometry_analyze	Bounded deterministic analysis for dimensions, clearances, defects, overhangs, thin features, collisions, plate fit, likely duplicates, and candidate faces.
+Layout and object state	workspace_edit_preview, workspace_edit_apply	Atomic batches for rename, enable, transform, orient/place-on-face, arrange, duplicate, quantity, plate assignment, material/extruder assignment, and modifier structure.
+Import and removal	model_import, workspace_remove	Import uses attachment IDs and an explicit destination. Removal is separate because it is destructive; it must not be hidden inside a general edit batch.
+Topology-changing geometry	geometry_operation_preview, geometry_operation_apply	Tagged, strictly validated operations for mirror, cut/split, merge/assemble, text, repair, and modifier generation. Preview returns visual artifacts, affected IDs, topology consequences, and undo behavior.
+Semantic regions	annotations_search, annotations_get, annotations_preview_patch, annotations_apply_patch	Manages topology-bound surface/region labels. Results identify labels invalidated by later geometry changes.
+History	history_step	Explicit Undo or Redo through Orca’s real history owner. Classified as destructive because it can discard current state; returns the resulting revision and affected operation.
+Settings	settings_search, settings_get, settings_preview_patch, settings_apply_patch	Generic operations over typed configuration records—never one tool per setting. Supports process, printer, filament, object, and modifier targets only as each scope gains tested inheritance semantics.
+Slicing	slice_start, activity_get, activity_cancel	Uses Orca’s slicing lifecycle. Long-running work returns an activity ID; cancellation calls Orca’s actual cancellation path.
+Slice verification	slice_report_get, toolpath_query, view_render	slice_report_get returns paginated risks and estimates; toolpath_query provides bounded expert diagnostics; view_render returns Prepare or Check-print images with requested overlays.
+Preflight	preflight_preview, print_send	Preview validates a proposed printer, plate, mappings, safety checks, and monitoring choices without sending. It returns an expiring digest bound to project, slice, printer state, and choices. print_send is destructive and requires explicit approval.
+Live print	print_job_get, printer_snapshot_get, print_job_control, print_job_stop	Job status and camera/telemetry reads; pause/resume are mutations. Stop is a separate destructive tool. Camera access requires an explicit privacy grant.
+Monitoring policy	monitoring_policy_get, monitoring_policy_preview_patch, monitoring_policy_apply_patch	Stores the user-authorized conditions under which automatic pausing is allowed. Policy changes require approval.
+Calibration	calibrations_search, calibration_get, calibration_prepare, calibration_generate, calibration_evidence_get, calibration_measure	One discoverable calibration registry rather than a tool per calibration type. Generated test projects follow the normal slice/preflight/send workflow; persistent results use the settings patch tools.
+Project lifecycle	project_save, project_versions_get, project_restore	Save is a mutation. Restore is destructive and must protect unsaved work.
+Export	export_preview, export_create	Supports project, model, G-code, and profile exports through approved destinations or artifact handles. Export remains consequential and approval-gated.
+Preferences and diagnostics	preferences_get, preferences_preview_patch, preferences_apply_patch, diagnostics_run	Covers privacy, offline mode, plugins, sync, backup, and monitoring preferences. Network diagnostics require approval when they initiate external traffic.
+Updates	updates_get, update_install	Read update compatibility separately from destructive installation.
+Printer assets	printer_assets_search, printer_asset_get, printer_assets_delete	Bounded access to stored jobs and timelapses. Deletion is destructive; media reads honor camera/storage privacy policy.
+
+---
+
+For the things that you missed, do you think that you should incorporate that into one of the two tiers that you previously identified or you want to create the third tier for them?
+
+---
+
+Are there anything in your published page that you cannot incorporate into @agent-docs/jusprin/mcp-tool-extension-guide.md ?
+
+---
+
+update the guide with what you proposed here, except the "Long-running work.".  Keep the original way of "Long-running work" in the guide. change the framng/principles/rules in the guide as you see fit.
