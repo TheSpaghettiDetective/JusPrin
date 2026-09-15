@@ -1,0 +1,9 @@
+check @agent-docs for docs regarding the design of mcp tools
+
+---
+
+Now read @agent-docs/jusprin/orca-feature-discovery.md, and find out all the features that will be automated/assisted by ai agent. then analyze what info, actions, etc that the mcp tool needs to provide in order to support AI agent in serving these features
+
+---
+
+Does this document say anything about slicing presets and parameters?
