@@ -1,0 +1,30 @@
+check if this new proposed design is a best preactice.  I don't want to adopt your plan now, only to have you come back later to say, oops, I got it wrong again.
+
+---
+
+now propose a new candidate catalog in the guide around this design for me to check
+
+---
+
+say this in plain eng:
+
+Decisions worth checking
+
+* Reads collapsed into two tools. Project details, intent, printer state, mismatches, confirmed facts, manifest, plan, slicing state, and history are all sections of `workspace_inspect`. Region listing and orientation scoring are sections of `object_analyze`. That is where most of the earlier tool count went.
+* Writes are domain operations with same-shape batches. `plate_layout` takes a list of per-object rows and a list of plate rows. `region_annotate` takes a list of annotations. `intent_update` takes a list of fields. `object_place` is one operation with optional facets and no action enum. Cut, merge, and repair stay separate because their inputs differ.
+* Two folds that trade purity for fewer tools. Confirming physical facts rides inside `printer_setup`, and saving a preset as a profile is a `persistAs` flag on `settings_apply_patch` that upgrades the call to destructive. Both are defensible as one domain operation, and both are easy to split back out if you disagree.
+* Import and open take dialog choices as inputs. Units conversion, oversized models, and whether to load a 3MF's embedded settings are explicit parameters, so no dialog can open mid-call.
+* `toolset_enable` is in-app only. It is the GitHub dynamic-toolset pattern. If you would rather the shell choose toolsets from project state, that tool disappears and the rule changes to a shell policy.
+* A fifth eval measures load. Every phase's turn must stay under the cap, recorded by the projection test.
+
+---
+
+There is a small tool that lets the agent say "load the geometry tools for the next few turns". - how is this done? it's a skill that is always loaded into system prompt?
+
+---
+
+oh so this is just a poor-man's tool search?
+
+---
+
+Based on your understanding about the purpose of this project, essentially we just want to help 3D printing users to use the Sizer more easily and more effectively,  does it mean that the in-app agent will have to load all the mcp tools that we will build in the future in the range of 50 to 100 tools on every turn?  If so, are these tool definitions even cached? Are we sending all the tool definitions on every turn or just at the very beginning of the chat as a system prompt?
