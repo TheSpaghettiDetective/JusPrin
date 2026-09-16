@@ -221,6 +221,8 @@ public:
         m_undo.pop_back();
         m_redo_names.push_back(std::move(m_undo_names.back()));
         m_undo_names.pop_back();
+        m_redo_ids.push_back(m_undo_ids.back());
+        m_undo_ids.pop_back();
         remember_ids();
         publish_edit({EditKind::Undo, EditActor::Person, m_redo_names.back()});
         publish(changes_between(before, m_snapshot) | WorkspaceChangeReasons::History);
@@ -238,6 +240,8 @@ public:
         m_redo.pop_back();
         m_undo_names.push_back(std::move(m_redo_names.back()));
         m_redo_names.pop_back();
+        m_undo_ids.push_back(m_redo_ids.back());
+        m_redo_ids.pop_back();
         remember_ids();
         publish_edit({EditKind::Redo, EditActor::Person, m_undo_names.back()});
         publish(changes_between(before, m_snapshot) | WorkspaceChangeReasons::History);
@@ -390,6 +394,47 @@ public:
     }
 
     std::vector<PrinterDevice> printers() const override { return m_printers; }
+
+    ConfiguredPrinter configured_printer() const override { return m_configured_printer; }
+    void set_configured_printer_for_testing(ConfiguredPrinter printer) { m_configured_printer = std::move(printer); }
+    ConfiguredPrinter m_configured_printer;
+
+    WorkspaceHistory history() const override
+    {
+        WorkspaceHistory result;
+        result.restorable = m_history_restorable;
+        for (std::size_t index = 0; index < m_undo_ids.size(); ++index)
+            result.steps.push_back({m_undo_ids[index], m_undo_names[index], true});
+        for (std::size_t index = m_redo_ids.size(); index-- > 0;)
+            result.steps.push_back({m_redo_ids[index], m_redo_names[index], false});
+        if (result.steps.size() > kHistoryLimit) {
+            result.steps.erase(result.steps.begin(), result.steps.end() - kHistoryLimit);
+            result.truncated = true;
+        }
+        return result;
+    }
+
+    CommandResult restore_history(std::uint64_t step, HistoryPoint point) override
+    {
+        if (!m_history_restorable)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Another tool owns the history");
+        const WorkspaceHistory all = history();
+        const auto found = std::find_if(all.steps.begin(), all.steps.end(),
+                                        [step](const HistoryStep& candidate) { return candidate.id == step; });
+        if (found == all.steps.end())
+            return CommandResult::failure(WorkspaceError::StaleId, "That step is no longer in the history");
+        const std::size_t applied = static_cast<std::size_t>(found - all.steps.begin()) + (point == HistoryPoint::After ? 1 : 0);
+        if (applied == m_undo.size())
+            return CommandResult::failure(WorkspaceError::NoChange, "The project is already there");
+        while (m_undo.size() > applied) undo();
+        while (m_undo.size() < applied) redo();
+        return CommandResult::success();
+    }
+
+    void set_history_restorable_for_testing(bool restorable) { m_history_restorable = restorable; }
+    bool m_history_restorable{true};
+    std::vector<std::uint64_t> m_undo_ids, m_redo_ids;
+    std::uint64_t m_last_step_id{0};
 
     // A save writes a real file, so a test can prove nothing was written
     // before approval, and marks the project clean at that path.
@@ -611,8 +656,10 @@ private:
     {
         m_undo.emplace_back(m_snapshot);
         m_undo_names.push_back(name);
+        m_undo_ids.push_back(++m_last_step_id);
         m_redo.clear();
         m_redo_names.clear();
+        m_redo_ids.clear();
         publish_edit({EditKind::Step, EditActor::Person, std::move(name)});
     }
 

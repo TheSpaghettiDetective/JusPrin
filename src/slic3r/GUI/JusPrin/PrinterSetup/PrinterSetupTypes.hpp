@@ -30,9 +30,18 @@ struct DiscoveredPrinter
     struct Spool
     {
         std::string name;
-        std::string colour; // "#RRGGBB"
+        std::string colour;   // "#RRGGBB"
+        std::string material; // the filament type, such as PLA; may be empty
     };
     std::vector<Spool> spools;
+    // The machine the app is working with, as Orca's device manager has it.
+    bool selected{false};
+    // The job in progress; -1 and empty when it has not said.
+    int         progress_percent{-1};
+    std::string job;
+    // Degrees Celsius, as last reported; absent when it has not said.
+    std::optional<double> nozzle_temperature;
+    std::optional<double> bed_temperature;
 };
 
 struct PrinterEvidence

@@ -416,6 +416,92 @@ CommandResult OrcaWorkspaceAdapter::redo()
     return CommandResult::success();
 }
 
+namespace {
+// A step the person would recognise in Orca's own undo list. Project
+// separators mark where the history starts, not an edit.
+bool is_history_step(const UndoRedo::Snapshot& snapshot)
+{
+    return !snapshot.is_topmost() && snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
+           UndoRedo::snapshot_modifies_project(snapshot);
+}
+} // namespace
+
+ConfiguredPrinter OrcaWorkspaceAdapter::configured_printer() const
+{
+    wxASSERT(wxIsMainThread());
+    ConfiguredPrinter result;
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr)
+        return result;
+    Preset& printer = presets->printers.get_edited_preset();
+    result.preset = presets->printers.get_selected_preset().label(false);
+    result.model  = printer.get_printer_type(presets);
+    if (const auto* nozzles = printer.config.option<ConfigOptionFloats>("nozzle_diameter"))
+        result.nozzle_diameters = nozzles->values;
+    // The plate's own choice, falling back to the project's.
+    if (const PartPlate* plate = m_plater.get_partplate_list().get_curr_plate()) {
+        const BedType type = plate->get_bed_type(true);
+        const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
+        if (definition != nullptr && type > btDefault && int(type) - 1 < int(definition->enum_labels.size()))
+            result.plate_type = definition->enum_labels[int(type) - 1];
+    }
+    for (const std::string& name : presets->filament_presets) {
+        ConfiguredFilament filament{name, {}};
+        if (const Preset* preset = presets->filaments.find_preset(name, false))
+            if (const auto* types = preset->config.option<ConfigOptionStrings>("filament_type"); types && !types->values.empty())
+                filament.material = types->values.front();
+        result.filaments.push_back(std::move(filament));
+    }
+    return result;
+}
+
+WorkspaceHistory OrcaWorkspaceAdapter::history() const
+{
+    const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
+    const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
+    WorkspaceHistory result;
+    result.restorable = m_plater.can_restore_project_history();
+    // A snapshot is taken before its edit, so the step is in force once the
+    // active position has moved past it.
+    for (const UndoRedo::Snapshot& snapshot : snapshots)
+        if (is_history_step(snapshot))
+            result.steps.push_back({snapshot.timestamp, snapshot.name, snapshot.timestamp < stack.active_snapshot_time()});
+    if (result.steps.size() > kHistoryLimit) {
+        result.steps.erase(result.steps.begin(), result.steps.end() - kHistoryLimit);
+        result.truncated = true;
+    }
+    return result;
+}
+
+CommandResult OrcaWorkspaceAdapter::restore_history(std::uint64_t step, HistoryPoint point)
+{
+    wxASSERT(wxIsMainThread());
+    if (!m_plater.can_restore_project_history())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                      "Another tool is open with its own undo history. Close it first.");
+    const std::vector<UndoRedo::Snapshot>& snapshots = m_plater.undo_redo_stack_main().snapshots();
+    const auto found = std::find_if(snapshots.begin(), snapshots.end(), [step](const UndoRedo::Snapshot& snapshot) {
+        return snapshot.timestamp == step && is_history_step(snapshot);
+    });
+    if (found == snapshots.end())
+        return CommandResult::failure(WorkspaceError::StaleId, "That step is no longer in the history. Read it again.");
+    // Before the step is the snapshot taken for it. After it is the next
+    // snapshot that changed the project, or the present: the same place
+    // Orca's redo lands.
+    auto target = found;
+    if (point == HistoryPoint::After)
+        target = std::find_if(std::next(found), snapshots.end(), [](const UndoRedo::Snapshot& snapshot) {
+            return snapshot.is_topmost() || UndoRedo::snapshot_modifies_project(snapshot);
+        });
+    if (target == snapshots.end())
+        return CommandResult::failure(WorkspaceError::StaleId, "That step is no longer in the history. Read it again.");
+    if (target->timestamp == m_plater.undo_redo_stack_main().active_snapshot_time())
+        return CommandResult::failure(WorkspaceError::NoChange, "The project is already there");
+    if (!m_plater.restore_project_history(target->timestamp))
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not move the history");
+    return CommandResult::success();
+}
+
 CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bool preempt)
 {
     wxASSERT(wxIsMainThread());
@@ -479,8 +565,16 @@ std::vector<PrinterDevice> OrcaWorkspaceAdapter::printers() const
             device.nozzle_diameter = found.nozzle_diameter;
         if (found.observed_at_ms != 0)
             device.observed_at_ms = found.observed_at_ms;
-        for (const auto& spool : found.spools)
+        for (const auto& spool : found.spools) {
             device.materials.push_back(spool.name);
+            device.material_types.push_back(spool.material);
+        }
+        device.selected = found.selected;
+        if (found.progress_percent >= 0)
+            device.progress_percent = found.progress_percent;
+        device.job                = found.job;
+        device.nozzle_temperature = found.nozzle_temperature;
+        device.bed_temperature    = found.bed_temperature;
         result.push_back(std::move(device));
     }
     return result;

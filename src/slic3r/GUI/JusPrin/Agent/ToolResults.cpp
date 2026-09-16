@@ -1,4 +1,11 @@
 #include "ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 namespace {
@@ -185,6 +192,114 @@ json plan_section_result(const PlanRecord& plan)
     return {{"headline", text(plan.headline, truncated)}, {"decisions", std::move(decisions)},
             {"assumptions", lines(plan.assumptions)}, {"risks", lines(plan.risks)},
             {"updatedAt", plan.updated_at}, {"truncated", truncated}};
+}
+
+namespace {
+const Workspace::PrinterDevice* selected_device(const std::vector<Workspace::PrinterDevice>& devices)
+{
+    const auto found = std::find_if(devices.begin(), devices.end(), [](const auto& device) { return device.selected; });
+    return found == devices.end() ? nullptr : &*found;
+}
+} // namespace
+
+std::string printer_fact_key(const Workspace::ConfiguredPrinter& configured,
+                             const std::vector<Workspace::PrinterDevice>& devices)
+{
+    const Workspace::PrinterDevice* device = selected_device(devices);
+    return device != nullptr ? "device:" + device->id : "preset:" + configured.preset;
+}
+
+json printer_device_result(const Workspace::PrinterDevice& device)
+{
+    bool truncated = false;
+    json entry{{"id", device.id}, {"name", label(device.name, truncated)}, {"model", device.model},
+               {"connection", device.connection}, {"activity", device.activity}, {"materials", json::array()}};
+    for (const std::string& material : device.materials)
+        if (entry["materials"].size() < 16) entry["materials"].push_back(label(material, truncated));
+    // Absent, not zero: a nozzle of zero would be a claim the device never made.
+    if (device.nozzle_diameter) entry["nozzleDiameter"] = *device.nozzle_diameter;
+    if (device.observed_at_ms)
+        entry["observedAt"] = Workspace::utc_timestamp(std::chrono::system_clock::time_point(
+            std::chrono::milliseconds(*device.observed_at_ms)));
+    return entry;
+}
+
+json printer_section_result(const Workspace::ConfiguredPrinter& configured,
+                            const std::vector<Workspace::PrinterDevice>& devices,
+                            const std::vector<Workspace::PrinterFact>& facts)
+{
+    bool truncated = false;
+    json filaments = json::array();
+    for (const auto& filament : configured.filaments)
+        if (filaments.size() < 16)
+            filaments.push_back({{"preset", label(filament.preset, truncated)}, {"material", filament.material}});
+    json result{{"configured", {{"preset", label(configured.preset, truncated)}, {"model", configured.model},
+                                {"nozzleDiameters", configured.nozzle_diameters}, {"plateType", configured.plate_type},
+                                {"filaments", std::move(filaments)}}},
+                // No printer Orca talks to reports which plate is on the bed.
+                {"plateObservable", false}, {"factKey", printer_fact_key(configured, devices)}};
+
+    json confirmed = json::array(), mismatches = json::array();
+    const auto mismatch = [&mismatches](const char* what, const std::string& configured_value,
+                                        const std::string& observed_value, const char* source) {
+        if (mismatches.size() < 16)
+            mismatches.push_back({{"what", what}, {"configured", configured_value}, {"observed", observed_value}, {"source", source}});
+    };
+    for (const auto& fact : facts) {
+        if (confirmed.size() == 16) break;
+        confirmed.push_back({{"fact", fact.fact}, {"value", label(fact.value, truncated)},
+                             {"confirmedAt", fact.confirmed_at}, {"expiresAt", fact.expires_at}});
+        if (fact.fact == "plate" && !configured.plate_type.empty() &&
+            Workspace::ascii_lower(fact.value) != Workspace::ascii_lower(configured.plate_type))
+            mismatch("plate", configured.plate_type, fact.value, "user_confirmed");
+    }
+    result["confirmedFacts"] = std::move(confirmed);
+
+    if (const Workspace::PrinterDevice* device = selected_device(devices)) {
+        json observed = printer_device_result(*device);
+        if (device->progress_percent) observed["progressPercent"] = *device->progress_percent;
+        if (!device->job.empty()) observed["job"] = label(device->job, truncated);
+        if (device->nozzle_temperature) observed["nozzleTemperature"] = *device->nozzle_temperature;
+        if (device->bed_temperature) observed["bedTemperature"] = *device->bed_temperature;
+        result["observed"] = std::move(observed);
+
+        if (!configured.model.empty() && !device->model.empty() && configured.model != device->model)
+            mismatch("model", configured.model, device->model, "device");
+        if (device->nozzle_diameter && !configured.nozzle_diameters.empty() &&
+            std::abs(*device->nozzle_diameter - configured.nozzle_diameters.front()) > 1e-3) {
+            char configured_text[32], observed_text[32];
+            std::snprintf(configured_text, sizeof configured_text, "%g", configured.nozzle_diameters.front());
+            std::snprintf(observed_text, sizeof observed_text, "%g", *device->nozzle_diameter);
+            mismatch("nozzle", configured_text, observed_text, "device");
+        }
+        // A loaded material is enough: which slot feeds which filament is the
+        // slicer's mapping, decided at print time.
+        std::vector<std::string> loaded;
+        for (const auto& type : device->material_types)
+            if (!type.empty()) loaded.push_back(Workspace::ascii_lower(type));
+        if (!loaded.empty())
+            for (const auto& filament : configured.filaments)
+                if (!filament.material.empty() &&
+                    std::find(loaded.begin(), loaded.end(), Workspace::ascii_lower(filament.material)) == loaded.end()) {
+                    std::string observed_text;
+                    for (const auto& type : device->material_types)
+                        if (!type.empty()) observed_text += (observed_text.empty() ? "" : ", ") + type;
+                    mismatch("filament", filament.material, observed_text, "device");
+                }
+    }
+    result["mismatches"] = std::move(mismatches);
+    result["truncated"]  = truncated;
+    return result;
+}
+
+json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history)
+{
+    bool truncated = false;
+    json steps = json::array();
+    for (const auto& step : history.steps)
+        steps.push_back({{"stepId", std::to_string(step.id)}, {"label", label(step.label, truncated)}, {"applied", step.applied}});
+    return {{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}, {"restorable", history.restorable},
+            {"steps", {{"items", std::move(steps)}, {"truncated", history.truncated || truncated}}}};
 }
 
 json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)

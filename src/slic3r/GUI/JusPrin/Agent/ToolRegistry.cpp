@@ -119,14 +119,14 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true; // the summary, as every caller before sections existed asked for
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 4)
+        if (!sections.is_array() || sections.empty() || sections.size() > 6)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing") ||
+            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer") ||
                 !seen.insert(name).second)
                 return false;
         }
@@ -135,6 +135,12 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
 
     if (definition.handler == ToolHandler::PrinterList)
         return arguments.empty();
+
+    if (definition.handler == ToolHandler::HistoryRestore)
+        return has_only(arguments, {"sessionId", "stepId", "point"}) && arguments.size() == 3 &&
+               is_unsigned_string(arguments["sessionId"]) && arguments.contains("stepId") &&
+               is_unsigned_string(arguments["stepId"]) && arguments.contains("point") &&
+               (arguments["point"] == "before" || arguments["point"] == "after");
 
     if (definition.handler == ToolHandler::ProjectSave)
         return has_only(arguments, {"path"}) &&
@@ -276,6 +282,39 @@ std::vector<ToolDefinition> make_definitions()
         return object_schema({{"items", {{"type", "array"}, {"items", std::move(item)}, {"maxItems", kToolListLimit}}},
                                {"truncated", boolean_schema()}}, {"items", "truncated"});
     };
+    const json device_summary = object_schema(
+        {{"id", id}, {"name", string_schema()}, {"model", string_schema()}, {"connection", string_schema()},
+         {"activity", {{"type", "string"}, {"enum", json::array({"offline", "idle", "printing"})}}},
+         {"materials", {{"type", "array"}, {"items", string_schema()}, {"maxItems", 16}}},
+         {"nozzleDiameter", number_schema()}, {"observedAt", string_schema()}, {"progressPercent", integer_schema()},
+         {"job", string_schema()}, {"nozzleTemperature", number_schema()}, {"bedTemperature", number_schema()}},
+        {"id", "name", "model", "connection", "activity", "materials"});
+    const json printer_section = object_schema(
+        {{"configured", object_schema({{"preset", string_schema()}, {"model", string_schema()},
+                                       {"nozzleDiameters", {{"type", "array"}, {"items", number_schema()}}},
+                                       {"plateType", string_schema()},
+                                       {"filaments", {{"type", "array"}, {"maxItems", 16},
+                                                      {"items", object_schema({{"preset", string_schema()}, {"material", string_schema()}},
+                                                                              {"preset", "material"})}}}},
+                                      {"preset", "model", "nozzleDiameters", "plateType", "filaments"})},
+         {"observed", device_summary}, {"plateObservable", boolean_schema()}, {"factKey", string_schema()},
+         {"confirmedFacts", {{"type", "array"}, {"maxItems", 16},
+                             {"items", object_schema({{"fact", string_schema()}, {"value", string_schema()},
+                                                      {"confirmedAt", string_schema()}, {"expiresAt", string_schema()}},
+                                                     {"fact", "value", "confirmedAt", "expiresAt"})}}},
+         {"mismatches", {{"type", "array"}, {"maxItems", 16},
+                         {"items", object_schema({{"what", {{"type", "string"}, {"enum", json::array({"model", "nozzle", "filament", "plate"})}}},
+                                                  {"configured", string_schema()}, {"observed", string_schema()},
+                                                  {"source", {{"type", "string"}, {"enum", json::array({"device", "user_confirmed"})}}}},
+                                                 {"what", "configured", "observed", "source"})}}},
+         {"truncated", boolean_schema()}},
+        {"configured", "plateObservable", "factKey", "confirmedFacts", "mismatches", "truncated"});
+    // The summary's two flags, plus the steps when the history section is asked for.
+    const json history_section = object_schema(
+        {{"canUndo", boolean_schema()}, {"canRedo", boolean_schema()}, {"restorable", boolean_schema()},
+         {"steps", list_schema(object_schema({{"stepId", id}, {"label", string_schema()}, {"applied", boolean_schema()}},
+                                             {"stepId", "label", "applied"}))}},
+        {"canUndo", "canRedo"});
     const json object_summary = object_schema({{"objectId", id}, {"name", string_schema()}, {"instanceCount", revision}},
                                                {"objectId", "name", "instanceCount"});
     const json plate_summary = object_schema({{"plateId", id}, {"name", string_schema()}, {"active", boolean_schema()},
@@ -452,6 +491,13 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"path", "saved", "projectDirty", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectSave},
+        {"history_restore", "Restore an earlier state",
+         "Move the project through its undo history, as the person's own undo and redo lists do: to just before a step (it and every later step undone) or just after it (it and every earlier step done). Read step IDs from the history section of workspace_inspect. Setting edits, preset choices, the print intent, and the plan are not part of that history and stay as they are; the result lists which of them exist. Waits for approval in JusPrin.",
+         object_schema({{"sessionId", id}, {"stepId", id}, {"point", {{"type", "string"}, {"enum", json::array({"before", "after"})}}}},
+                       {"sessionId", "stepId", "point"}),
+         object_schema({{"history", history_section}, {"notReversed", list_schema(text)}, {"sessionId", id}, {"revision", revision}},
+                       {"history", "notReversed", "sessionId", "revision"}),
+         ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::HistoryRestore},
         {"presets_list", "List printer, filament, or process presets",
          "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},
@@ -508,18 +554,18 @@ std::vector<ToolDefinition> make_definitions()
          true},
         {"workspace_inspect",
          "Inspect the live workspace",
-         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and native history; ask for the intent or plan sections to read what this print is for and the plan in force. IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},
                                       {"items", {{"type", "string"},
-                                                 {"enum", json::array({"summary", "intent", "plan"})}}},
-                                      {"maxItems", 3}}}}),
+                                                 {"enum", json::array({"summary", "intent", "plan", "slicing", "history", "printer"})}}},
+                                      {"maxItems", 6}}}}),
          object_schema({{"intent", intent_section}, {"plan", plan_section}, {"slicing", slicing_section},
-                        {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
+                        {"printer", printer_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
                          {"plateCount", revision}, {"objectCount", revision}, {"plates", list_schema(plate_summary)},
                          {"selection", selection_summary}, {"truncated", boolean_schema()},
-                         {"history", object_schema({{"canUndo", boolean_schema()}, {"canRedo", boolean_schema()}}, {"canUndo", "canRedo"})}},
+                         {"history", history_section}},
                          // Only the identity is unconditional. The summary's own fields are
                          // present whenever the summary section is asked for, which is the
                          // default, so a caller that sends no sections sees what it always saw.

@@ -914,3 +914,136 @@ TEST_CASE("a save names its file on the card and writes nothing before approval"
     CHECK_FALSE(registry.validate_call(*registry.find("project_save"), R"({"path":"x.3mf","overwrite":true})").valid());
     std::filesystem::remove_all(folder);
 }
+
+TEST_CASE("history is read by step and restored to either side of one", "[tools][history]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    auto run = [&h](const char* tool, const json& arguments) {
+        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        if (h.coordinator.find(id)->state == ToolState::Pending)
+            REQUIRE(h.coordinator.approve(id));
+        h.pump_to_completion(id);
+        return *h.coordinator.find(id);
+    };
+    const auto cube = std::to_string(h.cube_id().value());
+    run("duplicate_object", json{{"sessionId", session}, {"objectId", cube}});
+    run("duplicate_object", json{{"sessionId", session}, {"objectId", cube}});
+    REQUIRE(h.object_count() == 3);
+
+    const auto read = run("workspace_inspect", json{{"sections", {"history"}}});
+    REQUIRE(read.state == ToolState::Succeeded);
+    const auto inspected = json::parse(read.result_json);
+    CHECK(registry.validate_output(*registry.find("workspace_inspect"), inspected));
+    const auto& steps = inspected["history"]["steps"]["items"];
+    REQUIRE(steps.size() == 2);
+    CHECK(steps[0]["label"] == "Duplicate");
+    CHECK(steps[1]["applied"] == true);
+    CHECK(inspected["history"]["restorable"] == true);
+    const std::string first = steps[0]["stepId"];
+
+    // The card names the step; nothing moves while it waits.
+    const ToolActivity proposed = h.coordinator.propose(
+        {"history_restore", json{{"sessionId", session}, {"stepId", first}, {"point", "before"}}.dump()}, "m-2");
+    REQUIRE(proposed.state == ToolState::Pending);
+    CHECK(proposed.title == "Go back to before \xe2\x80\x9c" "Duplicate\xe2\x80\x9d");
+    CHECK(h.object_count() == 3);
+    REQUIRE(h.coordinator.approve(proposed.action_id));
+    h.pump_to_completion(proposed.action_id);
+    const ToolActivity back = *h.coordinator.find(proposed.action_id);
+    REQUIRE(back.state == ToolState::Succeeded);
+    CHECK(h.object_count() == 1);
+    const auto back_result = json::parse(back.result_json);
+    CHECK(registry.validate_output(*registry.find("history_restore"), back_result));
+    CHECK(back_result["history"]["steps"]["items"][0]["applied"] == false);
+    CHECK(back_result["notReversed"]["items"].empty());
+
+    // The same id still names the step after an undo, so the agent can go
+    // forward again -- and what the history does not carry is said to stay.
+    PlanRecord plan;
+    plan.headline = "Protect the face";
+    store.set_plan(plan);
+    const auto forward = run("history_restore", json{{"sessionId", session}, {"stepId", first}, {"point", "after"}});
+    REQUIRE(forward.state == ToolState::Succeeded);
+    CHECK(h.object_count() == 2);
+    CHECK(json::parse(forward.result_json)["notReversed"]["items"] == json::array({"the plan"}));
+
+    const auto again = run("history_restore", json{{"sessionId", session}, {"stepId", first}, {"point", "after"}});
+    CHECK(again.error->code == "no_change");
+    const auto gone = h.coordinator.propose({"history_restore", json{{"sessionId", session}, {"stepId", "999"}, {"point", "after"}}.dump()}, "m-3");
+    CHECK(gone.error->code == "stale_id");
+    const auto other = h.coordinator.propose({"history_restore", json{{"sessionId", "9999"}, {"stepId", first}, {"point", "after"}}.dump()}, "m-4");
+    CHECK(other.error->code == "stale_id");
+
+    h.workspace.set_history_restorable_for_testing(false);
+    const auto blocked = run("history_restore", json{{"sessionId", session}, {"stepId", first}, {"point", "before"}});
+    CHECK(blocked.error->code == "unavailable_operation");
+    CHECK(h.object_count() == 2);
+
+    CHECK_FALSE(registry.validate_call(*registry.find("history_restore"), json{{"sessionId", session}, {"stepId", first}, {"point", "middle"}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("workspace_inspect"), R"({"sections":["history","history"]})").valid());
+}
+
+TEST_CASE("the printer section sets what is configured beside what the machine says", "[tools][printer]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    auto inspect = [&h, &registry]() {
+        const std::string id = h.coordinator.propose({"workspace_inspect", R"({"sections":["printer"]})"}, "m-1").action_id;
+        h.coordinator.pump();
+        REQUIRE(h.coordinator.find(id)->state == ToolState::Succeeded);
+        const auto result = json::parse(h.coordinator.find(id)->result_json);
+        CHECK(registry.validate_output(*registry.find("workspace_inspect"), result));
+        return result["printer"];
+    };
+
+    Workspace::ConfiguredPrinter configured;
+    configured.preset           = "Bambu Lab A1 mini 0.2 nozzle";
+    configured.model            = "N1";
+    configured.nozzle_diameters = {0.2};
+    configured.plate_type       = "Textured PEI Plate";
+    configured.filaments        = {{"Bambu PETG HF", "PETG"}};
+    h.workspace.set_configured_printer_for_testing(configured);
+
+    // Nothing connected: the configured side alone, facts filed under the preset.
+    auto printer = inspect();
+    CHECK(printer["configured"]["plateType"] == "Textured PEI Plate");
+    CHECK_FALSE(printer.contains("observed"));
+    CHECK(printer["factKey"] == "preset:Bambu Lab A1 mini 0.2 nozzle");
+    CHECK(printer["mismatches"].empty());
+    CHECK(printer["plateObservable"] == false);
+
+    Workspace::PrinterDevice other;
+    other.id = "B2"; other.name = "Garage"; other.model = "N1"; other.activity = "idle";
+    Workspace::PrinterDevice device;
+    device.id = "FAKE001"; device.name = "Desk"; device.model = "N1"; device.activity = "printing";
+    device.selected = true; device.nozzle_diameter = 0.4; device.progress_percent = 42; device.job = "benchy";
+    device.bed_temperature = 60.; device.materials = {"Bambu PLA Basic"}; device.material_types = {"PLA"};
+    h.workspace.set_printers_for_testing({other, device});
+    store.confirm_printer_facts("device:FAKE001", {{"plate", "Smooth PEI Plate"}});
+
+    printer = inspect();
+    CHECK(printer["observed"]["id"] == "FAKE001");
+    CHECK(printer["observed"]["progressPercent"] == 42);
+    CHECK(printer["observed"]["job"] == "benchy");
+    CHECK(printer["factKey"] == "device:FAKE001");
+    REQUIRE(printer["confirmedFacts"].size() == 1);
+    CHECK(printer["confirmedFacts"][0]["value"] == "Smooth PEI Plate");
+    const auto& mismatches = printer["mismatches"];
+    REQUIRE(mismatches.size() == 3);
+    CHECK(mismatches[0] == json{{"what", "plate"}, {"configured", "Textured PEI Plate"}, {"observed", "Smooth PEI Plate"}, {"source", "user_confirmed"}});
+    CHECK(mismatches[1] == json{{"what", "nozzle"}, {"configured", "0.2"}, {"observed", "0.4"}, {"source", "device"}});
+    CHECK(mismatches[2] == json{{"what", "filament"}, {"configured", "PETG"}, {"observed", "PLA"}, {"source", "device"}});
+
+    // What agrees is not a mismatch, whatever the case.
+    configured.nozzle_diameters = {0.4};
+    configured.filaments        = {{"Generic PLA", "pla"}};
+    configured.plate_type       = "smooth pei plate";
+    h.workspace.set_configured_printer_for_testing(configured);
+    CHECK(inspect()["mismatches"].empty());
+}

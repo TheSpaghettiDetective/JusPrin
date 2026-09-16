@@ -28,6 +28,9 @@ public:
     CommandResult remove_object(ObjectId id) override;
     CommandResult undo() override;
     CommandResult redo() override;
+    ConfiguredPrinter configured_printer() const override;
+    WorkspaceHistory history() const override;
+    CommandResult restore_history(std::uint64_t step, HistoryPoint point) override;
     CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override;
     SliceReport   slice_report(PlateId plate) const override;
     PresetListResult list_presets(const PresetQuery& query) const override;

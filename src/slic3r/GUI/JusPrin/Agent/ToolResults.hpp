@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ProjectStateDocument.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include <nlohmann/json.hpp>
 
@@ -19,6 +20,8 @@ struct InspectSections
     bool intent{false};
     bool plan{false};
     bool slicing{false};
+    bool history{false};
+    bool printer{false};
 };
 
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});
@@ -26,6 +29,19 @@ nlohmann::json intent_section_result(const std::vector<IntentField>& fields);
 nlohmann::json plan_section_result(const PlanRecord& plan);
 // `handle` names the slice_start call that started the run in flight, when the
 // tool system started it; empty when the run is the person's or there is none.
+// The key a person's printer facts are filed under: the machine the app is
+// working with when there is one, otherwise the printer preset.
+std::string printer_fact_key(const Workspace::ConfiguredPrinter& configured,
+                             const std::vector<Workspace::PrinterDevice>& devices);
+// Configured versus observed, the facts the person confirmed, and where they
+// disagree. `facts` are the unexpired facts under printer_fact_key.
+nlohmann::json printer_section_result(const Workspace::ConfiguredPrinter& configured,
+                                      const std::vector<Workspace::PrinterDevice>& devices,
+                                      const std::vector<Workspace::PrinterFact>& facts);
+nlohmann::json printer_device_result(const Workspace::PrinterDevice& device);
+
+// The summary's undo flags with the steps themselves.
+nlohmann::json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history);
 nlohmann::json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle);
 
 // Which parts of a sliced plate's report a call asked for. Summary is what a

@@ -193,6 +193,47 @@ struct WorkspaceSnapshot
     WorkspaceSlicing            slicing;
 };
 
+// What the selected presets say the hardware is. The plate type is the
+// untranslated name Orca stores, so it compares with what a person states.
+struct ConfiguredFilament
+{
+    std::string preset;
+    std::string material;
+};
+
+struct ConfiguredPrinter
+{
+    std::string                     preset;
+    std::string                     model; // the device model id a matching printer reports
+    std::vector<double>             nozzle_diameters;
+    std::string                     plate_type;
+    std::vector<ConfiguredFilament> filaments;
+};
+
+// One real step in the project's undo history. `id` is stable while the
+// project stays open; a project replacement starts a new history, which is
+// why a restore also names the session.
+struct HistoryStep
+{
+    std::uint64_t id{0};
+    std::string   label; // OrcaSlicer's own step name, which may be empty
+    bool          applied{false};
+};
+
+struct WorkspaceHistory
+{
+    std::vector<HistoryStep> steps; // oldest first; the newest kHistoryLimit
+    bool                     truncated{false};
+    // False while a tool such as a gizmo keeps its own undo history, during
+    // which the project history cannot be moved.
+    bool                     restorable{false};
+};
+
+inline constexpr std::size_t kHistoryLimit = 32;
+
+// Where a restore leaves a step: undone (before) or done (after).
+enum class HistoryPoint : std::uint8_t { Before, After };
+
 // The three preset families a print is chosen from. SLA has no place here
 // until the product has one.
 enum class PresetKind : std::uint8_t { Printer, Filament, Process };
@@ -241,6 +282,15 @@ struct PrinterDevice
     std::string activity{"offline"};
     std::optional<double>    nozzle_diameter;
     std::vector<std::string> materials;
+    // The filament type of each entry in `materials`, such as PLA; empty
+    // where the device did not say.
+    std::vector<std::string> material_types;
+    // The machine the app is working with.
+    bool                     selected{false};
+    std::optional<int>       progress_percent;
+    std::string              job;
+    std::optional<double>    nozzle_temperature;
+    std::optional<double>    bed_temperature;
     // Milliseconds since the epoch, absent when the device has never reported.
     std::optional<std::int64_t> observed_at_ms;
 };
@@ -669,6 +719,10 @@ public:
     // preempt is set, because nothing in Orca records who started a run: a
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
+    virtual ConfiguredPrinter configured_printer() const = 0;
+    virtual WorkspaceHistory history() const = 0;
+    // Undo or redo until `step` is undone (Before) or done (After).
+    virtual CommandResult restore_history(std::uint64_t step, HistoryPoint point) = 0;
     virtual CommandResult start_slice(std::optional<PlateId> plate, bool preempt) = 0;
 
     // What one plate's current slice says about itself. Returns a report whose

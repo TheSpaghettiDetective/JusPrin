@@ -136,6 +136,25 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     stored.arguments_json = std::move(validation.arguments_json);
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
 
+    if (definition->handler == ToolHandler::HistoryRestore) {
+        const auto arguments = json::parse(stored.arguments_json);
+        if (arguments["sessionId"] != std::to_string(snapshot.session.value())) {
+            fail(stored, "stale_id", "That history belongs to a project that is no longer open. Read it again.");
+            return stored;
+        }
+        const auto history = m_workspace.history();
+        const auto step    = std::find_if(history.steps.begin(), history.steps.end(), [&arguments](const Workspace::HistoryStep& candidate) {
+            return std::to_string(candidate.id) == arguments["stepId"];
+        });
+        if (step == history.steps.end()) {
+            fail(stored, "stale_id", "That step is no longer in the history. Read it again.");
+            return stored;
+        }
+        const std::string name = step->label.empty() ? "an unnamed step" : "\xe2\x80\x9c" + step->label + "\xe2\x80\x9d";
+        stored.title = (arguments["point"] == "before" ? "Go back to before " : "Go to just after ") + name;
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
     if (definition->handler == ToolHandler::ProjectSave) {
         auto arguments = json::parse(stored.arguments_json);
         const std::string path = arguments.value("path", snapshot.setup.project_path);
@@ -372,9 +391,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing")};
+            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer")};
         }
-        if ((sections.intent || sections.plan) && m_product_state == nullptr) {
+        if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
             return;
         }
@@ -382,8 +401,45 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         if (sections.intent) result["intent"] = intent_section_result(m_product_state->print_intent());
         if (sections.plan) result["plan"] = plan_section_result(m_product_state->plan());
         if (sections.slicing) result["slicing"] = slicing_section_result(m_workspace.snapshot(), m_slice_handle);
+        if (sections.printer) {
+            const auto configured = m_workspace.configured_printer();
+            const auto devices    = m_workspace.printers();
+            const auto facts      = m_product_state->has_printer_facts() ?
+                                        m_product_state->printer_facts(printer_fact_key(configured, devices)) :
+                                        std::vector<Workspace::PrinterFact>{};
+            result["printer"] = printer_section_result(configured, devices, facts);
+        }
+        if (sections.history) result["history"] = history_section_result(m_workspace.snapshot(), m_workspace.history());
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::HistoryRestore) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto restored  = m_workspace.restore_history(std::stoull(arguments["stepId"].get<std::string>()),
+                                                           arguments["point"] == "before" ? Workspace::HistoryPoint::Before :
+                                                                                            Workspace::HistoryPoint::After);
+        if (!restored.succeeded()) {
+            fail(activity, workspace_error_code(restored.error), restored.message);
+            return;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        // What Orca's history does not carry, so the agent can say it stayed.
+        json kept = json::array();
+        if (!snapshot.preset_deltas.empty())
+            kept.push_back(std::to_string(snapshot.preset_deltas.size()) + " edited process settings");
+        if (m_product_state != nullptr && !m_product_state->print_intent().empty())
+            kept.push_back("the print intent");
+        if (m_product_state != nullptr && !m_product_state->plan().headline.empty())
+            kept.push_back("the plan");
+        activity.result_json = json{{"history", history_section_result(snapshot, m_workspace.history())},
+                                    {"notReversed", {{"items", std::move(kept)}, {"truncated", false}}},
+                                    {"sessionId", std::to_string(snapshot.session.value())},
+                                    {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
         notify(activity);
         return;
     }
@@ -415,18 +471,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         json       items     = json::array();
         for (const Workspace::PrinterDevice& device : m_workspace.printers()) {
             if (items.size() == 25) { truncated = true; break; }
-            json entry{{"id", device.id}, {"name", device.name}, {"model", device.model},
-                       {"connection", device.connection}, {"activity", device.activity},
-                       {"materials", json::array()}};
-            for (const std::string& material : device.materials)
-                if (entry["materials"].size() < 16) entry["materials"].push_back(material);
-            // Absent, not zero: a nozzle of zero would be a claim the device
-            // never made.
-            if (device.nozzle_diameter) entry["nozzleDiameter"] = *device.nozzle_diameter;
-            if (device.observed_at_ms)
-                entry["observedAt"] = Workspace::utc_timestamp(std::chrono::system_clock::time_point(
-                    std::chrono::milliseconds(*device.observed_at_ms)));
-            items.push_back(std::move(entry));
+            items.push_back(printer_device_result(device));
         }
         activity.result_json = json{{"items", std::move(items)}, {"truncated", truncated},
                                     {"sessionId", std::to_string(snapshot.session.value())},

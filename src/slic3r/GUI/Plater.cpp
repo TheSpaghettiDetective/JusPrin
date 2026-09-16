@@ -14698,6 +14698,24 @@ bool Plater::redo_project()
     return p->undo_redo_stack().active_snapshot_time() != before;
 }
 
+bool Plater::can_restore_project_history() const
+{
+    return &p->undo_redo_stack() == &p->undo_redo_stack_main();
+}
+
+bool Plater::restore_project_history(size_t timestamp)
+{
+    if (!can_restore_project_history())
+        return false;
+    const std::vector<UndoRedo::Snapshot>& snapshots = p->undo_redo_stack_main().snapshots();
+    const auto it = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(timestamp));
+    const size_t before = p->undo_redo_stack_main().active_snapshot_time();
+    if (it == snapshots.end() || it->timestamp != timestamp || timestamp == before)
+        return false;
+    p->undo_redo_to(timestamp);
+    return p->undo_redo_stack_main().active_snapshot_time() != before;
+}
+
 // End of the grouped JusPrin fork additions.
 
 void Plater::reset(bool apply_presets_change)
