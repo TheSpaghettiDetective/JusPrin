@@ -92,7 +92,7 @@ Tool count is bounded by what a turn loads, not by what the app can do. The evid
 - **Batch only where items share a shape.** A list of setting changes, a list of intent fields, a list of annotations, a list of per-object layout rows. A list that mixes transforms, imports, and deletes is the god tool and is refused.
 - **Fold reads into sections and detail levels** before adding a read tool. A new read tool is justified only by a different input contract (a search over a large catalog, a per-object analysis, a sliced-plate report) or an image result.
 - **Let call logs decide consolidation.** Two tools that transcripts show always called together are candidates to merge; two facets never used together are candidates to split. Consolidation follows evidence from evals, not the whiteboard.
-- **Do not advertise output schemas over MCP** unless a client is shown to use them; keep validating outputs internally. This is the cheapest halving of catalog cost available.
+- **Output schemas are not advertised over MCP.** No client was shown to use them, and they were two thirds of the catalog. `tools/list` stopped carrying `outputSchema`; `validate_output` still checks every MCP success, so a result that violates its contract still fails loudly. Measured on the same build with the recipe below: five tools, 9,723 bytes before, 3,141 after, about 2,430 tokens down to 785. Restore the field only for a client that is shown to read it.
 
 ## Choose the narrowest honest scope
 
@@ -134,8 +134,8 @@ Changes in OrcaSlicer-owned files must satisfy [fork stewardship](fork-stewardsh
 
 Some product state has no Orca owner: the print intent, the pinned agent plan, semantic region annotations, physical facts the user confirmed about a printer, and the monitoring policy that authorizes automatic pausing. For these the "current Orca owner" step of the authority path is a JusPrin store; every other step stays. The rules:
 
-- **Storage.** Project-scoped state (intent, plan, regions) lives in the 3mf auxiliary directory under `jusprin/`, using the same persistence, healing, and revert copy-forward the Agent bridge already uses for conversation state. Printer-scoped state (confirmed facts, monitoring policy) lives in app data keyed by printer identity; confirmed facts carry an expiry because the physical world changes without telling the app.
-- **Revision.** Every write publishes a workspace change reason (`Intent`, `Plan`, `Regions`, `PrinterFacts`, `MonitoringPolicy`) so readers refresh and pending proposals are invalidated like any other edit.
+- **Storage.** Project-scoped state (intent, plan, regions) lives in the 3mf auxiliary directory under `jusprin/`, using the same persistence, healing, and revert copy-forward the Agent bridge already uses for conversation state. In practice that means inside `state.json`, not beside it: `ProjectStateDocument` provisions a new top-level key on load without a schema bump, and the persistence tests assert that the JusPrin data directory holds exactly one file. The print intent (`printIntent`, upserted by field name, each with provenance) and the plan (`plan`, replaced whole) are implemented there. Printer-scoped state (confirmed facts, monitoring policy) lives in app data keyed by printer identity, with `SpoolStore` as the precedent; confirmed facts carry an expiry because the physical world changes without telling the app. Regions and confirmed facts land with the tools that write them, since their record shapes are the geometry handles and printer identity those milestones define.
+- **Revision.** Every write announces itself so readers refresh. Which announcement, and whether it invalidates pending proposals, is **open** and belongs to the milestone that lands the first writer. The obvious reading — publish a `WorkspaceChangeReasons` bit and add it to `kInvalidatingReasons` — is not implementable as stated: `settings_apply_patch` compares its caller's `expectedRevision` against the current revision for exact equality, so any revision advance between a client's preview and its apply fails as `stale_workspace`. An agent that records its plan between previewing and applying would break its own call. The edit feed (`WorkspaceEditHub`) is the precedent for a feed that reports a change without advancing the revision. Decide per kind: a region annotation generates Orca artifacts and is a real project change; an intent answer or a plan statement is not.
 - **Undo.** None of this state is in Orca's undo stack. Results say `projectUndo: false`. Region annotations generate Orca artifacts (modifier volumes, enforcers, blockers, paint) that *are* in the undo stack, so project Undo can strand an annotation without its artifacts or an artifact without its annotation. the `regions` section of `object_analyze` reports both conditions and `region_annotate` regenerates; a place, divide, or repair result lists the regions whose binding it broke.
 - **Provenance.** Any field that records a fact about the world or the user's wishes carries where it came from: `file` (read from the project or profile), `observed` (a sensor or printer report, with a timestamp), `agent_inferred`, or `user_confirmed`. A tool never promotes an inferred value to confirmed; only an approved write that shows the value on the card does. Printer reads distinguish `configured` from `observed` for the same fact and compute `mismatches` between them rather than leaving that to the model.
 
@@ -203,7 +203,7 @@ Every read tool should use one or more of:
 
 For new live-state contracts, include `sessionId` and `revision` when needed to identify and validate later calls. Preserve existing results: `workspace_inspect` returns both; `inspect_selection` returns object **names** and revision, not IDs or a session field. Use `workspace_inspect` for target IDs. The current duplication/import results return revision plus operation-specific fields; internal history-record results have their own schemas. MCP activity results also carry action ID, current session and revision in `_meta["io.jusprin/activity"]`. If an event says state changed, fetch a fresh snapshot; never treat the event itself as the new state.
 
-For MCP success, produce schema-valid `structuredContent` and a serialized text block describing the same result. Errors use the shared `{error: {code, message, details}}` envelope with `isError: true`, not the success output schema. The bridge removes modern-only result/cache fields for legacy clients. For `2025-03-26` it also omits `structuredContent` and catalog `outputSchema`/`title`, preserving the serialized text result; later supported revisions retain them. These are intentional compatibility projections, not conflicting tool definitions.
+For MCP success, produce schema-valid `structuredContent` and a serialized text block describing the same result. Errors use the shared `{error: {code, message, details}}` envelope with `isError: true`, not the success output schema. The bridge removes modern-only result/cache fields for legacy clients. For `2025-03-26` it also omits `structuredContent` and catalog `outputSchema`/`title`, preserving the serialized text result; later supported revisions retain `structuredContent` and `title`. No negotiated version advertises `outputSchema` any more (see [tool budget and tool shape](#tool-budget-and-tool-shape)); the bridge's own stripping stays because it also projects catalogs forwarded from a live app of another version. These are intentional compatibility projections, not conflicting tool definitions.
 
 ### Image results
 
@@ -249,6 +249,8 @@ A tool that "previews" changes is read-only only if fake and real tests prove it
 A mutation may run without an approval card when all of the following hold: it changes no project geometry, preset, file, printer, or durable product state; its only effects are computation, replacing a previously computed result, or recording the agent's own statement; and the person can see and reverse the effect in the UI. Three candidate tools qualify: `slice_start`, `activity_cancel`, and `plan_set`. Without this policy every "Check print" would cost an approval card, and the card stops meaning anything.
 
 The exemption is declared in the registry beside the action class, covered by the coordinator tests, and never applied to a tool whose effect touches disk or a printer. `slice_start` must refuse to pre-empt a slice the GUI started unless the caller passes `preempt: true`, and in that case the card appears.
+
+As implemented: `ToolDefinition::computation_only` feeds `approval_required(action_class, computation_only)`, and a destructive action never qualifies whatever it declares. Three places had treated "requires approval" as a synonym for "is a mutation" and now ask the action class directly — the coordinator's execution-time staleness recheck (an exempt mutation skips the card, not staleness, and is never `Pending` long enough for the eager invalidation to catch it), the MCP server's streaming decision, and the runtime's progress notifications, which say "Starting in JusPrin" where an approval-gated call says "Awaiting approval in JusPrin". No shipped tool declares the exemption yet and a test pins that; the coordinator's no-card tests arrive with `slice_start`, `plan_set`, and `activity_cancel`, because a test cannot supply its own catalog — the registry's constructor is private and its definitions are `const`.
 
 ### Grouped approvals
 
@@ -339,6 +341,8 @@ Current registry, in deterministic name order. `Internal` entries are native man
 | `workspace_inspect` | Client needs current project context | read-only | both | current document | `IWorkspace::snapshot` | at most 16 plates, 64 objects across returned plates and 64 selected IDs; labels at most 256 UTF-8 bytes; totals and truncation flags |
 
 Only `workspace_inspect`, `settings_search`, `settings_get`, `settings_preview_patch`, and `settings_apply_patch` are MCP-visible. `duplicate_object` and `inspect_selection` remain in-app fixtures pending an in-app eval; they are not callable over MCP. There is no MCP attachment-import contract.
+
+The three fixtures retire one for one, each in the PR that lands its replacement and in no earlier PR: `duplicate_object` with `plate_layout`, `import_model` with `object_import`, `inspect_selection` with the selection ids in `workspace_inspect`'s `summary` section. Until then their inputs are frozen as they are, including the camelCase spellings, and `tests/agent/test_tool_registry.cpp` pins the exact exposed-name lists, so a retirement is visible in that test's diff.
 
 Settings search/read cover the active FFF process preset. The write allowlist is `layer_height`, `wall_loops`, `sparse_infill_density`, `sparse_infill_pattern`, `top_shell_layers`, `bottom_shell_layers`, and `brim_width`. Apply takes `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use Orca preset revert or a previewed inverse patch to restore values; ordinary project Undo does not reverse preset edits.
 
@@ -470,11 +474,11 @@ One tool per setting or per "make it stronger" bundle; printing advice; preferen
 
 ### Prerequisites the catalog imposes on the machinery
 
-- `validate_output` needs `enum` (provenance, action state, region kind, section names) and `maxLength` before the first row using them merges; extend it with tests. Input unions such as the facets of `object_place` are the decoder's job, not the schema validator's.
+- `validate_output` has `enum` (provenance, action state, region kind, section names) and `maxLength`, so a row may use them. Input unions such as the facets of `object_place` are the decoder's job, not the schema validator's.
 - Neither adapter needs new loading machinery. The projection tests need to record definition bytes per adapter, and the live regression needs to record input and cached tokens per request, so the deferral decision is evidence-based.
 - The coordinator needs [grouped approvals](#grouped-approvals) and the `planId` field on every mutation.
 - Three owners are trapped in presentation code and need a product-neutral seam first: mapping and readiness logic in `SelectMachineDialog` for `preflight_check`; plane and circle detection in the Measure gizmo for `object_analyze`; offscreen preview rendering for `view_render` preview mode. Import and open need the dialog choices (`loadProjectSettings`, `unitConversion`, `oversized`) reachable without the dialogs, the same hazard class as the settings normalizer.
-- The JusPrin stores for intent, plan, regions, confirmed facts, and monitoring policy do not exist yet; rules under [JusPrin-owned project state](#jusprin-owned-project-state).
+- The JusPrin stores for intent and plan exist in `ProjectStateDocument`; regions, confirmed facts, and monitoring policy do not, and land with the tools that write them. How a write announces itself is still open. Rules under [JusPrin-owned project state](#jusprin-owned-project-state).
 - The image projections under [Image results](#image-results) in both adapters before `project_attachment_read`, `view_render`, or `printer_camera_snapshot` ships.
 - The Tier 1 security review under [Proportional security growth](#proportional-security-growth).
 
@@ -631,8 +635,10 @@ report.
   in the GUI. A per-tool mask is a later refinement if evals show friction.
 - `ToolRegistry::validate_output` accepts a closed schema vocabulary: `type`,
   `properties`, `required`, `additionalProperties`, `items`, `minimum`,
-  `maxItems`. Any other keyword throws; extend the validator with a test
-  before using a new keyword.
+  `maxItems`, `enum`, `maxLength`. Any other keyword throws; extend the
+  validator with a test before using a new keyword. `enum` is checked whatever
+  the value's type; `maxLength` counts UTF-8 bytes, matching the byte bounds
+  this registry states everywhere else.
 - Codex CLI needs `tool_timeout_sec` raised above its 60-second default for
   approval-gated calls.
 
@@ -676,6 +682,29 @@ build/arm64/tests/agent/RelWithDebInfo/agent_bridge_tests.app/Contents/MacOS/age
 python3 -m unittest discover -s tests/mcp -v
 npm --prefix src/slic3r/GUI/JusPrin/AgentUI test
 build/arm64/tests/shell/RelWithDebInfo/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --mcp-bridge
+```
+
+The same run on the Windows verification machine, where the generator is Visual Studio and there is no `python3`:
+
+```sh
+cmake --build build --config Release --target OrcaSlicer agent_bridge_tests shell_integration_harness -- -m
+build/tests/agent/Release/agent_bridge_tests.exe --order rand --warn NoAssertions
+npm --prefix src/slic3r/GUI/JusPrin/AgentUI test
+build/tests/shell/Release/shell_integration_harness.exe --mcp-bridge
+```
+
+Node is required: the Agent and Home pages are built from TypeScript and their `index.html` is generated, not committed, so a tree without npm fails at configure time and an app built without them shows no Agent panel at all. The Python bridge tests need a `python3` that machine may not have; say so rather than reporting them run.
+
+Catalog bytes per tool, the measurement every milestone PR reports, without `python3`:
+
+```powershell
+$H = "build\src\Release\jusprin-mcp.exe"; $D = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid()))
+@('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"measure","version":"0"}}}',
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}',
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}') |
+  & $H --discovery (Join-Path $D "none.json") 2>$null |
+  ForEach-Object { try { $m = $_ | ConvertFrom-Json } catch { return }
+                   if ($m.id -eq 2) { $m.result.tools | ForEach-Object { "{0,6}  {1}" -f ($_ | ConvertTo-Json -Depth 40 -Compress).Length, $_.name } } }
 ```
 
 Also run the shell harness with `--mcp` for direct HTTP, `--mcp-setup` for the isolated setup-command fixtures, no argument for normal shell regression, and `--stock` for stock behavior. `--manual-mcp <dedicated-temporary-directory>` provides a disposable two-plate fixture for real clients; do not use the user's normal data directory. Linux helper/launcher checks are documented in [the test README](../../tests/mcp/linux/README.md).
