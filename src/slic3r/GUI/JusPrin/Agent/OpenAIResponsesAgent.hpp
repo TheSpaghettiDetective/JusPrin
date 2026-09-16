@@ -102,6 +102,7 @@ private:
     std::string                           m_pending_call_id;
     std::string                           m_request_id;
     unsigned                              m_request_sequence{0};
+    unsigned                              m_rejected_calls{0};
     std::uint64_t                         m_http_generation{0};
     bool                                  m_busy{false};
     bool                                  m_waiting_for_tool{false};

@@ -173,6 +173,7 @@ bool OpenAIResponsesAgent::start(const AgentRequest& request)
     m_waiting_for_tool = false;
     m_request_id = request.request_id;
     m_request_sequence = 0;
+    m_rejected_calls = 0;
     m_title_request = request.purpose == AgentRequest::Purpose::ConversationTitle;
     m_allow_import = std::any_of(request.attachments.begin(), request.attachments.end(),
                                  [](const AgentAttachmentContext& attachment) { return attachment.importable; });
@@ -285,6 +286,27 @@ void OpenAIResponsesAgent::finish_response(const json& response)
         ToolValidationResult validation;
         if (available)
             validation = ToolRegistry::instance().validate_call(*definition, request.arguments_json);
+        // A call to no tool of this turn, or with arguments that miss the
+        // tool's contract, never reaches a card. The model gets the refusal as
+        // that call's result and may correct it, a bounded number of times
+        // per turn.
+        constexpr unsigned kRejectedCallLimit = 2;
+        if (!call_id.empty() && !m_title_request && (!available || !validation.valid()) &&
+            m_rejected_calls < kRejectedCallLimit) {
+            ++m_rejected_calls;
+            json error = available ?
+                json{{"code", validation.error->code},
+                     {"message", validation.error->message +
+                                     " Nothing was proposed. Check the arguments against this tool's parameters and call it again."}} :
+                json{{"code", "unknown_tool"},
+                     {"message", "There is no tool named \"" + request.tool + "\" here. Nothing was proposed. Use one of the listed tools."}};
+            json refusal{{"state", "failed"}, {"error", std::move(error)}};
+            json input = m_input_history;
+            input.push_back(json{{"type", "function_call_output"}, {"call_id", call_id}, {"output", refusal.dump()}});
+            if (!post(std::move(input)))
+                fail(AgentError{"agent_continuation_failed", "The Agent could not be told its tool arguments were invalid.", true});
+            return;
+        }
         if (call_id.empty() || !available || !validation.valid()) {
             fail(AgentError{"malformed_tool_call", "The Agent returned an invalid tool proposal.", false});
             return;

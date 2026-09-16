@@ -196,10 +196,18 @@ public:
             return true;
         }
         ToolRequest tool;
-        tool.tool = "plate_layout";
-        tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
-                                   {"objects", json::array({json{{"objectId", std::to_string(request.workspace.selected_objects.front().value())},
-                                                                 {"quantity", 2}}})}}.dump();
+        if (stale_patch) {
+            // Refused at proposal: the revision is not the workspace's.
+            tool.tool           = "settings_apply_patch";
+            tool.arguments_json = json{{"changes", {{"wall_loops", "4"}}},
+                                       {"expectedSessionId", std::to_string(request.workspace.session.value())},
+                                       {"expectedRevision", request.workspace.revision + 100}}.dump();
+        } else {
+            tool.tool = "plate_layout";
+            tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
+                                       {"objects", json::array({json{{"objectId", std::to_string(request.workspace.selected_objects.front().value())},
+                                                                     {"quantity", 2}}})}}.dump();
+        }
         events.push_back(AgentEvent::delta("I can do that."));
         events.push_back(AgentEvent::tool_call({"provider-call-1", std::move(tool), true}));
         active = true;
@@ -228,6 +236,7 @@ public:
     std::optional<AgentToolResult> continuation;
     std::deque<AgentEvent> events;
     bool active{false};
+    bool stale_patch{false};
 };
 
 class RetryingAgent final : public IAgentService
@@ -1450,6 +1459,27 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
         harness.host.pump_stream();
     CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before + 1);
     REQUIRE(harness.host.conversation().size() == 3);
+    CHECK(harness.host.conversation().back().state == MessageState::Complete);
+    CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
+}
+
+TEST_CASE("a provider tool call refused at proposal still continues the turn", "[agent][provider][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    scripted->stale_patch = true;
+    Harness harness(std::move(provider));
+    harness.handshake();
+
+    harness.send_user_message("four walls", "provider-stale-c-1");
+    for (int i = 0; i < 10 && !scripted->continuation; ++i)
+        harness.host.pump_stream();
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "failed");
+    CHECK(json::parse(scripted->continuation->output_json)["error"]["code"] == "stale_workspace");
+    for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
+        harness.host.pump_stream();
+    CHECK_FALSE(harness.host.stream_active());
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
     CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
 }

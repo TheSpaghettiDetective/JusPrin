@@ -317,7 +317,7 @@ TEST_CASE("OpenAI maps credential timeout and service errors", "[agent][openai][
     }
 }
 
-TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", "[agent][openai][tools]")
+TEST_CASE("OpenAI returns malformed tool arguments to the model before native presentation", "[agent][openai][tools]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -325,6 +325,18 @@ TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", 
     REQUIRE(agent.start(request_fixture()));
     const json call{{"type", "function_call"}, {"call_id", "call-bad"}, {"name", "plate_layout"},
                     {"arguments", json{{"objectId", 72}}.dump()}};
+    // Twice the model is told and asked again; the third time ends the turn.
+    for (std::size_t attempt = 1; attempt <= 2; ++attempt) {
+        fake->data(sse(json{{"type", "response.completed"},
+                            {"response", json{{"output", json::array({call})}}}}));
+        CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+        REQUIRE(fake->requests.size() == attempt + 1);
+        const json input = json::parse(fake->requests.back().body)["input"];
+        CHECK(input.back()["type"] == "function_call_output");
+        CHECK(input.back()["call_id"] == "call-bad");
+        CHECK(json::parse(input.back()["output"].get<std::string>())["error"]["code"] == "invalid_arguments");
+        CHECK(agent.busy());
+    }
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({call})}}}}));
     fake->complete();
@@ -333,6 +345,22 @@ TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", 
     REQUIRE(event->error);
     CHECK(event->error->code == "malformed_tool_call");
     CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+}
+
+TEST_CASE("OpenAI tells the model when it calls a tool that is not offered", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json call{{"type", "function_call"}, {"call_id", "call-x"}, {"name", "support_enable"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::Failed));
+    REQUIRE(fake->requests.size() == 2);
+    const json output = json::parse(json::parse(fake->requests.back().body)["input"].back()["output"].get<std::string>());
+    CHECK(output["error"]["code"] == "unknown_tool");
+    CHECK(output["error"]["message"].get<std::string>().find("support_enable") != std::string::npos);
 }
 
 TEST_CASE("reported usage carries the cached share of the input", "[agent][openai][usage]")

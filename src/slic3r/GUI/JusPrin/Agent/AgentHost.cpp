@@ -1691,6 +1691,13 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
         continuation.conversation_id     = stream.conversation_id;
         continuation.user_message_id     = stream.message.in_reply_to;
         m_tool_continuations[proposed.action_id] = std::move(continuation);
+        // A call refused at proposal (a stale revision, an invalid patch) was
+        // already terminal when the coordinator announced it, before this
+        // continuation existed; hand the agent its result now.
+        if (tool_state_terminal(proposed.state)) {
+            const ToolActivity refused = proposed;
+            continue_after_tool(refused);
+        }
     } else {
         start_next_queued_reply();
     }

@@ -87,7 +87,7 @@ Prefer typed reads with fixed schemas over one polymorphic record search. Sectio
 Tool count is bounded by what a turn loads, not by what the app can do. The evidence behind these rules: OpenAI's function-calling guidance keeps fewer than 20 functions available at the start of a turn and defers the rest; Anthropic's [tool-writing guidance](https://www.anthropic.com/engineering/writing-tools-for-agents) asks for a few tools targeting high-impact workflows and names "tools that merely wrap existing software functionality or API endpoints" as the common error; a [domain-oriented MCP study](https://arxiv.org/html/2608.22063v1) measured a generic thin-tool interface below raw SQL and domain-shaped tools far above both; and the "god tool" that dispatches many unrelated actions through one `action` parameter is a documented anti-pattern. The current five-tool MCP catalog measures about 1.9 KB per definition, two thirds of it output schema.
 
 - **Loading, for now.** Every registered tool loads on every turn in both adapters: the in-app adapter sends the full function list with each request, and MCP `tools/list` returns the whole catalog. This is the simplest correct behaviour and it keeps the tools array byte-identical across a chat, which is what OpenAI's prompt cache keys on. The budget of 20 definitions per turn is a measured trigger, not a gate: the live regression records definition bytes, input tokens, and cached tokens per request, and the journey catalog below will exceed 20 definitions from its first milestone. That is accepted until those measurements show selection errors or context pressure.
-- **The baseline, measured on Windows against the live app.** After M3: in-app 20 definitions and 19,331 bytes, MCP 21 and 22,661 (22,639 through the offline helper recipe). After M2: in-app 18 definitions and 12,721 bytes, MCP 16 and 13,911 (13,894 through the offline helper recipe). After M1: in-app 11 definitions and 6,482 bytes, MCP 9 and 6,915. At M0 it was in-app 7 and 3,145 bytes, MCP 5 and 3,147.
+- **The baseline, measured on Windows against the live app.** After M4: in-app 20 definitions and 21,594 bytes, MCP 21 and 24,923 (24,901 through the offline helper recipe). After M3: in-app 20 definitions and 19,331 bytes, MCP 21 and 22,661 (22,639 through the offline helper recipe). After M2: in-app 18 definitions and 12,721 bytes, MCP 16 and 13,911 (13,894 through the offline helper recipe). After M1: in-app 11 definitions and 6,482 bytes, MCP 9 and 6,915. At M0 it was in-app 7 and 3,145 bytes, MCP 5 and 3,147.
 
   The `--live-agent` regression at both points says what that costs. The first request of a conversation caches nothing and pays for the whole catalog: 803 tokens at M0, 1,733 at M1, so four more definitions cost about 930 tokens, once. Every later request in the same conversation came back 77 to 92 per cent cached (5,864 in, 5,376 cached at M1), because the tools array is byte-identical across a chat and that is what the cache keys on. At M2 the same regression's eleven requests took 2,875 to 6,763 input tokens with 42 to 91 per cent cached; none started cold, because an earlier run of the same day had warmed the cache for the shared prefix, so the M2 cold cost is not measured by that run.
 
@@ -339,7 +339,7 @@ Current registry, in deterministic name order. `Internal` entries are native man
 | `record_physical_print` | Record a completed print fact | destructive | Internal | manufacturing history; does not start a printer | coordinator's history recorder | physical-print ID, build ID and recorded flag |
 | `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | preview session/revision and confirmed before/after values | `IWorkspace::apply_settings` through `Tab::load_config` | bounded actual changes/normalization, revision, dirty flag and `projectUndo: false` |
 | `settings_get` | Read current values and preset origin | read-only | both | 1–32 process keys | `IWorkspace::read_settings` using the edited process preset | at most 32 values and unknown-key issues; canonical values are preserved |
-| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | active FFF process preset; seven writable keys | `IWorkspace::preview_settings` using a clone and Orca validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
+| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | active FFF process preset; the reviewed writable keys | `IWorkspace::preview_settings` using a clone and Orca validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
 | `settings_search` | Find a process setting without loading its full catalog | read-only | both | active FFF process preset | `IWorkspace::search_settings` using Orca definitions | 1–25 matches; deterministic cursor paging and bounded metadata |
 | `intent_update` | Record what the user wants from this print | mutation | both | project-scoped product state | `IProductState` over `ProjectStateDocument` | 32 fields per call, 2 KB per answer, 32 open questions |
 | `object_analyze` | Learn what a model is before deciding how to print it | read-only | both | one object; mesh, features, fit, orientations, measure | `TriangleMeshStats`; `Measure::Measuring` per part; `PartPlateList` fit checks; `orientation::score_orientations` | 32 faces and 32 holes by size, 16 instances/overlaps/duplicates, 8 orientations |
@@ -392,6 +392,14 @@ Verified against the app with Orca's bundled Voron cube: 3,414 facets, round hol
 
 The live regression (`--live-agent`) at this point: 13 to 15 requests per run, 3,912 to 8,181 input tokens, 72 to 94 per cent cached after the first request of each conversation; one run of three failed because the model declined to call `settings_apply_patch`, reading "waits for approval" as a precondition, and every mutating description now says that calling the tool is what shows the card.
 
+**M4 eval, 2026-09-16, Windows, fake Bambu A1 mini, in-app with OpenAI (`gpt-5.4-mini`).** Prompt, on `overhang.obj` opened as a new project: "Turn on tree supports, only where they touch the build plate, and add a brim around the model." A window watcher sampled every visible top-level window of the app throughout (257 samples): only the main window and Orca's own "Loading..." progress appeared, no dialog. The first attempts exposed three defects, all fixed:
+
+- A call refused at proposal (an invalid patch, a stale revision) hung the turn: the coordinator announced the terminal state before `AgentHost` registered the continuation, so the model never got its result. The host now resumes at once when the proposed activity is already terminal.
+- An unknown tool name or arguments that miss the contract ended the turn with `malformed_tool_call`. The in-app adapter now returns the refusal as that call's output, up to twice per turn, and the model corrects itself (it did, from `tree(auto)` as a style to `tree_hybrid`).
+- The model searched with several keys in one query and found nothing, and guessed names (`support_build_plate_only`, `enable_brim`) got no useful suggestion. Search now takes several terms and ranks settings matching more of them first; suggestions rank by shared words, then writable, then spelling.
+
+Four runs after the fixes. Runs 1 and 3 changed the process preset; run 3 skipped the brim, said so, and added it when asked (`brim_type` auto_brim → outer_only). Runs 2 and 4 put the same changes on the one object as overrides (`target`), which is a wrong-scope selection and an eval failure against the pinned model. That happened although the descriptions and the `target` property already said that a selected object or a single-object project is not a request for an override; wording alone has not fixed it. The project's setup card, which reads Orca's own preset deltas, showed exactly Brim type auto_brim → outer_only, Enable support 0 → 1, On build plate only 0 → 1 (the preset already had `tree(auto)`), and the harness check `verify_support_settings_patch` reads the native Support-page fields back after the same patch with a dialog counter installed. The live regression (`--live-agent`) at this point: 21 requests, 4,275 to 8,683 input tokens, 58 to 92 per cent cached.
+
 `object_import` and `object_import_file` share `IWorkspace::import_objects`: `Plater::load_files` with `LoadModel` (plus `ImperialUnits` for inches) after selecting the target plate, under the same `ScopedModalAnswers` rule as `project_open`, returning the ids of every object the file added. The file tool looks only at the path before approval and shows it on the card. `project_delete_items` checks everything first, because some of Orca's refusals on these paths (the last solid part, the last copy) arrive as an error dialog after the call returns, which no scope can answer; it refuses deleting the solid parts of a cut object, answers the cut-object warning for a whole object with Delete (the card already named the object), drops parts and copies of objects deleted whole, deletes parts and copies through the object list in its expected order, then objects, then plates, whose objects Orca moves to another plate. Part ids come from the `partList` object_analyze now adds to `mesh`.
 
 `slice_start` posts Orca's own `EVT_GLTOOLBAR_SLICE_PLATE` / `EVT_GLTOOLBAR_SLICE_ALL` after selecting the plate, the way the fork's header button does, so the slice-all bookkeeping and the auto-preview rule stay with their owner and no upstream line changes. It returns when the run starts, and the result is read from the `slicing` section. Nothing in Orca records who started a run, so a second start is refused unless `preempt` is passed, and `preempt` is the catalog's one argument-sensitive approval decision.
@@ -400,7 +408,7 @@ Every catalog tool is visible over MCP except `object_import`, which takes a cha
 
 The three fixtures are retired, each in the change that landed its replacement: `duplicate_object` with `plate_layout` (the tests that used it as their canonical mutation now propose one more copy through `plate_layout` and count instances, and so do the deterministic mock agent and the live regression), `import_model` with `object_import` (the import tests, the mock agent's attachment reply and the bridge test now use it), and `inspect_selection` with the summary's selection ids (the canonical read-only action in the tests is now `workspace_inspect`). `tests/agent/test_tool_registry.cpp` pins the exact exposed-name lists, so every retirement is visible in that test's diff.
 
-Settings search/read cover the active FFF process preset. The write allowlist is `layer_height`, `wall_loops`, `sparse_infill_density`, `sparse_infill_pattern`, `top_shell_layers`, `bottom_shell_layers`, and `brim_width`. Apply takes `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use Orca preset revert or a previewed inverse patch to restore values; ordinary project Undo does not reverse preset edits.
+Settings search/read cover the active FFF process preset. The write allowlist is `writable_setting` in `SettingsSupport.hpp`: layers, walls, shells and infill (`layer_height`, `wall_loops`, `wall_generator`, `detect_thin_wall`, `only_one_wall_top`, the shell layer counts and thicknesses, infill density, direction and the three surface or infill patterns); the support family (`enable_support`, `support_type`, `support_style`, `support_threshold_angle`, `support_on_build_plate_only`, the interface layer counts and pattern, and the top and bottom contact distances); adhesion and seam (`brim_type`, `brim_width`, `skirt_loops`, `skirt_distance`, `seam_position`); and ten speed keys. `settings_search` takes `writable` to list only these and `changedOnly` to list only keys that differ from the saved preset; with an empty query, `changedOnly` lists every unsaved change. Apply takes `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use Orca preset revert or a previewed inverse patch to restore values; ordinary project Undo does not reverse preset edits.
 
 The OpenAI adapter preserves the registry schemas and uses non-strict function calling for optional arguments or dynamic patch maps, which OpenAI strict mode cannot express. Native registry validation remains authoritative. Stateless Responses continuations retain user context and all prior tool results; the live multi-tool regression covers this path.
 
@@ -557,9 +565,12 @@ before expanding the write allowlist or adding a tool that changes a preset.
 
 1. Settings are data: four generic tools over searchable records, never one
    tool per setting.
-2. Only the active FFF process preset's edited configuration is in scope. No
-   `scope` field, and no printer, filament, plate, object, or modifier layer
-   until each is a separately tested capability.
+2. The active FFF process preset's edited configuration is the default
+   scope. `target: {objectId}` on `settings_get`, `settings_preview_patch`,
+   and `settings_apply_patch` reads and writes one object's overrides in its
+   `ModelConfig` instead (see "Per-object overrides" below). No printer,
+   filament, plate, part, or modifier layer until each is a separately tested
+   capability.
 3. Metadata, parsing, and serialization come from Orca's own
    `print_config_def` and config option machinery. There is no parallel table
    of types, enum values, ranges, units, or aliases.
@@ -654,6 +665,14 @@ were built. Line numbers drift; search for the condition text.
 | `spiral_mode` on and not all of `wall_loops` 1, `top_shell_layers` 0, `sparse_infill_density` 0 | those three keys | yes/no dialog, several keys rewritten either way | refuse with `incompatible_settings` naming `spiral_mode` |
 | `sparse_infill_pattern` without multiline support while `fill_multiline` is above 1 | `sparse_infill_pattern` | silent: `fill_multiline` reset to 1 | predict and report as `normalized_dependency` |
 | support-gap rounding block | none; it is inside `#if 0` | inactive | do not predict a change that does not happen |
+| `support_style` not in the set for the support type (normal: default, grid, snug; tree: default, tree_slim, tree_strong, tree_hybrid, organic) | `enable_support`, `support_type`, `support_style` | silent: style reset to default | refuse with `invalid_setting_value` and the fitting styles in `allowed`; the patch is fixed by the caller, not rewritten |
+| global `enable_support` while `detect_overhang_wall` is off | `enable_support` | silent: `detect_overhang_wall` turned on, once per query state | predict and report as `normalized_dependency` |
+| `spiral_mode` on with support or thin walls | `enable_support`, `detect_thin_wall` | yes/no dialog | refuse with `incompatible_settings` (the spiral row above) |
+| fuzzy skin in an Extrusion or Combined mode without Arachne | `wall_generator` set to classic | yes/no dialog | refuse with `incompatible_settings` naming `fuzzy_skin_mode` |
+| `Tab::on_value_change` for `support_type` in simple mode (style reset) and for the support filaments (dialogs) | none: `Tab::load_config` never calls `on_value_change`, and the filament keys are not writable | inactive for tools | nothing |
+| `toggle_print_fff_options` writes (`enable_arc_fitting`, the slope segment length, `fill_multiline`, `overhang_reverse_threshold`) | none of the new keys directly; the prediction runs the real pass on the clone | silent | report whatever the clone shows |
+
+The brim, skirt, seam, speed, surface-pattern, interface, contact-distance, threshold and shell-thickness keys are read by no rule in either function beyond enabling or disabling their own fields; the audit covered both functions and `Tab.cpp`'s `on_value_change` on 2026-09-16. Open-enum keys (the interface layer counts) carry no `allowed` list: their enum values are shortcuts, and any number in bounds is accepted. A boolean has no numeric bounds.
 
 Every active dialog predicate must be checked, including pre-existing
 invalid ironing spacing, first-layer height, XY and elephant-foot
@@ -661,7 +680,7 @@ compensation, alternate-extra-wall, infill-lock depth, and fuzzy-skin
 settings; spiral mode also checks support, enforced support layers, thin
 walls, overhang reversal, timelapse, and wrapping detection. The real-adapter
 test asserts that no top-level dialog appears during apply for any
-allowlisted key under every row above, and that every predicted silent
+allowlisted key under every row above (the support, brim and style checks apply a tree-support patch with the support page shown and read the native fields back), and that every predicted silent
 rewrite appears in the result with its actual value. A rule found later that
 a tool can trigger is a defect in the preview, not accepted behavior. Adding
 a key to the allowlist means re-reading both functions for every place that
@@ -681,6 +700,29 @@ trusted as before values. Where Orca normalized a value differently from the
 preview, the actual value is returned and the key is listed under
 `normalized`; the mutation happened, so that is a success with an honest
 report.
+
+### Per-object overrides
+
+An object target reads the value the object prints with: its own override
+where `ModelConfig` has one (`overridden: true`), otherwise the process value.
+A patch is checked against the process config with the object's overrides and
+the patch applied, with the same parsing, bounds, dialog predicates, support
+style rule, and `Slic3r::validate` as a process patch. Keys that are neither
+`PrintRegionConfig` nor `PrintObjectConfig` options (ObjectList's own list
+for a whole object) are refused with `unsupported_scope`. No dependencies are
+predicted: Orca runs the normalizer only on the process preset and on edits
+made in the object settings panel, so an override is stored as written.
+
+Apply takes one `Plater::TakeSnapshot` ("Change object settings"), writes each
+key with `ModelConfig::set_key_value`, calls
+`ObjectList::object_config_options_changed` so the list shows the settings
+item, and `Plater::changed_object` so that object's slicing is invalidated.
+The result says `projectUndo: true`; project Undo removes the override. The
+approval card names the object. The coordinator looks the object up in the
+current snapshot at proposal and at execution and fails with `missing_object`
+when it is gone; the adapter treats a missing target as a broken precondition.
+No patch value removes an override; Undo, or the object settings panel,
+does.
 
 ### Registry facts worth knowing
 
