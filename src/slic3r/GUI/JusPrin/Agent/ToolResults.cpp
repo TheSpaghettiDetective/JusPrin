@@ -3,15 +3,18 @@
 namespace Slic3r::GUI::JusPrin::Agent {
 namespace {
 using nlohmann::json;
-std::string label(const std::string& text, bool& truncated)
+std::string bounded(const std::string& value, std::size_t limit, bool& truncated)
 {
-    if (text.size() <= kToolLabelLimit) return text;
+    if (value.size() <= limit) return value;
     truncated = true;
-    std::size_t end = kToolLabelLimit;
+    std::size_t end = limit;
     // Never split a UTF-8 code point.
-    while (end && (static_cast<unsigned char>(text[end]) & 0xc0) == 0x80) --end;
-    return text.substr(0, end);
+    while (end && (static_cast<unsigned char>(value[end]) & 0xc0) == 0x80) --end;
+    return value.substr(0, end);
 }
+
+std::string label(const std::string& value, bool& truncated) { return bounded(value, kToolLabelLimit, truncated); }
+std::string text(const std::string& value, bool& truncated) { return bounded(value, kToolTextLimit, truncated); }
 }
 
 namespace {
@@ -140,9 +143,56 @@ json settings_apply_result(const Workspace::SettingsPreview& applied, const Work
     return result;
 }
 
-json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot)
+json intent_section_result(const std::vector<IntentField>& fields)
 {
     bool truncated = false;
+    json items = json::array(), open = json::array();
+    for (const IntentField& field : fields) {
+        if (items.size() == kToolListLimit) { truncated = true; break; }
+        items.push_back({{"field", label(field.field, truncated)},
+                         {"value", text(field.value, truncated)},
+                         {"question", text(field.question, truncated)},
+                         {"provenance", provenance_name(field.provenance)},
+                         {"updatedAt", field.updated_at}});
+        // What the agent asked about and still has no answer for. With field
+        // names the agent invents, this list can only come from the agent
+        // having said what it asked.
+        if (!field.answered() && !field.question.empty() && open.size() < 32)
+            open.push_back(label(field.field, truncated));
+    }
+    return {{"fields", std::move(items)}, {"openQuestions", std::move(open)}, {"truncated", truncated}};
+}
+
+json plan_section_result(const PlanRecord& plan)
+{
+    bool truncated = false;
+    json decisions = json::array();
+    for (const PlanDecision& decision : plan.decisions) {
+        if (decisions.size() == 16) { truncated = true; break; }
+        decisions.push_back({{"topic", label(decision.topic, truncated)},
+                             {"statement", text(decision.statement, truncated)},
+                             {"confidence", label(decision.confidence, truncated)},
+                             {"alternative", text(decision.alternative, truncated)}});
+    }
+    const auto lines = [&truncated](const std::vector<std::string>& values) {
+        json items = json::array();
+        for (const std::string& value : values) {
+            if (items.size() == 16) { truncated = true; break; }
+            items.push_back(text(value, truncated));
+        }
+        return items;
+    };
+    return {{"headline", text(plan.headline, truncated)}, {"decisions", std::move(decisions)},
+            {"assumptions", lines(plan.assumptions)}, {"risks", lines(plan.risks)},
+            {"updatedAt", plan.updated_at}, {"truncated", truncated}};
+}
+
+json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections)
+{
+    bool truncated = false;
+    if (!sections.summary)
+        return {{"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision},
+                {"truncated", truncated}};
     json plates = json::array(), selected = json::array();
     std::size_t object_count = 0, returned_objects = 0;
     for (const auto& plate : snapshot.plates) {

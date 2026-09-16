@@ -83,6 +83,26 @@ struct AttachmentRecord
 // confirmed; only an approved write that showed the value on its card does.
 enum class Provenance : std::uint8_t { File, Observed, AgentInferred, UserConfirmed };
 
+// One spelling, shared by the stored document and every tool result.
+inline const char* provenance_name(Provenance provenance)
+{
+    switch (provenance) {
+    case Provenance::File: return "file";
+    case Provenance::Observed: return "observed";
+    case Provenance::UserConfirmed: return "user_confirmed";
+    case Provenance::AgentInferred: break;
+    }
+    return "agent_inferred";
+}
+
+inline Provenance provenance_from(const std::string& text)
+{
+    if (text == "file") return Provenance::File;
+    if (text == "observed") return Provenance::Observed;
+    if (text == "user_confirmed") return Provenance::UserConfirmed;
+    return Provenance::AgentInferred;
+}
+
 // One answer in the print intent: what the user wants out of this print,
 // rather than how to slice it. The field vocabulary belongs to the tool that
 // writes it and validates what it accepts; the store keeps what was written,
@@ -92,9 +112,16 @@ struct IntentField
 {
     std::string   field;
     std::string   value;
+    // Set when the agent has asked about this field and has no answer yet: the
+    // question it asked, in the words it used. A field with a question and no
+    // value is what the agent still does not know, which is the only way to
+    // have that list when the field names are the agent's own invention.
+    std::string   question;
     Provenance    provenance{Provenance::AgentInferred};
     std::uint64_t seq{0};
     std::string   updated_at;
+
+    bool answered() const { return !value.empty(); }
 };
 
 // One decision the agent made and is prepared to defend.

@@ -8,6 +8,7 @@
 // GUI-free and deterministic: execution advances only when the owner calls
 // pump(), so tests can drive it without timers.
 
+#include "ProductState.hpp"
 #include "ToolExecution.hpp"
 #include "ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
@@ -90,6 +91,11 @@ public:
     ToolActivitySubscription subscribe(ActivityCallback listener);
     void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
 
+    // The store behind the intent and plan tools. The owner holds project
+    // storage, so it supplies this; without it those tools report the
+    // operation unavailable rather than pretending to record anything.
+    void set_product_state(IProductState* state) { m_product_state = state; }
+
     // Action IDs default to a process-local counter; an owner with persisted
     // state injects its own allocator so IDs stay unique across restarts.
     void set_action_id_allocator(std::function<std::string()> allocator) { m_action_id_allocator = std::move(allocator); }
@@ -150,6 +156,7 @@ private:
     const ToolRegistry&               m_registry;
     Workspace::WorkspaceSubscription m_workspace_subscription;
     std::shared_ptr<ObserverState>    m_observers;
+    IProductState*                   m_product_state{nullptr};
     ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;

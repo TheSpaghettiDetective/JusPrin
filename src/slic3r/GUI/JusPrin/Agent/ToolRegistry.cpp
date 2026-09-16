@@ -70,6 +70,14 @@ bool optional_unsigned(const json& arguments, const char* key)
     return !arguments.contains(key) || arguments[key].is_number_unsigned();
 }
 
+// Prose the agent writes: present or absent, a string either way, and bounded
+// so one answer cannot fill a context window.
+bool optional_text(const json& arguments, const char* key)
+{
+    return !arguments.contains(key) ||
+           (arguments[key].is_string() && arguments[key].get_ref<const std::string&>().size() <= kToolTextLimit);
+}
+
 bool valid_arguments(const ToolDefinition& definition, const json& arguments)
 {
     if (!arguments.is_object())
@@ -102,8 +110,70 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         });
     }
 
-    if (definition.handler == ToolHandler::InspectSelection || definition.handler == ToolHandler::WorkspaceInspect)
+    if (definition.handler == ToolHandler::InspectSelection)
         return arguments.empty();
+
+    if (definition.handler == ToolHandler::WorkspaceInspect) {
+        if (!has_only(arguments, {"sections"}))
+            return false;
+        if (!arguments.contains("sections"))
+            return true; // the summary, as every caller before sections existed asked for
+        const json& sections = arguments["sections"];
+        if (!sections.is_array() || sections.empty() || sections.size() > 3)
+            return false;
+        std::set<std::string> seen;
+        for (const auto& section : sections) {
+            if (!section.is_string())
+                return false;
+            const std::string& name = section.get_ref<const std::string&>();
+            if ((name != "summary" && name != "intent" && name != "plan") || !seen.insert(name).second)
+                return false;
+        }
+        return true;
+    }
+
+    if (definition.handler == ToolHandler::IntentUpdate) {
+        if (!has_only(arguments, {"fields"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
+            arguments["fields"].empty() || arguments["fields"].size() > 32)
+            return false;
+        return std::all_of(arguments["fields"].begin(), arguments["fields"].end(), [](const json& field) {
+            if (!has_only(field, {"field", "value", "question", "assumed"}) || !field.contains("field") ||
+                !field["field"].is_string() || field["field"].get_ref<const std::string&>().empty() ||
+                !optional_text(field, "value") || !optional_text(field, "question") ||
+                (field.contains("assumed") && !field["assumed"].is_boolean()))
+                return false;
+            // An entry that neither answers nor asks records nothing.
+            return !field.value("value", std::string()).empty() || !field.value("question", std::string()).empty();
+        });
+    }
+
+    if (definition.handler == ToolHandler::PlanSet) {
+        if (!has_only(arguments, {"headline", "decisions", "assumptions", "risks"}) || !arguments.contains("headline") ||
+            !optional_text(arguments, "headline") || arguments["headline"].get_ref<const std::string&>().empty())
+            return false;
+        for (const char* key : {"assumptions", "risks"}) {
+            if (!arguments.contains(key))
+                continue;
+            const json& lines = arguments[key];
+            if (!lines.is_array() || lines.size() > 16 ||
+                !std::all_of(lines.begin(), lines.end(), [](const json& line) {
+                    return line.is_string() && line.get_ref<const std::string&>().size() <= kToolTextLimit;
+                }))
+                return false;
+        }
+        if (!arguments.contains("decisions"))
+            return true;
+        const json& decisions = arguments["decisions"];
+        if (!decisions.is_array() || decisions.size() > 16)
+            return false;
+        return std::all_of(decisions.begin(), decisions.end(), [](const json& decision) {
+            return has_only(decision, {"topic", "statement", "confidence", "alternative"}) && decision.contains("topic") &&
+                   decision.contains("statement") && optional_text(decision, "topic") &&
+                   optional_text(decision, "statement") && optional_text(decision, "confidence") &&
+                   optional_text(decision, "alternative") && !decision["topic"].get_ref<const std::string&>().empty() &&
+                   !decision["statement"].get_ref<const std::string&>().empty();
+        });
+    }
 
     if (definition.handler == ToolHandler::DuplicateObject)
         return has_only(arguments, {"sessionId", "objectId"}) && arguments.size() == 2 &&
@@ -194,6 +264,33 @@ std::vector<ToolDefinition> make_definitions()
         {"dependencies", array_schema(change)}, {"issues", array_schema(issue)}, {"warnings", array_schema(issue)}},
         {"valid", "changes", "dependencies", "issues", "warnings"});
 
+    // Product state: what the user wants from this print, and the plan the
+    // agent means to follow. Field names are the agent's own; the fixed part
+    // is where an answer came from.
+    const json provenance{{"type", "string"},
+                          {"enum", json::array({"file", "observed", "agent_inferred", "user_confirmed"})}};
+    const json text{{"type", "string"}, {"maxLength", kToolTextLimit}};
+    const json intent_field = object_schema({{"field", id}, {"value", text}, {"question", text},
+                                             {"provenance", provenance}, {"updatedAt", id}},
+                                            {"field", "value", "question", "provenance", "updatedAt"});
+    const json intent_section = object_schema({{"fields", array_schema(intent_field, 64)},
+                                               {"openQuestions", array_schema(id, 32)},
+                                               {"truncated", boolean_schema()}},
+                                              {"fields", "openQuestions", "truncated"});
+    const json plan_decision = object_schema({{"topic", id}, {"statement", text}, {"confidence", id},
+                                              {"alternative", text}},
+                                             {"topic", "statement", "confidence", "alternative"});
+    const json plan_section = object_schema({{"headline", text}, {"decisions", array_schema(plan_decision, 16)},
+                                             {"assumptions", array_schema(text, 16)}, {"risks", array_schema(text, 16)},
+                                             {"updatedAt", id}, {"truncated", boolean_schema()}},
+                                            {"headline", "decisions", "assumptions", "risks", "updatedAt", "truncated"});
+    const json intent_output = object_schema({{"intent", intent_section}, {"sessionId", id}, {"revision", revision},
+                                              {"projectUndo", boolean_schema()}},
+                                             {"intent", "sessionId", "revision", "projectUndo"});
+    const json plan_output = object_schema({{"plan", plan_section}, {"sessionId", id}, {"revision", revision},
+                                            {"projectUndo", boolean_schema()}},
+                                           {"plan", "sessionId", "revision", "projectUndo"});
+
     std::vector<ToolDefinition> definitions{
         {"settings_search", "Search process settings",
          "Find a page of process settings by key, label, or description. Requires an active FFF process preset. A page is not the full writable list; read known keys directly with settings_get or follow nextCursor.",
@@ -255,18 +352,41 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::InApp,
          ToolAvailability::Always,
          ToolHandler::InspectSelection},
+        {"intent_update", "Record what this print is for",
+         "Record what the user wants out of this print, as named answers you choose: what it is for, how it will be used, what matters about it, how long it may take. Send question without value for something you have asked and do not know yet; the unanswered ones come back as openQuestions. Waits for approval in JusPrin, because the card is where the user confirms you understood them. Project Undo does not undo this.",
+         object_schema({{"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
+                                                               {"assumed", boolean_schema()}}, {"field"}), 32)}},
+                       {"fields"}),
+         intent_output,
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::IntentUpdate},
+        {"plan_set", "Pin your plan for this print",
+         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan. Runs without an approval card because it records only your own words; project Undo does not undo this.",
+         object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
+                                                                                      {"confidence", id}, {"alternative", text}},
+                                                                                     {"topic", "statement"}), 16)},
+                        {"assumptions", array_schema(text, 16)}, {"risks", array_schema(text, 16)}},
+                       {"headline"}),
+         plan_output,
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlanSet,
+         true},
         {"workspace_inspect",
          "Inspect the live workspace",
-         "Read a bounded summary of the open project, plates and objects, setup names, selection IDs, and native history. IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
-         object_schema(json::object()),
-         object_schema({{"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
+         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and native history; ask for the intent or plan sections to read what this print is for and the plan in force. IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+         object_schema({{"sections", {{"type", "array"},
+                                      {"items", {{"type", "string"},
+                                                 {"enum", json::array({"summary", "intent", "plan"})}}},
+                                      {"maxItems", 3}}}}),
+         object_schema({{"intent", intent_section}, {"plan", plan_section},
+                        {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
                          {"plateCount", revision}, {"objectCount", revision}, {"plates", list_schema(plate_summary)},
                          {"selection", selection_summary}, {"truncated", boolean_schema()},
                          {"history", object_schema({{"canUndo", boolean_schema()}, {"canRedo", boolean_schema()}}, {"canUndo", "canRedo"})}},
-                         {"sessionId", "revision", "projectName", "projectDirty", "printerPreset", "filamentPreset", "activePlateId",
-                          "plateCount", "objectCount", "plates", "selection", "truncated", "history"}),
+                         // Only the identity is unconditional. The summary's own fields are
+                         // present whenever the summary section is asked for, which is the
+                         // default, so a caller that sends no sections sees what it always saw.
+                         {"sessionId", "revision", "truncated"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::WorkspaceInspect},
         {"record_build",
          "Record a build of the sliced active plate",
@@ -412,6 +532,21 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
 
 std::string ToolRegistry::approval_title(const ToolDefinition& definition, const std::string& arguments_json) const
 {
+    if (definition.handler == ToolHandler::IntentUpdate) {
+        // The card is where the user confirms the agent understood them, so it
+        // shows the interpreted answer rather than the field names.
+        const auto arguments = json::parse(arguments_json);
+        std::string title = "Record what this print is for: ";
+        bool first = true;
+        for (const auto& field : arguments.at("fields")) {
+            if (!first) title += "; ";
+            title += field.at("field").get<std::string>() + " = " +
+                     (field.value("value", "").empty() ? "(asked) " + field.value("question", "") : field.value("value", ""));
+            first = false;
+        }
+        if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";
+        return title;
+    }
     if (definition.handler == ToolHandler::SettingsApplyPatch) {
         const auto arguments = json::parse(arguments_json);
         std::string title = "Change " + std::to_string(arguments.at("changes").size()) + " process settings: ";

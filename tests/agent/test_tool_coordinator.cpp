@@ -8,6 +8,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
+#include "../jusprin_support/FakeProductState.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
@@ -109,15 +110,17 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(approval_required(ActionClass::Destructive, true));
     STATIC_CHECK(!approval_required(ActionClass::ReadOnly, true));
 
-    // No shipped tool claims the exemption yet, so no card moves in this
-    // change. The tools that will claim it are slice_start, plan_set, and
-    // activity_cancel, and they bring the coordinator's card tests with them.
+    // Exactly which shipped tools claim it, so adding one is a visible diff
+    // here. slice_start and activity_cancel join plan_set when they land.
+    std::vector<std::string> exempt;
     for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
         INFO(definition.name);
-        CHECK_FALSE(definition.computation_only);
+        if (definition.computation_only)
+            exempt.push_back(definition.name);
         CHECK(approval_required(definition.action_class, definition.computation_only) ==
-              (definition.action_class != ActionClass::ReadOnly));
+              (definition.action_class != ActionClass::ReadOnly && !definition.computation_only));
     }
+    CHECK(exempt == std::vector<std::string>{"plan_set"});
 }
 
 TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")
@@ -554,4 +557,101 @@ TEST_CASE("chat deletion forgets only terminal activities", "[tools][conversatio
     CHECK(harness.coordinator.find(first) == nullptr);
     REQUIRE(harness.coordinator.find(other));
     CHECK(harness.coordinator.find(other)->state == ToolState::Pending);
+}
+
+TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][intent][plan]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+
+    auto call = [&h](const char* tool, json arguments) -> const ToolActivity& {
+        return h.coordinator.propose({tool, arguments.dump()}, "m-1");
+    };
+
+    // The plan is the agent's own words: it runs with no card, and one pump
+    // takes it all the way to a result.
+    const std::string plan_action = call("plan_set", json{{"headline", "Protect the visible face"},
+                                                          {"decisions", json::array({json{{"topic", "orientation"},
+                                                                                          {"statement", "Front face down."},
+                                                                                          {"alternative", "Flat: faster, visible seam."}}})},
+                                                          {"assumptions", json::array({"PLA on a smooth plate"})}})
+                                        .action_id;
+    CHECK_FALSE(h.coordinator.find(plan_action)->requires_approval);
+    // No card, so it never waits: it is already on its way by the time propose
+    // returns, and a pump finishes it.
+    CHECK(h.coordinator.find(plan_action)->state != ToolState::Pending);
+    h.coordinator.pump();
+    REQUIRE(h.coordinator.find(plan_action)->state == ToolState::Succeeded);
+    const auto plan_result = json::parse(h.coordinator.find(plan_action)->result_json);
+    CHECK(plan_result["plan"]["headline"] == "Protect the visible face");
+    CHECK(plan_result["plan"]["decisions"][0]["alternative"] == "Flat: faster, visible seam.");
+    CHECK(plan_result["projectUndo"] == false);
+    CHECK(registry.validate_output(*registry.find("plan_set"), plan_result));
+
+    // An intent answer waits for the card, and the card says what the agent
+    // understood rather than naming a field.
+    const std::string intent_action = call("intent_update", json{{"fields", json::array({
+                                                json{{"field", "useCase"}, {"value", "decorative"}},
+                                                json{{"field", "maxPrintTime"}, {"question", "How long may it take?"}}})}})
+                                          .action_id;
+    CHECK(h.coordinator.find(intent_action)->requires_approval);
+    CHECK(h.coordinator.find(intent_action)->state == ToolState::Pending);
+    CHECK(h.coordinator.find(intent_action)->title.find("decorative") != std::string::npos);
+    CHECK(store.writes == 1); // the plan only; nothing recorded before approval
+    REQUIRE(h.coordinator.approve(intent_action));
+    h.coordinator.pump();
+    REQUIRE(h.coordinator.find(intent_action)->state == ToolState::Succeeded);
+    const auto intent_result = json::parse(h.coordinator.find(intent_action)->result_json);
+    CHECK(registry.validate_output(*registry.find("intent_update"), intent_result));
+    // An answer the user approved is confirmed; a question with no answer is
+    // still the agent's own and is what it does not know.
+    REQUIRE(intent_result["intent"]["fields"].size() == 2);
+    CHECK(intent_result["intent"]["fields"][1]["field"] == "useCase");
+    CHECK(intent_result["intent"]["fields"][1]["provenance"] == "user_confirmed");
+    CHECK(intent_result["intent"]["fields"][0]["provenance"] == "agent_inferred");
+    CHECK(intent_result["intent"]["openQuestions"] == json::array({"maxPrintTime"}));
+
+    // An answer the agent only assumed says so, even through the same card.
+    const std::string assumed = call("intent_update", json{{"fields", json::array({json{{"field", "material"},
+                                                                                        {"value", "PLA"},
+                                                                                        {"assumed", true}}})}}).action_id;
+    REQUIRE(h.coordinator.approve(assumed));
+    h.coordinator.pump();
+    const auto after = json::parse(h.coordinator.find(assumed)->result_json);
+    CHECK(after["intent"]["fields"][0]["field"] == "material");
+    CHECK(after["intent"]["fields"][0]["provenance"] == "agent_inferred");
+
+    // Both are readable back through the one read, and neither moved the
+    // revision: a pending settings change would still be valid.
+    const auto before_revision = h.workspace.snapshot().revision;
+    const std::string read = call("workspace_inspect", json{{"sections", json::array({"intent", "plan"})}}).action_id;
+    h.coordinator.pump();
+    const auto sections = json::parse(h.coordinator.find(read)->result_json);
+    CHECK(registry.validate_output(*registry.find("workspace_inspect"), sections));
+    CHECK(sections["intent"]["fields"].size() == 3);
+    CHECK(sections["plan"]["assumptions"] == json::array({"PLA on a smooth plate"}));
+    CHECK_FALSE(sections.contains("projectName")); // the summary was not asked for
+    CHECK(h.workspace.snapshot().revision == before_revision);
+}
+
+TEST_CASE("workspace_inspect without sections is what it always was", "[tools][inspect]")
+{
+    Harness h;
+    const std::string action = h.coordinator.propose({"workspace_inspect", "{}"}, "m-1").action_id;
+    h.coordinator.pump();
+    const auto result = json::parse(h.coordinator.find(action)->result_json);
+    CHECK(result.contains("projectName"));
+    CHECK(result.contains("plates"));
+    CHECK(result.contains("history"));
+    CHECK_FALSE(result.contains("intent"));
+    CHECK_FALSE(result.contains("plan"));
+
+    // Without a store those sections fail rather than reporting an empty
+    // record that would read as "the user wants nothing".
+    const std::string missing = h.coordinator.propose({"workspace_inspect", R"({"sections":["intent"]})"}, "m-2").action_id;
+    h.coordinator.pump();
+    REQUIRE(h.coordinator.find(missing)->state == ToolState::Failed);
+    CHECK(h.coordinator.find(missing)->error->code == "unavailable_operation");
 }

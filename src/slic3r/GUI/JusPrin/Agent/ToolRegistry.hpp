@@ -50,6 +50,8 @@ enum class ToolHandler : std::uint8_t {
     SettingsGet,
     SettingsPreviewPatch,
     SettingsApplyPatch,
+    IntentUpdate,
+    PlanSet,
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint

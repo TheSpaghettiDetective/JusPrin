@@ -345,7 +345,69 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
 
     if (definition->handler == ToolHandler::WorkspaceInspect) {
-        activity.result_json = workspace_inspection(m_workspace.snapshot()).dump();
+        const auto arguments = json::parse(activity.arguments_json);
+        InspectSections sections;
+        if (arguments.contains("sections")) {
+            const auto asked = [&arguments](const char* name) {
+                const auto& sections = arguments["sections"];
+                return std::any_of(sections.begin(), sections.end(),
+                                   [name](const json& value) { return value == name; });
+            };
+            sections = {asked("summary"), asked("intent"), asked("plan")};
+        }
+        if ((sections.intent || sections.plan) && m_product_state == nullptr) {
+            fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
+            return;
+        }
+        json result = workspace_inspection(m_workspace.snapshot(), sections);
+        if (sections.intent) result["intent"] = intent_section_result(m_product_state->print_intent());
+        if (sections.plan) result["plan"] = plan_section_result(m_product_state->plan());
+        activity.result_json = result.dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::IntentUpdate || definition->handler == ToolHandler::PlanSet) {
+        if (m_product_state == nullptr) {
+            fail(activity, "unavailable_operation", "This build cannot record the intent or the plan.");
+            return;
+        }
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto snapshot  = m_workspace.snapshot();
+        json       result{{"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision},
+                          // Neither record is in Orca's undo stack: say so where
+                          // every other mutation says it.
+                          {"projectUndo", false}};
+        if (definition->handler == ToolHandler::IntentUpdate) {
+            std::vector<IntentField> fields;
+            for (const auto& field : arguments.at("fields")) {
+                IntentField written;
+                written.field    = field.at("field").get<std::string>();
+                written.value    = field.value("value", "");
+                written.question = field.value("question", "");
+                // The card showed the interpreted answer and the user approved
+                // it, so an answer is confirmed unless the agent says it only
+                // assumed it.
+                written.provenance = field.value("assumed", false) || written.value.empty() ?
+                    Provenance::AgentInferred : Provenance::UserConfirmed;
+                fields.push_back(std::move(written));
+            }
+            result["intent"] = intent_section_result(m_product_state->set_print_intent(fields));
+        } else {
+            PlanRecord plan;
+            plan.headline = arguments.at("headline").get<std::string>();
+            for (const auto& decision : arguments.value("decisions", json::array()))
+                plan.decisions.push_back({decision.at("topic").get<std::string>(),
+                                          decision.at("statement").get<std::string>(),
+                                          decision.value("confidence", ""), decision.value("alternative", "")});
+            for (const auto& line : arguments.value("assumptions", json::array()))
+                plan.assumptions.push_back(line.get<std::string>());
+            for (const auto& line : arguments.value("risks", json::array()))
+                plan.risks.push_back(line.get<std::string>());
+            result["plan"] = plan_section_result(m_product_state->set_plan(std::move(plan)));
+        }
+        activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
         return;

@@ -516,7 +516,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                      bool                   dark_appearance,
                      AgentServicePtr        agent,
                      AgentSetupServicePtr   setup)
-    : m_workspace(workspace), m_persistence(persistence), m_tools(workspace), m_agent(std::move(agent)),
+    : m_workspace(workspace), m_persistence(persistence), m_product_state(persistence), m_tools(workspace),
+      m_agent(std::move(agent)),
       m_setup(std::move(setup)), m_availability(availability), m_dark(dark_appearance)
 {
     refresh_workspace_identity();
@@ -526,6 +527,7 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         if (m_handshake)
             send_context();
     });
+    m_tools.set_product_state(&m_product_state);
     m_tools.set_action_id_allocator([this]() { return m_persistence.document().allocate_action_id(); });
     m_tools.set_attachment_path_resolver([this](const std::string& attachment_id) -> std::string {
         const std::optional<AttachmentRecord> record = m_persistence.document().find_attachment(attachment_id);

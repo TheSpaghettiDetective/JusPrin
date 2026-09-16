@@ -137,25 +137,6 @@ ConversationMessage read_message(const json& entry)
     return message;
 }
 
-Provenance provenance_from(const std::string& text)
-{
-    if (text == "file") return Provenance::File;
-    if (text == "observed") return Provenance::Observed;
-    if (text == "user_confirmed") return Provenance::UserConfirmed;
-    return Provenance::AgentInferred;
-}
-
-const char* provenance_name(Provenance provenance)
-{
-    switch (provenance) {
-    case Provenance::File: return "file";
-    case Provenance::Observed: return "observed";
-    case Provenance::UserConfirmed: return "user_confirmed";
-    case Provenance::AgentInferred: break;
-    }
-    return "agent_inferred";
-}
-
 void write_intent_field(json& entry, const IntentField& field)
 {
     entry["field"]      = field.field;
@@ -163,6 +144,10 @@ void write_intent_field(json& entry, const IntentField& field)
     entry["provenance"] = provenance_name(field.provenance);
     entry["seq"]        = field.seq;
     entry["updatedAt"]  = field.updated_at;
+    if (!field.question.empty())
+        entry["question"] = field.question;
+    else
+        entry.erase("question");
 }
 
 IntentField read_intent_field(const json& entry)
@@ -170,6 +155,7 @@ IntentField read_intent_field(const json& entry)
     IntentField field;
     field.field       = entry.value("field", "");
     field.value       = entry.value("value", "");
+    field.question    = entry.value("question", "");
     field.provenance  = provenance_from(entry.value("provenance", "agent_inferred"));
     field.seq         = entry.value("seq", std::uint64_t(0));
     field.updated_at  = entry.value("updatedAt", "");

@@ -787,8 +787,8 @@ TEST_CASE("print intent is upserted by field and keeps its provenance", "[projec
     document.initialize_identity("p-1", "l-1", kT);
     CHECK(document.print_intent().empty());
 
-    const auto first = document.set_print_intent({{"useCase", "decorative", Provenance::UserConfirmed},
-                                                  {"maxPrintTime", "5h", Provenance::AgentInferred}},
+    const auto first = document.set_print_intent({{"useCase", "decorative", "", Provenance::UserConfirmed},
+                                                  {"maxPrintTime", "5h", "", Provenance::AgentInferred}},
                                                  kT);
     // Ordered by field name, whatever order the writer used.
     REQUIRE(first.size() == 2);
@@ -801,7 +801,7 @@ TEST_CASE("print intent is upserted by field and keeps its provenance", "[projec
 
     // A field the call does not mention is left exactly as it was; the one it
     // does mention is replaced, provenance and all.
-    const auto second = document.set_print_intent({{"maxPrintTime", "3h", Provenance::UserConfirmed}},
+    const auto second = document.set_print_intent({{"maxPrintTime", "3h", "", Provenance::UserConfirmed}},
                                                   "2026-09-16T00:00:00Z");
     REQUIRE(second.size() == 2);
     CHECK(second[0].value == "3h");
@@ -812,7 +812,7 @@ TEST_CASE("print intent is upserted by field and keeps its provenance", "[projec
     CHECK(second[1].value == "decorative");
 
     // Nameless fields are ignored rather than stored under an empty name.
-    CHECK(document.set_print_intent({{"", "nothing", Provenance::File}}, kT).size() == 2);
+    CHECK(document.set_print_intent({{"", "nothing", "", Provenance::File}}, kT).size() == 2);
 
     ProjectStateDocument reloaded;
     REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
@@ -876,7 +876,7 @@ TEST_CASE("a document written before intent and plan existed gains them", "[proj
     REQUIRE(loaded.load(raw.dump()) == ProjectStateDocument::LoadResult::Loaded);
     CHECK(loaded.print_intent().empty());
     CHECK(loaded.plan().headline.empty());
-    const auto written = loaded.set_print_intent({{"useCase", "functional", Provenance::AgentInferred}}, kT);
+    const auto written = loaded.set_print_intent({{"useCase", "functional", "", Provenance::AgentInferred}}, kT);
     REQUIRE(written.size() == 1);
 
     // An unknown key inside a stored field survives the next write to it.
@@ -885,7 +885,7 @@ TEST_CASE("a document written before intent and plan existed gains them", "[proj
     edited["printIntent"][0]["futureAnnotation"] = "keep me";
     ProjectStateDocument reopened;
     REQUIRE(reopened.load(edited.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    reopened.set_print_intent({{"useCase", "decorative", Provenance::UserConfirmed}}, kT);
+    reopened.set_print_intent({{"useCase", "decorative", "", Provenance::UserConfirmed}}, kT);
     const json round = json::parse(reopened.dump());
     CHECK(round["printIntent"][0]["futureAnnotation"] == "keep me");
     CHECK(round["printIntent"][0]["value"] == "decorative");

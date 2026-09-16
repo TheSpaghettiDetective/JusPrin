@@ -15,6 +15,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp
+    GUI/JusPrin/Agent/ProductState.hpp
     GUI/JusPrin/Agent/ProjectPersistence.cpp
     GUI/JusPrin/Agent/ProjectPersistence.hpp
     GUI/JusPrin/Agent/ProjectStateDocument.cpp

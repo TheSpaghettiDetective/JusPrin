@@ -231,7 +231,35 @@ private:
     void pump_conversation_title();
 
     Workspace::IWorkspace&           m_workspace;
+    // The intent and plan tools' owner: the project document, written through
+    // the same persistence that carries conversations, so they travel in the
+    // archive and are healed and copied forward with everything else.
+    class DocumentProductState final : public IProductState
+    {
+    public:
+        explicit DocumentProductState(ProjectPersistence& persistence) : m_persistence(persistence) {}
+
+        std::vector<IntentField> print_intent() const override { return m_persistence.document().print_intent(); }
+        std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields) override
+        {
+            auto stored = m_persistence.document().set_print_intent(fields, m_persistence.timestamp());
+            m_persistence.flush();
+            return stored;
+        }
+        PlanRecord plan() const override { return m_persistence.document().plan(); }
+        PlanRecord set_plan(PlanRecord record) override
+        {
+            auto stored = m_persistence.document().set_plan(std::move(record), m_persistence.timestamp());
+            m_persistence.flush();
+            return stored;
+        }
+
+    private:
+        ProjectPersistence& m_persistence;
+    };
+
     ProjectPersistence&              m_persistence;
+    DocumentProductState             m_product_state;
     ToolExecutionCoordinator         m_tools;
     ToolActivitySubscription         m_tool_activity_subscription;
     std::unique_ptr<Mcp::McpRuntime>   m_mcp;
