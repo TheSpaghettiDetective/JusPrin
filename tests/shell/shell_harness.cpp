@@ -73,6 +73,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
@@ -2512,7 +2513,12 @@ private:
                 else
                     self->check(result["ttlMs"] == 0 && result["cacheScope"] == "private", "mcp_real_catalog_cache_policy");
                 const auto tools = result["tools"];
-                self->check(tools.size() == 5 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
+                // The live catalog is the registry's MCP-exposed list, in its
+                // deterministic order, and nothing else: a tool that forgets
+                // its exposure shows up here as a count that moved.
+                self->check(tools.size() == Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Mcp).size() &&
+                                tools.back()["name"] == "workspace_inspect",
+                            "mcp_real_registry_catalog");
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];
