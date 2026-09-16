@@ -396,6 +396,100 @@ public:
     std::vector<PrinterDevice> printers() const override { return m_printers; }
 
     ConfiguredPrinter configured_printer() const override { return m_configured_printer; }
+
+    // Placement moves the fixture's transform the way the request says and
+    // records the request; auto-orient leaves a running job to finish.
+    CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
+                               PlacementResult& result) override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        if (!request.face_down.empty() && m_changes.revision() != m_analysis_revision)
+            return CommandResult::failure(WorkspaceError::FeatureExpired, "The project changed since the features were read");
+        last_placement = request;
+        save_undo("Place object");
+        ObjectTransform placed;
+        for_each_object(id, [&](WorkspaceObject& object) {
+            if (request.instance >= object.instances.size()) return;
+            auto& transform = object.instances[request.instance];
+            if (request.rotate)
+                for (int axis = 0; axis < 3; ++axis) transform.rotation[axis] += (*request.rotate)[axis];
+            if (request.position) {
+                transform.position[0] = (*request.position)[0];
+                transform.position[1] = (*request.position)[1];
+            }
+            if (request.scale)
+                for (int axis = 0; axis < 3; ++axis) transform.scale[axis] *= (*request.scale)[axis];
+            placed = transform;
+        });
+        if (request.auto_orient) {
+            m_snapshot.jobs.push_back({job_handle, "orient", "running", {}});
+            result.orienting = true;
+        }
+        result.object    = id;
+        result.transform = placed;
+        result.size      = {20, 20, 20};
+        publish(WorkspaceChangeReasons::Transform | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    void finish_job_for_testing(const std::string& handle, std::string state, std::vector<ObjectId> not_placed = {})
+    {
+        for (WorkspaceJob& job : m_snapshot.jobs)
+            if (job.handle == handle) {
+                job.state      = std::move(state);
+                job.not_placed = std::move(not_placed);
+            }
+        publish(WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::Transform);
+    }
+    PlacementRequest last_placement;
+
+    // Analysis answers are scripted per object; a handle is good for the
+    // revision the fixture was given and expires after it.
+    CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        const auto found = m_analyses.find(id.value());
+        if (found == m_analyses.end())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "No analysis scripted for this object");
+        if (request.mesh) result.mesh = found->second.mesh;
+        if (request.features) result.features = found->second.features;
+        if (request.fit) result.fit = found->second.fit;
+        if (request.orientations) {
+            last_candidates     = request.candidates;
+            result.orientations = found->second.orientations;
+        }
+        if (request.measure) {
+            if (m_changes.revision() != m_analysis_revision)
+                return CommandResult::failure(WorkspaceError::FeatureExpired, "The project changed since the features were read");
+            result.measurement = found->second.measurement;
+        }
+        return CommandResult::success();
+    }
+    void set_analysis_for_testing(ObjectId id, ObjectAnalysis analysis)
+    {
+        m_analyses[id.value()] = std::move(analysis);
+        m_analysis_revision    = m_changes.revision();
+    }
+    std::map<std::uint64_t, ObjectAnalysis> m_analyses;
+    std::uint64_t m_analysis_revision{0};
+    mutable std::vector<OrientationCandidate> last_candidates;
+
+    std::vector<ObjectDetails> object_details() const override
+    {
+        std::vector<ObjectDetails> result;
+        for (const WorkspacePlate& plate : m_snapshot.plates)
+            for (const WorkspaceObject& object : plate.objects) {
+                ObjectDetails row;
+                row.id        = object.id;
+                row.name      = object.name;
+                row.plates    = {plate.id};
+                row.instances = object.instances.size();
+                row.parts     = 1;
+                result.push_back(row);
+            }
+        return result;
+    }
     std::string current_process_preset() const override { return m_process_preset; }
 
     // A preset is known when set_presets_for_testing listed it, and

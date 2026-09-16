@@ -1251,3 +1251,165 @@ TEST_CASE("the project section reports the file's own words with their source", 
     CHECK(project["backupCurrent"] == false);
     CHECK_FALSE(result.contains("plates"));
 }
+
+TEST_CASE("object analysis reports geometry, and a measure fails once its handles expire", "[tools][geometry]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    Workspace::ObjectAnalysis analysis;
+    Workspace::MeshFacts mesh;
+    mesh.size = {20, 20, 20};
+    mesh.volume = 8000;
+    mesh.facets = 12;
+    mesh.parts = 1;
+    mesh.units_suspicion = "inches";
+    analysis.mesh = mesh;
+    Workspace::ObjectFeatures features;
+    features.faces = {{"f1-21-0-0-0", 400, {0, 0, -1}, {10, 10, 0}}};
+    features.holes = {{"f1-21-0-1-0", 5.2, {10, 10, 20}, {0, 0, 1}}};
+    analysis.features = features;
+    Workspace::ObjectFit fit;
+    fit.instances = {{0, h.workspace.snapshot().plates[0].id, true}};
+    analysis.fit = fit;
+    Workspace::FeatureMeasurement measurement;
+    measurement.distance = 20;
+    measurement.angle = 180;
+    analysis.measurement = measurement;
+    h.workspace.set_analysis_for_testing(h.cube_id(), analysis);
+
+    auto run = [&h](const json& arguments) {
+        const std::string id = h.coordinator.propose({"object_analyze", arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        return *h.coordinator.find(id);
+    };
+    const auto read = run(json{{"sessionId", session}, {"objectId", cube}, {"include", {"mesh", "features", "fit"}}});
+    REQUIRE(read.state == ToolState::Succeeded);
+    CHECK_FALSE(read.requires_approval);
+    const auto result = json::parse(read.result_json);
+    CHECK(registry.validate_output(*registry.find("object_analyze"), result));
+    CHECK(result["mesh"]["unitsSuspicion"] == "inches");
+    CHECK(result["features"]["holes"][0]["diameterMm"] == 5.2);
+    CHECK(result["fit"]["instances"][0]["inside"] == true);
+    CHECK_FALSE(result.contains("measurement"));
+
+    const json measure{{"sessionId", session}, {"objectId", cube}, {"include", {"measure"}},
+                       {"measure", {{"from", "f1-21-0-0-0"}, {"to", "f1-21-0-1-0"}}}};
+    const auto measured = run(measure);
+    REQUIRE(measured.state == ToolState::Succeeded);
+    CHECK(json::parse(measured.result_json)["measurement"]["distanceMm"] == 20);
+
+    // Any change to the project expires the handles.
+    h.workspace.record_step_for_testing("Move");
+    CHECK(run(measure).error->code == "feature_expired");
+
+    CHECK(run(json{{"sessionId", session}, {"objectId", "999"}, {"include", {"mesh"}}}).state == ToolState::Failed);
+    const auto& definition = *registry.find("object_analyze");
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"measure"}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"mesh"}},
+                                                        {"measure", {{"from", "a"}, {"to", "b"}}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"regions"}}}.dump()).valid());
+
+    const std::string inspect = h.coordinator.propose({"workspace_inspect", R"({"sections":["objects"]})"}, "m-2").action_id;
+    h.coordinator.pump();
+    const auto objects = json::parse(h.coordinator.find(inspect)->result_json);
+    CHECK(registry.validate_output(*registry.find("workspace_inspect"), objects));
+    REQUIRE(objects["objects"]["items"].size() == 1);
+    CHECK(objects["objects"]["items"][0]["objectId"] == cube);
+}
+
+TEST_CASE("orientation candidates are scored as given, or as Orca proposes", "[tools][geometry]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    Workspace::ObjectAnalysis analysis;
+    analysis.orientations = std::vector<Workspace::OrientationOption>{{{0, 0, 1}, 1.5, 0, 400, {"f1-21-0-0-0"}},
+                                                                      {{1, 0, 0}, 9.25, 120.5, 20, {}}};
+    h.workspace.set_analysis_for_testing(h.cube_id(), analysis);
+    auto run = [&h](const json& arguments) {
+        const std::string id = h.coordinator.propose({"object_analyze", arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        return *h.coordinator.find(id);
+    };
+    const auto own = run(json{{"sessionId", session}, {"objectId", cube}, {"include", {"orientations"}}});
+    REQUIRE(own.state == ToolState::Succeeded);
+    const auto result = json::parse(own.result_json);
+    CHECK(registry.validate_output(*registry.find("object_analyze"), result));
+    CHECK(result["orientations"][0]["facesDown"][0] == "f1-21-0-0-0");
+    CHECK(h.workspace.last_candidates.empty());
+
+    const auto given = run(json{{"sessionId", session}, {"objectId", cube}, {"include", {"orientations"}},
+                                {"candidates", {{{"up", {0, 0, 1}}}, {{"faceDown", "f1-21-0-0-0"}}}}});
+    REQUIRE(given.state == ToolState::Succeeded);
+    REQUIRE(h.workspace.last_candidates.size() == 2);
+    CHECK((*h.workspace.last_candidates[0].up)[2] == 1);
+    CHECK(h.workspace.last_candidates[1].face_down == "f1-21-0-0-0");
+
+    const auto& definition = *registry.find("object_analyze");
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"mesh"}},
+                                                        {"candidates", {{{"up", {0, 0, 1}}}}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"orientations"}},
+                                                        {"candidates", {{{"up", {0, 1}}}}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"orientations"}},
+                                                        {"candidates", {{{"up", {0, 0, 1}}, {"faceDown", "x"}}}}}.dump()).valid());
+}
+
+TEST_CASE("a placement names mirror and scale on its card, and auto-orient reports through the slicing section", "[tools][geometry]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    auto propose = [&h](const json& arguments) { return ToolActivity(h.coordinator.propose({"object_place", arguments.dump()}, "m-1")); };
+
+    const ToolActivity card = propose(json{{"sessionId", session}, {"objectId", cube}, {"scale", {2, 2, 2}},
+                                           {"mirrorAxis", "x"}, {"rotateDegrees", {0, 0, 90}}, {"position", {100, 90}}});
+    REQUIRE(card.state == ToolState::Pending);
+    CHECK(card.title == "Place cube-a: scale x2 y2 z2, mirror in x, rotate 0/0/90 degrees, move to 100, 90");
+    REQUIRE(h.coordinator.approve(card.action_id));
+    h.pump_to_completion(card.action_id);
+    const ToolActivity placed = *h.coordinator.find(card.action_id);
+    REQUIRE(placed.state == ToolState::Succeeded);
+    const auto result = json::parse(placed.result_json);
+    CHECK(registry.validate_output(*registry.find("object_place"), result));
+    CHECK(result["transform"]["positionMm"][0] == 100);
+    CHECK_FALSE(result.contains("handle"));
+    CHECK(h.workspace.last_placement.mirror_axis == "x");
+    CHECK((*h.workspace.last_placement.scale)[1] == 2);
+
+    // Auto-orient returns a handle; its end is read from the slicing section.
+    const ToolActivity orient = propose(json{{"sessionId", session}, {"objectId", cube}, {"autoOrient", true}});
+    REQUIRE(h.coordinator.approve(orient.action_id));
+    h.pump_to_completion(orient.action_id);
+    const auto oriented = json::parse(h.coordinator.find(orient.action_id)->result_json);
+    REQUIRE(oriented["handle"] == orient.action_id);
+    auto jobs = [&h]() {
+        const std::string id = h.coordinator.propose({"workspace_inspect", R"({"sections":["slicing"]})"}, "m-2").action_id;
+        h.coordinator.pump();
+        const auto inspected = json::parse(h.coordinator.find(id)->result_json);
+        CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("workspace_inspect"), inspected));
+        return inspected["slicing"]["jobs"];
+    };
+    CHECK(jobs()[0]["state"] == "running");
+    h.workspace.finish_job_for_testing(orient.action_id, "finished");
+    CHECK(jobs()[0] == json{{"handle", orient.action_id}, {"kind", "orient"}, {"state", "finished"}, {"notPlaced", json::array()}});
+
+    const auto& definition = *registry.find("object_place");
+    const auto invalid = [&](json extra) {
+        json arguments{{"sessionId", session}, {"objectId", cube}};
+        arguments.update(extra);
+        return !registry.validate_call(definition, arguments.dump()).valid();
+    };
+    CHECK(invalid(json::object()));
+    CHECK(invalid(json{{"faceDown", "f1-21-0-0-0"}, {"autoOrient", true}}));
+    CHECK(invalid(json{{"scale", {2, 2, 2}}, {"unitsFix", "inches"}}));
+    CHECK(invalid(json{{"scale", {2, 0, 2}}}));
+    CHECK(invalid(json{{"scaleTo", {{"axis", "w"}, {"sizeMm", 10}}}}));
+    CHECK(invalid(json{{"position", {1, 2, 3}}}));
+    CHECK(invalid(json{{"dropToBed", false}}));
+    CHECK(invalid(json{{"instance", 0}}));
+    CHECK_FALSE(invalid(json{{"instance", 0}, {"dropToBed", true}}));
+}

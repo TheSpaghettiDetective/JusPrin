@@ -360,6 +360,92 @@ json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
             {"backupCurrent", details.backup_current}, {"truncated", truncated}};
 }
 
+namespace {
+json vector3(const Workspace::Vec3& value)
+{
+    // Tenths of a micron: enough for any printer, and stable in a transcript.
+    // `+ 0.0` turns a rounded -0 into 0.
+    const auto round = [](double x) { return std::round(x * 10000.0) / 10000.0 + 0.0; };
+    return json::array({round(value[0]), round(value[1]), round(value[2])});
+}
+} // namespace
+
+json objects_section_result(const std::vector<Workspace::ObjectDetails>& objects)
+{
+    bool truncated = false;
+    json items = json::array();
+    for (const auto& object : objects) {
+        if (items.size() == kToolListLimit) { truncated = true; break; }
+        json plates = json::array();
+        for (const auto& plate : object.plates) plates.push_back(std::to_string(plate.value()));
+        json row{{"objectId", std::to_string(object.id.value())}, {"name", label(object.name, truncated)},
+                 {"plateIds", std::move(plates)}, {"instanceCount", object.instances}, {"partCount", object.parts},
+                 {"modifierCount", object.modifiers}, {"negativePartCount", object.negative_parts},
+                 {"supportVolumeCount", object.support_volumes}, {"printable", object.printable},
+                 {"sizeMm", vector3(object.size)}, {"overrideCount", object.overrides}};
+        if (object.extruder > 0) row["extruder"] = object.extruder;
+        items.push_back(std::move(row));
+    }
+    return {{"items", std::move(items)}, {"truncated", truncated}};
+}
+
+json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,
+                            const Workspace::WorkspaceSnapshot& snapshot)
+{
+    json result{{"objectId", std::to_string(id.value())}, {"sessionId", std::to_string(snapshot.session.value())},
+                {"revision", snapshot.revision}};
+    if (analysis.mesh) {
+        const auto& mesh = *analysis.mesh;
+        result["mesh"] = {{"sizeMm", vector3(mesh.size)}, {"volumeMm3", std::round(mesh.volume * 100.0) / 100.0},
+                          {"facets", mesh.facets}, {"parts", mesh.parts}, {"openEdges", mesh.open_edges},
+                          {"repaired", {{"edgesFixed", mesh.edges_fixed}, {"degenerateFacets", mesh.degenerate_facets},
+                                        {"facetsRemoved", mesh.facets_removed}, {"facetsReversed", mesh.facets_reversed},
+                                        {"backwardsEdges", mesh.backwards_edges}}},
+                          {"unitsSuspicion", mesh.units_suspicion.empty() ? "none" : mesh.units_suspicion}};
+    }
+    if (analysis.features) {
+        json faces = json::array(), holes = json::array();
+        for (const auto& face : analysis.features->faces)
+            faces.push_back({{"handle", face.handle}, {"areaMm2", std::round(face.area * 100.0) / 100.0},
+                             {"normal", vector3(face.normal)}, {"center", vector3(face.center)}});
+        for (const auto& hole : analysis.features->holes)
+            holes.push_back({{"handle", hole.handle}, {"diameterMm", std::round(hole.diameter * 10000.0) / 10000.0},
+                             {"center", vector3(hole.center)}, {"axis", vector3(hole.axis)}});
+        result["features"] = {{"faces", std::move(faces)}, {"holes", std::move(holes)}, {"truncated", analysis.features->truncated}};
+    }
+    if (analysis.fit) {
+        json instances = json::array(), overlaps = json::array(), duplicates = json::array();
+        for (const auto& instance : analysis.fit->instances) {
+            json row{{"instance", instance.instance}, {"inside", instance.inside}};
+            if (instance.plate) row["plateId"] = std::to_string(instance.plate->value());
+            instances.push_back(std::move(row));
+        }
+        for (const auto& other : analysis.fit->overlaps) overlaps.push_back(std::to_string(other.value()));
+        for (const auto& other : analysis.fit->likely_duplicates) duplicates.push_back(std::to_string(other.value()));
+        result["fit"] = {{"instances", std::move(instances)}, {"overlaps", std::move(overlaps)},
+                         {"likelyDuplicates", std::move(duplicates)}, {"truncated", analysis.fit->truncated}};
+    }
+    if (analysis.orientations) {
+        json options = json::array();
+        for (const auto& option : *analysis.orientations)
+            options.push_back({{"up", vector3(option.up)}, {"unprintability", std::round(option.unprintability * 1000.0) / 1000.0},
+                               {"overhangArea", std::round(option.overhang * 100.0) / 100.0},
+                               {"bedContactMm2", std::round(option.bed_contact * 100.0) / 100.0},
+                               {"facesDown", option.faces_down}});
+        result["orientations"] = std::move(options);
+    }
+    if (analysis.measurement) {
+        const auto& measured = *analysis.measurement;
+        json row = json::object();
+        if (measured.distance) row["distanceMm"] = std::round(*measured.distance * 10000.0) / 10000.0;
+        if (measured.plane_distance) row["planeDistanceMm"] = std::round(*measured.plane_distance * 10000.0) / 10000.0;
+        if (measured.angle) row["angleDegrees"] = std::round(*measured.angle * 1000.0) / 1000.0;
+        if (measured.delta) row["deltaMm"] = vector3(*measured.delta);
+        result["measurement"] = std::move(row);
+    }
+    return result;
+}
+
 json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history)
 {
     bool truncated = false;
@@ -383,7 +469,15 @@ json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
                           {"sliced", plate.sliced}, {"estimateStatus", status},
                           {"invalidatedBy", label(plate.invalidated_by, truncated)}});
     }
-    json result{{"running", snapshot.slicing.running}, {"plates", std::move(plates)}, {"truncated", truncated}};
+    json jobs = json::array();
+    for (const auto& job : snapshot.jobs) {
+        json not_placed = json::array();
+        for (const auto& object : job.not_placed)
+            if (not_placed.size() < kToolListLimit) not_placed.push_back(std::to_string(object.value()));
+        jobs.push_back({{"handle", job.handle}, {"kind", job.kind}, {"state", job.state}, {"notPlaced", std::move(not_placed)}});
+    }
+    json result{{"running", snapshot.slicing.running}, {"plates", std::move(plates)}, {"jobs", std::move(jobs)},
+                {"truncated", truncated}};
     if (snapshot.slicing.plate) result["plateId"] = std::to_string(snapshot.slicing.plate->value());
     if (snapshot.slicing.percent) result["percent"] = *snapshot.slicing.percent;
     if (!handle.empty()) result["handle"] = handle;

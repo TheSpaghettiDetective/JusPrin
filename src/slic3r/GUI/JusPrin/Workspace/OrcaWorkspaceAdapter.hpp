@@ -7,6 +7,7 @@
 #include <set>
 
 namespace Slic3r::GUI {
+class Job;
 class Plater;
 }
 
@@ -28,6 +29,10 @@ public:
     CommandResult remove_object(ObjectId id) override;
     CommandResult undo() override;
     CommandResult redo() override;
+    CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
+                               PlacementResult& result) override;
+    CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const override;
+    std::vector<ObjectDetails> object_details() const override;
     ConfiguredPrinter configured_printer() const override;
     std::string current_process_preset() const override;
     PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const override;
@@ -108,6 +113,13 @@ private:
     std::string                                    m_last_change_reason;
     mutable std::set<std::uint64_t> m_known_object_ids;
     ProjectStateSubscription        m_project_subscription;
+
+    // UI jobs the tool system started, by handle, oldest first. A job that
+    // outlives the adapter reports into nothing: `m_alive` expires first.
+    bool start_job(const std::string& handle, const std::string& kind, std::unique_ptr<Job> job);
+    void finish_job(const std::string& handle, const char* state);
+    std::vector<WorkspaceJob> m_jobs;
+    std::shared_ptr<bool>     m_alive = std::make_shared<bool>(true);
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

@@ -3,13 +3,20 @@
 #include "OrcaSettings.hpp"
 #include "HostLocale.hpp"
 
+#include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
+#include "libslic3r/Measure.hpp"
+#include "libslic3r/Orient.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/Jobs/ArrangeJob.hpp"
+#include "slic3r/GUI/Jobs/OrientJob.hpp"
+#include "slic3r/GUI/Jobs/Worker.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "libslic3r_version.h"
 #include "slic3r/GUI/PartPlate.hpp"
@@ -29,6 +36,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstring>
 #include <set>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -276,6 +284,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
     // property of the workspace; during a slice-all the plate it names moves as
     // the run advances.
     result.slicing.running = m_plater.is_background_process_slicing();
+    result.jobs            = m_jobs;
     if (result.slicing.running) {
         if (PartPlate* current = plate_list.get_plate(active_index); current != nullptr) {
             result.slicing.plate   = PlateId(m_session, current->id().id);
@@ -698,6 +707,522 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
     return CommandResult::success();
 }
 
+namespace {
+Vec3 vec3(const Vec3d& v) { return {v.x(), v.y(), v.z()}; }
+
+// "f<revision>-<object>-<volume>-<plane>-<feature>": everything needed to find
+// the feature again in the same revision.
+struct FeatureAddress
+{
+    std::uint64_t revision{0}, object{0};
+    std::size_t   volume{0};
+    int           plane{0}, feature{0};
+};
+
+std::string feature_handle(const FeatureAddress& address)
+{
+    return "f" + std::to_string(address.revision) + "-" + std::to_string(address.object) + "-" +
+           std::to_string(address.volume) + "-" + std::to_string(address.plane) + "-" + std::to_string(address.feature);
+}
+
+std::optional<FeatureAddress> parse_feature_handle(const std::string& text)
+{
+    FeatureAddress address;
+    unsigned long long revision = 0, object = 0, volume = 0;
+    int plane = 0, feature = 0;
+    char tail = 0;
+    if (std::sscanf(text.c_str(), "f%llu-%llu-%llu-%d-%d%c", &revision, &object, &volume, &plane, &feature, &tail) != 5 ||
+        plane < 0 || feature < 0)
+        return std::nullopt;
+    address.revision = revision;
+    address.object   = object;
+    address.volume   = static_cast<std::size_t>(volume);
+    address.plane    = plane;
+    address.feature  = feature;
+    return address;
+}
+
+// Whether a point in the volume's frame lies on one of the plane's triangles.
+bool covered_by(const indexed_triangle_set& its, const std::vector<int>& triangles, const Vec3d& point)
+{
+    for (int index : triangles) {
+        const auto& face = its.indices[index];
+        const Vec3d a = its.vertices[face[0]].cast<double>(), b = its.vertices[face[1]].cast<double>(),
+                    c = its.vertices[face[2]].cast<double>();
+        const Vec3d v0 = b - a, v1 = c - a, v2 = point - a;
+        const double d00 = v0.dot(v0), d01 = v0.dot(v1), d11 = v1.dot(v1), d20 = v2.dot(v0), d21 = v2.dot(v1);
+        const double denominator = d00 * d11 - d01 * d01;
+        if (std::abs(denominator) < 1e-12)
+            continue;
+        const double v = (d11 * d20 - d01 * d21) / denominator, w = (d00 * d21 - d01 * d20) / denominator;
+        if (v >= -1e-6 && w >= -1e-6 && v + w <= 1 + 1e-6)
+            return true;
+    }
+    return false;
+}
+
+Transform3d world_of(const ModelObject& object, const ModelVolume& volume)
+{
+    return object.instances.front()->get_matrix() * volume.get_matrix();
+}
+} // namespace
+
+// Runs an Orca job unchanged and says how it ended. Orca's worker has no
+// completion event; finalize runs on the UI thread, and a job dropped from
+// the queue by a later replace_job is never finalized, which the destructor
+// reports as cancelled.
+class ReportingJob final : public Job
+{
+public:
+    using Done = std::function<void(const char*)>;
+    ReportingJob(std::unique_ptr<Job> inner, Done done) : m_inner(std::move(inner)), m_done(std::move(done)) {}
+    ~ReportingJob() override
+    {
+        if (!m_reported) m_done("cancelled");
+    }
+    void process(Ctl& ctl) override { m_inner->process(ctl); }
+    void finalize(bool canceled, std::exception_ptr& eptr) override
+    {
+        m_inner->finalize(canceled, eptr);
+        m_reported = true;
+        m_done(canceled ? "cancelled" : eptr ? "failed" : "finished");
+    }
+
+private:
+    std::unique_ptr<Job> m_inner;
+    Done                 m_done;
+    bool                 m_reported{false};
+};
+
+bool OrcaWorkspaceAdapter::start_job(const std::string& handle, const std::string& kind, std::unique_ptr<Job> job)
+{
+    Worker& worker = m_plater.get_ui_job_worker();
+    if (!worker.is_idle())
+        return false;
+    if (m_jobs.size() == kJobLimit)
+        m_jobs.erase(m_jobs.begin());
+    m_jobs.push_back({handle, kind, "running", {}});
+    std::weak_ptr<bool> alive = m_alive;
+    replace_job(worker, std::make_shared<ReportingJob>(std::move(job), [this, alive, handle](const char* state) {
+        if (!alive.expired())
+            finish_job(handle, state);
+    }));
+    return true;
+}
+
+void OrcaWorkspaceAdapter::finish_job(const std::string& handle, const char* state)
+{
+    const auto job = std::find_if(m_jobs.begin(), m_jobs.end(), [&](const WorkspaceJob& j) { return j.handle == handle; });
+    if (job == m_jobs.end() || job->state != "running")
+        return;
+    job->state = state;
+    if (job->kind == "arrange" && job->state == "finished") {
+        // Orca moves what does not fit onto a new plate or off the plates; an
+        // instance no plate holds entirely is what did not fit.
+        PartPlateList&         plates  = m_plater.get_partplate_list();
+        const ModelObjectPtrs& objects = m_plater.model().objects;
+        for (std::size_t index = 0; index < objects.size(); ++index)
+            for (std::size_t instance = 0; instance < objects[index]->instances.size(); ++instance)
+                if (objects[index]->instances[instance]->printable &&
+                    plates.find_instance_belongs(static_cast<int>(index), static_cast<int>(instance)) < 0) {
+                    job->not_placed.push_back(ObjectId(m_session, objects[index]->id().id));
+                    break;
+                }
+    }
+    publish_change(WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::Transform);
+}
+
+CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
+                                                 PlacementResult& result)
+{
+    wxASSERT(wxIsMainThread());
+    auto resolved = resolve(id);
+    if (!resolved)
+        return id_error(id);
+    Model& model = m_plater.model();
+    if (request.instance >= model.objects[resolved->index]->instances.size())
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The object has no such instance");
+    if (request.auto_orient && !m_plater.get_ui_job_worker().is_idle())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+    if (!request.mirror_axis.empty() && model.objects[resolved->index]->is_cut())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer does not mirror a cut object");
+
+    // The face must still be the one that was read: resolve it before
+    // anything moves.
+    std::optional<Vec3d> face_normal;
+    if (!request.face_down.empty()) {
+        const auto address = parse_feature_handle(request.face_down);
+        if (!address || address->object != id.value())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + request.face_down + "\" is not a face of this object");
+        if (address->revision != m_changes.revision())
+            return CommandResult::failure(WorkspaceError::FeatureExpired,
+                                          "The project changed since \"" + request.face_down + "\" was found. Read the features again.");
+        const ModelObject& object = *model.objects[resolved->index];
+        if (address->volume >= object.volumes.size() || !object.volumes[address->volume]->is_model_part())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + request.face_down + "\" is not a face of this object");
+        const ModelVolume&       volume = *object.volumes[address->volume];
+        const Measure::Measuring measuring(volume.mesh().its);
+        if (address->plane >= measuring.get_num_of_planes() ||
+            address->feature >= static_cast<int>(measuring.get_plane_features(address->plane).size()) ||
+            measuring.get_plane_features(address->plane)[address->feature].get_type() != Measure::SurfaceFeatureType::Plane)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + request.face_down + "\" is not a face of this object");
+        const auto [unused, normal, point] = measuring.get_plane_features(address->plane)[address->feature].get_plane();
+        // Selection::flattening_rotate takes the normal in the instance's
+        // frame: after the volume matrix, before the instance matrix.
+        face_normal = (volume.get_matrix().linear().inverse().transpose() * normal).normalized();
+    }
+
+    GLCanvas3D& canvas    = *m_plater.canvas3D();
+    Selection&  selection = canvas.get_selection();
+    const auto  select = [&]() {
+        selection.add_instance(static_cast<unsigned int>(resolved->index), static_cast<unsigned int>(request.instance), true);
+        if (ObjectList* list = wxGetApp().obj_list())
+            list->update_selections();
+    };
+    TransformationType world_relative;
+    world_relative.set_world();
+    world_relative.set_relative();
+    world_relative.set_joint();
+
+    {
+        const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        // One undo step for everything below; the canvas's own snapshots are
+        // suppressed inside it.
+        Plater::TakeSnapshot snapshot(&m_plater, "Place object");
+        select();
+
+        if (!request.units_fix.empty()) {
+            // Orca replaces the object with a converted copy at the end of the
+            // list; a too-large question on reload is declined.
+            ScopedModalAnswers answers([](wxWindow&, const wxString&) { return int(wxID_NO); });
+            m_plater.convert_unit(request.units_fix == "inches" ? ConversionType::CONV_FROM_INCH : ConversionType::CONV_FROM_METER);
+            resolved = ResolvedObject{model.objects.size() - 1};
+            select();
+        }
+        if (request.scale || request.scale_to) {
+            Vec3d factors = Vec3d::Ones();
+            if (request.scale) {
+                factors = Vec3d((*request.scale)[0], (*request.scale)[1], (*request.scale)[2]);
+            } else {
+                const double current = model.objects[resolved->index]->instance_bounding_box(request.instance).size()[request.scale_to->first];
+                if (current <= 0)
+                    return CommandResult::failure(WorkspaceError::UnavailableOperation, "The object has no size along that axis");
+                factors = Vec3d::Constant(request.scale_to->second / current);
+            }
+            selection.setup_cache();
+            selection.scale(factors, world_relative);
+            canvas.do_scale("");
+        }
+        if (!request.mirror_axis.empty()) {
+            selection.setup_cache();
+            selection.mirror(request.mirror_axis == "x" ? X : request.mirror_axis == "y" ? Y : Z, world_relative);
+            canvas.do_mirror("");
+        }
+        if (face_normal) {
+            selection.setup_cache();
+            selection.flattening_rotate(*face_normal);
+            // The flatten gizmo's own snapshot name: do_rotate keeps a
+            // sinking object on the bed only for it.
+            canvas.do_rotate("Gizmo-Place on Face");
+        }
+        if (request.rotate) {
+            for (int axis = 0; axis < 3; ++axis) {
+                const double degrees = (*request.rotate)[axis];
+                if (degrees == 0)
+                    continue;
+                Vec3d rotation = Vec3d::Zero();
+                rotation[axis] = degrees * PI / 180.0;
+                selection.setup_cache();
+                selection.rotate(rotation, world_relative);
+                canvas.do_rotate("");
+            }
+        }
+        if (request.position) {
+            const Vec3d offset = model.objects[resolved->index]->instances[request.instance]->get_offset();
+            selection.setup_cache();
+            selection.translate(Vec3d((*request.position)[0] - offset.x(), (*request.position)[1] - offset.y(), 0), world_relative);
+            canvas.do_move("");
+        }
+        if (request.drop_to_bed)
+            selection.drop();
+        m_plater.notify_project_state_changed(ProjectStateChangeReason::Transform | ProjectStateChangeReason::Objects);
+    }
+
+    const ModelObject& placed = *model.objects[resolved->index];
+    result.object    = ObjectId(m_session, placed.id().id);
+    result.transform = transform_of(*placed.instances[request.instance]);
+    result.size      = vec3(placed.instance_bounding_box(request.instance).size());
+
+    if (request.auto_orient) {
+        // Plater::orient, with its snapshot already taken above and the job
+        // wrapped so its end is reported under the caller's handle. The job
+        // orients the selection, which is this object.
+        m_plater.set_prepare_state(Job::PREPARE_STATE_DEFAULT);
+        if (!start_job(job_handle, "orient", std::make_unique<OrientJob>()))
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+        result.orienting = true;
+    }
+    return CommandResult::success();
+}
+
+CommandResult OrcaWorkspaceAdapter::analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const
+{
+    wxASSERT(wxIsMainThread());
+    const auto resolved = resolve(id);
+    if (!resolved)
+        return id_error(id);
+    Model&             model  = m_plater.model();
+    const ModelObject& object = *model.objects[resolved->index];
+    if (object.instances.empty())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The object has no instance to measure");
+    const std::uint64_t revision = m_changes.revision();
+
+    if (request.mesh) {
+        MeshFacts facts;
+        const TriangleMeshStats stats = object.get_object_stl_stats();
+        facts.size              = vec3(object.instance_bounding_box(0).size());
+        facts.volume            = stats.volume;
+        // The object-level stats do not add up facets; the parts' meshes do.
+        for (const ModelVolume* volume : object.volumes)
+            if (volume->is_model_part())
+                facts.facets += volume->mesh().facets_count();
+        facts.parts             = static_cast<std::size_t>(std::max(stats.number_of_parts, 0));
+        facts.open_edges        = stats.open_edges;
+        facts.edges_fixed       = stats.repaired_errors.edges_fixed;
+        facts.degenerate_facets = stats.repaired_errors.degenerate_facets;
+        facts.facets_removed    = stats.repaired_errors.facets_removed;
+        facts.facets_reversed   = stats.repaired_errors.facets_reversed;
+        facts.backwards_edges   = stats.repaired_errors.backwards_edges;
+        // Orca's own load-time unit tests work on a whole model; ask them
+        // about a model holding only this object, metres first as Orca does.
+        Model single;
+        single.add_object(object);
+        facts.units_suspicion = single.looks_like_saved_in_meters() ? "meters" :
+                                single.looks_like_imperial_units()  ? "inches" : "";
+        result.mesh = facts;
+    }
+
+    if (request.features || request.orientations) {
+        ObjectFeatures features;
+        for (std::size_t volume_index = 0; volume_index < object.volumes.size(); ++volume_index) {
+            const ModelVolume& volume = *object.volumes[volume_index];
+            if (!volume.is_model_part())
+                continue;
+            // The measure gizmo's own construction: one Measuring per part on
+            // its untransformed mesh, features moved to the world afterwards.
+            const Transform3d            world = world_of(object, volume);
+            const indexed_triangle_set&  its   = volume.mesh().its;
+            const Measure::Measuring     measuring(its);
+            for (int plane = 0; plane < measuring.get_num_of_planes(); ++plane) {
+                const std::vector<int>& triangles = measuring.get_plane_triangle_indices(plane);
+                double area = 0;
+                for (int index : triangles) {
+                    const auto& face = its.indices[index];
+                    const Vec3d a = world * its.vertices[face[0]].cast<double>(), b = world * its.vertices[face[1]].cast<double>(),
+                                c = world * its.vertices[face[2]].cast<double>();
+                    area += 0.5 * (b - a).cross(c - a).norm();
+                }
+                const std::vector<Measure::SurfaceFeature>& found = measuring.get_plane_features(plane);
+                for (int index = 0; index < static_cast<int>(found.size()); ++index) {
+                    Measure::SurfaceFeature feature(found[index]);
+                    const FeatureAddress address{revision, id.value(), volume_index, plane, index};
+                    if (feature.get_type() == Measure::SurfaceFeatureType::Plane) {
+                        feature.translate(world);
+                        const auto [unused, normal, point] = feature.get_plane();
+                        // A plane whose border could not be walked has no centre.
+                        if (!normal.allFinite() || !point.allFinite())
+                            continue;
+                        features.faces.push_back({feature_handle(address), area, vec3(normal.normalized()), vec3(point)});
+                    } else if (feature.get_type() == Measure::SurfaceFeatureType::Circle) {
+                        const auto [local_center, local_radius, local_normal] = feature.get_circle();
+                        if (covered_by(its, triangles, local_center))
+                            continue; // the rim of a boss or a disc, not a hole
+                        feature.translate(world);
+                        const auto [center, radius, normal] = feature.get_circle();
+                        features.holes.push_back({feature_handle(address), 2 * radius, vec3(center), vec3(normal.normalized())});
+                    }
+                }
+            }
+        }
+        std::stable_sort(features.faces.begin(), features.faces.end(),
+                         [](const FaceFeature& a, const FaceFeature& b) { return a.area > b.area; });
+        std::stable_sort(features.holes.begin(), features.holes.end(),
+                         [](const HoleFeature& a, const HoleFeature& b) { return a.diameter > b.diameter; });
+
+        if (request.orientations) {
+            std::vector<Vec3d> ups;
+            for (const OrientationCandidate& candidate : request.candidates) {
+                if (candidate.up) {
+                    const Vec3d up((*candidate.up)[0], (*candidate.up)[1], (*candidate.up)[2]);
+                    if (up.norm() < 1e-9)
+                        return CommandResult::failure(WorkspaceError::InvalidArgument, "An up direction cannot be zero");
+                    ups.push_back(up);
+                    continue;
+                }
+                const auto address = parse_feature_handle(candidate.face_down);
+                if (address && address->object == id.value() && address->revision != revision)
+                    return CommandResult::failure(WorkspaceError::FeatureExpired,
+                                                  "The project changed since \"" + candidate.face_down + "\" was found. Read the features again.");
+                const auto face = std::find_if(features.faces.begin(), features.faces.end(),
+                                               [&](const FaceFeature& f) { return f.handle == candidate.face_down; });
+                if (face == features.faces.end())
+                    return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + candidate.face_down + "\" is not a face of this object");
+                ups.push_back(-Vec3d(face->normal[0], face->normal[1], face->normal[2]));
+            }
+            // OrientJob's own inputs for one instance: the parts in the
+            // instance's rotation, the object's or the print's overhang
+            // angle, and the canvas's area-or-volume choice.
+            orientation::OrientMesh mesh;
+            mesh.name = object.name;
+            mesh.mesh = object.raw_mesh();
+            mesh.mesh.transform(object.instances.front()->get_matrix_no_offset());
+            mesh.overhang_angle = object.config.has("support_threshold_angle") ?
+                                      object.config.opt_int("support_threshold_angle") :
+                                      wxGetApp().preset_bundle->full_config().opt_int("support_threshold_angle");
+            orientation::OrientParams params;
+            if (m_plater.canvas3D()->get_orient_settings().min_area) {
+                // Exactly as OrientJob::process builds it.
+                orientation::OrientParamsArea area;
+                std::memcpy(static_cast<void*>(&params), &area, sizeof(params));
+                params.min_volume = false;
+            } else {
+                params.min_volume = true;
+            }
+            std::vector<OrientationOption> options;
+            for (const orientation::OrientationScore& score : orientation::score_orientations(mesh, ups, params)) {
+                if (options.size() == kOrientationLimit)
+                    break;
+                OrientationOption option{vec3(score.up), score.unprintability, score.overhang, score.bottom, {}};
+                for (const FaceFeature& face : features.faces)
+                    if (option.faces_down.size() < kOrientationLimit &&
+                        Vec3d(face.normal[0], face.normal[1], face.normal[2]).dot(score.up) < -0.999)
+                        option.faces_down.push_back(face.handle);
+                options.push_back(std::move(option));
+            }
+            result.orientations = std::move(options);
+        }
+
+        if (features.faces.size() > kFeatureLimit) features.faces.resize(kFeatureLimit), features.truncated = true;
+        if (features.holes.size() > kFeatureLimit) features.holes.resize(kFeatureLimit), features.truncated = true;
+        if (request.features)
+            result.features = std::move(features);
+    }
+
+    if (request.fit) {
+        ObjectFit       fit;
+        PartPlateList&  plates = m_plater.get_partplate_list();
+        const int       object_index = static_cast<int>(resolved->index);
+        int             home = -1;
+        for (std::size_t instance = 0; instance < object.instances.size(); ++instance) {
+            if (fit.instances.size() == 16) { fit.truncated = true; break; }
+            InstanceFit row;
+            row.instance = instance;
+            const int plate = plates.find_instance_belongs(object_index, static_cast<int>(instance));
+            if (plate >= 0) {
+                row.plate  = PlateId(m_session, plates.get_plate(plate)->id().id);
+                row.inside = !plates.get_plate(plate)->check_outside(object_index, static_cast<int>(instance));
+                if (home < 0) home = plate;
+            }
+            fit.instances.push_back(row);
+        }
+        const Polygons footprint{object.instances.front()->convex_hull_2d()};
+        const TriangleMeshStats stats = object.get_object_stl_stats();
+        const Vec3d size = object.instance_bounding_box(0).size();
+        for (std::size_t other = 0; other < model.objects.size(); ++other) {
+            if (other == resolved->index)
+                continue;
+            ModelObject& candidate = *model.objects[other];
+            const ObjectId candidate_id(m_session, candidate.id().id);
+            if (home >= 0)
+                for (std::size_t instance = 0; instance < candidate.instances.size(); ++instance)
+                    if (plates.find_instance(static_cast<int>(other), static_cast<int>(instance)) == home &&
+                        !intersection(footprint, Polygons{candidate.instances[instance]->convex_hull_2d()}).empty()) {
+                        if (fit.overlaps.size() < 16) fit.overlaps.push_back(candidate_id); else fit.truncated = true;
+                        break;
+                    }
+            if (candidate.instances.empty())
+                continue;
+            // Same facet count, volume within 0.1 % and size within 0.05 mm:
+            // the same model loaded twice, not a second instance.
+            const TriangleMeshStats other_stats = candidate.get_object_stl_stats();
+            if (other_stats.number_of_facets == stats.number_of_facets &&
+                std::abs(other_stats.volume - stats.volume) <= 0.001 * std::abs(stats.volume) &&
+                (candidate.instance_bounding_box(0).size() - size).cwiseAbs().maxCoeff() < 0.05) {
+                if (fit.likely_duplicates.size() < 16) fit.likely_duplicates.push_back(candidate_id); else fit.truncated = true;
+            }
+        }
+        result.fit = std::move(fit);
+    }
+
+    if (request.measure) {
+        const auto feature_at = [&](const std::string& handle, std::optional<Measure::SurfaceFeature>& out) -> CommandResult {
+            const auto address = parse_feature_handle(handle);
+            if (!address || address->object != id.value())
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + handle + "\" is not a feature of this object");
+            if (address->revision != revision)
+                return CommandResult::failure(WorkspaceError::FeatureExpired,
+                                              "The project changed since \"" + handle + "\" was found. Read the features again.");
+            if (address->volume >= object.volumes.size() || !object.volumes[address->volume]->is_model_part())
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + handle + "\" is not a feature of this object");
+            const ModelVolume&        volume = *object.volumes[address->volume];
+            const Measure::Measuring  measuring(volume.mesh().its);
+            if (address->plane >= measuring.get_num_of_planes() ||
+                address->feature >= static_cast<int>(measuring.get_plane_features(address->plane).size()))
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + handle + "\" is not a feature of this object");
+            out.emplace(measuring.get_plane_features(address->plane)[address->feature]);
+            out->translate(world_of(object, volume));
+            return CommandResult::success();
+        };
+        std::optional<Measure::SurfaceFeature> from, to;
+        if (auto found = feature_at(request.measure->first, from); !found.succeeded()) return found;
+        if (auto found = feature_at(request.measure->second, to); !found.succeeded()) return found;
+        // As the measure gizmo asks it.
+        const Measure::MeasurementResult measured = Measure::get_measurement(*from, *to, true);
+        FeatureMeasurement measurement;
+        if (measured.distance_strict) measurement.distance = measured.distance_strict->dist;
+        if (measured.distance_infinite) measurement.plane_distance = measured.distance_infinite->dist;
+        if (measured.angle) measurement.angle = measured.angle->angle * 180.0 / PI;
+        if (measured.distance_xyz) measurement.delta = vec3(*measured.distance_xyz);
+        result.measurement = measurement;
+    }
+    return CommandResult::success();
+}
+
+std::vector<ObjectDetails> OrcaWorkspaceAdapter::object_details() const
+{
+    wxASSERT(wxIsMainThread());
+    std::vector<ObjectDetails> result;
+    PartPlateList&         plates  = m_plater.get_partplate_list();
+    const ModelObjectPtrs& objects = m_plater.model().objects;
+    for (std::size_t index = 0; index < objects.size(); ++index) {
+        const ModelObject& object = *objects[index];
+        ObjectDetails row;
+        row.id        = ObjectId(m_session, object.id().id);
+        row.name      = object.name;
+        row.instances = object.instances.size();
+        row.printable = object.printable;
+        row.overrides = object.config.size();
+        if (object.config.has("extruder"))
+            row.extruder = object.config.opt_int("extruder");
+        for (const ModelVolume* volume : object.volumes) {
+            if (volume->is_model_part()) ++row.parts;
+            else if (volume->is_modifier()) ++row.modifiers;
+            else if (volume->is_negative_volume()) ++row.negative_parts;
+            else if (volume->is_support_modifier()) ++row.support_volumes;
+        }
+        if (!object.instances.empty())
+            row.size = vec3(object.instance_bounding_box(0).size());
+        for (int plate = 0; plate < plates.get_plate_count(); ++plate)
+            for (std::size_t instance = 0; instance < object.instances.size(); ++instance)
+                if (plates.get_plate(plate)->contain_instance(static_cast<int>(index), static_cast<int>(instance))) {
+                    row.plates.push_back(PlateId(m_session, plates.get_plate(plate)->id().id));
+                    break;
+                }
+        result.push_back(std::move(row));
+    }
+    return result;
+}
+
 ConfiguredPrinter OrcaWorkspaceAdapter::configured_printer() const
 {
     wxASSERT(wxIsMainThread());
@@ -1096,12 +1621,12 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     const boost::filesystem::path path(request.path);
     const std::string extension = boost::algorithm::to_lower_copy(path.extension().string());
     if (!request.new_project) {
-        static const std::set<std::string> openable{".3mf", ".stl", ".obj", ".step", ".stp", ".amf"};
+        static const std::set<std::string> openable{".3mf", ".stl", ".obj", ".step", ".stp", ".amf", ".drc"};
         boost::system::error_code error;
         if (!path.is_absolute() || !boost::filesystem::is_regular_file(path, error))
             return CommandResult::failure(WorkspaceError::InvalidArgument, "Open an absolute path to a file that exists");
         if (openable.count(extension) == 0)
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer opens .3mf, .stl, .obj, .step and .amf files");
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer opens .3mf, .stl, .obj, .step, .amf and .drc files");
     }
     if ((m_plater.is_project_dirty() || m_plater.is_presets_dirty()) && !request.discard_unsaved)
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");

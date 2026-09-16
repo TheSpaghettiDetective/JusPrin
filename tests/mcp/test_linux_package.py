@@ -69,7 +69,7 @@ class LinuxPackageTests(unittest.TestCase):
         child.send(request(1, "tools/list"))
         self.assertEqual({tool["name"] for tool in child.receive()["result"]["tools"]},
                          {"workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch",
-                          "intent_update", "plan_set", "presets_list", "printer_list", "slice_start", "slice_report", "project_save", "history_restore", "printer_setup", "printer_setup_preview", "project_open"})
+                          "intent_update", "plan_set", "presets_list", "printer_list", "slice_start", "slice_report", "project_save", "history_restore", "printer_setup", "printer_setup_preview", "project_open", "object_analyze", "object_place"})
         child.send(request(2, "tools/call", {"name": "workspace_inspect", "arguments": {}}))
         self.assertEqual(child.receive()["result"]["structuredContent"]["error"]["code"],
                          "workspace_unavailable")
@@ -131,7 +131,7 @@ class LinuxPackageTests(unittest.TestCase):
         child.send(request(1, "tools/list"))
         self.assertEqual({tool["name"] for tool in child.receive()["result"]["tools"]},
                          {"workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch",
-                          "intent_update", "plan_set", "presets_list", "printer_list", "slice_start", "slice_report", "project_save", "history_restore", "printer_setup", "printer_setup_preview", "project_open"})
+                          "intent_update", "plan_set", "presets_list", "printer_list", "slice_start", "slice_report", "project_save", "history_restore", "printer_setup", "printer_setup_preview", "project_open", "object_analyze", "object_place"})
         child.send(request(2, "tools/call", {"name": "workspace_inspect", "arguments": {}}))
         self.assertEqual(child.receive()["result"]["structuredContent"]["error"]["code"],
                          "workspace_unavailable")

@@ -53,6 +53,8 @@ enum class ToolHandler : std::uint8_t {
     IntentUpdate,
     PlanSet,
     PresetsList,
+    ObjectPlace,
+    ObjectAnalyze,
     PrinterSetupPreview,
     PrinterSetup,
     HistoryRestore,

@@ -119,14 +119,14 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true; // the summary, as every caller before sections existed asked for
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 7)
+        if (!sections.is_array() || sections.empty() || sections.size() > 8)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer" && name != "project") ||
+            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer" && name != "project" && name != "objects") ||
                 !seen.insert(name).second)
                 return false;
         }
@@ -135,6 +135,98 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
 
     if (definition.handler == ToolHandler::PrinterList)
         return arguments.empty();
+
+    if (definition.handler == ToolHandler::ObjectPlace) {
+        if (!has_only(arguments, {"sessionId", "objectId", "instance", "unitsFix", "scale", "scaleTo", "mirrorAxis",
+                                  "faceDown", "rotateDegrees", "position", "dropToBed", "autoOrient"}) ||
+            !arguments.contains("sessionId") || !is_unsigned_string(arguments["sessionId"]) ||
+            !arguments.contains("objectId") || !is_unsigned_string(arguments["objectId"]))
+            return false;
+        const auto numbers = [](const json& value, std::size_t count) {
+            return value.is_array() && value.size() == count &&
+                   std::all_of(value.begin(), value.end(), [](const json& v) { return v.is_number(); });
+        };
+        if (arguments.contains("instance") && !arguments["instance"].is_number_unsigned())
+            return false;
+        if (arguments.contains("unitsFix") && arguments["unitsFix"] != "inches" && arguments["unitsFix"] != "meters")
+            return false;
+        if (arguments.contains("scale")) {
+            const json& scale = arguments["scale"];
+            if (!numbers(scale, 3) || !std::all_of(scale.begin(), scale.end(), [](const json& v) { return v.get<double>() > 0; }))
+                return false;
+        }
+        if (arguments.contains("scaleTo")) {
+            const json& target = arguments["scaleTo"];
+            if (!has_only(target, {"axis", "sizeMm"}) || target.size() != 2 || !target["axis"].is_string() ||
+                (target["axis"] != "x" && target["axis"] != "y" && target["axis"] != "z") || !target["sizeMm"].is_number() ||
+                target["sizeMm"].get<double>() <= 0)
+                return false;
+        }
+        if (arguments.contains("mirrorAxis") && arguments["mirrorAxis"] != "x" && arguments["mirrorAxis"] != "y" &&
+            arguments["mirrorAxis"] != "z")
+            return false;
+        if (arguments.contains("faceDown") && (!arguments["faceDown"].is_string() ||
+                                               arguments["faceDown"].get_ref<const std::string&>().empty() ||
+                                               arguments["faceDown"].get_ref<const std::string&>().size() > 64))
+            return false;
+        if (arguments.contains("rotateDegrees") && !numbers(arguments["rotateDegrees"], 3))
+            return false;
+        if (arguments.contains("position") && !numbers(arguments["position"], 2))
+            return false;
+        for (const char* flag : {"dropToBed", "autoOrient"})
+            if (arguments.contains(flag) && arguments[flag] != true)
+                return false;
+        // Facets that decide the same thing twice are refused rather than ordered.
+        const int orientation = int(arguments.contains("faceDown")) + int(arguments.contains("rotateDegrees")) +
+                                int(arguments.contains("autoOrient"));
+        const int sizing = int(arguments.contains("scale")) + int(arguments.contains("scaleTo")) + int(arguments.contains("unitsFix"));
+        const bool anything = arguments.size() > 2 + std::size_t(arguments.contains("instance"));
+        return orientation <= 1 && sizing <= 1 && anything;
+    }
+
+    if (definition.handler == ToolHandler::ObjectAnalyze) {
+        if (!has_only(arguments, {"sessionId", "objectId", "include", "measure", "candidates"}) || !arguments.contains("sessionId") ||
+            !is_unsigned_string(arguments["sessionId"]) || !arguments.contains("objectId") ||
+            !is_unsigned_string(arguments["objectId"]) || !arguments.contains("include"))
+            return false;
+        const json& include = arguments["include"];
+        if (!include.is_array() || include.empty() || include.size() > 5)
+            return false;
+        std::set<std::string> seen;
+        for (const auto& section : include)
+            if (!section.is_string() || !seen.insert(section.get<std::string>()).second ||
+                (section != "mesh" && section != "features" && section != "fit" && section != "measure" &&
+                 section != "orientations"))
+                return false;
+        if (arguments.contains("candidates")) {
+            const json& candidates = arguments["candidates"];
+            if (!seen.count("orientations") || !candidates.is_array() || candidates.empty() || candidates.size() > 8)
+                return false;
+            for (const auto& candidate : candidates) {
+                if (!candidate.is_object() || candidate.size() != 1)
+                    return false;
+                if (candidate.contains("up")) {
+                    const json& up = candidate["up"];
+                    if (!up.is_array() || up.size() != 3 || !std::all_of(up.begin(), up.end(), [](const json& v) { return v.is_number(); }))
+                        return false;
+                } else if (!candidate.contains("faceDown") || !candidate["faceDown"].is_string() ||
+                           candidate["faceDown"].get_ref<const std::string&>().empty() ||
+                           candidate["faceDown"].get_ref<const std::string&>().size() > 64) {
+                    return false;
+                }
+            }
+        }
+        const bool measuring = seen.count("measure") > 0;
+        if (measuring != arguments.contains("measure"))
+            return false;
+        if (!measuring)
+            return true;
+        const json& measure = arguments["measure"];
+        return has_only(measure, {"from", "to"}) && measure.size() == 2 && measure["from"].is_string() &&
+               measure["to"].is_string() && !measure["from"].get_ref<const std::string&>().empty() &&
+               !measure["to"].get_ref<const std::string&>().empty() &&
+               measure["from"].get_ref<const std::string&>().size() <= 64 && measure["to"].get_ref<const std::string&>().size() <= 64;
+    }
 
     if (definition.handler == ToolHandler::HistoryRestore)
         return has_only(arguments, {"sessionId", "stepId", "point"}) && arguments.size() == 3 &&
@@ -368,6 +460,13 @@ std::vector<ToolDefinition> make_definitions()
                                                  {"what", "configured", "observed", "source"})}}},
          {"truncated", boolean_schema()}},
         {"configured", "plateObservable", "factKey", "confirmedFacts", "mismatches", "truncated"});
+    const json vector3 = {{"type", "array"}, {"items", number_schema()}, {"maxItems", 3}};
+    const json objects_section = list_schema(object_schema(
+        {{"objectId", id}, {"name", string_schema()}, {"plateIds", {{"type", "array"}, {"items", id}}},
+         {"instanceCount", integer_schema()}, {"partCount", integer_schema()}, {"modifierCount", integer_schema()},
+         {"negativePartCount", integer_schema()}, {"supportVolumeCount", integer_schema()}, {"printable", boolean_schema()},
+         {"extruder", integer_schema()}, {"sizeMm", vector3}, {"overrideCount", integer_schema()}},
+        {"objectId", "name", "plateIds", "instanceCount", "partCount", "modifierCount", "printable", "sizeMm", "overrideCount"}));
     const json sourced_text = object_schema({{"value", string_schema()}, {"provenance", {{"type", "string"}, {"enum", json::array({"project_file"})}}}},
                                             {"value", "provenance"});
     json details_schema = object_schema({});
@@ -464,11 +563,18 @@ std::vector<ToolDefinition> make_definitions()
                                                                   {"enum", json::array({"current", "recomputing", "stale", "none"})}}},
                                               {"invalidatedBy", string_schema()}},
                                              {"plateId", "name", "sliced", "estimateStatus", "invalidatedBy"});
+    const json jobs_list = {{"type", "array"}, {"maxItems", 16},
+                            {"items", object_schema({{"handle", id},
+                                                     {"kind", {{"type", "string"}, {"enum", json::array({"orient", "arrange"})}}},
+                                                     {"state", {{"type", "string"}, {"enum", json::array({"running", "finished", "cancelled", "failed"})}}},
+                                                     {"notPlaced", {{"type", "array"}, {"items", id}, {"maxItems", 64}}}},
+                                                    {"handle", "kind", "state", "notPlaced"})}};
     const json slicing_section = object_schema({{"running", boolean_schema()}, {"plateId", id},
                                                 {"percent", integer_schema()}, {"handle", id},
                                                 {"plates", array_schema(slicing_plate, 16)},
+                                                {"jobs", jobs_list},
                                                 {"truncated", boolean_schema()}},
-                                               {"running", "plates", "truncated"});
+                                               {"running", "plates", "jobs", "truncated"});
 
     std::vector<ToolDefinition> definitions{
         {"settings_search", "Search process settings",
@@ -563,7 +669,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"items", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterList},
         {"project_open", "Open a project",
-         "Replace the open project: open a .3mf project, open a model file (.stl, .obj, .step, .amf) as a new project, or start an empty one with new. OrcaSlicer's questions become inputs: loadProjectSettings (project: use the file's printer, filament and process settings; keep: geometry only), unitConversion (keep; convertIfTiny: scale an object that looks modelled in metres or inches; inches: treat the model file as inches), oversized (keep, or scaleToFit the bed). Anything else OrcaSlicer would ask is answered with the choice that changes least and listed in decisions. If the open project has unsaved changes the call is refused unless unsavedWork is \"discard\", which the user must have agreed to. IDs from before are no longer valid afterwards. Waits for approval in JusPrin, and the card shows the path.",
+         "Replace the open project: open a .3mf project, open a model file (.stl, .obj, .step, .amf, .drc) as a new project, or start an empty one with new. OrcaSlicer's questions become inputs: loadProjectSettings (project: use the file's printer, filament and process settings; keep: geometry only), unitConversion (keep; convertIfTiny: scale an object that looks modelled in metres or inches; inches: treat the model file as inches), oversized (keep, or scaleToFit the bed). Anything else OrcaSlicer would ask is answered with the choice that changes least and listed in decisions. If the open project has unsaved changes the call is refused unless unsavedWork is \"discard\", which the user must have agreed to. IDs from before are no longer valid afterwards. Waits for approval in JusPrin, and the card shows the path.",
          object_schema({{"path", {{"type", "string"}, {"maxLength", 1024}}},
                         {"new", {{"type", "boolean"}, {"enum", json::array({true})}}},
                         {"loadProjectSettings", {{"type", "string"}, {"enum", json::array({"project", "keep"})}}},
@@ -623,6 +729,72 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"valid", "issues", "resulting", "substituted", "unsavedEdits", "mismatches", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterSetupPreview},
+        {"object_place", "Place an object",
+         "Place one instance of an object for printing, in one undo step. Facets, all optional, applied in this order: unitsFix (inches or meters: the object was modelled in other units; OrcaSlicer replaces it with a converted copy and the result names the new objectId), scale (factors x, y, z) or scaleTo (a uniform scale that makes the size along one axis sizeMm), mirrorAxis, then at most one of faceDown (a face handle from object_analyze features, put on the bed), rotateDegrees (about the world x, y, z axes) or autoOrient (OrcaSlicer's own auto-orient for minimal support; it runs as a job whose state is read from workspace_inspect's slicing section under the returned handle), then position (x, y of the instance on the bed, mm) and dropToBed. To orient for another goal, score candidates with object_analyze orientations and place the chosen face down. Mirror and scale are named on the approval card. Waits for approval in JusPrin.",
+         object_schema({{"sessionId", id}, {"objectId", id}, {"instance", integer_schema()},
+                        {"unitsFix", {{"type", "string"}, {"enum", json::array({"inches", "meters"})}}},
+                        {"scale", vector3},
+                        {"scaleTo", object_schema({{"axis", {{"type", "string"}, {"enum", json::array({"x", "y", "z"})}}},
+                                                   {"sizeMm", number_schema()}},
+                                                  {"axis", "sizeMm"})},
+                        {"mirrorAxis", {{"type", "string"}, {"enum", json::array({"x", "y", "z"})}}},
+                        {"faceDown", id}, {"rotateDegrees", vector3},
+                        {"position", {{"type", "array"}, {"items", number_schema()}, {"maxItems", 2}}},
+                        {"dropToBed", {{"type", "boolean"}, {"enum", json::array({true})}}},
+                        {"autoOrient", {{"type", "boolean"}, {"enum", json::array({true})}}}},
+                       {"sessionId", "objectId"}),
+         object_schema({{"objectId", id},
+                        {"transform", object_schema({{"positionMm", vector3}, {"rotationDegrees", vector3}, {"scale", vector3}},
+                                                    {"positionMm", "rotationDegrees", "scale"})},
+                        {"sizeMm", vector3}, {"handle", id}, {"sessionId", id}, {"revision", revision}},
+                       {"objectId", "transform", "sizeMm", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectPlace},
+        {"object_analyze", "Analyze an object",
+         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, open and repaired edges, and whether OrcaSlicer thinks it was modelled in inches or metres), features (the largest flat faces and hole mouths, each with a handle, area or diameter, centre and direction, in millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (OrcaSlicer's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
+         object_schema({{"sessionId", id}, {"objectId", id},
+                        {"include", {{"type", "array"}, {"minItems", 1}, {"maxItems", 5},
+                                     {"items", {{"type", "string"}, {"enum", json::array({"mesh", "features", "fit", "orientations", "measure"})}}}}},
+                        {"measure", object_schema({{"from", id}, {"to", id}}, {"from", "to"})},
+                        {"candidates", {{"type", "array"}, {"minItems", 1}, {"maxItems", 8},
+                                        {"items", object_schema({{"up", vector3}, {"faceDown", id}})}}}},
+                       {"sessionId", "objectId", "include"}),
+         object_schema({{"objectId", id},
+                        {"mesh", object_schema({{"sizeMm", vector3}, {"volumeMm3", number_schema()}, {"facets", integer_schema()},
+                                                {"parts", integer_schema()}, {"openEdges", integer_schema()},
+                                                {"repaired", object_schema({{"edgesFixed", integer_schema()}, {"degenerateFacets", integer_schema()},
+                                                                            {"facetsRemoved", integer_schema()}, {"facetsReversed", integer_schema()},
+                                                                            {"backwardsEdges", integer_schema()}},
+                                                                           {"edgesFixed", "degenerateFacets", "facetsRemoved", "facetsReversed", "backwardsEdges"})},
+                                                {"unitsSuspicion", {{"type", "string"}, {"enum", json::array({"none", "inches", "meters"})}}}},
+                                               {"sizeMm", "volumeMm3", "facets", "parts", "openEdges", "repaired", "unitsSuspicion"})},
+                        {"features", object_schema({{"faces", {{"type", "array"}, {"maxItems", 32},
+                                                              {"items", object_schema({{"handle", id}, {"areaMm2", number_schema()},
+                                                                                       {"normal", vector3}, {"center", vector3}},
+                                                                                      {"handle", "areaMm2", "normal", "center"})}}},
+                                                    {"holes", {{"type", "array"}, {"maxItems", 32},
+                                                              {"items", object_schema({{"handle", id}, {"diameterMm", number_schema()},
+                                                                                       {"center", vector3}, {"axis", vector3}},
+                                                                                      {"handle", "diameterMm", "center", "axis"})}}},
+                                                    {"truncated", boolean_schema()}},
+                                                   {"faces", "holes", "truncated"})},
+                        {"fit", object_schema({{"instances", {{"type", "array"}, {"maxItems", 16},
+                                                              {"items", object_schema({{"instance", integer_schema()}, {"plateId", id},
+                                                                                       {"inside", boolean_schema()}},
+                                                                                      {"instance", "inside"})}}},
+                                               {"overlaps", {{"type", "array"}, {"items", id}, {"maxItems", 16}}},
+                                               {"likelyDuplicates", {{"type", "array"}, {"items", id}, {"maxItems", 16}}},
+                                               {"truncated", boolean_schema()}},
+                                              {"instances", "overlaps", "likelyDuplicates", "truncated"})},
+                        {"orientations", {{"type", "array"}, {"maxItems", 8},
+                                          {"items", object_schema({{"up", vector3}, {"unprintability", number_schema()},
+                                                                   {"overhangArea", number_schema()}, {"bedContactMm2", number_schema()},
+                                                                   {"facesDown", {{"type", "array"}, {"items", id}, {"maxItems", 8}}}},
+                                                                  {"up", "unprintability", "overhangArea", "bedContactMm2", "facesDown"})}}},
+                        {"measurement", object_schema({{"distanceMm", number_schema()}, {"planeDistanceMm", number_schema()},
+                                                       {"angleDegrees", number_schema()}, {"deltaMm", vector3}})},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"objectId", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectAnalyze},
         {"presets_list", "List printer, filament, or process presets",
          "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},
@@ -679,13 +851,13 @@ std::vector<ToolDefinition> make_definitions()
          true},
         {"workspace_inspect",
          "Inspect the live workspace",
-         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},
                                       {"items", {{"type", "string"},
-                                                 {"enum", json::array({"summary", "project", "intent", "plan", "slicing", "history", "printer"})}}},
-                                      {"maxItems", 7}}}}),
+                                                 {"enum", json::array({"summary", "project", "objects", "intent", "plan", "slicing", "history", "printer"})}}},
+                                      {"maxItems", 8}}}}),
          object_schema({{"intent", intent_section}, {"plan", plan_section}, {"slicing", slicing_section},
-                        {"printer", printer_section}, {"project", project_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
+                        {"printer", printer_section}, {"project", project_section}, {"objects", objects_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
                          {"plateCount", revision}, {"objectCount", revision}, {"plates", list_schema(plate_summary)},

@@ -527,6 +527,36 @@ void orient(ModelObject* obj)
     obj->ensure_on_bed();
 }
 
+std::vector<OrientationScore> score_orientations(OrientMesh& mesh, const std::vector<Vec3d>& ups, const OrientParams& params)
+{
+    AutoOrienter orienter(&mesh, params, {}, {});
+    std::vector<Vec3f> candidates;
+    if (ups.empty()) {
+        // The candidate set process() builds; its members hold face normals,
+        // the directions that end up pointing down.
+        orienter.orientations = {{0, 0, -1}};
+        orienter.area_cumulation_accurate(orienter.face_normals, orienter.normals_quantize, orienter.areas, 10);
+        orienter.area_cumulation_accurate(orienter.face_normals_hull, orienter.normals_hull_quantize, orienter.areas_hull, 14);
+        orienter.add_supplements();
+        orienter.remove_duplicates();
+        for (const Vec3f& down : orienter.orientations)
+            candidates.push_back(-down);
+    } else {
+        for (const Vec3d& up : ups)
+            candidates.push_back(up.normalized().cast<float>());
+    }
+    std::vector<OrientationScore> scores;
+    for (const Vec3f& up : candidates) {
+        orienter.project_vertices(up);
+        CostItems costs = orienter.get_features(up, orienter.params.min_volume);
+        const float unprintability = orienter.target_function(costs, orienter.params.min_volume);
+        scores.push_back({up.cast<double>(), costs.overhang, costs.bottom, unprintability});
+    }
+    std::stable_sort(scores.begin(), scores.end(),
+                     [](const OrientationScore& a, const OrientationScore& b) { return a.unprintability < b.unprintability; });
+    return scores;
+}
+
 void orient(ModelInstance* instance)
 {
     auto m = instance->get_object()->mesh();

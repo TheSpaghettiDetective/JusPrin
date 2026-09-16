@@ -175,6 +175,18 @@ struct WorkspaceSlicing
     std::optional<int>     percent;
 };
 
+// An OrcaSlicer UI job (orient, arrange) the tool system started. The
+// handle is the caller's; the state is what Orca's worker reported.
+struct WorkspaceJob
+{
+    std::string           handle;
+    std::string           kind;  // orient or arrange
+    std::string           state; // running, finished, cancelled, or failed
+    std::vector<ObjectId> not_placed; // arrange: objects no plate holds afterwards
+};
+
+inline constexpr std::size_t kJobLimit = 16;
+
 struct WorkspaceSnapshot
 {
     ProjectSessionId            session;
@@ -194,6 +206,152 @@ struct WorkspaceSnapshot
     // money rather than denominate it in a guess.
     std::string                 currency;
     WorkspaceSlicing            slicing;
+    std::vector<WorkspaceJob>   jobs; // oldest first
+};
+
+// Geometry facts about one object, as object_analyze reports them. Lengths
+// are millimetres in the world frame of the object's first instance.
+using Vec3 = std::array<double, 3>;
+
+struct MeshFacts
+{
+    Vec3        size{};
+    double      volume{0};
+    std::size_t facets{0};
+    std::size_t parts{0};
+    int         open_edges{0};
+    int         edges_fixed{0}, degenerate_facets{0}, facets_removed{0}, facets_reversed{0}, backwards_edges{0};
+    std::string units_suspicion; // empty, "inches", or "meters": Orca's own load-time tests
+};
+
+// A flat face group or a hole found by Orca's Measure module. A handle names
+// the feature at the revision it was computed at and expires after it.
+struct FaceFeature
+{
+    std::string handle;
+    double      area{0};
+    Vec3        normal{}, center{};
+};
+
+// The circular border of a flat face that the face does not cover: the
+// mouth of a hole or pocket. `axis` is the face normal, pointing out of the
+// material.
+struct HoleFeature
+{
+    std::string handle;
+    double      diameter{0};
+    Vec3        center{}, axis{};
+};
+
+inline constexpr std::size_t kFeatureLimit = 32;
+
+struct ObjectFeatures
+{
+    std::vector<FaceFeature> faces; // largest first
+    std::vector<HoleFeature> holes; // largest first
+    bool                     truncated{false};
+};
+
+struct InstanceFit
+{
+    std::size_t            instance{0};
+    std::optional<PlateId> plate; // the plate that holds it entirely; absent when none does
+    bool                   inside{false};
+};
+
+struct ObjectFit
+{
+    std::vector<InstanceFit> instances;
+    std::vector<ObjectId>    overlaps;          // objects whose footprint crosses this one on its plate
+    std::vector<ObjectId>    likely_duplicates; // same shape and size
+    bool                     truncated{false};
+};
+
+struct FeatureMeasurement
+{
+    std::optional<double> distance;     // between the nearest points
+    std::optional<double> plane_distance; // between parallel planes, extended
+    std::optional<double> angle;        // degrees
+    std::optional<Vec3>   delta;        // x, y, z components
+};
+
+// One way to stand the object: a direction to point up, or a face handle
+// to put down.
+struct OrientationCandidate
+{
+    std::optional<Vec3> up;
+    std::string         face_down;
+};
+
+struct OrientationOption
+{
+    Vec3                     up{};
+    double                   unprintability{0}; // Orca's orient cost; lower is better
+    double                   overhang{0};       // weighted overhang area, as Orca counts it
+    double                   bed_contact{0};    // mm2 touching the bed
+    std::vector<std::string> faces_down;        // feature handles that would rest on the bed
+};
+
+inline constexpr std::size_t kOrientationLimit = 8;
+
+struct AnalysisRequest
+{
+    bool mesh{false};
+    bool features{false};
+    bool fit{false};
+    bool orientations{false};
+    std::vector<OrientationCandidate> candidates; // empty: Orca's own candidates
+    std::optional<std::pair<std::string, std::string>> measure;
+};
+
+struct ObjectAnalysis
+{
+    std::optional<MeshFacts>          mesh;
+    std::optional<ObjectFeatures>     features;
+    std::optional<ObjectFit>          fit;
+    std::optional<FeatureMeasurement> measurement;
+    std::optional<std::vector<OrientationOption>> orientations;
+};
+
+// One row of workspace_inspect's objects section.
+struct ObjectDetails
+{
+    ObjectId             id;
+    std::string          name;
+    std::vector<PlateId> plates;
+    std::size_t          instances{0}, parts{0}, modifiers{0}, negative_parts{0}, support_volumes{0};
+    bool                 printable{true};
+    int                  extruder{0};
+    Vec3                 size{};
+    std::size_t          overrides{0};
+};
+
+// Place one object instance for printing. Every facet is optional; the
+// adapter applies them in a fixed order -- units, scale, mirror, rotation,
+// position, drop -- under one undo step, then starts auto-orient, which runs
+// as Orca's own job.
+struct PlacementRequest
+{
+    std::size_t                          instance{0};
+    std::string                          units_fix;   // "", "inches", or "meters"
+    std::optional<Vec3>                  scale;       // factors
+    std::optional<std::pair<int, double>> scale_to;   // axis 0-2, size in mm; uniform
+    std::string                          mirror_axis; // "", "x", "y", or "z"
+    std::string                          face_down;   // a face handle from object_analyze
+    std::optional<Vec3>                  rotate;      // degrees about the world axes, x then y then z
+    std::optional<std::array<double, 2>> position;    // the instance's x, y on the bed
+    bool                                 drop_to_bed{false};
+    bool                                 auto_orient{false};
+};
+
+// What a placement left: the object may be a new one (units conversion
+// replaces it), and auto-orient is still running under the job handle.
+struct PlacementResult
+{
+    ObjectId        object;
+    ObjectTransform transform;
+    Vec3            size{};
+    bool            orienting{false};
 };
 
 // What the selected presets say the hardware is. The plate type is the
@@ -447,7 +605,9 @@ enum class WorkspaceError : std::uint8_t {
     InvalidArgument,
     NoChange,
     InvalidSettings,
-    StaleSettings
+    StaleSettings,
+    // A feature handle was computed at an earlier revision.
+    FeatureExpired
 };
 
 struct CommandResult
@@ -811,6 +971,10 @@ public:
     // preempt is set, because nothing in Orca records who started a run: a
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
+    virtual CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
+                                       PlacementResult& result) = 0;
+    virtual CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const = 0;
+    virtual std::vector<ObjectDetails> object_details() const = 0;
     virtual ConfiguredPrinter configured_printer() const = 0;
     virtual std::string current_process_preset() const = 0;
     // Read-only: evaluates compatibility without selecting, and leaves every

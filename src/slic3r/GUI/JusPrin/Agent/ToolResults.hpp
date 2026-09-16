@@ -23,6 +23,7 @@ struct InspectSections
     bool history{false};
     bool printer{false};
     bool project{false};
+    bool objects{false};
 };
 
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});
@@ -48,6 +49,10 @@ nlohmann::json printer_device_result(const Workspace::PrinterDevice& device);
 // Identity, saved state, the file's own description with its provenance,
 // attachments, and backup state.
 nlohmann::json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details);
+
+nlohmann::json objects_section_result(const std::vector<Workspace::ObjectDetails>& objects);
+nlohmann::json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,
+                                      const Workspace::WorkspaceSnapshot& snapshot);
 
 // The summary's undo flags with the steps themselves.
 nlohmann::json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history);

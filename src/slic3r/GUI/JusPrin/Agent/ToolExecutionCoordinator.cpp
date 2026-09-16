@@ -5,7 +5,9 @@
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
+#include <sstream>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -38,6 +40,7 @@ const char* workspace_error_code(WorkspaceError error)
     case WorkspaceError::NoChange: return "no_change";
     case WorkspaceError::InvalidSettings: return "invalid_settings";
     case WorkspaceError::StaleSettings: return "stale_workspace";
+    case WorkspaceError::FeatureExpired: return "feature_expired";
     }
     return "unknown";
 }
@@ -174,6 +177,38 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         }
         const std::string name = step->label.empty() ? "an unnamed step" : "\xe2\x80\x9c" + step->label + "\xe2\x80\x9d";
         stored.title = (arguments["point"] == "before" ? "Go back to before " : "Go to just after ") + name;
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
+    if (definition->handler == ToolHandler::ObjectPlace) {
+        const auto arguments = json::parse(stored.arguments_json);
+        std::string name = "object " + arguments["objectId"].get<std::string>();
+        for (const auto& plate : snapshot.plates)
+            for (const auto& candidate : plate.objects)
+                if (std::to_string(candidate.id.value()) == arguments["objectId"]) name = candidate.name;
+        std::vector<std::string> parts;
+        const auto number = [](double value) {
+            std::ostringstream out;
+            out << value;
+            return out.str();
+        };
+        if (arguments.contains("unitsFix")) parts.push_back("convert from " + arguments["unitsFix"].get<std::string>());
+        if (arguments.contains("scale"))
+            parts.push_back("scale x" + number(arguments["scale"][0]) + " y" + number(arguments["scale"][1]) + " z" + number(arguments["scale"][2]));
+        if (arguments.contains("scaleTo"))
+            parts.push_back("scale to " + number(arguments["scaleTo"]["sizeMm"]) + " mm in " + arguments["scaleTo"]["axis"].get<std::string>());
+        if (arguments.contains("mirrorAxis")) parts.push_back("mirror in " + arguments["mirrorAxis"].get<std::string>());
+        if (arguments.contains("faceDown")) parts.push_back("put a chosen face down");
+        if (arguments.contains("rotateDegrees"))
+            parts.push_back("rotate " + number(arguments["rotateDegrees"][0]) + "/" + number(arguments["rotateDegrees"][1]) + "/" +
+                            number(arguments["rotateDegrees"][2]) + " degrees");
+        if (arguments.contains("autoOrient")) parts.push_back("auto-orient");
+        if (arguments.contains("position"))
+            parts.push_back("move to " + number(arguments["position"][0]) + ", " + number(arguments["position"][1]));
+        if (arguments.contains("dropToBed")) parts.push_back("drop to the bed");
+        stored.title = "Place " + name + ":";
+        for (std::size_t index = 0; index < parts.size(); ++index)
+            stored.title += (index == 0 ? " " : ", ") + parts[index];
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
@@ -496,7 +531,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer"), asked("project")};
+            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer"), asked("project"), asked("objects")};
         }
         if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
@@ -514,6 +549,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                         std::vector<Workspace::PrinterFact>{};
             result["printer"] = printer_section_result(configured, devices, facts);
         }
+        if (sections.objects) result["objects"] = objects_section_result(m_workspace.object_details());
         if (sections.project) result["project"] = project_section_result(m_workspace.snapshot(), m_workspace.project_details());
         if (sections.history) result["history"] = history_section_result(m_workspace.snapshot(), m_workspace.history());
         activity.result_json = result.dump();
@@ -609,6 +645,89 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                     {"revision", snapshot.revision}}
                                    .dump();
         activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectPlace) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto object    = parse_object_argument(activity.arguments_json);
+        Workspace::PlacementRequest request;
+        request.instance  = arguments.value("instance", std::size_t(0));
+        request.units_fix = arguments.value("unitsFix", "");
+        if (arguments.contains("scale"))
+            request.scale = Workspace::Vec3{arguments["scale"][0].get<double>(), arguments["scale"][1].get<double>(),
+                                            arguments["scale"][2].get<double>()};
+        if (arguments.contains("scaleTo"))
+            request.scale_to = std::make_pair(arguments["scaleTo"]["axis"] == "x" ? 0 : arguments["scaleTo"]["axis"] == "y" ? 1 : 2,
+                                              arguments["scaleTo"]["sizeMm"].get<double>());
+        request.mirror_axis = arguments.value("mirrorAxis", "");
+        request.face_down   = arguments.value("faceDown", "");
+        if (arguments.contains("rotateDegrees"))
+            request.rotate = Workspace::Vec3{arguments["rotateDegrees"][0].get<double>(), arguments["rotateDegrees"][1].get<double>(),
+                                             arguments["rotateDegrees"][2].get<double>()};
+        if (arguments.contains("position"))
+            request.position = std::array<double, 2>{arguments["position"][0].get<double>(), arguments["position"][1].get<double>()};
+        request.drop_to_bed = arguments.contains("dropToBed");
+        request.auto_orient = arguments.contains("autoOrient");
+        Workspace::PlacementResult placed;
+        const auto done = object ? m_workspace.place_object(*object, request, activity.action_id, placed) :
+                                   Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        // Tenths of a micron and a thousandth of a degree; `+ 0.0` drops -0.
+        const auto rounded = [](const std::array<double, 3>& v, double factor) {
+            return json::array({std::round(v[0] * factor) / factor + 0.0, std::round(v[1] * factor) / factor + 0.0,
+                                std::round(v[2] * factor) / factor + 0.0});
+        };
+        const double degrees = 180.0 / 3.141592653589793;
+        json result{{"objectId", std::to_string(placed.object.value())},
+                    {"transform", {{"positionMm", rounded(placed.transform.position, 1e4)},
+                                   {"rotationDegrees", rounded({placed.transform.rotation[0] * degrees, placed.transform.rotation[1] * degrees,
+                                                                placed.transform.rotation[2] * degrees}, 1e3)},
+                                   {"scale", rounded(placed.transform.scale, 1e6)}}},
+                    {"sizeMm", rounded(placed.size, 1e4)},
+                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+        if (placed.orienting)
+            result["handle"] = activity.action_id;
+        activity.result_json = result.dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectAnalyze) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto object    = parse_object_argument(activity.arguments_json);
+        Workspace::AnalysisRequest request;
+        for (const auto& section : arguments["include"]) {
+            request.mesh     = request.mesh || section == "mesh";
+            request.features = request.features || section == "features";
+            request.fit      = request.fit || section == "fit";
+            request.orientations = request.orientations || section == "orientations";
+        }
+        for (const auto& candidate : arguments.value("candidates", json::array())) {
+            Workspace::OrientationCandidate row;
+            if (candidate.contains("up"))
+                row.up = Workspace::Vec3{candidate["up"][0].get<double>(), candidate["up"][1].get<double>(), candidate["up"][2].get<double>()};
+            else
+                row.face_down = candidate["faceDown"].get<std::string>();
+            request.candidates.push_back(std::move(row));
+        }
+        if (arguments.contains("measure"))
+            request.measure = std::make_pair(arguments["measure"]["from"].get<std::string>(), arguments["measure"]["to"].get<std::string>());
+        Workspace::ObjectAnalysis analysis;
+        const auto analyzed = object ? m_workspace.analyze_object(*object, request, analysis) :
+                                       Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+        if (!analyzed.succeeded()) {
+            fail(activity, workspace_error_code(analyzed.error), analyzed.message);
+            return;
+        }
+        activity.result_json = object_analysis_result(*object, analysis, m_workspace.snapshot()).dump();
+        activity.state       = ToolState::Succeeded;
         notify(activity);
         return;
     }
