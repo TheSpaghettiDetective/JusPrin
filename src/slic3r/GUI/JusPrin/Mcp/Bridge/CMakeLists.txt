@@ -15,6 +15,9 @@ add_executable(jusprin-mcp main.cpp)
 set_target_properties(jusprin-mcp PROPERTIES MACOSX_BUNDLE FALSE
     RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:OrcaSlicer>")
 target_link_libraries(jusprin-mcp PRIVATE jusprin_mcp_bridge_core)
+if(WIN32)
+    target_link_libraries(jusprin-mcp PRIVATE shell32) # CommandLineToArgvW, for the wide command line
+endif()
 add_dependencies(OrcaSlicer jusprin-mcp)
 if(NOT APPLE)
     if(WIN32)
