@@ -1,6 +1,7 @@
 #include "ToolExecutionCoordinator.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -383,7 +384,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             // Absent, not zero: a nozzle of zero would be a claim the device
             // never made.
             if (device.nozzle_diameter) entry["nozzleDiameter"] = *device.nozzle_diameter;
-            if (device.observed_at_ms) entry["observedAtMs"] = *device.observed_at_ms;
+            if (device.observed_at_ms)
+                entry["observedAt"] = Workspace::utc_timestamp(std::chrono::system_clock::time_point(
+                    std::chrono::milliseconds(*device.observed_at_ms)));
             items.push_back(std::move(entry));
         }
         activity.result_json = json{{"items", std::move(items)}, {"truncated", truncated},

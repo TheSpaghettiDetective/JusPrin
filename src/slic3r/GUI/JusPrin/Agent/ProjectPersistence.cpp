@@ -1,4 +1,5 @@
 #include "ProjectPersistence.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -21,19 +22,7 @@ constexpr const char* kJusPrinDirName  = "JusPrin";
 constexpr const char* kStateFileName   = "state.json";
 constexpr const char* kRecoveryMeta    = "recovery.json";
 
-std::string default_clock()
-{
-    const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::tm utc{};
-#ifdef _WIN32
-    gmtime_s(&utc, &now);
-#else
-    gmtime_r(&now, &utc);
-#endif
-    char buffer[32];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &utc);
-    return buffer;
-}
+std::string default_clock() { return Workspace::utc_now(); }
 
 std::string default_uuid()
 {

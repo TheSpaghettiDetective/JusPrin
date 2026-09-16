@@ -852,10 +852,11 @@ TEST_CASE("printers are listed with what they reported and when", "[tools][print
     CHECK(result["items"][0]["activity"] == "printing");
     CHECK(result["items"][0]["nozzleDiameter"] == 0.4);
     CHECK(result["items"][0]["materials"][0] == "Bambu PLA Basic");
-    CHECK(result["items"][0]["observedAtMs"] == 1789000000000);
+    // A moment a person or a model can read, not an epoch count.
+    CHECK(result["items"][0]["observedAt"] == "2026-09-10T00:26:40Z");
     CHECK(result["items"][1]["activity"] == "offline");
     CHECK_FALSE(result["items"][1].contains("nozzleDiameter"));
-    CHECK_FALSE(result["items"][1].contains("observedAtMs"));
+    CHECK_FALSE(result["items"][1].contains("observedAt"));
     CHECK(result["items"][1]["materials"].empty());
     CHECK(result["truncated"] == false);
 
