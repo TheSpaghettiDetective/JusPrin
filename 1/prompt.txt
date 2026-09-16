@@ -28,3 +28,17 @@ oh so this is just a poor-man's tool search?
 ---
 
 Based on your understanding about the purpose of this project, essentially we just want to help 3D printing users to use the Sizer more easily and more effectively,  does it mean that the in-app agent will have to load all the mcp tools that we will build in the future in the range of 50 to 100 tools on every turn?  If so, are these tool definitions even cached? Are we sending all the tool definitions on every turn or just at the very beginning of the chat as a system prompt?
+
+---
+
+update the mcp guide based on the new catalog. create a handoff doc for another agent to:
+
+1. implement all tools necessary "The journey and its tools" that you previously said about everything needed to guide users From opening a 3MF file or importing an STL file all the way to to coming up with a G code file that will actually print well.
+2. make sure these tools are also properly exposed as mcp tool.s
+3. clean up existinng tools if they are out of sync with the new catalog.
+4. test these tools, as well as how real queries will go with real openai api calls.
+5. remove toolset_enable, the a hand-rolled, coarse version of tool search.
+6. do not implement tool search just yet. go with the simplest solution, which is to load tools at top (pause and confirm with me if my understanding is not correct)
+
+
+commit the updated mcp guide . do not commit the handoff doc
