@@ -1,0 +1,9 @@
+now does the fake bambu printer have a doc about how to enable/use? use plain eng. under 20 words
+
+---
+
+test the fake bambu printer based on the doc. also test if it is really disabled by default.
+
+---
+
+no. I mean how to use the fake printer. just a pointer to the right section in readme
