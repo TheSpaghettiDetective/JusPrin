@@ -59,7 +59,7 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     auto tools = list.messages()[0]["result"]["tools"];
     CHECK(list.messages()[0]["result"]["ttlMs"] == 0);
     CHECK(list.messages()[0]["result"]["cacheScope"] == "private");
-    REQUIRE(tools.size() == 18);
+    REQUIRE(tools.size() == 21);
     CHECK(tools.back()["name"] == "workspace_inspect");
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));
@@ -134,7 +134,7 @@ TEST_CASE("MCP disconnect cancels pending native proposals", "[mcp][network][can
 TEST_CASE("MCP exposure and schema failures cannot reach a native mutation", "[mcp][network]")
 {
     RuntimeHarness h;
-    const std::string name = GENERATE("duplicate_object", "inspect_selection", "import_model", "record_build", "missing", "settings_apply_patch");
+    const std::string name = GENERATE("object_import", "record_build", "missing", "settings_apply_patch");
     Client client(h.runtime.server(), request("tools/call", {{"name", name}, {"arguments", {{"actionClass", "read_only"}}}}));
     REQUIRE(h.finish(client));
     auto response = client.messages().back();
@@ -279,10 +279,6 @@ TEST_CASE("MCP workspace summaries are bounded schema-validated and explicit", "
     CHECK(result["objectCount"] == 1001);
     CHECK(result["plates"]["items"][0]["objects"]["items"].size() == Agent::kToolListLimit);
     CHECK(result.dump().size() < Mcp::kBodyLimit);
-    auto selection = Agent::selection_inspection(snapshot);
-    CHECK(selection["truncated"] == true);
-    CHECK(selection["selection"].size() == Agent::kToolListLimit);
-    CHECK(registry.validate_output(*registry.find("inspect_selection"), selection));
     result["revision"] = "not a number";
     CHECK_FALSE(registry.validate_output(*registry.find("workspace_inspect"), result));
 }

@@ -180,6 +180,85 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
+    if (definition->handler == ToolHandler::ObjectImportFile) {
+        const auto arguments = json::parse(stored.arguments_json);
+        // Only the name is looked at before approval; the file is read after it.
+        const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
+        std::error_code error;
+        if (!path.is_absolute() || !std::filesystem::is_regular_file(path, error)) {
+            fail(stored, "invalid_argument", "Give the absolute path of a file that exists.");
+            return stored;
+        }
+        stored.title = "Import " + arguments["path"].get<std::string>();
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
+    if (definition->handler == ToolHandler::ProjectDeleteItems) {
+        const auto arguments = json::parse(stored.arguments_json);
+        const auto object_name = [&snapshot](const std::string& id) {
+            for (const auto& plate : snapshot.plates)
+                for (const auto& object : plate.objects)
+                    if (std::to_string(object.id.value()) == id) return object.name;
+            return "object " + id;
+        };
+        stored.title = "Delete";
+        bool first = true;
+        for (const auto& row : arguments["items"]) {
+            std::string item;
+            if (row.contains("plateId")) {
+                item = "plate " + row["plateId"].get<std::string>();
+                for (const auto& plate : snapshot.plates)
+                    if (std::to_string(plate.id.value()) == row["plateId"]) item = plate.name;
+            } else if (row.contains("partId")) {
+                item = "a part of " + object_name(row["objectId"]);
+            } else if (row.contains("instance")) {
+                item = "copy " + std::to_string(row["instance"].get<std::size_t>() + 1) + " of " + object_name(row["objectId"]);
+            } else {
+                item = object_name(row["objectId"]);
+            }
+            stored.title += (first ? " " : ", ") + item;
+            first = false;
+        }
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
+    if (definition->handler == ToolHandler::PlateLayout) {
+        const auto arguments = json::parse(stored.arguments_json);
+        const auto name_of = [&snapshot](const std::string& id) {
+            for (const auto& plate : snapshot.plates)
+                for (const auto& object : plate.objects)
+                    if (std::to_string(object.id.value()) == id) return object.name;
+            return "object " + id;
+        };
+        const auto plate_name = [&snapshot](const std::string& id) {
+            for (const auto& plate : snapshot.plates)
+                if (std::to_string(plate.id.value()) == id) return plate.name;
+            return "plate " + id;
+        };
+        std::vector<std::string> parts;
+        for (const auto& row : arguments.value("objects", json::array())) {
+            const std::string name = name_of(row["objectId"]);
+            if (row.contains("quantity")) parts.push_back(name + " x" + std::to_string(row["quantity"].get<int>()));
+            if (row.contains("enabled")) parts.push_back((row["enabled"].get<bool>() ? "print " : "skip ") + name);
+            if (row.contains("plateId")) parts.push_back("move " + name + " to " + plate_name(row["plateId"]));
+            if (row.contains("name")) parts.push_back("rename " + name + " to " + row["name"].get<std::string>());
+            if (row.contains("extruder")) parts.push_back(name + " on filament " + std::to_string(row["extruder"].get<int>()));
+        }
+        for (const auto& row : arguments.value("plates", json::array())) {
+            const std::string name = row.contains("plateId") ? plate_name(row["plateId"]) : "a new plate";
+            if (!row.contains("plateId")) parts.push_back("add a plate");
+            if (row.contains("name")) parts.push_back("name " + name + " " + row["name"].get<std::string>());
+            if (row.contains("bedType")) parts.push_back(name + " on " + row["bedType"].get<std::string>());
+        }
+        if (arguments.contains("arrange"))
+            parts.push_back(arguments["arrange"].contains("plateId") ? "arrange " + plate_name(arguments["arrange"]["plateId"])
+                                                                      : "arrange all plates");
+        stored.title = "Lay out:";
+        for (std::size_t index = 0; index < parts.size(); ++index)
+            stored.title += (index == 0 ? " " : ", ") + parts[index];
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
     if (definition->handler == ToolHandler::ObjectPlace) {
         const auto arguments = json::parse(stored.arguments_json);
         std::string name = "object " + arguments["objectId"].get<std::string>();
@@ -377,6 +456,19 @@ void ToolExecutionCoordinator::clear()
                        m_activities.end());
 }
 
+void ToolExecutionCoordinator::forget_if_closed(const std::string& action_id)
+{
+    // The record belongs to the project that was closed. Its subscribers have
+    // had the terminal result; the new project's action ids start again, and
+    // must not meet it.
+    const std::uint64_t session = m_workspace.snapshot().session.value();
+    m_activities.erase(std::remove_if(m_activities.begin(), m_activities.end(),
+                                      [&](const ToolActivity& activity) {
+                                          return activity.action_id == action_id && activity.session != session;
+                                      }),
+                       m_activities.end());
+}
+
 void ToolExecutionCoordinator::pump()
 {
     for (ToolActivity& activity : m_activities) {
@@ -459,66 +551,6 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     const ToolDefinition* definition = m_registry.find(activity.tool);
     if (definition == nullptr) {
         fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");
-        return;
-    }
-
-    if (definition->handler == ToolHandler::DuplicateObject) {
-        const std::optional<Workspace::ObjectId> id = parse_object_argument(activity.arguments_json);
-        if (!id) {
-            fail(activity, "invalid_arguments", "The action arguments do not identify an object.");
-            return;
-        }
-        const Workspace::CommandResult result = m_workspace.duplicate_object(*id);
-        if (!result.succeeded()) {
-            fail(activity, workspace_error_code(result.error), result.message);
-            return;
-        }
-        // Success must agree with authoritative state: the command returned
-        // the created object's ID, and the committed revision advanced past
-        // the proposal.
-        const Workspace::WorkspaceSnapshot after = m_workspace.snapshot();
-        json result_json{{"revision", after.revision}};
-        if (result.object_id)
-            result_json["newObjectId"] = std::to_string(result.object_id->value());
-        activity.result_json = result_json.dump();
-        activity.state       = ToolState::Succeeded;
-        notify(activity);
-        return;
-    }
-
-    if (definition->handler == ToolHandler::ImportModel) {
-        const json arguments = json::parse(activity.arguments_json, nullptr, false);
-        const std::string attachment_id =
-            arguments.is_object() ? arguments.value("attachmentId", std::string()) : std::string();
-        if (attachment_id.empty()) {
-            fail(activity, "invalid_arguments", "The import action does not identify an attachment.");
-            return;
-        }
-        const std::string path = m_attachment_path_resolver ? m_attachment_path_resolver(attachment_id) : std::string();
-        if (path.empty()) {
-            fail(activity, "unavailable_operation", "The attached model is no longer available to import.");
-            return;
-        }
-        const Workspace::CommandResult result = m_workspace.import_model(path);
-        if (!result.succeeded()) {
-            fail(activity, workspace_error_code(result.error), result.message);
-            return;
-        }
-        const Workspace::WorkspaceSnapshot after = m_workspace.snapshot();
-        json result_json{{"revision", after.revision}, {"imported", true}};
-        if (result.object_id)
-            result_json["newObjectId"] = std::to_string(result.object_id->value());
-        activity.result_json = result_json.dump();
-        activity.state       = ToolState::Succeeded;
-        notify(activity);
-        return;
-    }
-
-    if (definition->handler == ToolHandler::InspectSelection) {
-        const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
-        activity.result_json = selection_inspection(snapshot).dump();
-        activity.state       = ToolState::Succeeded;
-        notify(activity);
         return;
     }
 
@@ -613,6 +645,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             if (asked.size() < 32) asked.push_back({{"question", decision.question}, {"answer", decision.answer}});
         if (!opened.succeeded()) {
             fail(current, workspace_error_code(opened.error), opened.message, json{{"decisions", asked}}.dump());
+            forget_if_closed(action_id);
             return;
         }
         const auto snapshot = m_workspace.snapshot();
@@ -625,6 +658,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                    .dump();
         current.state = ToolState::Succeeded;
         notify(current);
+        forget_if_closed(action_id);
         return;
     }
 
@@ -645,6 +679,139 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                     {"revision", snapshot.revision}}
                                    .dump();
         activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectImport || definition->handler == ToolHandler::ObjectImportFile) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
+        Workspace::ImportRequest request;
+        if (definition->handler == ToolHandler::ObjectImport) {
+            request.path = m_attachment_path_resolver ? m_attachment_path_resolver(arguments["attachmentId"].get<std::string>()) : std::string();
+            if (request.path.empty()) {
+                fail(activity, "unavailable_operation", "The attached model is no longer available to import.");
+                return;
+            }
+        } else {
+            request.path = arguments["path"].get<std::string>();
+        }
+        if (arguments.contains("plateId"))
+            request.plate = Workspace::PlateId(session, std::stoull(arguments["plateId"].get<std::string>()));
+        const std::string units = arguments.value("unitConversion", "keep");
+        request.units           = units == "inches"        ? Workspace::UnitChoice::Inches :
+                                  units == "convertIfTiny" ? Workspace::UnitChoice::ConvertIfTiny :
+                                                             Workspace::UnitChoice::Keep;
+        request.scale_oversized = arguments.value("oversized", "keep") == "scaleToFit";
+        if (session != m_workspace.snapshot().session) {
+            fail(activity, "stale_id", "That session is no longer open.");
+            return;
+        }
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        const auto imported = m_workspace.import_objects(request, decisions, added);
+        json asked = json::array(), ids = json::array();
+        for (const auto& decision : decisions)
+            if (asked.size() < 32) asked.push_back({{"question", decision.question}, {"answer", decision.answer}});
+        if (!imported.succeeded()) {
+            fail(activity, workspace_error_code(imported.error), imported.message, json{{"decisions", asked}}.dump());
+            return;
+        }
+        for (const auto& id : added)
+            if (ids.size() < 64) ids.push_back(std::to_string(id.value()));
+        // The new objects as they are now, sizes included, so a conversion
+        // Orca already made is visible.
+        std::vector<Workspace::ObjectDetails> rows;
+        for (const auto& row : m_workspace.object_details())
+            if (std::find(added.begin(), added.end(), row.id) != added.end()) rows.push_back(row);
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"objectIds", std::move(ids)}, {"objects", objects_section_result(rows)}, {"decisions", std::move(asked)},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ProjectDeleteItems) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
+        std::vector<Workspace::DeleteItem> items;
+        for (const auto& row : arguments["items"]) {
+            Workspace::DeleteItem item;
+            if (row.contains("plateId")) {
+                item.kind  = Workspace::DeleteItem::Kind::Plate;
+                item.plate = Workspace::PlateId(session, std::stoull(row["plateId"].get<std::string>()));
+            } else {
+                item.object = Workspace::ObjectId(session, std::stoull(row["objectId"].get<std::string>()));
+                if (row.contains("partId")) {
+                    item.kind = Workspace::DeleteItem::Kind::Part;
+                    item.part = std::stoull(row["partId"].get<std::string>());
+                } else if (row.contains("instance")) {
+                    item.kind     = Workspace::DeleteItem::Kind::Instance;
+                    item.instance = row["instance"].get<std::size_t>();
+                }
+            }
+            items.push_back(item);
+        }
+        const auto deleted = m_workspace.delete_items(items);
+        if (!deleted.succeeded()) {
+            fail(activity, workspace_error_code(deleted.error), deleted.message);
+            return;
+        }
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"objects", objects_section_result(m_workspace.object_details())},
+                                    {"plateCount", snapshot.plates.size()},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::PlateLayout) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
+        Workspace::LayoutRequest request;
+        for (const auto& row : arguments.value("objects", json::array())) {
+            Workspace::LayoutObject object;
+            object.id = Workspace::ObjectId(session, std::stoull(row["objectId"].get<std::string>()));
+            if (row.contains("enabled")) object.enabled = row["enabled"].get<bool>();
+            if (row.contains("quantity")) object.quantity = row["quantity"].get<std::size_t>();
+            if (row.contains("plateId")) object.plate = Workspace::PlateId(session, std::stoull(row["plateId"].get<std::string>()));
+            if (row.contains("name")) object.name = row["name"].get<std::string>();
+            if (row.contains("extruder")) object.extruder = row["extruder"].get<int>();
+            request.objects.push_back(std::move(object));
+        }
+        for (const auto& row : arguments.value("plates", json::array())) {
+            Workspace::LayoutPlate plate;
+            if (row.contains("plateId")) plate.id = Workspace::PlateId(session, std::stoull(row["plateId"].get<std::string>()));
+            if (row.contains("name")) plate.name = row["name"].get<std::string>();
+            if (row.contains("bedType")) plate.bed_type = row["bedType"].get<std::string>();
+            request.plates.push_back(std::move(plate));
+        }
+        if (arguments.contains("arrange")) {
+            Workspace::LayoutArrange arrange;
+            const auto& row = arguments["arrange"];
+            if (row.contains("plateId")) arrange.plate = Workspace::PlateId(session, std::stoull(row["plateId"].get<std::string>()));
+            if (row.contains("spacingMm")) arrange.spacing = row["spacingMm"].get<double>();
+            if (row.contains("allowRotation")) arrange.rotation = row["allowRotation"].get<bool>();
+            request.arrange = arrange;
+        }
+        Workspace::LayoutResult laid;
+        const auto done = m_workspace.lay_out(request, activity.action_id, laid);
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        json added = json::array();
+        for (const auto& plate : laid.added_plates) added.push_back(std::to_string(plate.value()));
+        json result{{"objects", objects_section_result(m_workspace.object_details())}, {"addedPlateIds", std::move(added)},
+                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+        if (laid.arranging) result["handle"] = activity.action_id;
+        activity.result_json = result.dump();
+        activity.state       = ToolState::Succeeded;
         notify(activity);
         return;
     }

@@ -113,7 +113,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     activity.action_id      = document.allocate_action_id();
     activity.correlation_id = "m-1";
     activity.server         = "jusprin-native";
-    activity.tool           = "duplicate_object";
+    activity.tool           = "plate_layout";
     activity.state          = ToolState::Succeeded;
     document.upsert_activity(activity, kT);
 

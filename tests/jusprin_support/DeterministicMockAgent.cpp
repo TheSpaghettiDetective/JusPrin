@@ -110,13 +110,15 @@ const WorkspaceObject* first_selected_object(const WorkspaceSnapshot& context)
     return find_object(context, context.selected_objects.front());
 }
 
+// One more copy of the object, through plate_layout.
 ToolRequest duplicate_request(const WorkspaceSnapshot& context, const WorkspaceObject& object)
 {
     ToolRequest request;
-    request.tool = "duplicate_object";
-    request.arguments_json = json{{"sessionId", std::to_string(context.session.value())},
-                                  {"objectId", std::to_string(object.id.value())}}
-                                 .dump();
+    request.tool = "plate_layout";
+    request.arguments_json =
+        json{{"sessionId", std::to_string(context.session.value())},
+             {"objects", json::array({json{{"objectId", std::to_string(object.id.value())}, {"quantity", object.instances.size() + 1}}})}}
+            .dump();
     return request;
 }
 
@@ -199,9 +201,11 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         // the failure exactly as they would a real one — nothing here is
         // special-cased downstream.
         ToolRequest request;
-        request.tool = "duplicate_object";
+        request.tool = "plate_layout";
         request.arguments_json =
-            json{{"sessionId", std::to_string(context.session.value())}, {"objectId", "999999999"}}.dump();
+            json{{"sessionId", std::to_string(context.session.value())},
+                 {"objects", json::array({json{{"objectId", "999999999"}, {"quantity", 2}}})}}
+                .dump();
         reply.chunks = chunk_words("I will try to duplicate an object that no longer exists so you can see the failure path.");
         reply.tool           = request;
         reply.tool_run_ticks = 3;
@@ -218,7 +222,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
     }
     if (starts_with(user_text, "/inspect")) {
         ToolRequest request;
-        request.tool           = "inspect_selection";
+        request.tool           = "workspace_inspect";
         request.arguments_json = "{}";
         reply.chunks = chunk_words("Inspecting the current selection; read-only actions run without approval.");
         reply.tool   = request;
@@ -265,7 +269,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         if (!attachment.importable)
             continue;
         ToolRequest request;
-        request.tool           = "import_model";
+        request.tool           = "object_import";
         request.arguments_json = json{{"sessionId", std::to_string(context.session.value())},
                                       {"attachmentId", attachment.id}}
                                      .dump();
@@ -280,9 +284,9 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         const WorkspaceObject* object = first_selected_object(context);
         if (object == nullptr)
             return select_something_first();
-        reply.chunks = chunk_words("I can duplicate " + object->name +
+        reply.chunks = chunk_words("I can add a copy of " + object->name +
                                    " for you. Approve the action below and I will run it through OrcaSlicer's own "
-                                   "duplicate command; you can undo it afterwards.");
+                                   "instance command; you can undo it afterwards.");
         reply.tool           = duplicate_request(context, *object);
         reply.tool_run_ticks = 3;
         return reply;

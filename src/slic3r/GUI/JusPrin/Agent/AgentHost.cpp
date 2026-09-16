@@ -547,6 +547,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         return execute_manufacturing_tool(handler, activity);
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
+        // The last word of an action that replaced the project belongs to the
+        // project it closed, not to the one now open.
+        if (activity.session != m_workspace.snapshot().session.value())
+            return;
         m_persistence.document().upsert_activity(activity, m_persistence.timestamp());
         if (tool_state_terminal(activity.state))
             m_persistence.flush();

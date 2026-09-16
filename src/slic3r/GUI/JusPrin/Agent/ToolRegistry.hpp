@@ -42,9 +42,6 @@ enum class ToolAvailability : std::uint8_t { Always, ImportableAttachment };
 // Stable executor association. The registry locates behavior without storing
 // workspace state or embedding Orca access in metadata lambdas.
 enum class ToolHandler : std::uint8_t {
-    DuplicateObject,
-    ImportModel,
-    InspectSelection,
     WorkspaceInspect,
     SettingsSearch,
     SettingsGet,
@@ -53,6 +50,10 @@ enum class ToolHandler : std::uint8_t {
     IntentUpdate,
     PlanSet,
     PresetsList,
+    ObjectImport,
+    ObjectImportFile,
+    ProjectDeleteItems,
+    PlateLayout,
     ObjectPlace,
     ObjectAnalyze,
     PrinterSetupPreview,
@@ -78,7 +79,7 @@ struct ToolDefinition
     ActionClass       action_class{ActionClass::ReadOnly};
     ToolExposure      exposure{ToolExposure::None};
     ToolAvailability  availability{ToolAvailability::Always};
-    ToolHandler       handler{ToolHandler::InspectSelection};
+    ToolHandler       handler{ToolHandler::WorkspaceInspect};
     // Qualifies this mutation for the computation-only exemption in
     // approval_required(). Declared here, beside the action class, so the
     // registry stays the only place a policy distinction is made. Last in the

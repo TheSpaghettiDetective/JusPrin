@@ -196,9 +196,10 @@ public:
             return true;
         }
         ToolRequest tool;
-        tool.tool = "duplicate_object";
+        tool.tool = "plate_layout";
         tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
-                                   {"objectId", std::to_string(request.workspace.selected_objects.front().value())}}.dump();
+                                   {"objects", json::array({json{{"objectId", std::to_string(request.workspace.selected_objects.front().value())},
+                                                                 {"quantity", 2}}})}}.dump();
         events.push_back(AgentEvent::delta("I can do that."));
         events.push_back(AgentEvent::tool_call({"provider-call-1", std::move(tool), true}));
         active = true;
@@ -841,11 +842,13 @@ TEST_CASE("agent availability is a separate, honest state", "[agent][availabilit
 
 namespace {
 
+// Every printed copy: the proposed change adds an instance.
 std::size_t workspace_object_count(const Workspace::FakeWorkspace& workspace)
 {
     std::size_t count = 0;
     for (const Workspace::WorkspacePlate& plate : workspace.snapshot().plates)
-        count += plate.objects.size();
+        for (const Workspace::WorkspaceObject& object : plate.objects)
+            count += object.instances.size();
     return count;
 }
 
@@ -878,7 +881,7 @@ TEST_CASE("a proposed duplicate waits for approval and executes authoritatively"
 
     const json proposed = propose_duplicate(harness, "c-t1");
     CHECK(proposed["state"] == "pending");
-    CHECK(proposed["tool"] == "duplicate_object");
+    CHECK(proposed["tool"] == "plate_layout");
     CHECK(proposed["requiresApproval"] == true);
     CHECK(proposed["actionClass"] == "mutation");
     CHECK(proposed["server"] == "jusprin-native");
@@ -902,7 +905,7 @@ TEST_CASE("a proposed duplicate waits for approval and executes authoritatively"
 
         const json done = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
         CHECK(done["state"] == "succeeded");
-        CHECK(done["result"].contains("newObjectId"));
+        CHECK(done["result"]["objects"]["items"][0]["instanceCount"] == 2);
         CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
         CHECK(harness.workspace.snapshot().can_undo);
         // The executed change pushed fresh context like any native change.
@@ -1020,7 +1023,8 @@ TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][too
     pump_tools_to_completion(harness);
     const json done = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
     CHECK(done["state"] == "succeeded");
-    CHECK(done["result"]["selection"] == json::array({"cube-a"}));
+    CHECK(done["result"]["selection"]["items"] ==
+          json::array({std::to_string(harness.workspace.snapshot().plates[0].objects[0].id.value())}));
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
@@ -1396,7 +1400,7 @@ TEST_CASE("a sent model attachment is imported through an approved tool action",
     const json* activity = h.last_of_type("tool_activity");
     REQUIRE(activity != nullptr);
     const std::string action_id = (*activity)["payload"]["activity"]["actionId"].get<std::string>();
-    CHECK((*activity)["payload"]["activity"]["tool"] == "import_model");
+    CHECK((*activity)["payload"]["activity"]["tool"] == "object_import");
     CHECK((*activity)["payload"]["activity"]["requiresApproval"] == true);
 
     // Approve; the coordinator resolves the attachment to its blob and imports
@@ -1418,7 +1422,7 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     Harness harness(std::move(provider));
     harness.handshake();
     REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
-    const std::size_t objects_before = harness.workspace.snapshot().plates[0].objects.size();
+    const std::size_t copies_before = harness.workspace.snapshot().plates[0].objects[0].instances.size();
 
     harness.send_user_message("duplicate it", "provider-c-1");
     for (int i = 0; i < 10 && harness.host.tools().activities().empty(); ++i)
@@ -1440,11 +1444,11 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     const json result = json::parse(scripted->continuation->output_json);
     CHECK(result["state"] == "succeeded");
     CHECK(result.contains("workspaceRevision"));
-    CHECK(result["workspace"]["plates"][0]["objects"].size() == objects_before + 1);
+    CHECK(result["workspace"]["plates"][0]["objects"][0]["instances"] == copies_before + 1);
 
     for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
         harness.host.pump_stream();
-    CHECK(harness.workspace.snapshot().plates[0].objects.size() == objects_before + 1);
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before + 1);
     REQUIRE(harness.host.conversation().size() == 3);
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
     CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);

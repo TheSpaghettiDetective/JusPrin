@@ -2196,6 +2196,7 @@ private:
         check(web_view.host().availability() == Agent::AgentAvailability::Ready, "live_agent_service_ready");
         check(m_plater->select_object(0), "live_agent_target_selected");
         m_objects_before_tool = m_plater->model().objects.size();
+        m_live_copies_before  = copy_count();
         const std::size_t attachments_before = persistence().document().attachments().size();
         WebView::RunScript(
             web_view.webview(),
@@ -2258,8 +2259,8 @@ private:
         const std::size_t activities_before = web_view.host().tools().activities().size();
         WebView::RunScript(
             web_view.webview(),
-            "window.__jusprinTest && window.__jusprinTest.send('Duplicate the currently selected object now. Use the "
-            "duplicate_object tool with the exact sessionId and objectId from the authoritative workspace context.');");
+            "window.__jusprinTest && window.__jusprinTest.send('Make one more copy of the currently selected object now. Use the "
+            "plate_layout tool with the exact sessionId and objectId from the authoritative workspace context and quantity 2.');");
         wait_until(
             [&web_view, activities_before] {
                 const auto& activities = web_view.host().tools().activities();
@@ -2272,7 +2273,7 @@ private:
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         const auto& activity = web_view.host().tools().activities().back();
-        check(activity.tool == "duplicate_object", "live_agent_proposed_typed_duplicate");
+        check(activity.tool == "plate_layout", "live_agent_proposed_typed_duplicate");
         check(activity.requires_approval, "live_agent_cannot_bypass_native_approval");
         m_live_action_id = activity.action_id;
         if (!m_live_rejection_done) {
@@ -2295,7 +2296,7 @@ private:
                         self->fail("live Agent rejection follow-up failed: " + code);
                         return;
                     }
-                    self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool,
+                    self->check(self->copy_count() == self->m_live_copies_before,
                                 "live_agent_rejection_changes_nothing");
                     self->m_live_rejection_done = true;
                     self->live_agent_send_mutation();
@@ -2329,7 +2330,7 @@ private:
     void live_agent_verify()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "live_agent_mutated_real_orca_model_once");
+        check(copy_count() == m_live_copies_before + 1, "live_agent_mutated_real_orca_model_once");
         check(m_plater->can_undo_project(), "live_agent_mutation_is_in_orca_history");
         const auto conversation = web_view.host().conversation();
         check(conversation.size() >= 3 && !conversation.back().text.empty(), "live_agent_explains_structured_native_result");
@@ -2341,13 +2342,13 @@ private:
         const auto selected = installed_shell()->workspace()->snapshot().plates[0].objects[0].id;
         const auto selection = installed_shell()->workspace()->select_object(selected);
         check(selection.succeeded() || selection.error == Workspace::WorkspaceError::NoChange, "live_agent_native_selection");
-        const auto inspect_id = web_view.host().tools().propose({"inspect_selection", "{}"}, "live-selection-proof").action_id;
+        const auto inspect_id = web_view.host().tools().propose({"workspace_inspect", "{}"}, "live-selection-proof").action_id;
         web_view.host().pump_tools();
         const auto* inspected = web_view.host().tools().find(inspect_id);
         check(inspected && inspected->state == Agent::ToolState::Succeeded &&
-              nlohmann::json::parse(inspected->result_json)["selection"].size() == 1, "live_agent_shared_selection_result");
+              nlohmann::json::parse(inspected->result_json)["selection"]["items"].size() == 1, "live_agent_shared_selection_result");
         check(installed_shell()->workspace()->undo().succeeded(), "live_agent_native_undo_executes");
-        check(m_plater->model().objects.size() == m_objects_before_tool, "live_agent_native_undo_restores_object_count");
+        check(copy_count() == m_live_copies_before, "live_agent_native_undo_restores_object_count");
         m_settings_original = nlohmann::json::object();
         for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
             m_settings_original[item.key] = item.value;
@@ -2738,11 +2739,20 @@ private:
     // page's Reject and Approve paths drive the native coordinator; the
     // approved run executes through Orca's own duplicate command; and undo
     // and redo go through Orca's history.
+    // Every printed copy in the real model: tool flows add instances.
+    std::size_t copy_count() const
+    {
+        std::size_t count = 0;
+        for (const ModelObject* object : m_plater->model().objects)
+            count += object->instances.size();
+        return count;
+    }
+
     void agent_tool_propose()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         check(m_plater->select_object(0), "tool_target_selected");
-        m_objects_before_tool = m_plater->model().objects.size();
+        m_objects_before_tool = copy_count();
         const std::size_t activities_before = web_view.host().tools().activities().size();
 
         WebView::RunScript(web_view.webview(),
@@ -2771,8 +2781,7 @@ private:
                 return activity != nullptr && activity->state == Agent::ToolState::Rejected;
             },
             "tool_rejected_via_page", [self = shared_from_this()] {
-                self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool,
-                            "tool_rejection_changes_nothing");
+                self->check(self->copy_count() == self->m_objects_before_tool, "tool_rejection_changes_nothing");
                 self->agent_tool_approve();
             });
     }
@@ -2808,13 +2817,13 @@ private:
     {
         // The approved duplicate is authoritative Orca state and one Orca
         // history step.
-        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_duplicate_visible_in_model");
+        check(copy_count() == m_objects_before_tool + 1, "tool_duplicate_visible_in_model");
         check(m_plater->canvas3D()->get_volumes_count() >= 3, "tool_duplicate_visible_on_canvas");
         check(m_plater->can_undo_project(), "tool_change_is_undoable");
         check(m_plater->undo_project(), "tool_undo_through_orca");
-        check(m_plater->model().objects.size() == m_objects_before_tool, "tool_undo_removes_duplicate");
+        check(copy_count() == m_objects_before_tool, "tool_undo_removes_duplicate");
         check(m_plater->redo_project(), "tool_redo_through_orca");
-        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_redo_restores_duplicate");
+        check(copy_count() == m_objects_before_tool + 1, "tool_redo_restores_duplicate");
         agent_conversations();
     }
 
@@ -3608,6 +3617,7 @@ private:
     std::uint64_t                 m_wait_ticks{0};
     nlohmann::json                m_settings_original, m_settings_patch;
     std::size_t                   m_objects_before_tool{0};
+    std::size_t                   m_live_copies_before{0};
     std::string                   m_saved_project_id;
     std::string                   m_saved_project_file;
     std::string                   m_live_action_id;

@@ -213,8 +213,17 @@ struct WorkspaceSnapshot
 // are millimetres in the world frame of the object's first instance.
 using Vec3 = std::array<double, 3>;
 
+struct MeshPart
+{
+    std::uint64_t id{0};
+    std::string   name;
+    std::string   kind; // model, modifier, negative, enforcer, or blocker
+    std::size_t   facets{0};
+};
+
 struct MeshFacts
 {
+    std::vector<MeshPart> part_list; // at most 16
     Vec3        size{};
     double      volume{0};
     std::size_t facets{0};
@@ -231,6 +240,9 @@ struct FaceFeature
     std::string handle;
     double      area{0};
     Vec3        normal{}, center{};
+    // The face's extent in its own plane, longer side first, so a person's
+    // "the 25 by 6 mm face" can be found.
+    std::array<double, 2> size{};
 };
 
 // The circular border of a flat face that the face does not cover: the
@@ -344,6 +356,45 @@ struct PlacementRequest
     bool                                 auto_orient{false};
 };
 
+// Lay out the job: per-object rows, per-plate rows (a row without an id
+// adds a plate), and an optional arrange that runs as Orca's own job.
+struct LayoutObject
+{
+    ObjectId                   id;
+    std::optional<bool>        enabled;
+    std::optional<std::size_t> quantity;
+    std::optional<PlateId>     plate;
+    std::optional<std::string> name;
+    std::optional<int>         extruder;
+};
+
+struct LayoutPlate
+{
+    std::optional<PlateId>     id;
+    std::optional<std::string> name;
+    std::optional<std::string> bed_type; // untranslated plate name
+};
+
+struct LayoutArrange
+{
+    std::optional<PlateId> plate; // absent: every unlocked plate
+    std::optional<double>  spacing;
+    std::optional<bool>    rotation;
+};
+
+struct LayoutRequest
+{
+    std::vector<LayoutObject>    objects;
+    std::vector<LayoutPlate>     plates;
+    std::optional<LayoutArrange> arrange;
+};
+
+struct LayoutResult
+{
+    std::vector<PlateId> added_plates;
+    bool                 arranging{false};
+};
+
 // What a placement left: the object may be a new one (units conversion
 // replaces it), and auto-orient is still running under the job handle.
 struct PlacementResult
@@ -451,6 +502,26 @@ struct ProjectOpenRequest
     UnitChoice  units{UnitChoice::Keep};
     bool        scale_oversized{false};
     bool        discard_unsaved{false};
+};
+
+// Add the objects of a model file to the open project.
+struct ImportRequest
+{
+    std::string            path; // absolute, UTF-8
+    std::optional<PlateId> plate;
+    UnitChoice             units{UnitChoice::Keep};
+    bool                   scale_oversized{false};
+};
+
+// One thing to delete: an object, a part or an instance of one, or a plate.
+struct DeleteItem
+{
+    enum class Kind : std::uint8_t { Object, Part, Instance, Plate };
+    Kind          kind{Kind::Object};
+    ObjectId      object;
+    std::uint64_t part{0};
+    std::size_t   instance{0};
+    PlateId       plate;
 };
 
 // One question Orca asked while opening, and what it was told.
@@ -971,6 +1042,7 @@ public:
     // preempt is set, because nothing in Orca records who started a run: a
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
+    virtual CommandResult lay_out(const LayoutRequest& request, const std::string& job_handle, LayoutResult& result) = 0;
     virtual CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
                                        PlacementResult& result) = 0;
     virtual CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const = 0;
@@ -1033,7 +1105,9 @@ public:
     // undoable manufacturing change: the session is unchanged, prior IDs stay
     // valid, revision advances, and a Contents change is published. On success
     // object_id is the first added object (when one can be identified).
-    virtual CommandResult import_model(const std::string& file_path) = 0;
+    virtual CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+                                         std::vector<ObjectId>& added) = 0;
+    virtual CommandResult delete_items(const std::vector<DeleteItem>& items) = 0;
 
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
     // The change log's feed: every edit, delivered synchronously as the

@@ -123,7 +123,7 @@ TEST_CASE("MCP discovery and paged catalog are registry projections", "[mcp][reg
         CHECK(tool["annotations"]["readOnlyHint"] == (canonical.action_class == Agent::ActionClass::ReadOnly));
         if (!response["result"].contains("nextCursor")) break;
         page_request.params["cursor"] = response["result"]["nextCursor"];
-    } while (count < 20);
+    } while (count < 64);
     CHECK(count == definitions.size());
     page_request.params["cursor"] = "bogus";
     CHECK(Mcp::list_tools(page_request).body["error"]["code"] == -32602);

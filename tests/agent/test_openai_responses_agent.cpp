@@ -96,7 +96,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         const std::string name = tool["name"];
         // Strict mode cannot express an optional argument, so a tool gains one by
         // giving it up: workspace_inspect did when it gained sections.
-        CHECK(tool["strict"] == (name == "duplicate_object" || name == "history_restore" || name == "inspect_selection" || name == "printer_list" ||
+        CHECK(tool["strict"] == (name == "history_restore" || name == "printer_list" ||
                                  name == "settings_get"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
@@ -106,7 +106,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "history_restore", "inspect_selection", "intent_update", "object_analyze", "object_place", "plan_set", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_open", "project_save", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"history_restore", "intent_update", "object_analyze", "object_place", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_delete_items", "project_open", "project_save", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -170,11 +170,11 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"duplicate_object", "history_restore", "import_model", "inspect_selection", "intent_update", "object_analyze", "object_place", "plan_set", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_open", "project_save", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"history_restore", "intent_update", "object_analyze", "object_import", "object_place", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_delete_items", "project_open", "project_save", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},
-                    {"name", "import_model"},
+                    {"name", "object_import"},
                     {"arguments", json{{"sessionId", "41"}, {"attachmentId", "model-1"}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({call})}}}}));
@@ -182,7 +182,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     const auto event = poll_until(agent, AgentEventKind::ToolCall);
     REQUIRE(event);
     REQUIRE(event->tool);
-    CHECK(event->tool->request.tool == "import_model");
+    CHECK(event->tool->request.tool == "object_import");
 }
 
 TEST_CASE("OpenAI consumes a final SSE frame without a trailing delimiter", "[agent][openai]")
@@ -207,8 +207,8 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
 
     const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
     const json call{{"type", "function_call"}, {"id", "item-1"}, {"call_id", "call-9"},
-                    {"name", "duplicate_object"},
-                    {"arguments", json{{"sessionId", "41"}, {"objectId", "72"}}.dump()}};
+                    {"name", "plate_layout"},
+                    {"arguments", json{{"sessionId", "41"}, {"objects", json::array({json{{"objectId", "72"}, {"quantity", 2}}})}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({reasoning, call})}}}}));
     fake->complete();
@@ -216,7 +216,7 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     REQUIRE(event);
     REQUIRE(event->tool);
     CHECK(event->tool->call_id == "call-9");
-    CHECK(event->tool->request.tool == "duplicate_object");
+    CHECK(event->tool->request.tool == "plate_layout");
     CHECK(agent.busy());
 
     REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded","result":{"objectId":"73"}})"}));
@@ -253,8 +253,8 @@ TEST_CASE("a late completion from the tool-call request cannot end its continuat
     OpenAIResponsesAgent agent({"key"}, std::move(transport));
     REQUIRE(agent.start(request_fixture()));
 
-    const json call{{"type", "function_call"}, {"call_id", "call-9"}, {"name", "duplicate_object"},
-                    {"arguments", json{{"sessionId", "41"}, {"objectId", "72"}}.dump()}};
+    const json call{{"type", "function_call"}, {"call_id", "call-9"}, {"name", "plate_layout"},
+                    {"arguments", json{{"sessionId", "41"}, {"objects", json::array({json{{"objectId", "72"}, {"quantity", 2}}})}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
     REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
     REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded"})"}));
@@ -323,7 +323,7 @@ TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", 
     FakeTransport* fake = transport.get();
     OpenAIResponsesAgent agent({"key"}, std::move(transport));
     REQUIRE(agent.start(request_fixture()));
-    const json call{{"type", "function_call"}, {"call_id", "call-bad"}, {"name", "duplicate_object"},
+    const json call{{"type", "function_call"}, {"call_id", "call-bad"}, {"name", "plate_layout"},
                     {"arguments", json{{"objectId", 72}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({call})}}}}));

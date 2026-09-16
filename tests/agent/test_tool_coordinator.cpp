@@ -57,20 +57,24 @@ struct Harness
 
     Workspace::ObjectId cube_id() const { return workspace.snapshot().plates.at(0).objects.at(0).id; }
 
+    // Every printed copy: plate_layout's quantity adds instances.
     std::size_t object_count() const
     {
         std::size_t count = 0;
         for (const Workspace::WorkspacePlate& plate : workspace.snapshot().plates)
-            count += plate.objects.size();
+            for (const Workspace::WorkspaceObject& object : plate.objects)
+                count += object.instances.size();
         return count;
     }
 
+    // One more copy of the cube: the canonical mutation these tests drive.
     ToolRequest duplicate_cube_request() const
     {
         ToolRequest request;
-        request.tool           = "duplicate_object";
+        request.tool           = "plate_layout";
         request.arguments_json = json{{"sessionId", std::to_string(workspace.snapshot().session.value())},
-                                      {"objectId", std::to_string(cube_id().value())}}
+                                      {"objects", json::array({json{{"objectId", std::to_string(cube_id().value())},
+                                                                    {"quantity", object_count() + 1}}})}}
                                      .dump();
         return request;
     }
@@ -207,9 +211,9 @@ TEST_CASE("coordinator policy comes from the registry", "[tools][policy][registr
     const ToolActivity& duplicate = harness.coordinator.propose(harness.duplicate_cube_request(), "hostile-caller");
     CHECK(duplicate.action_class == ActionClass::Mutation);
     CHECK(duplicate.requires_approval);
-    CHECK(duplicate.title == ToolRegistry::instance().find("duplicate_object")->title);
+    CHECK(duplicate.title == "Lay out: cube-a x2");
 
-    const ToolActivity& inspect = harness.coordinator.propose(ToolRequest{"inspect_selection", "{}"}, "read-caller");
+    const ToolActivity& inspect = harness.coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "read-caller");
     CHECK(inspect.action_class == ActionClass::ReadOnly);
     CHECK_FALSE(inspect.requires_approval);
 }
@@ -248,7 +252,7 @@ TEST_CASE("activity subscriptions coexist and unsubscribe independently", "[tool
         self_subscription.reset();
     });
 
-    const ToolActivity& proposed = coordinator.propose(ToolRequest{"inspect_selection", "{}"}, "m-1");
+    const ToolActivity& proposed = coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "m-1");
     const std::string action_id = proposed.action_id;
     while (!tool_state_terminal(coordinator.find(action_id)->state))
         coordinator.pump();
@@ -258,7 +262,7 @@ TEST_CASE("activity subscriptions coexist and unsubscribe independently", "[tool
 
     const std::size_t first_before = first.size();
     first_subscription.reset();
-    const ToolActivity& next = coordinator.propose(ToolRequest{"inspect_selection", "{}"}, "m-2");
+    const ToolActivity& next = coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "m-2");
     const std::string next_id = next.action_id;
     while (!tool_state_terminal(coordinator.find(next_id)->state))
         coordinator.pump();
@@ -295,7 +299,7 @@ TEST_CASE("a mutation waits for approval and then executes through the workspace
     CHECK(harness.workspace.snapshot().can_undo);
     const json result = json::parse(done->result_json);
     CHECK(result["revision"].get<std::uint64_t>() > revision_before);
-    CHECK(result.contains("newObjectId"));
+    CHECK(result["objects"]["items"][0]["instanceCount"] == 2);
 
     // The lifecycle passed through every advertised state with progress.
     const std::vector<ToolState> states = harness.states_of(action_id);
@@ -426,7 +430,8 @@ TEST_CASE("an execution failure is reported and changes nothing", "[tools][failu
 
     ToolRequest request = harness.duplicate_cube_request();
     request.arguments_json =
-        json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())}, {"objectId", "999999999"}}.dump();
+        json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
+             {"objects", json::array({json{{"objectId", "999999999"}, {"quantity", 2}}})}}.dump();
     const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
     REQUIRE(harness.coordinator.approve(action_id));
     harness.pump_to_completion(action_id);
@@ -447,7 +452,7 @@ TEST_CASE("a read-only action runs without approval", "[tools][policy]")
     REQUIRE(harness.workspace.select_object(harness.cube_id()).succeeded());
 
     ToolRequest request;
-    request.tool           = "inspect_selection";
+    request.tool           = "workspace_inspect";
     request.arguments_json = "{}";
 
     const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
@@ -459,7 +464,7 @@ TEST_CASE("a read-only action runs without approval", "[tools][policy]")
     const ToolActivity* done = harness.coordinator.find(action_id);
     REQUIRE(done->state == ToolState::Succeeded);
     const json result = json::parse(done->result_json);
-    CHECK(result["selection"] == json::array({"cube-a"}));
+    CHECK(result["selection"]["items"] == json::array({std::to_string(harness.cube_id().value())}));
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
@@ -494,7 +499,7 @@ TEST_CASE("an unknown tool fails cleanly", "[tools][failure]")
     CHECK(failed->error->code == "unknown_tool");
 }
 
-TEST_CASE("import_model resolves an attachment ID and adds an object", "[tools][import]")
+TEST_CASE("object_import resolves an attachment ID and adds an object", "[tools][import]")
 {
     Harness harness;
 
@@ -506,7 +511,7 @@ TEST_CASE("import_model resolves an attachment ID and adds an object", "[tools][
         [&](const std::string& id) { return id == "a-1" ? model.string() : std::string(); });
 
     ToolRequest request;
-    request.tool           = "import_model";
+    request.tool           = "object_import";
     request.arguments_json = json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
                                   {"attachmentId", "a-1"}}
                                  .dump();
@@ -520,18 +525,18 @@ TEST_CASE("import_model resolves an attachment ID and adds an object", "[tools][
     CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Succeeded);
     CHECK(harness.object_count() == before + 1);
     const json result = json::parse(harness.coordinator.find(proposed.action_id)->result_json);
-    CHECK(result["imported"] == true);
+    CHECK(result["objectIds"].size() == 1);
 
     std::filesystem::remove(model);
 }
 
-TEST_CASE("import_model fails when the attachment can no longer be resolved", "[tools][import]")
+TEST_CASE("object_import fails when the attachment can no longer be resolved", "[tools][import]")
 {
     Harness harness;
     harness.coordinator.set_attachment_path_resolver([](const std::string&) { return std::string(); });
 
     ToolRequest request;
-    request.tool           = "import_model";
+    request.tool           = "object_import";
     request.arguments_json = json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
                                   {"attachmentId", "a-404"}}
                                  .dump();
@@ -930,8 +935,8 @@ TEST_CASE("history is read by step and restored to either side of one", "[tools]
         return *h.coordinator.find(id);
     };
     const auto cube = std::to_string(h.cube_id().value());
-    run("duplicate_object", json{{"sessionId", session}, {"objectId", cube}});
-    run("duplicate_object", json{{"sessionId", session}, {"objectId", cube}});
+    run("plate_layout", json{{"sessionId", session}, {"objects", json::array({json{{"objectId", cube}, {"quantity", 2}}})}});
+    run("plate_layout", json{{"sessionId", session}, {"objects", json::array({json{{"objectId", cube}, {"quantity", 3}}})}});
     REQUIRE(h.object_count() == 3);
 
     const auto read = run("workspace_inspect", json{{"sections", {"history"}}});
@@ -940,7 +945,7 @@ TEST_CASE("history is read by step and restored to either side of one", "[tools]
     CHECK(registry.validate_output(*registry.find("workspace_inspect"), inspected));
     const auto& steps = inspected["history"]["steps"]["items"];
     REQUIRE(steps.size() == 2);
-    CHECK(steps[0]["label"] == "Duplicate");
+    CHECK(steps[0]["label"] == "Lay out plates");
     CHECK(steps[1]["applied"] == true);
     CHECK(inspected["history"]["restorable"] == true);
     const std::string first = steps[0]["stepId"];
@@ -949,7 +954,7 @@ TEST_CASE("history is read by step and restored to either side of one", "[tools]
     const ToolActivity proposed = h.coordinator.propose(
         {"history_restore", json{{"sessionId", session}, {"stepId", first}, {"point", "before"}}.dump()}, "m-2");
     REQUIRE(proposed.state == ToolState::Pending);
-    CHECK(proposed.title == "Go back to before \xe2\x80\x9c" "Duplicate\xe2\x80\x9d");
+    CHECK(proposed.title == "Go back to before \xe2\x80\x9c" "Lay out plates\xe2\x80\x9d");
     CHECK(h.object_count() == 3);
     REQUIRE(h.coordinator.approve(proposed.action_id));
     h.pump_to_completion(proposed.action_id);
@@ -1185,8 +1190,14 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     const ToolActivity approved = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "convertIfTiny"},
                                                {"oversized", "scaleToFit"}});
     REQUIRE(h.coordinator.approve(approved.action_id));
-    h.pump_to_completion(approved.action_id);
-    const ToolActivity done = *h.coordinator.find(approved.action_id);
+    for (int tick = 0; tick < 10 && h.coordinator.find(approved.action_id) != nullptr; ++tick)
+        h.coordinator.pump();
+    // The open's record leaves with the project it closed; its last event
+    // carries the result.
+    const auto last = std::find_if(h.events.rbegin(), h.events.rend(),
+                                   [&](const ToolActivity& event) { return event.action_id == approved.action_id; });
+    REQUIRE(last != h.events.rend());
+    const ToolActivity done = *last;
     REQUIRE(done.state == ToolState::Succeeded);
     const auto result = json::parse(done.result_json);
     CHECK(registry.validate_output(*registry.find("project_open"), result));
@@ -1205,9 +1216,14 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     const ToolActivity earlier  = propose(json{{"path", model}});
     const ToolActivity reopened = propose(json{{"path", model}});
     REQUIRE(h.coordinator.approve(reopened.action_id));
-    h.pump_to_completion(reopened.action_id);
-    REQUIRE(h.coordinator.find(reopened.action_id) != nullptr);
-    CHECK(h.coordinator.find(reopened.action_id)->state == ToolState::Succeeded);
+    for (int tick = 0; tick < 10 && h.coordinator.find(reopened.action_id) != nullptr; ++tick)
+        h.coordinator.pump();
+    // Its subscribers heard the result; the record then left with the project
+    // it belonged to, so the new project's ids cannot meet it.
+    const auto states = h.states_of(reopened.action_id);
+    REQUIRE_FALSE(states.empty());
+    CHECK(states.back() == ToolState::Succeeded);
+    CHECK(h.coordinator.find(reopened.action_id) == nullptr);
     CHECK(h.coordinator.find(earlier.action_id) == nullptr);
     CHECK(h.coordinator.executing_action_id().empty());
     h.workspace.on_open_for_testing = nullptr;
@@ -1267,7 +1283,7 @@ TEST_CASE("object analysis reports geometry, and a measure fails once its handle
     mesh.units_suspicion = "inches";
     analysis.mesh = mesh;
     Workspace::ObjectFeatures features;
-    features.faces = {{"f1-21-0-0-0", 400, {0, 0, -1}, {10, 10, 0}}};
+    features.faces = {{"f1-21-0-0-0", 400, {0, 0, -1}, {10, 10, 0}, {20, 20}}};
     features.holes = {{"f1-21-0-1-0", 5.2, {10, 10, 20}, {0, 0, 1}}};
     analysis.features = features;
     Workspace::ObjectFit fit;
@@ -1412,4 +1428,112 @@ TEST_CASE("a placement names mirror and scale on its card, and auto-orient repor
     CHECK(invalid(json{{"dropToBed", false}}));
     CHECK(invalid(json{{"instance", 0}}));
     CHECK_FALSE(invalid(json{{"instance", 0}, {"dropToBed", true}}));
+}
+
+TEST_CASE("a layout names every change on its card and arranges as a job", "[tools][layout]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const auto snapshot = h.workspace.snapshot();
+    const std::string session = std::to_string(snapshot.session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    const std::string plate   = std::to_string(snapshot.plates[0].id.value());
+    const ToolActivity card = h.coordinator.propose(
+        {"plate_layout", json{{"sessionId", session},
+                              {"objects", {{{"objectId", cube}, {"quantity", 3}, {"name", "leg"}}}},
+                              {"plates", {{{"name", "Second"}, {"bedType", "Cool Plate"}}}},
+                              {"arrange", {{"spacingMm", 5}}}}.dump()}, "m-1");
+    REQUIRE(card.state == ToolState::Pending);
+    CHECK(card.title == "Lay out: cube-a x3, rename cube-a to leg, add a plate, name a new plate Second, "
+                        "a new plate on Cool Plate, arrange all plates");
+    REQUIRE(h.coordinator.approve(card.action_id));
+    h.pump_to_completion(card.action_id);
+    const ToolActivity done = *h.coordinator.find(card.action_id);
+    REQUIRE(done.state == ToolState::Succeeded);
+    const auto result = json::parse(done.result_json);
+    CHECK(registry.validate_output(*registry.find("plate_layout"), result));
+    CHECK(result["objects"]["items"][0]["instanceCount"] == 3);
+    CHECK(result["objects"]["items"][0]["name"] == "leg");
+    CHECK(result["addedPlateIds"].size() == 1);
+    CHECK(result["handle"] == card.action_id);
+    REQUIRE(h.workspace.last_layout.arrange);
+    CHECK(*h.workspace.last_layout.arrange->spacing == 5);
+    CHECK(h.workspace.snapshot().jobs.back().kind == "arrange");
+
+    const auto& definition = *registry.find("plate_layout");
+    const auto invalid = [&](json extra) {
+        json arguments{{"sessionId", session}};
+        arguments.update(extra);
+        return !registry.validate_call(definition, arguments.dump()).valid();
+    };
+    CHECK(invalid(json::object()));
+    CHECK(invalid(json{{"objects", {{{"objectId", cube}}}}}));
+    CHECK(invalid(json{{"objects", {{{"objectId", cube}, {"quantity", 0}}}}}));
+    CHECK(invalid(json{{"objects", {{{"objectId", cube}, {"quantity", 2}}, {{"objectId", cube}, {"quantity", 3}}}}}));
+    CHECK(invalid(json{{"plates", {{{"plateId", plate}}}}}));
+    CHECK(invalid(json{{"arrange", {{"spacingMm", -1}}}}));
+    CHECK_FALSE(invalid(json{{"arrange", json::object()}}));
+    CHECK_FALSE(invalid(json{{"plates", json::array({json::object()})}}));
+}
+
+TEST_CASE("a file import names its path, reads nothing before approval, and a delete names what goes", "[tools][import][delete]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    const std::filesystem::path folder = std::filesystem::temp_directory_path() /
+        ("jusprin-import-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(folder);
+    const std::string model = (folder / "bracket.stl").u8string();
+    std::ofstream(folder / "bracket.stl") << "solid bracket\nendsolid bracket\n";
+
+    CHECK(h.coordinator.propose({"object_import_file", json{{"sessionId", session}, {"path", (folder / "none.stl").u8string()}}.dump()}, "m-1")
+              .error->code == "invalid_argument");
+    const ToolActivity card = h.coordinator.propose(
+        {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-1");
+    REQUIRE(card.state == ToolState::Pending);
+    CHECK(card.title == "Import " + model);
+    REQUIRE(h.coordinator.reject(card.action_id));
+    CHECK(h.workspace.last_import.path.empty());
+
+    h.workspace.m_open_decisions = {{"Object too small", "no"}};
+    const ToolActivity approved = h.coordinator.propose(
+        {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-2");
+    REQUIRE(h.coordinator.approve(approved.action_id));
+    h.pump_to_completion(approved.action_id);
+    const ToolActivity imported = *h.coordinator.find(approved.action_id);
+    REQUIRE(imported.state == ToolState::Succeeded);
+    const auto result = json::parse(imported.result_json);
+    CHECK(registry.validate_output(*registry.find("object_import_file"), result));
+    CHECK(result["objectIds"].size() == 1);
+    CHECK(result["decisions"][0]["answer"] == "no");
+    CHECK(h.workspace.last_import.path == model);
+    CHECK(h.workspace.last_import.units == Workspace::UnitChoice::Inches);
+    const std::string bracket = result["objectIds"][0];
+
+    const ToolActivity removal = h.coordinator.propose(
+        {"project_delete_items", json{{"sessionId", session},
+                                      {"items", {{{"objectId", bracket}}, {{"objectId", cube}, {"instance", 0}},
+                                                 {{"plateId", std::to_string(h.workspace.snapshot().plates[0].id.value())}}}}}.dump()}, "m-3");
+    REQUIRE(removal.state == ToolState::Pending);
+    CHECK(removal.action_class == ActionClass::Destructive);
+    CHECK(removal.title == "Delete bracket, copy 1 of cube-a, Plate 1");
+    REQUIRE(h.coordinator.approve(removal.action_id));
+    h.pump_to_completion(removal.action_id);
+    const ToolActivity removed = *h.coordinator.find(removal.action_id);
+    REQUIRE(removed.state == ToolState::Succeeded);
+    CHECK(registry.validate_output(*registry.find("project_delete_items"), json::parse(removed.result_json)));
+    REQUIRE(h.workspace.last_delete.size() == 3);
+    CHECK(h.workspace.last_delete[0].kind == Workspace::DeleteItem::Kind::Object);
+    CHECK(h.workspace.last_delete[1].kind == Workspace::DeleteItem::Kind::Instance);
+    CHECK(h.workspace.last_delete[2].kind == Workspace::DeleteItem::Kind::Plate);
+
+    const auto& definition = *registry.find("project_delete_items");
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"items", json::array()}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session},
+                                                        {"items", {{{"objectId", cube}, {"partId", "1"}, {"instance", 0}}}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"items", {{{"plateId", "1"}, {"objectId", cube}}}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("object_import_file"), json{{"sessionId", session}, {"path", model}, {"oversized", "huge"}}.dump()).valid());
+    std::filesystem::remove_all(folder);
 }

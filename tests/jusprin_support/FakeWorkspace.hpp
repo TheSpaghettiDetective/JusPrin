@@ -267,9 +267,11 @@ public:
                             CommandResult::failure(WorkspaceError::UnavailableOperation, "Writing the archive failed");
     }
 
-    CommandResult import_model(const std::string& file_path) override
+    CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+                                 std::vector<ObjectId>& added) override
     {
-        std::ifstream in(file_path, std::ios::binary);
+        const std::string& file_path = request.path;
+        std::ifstream in(std::filesystem::u8path(file_path), std::ios::binary);
         if (!in.is_open())
             return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
 
@@ -304,9 +306,40 @@ public:
         }
         target->objects.push_back(object);
         m_known_object_ids.insert(new_id);
+        last_import = request;
+        decisions   = m_open_decisions;
+        added.push_back(new_id);
         publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
         return CommandResult::success(new_id);
     }
+    ImportRequest last_import;
+
+    // Objects and copies go; parts and plates are recorded only, since the
+    // fixture keeps neither.
+    CommandResult delete_items(const std::vector<DeleteItem>& items) override
+    {
+        for (const DeleteItem& item : items)
+            if (item.kind != DeleteItem::Kind::Plate)
+                if (CommandResult validation = validate(item.object); !validation.succeeded())
+                    return validation;
+        save_undo("Delete items");
+        for (const DeleteItem& item : items) {
+            if (item.kind == DeleteItem::Kind::Object)
+                for (WorkspacePlate& plate : m_snapshot.plates)
+                    plate.objects.erase(std::remove_if(plate.objects.begin(), plate.objects.end(),
+                                                       [&](const WorkspaceObject& o) { return o.id == item.object; }),
+                                        plate.objects.end());
+            if (item.kind == DeleteItem::Kind::Instance)
+                for_each_object(item.object, [&](WorkspaceObject& object) {
+                    if (item.instance < object.instances.size())
+                        object.instances.erase(object.instances.begin() + item.instance);
+                });
+        }
+        last_delete = items;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    std::vector<DeleteItem> last_delete;
 
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override
     {
@@ -442,6 +475,37 @@ public:
         publish(WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::Transform);
     }
     PlacementRequest last_placement;
+
+    // Quantity is the fixture's instance count; a plate row without an id
+    // adds a plate; arrange leaves a running job.
+    CommandResult lay_out(const LayoutRequest& request, const std::string& job_handle, LayoutResult& result) override
+    {
+        for (const LayoutObject& row : request.objects)
+            if (CommandResult validation = validate(row.id); !validation.succeeded())
+                return validation;
+        last_layout = request;
+        save_undo("Lay out plates");
+        for (const LayoutObject& row : request.objects)
+            for_each_object(row.id, [&](WorkspaceObject& object) {
+                if (row.quantity) object.instances.resize(*row.quantity);
+                if (row.name) object.name = *row.name;
+            });
+        for (const LayoutPlate& row : request.plates)
+            if (!row.id) {
+                WorkspacePlate plate;
+                plate.id   = PlateId(m_session, 1000 + m_snapshot.plates.size());
+                plate.name = row.name.value_or("Plate " + std::to_string(m_snapshot.plates.size() + 1));
+                m_snapshot.plates.push_back(plate);
+                result.added_plates.push_back(plate.id);
+            }
+        if (request.arrange) {
+            m_snapshot.jobs.push_back({job_handle, "arrange", "running", {}});
+            result.arranging = true;
+        }
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    LayoutRequest last_layout;
 
     // Analysis answers are scripted per object; a handle is good for the
     // revision the fixture was given and expires after it.

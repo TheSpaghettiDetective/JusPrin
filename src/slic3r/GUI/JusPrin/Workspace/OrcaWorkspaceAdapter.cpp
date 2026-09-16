@@ -14,6 +14,7 @@
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/ObjectDataViewModel.hpp"
 #include "slic3r/GUI/Jobs/ArrangeJob.hpp"
 #include "slic3r/GUI/Jobs/OrientJob.hpp"
 #include "slic3r/GUI/Jobs/Worker.hpp"
@@ -37,6 +38,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <set>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -816,6 +818,12 @@ void OrcaWorkspaceAdapter::finish_job(const std::string& handle, const char* sta
     if (job == m_jobs.end() || job->state != "running")
         return;
     job->state = state;
+    if (job->kind == "arrange" && m_arrange_restore) {
+        GLCanvas3D::ArrangeSettings& settings = m_plater.canvas3D()->get_arrange_settings();
+        settings.distance        = m_arrange_restore->first;
+        settings.enable_rotation = m_arrange_restore->second;
+        m_arrange_restore.reset();
+    }
     if (job->kind == "arrange" && job->state == "finished") {
         // Orca moves what does not fit onto a new plate or off the plates; an
         // instance no plate holds entirely is what did not fit.
@@ -830,6 +838,158 @@ void OrcaWorkspaceAdapter::finish_job(const std::string& handle, const char* sta
                 }
     }
     publish_change(WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::Transform);
+}
+
+CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const std::string& job_handle, LayoutResult& result)
+{
+    wxASSERT(wxIsMainThread());
+    Model&         model  = m_plater.model();
+    PartPlateList& plates = m_plater.get_partplate_list();
+    const auto plate_index = [&](PlateId id) -> int {
+        if (id.session() != m_session)
+            return -1;
+        for (int index = 0; index < plates.get_plate_count(); ++index)
+            if (plates.get_plate(index)->id().id == id.value())
+                return index;
+        return -1;
+    };
+    const auto bed_type_of = [](const std::string& label) -> std::optional<BedType> {
+        const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
+        for (int index = 0; definition != nullptr && index < int(definition->enum_labels.size()); ++index)
+            if (ascii_lower(definition->enum_labels[index]) == ascii_lower(label))
+                return BedType(index + 1);
+        return std::nullopt;
+    };
+    const int filaments = int(wxGetApp().preset_bundle->filament_presets.size());
+
+    // Everything is checked before anything moves.
+    std::vector<std::size_t> indices;
+    for (const LayoutObject& row : request.objects) {
+        const auto resolved = resolve(row.id);
+        if (!resolved)
+            return id_error(row.id);
+        const ModelObject& object = *model.objects[resolved->index];
+        if (row.plate && plate_index(*row.plate) < 0)
+            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+        if (row.extruder && (*row.extruder < 1 || *row.extruder > filaments))
+            return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                          "This project has " + std::to_string(filaments) + " filaments");
+        if (row.quantity && *row.quantity != object.instances.size() && object.is_cut())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer does not copy a cut object");
+        if (row.name && row.name->find_first_not_of(" \t") == std::string::npos)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "An object name cannot be empty");
+        indices.push_back(resolved->index);
+    }
+    for (const LayoutPlate& row : request.plates) {
+        if (row.id && plate_index(*row.id) < 0)
+            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+        if (row.bed_type && !bed_type_of(*row.bed_type))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + *row.bed_type + "\" is not a plate type OrcaSlicer knows");
+    }
+    if (request.arrange && request.arrange->plate && plate_index(*request.arrange->plate) < 0)
+        return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+    Worker& worker = m_plater.get_ui_job_worker();
+    if (!worker.is_idle())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+
+    {
+        const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        Plater::TakeSnapshot snapshot(&m_plater, "Lay out plates");
+
+        for (const LayoutPlate& row : request.plates) {
+            int index = row.id ? plate_index(*row.id) : -1;
+            if (!row.id) {
+                // The add-plate toolbar action, less its own snapshot.
+                if (!m_plater.can_add_plate())
+                    return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer cannot add another plate");
+                index = plates.create_plate();
+                result.added_plates.push_back(PlateId(m_session, plates.get_plate(index)->id().id));
+            }
+            PartPlate& plate = *plates.get_plate(index);
+            if (row.name)
+                plate.set_plate_name(*row.name);
+            if (row.bed_type)
+                plate.set_bed_type(*bed_type_of(*row.bed_type));
+        }
+
+        for (std::size_t row_index = 0; row_index < request.objects.size(); ++row_index) {
+            const LayoutObject& row    = request.objects[row_index];
+            const std::size_t   index  = indices[row_index];
+            ModelObject&        object = *model.objects[index];
+            if (row.enabled) {
+                // ObjectList::toggle_printable_state, for the whole object.
+                for (ModelInstance* instance : object.instances)
+                    instance->printable = *row.enabled;
+                if (ObjectList* list = wxGetApp().obj_list())
+                    for (std::size_t instance = 0; instance < object.instances.size(); ++instance)
+                        list->update_printable_state(static_cast<int>(index), static_cast<int>(instance));
+                m_plater.canvas3D()->update_instance_printable_state_for_objects({index});
+            }
+            if (row.quantity && *row.quantity != object.instances.size()) {
+                // Orca's own instance commands work on the selected object.
+                m_plater.select_object(index);
+                if (*row.quantity > object.instances.size())
+                    m_plater.increase_instances(*row.quantity - object.instances.size());
+                else
+                    m_plater.decrease_instances(object.instances.size() - *row.quantity);
+                if (object.instances.size() != *row.quantity)
+                    return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                                  "OrcaSlicer did not change the copies of " + object.name +
+                                                      " (a disabled object cannot be copied)");
+            }
+            if (row.plate) {
+                const int from = plates.find_instance_belongs(static_cast<int>(index), 0);
+                const int to   = plate_index(*row.plate);
+                if (from != to) {
+                    Vec3d delta = from >= 0 ? Vec3d(plates.get_plate(to)->get_origin() - plates.get_plate(from)->get_origin()) :
+                                              Vec3d(plates.get_plate(to)->get_center_origin() - object.instance_bounding_box(0).center());
+                    delta.z() = 0;
+                    m_plater.select_object(index);
+                    Selection& selection = m_plater.canvas3D()->get_selection();
+                    TransformationType relative;
+                    relative.set_world();
+                    relative.set_relative();
+                    selection.setup_cache();
+                    selection.translate(delta, relative);
+                    m_plater.canvas3D()->do_move("");
+                }
+            }
+            if (row.name)
+                m_plater.rename_object(index, *row.name);
+            if (row.extruder) {
+                object.config.set_key_value("extruder", new ConfigOptionInt(*row.extruder));
+                if (ObjectList* list = wxGetApp().obj_list())
+                    list->object_config_options_changed({&object, nullptr});
+                m_plater.changed_object(static_cast<int>(index));
+            }
+        }
+        m_plater.update();
+        m_plater.notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Plates |
+                                              ProjectStateChangeReason::Transform);
+    }
+
+    if (request.arrange) {
+        // Plater::arrange, with the snapshot above and the spacing and
+        // rotation asked for, restored when the job ends.
+        GLCanvas3D::ArrangeSettings& settings = m_plater.canvas3D()->get_arrange_settings();
+        m_arrange_restore = std::make_pair(settings.distance, settings.enable_rotation);
+        if (request.arrange->spacing) settings.distance = float(*request.arrange->spacing);
+        if (request.arrange->rotation) settings.enable_rotation = *request.arrange->rotation;
+        if (request.arrange->plate) {
+            m_plater.select_plate(plate_index(*request.arrange->plate));
+            m_plater.set_prepare_state(Job::PREPARE_STATE_MENU);
+        } else {
+            m_plater.set_prepare_state(Job::PREPARE_STATE_DEFAULT);
+        }
+        if (!start_job(job_handle, "arrange", std::make_unique<ArrangeJob>())) {
+            settings.distance        = m_arrange_restore->first;
+            settings.enable_rotation = m_arrange_restore->second;
+            m_arrange_restore.reset();
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+        }
+        result.arranging = true;
+    }
+    return CommandResult::success();
 }
 
 CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
@@ -993,6 +1153,15 @@ CommandResult OrcaWorkspaceAdapter::analyze_object(ObjectId id, const AnalysisRe
         facts.facets_removed    = stats.repaired_errors.facets_removed;
         facts.facets_reversed   = stats.repaired_errors.facets_reversed;
         facts.backwards_edges   = stats.repaired_errors.backwards_edges;
+        for (const ModelVolume* volume : object.volumes) {
+            if (facts.part_list.size() == 16)
+                break;
+            const char* kind = volume->is_model_part()      ? "model" :
+                               volume->is_modifier()        ? "modifier" :
+                               volume->is_negative_volume() ? "negative" :
+                               volume->is_support_enforcer() ? "enforcer" : "blocker";
+            facts.part_list.push_back({volume->id().id, volume->name, kind, volume->mesh().facets_count()});
+        }
         // Orca's own load-time unit tests work on a whole model; ask them
         // about a model holding only this object, metres first as Orca does.
         Model single;
@@ -1016,11 +1185,13 @@ CommandResult OrcaWorkspaceAdapter::analyze_object(ObjectId id, const AnalysisRe
             for (int plane = 0; plane < measuring.get_num_of_planes(); ++plane) {
                 const std::vector<int>& triangles = measuring.get_plane_triangle_indices(plane);
                 double area = 0;
+                std::vector<Vec3d> corners;
                 for (int index : triangles) {
                     const auto& face = its.indices[index];
                     const Vec3d a = world * its.vertices[face[0]].cast<double>(), b = world * its.vertices[face[1]].cast<double>(),
                                 c = world * its.vertices[face[2]].cast<double>();
                     area += 0.5 * (b - a).cross(c - a).norm();
+                    corners.insert(corners.end(), {a, b, c});
                 }
                 const std::vector<Measure::SurfaceFeature>& found = measuring.get_plane_features(plane);
                 for (int index = 0; index < static_cast<int>(found.size()); ++index) {
@@ -1032,7 +1203,30 @@ CommandResult OrcaWorkspaceAdapter::analyze_object(ObjectId id, const AnalysisRe
                         // A plane whose border could not be walked has no centre.
                         if (!normal.allFinite() || !point.allFinite())
                             continue;
-                        features.faces.push_back({feature_handle(address), area, vec3(normal.normalized()), vec3(point)});
+                        // The extent in the face's plane: the tightest box
+                        // aligned with one of its edges, so a rectangle
+                        // reports its sides rather than a diagonal.
+                        const Vec3d unit = normal.normalized();
+                        std::array<double, 2> extent{0, 0};
+                        double best = std::numeric_limits<double>::max();
+                        for (std::size_t edge = 0; edge + 1 < corners.size() && edge < 3 * 64; ++edge) {
+                            Vec3d axis = corners[edge + (edge % 3 == 2 ? -2 : 1)] - corners[edge];
+                            axis -= unit * unit.dot(axis);
+                            if (axis.norm() < 1e-9)
+                                continue;
+                            axis.normalize();
+                            const Vec3d other = unit.cross(axis);
+                            double min_u = std::numeric_limits<double>::max(), max_u = -min_u, min_v = min_u, max_v = -min_u;
+                            for (const Vec3d& corner : corners) {
+                                min_u = std::min(min_u, corner.dot(axis)), max_u = std::max(max_u, corner.dot(axis));
+                                min_v = std::min(min_v, corner.dot(other)), max_v = std::max(max_v, corner.dot(other));
+                            }
+                            if ((max_u - min_u) * (max_v - min_v) < best) {
+                                best   = (max_u - min_u) * (max_v - min_v);
+                                extent = {std::max(max_u - min_u, max_v - min_v), std::min(max_u - min_u, max_v - min_v)};
+                            }
+                        }
+                        features.faces.push_back({feature_handle(address), area, vec3(unit), vec3(point), extent});
                     } else if (feature.get_type() == Measure::SurfaceFeatureType::Circle) {
                         const auto [local_center, local_radius, local_normal] = feature.get_circle();
                         if (covered_by(its, triangles, local_center))
@@ -1615,6 +1809,29 @@ ProjectDetails OrcaWorkspaceAdapter::project_details() const
     return result;
 }
 
+namespace {
+// The questions on Orca's load paths, by the title Orca gives them. Each one
+// the request decides is answered from it; anything else gets the answer
+// that changes least.
+int answer_load_question(wxWindow& dialog, const wxString& title, UnitChoice units, bool scale_oversized, bool discard_unsaved)
+{
+    if (title == _L("Object too small"))
+        return units == UnitChoice::ConvertIfTiny ? wxID_YES : wxID_NO;
+    if (title == _L("Object too large"))
+        return scale_oversized ? wxID_YES : wxID_NO;
+    if (title == wxString(SLIC3R_APP_FULL_NAME) + " - " + _L("Save"))
+        return discard_unsaved ? wxID_NO : wxID_CANCEL;
+    // Orca's message dialogs read yes or ok; its other dialogs (OBJ colours,
+    // STEP meshing) read ok, and cancel keeps their defaults.
+    return dynamic_cast<MsgDialog*>(&dialog) != nullptr ? wxID_NO : wxID_CANCEL;
+}
+
+const char* describe_answer(int answer)
+{
+    return answer == wxID_YES ? "yes" : answer == wxID_NO ? "no" : answer == wxID_OK ? "ok" : "cancel";
+}
+} // namespace
+
 CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions)
 {
     wxASSERT(wxIsMainThread());
@@ -1641,23 +1858,9 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
                 tab->load_current_preset();
             }
 
-    // The questions on this path, by the title Orca gives them. Each one the
-    // request decides is answered from it; anything else gets the answer that
-    // changes least, and every one is reported.
-    const wxString save_title = wxString(SLIC3R_APP_FULL_NAME) + " - " + _L("Save");
-    const auto describe = [](int answer) {
-        return answer == wxID_YES ? "yes" : answer == wxID_NO ? "no" : answer == wxID_OK ? "ok" : "cancel";
-    };
-    ScopedModalAnswers answers([&](wxWindow& dialog, const wxString& title) -> int {
-        if (title == _L("Object too small"))
-            return request.units == UnitChoice::ConvertIfTiny ? wxID_YES : wxID_NO;
-        if (title == _L("Object too large"))
-            return request.scale_oversized ? wxID_YES : wxID_NO;
-        if (title == save_title)
-            return request.discard_unsaved ? wxID_NO : wxID_CANCEL;
-        // Orca's message dialogs read yes or ok; its other dialogs (OBJ
-        // colours, STEP meshing) read ok, and cancel keeps their defaults.
-        return dynamic_cast<MsgDialog*>(&dialog) != nullptr ? wxID_NO : wxID_CANCEL;
+    // Every question on the way is answered from the request and reported.
+    ScopedModalAnswers answers([&](wxWindow& dialog, const wxString& title) {
+        return answer_load_question(dialog, title, request.units, request.scale_oversized, request.discard_unsaved);
     });
 
     bool loaded = true;
@@ -1692,7 +1895,7 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     }
 
     for (const ModalRecord& record : answers.records())
-        decisions.push_back({record.title, describe(record.answer)});
+        decisions.push_back({record.title, describe_answer(record.answer)});
     if (!loaded)
         return CommandResult::failure(WorkspaceError::UnavailableOperation,
                                       request.new_project ? "OrcaSlicer did not start a new project" :
@@ -1728,30 +1931,151 @@ CommandResult OrcaWorkspaceAdapter::export_project_archive(const std::string& fi
     return CommandResult::success();
 }
 
-CommandResult OrcaWorkspaceAdapter::import_model(const std::string& file_path)
+CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+                                                   std::vector<ObjectId>& added)
 {
     wxASSERT(wxIsMainThread());
-    boost::system::error_code ec;
-    if (!boost::filesystem::is_regular_file(file_path, ec) || boost::filesystem::file_size(file_path, ec) == 0)
+    const boost::filesystem::path path(request.path);
+    boost::system::error_code error;
+    if (!path.is_absolute() || !boost::filesystem::is_regular_file(path, error) || boost::filesystem::file_size(path, error) == 0)
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
+    static const std::set<std::string> importable{".3mf", ".stl", ".obj", ".step", ".stp", ".amf", ".drc"};
+    if (importable.count(boost::algorithm::to_lower_copy(path.extension().string())) == 0)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer imports .stl, .obj, .step, .amf, .drc and .3mf files");
+    PartPlateList& plates = m_plater.get_partplate_list();
+    int plate = -1;
+    if (request.plate) {
+        for (int index = 0; index < plates.get_plate_count(); ++index)
+            if (request.plate->session() == m_session && plates.get_plate(index)->id().id == request.plate->value())
+                plate = index;
+        if (plate < 0)
+            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+    }
 
-    const std::size_t before = m_plater.model().objects.size();
+    std::vector<size_t> indices;
+    ScopedModalAnswers answers([&](wxWindow& dialog, const wxString& title) {
+        return answer_load_question(dialog, title, request.units, request.scale_oversized, false);
+    });
     {
-        // One coalesced, undoable manufacturing change: the snapshot's History
-        // change and the importer's Objects change commit as a single workspace
-        // revision. LoadModel is the additive, geometry-only strategy — it adds
-        // objects to the current project rather than replacing it.
+        // One coalesced, undoable change. LoadModel is the additive,
+        // geometry-only strategy Import uses; a new object lands on the
+        // current plate, so the target plate is selected first.
         ProjectStateTransaction transaction = m_plater.project_state_transaction();
         m_plater.take_snapshot("Import model");
-        m_plater.load_files(std::vector<boost::filesystem::path>{boost::filesystem::path(file_path)},
-                            LoadStrategy::LoadModel);
+        if (plate >= 0)
+            m_plater.select_plate(plate);
+        LoadStrategy strategy = LoadStrategy::LoadModel;
+        if (request.units == UnitChoice::Inches)
+            strategy = strategy | LoadStrategy::ImperialUnits;
+        indices = m_plater.load_files(std::vector<boost::filesystem::path>{path}, strategy);
     }
-    if (m_plater.model().objects.size() <= before)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The model could not be imported");
+    for (const ModalRecord& record : answers.records())
+        decisions.push_back({record.title, describe_answer(record.answer)});
+    if (indices.empty())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not import that file");
+    for (size_t index : indices) {
+        const ObjectId id(m_session, m_plater.model().objects[index]->id().id);
+        m_known_object_ids.insert(id.value());
+        added.push_back(id);
+    }
+    return CommandResult::success(added.front());
+}
 
-    const ObjectId new_id(m_session, m_plater.model().objects.back()->id().id);
-    m_known_object_ids.insert(new_id.value());
-    return CommandResult::success(new_id);
+CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& items)
+{
+    wxASSERT(wxIsMainThread());
+    Model&         model  = m_plater.model();
+    PartPlateList& plates = m_plater.get_partplate_list();
+    std::vector<ItemForDelete> subitems;
+    std::vector<std::size_t>   objects;
+    std::vector<int>           plate_indices;
+    std::map<std::size_t, std::pair<std::size_t, std::size_t>> removing; // object -> (model parts, instances)
+
+    // Everything is checked first. Orca reports some refusals from these
+    // paths with an error it shows after the call returns, which no answer
+    // can reach, so the same conditions are refused here.
+    for (const DeleteItem& item : items) {
+        if (item.kind == DeleteItem::Kind::Plate) {
+            int index = -1;
+            for (int candidate = 0; candidate < plates.get_plate_count(); ++candidate)
+                if (item.plate.session() == m_session && plates.get_plate(candidate)->id().id == item.plate.value())
+                    index = candidate;
+            if (index < 0)
+                return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            plate_indices.push_back(index);
+            continue;
+        }
+        const auto resolved = resolve(item.object);
+        if (!resolved)
+            return id_error(item.object);
+        const ModelObject& object = *model.objects[resolved->index];
+        if (item.kind == DeleteItem::Kind::Object) {
+            objects.push_back(resolved->index);
+        } else if (item.kind == DeleteItem::Kind::Part) {
+            const auto volume = std::find_if(object.volumes.begin(), object.volumes.end(),
+                                             [&](const ModelVolume* v) { return v->id().id == item.part; });
+            if (volume == object.volumes.end())
+                return CommandResult::failure(WorkspaceError::StaleId, "That part is not in " + object.name);
+            if (object.is_cut() && ((*volume)->is_model_part() || (*volume)->is_negative_volume()))
+                return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                              "OrcaSlicer does not delete the solid parts of a cut object");
+            if ((*volume)->is_model_part())
+                ++removing[resolved->index].first;
+            subitems.emplace_back(itVolume, int(resolved->index), int(volume - object.volumes.begin()));
+        } else {
+            if (item.instance >= object.instances.size())
+                return CommandResult::failure(WorkspaceError::InvalidArgument, object.name + " has no such copy");
+            ++removing[resolved->index].second;
+            subitems.emplace_back(itInstance, int(resolved->index), int(item.instance));
+        }
+    }
+    std::sort(objects.begin(), objects.end());
+    objects.erase(std::unique(objects.begin(), objects.end()), objects.end());
+    // Parts and copies of an object that goes whole need no separate step.
+    subitems.erase(std::remove_if(subitems.begin(), subitems.end(), [&](const ItemForDelete& item) {
+                       return std::binary_search(objects.begin(), objects.end(), std::size_t(item.obj_idx));
+                   }),
+                   subitems.end());
+    for (const auto& [index, counts] : removing) {
+        if (std::binary_search(objects.begin(), objects.end(), index))
+            continue;
+        const ModelObject& object = *model.objects[index];
+        const auto parts = std::count_if(object.volumes.begin(), object.volumes.end(), [](const ModelVolume* v) { return v->is_model_part(); });
+        if (counts.first >= std::size_t(parts))
+            return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                          "That would remove every solid part of " + object.name + "; delete the object instead");
+        if (counts.second >= object.instances.size())
+            return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                          "That would remove every copy of " + object.name + "; delete the object instead");
+    }
+    std::sort(plate_indices.begin(), plate_indices.end());
+    plate_indices.erase(std::unique(plate_indices.begin(), plate_indices.end()), plate_indices.end());
+    if (!plate_indices.empty() && plate_indices.size() >= std::size_t(plates.get_plate_count()))
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "A project keeps at least one plate");
+
+    {
+        const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        Plater::TakeSnapshot snapshot(&m_plater, "Delete items");
+        // The card named a cut object's broken correspondence already.
+        ScopedModalAnswers answers([](wxWindow&, const wxString& title) {
+            return title == _L("Delete object which is a part of cut object") ? int(wxID_YES) : int(wxID_NO);
+        });
+        if (!subitems.empty()) {
+            // The object list deletes in reverse order, so it gets them sorted.
+            std::sort(subitems.begin(), subitems.end(), [](const ItemForDelete& a, const ItemForDelete& b) {
+                return std::tie(a.obj_idx, a.type, a.sub_obj_idx) < std::tie(b.obj_idx, b.type, b.sub_obj_idx);
+            });
+            wxGetApp().obj_list()->delete_from_model_and_list(subitems);
+        }
+        for (auto index = objects.rbegin(); index != objects.rend(); ++index)
+            if (!m_plater.delete_object(*index))
+                return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not delete an object");
+        // A deleted plate's objects move to another plate, as in Orca.
+        for (auto index = plate_indices.rbegin(); index != plate_indices.rend(); ++index)
+            m_plater.delete_plate(*index);
+        m_plater.notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Plates);
+    }
+    return CommandResult::success();
 }
 
 WorkspaceSubscription OrcaWorkspaceAdapter::subscribe(WorkspaceChangedCallback callback)
@@ -1790,6 +2114,9 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
     if (change.project_replaced) {
         m_session = ProjectSessionId(change.project_session);
         m_known_object_ids.clear();
+        // Jobs belong to the project that started them; the new project's
+        // action ids, which name them, start again.
+        m_jobs.clear();
         // A new or opened project starts its own history and presets; nothing
         // in it is an edit.
         remember_history();

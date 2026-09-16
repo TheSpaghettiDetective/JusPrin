@@ -115,6 +115,7 @@ public:
     // proposed in is torn down, and it has to be able to report.
     void clear();
     const std::string& executing_action_id() const { return m_executing; }
+    void forget_if_closed(const std::string& action_id);
     // Chat deletion may forget completed records, never in-flight work.
     void forget_terminal_activities(const std::vector<std::string>& message_ids);
 

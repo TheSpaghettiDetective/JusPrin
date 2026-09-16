@@ -401,12 +401,18 @@ json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnaly
                           {"repaired", {{"edgesFixed", mesh.edges_fixed}, {"degenerateFacets", mesh.degenerate_facets},
                                         {"facetsRemoved", mesh.facets_removed}, {"facetsReversed", mesh.facets_reversed},
                                         {"backwardsEdges", mesh.backwards_edges}}},
-                          {"unitsSuspicion", mesh.units_suspicion.empty() ? "none" : mesh.units_suspicion}};
+                          {"unitsSuspicion", mesh.units_suspicion.empty() ? "none" : mesh.units_suspicion},
+                          {"partList", json::array()}};
+        bool truncated = false;
+        for (const auto& part : mesh.part_list)
+            result["mesh"]["partList"].push_back({{"partId", std::to_string(part.id)}, {"name", label(part.name, truncated)},
+                                                  {"kind", part.kind}, {"facets", part.facets}});
     }
     if (analysis.features) {
         json faces = json::array(), holes = json::array();
         for (const auto& face : analysis.features->faces)
             faces.push_back({{"handle", face.handle}, {"areaMm2", std::round(face.area * 100.0) / 100.0},
+                             {"sizeMm", json::array({std::round(face.size[0] * 100.0) / 100.0, std::round(face.size[1] * 100.0) / 100.0})},
                              {"normal", vector3(face.normal)}, {"center", vector3(face.center)}});
         for (const auto& hole : analysis.features->holes)
             holes.push_back({{"handle", hole.handle}, {"diameterMm", std::round(hole.diameter * 10000.0) / 10000.0},
@@ -526,27 +532,6 @@ json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectS
                  {"selection", {{"status", status}, {"items", std::move(selected)}, {"truncated", selection_truncated}}},
                  {"history", {{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}}}};
     result["truncated"] = truncated || selection_truncated;
-    return result;
-}
-
-json selection_inspection(const Workspace::WorkspaceSnapshot& snapshot)
-{
-    json names = json::array();
-    bool truncated = false;
-    // Preserve the original selection ordering and names contract.
-    for (const auto selected : snapshot.selected_objects) {
-        if (names.size() == kToolListLimit) { truncated = true; break; }
-        for (const auto& plate : snapshot.plates)
-            for (const auto& object : plate.objects)
-                if (object.id == selected) {
-                    if (names.size() == kToolListLimit) truncated = true;
-                    else names.push_back(label(object.name, truncated));
-                }
-    }
-    // Preserve the original ordinary selection contract; add the truncation
-    // marker only when its previously unbounded result cannot fit.
-    json result{{"selection", std::move(names)}, {"revision", snapshot.revision}};
-    if (truncated) result["truncated"] = true;
     return result;
 }
 

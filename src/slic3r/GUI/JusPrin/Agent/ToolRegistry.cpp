@@ -110,8 +110,6 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         });
     }
 
-    if (definition.handler == ToolHandler::InspectSelection)
-        return arguments.empty();
 
     if (definition.handler == ToolHandler::WorkspaceInspect) {
         if (!has_only(arguments, {"sections"}))
@@ -135,6 +133,91 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
 
     if (definition.handler == ToolHandler::PrinterList)
         return arguments.empty();
+
+    if (definition.handler == ToolHandler::ObjectImport || definition.handler == ToolHandler::ObjectImportFile) {
+        const char* source = definition.handler == ToolHandler::ObjectImport ? "attachmentId" : "path";
+        if (!has_only(arguments, {"sessionId", source, "plateId", "unitConversion", "oversized"}) ||
+            !arguments.contains("sessionId") || !is_unsigned_string(arguments["sessionId"]) || !arguments.contains(source) ||
+            !arguments[source].is_string() || arguments[source].get_ref<const std::string&>().empty() ||
+            arguments[source].get_ref<const std::string&>().size() > 1024)
+            return false;
+        if (arguments.contains("plateId") && !is_unsigned_string(arguments["plateId"]))
+            return false;
+        const auto one_of = [&arguments](const char* key, std::initializer_list<const char*> allowed) {
+            return !arguments.contains(key) ||
+                   std::any_of(allowed.begin(), allowed.end(), [&](const char* value) { return arguments[key] == value; });
+        };
+        return one_of("unitConversion", {"keep", "convertIfTiny", "inches"}) && one_of("oversized", {"keep", "scaleToFit"});
+    }
+
+    if (definition.handler == ToolHandler::ProjectDeleteItems) {
+        if (!has_only(arguments, {"sessionId", "items"}) || arguments.size() != 2 || !is_unsigned_string(arguments["sessionId"]))
+            return false;
+        const json& items = arguments["items"];
+        if (!items.is_array() || items.empty() || items.size() > 32)
+            return false;
+        return std::all_of(items.begin(), items.end(), [](const json& item) {
+            if (!item.is_object())
+                return false;
+            if (item.contains("plateId"))
+                return item.size() == 1 && is_unsigned_string(item["plateId"]);
+            if (!has_only(item, {"objectId", "partId", "instance"}) || !item.contains("objectId") ||
+                !is_unsigned_string(item["objectId"]) || (item.contains("partId") && item.contains("instance")))
+                return false;
+            return (!item.contains("partId") || is_unsigned_string(item["partId"])) &&
+                   (!item.contains("instance") || item["instance"].is_number_unsigned());
+        });
+    }
+
+    if (definition.handler == ToolHandler::PlateLayout) {
+        if (!has_only(arguments, {"sessionId", "objects", "plates", "arrange"}) || !arguments.contains("sessionId") ||
+            !is_unsigned_string(arguments["sessionId"]) || arguments.size() < 2)
+            return false;
+        const auto text = [](const json& value) {
+            return value.is_string() && !value.get_ref<const std::string&>().empty() && value.get_ref<const std::string&>().size() <= kToolLabelLimit;
+        };
+        if (arguments.contains("objects")) {
+            const json& rows = arguments["objects"];
+            if (!rows.is_array() || rows.empty() || rows.size() > 64)
+                return false;
+            std::set<std::string> seen;
+            for (const json& row : rows) {
+                if (!has_only(row, {"objectId", "enabled", "quantity", "plateId", "name", "extruder"}) || !row.contains("objectId") ||
+                    !is_unsigned_string(row["objectId"]) || row.size() < 2 || !seen.insert(row["objectId"].get<std::string>()).second)
+                    return false;
+                if (row.contains("enabled") && !row["enabled"].is_boolean()) return false;
+                if (row.contains("quantity") && (!row["quantity"].is_number_unsigned() || row["quantity"].get<std::uint64_t>() < 1 ||
+                                                 row["quantity"].get<std::uint64_t>() > 64))
+                    return false;
+                if (row.contains("plateId") && !is_unsigned_string(row["plateId"])) return false;
+                if (row.contains("name") && !text(row["name"])) return false;
+                if (row.contains("extruder") && (!row["extruder"].is_number_unsigned() || row["extruder"].get<std::uint64_t>() < 1 ||
+                                                 row["extruder"].get<std::uint64_t>() > 16))
+                    return false;
+            }
+        }
+        if (arguments.contains("plates")) {
+            const json& rows = arguments["plates"];
+            if (!rows.is_array() || rows.empty() || rows.size() > 16)
+                return false;
+            for (const json& row : rows) {
+                if (!has_only(row, {"plateId", "name", "bedType"}) || (row.contains("plateId") && row.size() < 2)) return false;
+                if (row.contains("plateId") && !is_unsigned_string(row["plateId"])) return false;
+                if (row.contains("name") && !text(row["name"])) return false;
+                if (row.contains("bedType") && !text(row["bedType"])) return false;
+            }
+        }
+        if (arguments.contains("arrange")) {
+            const json& arrange = arguments["arrange"];
+            if (!has_only(arrange, {"plateId", "spacingMm", "allowRotation"})) return false;
+            if (arrange.contains("plateId") && !is_unsigned_string(arrange["plateId"])) return false;
+            if (arrange.contains("spacingMm") && (!arrange["spacingMm"].is_number() || arrange["spacingMm"].get<double>() < 0 ||
+                                                  arrange["spacingMm"].get<double>() > 100))
+                return false;
+            if (arrange.contains("allowRotation") && !arrange["allowRotation"].is_boolean()) return false;
+        }
+        return true;
+    }
 
     if (definition.handler == ToolHandler::ObjectPlace) {
         if (!has_only(arguments, {"sessionId", "objectId", "instance", "unitsFix", "scale", "scaleTo", "mirrorAxis",
@@ -380,16 +463,6 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         });
     }
 
-    if (definition.handler == ToolHandler::DuplicateObject)
-        return has_only(arguments, {"sessionId", "objectId"}) && arguments.size() == 2 &&
-               arguments.contains("sessionId") && is_unsigned_string(arguments["sessionId"]) &&
-               arguments.contains("objectId") && is_unsigned_string(arguments["objectId"]);
-
-    if (definition.handler == ToolHandler::ImportModel)
-        return has_only(arguments, {"sessionId", "attachmentId"}) && arguments.size() == 2 &&
-               arguments.contains("sessionId") && is_unsigned_string(arguments["sessionId"]) &&
-               arguments.contains("attachmentId") && arguments["attachmentId"].is_string() &&
-               !arguments["attachmentId"].get_ref<const std::string&>().empty();
 
     if (definition.handler == ToolHandler::RecordBuild) {
         if (!has_only(arguments, {"slicerVersion", "configurationProvenance", "printTimeSeconds", "filamentMm",
@@ -467,6 +540,15 @@ std::vector<ToolDefinition> make_definitions()
          {"negativePartCount", integer_schema()}, {"supportVolumeCount", integer_schema()}, {"printable", boolean_schema()},
          {"extruder", integer_schema()}, {"sizeMm", vector3}, {"overrideCount", integer_schema()}},
         {"objectId", "name", "plateIds", "instanceCount", "partCount", "modifierCount", "printable", "sizeMm", "overrideCount"}));
+    const json import_result = object_schema(
+        {{"objectIds", {{"type", "array"}, {"items", id}, {"maxItems", 64}}},
+         {"objects", objects_section},
+         {"decisions", {{"type", "array"}, {"maxItems", 32},
+                        {"items", object_schema({{"question", string_schema()},
+                                                 {"answer", {{"type", "string"}, {"enum", json::array({"yes", "no", "ok", "cancel"})}}}},
+                                                {"question", "answer"})}}},
+         {"sessionId", id}, {"revision", revision}},
+        {"objectIds", "objects", "decisions", "sessionId", "revision"});
     const json sourced_text = object_schema({{"value", string_schema()}, {"provenance", {{"type", "string"}, {"enum", json::array({"project_file"})}}}},
                                             {"value", "provenance"});
     json details_schema = object_schema({});
@@ -595,7 +677,7 @@ std::vector<ToolDefinition> make_definitions()
          object_schema({{"changes", changes_input}}, {"changes"}), patch_output,
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
         {"settings_apply_patch", "Change process settings",
-         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview. Waits for approval in JusPrin; project Undo does not undo this change.",
+         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview. Calling it shows the user an approval card in JusPrin and waits for their decision; project Undo does not undo this change.",
          object_schema({{"changes", changes_input}, {"expectedSessionId", id}, {"expectedRevision", revision},
                         {"intent", json{{"type", "string"}, {"maxLength", 40},
                                         {"description", "What the user asked this setup to be, in their own words, as "
@@ -606,39 +688,8 @@ std::vector<ToolDefinition> make_definitions()
              {"processPresetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},
              {"applied", "changes", "normalized", "processPresetDirty", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
-        {"duplicate_object",
-         "Duplicate project object",
-         "Propose duplicating one existing object in the current project.",
-         object_schema(json{{"sessionId", string_schema()}, {"objectId", string_schema()}},
-                       json::array({"sessionId", "objectId"})),
-         object_schema(json{{"revision", revision}, {"newObjectId", id}}, json::array({"revision"})),
-         ActionClass::Mutation,
-         ToolExposure::InApp,
-         ToolAvailability::Always,
-         ToolHandler::DuplicateObject},
-        {"import_model",
-         "Import attached model",
-         "Propose importing one attached model into the current project.",
-         object_schema(json{{"sessionId", string_schema()}, {"attachmentId", string_schema()}},
-                       json::array({"sessionId", "attachmentId"})),
-         object_schema(json{{"revision", revision}, {"imported", boolean_schema()}, {"newObjectId", id}},
-                       json::array({"revision", "imported"})),
-         ActionClass::Mutation,
-         ToolExposure::InApp,
-         ToolAvailability::ImportableAttachment,
-         ToolHandler::ImportModel},
-        {"inspect_selection",
-         "Inspect the current selection",
-         "Read the current selection without changing the project.",
-         object_schema(json::object()),
-         object_schema(json{{"selection", string_array_schema()}, {"revision", revision}, {"truncated", boolean_schema()}},
-                       json::array({"selection", "revision"})),
-         ActionClass::ReadOnly,
-         ToolExposure::InApp,
-         ToolAvailability::Always,
-         ToolHandler::InspectSelection},
         {"intent_update", "Record what this print is for",
-         "Record what the user wants out of this print, as named answers you choose: what it is for, how it will be used, what matters about it, how long it may take. Send question without value for something you have asked and do not know yet; the unanswered ones come back as openQuestions. Waits for approval in JusPrin, because the card is where the user confirms you understood them. Project Undo does not undo this.",
+         "Record what the user said they want out of this print, as named answers you choose (only what they said or clearly implied, not your own plan; that belongs in plan_set): what it is for, how it will be used, what matters about it, how long it may take. Send question without value for something you have asked and do not know yet; the unanswered ones come back as openQuestions. Calling it shows the user an approval card in JusPrin and waits for their decision, because the card is where the user confirms you understood them. Project Undo does not undo this.",
          object_schema({{"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
                                                                {"assumed", boolean_schema()}}, {"field"}), 32)}},
                        {"fields"}),
@@ -669,7 +720,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"items", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterList},
         {"project_open", "Open a project",
-         "Replace the open project: open a .3mf project, open a model file (.stl, .obj, .step, .amf, .drc) as a new project, or start an empty one with new. OrcaSlicer's questions become inputs: loadProjectSettings (project: use the file's printer, filament and process settings; keep: geometry only), unitConversion (keep; convertIfTiny: scale an object that looks modelled in metres or inches; inches: treat the model file as inches), oversized (keep, or scaleToFit the bed). Anything else OrcaSlicer would ask is answered with the choice that changes least and listed in decisions. If the open project has unsaved changes the call is refused unless unsavedWork is \"discard\", which the user must have agreed to. IDs from before are no longer valid afterwards. Waits for approval in JusPrin, and the card shows the path.",
+         "Replace the open project: open a .3mf project, open a model file (.stl, .obj, .step, .amf, .drc) as a new project, or start an empty one with new. OrcaSlicer's questions become inputs: loadProjectSettings (project: use the file's printer, filament and process settings; keep: geometry only), unitConversion (keep; convertIfTiny: scale an object that looks modelled in metres or inches; inches: treat the model file as inches), oversized (keep, or scaleToFit the bed). Anything else OrcaSlicer would ask is answered with the choice that changes least and listed in decisions. If the open project has unsaved changes the call is refused unless unsavedWork is \"discard\", which the user must have agreed to. IDs from before are no longer valid afterwards. Calling it shows the user an approval card in JusPrin and waits for their decision, and the card shows the path.",
          object_schema({{"path", {{"type", "string"}, {"maxLength", 1024}}},
                         {"new", {{"type", "boolean"}, {"enum", json::array({true})}}},
                         {"loadProjectSettings", {{"type", "string"}, {"enum", json::array({"project", "keep"})}}},
@@ -693,14 +744,14 @@ std::vector<ToolDefinition> make_definitions()
                        {"path", "saved", "projectDirty", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectSave},
         {"history_restore", "Restore an earlier state",
-         "Move the project through its undo history, as the person's own undo and redo lists do: to just before a step (it and every later step undone) or just after it (it and every earlier step done). Read step IDs from the history section of workspace_inspect. Setting edits, preset choices, the print intent, and the plan are not part of that history and stay as they are; the result lists which of them exist. Waits for approval in JusPrin.",
+         "Move the project through its undo history, as the person's own undo and redo lists do: to just before a step (it and every later step undone) or just after it (it and every earlier step done). Read step IDs from the history section of workspace_inspect. Setting edits, preset choices, the print intent, and the plan are not part of that history and stay as they are; the result lists which of them exist. Calling it shows the user an approval card in JusPrin and waits for their decision.",
          object_schema({{"sessionId", id}, {"stepId", id}, {"point", {{"type", "string"}, {"enum", json::array({"before", "after"})}}}},
                        {"sessionId", "stepId", "point"}),
          object_schema({{"history", history_section}, {"notReversed", list_schema(text)}, {"sessionId", id}, {"revision", revision}},
                        {"history", "notReversed", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::HistoryRestore},
         {"printer_setup", "Set up the printer",
-         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. If the switch would drop unsaved preset edits, the call is refused unless unsavedEdits is \"discard\", which the user must have agreed to. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. Waits for approval in JusPrin.",
+         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. If the switch would drop unsaved preset edits, the call is refused unless unsavedEdits is \"discard\", which the user must have agreed to. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. Calling it shows the user an approval card in JusPrin and waits for their decision.",
          object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()}, {"processPreset", string_schema()},
                         {"filamentPresets", {{"type", "array"}, {"items", string_schema()}, {"minItems", 1}, {"maxItems", 16}}},
                         {"unsavedEdits", {{"type", "string"}, {"enum", json::array({"discard"})}}},
@@ -729,8 +780,53 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"valid", "issues", "resulting", "substituted", "unsavedEdits", "mismatches", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterSetupPreview},
+        {"object_import", "Import an attached model",
+         // In-app only: the file reaches the app as a chat attachment.
+         "Add the objects of a model file the user attached to this chat to the open project, in one undo step, on plateId if given. attachmentId comes from the attachment list. unitConversion (keep; convertIfTiny: if OrcaSlicer finds the model tiny, as if modelled in metres or inches, it converts it now and the decisions list says so; inches: the file is in inches) and oversized (keep, scaleToFit) answer OrcaSlicer's questions; anything else it asks is answered with the choice that changes least and listed in decisions. The result gives each new object's size, so check it before converting again. Calling it shows the user an approval card in JusPrin and waits for their decision.",
+         object_schema({{"sessionId", id}, {"attachmentId", id}, {"plateId", id},
+                        {"unitConversion", {{"type", "string"}, {"enum", json::array({"keep", "convertIfTiny", "inches"})}}},
+                        {"oversized", {{"type", "string"}, {"enum", json::array({"keep", "scaleToFit"})}}}},
+                       {"sessionId", "attachmentId"}),
+         import_result,
+         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::ImportableAttachment, ToolHandler::ObjectImport},
+        {"object_import_file", "Import a model file",
+         // MCP only: an external client names a file by path, shown on the card.
+         "Add the objects of a model file (.stl, .obj, .step, .amf, .drc, or a .3mf's geometry) at an absolute path to the open project, in one undo step, on plateId if given. The file is read only after the user approves the card, which shows the path. unitConversion (keep; convertIfTiny: if OrcaSlicer finds the model tiny, as if modelled in metres or inches, it converts it now and the decisions list says so; inches: the file is in inches) and oversized (keep, scaleToFit) answer OrcaSlicer's questions; anything else it asks is answered with the choice that changes least and listed in decisions. The result gives each new object's size, so check it before converting again.",
+         object_schema({{"sessionId", id}, {"path", {{"type", "string"}, {"maxLength", 1024}}}, {"plateId", id},
+                        {"unitConversion", {{"type", "string"}, {"enum", json::array({"keep", "convertIfTiny", "inches"})}}},
+                        {"oversized", {{"type", "string"}, {"enum", json::array({"keep", "scaleToFit"})}}}},
+                       {"sessionId", "path"}),
+         import_result,
+         ActionClass::Mutation, ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectImportFile},
+        {"project_delete_items", "Delete from the project",
+         "Delete up to 32 items in one undo step: {objectId} for a whole object, {objectId, partId} for one part (part ids come from object_analyze mesh), {objectId, instance} for one copy, or {plateId} for a plate, whose objects OrcaSlicer moves to another plate. The last solid part or copy of an object is refused; delete the object. Calling it shows the user an approval card in JusPrin and waits for their decision, and the card names each item.",
+         object_schema({{"sessionId", id},
+                        {"items", {{"type", "array"}, {"minItems", 1}, {"maxItems", 32},
+                                   {"items", object_schema({{"objectId", id}, {"partId", id}, {"instance", integer_schema()},
+                                                            {"plateId", id}})}}}},
+                       {"sessionId", "items"}),
+         object_schema({{"objects", objects_section}, {"plateCount", integer_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"objects", "plateCount", "sessionId", "revision"}),
+         ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectDeleteItems},
+        {"plate_layout", "Lay out the plates",
+         "Lay out the job in one undo step: objects, up to 64 rows of {objectId, enabled (whether it prints), quantity (copies, 1 to 64), plateId (move it to that plate), name, extruder}; plates, up to 16 rows of {plateId?, name?, bedType?}, where a row without plateId adds a plate; arrange ({} for every unlocked plate, or {plateId}, with optional spacingMm and allowRotation), which runs as OrcaSlicer's arrange job: its state, and the objects no plate could hold, are read from workspace_inspect's slicing section under the returned handle. Arranging every plate also removes empty plates at the end, as OrcaSlicer does. Copies are placed next to the original; arrange them to spread them out. Calling it shows the user an approval card in JusPrin and waits for their decision.",
+         object_schema({{"sessionId", id},
+                        {"objects", {{"type", "array"}, {"minItems", 1}, {"maxItems", 64},
+                                     {"items", object_schema({{"objectId", id}, {"enabled", boolean_schema()},
+                                                              {"quantity", {{"type", "integer"}, {"minimum", 1}}},
+                                                              {"plateId", id}, {"name", string_schema()},
+                                                              {"extruder", {{"type", "integer"}, {"minimum", 1}}}},
+                                                             {"objectId"})}}},
+                        {"plates", {{"type", "array"}, {"minItems", 1}, {"maxItems", 16},
+                                    {"items", object_schema({{"plateId", id}, {"name", string_schema()}, {"bedType", string_schema()}})}}},
+                        {"arrange", object_schema({{"plateId", id}, {"spacingMm", number_schema()}, {"allowRotation", boolean_schema()}})}},
+                       {"sessionId"}),
+         object_schema({{"objects", objects_section}, {"addedPlateIds", {{"type", "array"}, {"items", id}, {"maxItems", 16}}},
+                        {"handle", id}, {"sessionId", id}, {"revision", revision}},
+                       {"objects", "addedPlateIds", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlateLayout},
         {"object_place", "Place an object",
-         "Place one instance of an object for printing, in one undo step. Facets, all optional, applied in this order: unitsFix (inches or meters: the object was modelled in other units; OrcaSlicer replaces it with a converted copy and the result names the new objectId), scale (factors x, y, z) or scaleTo (a uniform scale that makes the size along one axis sizeMm), mirrorAxis, then at most one of faceDown (a face handle from object_analyze features, put on the bed), rotateDegrees (about the world x, y, z axes) or autoOrient (OrcaSlicer's own auto-orient for minimal support; it runs as a job whose state is read from workspace_inspect's slicing section under the returned handle), then position (x, y of the instance on the bed, mm) and dropToBed. To orient for another goal, score candidates with object_analyze orientations and place the chosen face down. Mirror and scale are named on the approval card. Waits for approval in JusPrin.",
+         "Place one copy of an object for printing, in one undo step. instance picks an existing copy (default 0, the first); to add copies use plate_layout quantity. Facets, all optional, applied in this order: unitsFix (inches or meters: the file's numbers are in those units, as object_analyze mesh unitsSuspicion reports; OrcaSlicer multiplies the size by 25.4 or 1000 and replaces the object, so the result names the new objectId; never scale by hand to fix units), scale (factors x, y, z) or scaleTo (a uniform scale that makes the size along one axis sizeMm), mirrorAxis, then at most one of faceDown (a face handle from object_analyze features, put on the bed), rotateDegrees (about the world x, y, z axes) or autoOrient (OrcaSlicer's own auto-orient for minimal support; it runs as a job whose state is read from workspace_inspect's slicing section under the returned handle), then position (x, y of the instance on the bed, mm) and dropToBed. To orient for another goal, score candidates with object_analyze orientations and place the chosen face down. Mirror and scale are named on the approval card. Calling it shows the user an approval card in JusPrin and waits for their decision.",
          object_schema({{"sessionId", id}, {"objectId", id}, {"instance", integer_schema()},
                         {"unitsFix", {{"type", "string"}, {"enum", json::array({"inches", "meters"})}}},
                         {"scale", vector3},
@@ -750,7 +846,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"objectId", "transform", "sizeMm", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectPlace},
         {"object_analyze", "Analyze an object",
-         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, open and repaired edges, and whether OrcaSlicer thinks it was modelled in inches or metres), features (the largest flat faces and hole mouths, each with a handle, area or diameter, centre and direction, in millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (OrcaSlicer's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
+         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, each part with its id and kind, open and repaired edges, and whether OrcaSlicer thinks it was modelled in inches or metres), features (the largest flat faces, each with a handle, area, sizeMm -- its two side lengths, longest first, which is how to find \"the 25 by 6 mm face\" -- centre and outward normal (0,0,-1 is the face on the bed), and hole mouths with a handle, diameter, centre and axis; millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (OrcaSlicer's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
          object_schema({{"sessionId", id}, {"objectId", id},
                         {"include", {{"type", "array"}, {"minItems", 1}, {"maxItems", 5},
                                      {"items", {{"type", "string"}, {"enum", json::array({"mesh", "features", "fit", "orientations", "measure"})}}}}},
@@ -765,12 +861,18 @@ std::vector<ToolDefinition> make_definitions()
                                                                             {"facetsRemoved", integer_schema()}, {"facetsReversed", integer_schema()},
                                                                             {"backwardsEdges", integer_schema()}},
                                                                            {"edgesFixed", "degenerateFacets", "facetsRemoved", "facetsReversed", "backwardsEdges"})},
-                                                {"unitsSuspicion", {{"type", "string"}, {"enum", json::array({"none", "inches", "meters"})}}}},
+                                                {"unitsSuspicion", {{"type", "string"}, {"enum", json::array({"none", "inches", "meters"})}}},
+                        {"partList", {{"type", "array"}, {"maxItems", 16},
+                                      {"items", object_schema({{"partId", id}, {"name", string_schema()},
+                                                               {"kind", {{"type", "string"}, {"enum", json::array({"model", "modifier", "negative", "enforcer", "blocker"})}}},
+                                                               {"facets", integer_schema()}},
+                                                              {"partId", "name", "kind", "facets"})}}}},
                                                {"sizeMm", "volumeMm3", "facets", "parts", "openEdges", "repaired", "unitsSuspicion"})},
                         {"features", object_schema({{"faces", {{"type", "array"}, {"maxItems", 32},
                                                               {"items", object_schema({{"handle", id}, {"areaMm2", number_schema()},
+                                                                                       {"sizeMm", {{"type", "array"}, {"items", number_schema()}, {"maxItems", 2}}},
                                                                                        {"normal", vector3}, {"center", vector3}},
-                                                                                      {"handle", "areaMm2", "normal", "center"})}}},
+                                                                                      {"handle", "areaMm2", "sizeMm", "normal", "center"})}}},
                                                     {"holes", {{"type", "array"}, {"maxItems", 32},
                                                               {"items", object_schema({{"handle", id}, {"diameterMm", number_schema()},
                                                                                        {"center", vector3}, {"axis", vector3}},

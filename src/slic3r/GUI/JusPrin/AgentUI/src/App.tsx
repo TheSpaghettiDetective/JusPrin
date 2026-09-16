@@ -150,7 +150,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   );
 
   const sendMessage = (text: string) => {
-    const attachmentIds = stagedAttachments.filter((a) => a.state === 'staged').map((a) => a.id);
+    // From the ref, not this render: the test hook keeps the first render's
+    // sendMessage, which would otherwise never see a later attachment.
+    const attachmentIds = stateRef.current.attachments.filter((a) => a.state === 'staged').map((a) => a.id);
     client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds });
   };
 

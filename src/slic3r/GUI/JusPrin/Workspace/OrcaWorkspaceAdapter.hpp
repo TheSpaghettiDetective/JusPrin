@@ -29,6 +29,7 @@ public:
     CommandResult remove_object(ObjectId id) override;
     CommandResult undo() override;
     CommandResult redo() override;
+    CommandResult lay_out(const LayoutRequest& request, const std::string& job_handle, LayoutResult& result) override;
     CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
                                PlacementResult& result) override;
     CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const override;
@@ -53,7 +54,9 @@ public:
     CommandResult save_project(const std::string& file_path) override;
     ProjectDetails project_details() const override;
     CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) override;
-    CommandResult import_model(const std::string& file_path) override;
+    CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+                                 std::vector<ObjectId>& added) override;
+    CommandResult delete_items(const std::vector<DeleteItem>& items) override;
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override;
 
 private:
@@ -119,6 +122,9 @@ private:
     bool start_job(const std::string& handle, const std::string& kind, std::unique_ptr<Job> job);
     void finish_job(const std::string& handle, const char* state);
     std::vector<WorkspaceJob> m_jobs;
+    // The arrange spacing and rotation in force before a tool's arrange,
+    // restored when that arrange ends.
+    std::optional<std::pair<float, bool>> m_arrange_restore;
     std::shared_ptr<bool>     m_alive = std::make_shared<bool>(true);
 };
 
