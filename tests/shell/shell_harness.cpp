@@ -3562,9 +3562,13 @@ void install_harness_agent(HarnessState::Mode mode)
             return;
         Agent::OpenAIResponsesConfig config;
         config.api_key = key;
-        config.usage_listener = [](std::uint64_t input, std::uint64_t output, std::uint64_t total) {
-            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << input
-                      << " output_tokens=" << output << " total_tokens=" << total << '\n';
+        config.usage_listener = [](const Agent::AgentUsage& usage) {
+            // cached_input_tokens is the evidence the tool-loading decision
+            // rests on; report it on every request, not only when it is
+            // non-zero, so a chat that stops caching is visible in the log.
+            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << usage.input
+                      << " cached_input_tokens=" << usage.cached_input << " output_tokens=" << usage.output
+                      << " total_tokens=" << usage.total << '\n';
         };
         host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), Agent::make_openai_http_transport()),
                        Agent::AgentAvailability::Ready);

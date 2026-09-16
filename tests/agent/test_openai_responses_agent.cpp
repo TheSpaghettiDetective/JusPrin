@@ -332,3 +332,64 @@ TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", 
     CHECK(event->error->code == "malformed_tool_call");
     CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
 }
+
+TEST_CASE("reported usage carries the cached share of the input", "[agent][openai][usage]")
+{
+    std::vector<AgentUsage> reported;
+    OpenAIResponsesConfig   config{"key"};
+    config.usage_listener = [&reported](const AgentUsage& usage) { reported.push_back(usage); };
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent(std::move(config), std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    fake->data(sse(json{{"type", "response.completed"},
+                        {"response", json{{"output", json::array()},
+                                          {"usage", json{{"input_tokens", 4102},
+                                                         {"input_tokens_details", json{{"cached_tokens", 3840}}},
+                                                         {"output_tokens", 51},
+                                                         {"total_tokens", 4153}}}}}}));
+    fake->complete();
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0].input == 4102);
+    CHECK(reported[0].cached_input == 3840);
+    CHECK(reported[0].output == 51);
+    CHECK(reported[0].total == 4153);
+
+    // A provider that reports no cache detail is zero cached, not a gap: the
+    // deferral decision reads the log as a number either way.
+    auto second = std::make_unique<FakeTransport>();
+    FakeTransport* second_fake = second.get();
+    OpenAIResponsesConfig plain{"key"};
+    plain.usage_listener = [&reported](const AgentUsage& usage) { reported.push_back(usage); };
+    OpenAIResponsesAgent bare(std::move(plain), std::move(second));
+    REQUIRE(bare.start(request_fixture()));
+    second_fake->data(sse(json{{"type", "response.completed"},
+                               {"response", json{{"output", json::array()},
+                                                 {"usage", json{{"input_tokens", 803}, {"output_tokens", 20},
+                                                                {"total_tokens", 823}}}}}}));
+    second_fake->complete();
+    REQUIRE(poll_until(bare, AgentEventKind::Completed));
+    REQUIRE(reported.size() == 2);
+    CHECK(reported[1].input == 803);
+    CHECK(reported[1].cached_input == 0);
+}
+
+TEST_CASE("the in-app catalog's per-turn size is recorded", "[agent][openai][budget]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    REQUIRE(fake->requests.size() == 1);
+
+    // The number the deferral decision rests on, alongside the cached-token
+    // share the live regression logs. Printed on every run; the bounds are an
+    // alarm for runaway growth, not a target to grow into.
+    const json  body  = json::parse(fake->requests.front().body);
+    const auto  bytes = body["tools"].dump().size();
+    WARN("in-app tool definitions: " << body["tools"].size() << ", " << bytes << " bytes");
+    CHECK(body["tools"].size() <= 40);
+    CHECK(bytes <= 32 * 1024);
+}

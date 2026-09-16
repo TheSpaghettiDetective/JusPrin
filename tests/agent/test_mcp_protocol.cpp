@@ -158,3 +158,18 @@ TEST_CASE("MCP terminal results preserve structured content and error identity",
     CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["details"]["expectedSessionId"] == "3");
     CHECK(Mcp::sse_event({{"id", 1}}) == "event: message\ndata: {\"id\":1}\n\n");
 }
+
+TEST_CASE("the MCP catalog's advertised size is recorded", "[mcp][protocol][budget]")
+{
+    Mcp::Request request;
+    request.id     = 1;
+    request.method = "tools/list";
+    const json listed = Mcp::list_tools(request).body["result"]["tools"];
+    // The same measurement the offline helper prints, kept where a change to
+    // a schema shows up as a number rather than as a surprise in a client.
+    WARN("MCP tool definitions: " << listed.size() << ", " << listed.dump().size() << " bytes");
+    CHECK(listed.size() <= 40);
+    CHECK(listed.dump().size() <= 32 * 1024);
+    for (const json& tool : listed)
+        CHECK_FALSE(tool.contains("outputSchema"));
+}

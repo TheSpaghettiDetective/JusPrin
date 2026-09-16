@@ -267,9 +267,13 @@ void OpenAIResponsesAgent::finish_response(const json& response)
     m_input_history.insert(m_input_history.end(), output.begin(), output.end());
     if (m_config.usage_listener && response.contains("usage") && response["usage"].is_object()) {
         const json& usage = response["usage"];
-        m_config.usage_listener(usage.value("input_tokens", std::uint64_t{0}),
-                                usage.value("output_tokens", std::uint64_t{0}),
-                                usage.value("total_tokens", std::uint64_t{0}));
+        AgentUsage   reported;
+        reported.input  = usage.value("input_tokens", std::uint64_t{0});
+        reported.output = usage.value("output_tokens", std::uint64_t{0});
+        reported.total  = usage.value("total_tokens", std::uint64_t{0});
+        if (usage.contains("input_tokens_details") && usage["input_tokens_details"].is_object())
+            reported.cached_input = usage["input_tokens_details"].value("cached_tokens", std::uint64_t{0});
+        m_config.usage_listener(reported);
     }
     for (const json& item : output) {
         if (!item.is_object() || item.value("type", "") != "function_call")
