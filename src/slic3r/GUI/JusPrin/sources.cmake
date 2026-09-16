@@ -93,6 +93,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
+    GUI/JusPrin/Workspace/PrinterFactsStore.cpp
+    GUI/JusPrin/Workspace/PrinterFactsStore.hpp
     GUI/JusPrin/Workspace/PlaterProjectState.cpp
     GUI/JusPrin/Workspace/PlaterProjectState.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp

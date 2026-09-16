@@ -3,11 +3,13 @@
 # binary, so nothing here links libslic3r_gui.
 add_executable(jusprin_tests
     test_spool_store.cpp
+    test_printer_facts_store.cpp
     test_host_locale.cpp
     test_home_snapshot.cpp
     test_home_host.cpp
     test_printer_setup.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeHost.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
