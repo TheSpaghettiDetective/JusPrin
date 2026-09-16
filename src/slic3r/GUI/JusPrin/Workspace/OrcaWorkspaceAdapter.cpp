@@ -454,6 +454,107 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
     return CommandResult::success();
 }
 
+SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate) const
+{
+    wxASSERT(wxIsMainThread());
+    SliceReport report;
+    if (plate.session() != m_session)
+        return report;
+    PartPlateList& plates = m_plater.get_partplate_list();
+    PartPlate*     target = nullptr;
+    for (int index = 0; index < plates.get_plate_count(); ++index)
+        if (PartPlate* candidate = plates.get_plate(index);
+            candidate != nullptr && candidate->id().id == plate.value())
+            target = candidate;
+    // A slice in flight is not this plate's result yet, and an invalidated one
+    // is not a report: both answer "no current slice".
+    if (target == nullptr || !target->is_slice_result_valid() || m_plater.is_background_process_slicing() ||
+        target->get_slice_result() == nullptr)
+        return report;
+
+    const GCodeProcessorResult& result     = *target->get_slice_result();
+    const auto&                 statistics = result.print_statistics;
+    const auto&                 mode = statistics.modes[static_cast<std::size_t>(PrintEstimatedStatistics::ETimeMode::Normal)];
+    report.valid                = true;
+    report.print_time_seconds   = mode.time > 0.f ? static_cast<std::uint32_t>(mode.time) : 0u;
+    report.prepare_time_seconds = mode.prepare_time > 0.f ? static_cast<std::uint32_t>(mode.prepare_time) : 0u;
+    report.filament_changes     = statistics.total_filament_changes;
+    report.extruder_changes     = statistics.total_extruder_changes;
+
+    const auto volume_of = [](const std::map<std::size_t, double>& volumes, std::size_t extruder) {
+        const auto found = volumes.find(extruder);
+        return found == volumes.end() ? 0.0 : found->second;
+    };
+    bool every_filament_priced = true;
+    for (const auto& [extruder, volume] : statistics.total_volumes_per_extruder) {
+        SliceFilamentUse use;
+        use.extruder = extruder;
+        // Without a diameter or a density the length and the weight would be
+        // invented, so they stay zero and the row says only what is known.
+        if (extruder < result.filament_diameters.size() && result.filament_diameters[extruder] > 0.f)
+            use.length_mm = volume / (PI * sqr(0.5 * double(result.filament_diameters[extruder])));
+        if (extruder < result.filament_densities.size())
+            use.grams = volume * result.filament_densities[extruder] * 0.001;
+        if (extruder < result.filament_costs.size() && result.filament_costs[extruder] > 0.f) {
+            use.cost     = use.grams * result.filament_costs[extruder] * 0.001;
+            use.has_cost = true;
+        } else {
+            every_filament_priced = false;
+        }
+        use.flushed_mm3 = volume_of(statistics.flush_per_filament, extruder);
+        use.tower_mm3   = volume_of(statistics.wipe_tower_volumes_per_extruder, extruder);
+        use.support_mm3 = volume_of(statistics.support_volumes_per_extruder, extruder);
+        report.total_grams += use.grams;
+        report.total_cost += use.cost;
+        report.filaments.push_back(use);
+    }
+    // Money is the cost of the whole print or it is not shown, the same rule
+    // the setup card applies to the estimate.
+    report.has_cost = every_filament_priced && report.total_cost > 0.0;
+    if (!report.has_cost)
+        report.total_cost = 0.0;
+
+    // Orca's own plate-level warnings, with its own words for them.
+    for (const GCodeProcessorResult::SliceWarning& warning : result.warnings) {
+        auto mutable_warning = warning;
+        const std::string text = Plater::get_slice_warning_string(mutable_warning).ToUTF8().data();
+        if (text.empty())
+            continue; // Orca deliberately has no words for this one
+        report.findings.push_back({warning.error_code, text, warning.level >= 2, {}});
+    }
+
+    // The step warnings, which live on the print and its objects rather than on
+    // the result. Only the current ones: invalidating a step leaves its
+    // warnings behind, marked stale.
+    if (const Print* print = target->fff_print(); print != nullptr) {
+        const auto collect = [&report](const PrintStateBase::StateWithWarnings& state, const std::string& object) {
+            for (const PrintStateBase::Warning& warning : state.warnings)
+                if (warning.current && report.findings.size() < 32)
+                    report.findings.push_back({{}, warning.message,
+                                               warning.level == PrintStateBase::WarningLevel::CRITICAL, object});
+        };
+        for (int step = 0; step < psCount; ++step)
+            collect(print->step_state_with_warnings(static_cast<PrintStep>(step)), {});
+        for (const PrintObject* object : print->objects()) {
+            const std::string name = object->model_object() != nullptr ? object->model_object()->name : std::string();
+            for (int step = 0; step < posCount; ++step)
+                collect(object->step_state_with_warnings(static_cast<PrintObjectStep>(step)), name);
+        }
+        report.conflict = print->get_conflict_string();
+    }
+
+    // The result's own toolpath_outside flag is only ever written by a 3mf, so
+    // it would be stale on a plate just sliced. Ask the build volume instead,
+    // which is what the canvas does before it draws the same warning.
+    BoundingBoxf3 paths;
+    for (const GCodeProcessorResult::MoveVertex& move : result.moves)
+        if (move.type == EMoveType::Extrude && move.extrusion_role != erCustom && move.width != 0.f && move.height != 0.f)
+            paths.merge(move.position.cast<double>());
+    if (paths.defined)
+        report.toolpath_outside = !m_plater.build_volume().all_paths_inside(result, paths);
+    return report;
+}
+
 std::string OrcaWorkspaceAdapter::auxiliary_data_dir() const
 {
     wxASSERT(wxIsMainThread());

@@ -369,6 +369,33 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (definition->handler == ToolHandler::SliceReportRead) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto snapshot  = m_workspace.snapshot();
+        // The active plate is what "check this print" means when the caller
+        // names none, and the name promises the current one.
+        std::optional<Workspace::PlateId> plate = snapshot.active_plate;
+        if (arguments.contains("plateId"))
+            plate = Workspace::PlateId(snapshot.session, std::stoull(arguments["plateId"].get<std::string>()));
+        if (!plate) {
+            fail(activity, "unavailable_operation", "This project has no plate to report on.");
+            return;
+        }
+        SliceReportSections sections;
+        if (arguments.contains("sections")) {
+            const auto asked = [&arguments](const char* name) {
+                const auto& sections = arguments["sections"];
+                return std::any_of(sections.begin(), sections.end(),
+                                   [name](const json& value) { return value == name; });
+            };
+            sections = {asked("summary"), asked("findings"), asked("material")};
+        }
+        activity.result_json = slice_report_result(m_workspace.slice_report(*plate), *plate, snapshot, sections).dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (definition->handler == ToolHandler::SliceStart) {
         const auto arguments = json::parse(activity.arguments_json);
         std::optional<Workspace::PlateId> plate;

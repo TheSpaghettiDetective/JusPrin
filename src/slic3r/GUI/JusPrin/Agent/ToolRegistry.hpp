@@ -53,6 +53,7 @@ enum class ToolHandler : std::uint8_t {
     IntentUpdate,
     PlanSet,
     SliceStart,
+    SliceReportRead,
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint

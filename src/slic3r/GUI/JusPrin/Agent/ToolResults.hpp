@@ -27,6 +27,18 @@ nlohmann::json plan_section_result(const PlanRecord& plan);
 // `handle` names the slice_start call that started the run in flight, when the
 // tool system started it; empty when the run is the person's or there is none.
 nlohmann::json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle);
+
+// Which parts of a sliced plate's report a call asked for. Summary is what a
+// caller that names none gets: the numbers anyone checking a print wants first.
+struct SliceReportSections
+{
+    bool summary{true};
+    bool findings{false};
+    bool material{false};
+};
+
+nlohmann::json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateId plate,
+                                   const Workspace::WorkspaceSnapshot& snapshot, SliceReportSections sections);
 nlohmann::json selection_inspection(const Workspace::WorkspaceSnapshot& snapshot);
 nlohmann::json settings_search_result(const Workspace::SettingsSearchResult&, const Workspace::WorkspaceSnapshot&);
 nlohmann::json settings_read_result(const Workspace::SettingsReadResult&, const Workspace::WorkspaceSnapshot&);

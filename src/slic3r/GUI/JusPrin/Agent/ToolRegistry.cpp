@@ -133,6 +133,26 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return true;
     }
 
+    if (definition.handler == ToolHandler::SliceReportRead) {
+        if (!has_only(arguments, {"plateId", "sections"}) ||
+            (arguments.contains("plateId") && !is_unsigned_string(arguments["plateId"])))
+            return false;
+        if (!arguments.contains("sections"))
+            return true;
+        const json& sections = arguments["sections"];
+        if (!sections.is_array() || sections.empty() || sections.size() > 3)
+            return false;
+        std::set<std::string> seen;
+        for (const auto& section : sections) {
+            if (!section.is_string())
+                return false;
+            const std::string& name = section.get_ref<const std::string&>();
+            if ((name != "summary" && name != "findings" && name != "material") || !seen.insert(name).second)
+                return false;
+        }
+        return true;
+    }
+
     if (definition.handler == ToolHandler::SliceStart)
         return has_only(arguments, {"plateId", "preempt"}) &&
                (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
@@ -389,6 +409,38 @@ std::vector<ToolDefinition> make_definitions()
          plan_output,
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlanSet,
          true},
+        {"slice_report", "Check the sliced plate",
+         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors, the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them. A plate that has not been sliced says so rather than failing.",
+         object_schema({{"plateId", id}, {"sections", {{"type", "array"},
+                                                       {"items", {{"type", "string"},
+                                                                  {"enum", json::array({"summary", "findings", "material"})}}},
+                                                       {"maxItems", 3}}}}),
+         object_schema({{"valid", boolean_schema()}, {"plateId", id},
+                        {"summary", object_schema({{"printTimeSeconds", integer_schema()},
+                                                   {"prepareTimeSeconds", integer_schema()},
+                                                   {"totalGrams", number_schema()}, {"totalCost", number_schema()},
+                                                   {"hasCost", boolean_schema()},
+                                                   {"filaments", array_schema(object_schema({{"extruder", integer_schema()},
+                                                                                             {"lengthMm", number_schema()},
+                                                                                             {"grams", number_schema()},
+                                                                                             {"cost", number_schema()},
+                                                                                             {"hasCost", boolean_schema()}},
+                                                                                            {"extruder", "lengthMm", "grams", "cost", "hasCost"}), 16)}},
+                                                  {"printTimeSeconds", "prepareTimeSeconds", "totalGrams", "totalCost", "hasCost", "filaments"})},
+                        {"findings", object_schema({{"items", array_schema(object_schema({{"code", id}, {"message", text},
+                                                                                          {"critical", boolean_schema()},
+                                                                                          {"object", string_schema()}},
+                                                                                         {"code", "message", "critical", "object"}), 32)},
+                                                    {"conflict", text}, {"toolpathOutsideBed", boolean_schema()},
+                                                    {"truncated", boolean_schema()}},
+                                                   {"items", "conflict", "toolpathOutsideBed", "truncated"})},
+                        {"material", object_schema({{"filamentChanges", integer_schema()}, {"extruderChanges", integer_schema()},
+                                                    {"purgedMm3", number_schema()}, {"primeTowerMm3", number_schema()},
+                                                    {"supportMm3", number_schema()}},
+                                                   {"filamentChanges", "extruderChanges", "purgedMm3", "primeTowerMm3", "supportMm3"})},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"valid", "plateId", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceReportRead},
         {"slice_start", "Slice the plate",
          "Start Orca's own slicing run for one plate, or every plate when you name none, and return once it has started. Read the slicing section of workspace_inspect for the result; it is not ready when this returns. Fails when a slice is already running unless you pass preempt, because nothing records who started that run and it may be the user's. Runs without an approval card unless it preempts.",
          object_schema({{"plateId", id}, {"preempt", boolean_schema()}}),

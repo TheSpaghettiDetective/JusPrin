@@ -715,3 +715,64 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
     CHECK(after["plates"][0]["sliced"] == true);
     CHECK_FALSE(after.contains("plateId"));
 }
+
+TEST_CASE("the slice report says what the plate holds, or that it holds nothing", "[tools][slicing][report]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const auto plate = h.workspace.snapshot().plates.at(0).id;
+    const auto read = [&h](const char* correlation, json arguments) {
+        const std::string action = h.coordinator.propose({"slice_report", arguments.dump()}, correlation).action_id;
+        h.pump_to_completion(action);
+        return json::parse(h.coordinator.find(action)->result_json);
+    };
+
+    // Not sliced is an answer, not a failure -- and it carries no summary, so
+    // nobody reads a print that takes no time and costs nothing.
+    const auto empty = read("m-1", json::object());
+    CHECK(registry.validate_output(*registry.find("slice_report"), empty));
+    CHECK(empty["valid"] == false);
+    CHECK_FALSE(empty.contains("summary"));
+
+    Workspace::SliceReport report;
+    report.print_time_seconds = 4500;
+    report.total_grams        = 23.5;
+    report.filaments          = {{0, 7800.0, 23.5, 0.47, true, 0.0, 0.0, 120.0}};
+    report.has_cost           = true;
+    report.total_cost         = 0.47;
+    report.filament_changes   = 2;
+    report.findings           = {{"", "Supports are enabled but nothing needs them", false, "cube-a"},
+                                 {"1000C002", "The nozzle is too soft for this filament", true, ""}};
+    report.conflict           = "Conflicts of G-code paths at Z = 4.20mm (cube-a <-> cube-b)";
+    h.workspace.set_slice_report_for_testing(plate, report);
+    h.workspace.set_plate_sliced(plate, true);
+
+    const auto summary = read("m-2", json::object());
+    CHECK(registry.validate_output(*registry.find("slice_report"), summary));
+    CHECK(summary["valid"] == true);
+    CHECK(summary["summary"]["printTimeSeconds"] == 4500);
+    CHECK(summary["summary"]["filaments"][0]["lengthMm"] == 7800.0);
+    CHECK(summary["summary"]["hasCost"] == true);
+    // Summary is the default, so a caller checking a print does not pay for
+    // findings it did not ask for.
+    CHECK_FALSE(summary.contains("findings"));
+    CHECK_FALSE(summary.contains("material"));
+
+    const auto findings = read("m-3", json{{"sections", json::array({"findings", "material"})}});
+    CHECK(registry.validate_output(*registry.find("slice_report"), findings));
+    CHECK_FALSE(findings.contains("summary"));
+    // Critical first: a bounded list must lose the mildest findings, never the
+    // ones that stop the print.
+    CHECK(findings["findings"]["items"][0]["code"] == "1000C002");
+    CHECK(findings["findings"]["items"][0]["critical"] == true);
+    CHECK(findings["findings"]["items"][1]["object"] == "cube-a");
+    CHECK(findings["findings"]["conflict"] == report.conflict);
+    CHECK(findings["findings"]["toolpathOutsideBed"] == false);
+    CHECK(findings["material"]["filamentChanges"] == 2);
+    CHECK(findings["material"]["supportMm3"] == 120.0);
+
+    // A slice being replaced is not a report: the numbers on screen are the
+    // ones it is about to overwrite.
+    REQUIRE(h.workspace.start_slice(plate, false).succeeded());
+    CHECK(read("m-4", json::object())["valid"] == false);
+}

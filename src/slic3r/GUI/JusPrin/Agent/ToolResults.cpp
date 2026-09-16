@@ -272,4 +272,60 @@ json selection_inspection(const Workspace::WorkspaceSnapshot& snapshot)
     if (truncated) result["truncated"] = true;
     return result;
 }
+
+json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateId plate,
+                         const Workspace::WorkspaceSnapshot& snapshot, SliceReportSections sections)
+{
+    json result{{"valid", report.valid}, {"plateId", std::to_string(plate.value())},
+                {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+    // A plate with no current slice has nothing to report, and saying so is the
+    // answer: an empty summary of zeros would read as a print that costs
+    // nothing and takes no time.
+    if (!report.valid)
+        return result;
+
+    if (sections.summary) {
+        json filaments = json::array();
+        for (const auto& use : report.filaments) {
+            if (filaments.size() == 16) break;
+            filaments.push_back({{"extruder", use.extruder}, {"lengthMm", use.length_mm}, {"grams", use.grams},
+                                 {"cost", use.cost}, {"hasCost", use.has_cost}});
+        }
+        result["summary"] = {{"printTimeSeconds", report.print_time_seconds},
+                             {"prepareTimeSeconds", report.prepare_time_seconds},
+                             {"totalGrams", report.total_grams}, {"totalCost", report.total_cost},
+                             {"hasCost", report.has_cost}, {"filaments", std::move(filaments)}};
+    }
+
+    if (sections.findings) {
+        bool truncated = false;
+        json items = json::array();
+        // Critical first: a report read at a bound should lose the mildest
+        // findings, never the ones that stop the print.
+        std::vector<const Workspace::SliceFinding*> ordered;
+        for (const auto& finding : report.findings) ordered.push_back(&finding);
+        std::stable_partition(ordered.begin(), ordered.end(),
+                              [](const Workspace::SliceFinding* finding) { return finding->critical; });
+        for (const auto* finding : ordered) {
+            if (items.size() == 32) { truncated = true; break; }
+            items.push_back({{"code", label(finding->code, truncated)}, {"message", text(finding->message, truncated)},
+                             {"critical", finding->critical}, {"object", label(finding->object, truncated)}});
+        }
+        result["findings"] = {{"items", std::move(items)}, {"conflict", text(report.conflict, truncated)},
+                              {"toolpathOutsideBed", report.toolpath_outside}, {"truncated", truncated}};
+    }
+
+    if (sections.material) {
+        double purged = 0.0, tower = 0.0, support = 0.0;
+        for (const auto& use : report.filaments) {
+            purged += use.flushed_mm3;
+            tower += use.tower_mm3;
+            support += use.support_mm3;
+        }
+        result["material"] = {{"filamentChanges", report.filament_changes}, {"extruderChanges", report.extruder_changes},
+                              {"purgedMm3", purged}, {"primeTowerMm3", tower}, {"supportMm3", support}};
+    }
+    return result;
+}
+
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -357,6 +357,26 @@ public:
         return CommandResult::success();
     }
 
+    SliceReport slice_report(PlateId plate) const override
+    {
+        const auto found = m_reports.find(plate.value());
+        if (found == m_reports.end())
+            return {};
+        const auto& sliced = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(),
+                                          [&plate](const WorkspacePlate& candidate) { return candidate.id == plate; });
+        // A fixture cannot describe a report for a plate that is not sliced, or
+        // one whose slice is being replaced: the real adapter refuses both.
+        if (sliced == m_snapshot.plates.end() || !sliced->sliced || m_snapshot.slicing.running)
+            return {};
+        return found->second;
+    }
+
+    void set_slice_report_for_testing(PlateId plate, SliceReport report)
+    {
+        report.valid      = true;
+        m_reports[plate.value()] = std::move(report);
+    }
+
     // What the owner reports while a run is in flight, and when it ends.
     void finish_slice_for_testing(bool sliced)
     {
@@ -370,6 +390,7 @@ public:
     }
 
     std::uint32_t slice_starts{0};
+    std::map<std::uint64_t, SliceReport> m_reports;
 
     // slice changes what consumers may say about the plate, so it has to
     // advance the revision. The Orca adapter matches this by listening to

@@ -190,6 +190,56 @@ struct WorkspaceSnapshot
     WorkspaceSlicing            slicing;
 };
 
+// One filament's share of a sliced plate. Lengths and weights are derived the
+// way Orca's own preview derives them -- volume per filament times that
+// filament's diameter and density -- so a report can never disagree with the
+// number on screen.
+struct SliceFilamentUse
+{
+    std::size_t extruder{0};
+    double      length_mm{0.0};
+    double      grams{0.0};
+    double      cost{0.0};
+    bool        has_cost{false};
+    // Volumes that are not part of the model: purge between filaments and the
+    // prime tower. Absent in Orca means zero here.
+    double      flushed_mm3{0.0};
+    double      tower_mm3{0.0};
+    double      support_mm3{0.0};
+};
+
+// Something Orca says about this slice. `code` is a stable sentinel where Orca
+// has one and empty where the warning is only prose; `object` names the object
+// it belongs to and is empty for a warning about the whole plate.
+struct SliceFinding
+{
+    std::string code;
+    std::string message;
+    bool        critical{false};
+    std::string object;
+};
+
+// What a sliced plate can say about itself. Absent sections are absent, not
+// zero: a report for a plate that has never been sliced says so and stops.
+struct SliceReport
+{
+    bool          valid{false};
+    std::uint32_t print_time_seconds{0};
+    std::uint32_t prepare_time_seconds{0};
+    double        total_grams{0.0};
+    double        total_cost{0.0};
+    bool          has_cost{false};
+    std::vector<SliceFilamentUse> filaments;
+    std::uint32_t filament_changes{0};
+    std::uint32_t extruder_changes{0};
+    std::vector<SliceFinding> findings;
+    // Orca's own words for two paths that cross, when it found any.
+    std::string   conflict;
+    // A toolpath outside the printable area. Recomputed from the build volume
+    // rather than read from the result, whose flag is only ever set by a 3mf.
+    bool          toolpath_outside{false};
+};
+
 enum class WorkspaceError : std::uint8_t {
     None,
     InvalidId,
@@ -565,6 +615,11 @@ public:
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
     virtual CommandResult start_slice(std::optional<PlateId> plate, bool preempt) = 0;
+
+    // What one plate's current slice says about itself. Returns a report whose
+    // `valid` is false when the plate holds no current slice, rather than
+    // failing: "not sliced yet" is an answer, not an error.
+    virtual SliceReport slice_report(PlateId plate) const = 0;
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
     virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
