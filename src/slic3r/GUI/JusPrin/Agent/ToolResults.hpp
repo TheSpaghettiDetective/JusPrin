@@ -73,6 +73,7 @@ nlohmann::json presets_list_result(const Workspace::PresetListResult& presets, c
 nlohmann::json settings_search_result(const Workspace::SettingsSearchResult&, const Workspace::WorkspaceSnapshot&);
 nlohmann::json settings_read_result(const Workspace::SettingsReadResult&, const Workspace::WorkspaceSnapshot&);
 nlohmann::json settings_preview_result(const Workspace::SettingsPreview&, const Workspace::WorkspaceSnapshot&);
-nlohmann::json settings_apply_result(const Workspace::SettingsPreview&, const Workspace::WorkspaceSnapshot&, bool applied);
+nlohmann::json settings_apply_result(const Workspace::SettingsPreview&, const Workspace::WorkspaceSnapshot&, bool applied,
+                                     bool object_target);
 nlohmann::json setting_issue_result(const Workspace::SettingIssue&);
 } // namespace Slic3r::GUI::JusPrin::Agent

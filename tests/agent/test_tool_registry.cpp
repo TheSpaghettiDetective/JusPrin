@@ -104,7 +104,7 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     for (auto value : {"0.25", "invalid"}) {
         auto preview = workspace.preview_settings({{{"layer_height", value}}});
         CHECK(registry.validate_output(*registry.find("settings_preview_patch"), settings_preview_result(preview, snapshot)));
-        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, snapshot, false)));
+        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, snapshot, false, false)));
     }
     const auto& preview_tool = *registry.find("settings_preview_patch");
     const auto decoded = registry.validate_call(preview_tool, R"({"changes":{"unknown":true,"wall_loops":4,"layer_height":0.25}})");

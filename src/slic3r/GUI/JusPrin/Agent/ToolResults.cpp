@@ -111,6 +111,8 @@ json settings_read_result(const Workspace::SettingsReadResult& read, const Works
             {"label", label(value.definition.label, truncated)}, {"unit", label(value.definition.unit, truncated)},
             {"differsFromPreset", value.differs_from_preset}, {"differsFromSystem", value.differs_from_system},
             {"writable", value.definition.writable}});
+        if (value.overridden)
+            result["items"].back()["overridden"] = *value.overridden;
     }
     result["unknownKeys"] = issues_result(read.issues, truncated);
     result["truncated"] = truncated;
@@ -130,7 +132,8 @@ json settings_preview_result(const Workspace::SettingsPreview& preview, const Wo
     return result;
 }
 
-json settings_apply_result(const Workspace::SettingsPreview& applied, const Workspace::WorkspaceSnapshot& snapshot, bool changed)
+json settings_apply_result(const Workspace::SettingsPreview& applied, const Workspace::WorkspaceSnapshot& snapshot, bool changed,
+                           bool object_target)
 {
     bool truncated = false;
     auto result = settings_context(snapshot, truncated);
@@ -145,7 +148,7 @@ json settings_apply_result(const Workspace::SettingsPreview& applied, const Work
             result["normalized"].push_back(issue.key);
         }
     result["processPresetDirty"] = snapshot.setup.process_preset_dirty;
-    result["projectUndo"] = false;
+    result["projectUndo"] = object_target;
     result["truncated"] = truncated;
     return result;
 }

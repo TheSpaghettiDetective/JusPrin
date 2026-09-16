@@ -1537,3 +1537,78 @@ TEST_CASE("a file import names its path, reads nothing before approval, and a de
     CHECK_FALSE(registry.validate_call(*registry.find("object_import_file"), json{{"sessionId", session}, {"path", model}, {"oversized", "huge"}}.dump()).valid());
     std::filesystem::remove_all(folder);
 }
+
+TEST_CASE("settings search can keep only writable or unsaved settings", "[tools][settings]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    h.workspace.set_setting_for_testing("brim_width", "8");
+    auto search = [&h](const json& arguments) {
+        const std::string id = h.coordinator.propose({"settings_search", arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        const auto result = json::parse(h.coordinator.find(id)->result_json);
+        CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("settings_search"), result));
+        std::vector<std::string> keys;
+        for (const auto& item : result["items"]) keys.push_back(item["key"]);
+        return keys;
+    };
+    CHECK(search(json{{"query", ""}, {"changedOnly", true}}) == std::vector<std::string>{"brim_width"});
+    const auto writable = search(json{{"query", ""}, {"writable", true}, {"limit", 25}});
+    CHECK(std::find(writable.begin(), writable.end(), "notes") == writable.end());
+    CHECK(std::find(writable.begin(), writable.end(), "layer_height") != writable.end());
+    CHECK_FALSE(registry.validate_call(*registry.find("settings_search"), R"({"query":"","writable":"yes"})").valid());
+}
+
+TEST_CASE("settings tools read and write one object's overrides", "[tools][settings]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const std::string cube = std::to_string(h.cube_id().value());
+    const json target{{"objectId", cube}};
+    auto run = [&h](const std::string& tool, const json& arguments) {
+        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        return *h.coordinator.find(id);
+    };
+    auto read_walls = [&](const json& arguments) {
+        const auto result = json::parse(run("settings_get", arguments).result_json);
+        CHECK(registry.validate_output(*registry.find("settings_get"), result));
+        return result["items"][0];
+    };
+
+    CHECK(read_walls(json{{"keys", {"wall_loops"}}, {"target", target}}) ==
+          json{{"key", "wall_loops"}, {"value", "2"}, {"type", "integer"}, {"label", "Wall loops"}, {"unit", ""},
+               {"differsFromPreset", false}, {"differsFromSystem", false}, {"writable", true}, {"overridden", false}});
+
+    const auto scope = json::parse(run("settings_preview_patch", json{{"changes", {{"skirt_loops", 2}}}, {"target", target}}).result_json);
+    CHECK_FALSE(scope["valid"].get<bool>());
+    CHECK(scope["issues"][0]["code"] == "unsupported_scope");
+
+    const auto snapshot = h.workspace.snapshot();
+    json apply{{"changes", {{"wall_loops", 4}}}, {"target", target},
+               {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
+    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
+    REQUIRE(pending.state == ToolState::Pending);
+    CHECK(pending.title == "Change 1 settings of " + snapshot.plates[0].objects[0].name + ": wall_loops");
+    REQUIRE(h.coordinator.approve(pending.action_id));
+    h.pump_to_completion(pending.action_id);
+    const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
+    CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
+    CHECK(applied["projectUndo"] == true);
+    CHECK(applied["changes"][0] == json{{"key", "wall_loops"}, {"before", "2"}, {"after", "4"}});
+    CHECK(h.workspace.snapshot().can_undo);
+
+    CHECK(read_walls(json{{"keys", {"wall_loops"}}, {"target", target}})["overridden"] == true);
+    CHECK(read_walls(json{{"keys", {"wall_loops"}}, {"target", target}})["value"] == "4");
+    CHECK_FALSE(read_walls(json{{"keys", {"wall_loops"}}}).contains("overridden"));
+    CHECK(read_walls(json{{"keys", {"wall_loops"}}})["value"] == "2");
+
+    const auto missing = run("settings_get", json{{"keys", {"wall_loops"}}, {"target", {{"objectId", "987654"}}}});
+    CHECK(missing.state == ToolState::Failed);
+    CHECK(missing.error->code == "missing_object");
+
+    for (const char* bad : {R"({"keys":["wall_loops"],"target":{"objectId":5}})",
+                            R"({"keys":["wall_loops"],"target":{"objectId":"5","plate":"1"}})",
+                            R"({"changes":{"wall_loops":3},"target":{}})"})
+        CHECK_FALSE(registry.validate_call(*registry.find(std::string(bad).find("keys") != std::string::npos ? "settings_get" : "settings_preview_patch"), bad).valid());
+}

@@ -64,17 +64,20 @@ public:
             result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
             return result;
         }
-        return search_setting_definitions(m_settings.definitions, query);
+        std::vector<std::string> changed;
+        for (const auto& [key, value] : m_settings.values)
+            if (m_settings.preset_values.at(key) != value) changed.push_back(key);
+        return search_setting_definitions(m_settings.definitions, query, changed);
     }
 
-    SettingsReadResult read_settings(const std::vector<std::string>& keys) const override
+    SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const override
     {
         if (!m_settings_available) {
             SettingsReadResult result;
             result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
             return result;
         }
-        return m_settings.read(keys);
+        return m_settings.read(keys, target);
     }
 
     SettingsPreview preview_settings(const SettingsPatch& patch) const override
@@ -92,6 +95,8 @@ public:
     {
         if (!m_settings_available)
             return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
+        if (patch.target.object && m_settings.preview(patch).valid)
+            save_undo("Change object settings");
         const auto result = m_settings.apply(patch, confirmed, applied);
         if (result.succeeded()) {
             for (auto& plate : m_snapshot.plates)

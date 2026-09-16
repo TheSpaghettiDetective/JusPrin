@@ -45,7 +45,7 @@ public:
     PresetListResult list_presets(const PresetQuery& query) const override;
     std::vector<PrinterDevice> printers() const override;
     SettingsSearchResult search_settings(const SettingsQuery& query) const override;
-    SettingsReadResult read_settings(const std::vector<std::string>& keys) const override;
+    SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const override;
     SettingsPreview preview_settings(const SettingsPatch& patch) const override;
     CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
                                  SettingsPreview& applied) override;
@@ -66,6 +66,8 @@ private:
     };
 
     std::optional<ResolvedObject> resolve(ObjectId id) const;
+    // The object a settings target names; the caller has checked it exists.
+    ModelObject* settings_object(const SettingsTarget& target) const;
     CommandResult id_error(ObjectId id) const;
     void on_project_state_changed(const ProjectStateChanged& change);
     void on_slice_status_changed(wxCommandEvent& event);

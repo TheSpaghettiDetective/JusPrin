@@ -28,10 +28,26 @@ public:
         add("notes", "string", "Notes", "Fixture process");
         add("fill_multiline", "integer", "Multiline infill", "1", 1, 10);
         add("support_top_z_distance", "float", "Top support gap", "0.25", 0, 10, "mm");
+        add("skirt_loops", "integer", "Skirt loops", "0", 0, 10);
         preset_values = values;
     }
 
-    SettingsReadResult read(const std::vector<std::string>& keys) const
+    // The fixture's print-wide keys: an object cannot override them.
+    static bool object_setting(const std::string& key) { return key != "spiral_mode" && key != "skirt_loops"; }
+
+    // The values a target prints with: the process values, then the object's
+    // own overrides.
+    std::map<std::string, std::string> effective(const SettingsTarget& target) const
+    {
+        auto result = values;
+        if (target.object)
+            if (const auto found = overrides.find(target.object->value()); found != overrides.end())
+                for (const auto& [key, value] : found->second)
+                    result[key] = value;
+        return result;
+    }
+
+    SettingsReadResult read(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const
     {
         SettingsReadResult result;
         if (keys.empty() || keys.size() > 32) {
@@ -44,9 +60,14 @@ public:
                 result.unknown_keys.push_back(key);
                 result.issues.push_back(unknown(key));
             } else {
-                const auto& value = values.at(key);
-                const bool dirty = value != preset_values.at(key);
+                const auto current = effective(target);
+                const auto& value = current.at(key);
+                const bool dirty = values.at(key) != preset_values.at(key);
                 result.items.push_back({key, value, dirty, dirty, *def});
+                if (target.object) {
+                    const auto found = overrides.find(target.object->value());
+                    result.items.back().overridden = found != overrides.end() && found->second.count(key) > 0;
+                }
             }
         }
         return result;
@@ -60,7 +81,8 @@ public:
             result.issues.push_back({"", "invalid_arguments", "A patch must contain 1 to 32 settings."});
             return result;
         }
-        auto next = values;
+        const auto current = effective(patch.target);
+        auto next = current;
         for (const auto& [key, text] : patch.changes) {
             const auto* def = definition(key);
             if (!def) {
@@ -69,6 +91,10 @@ public:
             }
             if (!def->writable) {
                 result.issues.push_back({key, "unsupported_setting_mutation", "This process setting is read-only."});
+                continue;
+            }
+            if (patch.target.object && !object_setting(key)) {
+                result.issues.push_back({key, "unsupported_scope", "This setting applies to the whole print and cannot differ per object."});
                 continue;
             }
             std::string canonical = text;
@@ -115,15 +141,16 @@ public:
         // Active Orca normalization: with infill, line does not support multiline.
         // Support-gap rounding is compiled out in Orca; do not simulate a write
         // that the production owner does not perform.
-        if (next.at("sparse_infill_density") != "0%" && next.at("sparse_infill_pattern") == "line" && next.at("fill_multiline") != "1") {
-            result.dependencies.push_back({"fill_multiline", values.at("fill_multiline"), "1"});
+        if (!patch.target.object && next.at("sparse_infill_density") != "0%" && next.at("sparse_infill_pattern") == "line" &&
+            next.at("fill_multiline") != "1") {
+            result.dependencies.push_back({"fill_multiline", current.at("fill_multiline"), "1"});
             result.warnings.push_back({"fill_multiline", "normalized_dependency", "Orca resets multiline infill to 1 for this pattern."});
         }
         for (const auto& [key, text] : patch.changes) {
             if (!definition(key) || !writable_setting(key))
                 continue;
-            if (next.at(key) != values.at(key))
-                result.changes.push_back({key, values.at(key), next.at(key)});
+            if (next.at(key) != current.at(key))
+                result.changes.push_back({key, current.at(key), next.at(key)});
             else
                 result.warnings.push_back({key, "unchanged", "The setting already has this value."});
         }
@@ -134,8 +161,9 @@ public:
     CommandResult apply(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed, SettingsPreview& applied)
     {
         applied = preview(patch);
+        const auto current = effective(patch.target);
         for (const auto& change : confirmed)
-            if (values.count(change.key) == 0 || values.at(change.key) != change.before)
+            if (current.count(change.key) == 0 || current.at(change.key) != change.before)
                 return CommandResult::failure(WorkspaceError::StaleSettings, "A confirmed setting changed. Read and preview again.");
         if (!applied.valid)
             return CommandResult::failure(WorkspaceError::InvalidSettings, "The settings patch is invalid.");
@@ -146,7 +174,7 @@ public:
         if (actual.empty())
             return CommandResult::failure(WorkspaceError::NoChange, "All requested values are unchanged.");
         for (const auto& change : actual)
-            values[change.key] = change.after;
+            (patch.target.object ? overrides[patch.target.object->value()] : values)[change.key] = change.after;
         for (const auto& change : applied.dependencies)
             applied.warnings.push_back({change.key, "normalized", "Orca normalized this dependent setting to " + change.after + "."});
         return CommandResult::success();
@@ -154,6 +182,7 @@ public:
 
     std::vector<SettingDefinition> definitions;
     std::map<std::string, std::string> values, preset_values;
+    std::map<std::uint64_t, std::map<std::string, std::string>> overrides;
 
 private:
     void add(std::string key, std::string type, std::string label, std::string value,

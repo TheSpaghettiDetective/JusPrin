@@ -80,6 +80,7 @@
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.hpp"
@@ -2920,6 +2921,7 @@ private:
             },
             "new_project_starts_new_identity", [self = shared_from_this()] {
                 self->verify_project_open_answers_dialogs();
+                self->verify_support_settings_patch();
                 self->wait_until(
                     [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
                     "saved_state_adopted_on_reopen", [self] {
@@ -3018,6 +3020,80 @@ private:
         check(std::all_of(decisions.begin(), decisions.end(), [](const Workspace::LoadDecision& d) { return d.answer == "no"; }),
               "project_open_declines_saving");
         fs::remove(tiny);
+    }
+
+    // M4's settings through the real adapter: a tree-support patch on the
+    // build plate with a brim reaches the support page's fields and asks
+    // nothing; a support style that does not fit is refused; an object
+    // override lands in the object's ModelConfig as one undo step.
+    void verify_support_settings_patch()
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto* tab       = wxGetApp().get_tab(Preset::TYPE_PRINT);
+        auto& prints    = wxGetApp().preset_bundle->prints;
+        const DynamicPrintConfig original = prints.get_edited_preset().config;
+        tab->activate_option("enable_support", "Support");
+        const Workspace::SettingsPatch supports{{{"enable_support", "1"}, {"support_type", "tree(auto)"},
+                                                 {"support_style", "organic"}, {"support_on_build_plate_only", "1"},
+                                                 {"brim_type", "outer_only"}, {"brim_width", "6"}}};
+        {
+            DialogCounter counter;
+            const auto preview = workspace->preview_settings(supports);
+            for (const auto& issue : preview.issues) std::cout << "support patch issue: " << issue.key << " " << issue.message << std::endl;
+            check(preview.valid, "settings_support_patch_valid");
+            Workspace::SettingsPreview applied;
+            check(workspace->apply_settings(supports, Workspace::settings_confirmation(preview), applied).succeeded(),
+                  "settings_support_patch_applies");
+            for (const auto& title : counter.titles) std::cout << "settings dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "settings_support_patch_shows_no_dialog");
+        }
+        const auto& config = prints.get_edited_preset().config;
+        for (const auto& [key, value] : supports.changes)
+            check(config.option(key)->serialize() == value, "settings_support_value_" + key);
+        for (const char* key : {"enable_support", "support_on_build_plate_only"}) {
+            Field* shown = tab->get_field(key);
+            check(shown != nullptr && boost::any_cast<bool>(shown->get_value()), std::string("settings_support_field_shows_") + key);
+        }
+        const auto mismatch = workspace->preview_settings({{{"support_style", "grid"}}});
+        check(!mismatch.valid && mismatch.issues.front().key == "support_style" &&
+                  std::count(mismatch.issues.front().allowed.begin(), mismatch.issues.front().allowed.end(), "organic") == 1,
+              "settings_support_style_mismatch_refused");
+        check(workspace->preview_settings({{{"support_style", "tree_strong"}}}).valid, "settings_support_style_fitting_accepted");
+        check(workspace->preview_settings({{{"support_on_build_plate_only", "0"}}}).valid, "settings_boolean_has_no_bounds");
+        Workspace::SettingsQuery changed;
+        changed.limit        = 25;
+        changed.changed_only = true;
+        const auto unsaved   = workspace->search_settings(changed);
+        check(std::any_of(unsaved.items.begin(), unsaved.items.end(), [](const auto& item) { return item.key == "brim_width"; }) &&
+                  std::none_of(unsaved.items.begin(), unsaved.items.end(), [](const auto& item) { return item.key == "layer_height"; }),
+              "settings_search_changed_only");
+
+        // One object's override.
+        const auto snapshot = workspace->snapshot();
+        check(!snapshot.plates.empty() && !snapshot.plates[0].objects.empty(), "settings_object_present");
+        if (snapshot.plates.empty() || snapshot.plates[0].objects.empty()) return;
+        Workspace::SettingsTarget target{snapshot.plates[0].objects[0].id};
+        const ModelObject* object = m_plater->model().objects.front();
+        const Workspace::SettingsPatch walls{{{"wall_loops", "5"}}, target};
+        {
+            DialogCounter counter;
+            const auto preview = workspace->preview_settings(walls);
+            check(preview.valid, "settings_object_patch_valid");
+            Workspace::SettingsPreview applied;
+            check(workspace->apply_settings(walls, Workspace::settings_confirmation(preview), applied).succeeded(),
+                  "settings_object_patch_applies");
+            check(counter.shown == 0, "settings_object_patch_shows_no_dialog");
+        }
+        check(object->config.has("wall_loops") && object->config.opt_int("wall_loops") == 5, "settings_object_override_in_model");
+        check(config.opt_int("wall_loops") == original.opt_int("wall_loops"), "settings_object_leaves_process_alone");
+        const auto read = workspace->read_settings({"wall_loops"}, target);
+        check(read.items.size() == 1 && read.items[0].value == "5" && read.items[0].overridden == true, "settings_object_read_back");
+        check(workspace->snapshot().can_undo, "settings_object_is_undoable");
+        check(workspace->preview_settings({{{"skirt_loops", "2"}}, target}).issues.front().code == "unsupported_scope",
+              "settings_object_refuses_print_scope");
+        m_plater->undo();
+        check(!object->config.has("wall_loops"), "settings_object_undo_removes_override");
+        tab->load_config(original);
     }
 
     // Phase 6: record one real sliced plate as a deterministic build, then an

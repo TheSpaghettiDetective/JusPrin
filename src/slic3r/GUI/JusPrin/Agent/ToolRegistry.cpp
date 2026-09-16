@@ -78,25 +78,39 @@ bool optional_text(const json& arguments, const char* key)
            (arguments[key].is_string() && arguments[key].get_ref<const std::string&>().size() <= kToolTextLimit);
 }
 
+// A settings call's optional target: one object, by id.
+bool optional_settings_target(const json& arguments)
+{
+    if (!arguments.contains("target"))
+        return true;
+    const json& target = arguments["target"];
+    return target.is_object() && has_only(target, {"objectId"}) && target.contains("objectId") && is_unsigned_string(target["objectId"]);
+}
+
 bool valid_arguments(const ToolDefinition& definition, const json& arguments)
 {
     if (!arguments.is_object())
         return false;
 
     if (definition.handler == ToolHandler::SettingsSearch)
-        return has_only(arguments, {"query", "limit", "cursor"}) && arguments.contains("query") &&
+        return has_only(arguments, {"query", "limit", "cursor", "writable", "changedOnly"}) && arguments.contains("query") &&
                arguments["query"].is_string() && optional_string(arguments, "cursor") &&
+               (!arguments.contains("writable") || arguments["writable"].is_boolean()) &&
+               (!arguments.contains("changedOnly") || arguments["changedOnly"].is_boolean()) &&
                (!arguments.contains("limit") || (arguments["limit"].is_number_unsigned() &&
                  arguments["limit"].get<std::uint64_t>() >= 1 && arguments["limit"].get<std::uint64_t>() <= 25));
     if (definition.handler == ToolHandler::SettingsGet) {
-        if (!has_only(arguments, {"keys"}) || !arguments.contains("keys") || !arguments["keys"].is_array() ||
+        if (!has_only(arguments, {"keys", "target"}) || !optional_settings_target(arguments) || !arguments.contains("keys") ||
+            !arguments["keys"].is_array() ||
             arguments["keys"].empty() || arguments["keys"].size() > 32)
             return false;
         return std::all_of(arguments["keys"].begin(), arguments["keys"].end(), [](const auto& key) { return key.is_string(); });
     }
     if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
         const bool apply = definition.handler == ToolHandler::SettingsApplyPatch;
-        if (!(apply ? has_only(arguments, {"changes", "expectedSessionId", "expectedRevision", "intent"}) : has_only(arguments, {"changes"})) ||
+        if (!(apply ? has_only(arguments, {"changes", "target", "expectedSessionId", "expectedRevision", "intent"}) :
+                      has_only(arguments, {"changes", "target"})) ||
+            !optional_settings_target(arguments) ||
             !arguments.contains("changes") || !arguments["changes"].is_object() || arguments["changes"].empty() ||
             arguments["changes"].size() > 32)
             return false;
@@ -606,6 +620,9 @@ std::vector<ToolDefinition> make_definitions()
     const json change = object_schema({{"key", id}, {"before", id}, {"after", id}}, {"key", "before", "after"});
     const json changes_input{{"type", "object"}, {"minProperties", 1}, {"maxProperties", 32},
         {"additionalProperties", {{"type", json::array({"string", "number", "boolean"})}}}};
+    json settings_target = object_schema({{"objectId", id}}, {"objectId"});
+    settings_target["description"] = "Omit for the print's own settings, which every object uses. Only when the user asks for "
+                                     "one particular object to be printed differently from the others.";
     const json patch_output = settings_output({{"valid", boolean_schema()}, {"changes", array_schema(change)},
         {"dependencies", array_schema(change)}, {"issues", array_schema(issue)}, {"warnings", array_schema(issue)}},
         {"valid", "changes", "dependencies", "issues", "warnings"});
@@ -660,25 +677,27 @@ std::vector<ToolDefinition> make_definitions()
 
     std::vector<ToolDefinition> definitions{
         {"settings_search", "Search process settings",
-         "Find a page of process settings by key, label, or description. Requires an active FFF process preset. A page is not the full writable list; read known keys directly with settings_get or follow nextCursor.",
-         object_schema({{"query", id}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id}}, {"query"}),
+         "Find a page of process settings by key, label, or description. The query may hold several words or keys, and settings matching more of them come first. Requires an active FFF process preset. writable keeps only the settings the patch tools may change; changedOnly keeps only settings that differ from the saved preset, which with an empty query lists every unsaved change. A page is not the full list; read known keys directly with settings_get or follow nextCursor.",
+         object_schema({{"query", id}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id},
+                        {"writable", boolean_schema()}, {"changedOnly", boolean_schema()}}, {"query"}),
          settings_output({{"items", array_schema(setting_def, 25)}, {"nextCursor", id}}, {"items", "nextCursor"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsSearch},
         {"settings_get", "Read process settings",
-         "Read current process values and their preset origin. Requires an active FFF process preset; read before proposing a patch.",
-         object_schema({{"keys", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 32}}}}, {"keys"}),
+         "Read current process values and their preset origin. Requires an active FFF process preset; read before proposing a patch. Leave target out to read the process values every object prints with. With target.objectId (an id from workspace_inspect), reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value.",
+         object_schema({{"keys", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 32}}}, {"target", settings_target}}, {"keys"}),
          settings_output({{"items", array_schema(object_schema({{"key", id}, {"value", id}, {"type", id}, {"label", id},
-             {"unit", id}, {"differsFromPreset", boolean_schema()}, {"differsFromSystem", boolean_schema()}, {"writable", boolean_schema()}},
+             {"unit", id}, {"differsFromPreset", boolean_schema()}, {"differsFromSystem", boolean_schema()}, {"writable", boolean_schema()},
+             {"overridden", boolean_schema()}},
              {"key", "value", "type", "label", "unit", "differsFromPreset", "differsFromSystem", "writable"}), 32)},
              {"unknownKeys", array_schema(issue, 32)}}, {"items", "unknownKeys"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsGet},
         {"settings_preview_patch", "Preview process settings",
-         "Validate an atomic process-settings patch without changing the workspace. Requires an active FFF process preset; use the returned sessionId and revision when applying.",
-         object_schema({{"changes", changes_input}}, {"changes"}), patch_output,
+         "Validate an atomic process-settings patch without changing the workspace. Requires an active FFF process preset; use the returned sessionId and revision when applying. Leave target out to change the process, which every object on every plate prints with; that is what a request about the print means. Use target.objectId (an id from workspace_inspect) only when the user asks for one object to differ from the others; a selected object, or a project with a single object, is not such a request; the patch is then checked as overrides on that object: settings that apply to the whole print (skirt, travel speed, spiral vase and the like) are refused with unsupported_scope, and no dependencies are predicted because OrcaSlicer keeps object overrides as written.",
+         object_schema({{"changes", changes_input}, {"target", settings_target}}, {"changes"}), patch_output,
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
         {"settings_apply_patch", "Change process settings",
-         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview. Calling it shows the user an approval card in JusPrin and waits for their decision; project Undo does not undo this change.",
-         object_schema({{"changes", changes_input}, {"expectedSessionId", id}, {"expectedRevision", revision},
+         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview with the same target. Calling it shows the user an approval card in JusPrin and waits for their decision. Leave target out, as in the preview, unless the user asked for one object to differ. A process change is not undone by project Undo; with target.objectId the change becomes that object's own override, and project Undo does undo it.",
+         object_schema({{"changes", changes_input}, {"target", settings_target}, {"expectedSessionId", id}, {"expectedRevision", revision},
                         {"intent", json{{"type", "string"}, {"maxLength", 40},
                                         {"description", "What the user asked this setup to be, in their own words, as "
                                          "one line of at most 40 characters. Not a description of the settings you "

@@ -2234,10 +2234,20 @@ SettingsSearchResult OrcaWorkspaceAdapter::search_settings(const SettingsQuery& 
         result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
         return result;
     }
-    return search_setting_definitions(process_definitions(), query);
+    return search_setting_definitions(process_definitions(), query, wxGetApp().preset_bundle->prints.current_dirty_options());
 }
 
-SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::string>& keys) const
+ModelObject* OrcaWorkspaceAdapter::settings_object(const SettingsTarget& target) const
+{
+    if (!target.object)
+        return nullptr;
+    const auto resolved = resolve(*target.object);
+    if (!resolved)
+        throw std::logic_error("A settings target names an object that is not in the project");
+    return m_plater.model().objects[resolved->index];
+}
+
+SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::string>& keys, const SettingsTarget& target) const
 {
     wxASSERT(wxIsMainThread());
     SettingsReadResult result;
@@ -2251,6 +2261,7 @@ SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::st
     }
     auto& prints = wxGetApp().preset_bundle->prints;
     const auto& config = prints.get_edited_preset().config;
+    const ModelObject* object = settings_object(target);
     const auto dirty = prints.current_dirty_options();
     const auto system = prints.current_different_from_parent_options();
     for (const auto& key : keys) {
@@ -2259,10 +2270,13 @@ SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::st
             result.issues.push_back(missing_process_setting(key));
             continue;
         }
-        const auto* value = config.option(key);
+        const bool overridden = object && object->config.has(key);
+        const auto* value = overridden ? object->config.option(key) : config.option(key);
         if (!value) throw std::logic_error("Process preset is missing its defined option: " + key);
         result.items.push_back({key, value->serialize(), std::find(dirty.begin(), dirty.end(), key) != dirty.end(),
             std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key)});
+        if (object)
+            result.items.back().overridden = overridden;
     }
     return result;
 }
@@ -2276,7 +2290,11 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         return result;
     }
     const auto& preset = wxGetApp().preset_bundle->prints.get_edited_preset();
-    const auto& current = preset.config;
+    // An object's values are its overrides on top of the process preset.
+    const ModelObject* object = settings_object(patch.target);
+    DynamicPrintConfig current = preset.config;
+    if (object)
+        current.apply(object->config.get());
     result.process_preset = preset.name;
     if (patch.changes.empty() || patch.changes.size() > 32) {
         result.issues.push_back({"", "invalid_arguments", "A patch must contain 1 to 32 settings."});
@@ -2291,6 +2309,10 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         const auto def = setting_definition(key);
         if (!def.writable) {
             result.issues.push_back({key, "unsupported_setting_mutation", "This process setting is read-only."});
+            continue;
+        }
+        if (object && !object_setting(key)) {
+            result.issues.push_back(print_scope_setting(key));
             continue;
         }
         const auto invalid = [&result, &def, setting_key = key](std::string message) {
@@ -2308,19 +2330,28 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         }
         const auto* option = next.option(key);
         const auto* definition = print_config_def.get(key);
+        // Bounds by type: a boolean has none, and reading one as a float is
+        // undefined behaviour.
         if (definition->type == coEnum) {
             if (!definition->has_enum_value(option->serialize())) invalid("Value is not in the allowed enum values.");
-        } else if (!definition->is_value_valid(definition->type == coInt ?
-                   static_cast<double>(next.opt_int(key)) : static_cast<const ConfigOptionFloat*>(option)->value)) {
-            invalid("Value is outside the setting's bounds.");
+        } else if (definition->type == coInt) {
+            if (!definition->is_value_valid(static_cast<double>(next.opt_int(key)))) invalid("Value is outside the setting's bounds.");
+        } else if (definition->type == coFloat || definition->type == coPercent || definition->type == coFloatOrPercent) {
+            if (!definition->is_value_valid(static_cast<const ConfigOptionFloat*>(option)->value))
+                invalid("Value is outside the setting's bounds.");
         }
     }
     if (!result.issues.empty()) return result;
     check_process_dialogs(next, result);
+    check_support_style(next, patch.changes, result);
     if (!result.issues.empty()) return result;
 
     const DynamicPrintConfig requested = next;
-    predict_process_normalization(next);
+    // Object overrides are written to the ModelConfig as they are; Orca's
+    // normalizer runs only on the process preset and on the object settings
+    // panel's own edits.
+    if (!object)
+        predict_process_normalization(next);
     for (const auto& key : requested.diff(next)) {
         result.dependencies.push_back({key, current.option(key)->serialize(), next.option(key)->serialize()});
         result.warnings.push_back({key, "normalized_dependency", "Orca will normalize " + key + " to " + next.option(key)->serialize() + "."});
@@ -2358,8 +2389,12 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
     auto transaction = m_plater.project_state_transaction();
     const auto& config = wxGetApp().preset_bundle->prints.get_edited_preset().config;
+    ModelObject* object = settings_object(patch.target);
+    DynamicPrintConfig effective = config;
+    if (object)
+        effective.apply(object->config.get());
     for (const auto& change : confirmed)
-        if (!config.option(change.key) || config.option(change.key)->serialize() != change.before)
+        if (!effective.option(change.key) || effective.option(change.key)->serialize() != change.before)
             return CommandResult::failure(WorkspaceError::StaleSettings, "A confirmed setting changed. Read and preview again.");
     applied = preview_settings(patch);
     if (!applied.valid)
@@ -2370,6 +2405,24 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the approved preview.");
     if (applied.changes.empty())
         return CommandResult::failure(WorkspaceError::NoChange, "All requested values are unchanged.");
+    if (object) {
+        // ObjectSettings' write, as an undo step: the override lands in the
+        // object's ModelConfig, the list shows its settings item, and the
+        // object's slicing is invalidated.
+        Plater::TakeSnapshot snapshot(&m_plater, "Change object settings");
+        for (const auto& change : applied.changes) {
+            DynamicPrintConfig value;
+            value.set_deserialize_strict(change.key, change.after);
+            object->config.set_key_value(change.key, value.option(change.key)->clone());
+        }
+        if (ObjectList* list = wxGetApp().obj_list())
+            list->object_config_options_changed({object, nullptr});
+        m_plater.changed_object(static_cast<int>(resolve(*patch.target.object)->index));
+        m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings | ProjectStateChangeReason::Objects);
+        for (auto& change : applied.changes)
+            change.after = object->config.option(change.key)->serialize();
+        return CommandResult::success();
+    }
     DynamicPrintConfig diff;
     for (const auto& change : applied.changes)
         diff.set_deserialize_strict(change.key, change.after);

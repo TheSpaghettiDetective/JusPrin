@@ -82,9 +82,36 @@ json setup_outcome(const Workspace::PrinterSetupPreview& preview)
             {"discarded", setup_edits_result(preview.unsaved_edits)}};
 }
 
-Workspace::SettingsPatch settings_patch(const json& arguments)
+// A settings call's target looked up in the open project. `found` is false
+// when the call names an object the project does not have.
+struct SettingsTargetLookup
 {
-    return {arguments.at("changes").get<std::map<std::string, std::string>>()};
+    Workspace::SettingsTarget target;
+    std::string               object_name;
+    bool                      found{true};
+};
+
+SettingsTargetLookup settings_target(const json& arguments, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    SettingsTargetLookup result;
+    if (!arguments.contains("target"))
+        return result;
+    const std::string id = arguments["target"]["objectId"];
+    for (const auto& plate : snapshot.plates)
+        for (const auto& object : plate.objects)
+            if (std::to_string(object.id.value()) == id) {
+                result.target.object = object.id;
+                result.object_name   = object.name;
+            }
+    result.found = result.target.object.has_value();
+    return result;
+}
+
+constexpr const char* kMissingTarget = "That object is not in the open project. Read workspace_inspect again.";
+
+Workspace::SettingsPatch settings_patch(const json& arguments, const Workspace::SettingsTarget& target)
+{
+    return {arguments.at("changes").get<std::map<std::string, std::string>>(), target};
 }
 
 json stale_settings_details(const json& arguments, const Workspace::WorkspaceSnapshot& snapshot)
@@ -388,11 +415,22 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
             fail(stored, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(arguments, snapshot).dump());
             return stored;
         }
-        const auto preview = m_workspace.preview_settings(settings_patch(arguments));
+        const auto target = settings_target(arguments, snapshot);
+        if (!target.found) {
+            fail(stored, "missing_object", kMissingTarget);
+            return stored;
+        }
+        const auto preview = m_workspace.preview_settings(settings_patch(arguments, target.target));
         if (!preview.valid) {
             const auto& issue = preview.issues.at(0);
             fail(stored, issue.code, issue.message, settings_preview_result(preview, snapshot).dump());
             return stored;
+        }
+        if (target.target.object) {
+            stored.title = "Change " + std::to_string(preview.changes.size()) + " settings of " + target.object_name + ":";
+            for (std::size_t index = 0; index < preview.changes.size(); ++index)
+                stored.title += (index == 0 ? " " : ", ") + preview.changes[index].key;
+            if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
         }
         arguments["confirmedChanges"] = json::array();
         for (const auto& change : Workspace::settings_confirmation(preview))
@@ -1091,7 +1129,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
 
     if (definition->handler == ToolHandler::SettingsSearch) {
         const auto args = json::parse(activity.arguments_json);
-        const auto result = m_workspace.search_settings({args.at("query").get<std::string>(), args.value("limit", std::size_t(10)), args.value("cursor", "")});
+        Workspace::SettingsQuery query;
+        query.text          = args.at("query").get<std::string>();
+        query.limit         = args.value("limit", std::size_t(10));
+        query.cursor        = args.value("cursor", "");
+        query.writable_only = args.value("writable", false);
+        query.changed_only  = args.value("changedOnly", false);
+        const auto result = m_workspace.search_settings(query);
         if (result.error) {
             fail(activity, result.error->code, result.error->message, setting_issue_result(*result.error).dump());
             return;
@@ -1104,7 +1148,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
 
     if (definition->handler == ToolHandler::SettingsGet) {
         const auto args = json::parse(activity.arguments_json);
-        const auto result = m_workspace.read_settings(args.at("keys").get<std::vector<std::string>>());
+        const auto target = settings_target(args, m_workspace.snapshot());
+        if (!target.found) {
+            fail(activity, "missing_object", kMissingTarget);
+            return;
+        }
+        const auto result = m_workspace.read_settings(args.at("keys").get<std::vector<std::string>>(), target.target);
         if (result.error) {
             fail(activity, result.error->code, result.error->message, setting_issue_result(*result.error).dump());
             return;
@@ -1116,7 +1165,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
 
     if (definition->handler == ToolHandler::SettingsPreviewPatch) {
-        const auto result = m_workspace.preview_settings(settings_patch(json::parse(activity.arguments_json)));
+        const auto args   = json::parse(activity.arguments_json);
+        const auto target = settings_target(args, m_workspace.snapshot());
+        if (!target.found) {
+            fail(activity, "missing_object", kMissingTarget);
+            return;
+        }
+        const auto result = m_workspace.preview_settings(settings_patch(args, target.target));
         if (!result.issues.empty() && result.issues.front().code == "workspace_unavailable") {
             fail(activity, result.issues.front().code, result.issues.front().message);
             return;
@@ -1137,8 +1192,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         std::vector<Workspace::SettingChange> confirmed;
         for (const auto& change : args.at("confirmedChanges"))
             confirmed.push_back({change.at("key"), change.at("before"), change.at("after")});
+        // The revision check above means the target cannot have gone.
+        const auto target = settings_target(args, before);
         Workspace::SettingsPreview applied;
-        const auto result = m_workspace.apply_settings(settings_patch(args), confirmed, applied);
+        const auto result = m_workspace.apply_settings(settings_patch(args, target.target), confirmed, applied);
         if (result.error == WorkspaceError::StaleSettings) {
             fail(activity, "stale_workspace", result.message, stale_settings_details(args, m_workspace.snapshot()).dump());
             return;
@@ -1152,7 +1209,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             fail(activity, workspace_error_code(result.error), result.message);
             return;
         }
-        activity.result_json = settings_apply_result(applied, m_workspace.snapshot(), result.succeeded()).dump();
+        activity.result_json =
+            settings_apply_result(applied, m_workspace.snapshot(), result.succeeded(), target.target.object.has_value()).dump();
         activity.state = ToolState::Succeeded;
         notify(activity);
         return;

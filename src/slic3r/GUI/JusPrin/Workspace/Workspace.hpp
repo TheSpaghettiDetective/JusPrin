@@ -978,6 +978,16 @@ struct SettingValue
     std::string key, value;
     bool differs_from_preset{false}, differs_from_system{false};
     SettingDefinition definition;
+    // Read for an object: whether the value is the object's own override.
+    std::optional<bool> overridden;
+};
+
+// What a settings call reads or writes: the process preset, or one object's
+// overrides on top of it (Orca's per-object settings, in its ModelConfig).
+// The caller checks that the object is in the open project.
+struct SettingsTarget
+{
+    std::optional<ObjectId> object;
 };
 
 struct SettingIssue
@@ -987,7 +997,14 @@ struct SettingIssue
     std::optional<double> min, max;
 };
 
-struct SettingsQuery { std::string text; std::size_t limit{10}; std::string cursor; };
+struct SettingsQuery
+{
+    std::string text;
+    std::size_t limit{10};
+    std::string cursor;
+    bool        writable_only{false};
+    bool        changed_only{false}; // only settings that differ from the saved preset
+};
 struct SettingsSearchResult
 {
     std::vector<SettingDefinition> items;
@@ -1002,7 +1019,11 @@ struct SettingsReadResult
     std::vector<SettingIssue> issues;
     std::optional<SettingIssue> error;
 };
-struct SettingsPatch { std::map<std::string, std::string> changes; };
+struct SettingsPatch
+{
+    std::map<std::string, std::string> changes;
+    SettingsTarget                     target;
+};
 struct SettingChange { std::string key, before, after; };
 struct SettingsPreview
 {
@@ -1076,7 +1097,7 @@ public:
     // have", which is not the same question setup asks.
     virtual std::vector<PrinterDevice> printers() const = 0;
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
-    virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
+    virtual SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
     virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
                                          SettingsPreview& applied) = 0;
