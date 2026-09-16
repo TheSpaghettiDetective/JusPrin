@@ -79,6 +79,47 @@ struct AttachmentRecord
     std::string relative_path() const { return relative_dir() + "/" + stored_name; }
 };
 
+// Where a recorded fact came from. A tool never promotes an inferred value to
+// confirmed; only an approved write that showed the value on its card does.
+enum class Provenance : std::uint8_t { File, Observed, AgentInferred, UserConfirmed };
+
+// One answer in the print intent: what the user wants out of this print,
+// rather than how to slice it. The field vocabulary belongs to the tool that
+// writes it and validates what it accepts; the store keeps what was written,
+// where it came from, and when. This is not a conversation's setup_intent,
+// which restates one delegation in the user's own words.
+struct IntentField
+{
+    std::string   field;
+    std::string   value;
+    Provenance    provenance{Provenance::AgentInferred};
+    std::uint64_t seq{0};
+    std::string   updated_at;
+};
+
+// One decision the agent made and is prepared to defend.
+struct PlanDecision
+{
+    std::string topic;       // orientation, supports, material, ...
+    std::string statement;   // the decision and its reasoning, in the user's terms
+    std::string confidence;  // the agent's own confidence in it
+    std::string alternative; // what else was considered, and why it lost
+};
+
+// The agent's pinned statement of how it means to print this project: what it
+// decided, what it assumed without being able to check, and what could still
+// go wrong. The agent's own words, not a description of the configuration --
+// the configuration is read from the presets, which cannot say why.
+struct PlanRecord
+{
+    std::uint64_t             seq{0};
+    std::string               updated_at;
+    std::string               headline;
+    std::vector<PlanDecision> decisions;
+    std::vector<std::string>  assumptions;
+    std::vector<std::string>  risks;
+};
+
 class ProjectStateDocument
 {
 public:
@@ -170,6 +211,18 @@ public:
     std::size_t                      physical_print_count() const;
     std::optional<BuildRecord>       find_build(const std::string& build_id) const;
     std::optional<BuildRecord>       latest_build() const;
+
+    // -- Print intent and plan ------------------------------------------------
+    // Product state with no Orca owner: it travels in the project archive
+    // because it describes this print, and it is not in Orca's undo stack.
+    std::vector<IntentField> print_intent() const; // ordered by field name
+    // Upserts by field name and returns the fields as stored. A field the call
+    // does not mention keeps the value, provenance, and seq it had.
+    std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields, const std::string& timestamp);
+    // The pinned plan, or a default record when the agent has not written one.
+    PlanRecord plan() const;
+    // Replaces the plan wholesale: it is one statement, not a list of edits.
+    PlanRecord set_plan(PlanRecord record, const std::string& timestamp);
 
     // -- Change log -----------------------------------------------------------
     // Appends with the next seq, placed in the active conversation after its
