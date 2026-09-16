@@ -1,0 +1,13 @@
+Why did Anthropic come up with both sides?  Did they mention any justification for making things so complicated?
+
+---
+
+does openai api support deferred tool calls?
+
+---
+
+Did you previously say that in  our experiment in cloud code,  claude code was using custom  tool search for a reason you don't understand?
+
+---
+
+what do you need in order to construct a similar experiement against openai api to test how it actually works?  exactly the same experiment as we did in claude code,  Let me know if you don't understand what I'm trying to say.

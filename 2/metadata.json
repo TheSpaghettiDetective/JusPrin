@@ -1,0 +1,164 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2KR6F1KHAK14HVDN2RJ2HM9",
+  "session_id": "dbaa3011-c233-4f2d-a740-f723f6e5dfaf",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-16T00:00:08.792134Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 4,
+  "save_step_count": 4,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "058965896830",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 892,
+    "cache_creation_tokens": 621858,
+    "cache_read_tokens": 6324450,
+    "output_tokens": 49560,
+    "api_call_count": 41
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01U7ZAmgHopowQQp3MHeMgHt",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "058965896830",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 29,
+        "end": 30,
+        "entry_ids": [
+          "35f015f4-e1d5-45aa-942e-8cf20e56df13"
+        ],
+        "tool_use_id": "toolu_01U7ZAmgHopowQQp3MHeMgHt"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01U7ZAmgHopowQQp3MHeMgHt"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-16T00:00:08.723341Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 8,
+    "human_removed": 98,
+    "total_committed": 0,
+    "total_lines_changed": 106,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 420,
+      "user_lines_removed": 98,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/jusprin/mcp-tool-extension-guide.md": 122
+      },
+      "user_removed_per_file": {
+        "agent-docs/jusprin/mcp-tool-extension-guide.md": 98
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 298,
+      "user_lines_removed": 0,
+      "agent_lines_added": 122,
+      "agent_lines_removed": 98,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 298,
+      "user_lines_removed": 0,
+      "agent_lines_added": 122,
+      "agent_lines_removed": 98,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 298,
+      "user_lines_removed": 0,
+      "agent_lines_added": 122,
+      "agent_lines_removed": 98,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 298,
+      "user_lines_removed": 0,
+      "agent_lines_added": 122,
+      "agent_lines_removed": 98,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 84,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52
+      }
+    }
+  ]
+}
