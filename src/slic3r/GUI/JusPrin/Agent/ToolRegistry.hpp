@@ -66,6 +66,11 @@ struct ToolDefinition
     ToolExposure      exposure{ToolExposure::None};
     ToolAvailability  availability{ToolAvailability::Always};
     ToolHandler       handler{ToolHandler::InspectSelection};
+    // Qualifies this mutation for the computation-only exemption in
+    // approval_required(). Declared here, beside the action class, so the
+    // registry stays the only place a policy distinction is made. Last in the
+    // struct because every definition is a positional brace literal.
+    bool              computation_only{false};
 };
 
 struct ToolValidationResult

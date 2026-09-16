@@ -101,6 +101,23 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(approval_required(ActionClass::Destructive));
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::Destructive));
     STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
+
+    // The computation-only exemption lifts the card from a mutation and from
+    // nothing else: a destructive action keeps its card whatever it declares.
+    STATIC_CHECK(!approval_required(ActionClass::Mutation, true));
+    STATIC_CHECK(approval_required(ActionClass::Mutation, false));
+    STATIC_CHECK(approval_required(ActionClass::Destructive, true));
+    STATIC_CHECK(!approval_required(ActionClass::ReadOnly, true));
+
+    // No shipped tool claims the exemption yet, so no card moves in this
+    // change. The tools that will claim it are slice_start, plan_set, and
+    // activity_cancel, and they bring the coordinator's card tests with them.
+    for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
+        INFO(definition.name);
+        CHECK_FALSE(definition.computation_only);
+        CHECK(approval_required(definition.action_class, definition.computation_only) ==
+              (definition.action_class != ActionClass::ReadOnly));
+    }
 }
 
 TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")

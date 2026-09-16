@@ -81,13 +81,19 @@ void McpRuntime::on_activity(const Agent::ToolActivity& activity)
         m_server.send(pending->connection_id, rpc_result(pending->request.id, std::move(result)), true);
         return;
     }
-    if (!activity.requires_approval) return;
+    // A read-only call has nothing to report between arrival and its result. A
+    // mutation does, including one the computation-only policy lets run
+    // without a card: it says "starting" where the others say "awaiting you".
+    if (activity.action_class == Agent::ActionClass::ReadOnly) return;
     const int progress = activity.state == Agent::ToolState::Pending ? 0 : activity.state == Agent::ToolState::Running ? 1 : -1;
     const auto& meta = pending->request.params["_meta"];
     if (progress <= call.last_progress || !meta.contains("progressToken")) return;
     call.last_progress = progress;
+    const char* message = progress != 0              ? "Running in JusPrin"
+                          : activity.requires_approval ? "Awaiting approval in JusPrin"
+                                                       : "Starting in JusPrin";
     m_server.send(pending->connection_id, {{"jsonrpc", "2.0"}, {"method", "notifications/progress"},
                   {"params", {{"progressToken", meta["progressToken"]}, {"progress", progress}, {"total", 2},
-                               {"message", progress == 0 ? "Awaiting approval in JusPrin" : "Running in JusPrin"}}}}, false);
+                               {"message", message}}}}, false);
 }
 } // namespace Slic3r::GUI::JusPrin::Mcp

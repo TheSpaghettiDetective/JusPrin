@@ -37,9 +37,18 @@ enum class ToolSource : std::uint8_t { Agent, Mcp };
 
 // The first production release asks for approval before every durable
 // project mutation; read-only actions run without approval.
-constexpr bool approval_required(ActionClass action_class)
+//
+// One exemption: a mutation declared computation-only in the registry. It
+// changes no project geometry, preset, file, printer, or durable product
+// state; its only effect is computation, replacing a previously computed
+// result, or recording the agent's own statement; and the person can see and
+// reverse it in the UI. Without it every "check this print" would cost a card
+// and the card would stop meaning anything. Destructive actions never
+// qualify, whatever they declare.
+constexpr bool approval_required(ActionClass action_class, bool computation_only = false)
 {
-    return action_class != ActionClass::ReadOnly;
+    return action_class == ActionClass::Destructive ||
+           (action_class == ActionClass::Mutation && !computation_only);
 }
 
 // Destructive actions always require action-time approval and must never use

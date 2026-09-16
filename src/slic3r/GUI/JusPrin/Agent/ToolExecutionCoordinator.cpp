@@ -113,7 +113,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     if (definition != nullptr) {
         activity.title             = definition->title;
         activity.action_class      = definition->action_class;
-        activity.requires_approval = approval_required(definition->action_class);
+        activity.requires_approval = approval_required(definition->action_class, definition->computation_only);
     } else {
         activity.title = "Unknown tool request";
     }
@@ -268,7 +268,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     // Approval and the execution tick are separate GUI events. Recheck the
     // last content/history change here; selection-only changes still cannot
     // redirect a proposal pinned to an object ID and do not invalidate it.
-    if (activity.requires_approval &&
+    // Every mutation is rechecked, not only the ones that waited for a card: a
+    // computation-only action skips approval, not staleness.
+    if (activity.action_class != ActionClass::ReadOnly &&
         (m_workspace.snapshot().session.value() != activity.session ||
          m_last_invalidating_revision > activity.expected_revision)) {
         fail(activity, "stale_revision", "The project changed before this action could execute. Propose it again.");
