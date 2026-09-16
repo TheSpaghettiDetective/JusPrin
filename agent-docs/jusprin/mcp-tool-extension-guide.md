@@ -714,7 +714,7 @@ JUSPRIN_TEST_BRIDGE=build/src/Release/jusprin-mcp.exe python -m unittest discove
 
 As of 2026-09-16 that reports 8 failures on Windows, all in the live-peer paths — SSE progress, client cancellation, EOF with a pending call, stdout backpressure, the live catalog's header mirroring, and a malformed peer result. They are not caused by any JusPrin change: building the helper from the previous commit reproduces the same 8. The suite had only ever been run on macOS and Linux, so treat them as an unexamined platform gap and do not read a green Windows run into a PR that has not had one.
 
-Catalog bytes per tool, the measurement every milestone PR reports, without `python3`:
+Catalog bytes per tool, the measurement every milestone PR reports, without `python3`. Pass `-Depth` on **both** conversions: PowerShell's defaults are shallow, and a catalog whose schemas nest deeper than they do is reported as no tools at all rather than as an error.
 
 ```powershell
 $H = "build\src\Release\jusprin-mcp.exe"; $D = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid()))
@@ -722,7 +722,7 @@ $H = "build\src\Release\jusprin-mcp.exe"; $D = New-Item -ItemType Directory -Pat
   '{"jsonrpc":"2.0","method":"notifications/initialized"}',
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}') |
   & $H --discovery (Join-Path $D "none.json") 2>$null |
-  ForEach-Object { try { $m = $_ | ConvertFrom-Json } catch { return }
+  ForEach-Object { try { $m = $_ | ConvertFrom-Json -Depth 100 } catch { return }
                    if ($m.id -eq 2) { $m.result.tools | ForEach-Object { "{0,6}  {1}" -f ($_ | ConvertTo-Json -Depth 40 -Compress).Length, $_.name } } }
 ```
 
