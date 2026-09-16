@@ -75,10 +75,5 @@
         ]
       }
     ]
-  },
-  "permissions": {
-    "deny": [
-      "Read(./.entire/metadata/**)"
-    ]
   }
 }
