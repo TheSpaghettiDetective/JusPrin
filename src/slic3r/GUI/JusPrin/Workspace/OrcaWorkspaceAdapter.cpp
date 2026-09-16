@@ -1,4 +1,5 @@
 #include "OrcaWorkspaceAdapter.hpp"
+#include "ModalAnswers.hpp"
 #include "OrcaSettings.hpp"
 #include "HostLocale.hpp"
 
@@ -9,6 +10,8 @@
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/MsgDialog.hpp"
+#include "libslic3r_version.h"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
@@ -252,6 +255,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
 
     result.setup.project_name  = m_plater.get_project_name().ToUTF8().data();
     result.setup.project_dirty = m_plater.is_project_dirty();
+    result.setup.presets_dirty = m_plater.is_presets_dirty();
     result.setup.project_path  = into_u8(m_plater.get_project_filename(".3mf"));
     if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr) {
         result.setup.printer_preset = presets->printers.get_selected_preset().label(false);
@@ -1040,6 +1044,134 @@ CommandResult OrcaWorkspaceAdapter::save_project(const std::string& file_path)
             m_plater.set_project_filename(previous);
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project could not be saved");
     }
+    return CommandResult::success();
+}
+
+ProjectDetails OrcaWorkspaceAdapter::project_details() const
+{
+    wxASSERT(wxIsMainThread());
+    ProjectDetails result;
+    const Model& model = m_plater.model();
+    // The fields ProjectPanel::on_reload reads.
+    if (model.design_info)
+        result.designer = model.design_info->Designer;
+    if (model.model_info) {
+        result.title       = model.model_info->model_name;
+        result.description = model.model_info->description;
+        result.license     = model.model_info->license;
+        result.copyright   = model.model_info->copyright;
+        result.origin      = model.model_info->origin;
+    }
+    if (model.profile_info) {
+        result.profile_title       = model.profile_info->ProfileTile;
+        result.profile_description = model.profile_info->ProfileDescription;
+    }
+    // A read-only walk: ProjectPanel::Reload would create the default folders.
+    // JusPrin's own state and Orca's thumbnail cache are not attachments.
+    const boost::filesystem::path root(auxiliary_data_dir());
+    boost::system::error_code error;
+    for (boost::filesystem::recursive_directory_iterator it(root, error), end; !error && it != end; it.increment(error)) {
+        if (!boost::filesystem::is_regular_file(it->path(), error))
+            continue;
+        const boost::filesystem::path relative = it->path().lexically_relative(root);
+        const std::string first = relative.begin()->string();
+        if (first == "JusPrin" || first == ".thumbnails")
+            continue;
+        result.attachments.push_back({relative.generic_string(), first, boost::filesystem::file_size(it->path(), error)});
+    }
+    std::sort(result.attachments.begin(), result.attachments.end(),
+              [](const ProjectAttachment& a, const ProjectAttachment& b) { return a.id < b.id; });
+    if (result.attachments.size() > kAttachmentLimit) {
+        result.attachments.resize(kAttachmentLimit);
+        result.attachments_truncated = true;
+    }
+    // Asked with saved=false it is a query; saved=true would record a save.
+    result.backup_current = m_plater.up_to_date(false, true);
+    return result;
+}
+
+CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions)
+{
+    wxASSERT(wxIsMainThread());
+    const boost::filesystem::path path(request.path);
+    const std::string extension = boost::algorithm::to_lower_copy(path.extension().string());
+    if (!request.new_project) {
+        static const std::set<std::string> openable{".3mf", ".stl", ".obj", ".step", ".stp", ".amf"};
+        boost::system::error_code error;
+        if (!path.is_absolute() || !boost::filesystem::is_regular_file(path, error))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Open an absolute path to a file that exists");
+        if (openable.count(extension) == 0)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer opens .3mf, .stl, .obj, .step and .amf files");
+    }
+    if ((m_plater.is_project_dirty() || m_plater.is_presets_dirty()) && !request.discard_unsaved)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");
+
+    // Orca asks about edited presets in UnsavedChangesDialog, whose answer is
+    // read from the dialog afterwards; dropping the edits first means it is
+    // never asked.
+    if (request.discard_unsaved)
+        for (Preset::Type type : {Preset::TYPE_PRINTER, Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
+            if (Tab* tab = wxGetApp().get_tab(type); tab != nullptr && tab->get_presets()->current_is_dirty()) {
+                tab->get_presets()->discard_current_changes();
+                tab->load_current_preset();
+            }
+
+    // The questions on this path, by the title Orca gives them. Each one the
+    // request decides is answered from it; anything else gets the answer that
+    // changes least, and every one is reported.
+    const wxString save_title = wxString(SLIC3R_APP_FULL_NAME) + " - " + _L("Save");
+    const auto describe = [](int answer) {
+        return answer == wxID_YES ? "yes" : answer == wxID_NO ? "no" : answer == wxID_OK ? "ok" : "cancel";
+    };
+    ScopedModalAnswers answers([&](wxWindow& dialog, const wxString& title) -> int {
+        if (title == _L("Object too small"))
+            return request.units == UnitChoice::ConvertIfTiny ? wxID_YES : wxID_NO;
+        if (title == _L("Object too large"))
+            return request.scale_oversized ? wxID_YES : wxID_NO;
+        if (title == save_title)
+            return request.discard_unsaved ? wxID_NO : wxID_CANCEL;
+        // Orca's message dialogs read yes or ok; its other dialogs (OBJ
+        // colours, STEP meshing) read ok, and cancel keeps their defaults.
+        return dynamic_cast<MsgDialog*>(&dialog) != nullptr ? wxID_NO : wxID_CANCEL;
+    });
+
+    bool loaded = true;
+    if (request.new_project) {
+        loaded = m_plater.new_project(true, true) != wxID_CANCEL;
+    } else if (extension == ".3mf") {
+        // "<loadall>" is Orca's own way to open a project with its settings
+        // without asking how ("<silence>" would also leave the project
+        // without its file name); geometry only is the answer the person
+        // would otherwise give in ProjectDropDialog, set for this one load.
+        if (request.load_project_settings) {
+            m_plater.load_project(from_u8(request.path), "<loadall>");
+        } else {
+            AppConfig&        config   = *wxGetApp().app_config;
+            const std::string previous = config.get(SETTING_PROJECT_LOAD_BEHAVIOUR);
+            config.set(SETTING_PROJECT_LOAD_BEHAVIOUR, OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_GEOMETRY);
+            m_plater.load_project(from_u8(request.path), "-");
+            config.set(SETTING_PROJECT_LOAD_BEHAVIOUR, previous);
+        }
+        boost::system::error_code error;
+        loaded = boost::filesystem::equivalent(into_path(m_plater.get_project_filename(".3mf")), path, error);
+    } else {
+        // A model file opens as a new project named after it, the way File >
+        // New followed by Import leaves it.
+        loaded = m_plater.new_project(true, true, from_u8(path.stem().string())) != wxID_CANCEL;
+        if (loaded) {
+            LoadStrategy strategy = LoadStrategy::LoadModel;
+            if (request.units == UnitChoice::Inches)
+                strategy = strategy | LoadStrategy::ImperialUnits;
+            loaded = !m_plater.load_files(std::vector<boost::filesystem::path>{path}, strategy).empty();
+        }
+    }
+
+    for (const ModalRecord& record : answers.records())
+        decisions.push_back({record.title, describe(record.answer)});
+    if (!loaded)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                      request.new_project ? "OrcaSlicer did not start a new project" :
+                                                            "OrcaSlicer did not open that file");
     return CommandResult::success();
 }
 

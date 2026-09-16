@@ -91,6 +91,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/SetupCommands.cpp
     GUI/JusPrin/Shell/SetupCommands.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
+    GUI/JusPrin/Workspace/ModalAnswers.cpp
+    GUI/JusPrin/Workspace/ModalAnswers.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
     GUI/JusPrin/Workspace/PrinterFactsStore.cpp

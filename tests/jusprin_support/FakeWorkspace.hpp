@@ -535,6 +535,46 @@ public:
         return CommandResult::success();
     }
 
+    // A project file becomes a fresh session holding one object named after
+    // it; what Orca would have asked is whatever the test scripted.
+    CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) override
+    {
+        const std::filesystem::path target = std::filesystem::u8path(request.path);
+        if (!request.new_project && (!target.is_absolute() || !std::filesystem::is_regular_file(target)))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Open an absolute path to a file that exists");
+        if ((m_snapshot.setup.project_dirty || m_snapshot.setup.presets_dirty) && !request.discard_unsaved)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");
+        ++opens;
+        last_open = request;
+        WorkspaceSnapshot next;
+        next.setup.project_name = request.new_project ? "Untitled" : target.stem().u8string();
+        if (target.extension() == ".3mf") next.setup.project_path = request.path;
+        WorkspacePlate plate;
+        plate.id     = PlateId(ProjectSessionId(m_session.value() + 1), 1);
+        plate.name   = "Plate 1";
+        plate.active = true;
+        if (!request.new_project) {
+            WorkspaceObject object;
+            object.id   = ObjectId(ProjectSessionId(m_session.value() + 1), 1);
+            object.name = next.setup.project_name;
+            object.instances.push_back({});
+            plate.objects.push_back(object);
+        }
+        next.plates       = {plate};
+        next.active_plate = plate.id;
+        decisions         = m_open_decisions;
+        replace_project(std::move(next));
+        if (on_open_for_testing) on_open_for_testing();
+        return CommandResult::success();
+    }
+    ProjectDetails project_details() const override { return m_details; }
+    ProjectDetails m_details;
+    std::vector<LoadDecision> m_open_decisions;
+    // What the host does when a project is replaced under it.
+    std::function<void()>     on_open_for_testing;
+    ProjectOpenRequest        last_open;
+    std::uint32_t             opens{0};
+
     void set_project_path_for_testing(std::string path, bool dirty)
     {
         m_snapshot.setup.project_path  = std::move(path);

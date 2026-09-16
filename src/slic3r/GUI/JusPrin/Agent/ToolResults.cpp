@@ -332,6 +332,34 @@ json printer_section_result(const Workspace::ConfiguredPrinter& configured,
     return result;
 }
 
+json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details)
+{
+    bool truncated = false;
+    json fields = json::object();
+    // Only what the file states; every value came from it.
+    const auto field = [&](const char* name, const std::string& value) {
+        if (!value.empty())
+            fields[name] = {{"value", bounded(value, 4096, truncated)}, {"provenance", "project_file"}};
+    };
+    field("title", details.title);
+    field("designer", details.designer);
+    field("description", details.description);
+    field("license", details.license);
+    field("copyright", details.copyright);
+    field("origin", details.origin);
+    field("profileTitle", details.profile_title);
+    field("profileDescription", details.profile_description);
+    json attachments = json::array();
+    for (const auto& attachment : details.attachments)
+        attachments.push_back({{"attachmentId", label(attachment.id, truncated)}, {"folder", attachment.folder},
+                               {"bytes", attachment.bytes}});
+    return {{"name", label(snapshot.setup.project_name, truncated)}, {"path", snapshot.setup.project_path},
+            {"dirty", snapshot.setup.project_dirty}, {"presetsDirty", snapshot.setup.presets_dirty},
+            {"details", std::move(fields)},
+            {"attachments", {{"items", std::move(attachments)}, {"truncated", details.attachments_truncated}}},
+            {"backupCurrent", details.backup_current}, {"truncated", truncated}};
+}
+
 json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history)
 {
     bool truncated = false;

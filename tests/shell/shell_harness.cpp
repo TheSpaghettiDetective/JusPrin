@@ -2910,7 +2910,7 @@ private:
                 return persistence().document().has_identity() && persistence().document().project_id() != m_saved_project_id;
             },
             "new_project_starts_new_identity", [self = shared_from_this()] {
-                self->m_plater->load_project(wxString::FromUTF8(self->m_saved_project_file), "<silence>");
+                self->verify_project_open_answers_dialogs();
                 self->wait_until(
                     [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
                     "saved_state_adopted_on_reopen", [self] {
@@ -2924,6 +2924,91 @@ private:
                         self->agent_phase6_history();
                     });
             });
+    }
+
+    // Counts every dialog that becomes visible, other than the load progress
+    // window, while it is installed.
+    struct DialogCounter : wxEventFilter
+    {
+        int  shown = 0;
+        std::vector<std::string> titles;
+        DialogCounter() { wxEvtHandler::AddFilter(this); }
+        ~DialogCounter() override { wxEvtHandler::RemoveFilter(this); }
+        int FilterEvent(wxEvent& event) override
+        {
+            if (event.GetEventType() == wxEVT_SHOW) {
+                auto* dialog = dynamic_cast<wxDialog*>(event.GetEventObject());
+                // load_files' progress window asks nothing; it is titled, not typed.
+                if (dialog != nullptr && static_cast<wxShowEvent&>(event).IsShown() &&
+                    !dialog->GetTitle().StartsWith(wxGetTranslation("Loading"))) {
+                    ++shown;
+                    titles.push_back(dialog->GetTitle().ToUTF8().data());
+                }
+            }
+            return Event_Skip;
+        }
+    };
+
+    // project_open through the real adapter: a model saved in metres asks
+    // "Object too small" and a dirty project asks to be saved; both are
+    // answered from the request and neither may reach the screen.
+    void verify_project_open_answers_dialogs()
+    {
+        const fs::path tiny = fs::temp_directory_path() / fs::unique_path("jusprin-metres-%%%%.stl");
+        {
+            // A 20 mm cube written in metres.
+            std::ofstream out(tiny.string());
+            out << "solid tiny" << std::endl;
+            const double s = 0.02;
+            const double v[8][3] = {{0,0,0},{s,0,0},{s,s,0},{0,s,0},{0,0,s},{s,0,s},{s,s,s},{0,s,s}};
+            const int f[12][3] = {{0,2,1},{0,3,2},{4,5,6},{4,6,7},{0,1,5},{0,5,4},{1,2,6},{1,6,5},{2,3,7},{2,7,6},{3,0,4},{3,4,7}};
+            for (const auto& t : f) {
+                out << "facet normal 0 0 0" << std::endl << "outer loop" << std::endl;
+                for (int i : t) out << "vertex " << v[i][0] << " " << v[i][1] << " " << v[i][2] << std::endl;
+                out << "endloop" << std::endl << "endfacet" << std::endl;
+            }
+            out << "endsolid tiny" << std::endl;
+        }
+        auto* workspace = installed_shell()->workspace();
+        Workspace::ProjectOpenRequest request;
+        request.path            = tiny.string();
+        request.units           = Workspace::UnitChoice::ConvertIfTiny;
+        request.discard_unsaved = true;
+        std::vector<Workspace::LoadDecision> decisions;
+        {
+            DialogCounter counter;
+            check(workspace->open_project(request, decisions).succeeded(), "project_open_model_file");
+            for (const auto& title : counter.titles) std::cout << "project_open dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "project_open_model_shows_no_dialog");
+        }
+        check(std::any_of(decisions.begin(), decisions.end(),
+                          [](const Workspace::LoadDecision& d) { return d.answer == "yes"; }),
+              "project_open_answers_object_too_small");
+        const BoundingBoxf3 box = m_plater->model().objects.empty() ? BoundingBoxf3() : m_plater->model().objects.front()->bounding_box_exact();
+        check(m_plater->model().objects.size() == 1 && std::abs(box.size().x() - 20.) < 0.01,
+              "project_open_converted_metres");
+
+        // Make the project dirty, then reopen the saved project over it.
+        check(m_plater->duplicate_object(0) >= 0, "project_open_dirty_before_reopen");
+        request      = {};
+        request.path = m_saved_project_file;
+        decisions.clear();
+        check(!workspace->open_project(request, decisions).succeeded(), "project_open_refuses_unsaved_work");
+        request.discard_unsaved = true;
+        {
+            DialogCounter counter;
+            const auto opened = workspace->open_project(request, decisions);
+            if (!opened.succeeded()) std::cout << "project_open failed: " << opened.message << std::endl;
+            check(opened.succeeded(), "project_open_project_file");
+            for (const auto& title : counter.titles) std::cout << "project_open dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "project_open_project_shows_no_dialog");
+        }
+        // Orca asks to save only when the person has not told it to stop
+        // asking; whatever it asked was declined.
+        for (const auto& decision : decisions) std::cout << "project_open asked: " << decision.question << " -> " << decision.answer << std::endl;
+        check(std::all_of(decisions.begin(), decisions.end(), [](const Workspace::LoadDecision& d) { return d.answer == "no"; }),
+              "project_open_declines_saving");
+        fs::remove(tiny);
     }
 
     // Phase 6: record one real sliced plate as a deterministic build, then an

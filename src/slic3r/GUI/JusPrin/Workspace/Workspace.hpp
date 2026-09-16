@@ -151,10 +151,13 @@ struct WorkspaceSetup
     std::string filament_preset;
     std::string process_preset;
     bool        process_preset_dirty{false};
+    // Any selected preset carries edits that are not saved.
+    bool        presets_dirty{false};
 
     friend bool operator==(const WorkspaceSetup& lhs, const WorkspaceSetup& rhs)
     {
         return lhs.project_name == rhs.project_name && lhs.project_dirty == rhs.project_dirty &&
+               lhs.presets_dirty == rhs.presets_dirty &&
                lhs.project_path == rhs.project_path && lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset &&
                lhs.process_preset == rhs.process_preset && lhs.process_preset_dirty == rhs.process_preset_dirty;
     }
@@ -253,6 +256,50 @@ struct PrinterSetupPreview
     // preset there, because which one Orca picks is its own scoring.
     std::vector<SetupSubstitution> substitutions;
     std::vector<UnsavedEdits>      unsaved_edits;
+};
+
+// What the project file says about itself, as OrcaSlicer's Project panel
+// shows it, and the files packed beside the model. Every text field is the
+// file's own words; nothing here is inferred.
+struct ProjectAttachment
+{
+    std::string   id;     // path inside the attachments folder, '/'-separated
+    std::string   folder; // Orca's category folder, such as "Model Pictures"
+    std::uint64_t bytes{0};
+};
+
+struct ProjectDetails
+{
+    std::string title, designer, description, license, copyright, origin;
+    std::string profile_title, profile_description;
+    std::vector<ProjectAttachment> attachments; // sorted by id, at most kAttachmentLimit
+    bool attachments_truncated{false};
+    // False when edits since the last automatic backup would be lost in a crash.
+    bool backup_current{true};
+};
+
+inline constexpr std::size_t kAttachmentLimit = 64;
+
+// Replace the open project: a project file, a model file as a new project,
+// or an empty project. Every question Orca would ask on the way is an input
+// here or answered with the conservative choice and reported.
+enum class UnitChoice : std::uint8_t { Keep, ConvertIfTiny, Inches };
+
+struct ProjectOpenRequest
+{
+    std::string path; // absolute, UTF-8; empty with new_project
+    bool        new_project{false};
+    bool        load_project_settings{true};
+    UnitChoice  units{UnitChoice::Keep};
+    bool        scale_oversized{false};
+    bool        discard_unsaved{false};
+};
+
+// One question Orca asked while opening, and what it was told.
+struct LoadDecision
+{
+    std::string question;
+    std::string answer; // yes, no, ok, or cancel
 };
 
 // One real step in the project's undo history. `id` is stable while the
@@ -814,6 +861,8 @@ public:
     // project is marked saved, and auxiliary data travels with it. Unlike
     // export_project_archive this is the project, not a copy of it.
     virtual CommandResult save_project(const std::string& file_path) = 0;
+    virtual ProjectDetails project_details() const = 0;
+    virtual CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) = 0;
 
     // Imports a model or project file's geometry into the CURRENT project,
     // adding objects rather than replacing the project. It is a single

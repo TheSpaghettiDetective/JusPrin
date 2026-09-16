@@ -22,6 +22,7 @@ struct InspectSections
     bool slicing{false};
     bool history{false};
     bool printer{false};
+    bool project{false};
 };
 
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});
@@ -43,6 +44,10 @@ nlohmann::json printer_setup_preview_result(const Workspace::PrinterSetupPreview
 nlohmann::json setup_substitutions_result(const std::vector<Workspace::SetupSubstitution>& substitutions);
 nlohmann::json setup_edits_result(const std::vector<Workspace::UnsavedEdits>& edits);
 nlohmann::json printer_device_result(const Workspace::PrinterDevice& device);
+
+// Identity, saved state, the file's own description with its provenance,
+// attachments, and backup state.
+nlohmann::json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details);
 
 // The summary's undo flags with the steps themselves.
 nlohmann::json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history);

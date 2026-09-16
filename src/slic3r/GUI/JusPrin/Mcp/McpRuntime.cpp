@@ -32,6 +32,11 @@ void McpRuntime::detach_calls()
     auto calls = std::move(m_calls);
     m_calls.clear();
     for (auto& entry : calls) {
+        // The call that is replacing the project answers when it finishes.
+        if (!entry.second.action_id.empty() && entry.second.action_id == m_coordinator.executing_action_id()) {
+            m_calls.insert(std::move(entry));
+            continue;
+        }
         m_coordinator.cancel(entry.second.action_id);
         const auto& pending = entry.second.pending;
         m_server.send(pending->connection_id, rpc_result(pending->request.id,

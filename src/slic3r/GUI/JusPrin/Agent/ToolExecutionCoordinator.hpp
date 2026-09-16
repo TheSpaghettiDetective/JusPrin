@@ -110,7 +110,11 @@ public:
 
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
-    void clear() { m_activities.clear(); }
+    // Forgets every activity except one that is executing: a command that
+    // replaces the project is still running while the project it was
+    // proposed in is torn down, and it has to be able to report.
+    void clear();
+    const std::string& executing_action_id() const { return m_executing; }
     // Chat deletion may forget completed records, never in-flight work.
     void forget_terminal_activities(const std::vector<std::string>& message_ids);
 
@@ -160,6 +164,7 @@ private:
     // The slice_start call behind the run now in flight, so the slicing
     // section can say which handle a reader is watching.
     std::string                      m_slice_handle;
+    std::string                      m_executing;
     ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;

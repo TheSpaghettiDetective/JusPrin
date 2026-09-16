@@ -1149,3 +1149,105 @@ TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", 
     CHECK_FALSE(registry.validate_call(*registry.find("printer_setup_preview"), R"({"printerPreset":"x","unsavedEdits":"discard"})").valid());
     CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"confirmFacts":[{"fact":"plate","value":"x","hours":0}]})").valid());
 }
+
+TEST_CASE("opening a project names it on the card, reads nothing before approval, and reports what was asked", "[tools][project]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const std::filesystem::path folder = std::filesystem::temp_directory_path() /
+        ("jusprin-open-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(folder);
+    const std::string model = (folder / "bracket.stl").u8string();
+    std::ofstream(folder / "bracket.stl") << "solid bracket\nendsolid bracket\n";
+    auto propose = [&h](const json& arguments) {
+        return ToolActivity(h.coordinator.propose({"project_open", arguments.dump()}, "m-1"));
+    };
+
+    CHECK(propose(json{{"path", (folder / "missing.stl").u8string()}}).error->code == "invalid_argument");
+    CHECK(propose(json{{"path", "bracket.stl"}}).error->code == "invalid_argument");
+
+    // A dirty project is not replaced without the user's word.
+    auto setup = h.workspace.snapshot().setup;
+    setup.project_dirty = true;
+    setup.project_name  = "Backpack";
+    h.workspace.set_setup(setup);
+    CHECK(propose(json{{"path", model}}).error->code == "unsaved_work");
+
+    const ToolActivity rejected = propose(json{{"path", model}, {"unsavedWork", "discard"}});
+    REQUIRE(rejected.state == ToolState::Pending);
+    CHECK(rejected.title == "Open " + model + ", discarding unsaved changes to Backpack");
+    REQUIRE(h.coordinator.reject(rejected.action_id));
+    CHECK(h.workspace.opens == 0);
+
+    h.workspace.m_open_decisions = {{"Object too small", "yes"}};
+    const ToolActivity approved = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "convertIfTiny"},
+                                               {"oversized", "scaleToFit"}});
+    REQUIRE(h.coordinator.approve(approved.action_id));
+    h.pump_to_completion(approved.action_id);
+    const ToolActivity done = *h.coordinator.find(approved.action_id);
+    REQUIRE(done.state == ToolState::Succeeded);
+    const auto result = json::parse(done.result_json);
+    CHECK(registry.validate_output(*registry.find("project_open"), result));
+    CHECK(result["projectName"] == "bracket");
+    CHECK(result["objectCount"] == 1);
+    CHECK(result["decisions"] == json::array({json{{"question", "Object too small"}, {"answer", "yes"}}}));
+    CHECK(result["sessionId"] != std::to_string(approved.session));
+    CHECK(h.workspace.last_open.units == Workspace::UnitChoice::ConvertIfTiny);
+    CHECK(h.workspace.last_open.scale_oversized);
+    CHECK(h.workspace.last_open.discard_unsaved);
+    CHECK(store.flushes == 1);
+
+    // The host forgets the old project's activities while the open is still
+    // running; the open itself survives to report.
+    h.workspace.on_open_for_testing = [&h] { h.coordinator.clear(); };
+    const ToolActivity earlier  = propose(json{{"path", model}});
+    const ToolActivity reopened = propose(json{{"path", model}});
+    REQUIRE(h.coordinator.approve(reopened.action_id));
+    h.pump_to_completion(reopened.action_id);
+    REQUIRE(h.coordinator.find(reopened.action_id) != nullptr);
+    CHECK(h.coordinator.find(reopened.action_id)->state == ToolState::Succeeded);
+    CHECK(h.coordinator.find(earlier.action_id) == nullptr);
+    CHECK(h.coordinator.executing_action_id().empty());
+    h.workspace.on_open_for_testing = nullptr;
+
+    const ToolActivity fresh = propose(json{{"new", true}});
+    REQUIRE(fresh.state == ToolState::Pending);
+    CHECK(fresh.title == "Start a new project");
+
+    const auto& definition = *registry.find("project_open");
+    CHECK_FALSE(registry.validate_call(definition, "{}").valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"new", true}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"new":false})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"new":true,"unitConversion":"inches"})").valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"oversized", "shrink"}}.dump()).valid());
+    CHECK(propose(json{{"path", (folder / "x.3mf").u8string()}}).error->code == "invalid_argument");
+    std::ofstream(folder / "x.3mf") << "x";
+    CHECK(propose(json{{"path", (folder / "x.3mf").u8string()}, {"unitConversion", "inches"}}).error->code == "invalid_argument");
+    std::filesystem::remove_all(folder);
+}
+
+TEST_CASE("the project section reports the file's own words with their source", "[tools][project]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    h.workspace.set_project_path_for_testing("C:/prints/bracket.3mf", true);
+    h.workspace.m_details.designer    = "Ada";
+    h.workspace.m_details.license     = "CC-BY-NC-4.0";
+    h.workspace.m_details.attachments = {{"Model Pictures/front.png", "Model Pictures", 2048}};
+    h.workspace.m_details.backup_current = false;
+    const std::string id = h.coordinator.propose({"workspace_inspect", R"({"sections":["project"]})"}, "m-1").action_id;
+    h.coordinator.pump();
+    REQUIRE(h.coordinator.find(id)->state == ToolState::Succeeded);
+    const auto result = json::parse(h.coordinator.find(id)->result_json);
+    CHECK(registry.validate_output(*registry.find("workspace_inspect"), result));
+    const auto& project = result["project"];
+    CHECK(project["path"] == "C:/prints/bracket.3mf");
+    CHECK(project["dirty"] == true);
+    CHECK(project["details"]["license"] == json{{"value", "CC-BY-NC-4.0"}, {"provenance", "project_file"}});
+    CHECK_FALSE(project["details"].contains("description"));
+    CHECK(project["attachments"]["items"][0]["attachmentId"] == "Model Pictures/front.png");
+    CHECK(project["backupCurrent"] == false);
+    CHECK_FALSE(result.contains("plates"));
+}

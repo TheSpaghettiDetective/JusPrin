@@ -119,14 +119,14 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true; // the summary, as every caller before sections existed asked for
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 6)
+        if (!sections.is_array() || sections.empty() || sections.size() > 7)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer") ||
+            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer" && name != "project") ||
                 !seen.insert(name).second)
                 return false;
         }
@@ -141,6 +141,28 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                is_unsigned_string(arguments["sessionId"]) && arguments.contains("stepId") &&
                is_unsigned_string(arguments["stepId"]) && arguments.contains("point") &&
                (arguments["point"] == "before" || arguments["point"] == "after");
+
+    if (definition.handler == ToolHandler::ProjectOpen) {
+        if (!has_only(arguments, {"path", "new", "loadProjectSettings", "unitConversion", "oversized", "unsavedWork"}))
+            return false;
+        const bool by_path = arguments.contains("path");
+        const bool fresh   = arguments.contains("new");
+        if (by_path == fresh)
+            return false; // exactly one
+        if (by_path && (!arguments["path"].is_string() || arguments["path"].get_ref<const std::string&>().empty() ||
+                        arguments["path"].get_ref<const std::string&>().size() > 1024))
+            return false;
+        if (fresh && arguments["new"] != true)
+            return false;
+        const auto one_of = [&arguments](const char* key, std::initializer_list<const char*> allowed) {
+            return !arguments.contains(key) ||
+                   std::any_of(allowed.begin(), allowed.end(), [&](const char* value) { return arguments[key] == value; });
+        };
+        return one_of("loadProjectSettings", {"project", "keep"}) && one_of("unitConversion", {"keep", "convertIfTiny", "inches"}) &&
+               one_of("oversized", {"keep", "scaleToFit"}) && one_of("unsavedWork", {"discard"}) &&
+               (by_path || (!arguments.contains("loadProjectSettings") && !arguments.contains("unitConversion") &&
+                            !arguments.contains("oversized")));
+    }
 
     if (definition.handler == ToolHandler::ProjectSave)
         return has_only(arguments, {"path"}) &&
@@ -346,6 +368,18 @@ std::vector<ToolDefinition> make_definitions()
                                                  {"what", "configured", "observed", "source"})}}},
          {"truncated", boolean_schema()}},
         {"configured", "plateObservable", "factKey", "confirmedFacts", "mismatches", "truncated"});
+    const json sourced_text = object_schema({{"value", string_schema()}, {"provenance", {{"type", "string"}, {"enum", json::array({"project_file"})}}}},
+                                            {"value", "provenance"});
+    json details_schema = object_schema({});
+    for (const char* name : {"title", "designer", "description", "license", "copyright", "origin", "profileTitle", "profileDescription"})
+        details_schema["properties"][name] = sourced_text;
+    const json project_section = object_schema(
+        {{"name", string_schema()}, {"path", string_schema()}, {"dirty", boolean_schema()}, {"presetsDirty", boolean_schema()},
+         {"details", details_schema},
+         {"attachments", list_schema(object_schema({{"attachmentId", id}, {"folder", string_schema()}, {"bytes", integer_schema()}},
+                                                   {"attachmentId", "folder", "bytes"}))},
+         {"backupCurrent", boolean_schema()}, {"truncated", boolean_schema()}},
+        {"name", "path", "dirty", "presetsDirty", "details", "attachments", "backupCurrent", "truncated"});
     const json setup_changes = {{"type", "array"}, {"maxItems", 32},
                                 {"items", object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "plate", "process", "filament"})}}},
                                                          {"from", string_schema()}, {"reason", string_schema()}},
@@ -528,6 +562,23 @@ std::vector<ToolDefinition> make_definitions()
                         {"truncated", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
                        {"items", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterList},
+        {"project_open", "Open a project",
+         "Replace the open project: open a .3mf project, open a model file (.stl, .obj, .step, .amf) as a new project, or start an empty one with new. OrcaSlicer's questions become inputs: loadProjectSettings (project: use the file's printer, filament and process settings; keep: geometry only), unitConversion (keep; convertIfTiny: scale an object that looks modelled in metres or inches; inches: treat the model file as inches), oversized (keep, or scaleToFit the bed). Anything else OrcaSlicer would ask is answered with the choice that changes least and listed in decisions. If the open project has unsaved changes the call is refused unless unsavedWork is \"discard\", which the user must have agreed to. IDs from before are no longer valid afterwards. Waits for approval in JusPrin, and the card shows the path.",
+         object_schema({{"path", {{"type", "string"}, {"maxLength", 1024}}},
+                        {"new", {{"type", "boolean"}, {"enum", json::array({true})}}},
+                        {"loadProjectSettings", {{"type", "string"}, {"enum", json::array({"project", "keep"})}}},
+                        {"unitConversion", {{"type", "string"}, {"enum", json::array({"keep", "convertIfTiny", "inches"})}}},
+                        {"oversized", {{"type", "string"}, {"enum", json::array({"keep", "scaleToFit"})}}},
+                        {"unsavedWork", {{"type", "string"}, {"enum", json::array({"discard"})}}}}),
+         object_schema({{"projectName", string_schema()}, {"path", string_schema()}, {"plateCount", revision},
+                        {"objectCount", revision},
+                        {"decisions", {{"type", "array"}, {"maxItems", 32},
+                                       {"items", object_schema({{"question", string_schema()},
+                                                                {"answer", {{"type", "string"}, {"enum", json::array({"yes", "no", "ok", "cancel"})}}}},
+                                                               {"question", "answer"})}}},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"projectName", "path", "plateCount", "objectCount", "decisions", "sessionId", "revision"}),
+         ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectOpen},
         {"project_save", "Save the project",
          "Save the open project to its own file, or to the absolute .3mf path you give, the way the user's Save does: the file becomes the project's file and the project is marked saved. Replaces whatever is at that path, so it waits for approval in JusPrin, and the card shows the exact path. A project that has never been saved needs a path.",
          object_schema({{"path", {{"type", "string"}, {"maxLength", 1024}}}}),
@@ -628,13 +679,13 @@ std::vector<ToolDefinition> make_definitions()
          true},
         {"workspace_inspect",
          "Inspect the live workspace",
-         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},
                                       {"items", {{"type", "string"},
-                                                 {"enum", json::array({"summary", "intent", "plan", "slicing", "history", "printer"})}}},
-                                      {"maxItems", 6}}}}),
+                                                 {"enum", json::array({"summary", "project", "intent", "plan", "slicing", "history", "printer"})}}},
+                                      {"maxItems", 7}}}}),
          object_schema({{"intent", intent_section}, {"plan", plan_section}, {"slicing", slicing_section},
-                        {"printer", printer_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
+                        {"printer", printer_section}, {"project", project_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
                          {"plateCount", revision}, {"objectCount", revision}, {"plates", list_schema(plate_summary)},

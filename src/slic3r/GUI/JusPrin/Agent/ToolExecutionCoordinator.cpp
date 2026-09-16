@@ -220,6 +220,37 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
+    if (definition->handler == ToolHandler::ProjectOpen) {
+        const auto arguments = json::parse(stored.arguments_json);
+        const bool unsaved   = snapshot.setup.project_dirty || snapshot.setup.presets_dirty;
+        if (unsaved && arguments.value("unsavedWork", "") != "discard") {
+            fail(stored, "unsaved_work",
+                 "The open project has unsaved changes. Ask the user; save it first, or call again with unsavedWork \"discard\".");
+            return stored;
+        }
+        if (arguments.contains("path")) {
+            // Only the name is looked at before approval; the file is read
+            // after it.
+            const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
+            std::error_code error;
+            if (!path.is_absolute() || !std::filesystem::is_regular_file(path, error)) {
+                fail(stored, "invalid_argument", "Give the absolute path of a file that exists.");
+                return stored;
+            }
+            if (path.extension() == ".3mf" && arguments.value("unitConversion", "keep") == "inches") {
+                fail(stored, "invalid_argument", "A project keeps its own units; inches applies to model files.");
+                return stored;
+            }
+            stored.title = "Open " + arguments["path"].get<std::string>();
+        } else {
+            stored.title = "Start a new project";
+        }
+        if (unsaved)
+            stored.title += ", discarding unsaved changes" +
+                            (snapshot.setup.project_name.empty() ? std::string() : " to " + snapshot.setup.project_name);
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
     if (definition->handler == ToolHandler::ProjectSave) {
         auto arguments = json::parse(stored.arguments_json);
         const std::string path = arguments.value("path", snapshot.setup.project_path);
@@ -304,6 +335,13 @@ bool ToolExecutionCoordinator::cancel(const std::string& action_id)
     return true;
 }
 
+void ToolExecutionCoordinator::clear()
+{
+    m_activities.erase(std::remove_if(m_activities.begin(), m_activities.end(),
+                                      [this](const ToolActivity& activity) { return activity.action_id != m_executing; }),
+                       m_activities.end());
+}
+
 void ToolExecutionCoordinator::pump()
 {
     for (ToolActivity& activity : m_activities) {
@@ -381,6 +419,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
     // Whatever this action changes is the Agent's, in the change log.
     const Workspace::IWorkspace::AgentEdit agent_edit(m_workspace);
+    m_executing = activity.action_id;
+    struct Finished { std::string& id; ~Finished() { id.clear(); } } finished{m_executing};
     const ToolDefinition* definition = m_registry.find(activity.tool);
     if (definition == nullptr) {
         fail(activity, "unknown_tool", "This build has no tool named \"" + activity.tool + "\".");
@@ -456,7 +496,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer")};
+            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer"), asked("project")};
         }
         if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
@@ -474,6 +514,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                         std::vector<Workspace::PrinterFact>{};
             result["printer"] = printer_section_result(configured, devices, facts);
         }
+        if (sections.project) result["project"] = project_section_result(m_workspace.snapshot(), m_workspace.project_details());
         if (sections.history) result["history"] = history_section_result(m_workspace.snapshot(), m_workspace.history());
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
@@ -506,6 +547,48 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                    .dump();
         activity.state = ToolState::Succeeded;
         notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ProjectOpen) {
+        const auto arguments = json::parse(activity.arguments_json);
+        Workspace::ProjectOpenRequest request;
+        request.path                  = arguments.value("path", "");
+        request.new_project           = arguments.value("new", false);
+        request.load_project_settings = arguments.value("loadProjectSettings", "project") == "project";
+        const std::string units       = arguments.value("unitConversion", "keep");
+        request.units                 = units == "inches"        ? Workspace::UnitChoice::Inches :
+                                        units == "convertIfTiny" ? Workspace::UnitChoice::ConvertIfTiny :
+                                                                   Workspace::UnitChoice::Keep;
+        request.scale_oversized       = arguments.value("oversized", "keep") == "scaleToFit";
+        request.discard_unsaved       = arguments.value("unsavedWork", "") == "discard";
+        // The conversation belongs to the project being closed; it goes to
+        // its recovery state before the project does.
+        if (m_product_state != nullptr)
+            m_product_state->flush_to_project();
+        std::vector<Workspace::LoadDecision> decisions;
+        const std::string action_id = activity.action_id;
+        const auto opened = m_workspace.open_project(request, decisions);
+        // Replacing the project clears the other activities, which may move
+        // this one: find it again rather than trust the reference.
+        ToolActivity& current = *find_mutable(action_id);
+        json asked = json::array();
+        for (const auto& decision : decisions)
+            if (asked.size() < 32) asked.push_back({{"question", decision.question}, {"answer", decision.answer}});
+        if (!opened.succeeded()) {
+            fail(current, workspace_error_code(opened.error), opened.message, json{{"decisions", asked}}.dump());
+            return;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        std::size_t objects = 0;
+        for (const auto& plate : snapshot.plates) objects += plate.objects.size();
+        current.result_json = json{{"projectName", snapshot.setup.project_name}, {"path", snapshot.setup.project_path},
+                                    {"plateCount", snapshot.plates.size()}, {"objectCount", objects},
+                                    {"decisions", std::move(asked)},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        current.state = ToolState::Succeeded;
+        notify(current);
         return;
     }
 
