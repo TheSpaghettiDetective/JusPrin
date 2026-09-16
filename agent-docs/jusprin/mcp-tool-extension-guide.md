@@ -694,7 +694,15 @@ npm --prefix src/slic3r/GUI/JusPrin/AgentUI test
 build/tests/shell/Release/shell_integration_harness.exe --mcp-bridge
 ```
 
-Node is required: the Agent and Home pages are built from TypeScript and their `index.html` is generated, not committed, so a tree without npm fails at configure time and an app built without them shows no Agent panel at all. The Python bridge tests need a `python3` that machine may not have; say so rather than reporting them run.
+Node is required: the Agent and Home pages are built from TypeScript and their `index.html` is generated, not committed, so a tree without npm fails at configure time and an app built without them shows no Agent panel at all.
+
+The Python bridge tests run there too, with the helper named explicitly, since the default path in `tests/mcp/test_bridge_process.py` is the macOS bundle:
+
+```sh
+JUSPRIN_TEST_BRIDGE=build/src/Release/jusprin-mcp.exe python -m unittest discover -s tests/mcp
+```
+
+As of 2026-09-16 that reports 8 failures on Windows, all in the live-peer paths — SSE progress, client cancellation, EOF with a pending call, stdout backpressure, the live catalog's header mirroring, and a malformed peer result. They are not caused by any JusPrin change: building the helper from the previous commit reproduces the same 8. The suite had only ever been run on macOS and Linux, so treat them as an unexamined platform gap and do not read a green Windows run into a PR that has not had one.
 
 Catalog bytes per tool, the measurement every milestone PR reports, without `python3`:
 
