@@ -49,12 +49,39 @@ public:
         return m_plan;
     }
 
+    // Facts are app-level and time-bound in the real store; here they are
+    // just remembered, which is all a coordinator test needs to observe.
+    bool has_printer_facts() const override { return true; }
+
+    std::vector<Workspace::PrinterFact> printer_facts(const std::string& printer) const override
+    {
+        std::vector<Workspace::PrinterFact> result;
+        for (const auto& fact : m_facts)
+            if (fact.printer == printer) result.push_back(fact);
+        return result;
+    }
+
+    std::vector<Workspace::PrinterFact> confirm_printer_facts(
+        const std::string& printer, const std::vector<Workspace::FactConfirmation>& confirmations) override
+    {
+        ++writes;
+        for (const auto& confirmation : confirmations) {
+            Workspace::PrinterFact stated{printer, confirmation.fact, confirmation.value, timestamp, "2026-09-17T00:00:00Z"};
+            const auto existing = std::find_if(m_facts.begin(), m_facts.end(), [&](const Workspace::PrinterFact& fact) {
+                return fact.printer == printer && fact.fact == confirmation.fact;
+            });
+            if (existing != m_facts.end()) *existing = stated; else m_facts.push_back(stated);
+        }
+        return printer_facts(printer);
+    }
+
     std::string   timestamp{"2026-09-16T00:00:00Z"};
     std::uint32_t writes{0};
 
 private:
     std::vector<IntentField> m_fields;
     PlanRecord               m_plan;
+    std::vector<Workspace::PrinterFact> m_facts;
     std::uint64_t            m_seq{0};
 };
 

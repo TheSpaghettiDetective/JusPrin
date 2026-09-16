@@ -16,6 +16,7 @@
 // and the tests supply their own.
 
 #include "ProjectStateDocument.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.hpp"
 
 #include <string>
 #include <vector>
@@ -34,6 +35,14 @@ public:
     virtual PlanRecord plan() const = 0;
     // Replaces the plan whole and returns it as stored.
     virtual PlanRecord set_plan(PlanRecord record) = 0;
+
+    // Facts the person stated about a physical printer, app-level rather than
+    // project-level, still unexpired. `printer` is the identity they belong to.
+    // Only call the two below when this is true.
+    virtual bool has_printer_facts() const = 0;
+    virtual std::vector<Workspace::PrinterFact> printer_facts(const std::string& printer) const = 0;
+    virtual std::vector<Workspace::PrinterFact> confirm_printer_facts(
+        const std::string& printer, const std::vector<Workspace::FactConfirmation>& confirmations) = 0;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -28,12 +28,17 @@ public:
     {
         static const std::string run = std::to_string(std::random_device{}());
         static std::atomic<int>  counter{0};
-        m_path = fs::temp_directory_path() / ("jusprin-printer-facts-" + run + "-" + std::to_string(counter++));
+        // A non-ASCII segment -- two CJK characters in UTF-8, spelled as bytes so
+        // the source stays ASCII -- because a narrow path on Windows cannot
+        // spell it and a profile directory may well contain one.
+        m_path = fs::temp_directory_path() /
+                 fs::u8path(std::string("jusprin-\xe6\x89\x93\xe5\x8d\xb0-facts-") + run + "-" + std::to_string(counter++));
         fs::remove_all(m_path);
         fs::create_directories(m_path);
     }
     ~TempDir() { fs::remove_all(m_path); }
-    fs::path file() const { return m_path / "printer_facts.json"; }
+    fs::path    file() const { return m_path / "printer_facts.json"; }
+    std::string utf8() const { return file().u8string(); }
 
 private:
     fs::path m_path;
@@ -48,7 +53,7 @@ TEST_CASE("a stated fact is current until it expires", "[printer-facts]")
 {
     TempDir dir;
     auto    now = kNoon;
-    PrinterFactsStore store({dir.file().string(), [&now] { return now; }});
+    PrinterFactsStore store({dir.utf8(), [&now] { return now; }});
     CHECK(store.current("FAKE001").empty());
 
     const auto stated = store.confirm("FAKE001", {{"plate", "Textured PEI", 24h}, {"spool_dry", "true", 2h}});
@@ -78,7 +83,7 @@ TEST_CASE("restating a fact replaces it and survives a reload", "[printer-facts]
     TempDir dir;
     auto    now = kNoon;
     {
-        PrinterFactsStore store({dir.file().string(), [&now] { return now; }});
+        PrinterFactsStore store({dir.utf8(), [&now] { return now; }});
         store.confirm("FAKE001", {{"plate", "Textured PEI", 24h}});
         now += 1h;
         const auto swapped = store.confirm("FAKE001", {{"plate", "Smooth PEI", 24h}});
@@ -86,7 +91,7 @@ TEST_CASE("restating a fact replaces it and survives a reload", "[printer-facts]
         CHECK(swapped[0].value == "Smooth PEI");
         CHECK(swapped[0].confirmed_at == "2026-09-16T13:00:00Z");
     }
-    PrinterFactsStore reopened({dir.file().string(), [&now] { return now; }});
+    PrinterFactsStore reopened({dir.utf8(), [&now] { return now; }});
     CHECK_FALSE(reopened.corrupt());
     const auto facts = reopened.current("FAKE001");
     REQUIRE(facts.size() == 1);
@@ -97,7 +102,7 @@ TEST_CASE("expired facts are not kept on disk", "[printer-facts]")
 {
     TempDir dir;
     auto    now = kNoon;
-    PrinterFactsStore store({dir.file().string(), [&now] { return now; }});
+    PrinterFactsStore store({dir.utf8(), [&now] { return now; }});
     store.confirm("FAKE001", {{"bed_clear", "true", 1h}});
     now += 2h;
     store.confirm("FAKE001", {{"plate", "Textured PEI", 24h}});
@@ -115,10 +120,10 @@ TEST_CASE("a damaged facts file is moved aside, not overwritten", "[printer-fact
         std::ofstream out(dir.file());
         out << "{ not json";
     }
-    PrinterFactsStore store({dir.file().string(), [] { return kNoon; }});
+    PrinterFactsStore store({dir.utf8(), [] { return kNoon; }});
     CHECK(store.corrupt());
     CHECK(store.current("FAKE001").empty());
-    CHECK(fs::exists(dir.file().string() + ".corrupt"));
+    CHECK(fs::exists(fs::u8path(dir.utf8() + ".corrupt")));
     store.confirm("FAKE001", {{"plate", "Textured PEI", 24h}});
     CHECK(store.current("FAKE001").size() == 1);
 }

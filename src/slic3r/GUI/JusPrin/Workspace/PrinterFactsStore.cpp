@@ -43,7 +43,9 @@ PrinterFactsStore::PrinterFactsStore(Config config) : m_config(std::move(config)
     if (!m_config.now)
         m_config.now = [] { return std::chrono::system_clock::now(); };
 
-    const fs::path  path(m_config.file_path);
+    // UTF-8 in, native out: a narrow path on Windows goes through the active
+    // code page and cannot spell every profile directory.
+    const fs::path  path = fs::u8path(m_config.file_path);
     std::error_code ec;
     if (!fs::exists(path, ec))
         return;
@@ -70,7 +72,9 @@ PrinterFactsStore::PrinterFactsStore(Config config) : m_config(std::move(config)
         m_corrupt_reason = error.what();
     }
     if (m_corrupt) {
-        fs::rename(path, path.string() + ".corrupt", ec);
+        fs::path aside = path;
+        aside += ".corrupt";
+        fs::rename(path, aside, ec);
         if (ec)
             m_corrupt_reason += "; the damaged file could not be moved aside: " + ec.message();
     }
@@ -123,21 +127,22 @@ void PrinterFactsStore::write()
     for (const PrinterFact& fact : m_facts)
         document["facts"].push_back(json_from(fact));
 
-    const fs::path  path(m_config.file_path);
+    const fs::path  path = fs::u8path(m_config.file_path);
     std::error_code ec;
     fs::create_directories(path.parent_path(), ec);
-    const fs::path temp = path.string() + ".tmp";
+    fs::path temp = path;
+    temp += ".tmp";
     {
         std::ofstream out(temp, std::ios::binary | std::ios::trunc);
         if (!out.is_open())
-            throw std::runtime_error("could not open " + temp.string() + " to save printer facts");
+            throw std::runtime_error("could not open " + temp.u8string() + " to save printer facts");
         out << document.dump(2);
         if (!out.good())
-            throw std::runtime_error("could not write " + temp.string());
+            throw std::runtime_error("could not write " + temp.u8string());
     }
     fs::rename(temp, path, ec);
     if (ec)
-        throw std::runtime_error("could not save printer facts to " + path.string() + ": " + ec.message());
+        throw std::runtime_error("could not save printer facts to " + m_config.file_path + ": " + ec.message());
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

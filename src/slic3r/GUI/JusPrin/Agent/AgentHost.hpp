@@ -102,6 +102,10 @@ public:
     ProjectPersistence&             persistence() { return m_persistence; }
     // Opt-in local adapter; its lifetime is independent of the page handshake.
     void start_mcp(const std::string& discovery_path);
+    // Where the facts a person states about their printers are kept: app
+    // data, not the project. Without it the tools that read or write them say
+    // the operation is unavailable.
+    void set_printer_facts_path(std::string path) { m_product_state.set_facts_path(std::move(path)); }
     const Mcp::McpRuntime* mcp() const { return m_mcp.get(); }
 
     struct McpConnectSettings
@@ -253,9 +257,26 @@ private:
             m_persistence.flush();
             return stored;
         }
+        bool has_printer_facts() const override { return !m_facts_path.empty(); }
+        std::vector<Workspace::PrinterFact> printer_facts(const std::string& printer) const override
+        {
+            return facts()->current(printer);
+        }
+        std::vector<Workspace::PrinterFact> confirm_printer_facts(
+            const std::string& printer, const std::vector<Workspace::FactConfirmation>& confirmations) override
+        {
+            return facts()->confirm(printer, confirmations);
+        }
+        void set_facts_path(std::string path) { m_facts_path = std::move(path); }
 
     private:
-        ProjectPersistence& m_persistence;
+        // Opened on first use, so a host that never touches printer facts
+        // never reads the file.
+        Workspace::PrinterFactsStore* facts() const;
+
+        ProjectPersistence&                                   m_persistence;
+        std::string                                           m_facts_path;
+        mutable std::unique_ptr<Workspace::PrinterFactsStore> m_facts;
     };
 
     ProjectPersistence&              m_persistence;

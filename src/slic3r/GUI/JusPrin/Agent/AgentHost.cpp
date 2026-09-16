@@ -510,6 +510,13 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
 
 } // namespace
 
+Workspace::PrinterFactsStore* AgentHost::DocumentProductState::facts() const
+{
+    if (!m_facts && !m_facts_path.empty())
+        m_facts = std::make_unique<Workspace::PrinterFactsStore>(Workspace::PrinterFactsStore::Config{m_facts_path, {}});
+    return m_facts.get();
+}
+
 AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                      ProjectPersistence&    persistence,
                      AgentAvailability      availability,

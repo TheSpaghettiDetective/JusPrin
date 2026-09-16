@@ -32,6 +32,10 @@ AgentPane::AgentPane(wxWindow*                  parent,
     std::string startup_error;
     try {
         m_web_view->host().start_mcp(discovery_path);
+        // App data, beside the discovery file: the facts describe this
+        // machine's printers, not the open project.
+        m_web_view->host().set_printer_facts_path(
+            (std::filesystem::u8path(discovery_path).parent_path() / "printer_facts.json").u8string());
     } catch (const boost::system::system_error& error) {
         startup_error = error.what();
     } catch (const std::filesystem::filesystem_error& error) {

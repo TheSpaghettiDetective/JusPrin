@@ -51,7 +51,7 @@ class PrinterFactsStore
 public:
     struct Config
     {
-        // Absolute path of the JSON file. Required.
+        // Absolute path of the JSON file, UTF-8. Required.
         std::string file_path;
         // Injectable for deterministic tests.
         std::function<std::chrono::system_clock::time_point()> now;
