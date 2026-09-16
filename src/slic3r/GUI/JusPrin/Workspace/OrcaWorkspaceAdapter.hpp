@@ -29,6 +29,9 @@ public:
     CommandResult undo() override;
     CommandResult redo() override;
     ConfiguredPrinter configured_printer() const override;
+    std::string current_process_preset() const override;
+    PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const override;
+    CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) override;
     WorkspaceHistory history() const override;
     CommandResult restore_history(std::uint64_t step, HistoryPoint point) override;
     CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override;

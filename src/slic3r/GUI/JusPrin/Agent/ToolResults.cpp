@@ -209,6 +209,46 @@ std::string printer_fact_key(const Workspace::ConfiguredPrinter& configured,
     return device != nullptr ? "device:" + device->id : "preset:" + configured.preset;
 }
 
+json setup_substitutions_result(const std::vector<Workspace::SetupSubstitution>& substitutions)
+{
+    bool truncated = false;
+    json result = json::array();
+    for (const auto& substitution : substitutions)
+        if (result.size() < 32)
+            result.push_back({{"kind", substitution.kind}, {"from", label(substitution.from, truncated)},
+                              {"reason", label(substitution.reason, truncated)}});
+    return result;
+}
+
+json setup_edits_result(const std::vector<Workspace::UnsavedEdits>& edits)
+{
+    bool truncated = false;
+    json result = json::array();
+    for (const auto& edit : edits)
+        result.push_back({{"kind", edit.kind}, {"preset", label(edit.preset, truncated)}, {"count", edit.count}});
+    return result;
+}
+
+json printer_setup_preview_result(const Workspace::PrinterSetupPreview& preview, const json& mismatches,
+                                  const Workspace::WorkspaceSnapshot& snapshot)
+{
+    bool truncated = false;
+    json issues = json::array(), filaments = json::array();
+    for (const auto& issue : preview.issues)
+        if (issues.size() < 32) issues.push_back({{"code", issue.code}, {"message", label(issue.message, truncated)}});
+    for (const auto& filament : preview.resulting.filaments)
+        if (filaments.size() < 16) filaments.push_back(label(filament.preset, truncated));
+    return {{"valid", preview.valid}, {"issues", std::move(issues)},
+            {"resulting", {{"printerPreset", label(preview.resulting.preset, truncated)},
+                           {"plateType", preview.resulting.plate_type},
+                           {"processPreset", label(preview.process_preset, truncated)},
+                           {"filamentPresets", std::move(filaments)}}},
+            {"substituted", setup_substitutions_result(preview.substitutions)},
+            {"unsavedEdits", setup_edits_result(preview.unsaved_edits)},
+            {"mismatches", mismatches},
+            {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+}
+
 json printer_device_result(const Workspace::PrinterDevice& device)
 {
     bool truncated = false;

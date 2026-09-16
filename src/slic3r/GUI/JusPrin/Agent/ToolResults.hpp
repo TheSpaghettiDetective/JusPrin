@@ -38,6 +38,10 @@ std::string printer_fact_key(const Workspace::ConfiguredPrinter& configured,
 nlohmann::json printer_section_result(const Workspace::ConfiguredPrinter& configured,
                                       const std::vector<Workspace::PrinterDevice>& devices,
                                       const std::vector<Workspace::PrinterFact>& facts);
+nlohmann::json printer_setup_preview_result(const Workspace::PrinterSetupPreview& preview, const nlohmann::json& mismatches,
+                                            const Workspace::WorkspaceSnapshot& snapshot);
+nlohmann::json setup_substitutions_result(const std::vector<Workspace::SetupSubstitution>& substitutions);
+nlohmann::json setup_edits_result(const std::vector<Workspace::UnsavedEdits>& edits);
 nlohmann::json printer_device_result(const Workspace::PrinterDevice& device);
 
 // The summary's undo flags with the steps themselves.

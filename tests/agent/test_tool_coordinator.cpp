@@ -1047,3 +1047,105 @@ TEST_CASE("the printer section sets what is configured beside what the machine s
     h.workspace.set_configured_printer_for_testing(configured);
     CHECK(inspect()["mismatches"].empty());
 }
+
+TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", "[tools][printer][setup]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    Workspace::ConfiguredPrinter configured;
+    configured.preset           = "A1 mini 0.4";
+    configured.model            = "N1";
+    configured.nozzle_diameters = {0.4};
+    configured.plate_type       = "Textured PEI Plate";
+    configured.filaments        = {{"Generic PLA", "PLA"}};
+    h.workspace.set_configured_printer_for_testing(configured);
+    h.workspace.set_setup_for_testing("0.20mm Standard", {"Textured PEI Plate", "Cool Plate"},
+                                      {{"Generic PLA", "PLA"}, {"Generic PETG", "PETG"}});
+    h.workspace.set_presets_for_testing(Workspace::PresetKind::Printer, {{"A1 mini 0.4"}, {"A1 mini 0.2"}});
+    h.workspace.set_presets_for_testing(Workspace::PresetKind::Filament, {{"Generic PLA"}, {"Generic PETG"}});
+    Workspace::PresetEntry wrong{"0.08mm Fine"};
+    wrong.compatible = false;
+    h.workspace.set_presets_for_testing(Workspace::PresetKind::Process, {{"0.20mm Standard"}, wrong});
+    Workspace::PrinterDevice device;
+    device.id = "FAKE001"; device.model = "N1"; device.selected = true; device.nozzle_diameter = 0.4;
+    device.material_types = {"PLA"};
+    h.workspace.set_printers_for_testing({device});
+
+    auto run = [&h](const char* tool, const json& arguments) {
+        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        if (h.coordinator.find(id)->state == ToolState::Pending)
+            REQUIRE(h.coordinator.approve(id));
+        h.pump_to_completion(id);
+        return *h.coordinator.find(id);
+    };
+
+    // The preview changes nothing, and says what would still disagree.
+    const auto revision = h.workspace.snapshot().revision;
+    const auto previewed = run("printer_setup_preview", json{{"printerPreset", "A1 mini 0.2"}, {"filamentPresets", {"Generic PETG"}}});
+    REQUIRE(previewed.state == ToolState::Succeeded);
+    const auto preview = json::parse(previewed.result_json);
+    CHECK(registry.validate_output(*registry.find("printer_setup_preview"), preview));
+    CHECK(preview["valid"] == true);
+    CHECK(preview["resulting"]["filamentPresets"] == json::array({"Generic PETG"}));
+    REQUIRE(preview["mismatches"].size() == 1);
+    CHECK(preview["mismatches"][0]["what"] == "filament");
+    CHECK(h.workspace.snapshot().revision == revision);
+    CHECK(h.workspace.setup_applies == 0);
+
+    const auto invalid = run("printer_setup_preview", json{{"processPreset", "0.08mm Fine"}, {"plateType", "Glass"}});
+    const auto refused = json::parse(invalid.result_json);
+    CHECK(refused["valid"] == false);
+    CHECK(refused["issues"].size() == 2);
+    CHECK(run("printer_setup", json{{"plateType", "Glass"}}).error->code == "unsupported_plate");
+
+    // Unsaved edits are refused until the caller says to drop them, and the
+    // card names them.
+    h.workspace.m_process_dirty = true;
+    h.workspace.m_process_incompatible_after_printer = true;
+    CHECK(run("printer_setup", json{{"printerPreset", "A1 mini 0.2"}}).error->code == "unsaved_edits");
+    CHECK(h.workspace.setup_applies == 0);
+    const ToolActivity card = h.coordinator.propose(
+        {"printer_setup", json{{"printerPreset", "A1 mini 0.2"}, {"plateType", "Cool Plate"}, {"unsavedEdits", "discard"},
+                               {"confirmFacts", {{{"fact", "plate"}, {"value", "Cool Plate"}, {"hours", 8}}}}}.dump()}, "m-2");
+    REQUIRE(card.state == ToolState::Pending);
+    CHECK(card.title == "Set up A1 mini 0.2, Cool Plate; replaces process 0.20mm Standard; "
+                        "discards 2 unsaved edits in 0.20mm Standard; plate: Cool Plate");
+    CHECK(h.workspace.setup_applies == 0);
+    REQUIRE(h.coordinator.approve(card.action_id));
+    h.pump_to_completion(card.action_id);
+    const ToolActivity done = *h.coordinator.find(card.action_id);
+    REQUIRE(done.state == ToolState::Succeeded);
+    const auto result = json::parse(done.result_json);
+    CHECK(registry.validate_output(*registry.find("printer_setup"), result));
+    CHECK(result["printer"]["configured"]["preset"] == "A1 mini 0.2");
+    CHECK(result["processPreset"] == "substitute process");
+    CHECK(result["substituted"][0]["kind"] == "process");
+    CHECK(result["discarded"][0]["count"] == 2);
+    REQUIRE(result["printer"]["confirmedFacts"].size() == 1);
+    CHECK(result["printer"]["mismatches"].empty());
+    CHECK(h.workspace.setup_applies == 1);
+
+    // A setup proposed against presets that have since changed does not apply.
+    const ToolActivity stale = h.coordinator.propose({"printer_setup", json{{"printerPreset", "A1 mini 0.4"}}.dump()}, "m-3");
+    REQUIRE(stale.state == ToolState::Pending);
+    h.workspace.set_setup_for_testing("0.20mm Standard", {"Textured PEI Plate"}, {});
+    h.workspace.m_process_incompatible_after_printer = false;
+    h.workspace.m_process_dirty = false;
+    REQUIRE(h.coordinator.approve(stale.action_id));
+    h.pump_to_completion(stale.action_id);
+    CHECK(h.coordinator.find(stale.action_id)->error->code == "stale_workspace");
+    CHECK(h.workspace.setup_applies == 1);
+
+    // Facts alone need no preset change.
+    const auto facts = run("printer_setup", json{{"confirmFacts", {{{"fact", "bed_clear"}, {"value", "yes"}}}}});
+    REQUIRE(facts.state == ToolState::Succeeded);
+    CHECK(facts.title == "Record printer facts; bed_clear: yes");
+    CHECK(json::parse(facts.result_json)["printer"]["confirmedFacts"].size() == 2);
+
+    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), "{}").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"printerPreset":"x","unsavedEdits":"keep"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup_preview"), R"({"printerPreset":"x","unsavedEdits":"discard"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"confirmFacts":[{"fact":"plate","value":"x","hours":0}]})").valid());
+}

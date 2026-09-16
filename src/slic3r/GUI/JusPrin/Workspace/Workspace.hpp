@@ -210,6 +210,51 @@ struct ConfiguredPrinter
     std::vector<ConfiguredFilament> filaments;
 };
 
+// Establish the hardware for a job. Every field is optional; what is left
+// out stays as it is unless a change it depends on forces Orca to replace it,
+// which the preview reports as a substitution.
+struct PrinterSetupRequest
+{
+    std::optional<std::string>              printer_preset; // canonical preset names
+    std::optional<std::string>              plate_type;     // untranslated plate name
+    std::optional<std::string>              process_preset;
+    std::optional<std::vector<std::string>> filament_presets; // from the first slot
+    // Orca asks what to do with unsaved edits in a preset it switches away
+    // from. There is no dialog here: the caller says so, or the setup is refused.
+    bool                                    discard_unsaved_edits{false};
+
+    bool empty() const { return !printer_preset && !plate_type && !process_preset && !filament_presets; }
+};
+
+struct SetupIssue
+{
+    std::string code, message;
+};
+
+// kind: printer, plate, process, or filament.
+struct SetupSubstitution
+{
+    std::string kind, from, reason;
+};
+
+struct UnsavedEdits
+{
+    std::string kind, preset;
+    std::size_t count{0};
+};
+
+struct PrinterSetupPreview
+{
+    bool                           valid{false};
+    std::vector<SetupIssue>        issues;
+    ConfiguredPrinter              resulting;
+    std::string                    process_preset;
+    // What Orca replaces on its own; `resulting` still names the current
+    // preset there, because which one Orca picks is its own scoring.
+    std::vector<SetupSubstitution> substitutions;
+    std::vector<UnsavedEdits>      unsaved_edits;
+};
+
 // One real step in the project's undo history. `id` is stable while the
 // project stays open; a project replacement starts a new history, which is
 // why a restore also names the session.
@@ -720,6 +765,13 @@ public:
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
     virtual ConfiguredPrinter configured_printer() const = 0;
+    virtual std::string current_process_preset() const = 0;
+    // Read-only: evaluates compatibility without selecting, and leaves every
+    // preset and the revision as they were.
+    virtual PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const = 0;
+    // Applies in Orca's order -- printer, plate, process, filaments -- and
+    // reads the result back into `applied`, substitutions included.
+    virtual CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) = 0;
     virtual WorkspaceHistory history() const = 0;
     // Undo or redo until `step` is undone (Before) or done (After).
     virtual CommandResult restore_history(std::uint64_t step, HistoryPoint point) = 0;

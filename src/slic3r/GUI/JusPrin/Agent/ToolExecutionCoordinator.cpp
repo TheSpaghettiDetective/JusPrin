@@ -57,6 +57,28 @@ std::optional<Workspace::ObjectId> parse_object_argument(const std::string& argu
     }
 }
 
+Workspace::PrinterSetupRequest setup_request(const json& arguments)
+{
+    Workspace::PrinterSetupRequest request;
+    if (arguments.contains("printerPreset")) request.printer_preset = arguments["printerPreset"].get<std::string>();
+    if (arguments.contains("plateType")) request.plate_type = arguments["plateType"].get<std::string>();
+    if (arguments.contains("processPreset")) request.process_preset = arguments["processPreset"].get<std::string>();
+    if (arguments.contains("filamentPresets")) request.filament_presets = arguments["filamentPresets"].get<std::vector<std::string>>();
+    request.discard_unsaved_edits = arguments.value("unsavedEdits", "") == "discard";
+    return request;
+}
+
+// What a setup would do, as the card and the staleness check compare it.
+json setup_outcome(const Workspace::PrinterSetupPreview& preview)
+{
+    json filaments = json::array();
+    for (const auto& filament : preview.resulting.filaments) filaments.push_back(filament.preset);
+    return {{"printer", preview.resulting.preset}, {"plate", preview.resulting.plate_type},
+            {"process", preview.process_preset}, {"filaments", std::move(filaments)},
+            {"substituted", setup_substitutions_result(preview.substitutions)},
+            {"discarded", setup_edits_result(preview.unsaved_edits)}};
+}
+
 Workspace::SettingsPatch settings_patch(const json& arguments)
 {
     return {arguments.at("changes").get<std::map<std::string, std::string>>()};
@@ -152,6 +174,49 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         }
         const std::string name = step->label.empty() ? "an unnamed step" : "\xe2\x80\x9c" + step->label + "\xe2\x80\x9d";
         stored.title = (arguments["point"] == "before" ? "Go back to before " : "Go to just after ") + name;
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
+    if (definition->handler == ToolHandler::PrinterSetup) {
+        auto arguments = json::parse(stored.arguments_json);
+        const Workspace::PrinterSetupRequest request = setup_request(arguments);
+        if (!request.empty()) {
+            const auto preview = m_workspace.preview_printer_setup(request);
+            if (!preview.valid) {
+                fail(stored, preview.issues.front().code, preview.issues.front().message,
+                     printer_setup_preview_result(preview, json::array(), snapshot).dump());
+                return stored;
+            }
+            if (!preview.unsaved_edits.empty() && !request.discard_unsaved_edits) {
+                fail(stored, "unsaved_edits",
+                     "This would drop unsaved preset edits. Ask the user, then call again with unsavedEdits \"discard\".",
+                     printer_setup_preview_result(preview, json::array(), snapshot).dump());
+                return stored;
+            }
+            // The approved outcome, compared again before anything is applied.
+            arguments["confirmedSetup"] = setup_outcome(preview);
+            stored.title = "Set up " + preview.resulting.preset;
+            if (request.plate_type) stored.title += ", " + preview.resulting.plate_type;
+            if (request.process_preset) stored.title += ", " + preview.process_preset;
+            if (request.filament_presets)
+                for (std::size_t slot = 0; slot < request.filament_presets->size(); ++slot)
+                    stored.title += ", " + (*request.filament_presets)[slot];
+            for (const auto& substitution : preview.substitutions)
+                stored.title += "; replaces " + substitution.kind + " " + substitution.from;
+            for (const auto& edits : preview.unsaved_edits)
+                stored.title += "; discards " + std::to_string(edits.count) + " unsaved edits in " + edits.preset;
+        } else {
+            stored.title = "Record printer facts";
+        }
+        if (arguments.contains("confirmFacts")) {
+            if (m_product_state == nullptr || !m_product_state->has_printer_facts()) {
+                fail(stored, "unavailable_operation", "This build cannot record printer facts.");
+                return stored;
+            }
+            for (const auto& fact : arguments["confirmFacts"])
+                stored.title += "; " + fact["fact"].get<std::string>() + ": " + fact["value"].get<std::string>();
+        }
+        stored.arguments_json = arguments.dump();
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
@@ -457,6 +522,63 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         }
         const auto snapshot  = m_workspace.snapshot();
         activity.result_json = json{{"path", path}, {"saved", true}, {"projectDirty", snapshot.setup.project_dirty},
+                                    {"sessionId", std::to_string(snapshot.session.value())},
+                                    {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::PrinterSetupPreview) {
+        const auto preview = m_workspace.preview_printer_setup(setup_request(json::parse(activity.arguments_json)));
+        const auto devices = m_workspace.printers();
+        json mismatches = json::array();
+        if (preview.valid) {
+            const auto facts = m_product_state != nullptr && m_product_state->has_printer_facts() ?
+                                   m_product_state->printer_facts(printer_fact_key(preview.resulting, devices)) :
+                                   std::vector<Workspace::PrinterFact>{};
+            mismatches = printer_section_result(preview.resulting, devices, facts)["mismatches"];
+        }
+        activity.result_json = printer_setup_preview_result(preview, mismatches, m_workspace.snapshot()).dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::PrinterSetup) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const Workspace::PrinterSetupRequest request = setup_request(arguments);
+        Workspace::PrinterSetupPreview applied;
+        if (!request.empty()) {
+            if (setup_outcome(m_workspace.preview_printer_setup(request)) != arguments.at("confirmedSetup")) {
+                fail(activity, "stale_workspace", "The presets changed since this setup was proposed. Preview it again.");
+                return;
+            }
+            const auto result = m_workspace.apply_printer_setup(request, applied);
+            if (!result.succeeded()) {
+                fail(activity, workspace_error_code(result.error), result.message);
+                return;
+            }
+        } else {
+            applied.resulting = m_workspace.configured_printer();
+        }
+        const auto devices = m_workspace.printers();
+        const std::string key = printer_fact_key(applied.resulting, devices);
+        if (arguments.contains("confirmFacts")) {
+            std::vector<Workspace::FactConfirmation> confirmations;
+            for (const auto& fact : arguments["confirmFacts"])
+                confirmations.push_back({fact["fact"].get<std::string>(), fact["value"].get<std::string>(),
+                                         std::chrono::hours(fact.value("hours", std::uint64_t(24)))});
+            m_product_state->confirm_printer_facts(key, confirmations);
+        }
+        const auto facts = m_product_state != nullptr && m_product_state->has_printer_facts() ?
+                               m_product_state->printer_facts(key) : std::vector<Workspace::PrinterFact>{};
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"printer", printer_section_result(m_workspace.configured_printer(), devices, facts)},
+                                    {"processPreset", m_workspace.current_process_preset()},
+                                    {"substituted", setup_substitutions_result(applied.substitutions)},
+                                    {"discarded", setup_edits_result(applied.unsaved_edits)},
                                     {"sessionId", std::to_string(snapshot.session.value())},
                                     {"revision", snapshot.revision}}
                                    .dump();

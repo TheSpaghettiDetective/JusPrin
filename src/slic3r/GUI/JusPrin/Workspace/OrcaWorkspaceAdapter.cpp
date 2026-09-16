@@ -12,6 +12,8 @@
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
@@ -23,6 +25,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <set>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -426,6 +429,271 @@ bool is_history_step(const UndoRedo::Snapshot& snapshot)
 }
 } // namespace
 
+namespace {
+// Preset::get_printer_type answers for the edited printer whatever preset it
+// is called on; this is the same lookup for the preset given.
+std::string printer_model_id(const PresetBundle& presets, const Preset& printer)
+{
+    const std::string model = printer.config.opt_string("printer_model");
+    for (const auto& [name, vendor] : presets.vendors)
+        for (const auto& candidate : vendor.models)
+            if (candidate.name == model)
+                return candidate.model_id;
+    return {};
+}
+
+std::string plate_label(BedType type)
+{
+    const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
+    if (definition == nullptr || type <= btDefault || int(type) - 1 >= int(definition->enum_labels.size()))
+        return {};
+    return definition->enum_labels[int(type) - 1];
+}
+
+// The plates a printer offers: every plate, less the ones its model excludes,
+// as Sidebar::update_bed_type_list computes them for the selected printer.
+std::vector<std::string> supported_plates(const PresetCollection& printers, const Preset& printer)
+{
+    const VendorProfile::PrinterModel* model = PresetUtils::system_printer_model(printer);
+    if (model == nullptr)
+        if (const Preset* parent = printers.get_preset_parent(printer))
+            model = PresetUtils::system_printer_model(*parent);
+    std::vector<std::string> result;
+    if (const ConfigOptionDef* definition = print_config_def.get("curr_bed_type"))
+        for (const std::string& label : definition->enum_labels)
+            if (model == nullptr || std::find(model->not_support_bed_types.begin(), model->not_support_bed_types.end(), label) ==
+                                        model->not_support_bed_types.end())
+                result.push_back(label);
+    return result;
+}
+} // namespace
+
+std::string OrcaWorkspaceAdapter::current_process_preset() const
+{
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    return presets != nullptr ? presets->prints.get_edited_preset().name : std::string();
+}
+
+PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSetupRequest& request) const
+{
+    wxASSERT(wxIsMainThread());
+    PrinterSetupPreview result;
+    const PresetBundle* bundle = wxGetApp().preset_bundle;
+    if (bundle == nullptr) {
+        result.issues.push_back({"unavailable_operation", "The presets are not loaded yet."});
+        return result;
+    }
+    const auto issue = [&result](std::string code, std::string message) {
+        result.issues.push_back({std::move(code), std::move(message)});
+    };
+    // Const lookups only. PresetBundle::update_compatible would rewrite every
+    // preset's flag and may select another preset, so compatibility is asked
+    // of the free function against the candidate printer, the way
+    // update_compatible_internal asks it.
+    const PresetCollection& printers = bundle->printers;
+    const Preset*           printer  = &printers.get_edited_preset();
+    if (request.printer_preset) {
+        const Preset* found = printers.find_preset(*request.printer_preset, false);
+        if (found == nullptr || !found->is_visible || found->is_default) {
+            issue("unknown_preset", "No installed printer preset is named \"" + *request.printer_preset + "\". Read presets_list.");
+            return result;
+        }
+        printer = found;
+    }
+    const bool printer_changes = printer->name != printers.get_edited_preset().name;
+    const PresetWithVendorProfile printer_profile = printers.get_preset_with_vendor_profile(*printer);
+    DynamicPrintConfig extra;
+    extra.set_key_value("printer_preset", new ConfigOptionString(printer->name));
+    const auto* nozzles = printer->config.option<ConfigOptionFloats>("nozzle_diameter");
+    if (nozzles != nullptr)
+        extra.set_key_value("num_extruders", new ConfigOptionInt(int(nozzles->values.size())));
+    const auto compatible = [&](const PresetCollection& collection, const Preset& preset) {
+        return is_compatible_with_printer(collection.get_preset_with_vendor_profile(preset), printer_profile, &extra);
+    };
+    const std::string printer_label = printer->label(false);
+
+    const PresetCollection& prints = bundle->prints;
+    const Preset*           print  = &prints.get_edited_preset();
+    if (request.process_preset) {
+        const Preset* found = prints.find_preset(*request.process_preset, false);
+        if (found == nullptr || !found->is_visible || found->is_default)
+            issue("unknown_preset", "No installed process preset is named \"" + *request.process_preset + "\".");
+        else if (!compatible(prints, *found))
+            issue("incompatible_preset", "\"" + found->name + "\" is not made for " + printer_label + ".");
+        else
+            print = found;
+    } else if (printer_changes && !compatible(prints, *print)) {
+        result.substitutions.push_back({"process", print->name, "not made for " + printer_label + "; OrcaSlicer picks another"});
+    }
+    if (request.process_preset && print->name == *request.process_preset) {
+        // The same refusal settings_apply_patch makes: a process that would
+        // open one of Orca's correction dialogs is not applied without one.
+        SettingsPreview dialogs;
+        check_process_dialogs(print->config, dialogs);
+        for (const SettingIssue& found : dialogs.issues)
+            issue("incompatible_settings", found.message);
+    }
+
+    const PresetCollection&  filaments = bundle->filaments;
+    std::vector<std::string> filament_names = bundle->filament_presets;
+    if (request.filament_presets) {
+        if (request.filament_presets->size() > filament_names.size())
+            issue("invalid_argument", "This project has " + std::to_string(filament_names.size()) + " filament slots.");
+        for (std::size_t slot = 0; slot < request.filament_presets->size() && slot < filament_names.size(); ++slot) {
+            const std::string& name  = (*request.filament_presets)[slot];
+            const Preset*      found = filaments.find_preset(name, false);
+            if (found == nullptr || !found->is_visible || found->is_default)
+                issue("unknown_preset", "No installed filament preset is named \"" + name + "\".");
+            else if (!compatible(filaments, *found))
+                issue("incompatible_preset", "\"" + name + "\" is not made for " + printer_label + ".");
+            else
+                filament_names[slot] = name;
+        }
+    }
+    if (printer_changes)
+        for (std::size_t slot = 0; slot < filament_names.size(); ++slot) {
+            const bool requested = request.filament_presets && slot < request.filament_presets->size();
+            const Preset* current = filaments.find_preset(filament_names[slot], false);
+            if (!requested && current != nullptr && !compatible(filaments, *current))
+                result.substitutions.push_back({"filament", filament_names[slot], "not made for " + printer_label + "; OrcaSlicer picks another"});
+        }
+
+    const std::vector<std::string> plates  = supported_plates(printers, *printer);
+    std::string                    current = configured_printer().plate_type;
+    std::string                    plate   = current;
+    if (request.plate_type) {
+        const auto found = std::find_if(plates.begin(), plates.end(), [&request](const std::string& label) {
+            return ascii_lower(label) == ascii_lower(*request.plate_type);
+        });
+        if (found == plates.end()) {
+            std::string offered;
+            for (const std::string& label : plates) offered += (offered.empty() ? "" : ", ") + label;
+            issue("unsupported_plate", printer_label + " offers these plates: " + offered + ".");
+        } else {
+            plate = *found;
+        }
+    } else if (printer_changes && !current.empty() && std::find(plates.begin(), plates.end(), current) == plates.end()) {
+        result.substitutions.push_back({"plate", current, printer_label + " does not offer it; OrcaSlicer picks another"});
+    }
+
+    // What a switch would throw away. A printer switch can replace any of the
+    // three, so every edited one is counted; otherwise only the one switched.
+    const auto count_edits = [&result](const PresetCollection& collection, const char* kind) {
+        const std::vector<std::string> dirty = collection.current_dirty_options();
+        if (!dirty.empty())
+            result.unsaved_edits.push_back({kind, collection.get_edited_preset().name, dirty.size()});
+    };
+    if (printer_changes) {
+        count_edits(printers, "printer");
+        count_edits(prints, "process");
+        count_edits(filaments, "filament");
+    } else {
+        if (print->name != prints.get_edited_preset().name)
+            count_edits(prints, "process");
+        if (filament_names != bundle->filament_presets)
+            count_edits(filaments, "filament");
+    }
+
+    result.resulting.preset = printer_label;
+    result.resulting.model  = printer_model_id(*bundle, *printer);
+    if (nozzles != nullptr)
+        result.resulting.nozzle_diameters = nozzles->values;
+    result.resulting.plate_type = plate;
+    for (const std::string& name : filament_names) {
+        ConfiguredFilament filament{name, {}};
+        if (const Preset* preset = filaments.find_preset(name, false))
+            if (const auto* types = preset->config.option<ConfigOptionStrings>("filament_type"); types && !types->values.empty())
+                filament.material = types->values.front();
+        result.resulting.filaments.push_back(std::move(filament));
+    }
+    result.process_preset = print->name;
+    result.valid          = result.issues.empty();
+    return result;
+}
+
+CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied)
+{
+    wxASSERT(wxIsMainThread());
+    const PrinterSetupPreview preview = preview_printer_setup(request);
+    if (!preview.valid)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, preview.issues.front().message);
+    if (!preview.unsaved_edits.empty() && !request.discard_unsaved_edits)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "Unsaved preset edits would be lost.");
+    PresetBundle* bundle = wxGetApp().preset_bundle;
+    const auto tab = [](Preset::Type type) { return wxGetApp().get_tab(type); };
+
+    // Tab::select_preset asks about unsaved edits in a modal. The caller has
+    // already said to drop them, so they are dropped first and nothing asks.
+    for (const UnsavedEdits& edits : preview.unsaved_edits) {
+        const Preset::Type type = edits.kind == "printer" ? Preset::TYPE_PRINTER :
+                                  edits.kind == "process" ? Preset::TYPE_PRINT : Preset::TYPE_FILAMENT;
+        if (Tab* owner = tab(type)) {
+            owner->get_presets()->discard_current_changes();
+            owner->load_current_preset();
+        }
+    }
+
+    const std::string previous_process = current_process_preset();
+    const std::string previous_plate   = configured_printer().plate_type;
+    const std::vector<std::string> previous_filaments = bundle->filament_presets;
+    {
+        const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        if (request.printer_preset && !SetupCommands::select_printer_preset(m_plater, *request.printer_preset))
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the printer.");
+        if (request.plate_type) {
+            const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
+            int value = 0;
+            for (int index = 0; definition != nullptr && index < int(definition->enum_labels.size()); ++index)
+                if (definition->enum_labels[index] == preview.resulting.plate_type)
+                    value = index + 1;
+            if (value == 0 || !SetupCommands::select_bed_type(m_plater, value))
+                return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the plate.");
+        }
+        if (request.process_preset && *request.process_preset != current_process_preset()) {
+            // The process branch of Plater::priv::on_select_preset.
+            tab(Preset::TYPE_PRINT)->select_preset(*request.process_preset);
+            m_plater.on_config_change(bundle->full_config());
+        }
+        if (request.filament_presets)
+            for (std::size_t slot = 0; slot < request.filament_presets->size(); ++slot) {
+                const std::string& name = (*request.filament_presets)[slot];
+                if (slot < bundle->filament_presets.size() && bundle->filament_presets[slot] == name)
+                    continue;
+                if (slot == 0) {
+                    if (!SetupCommands::select_filament_preset(m_plater, name))
+                        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the filament.");
+                    continue;
+                }
+                // The filament branch of on_select_preset for a later slot,
+                // which does not load the slot into the filament tab.
+                bundle->set_filament_preset(slot, name);
+                m_plater.update_project_dirty_from_presets();
+                bundle->export_selections(*wxGetApp().app_config);
+                m_plater.sidebar().update_dynamic_filament_list();
+                m_plater.on_filament_change(slot);
+                m_plater.sidebar().update_presets(Preset::TYPE_FILAMENT);
+                m_plater.on_config_change(bundle->full_config());
+            }
+        m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings);
+    }
+
+    // What actually happened, read back rather than predicted.
+    applied            = preview;
+    applied.resulting  = configured_printer();
+    applied.process_preset = current_process_preset();
+    applied.substitutions.clear();
+    if (!request.process_preset && applied.process_preset != previous_process)
+        applied.substitutions.push_back({"process", previous_process, "replaced with " + applied.process_preset});
+    if (!request.plate_type && applied.resulting.plate_type != previous_plate)
+        applied.substitutions.push_back({"plate", previous_plate, "replaced with " + applied.resulting.plate_type});
+    for (std::size_t slot = 0; slot < previous_filaments.size() && slot < bundle->filament_presets.size(); ++slot) {
+        const bool requested = request.filament_presets && slot < request.filament_presets->size();
+        if (!requested && bundle->filament_presets[slot] != previous_filaments[slot])
+            applied.substitutions.push_back({"filament", previous_filaments[slot], "replaced with " + bundle->filament_presets[slot]});
+    }
+    return CommandResult::success();
+}
+
 ConfiguredPrinter OrcaWorkspaceAdapter::configured_printer() const
 {
     wxASSERT(wxIsMainThread());
@@ -435,15 +703,12 @@ ConfiguredPrinter OrcaWorkspaceAdapter::configured_printer() const
         return result;
     Preset& printer = presets->printers.get_edited_preset();
     result.preset = presets->printers.get_selected_preset().label(false);
-    result.model  = printer.get_printer_type(presets);
+    result.model  = printer_model_id(*presets, printer);
     if (const auto* nozzles = printer.config.option<ConfigOptionFloats>("nozzle_diameter"))
         result.nozzle_diameters = nozzles->values;
     // The plate's own choice, falling back to the project's.
     if (const PartPlate* plate = m_plater.get_partplate_list().get_curr_plate()) {
-        const BedType type = plate->get_bed_type(true);
-        const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
-        if (definition != nullptr && type > btDefault && int(type) - 1 < int(definition->enum_labels.size()))
-            result.plate_type = definition->enum_labels[int(type) - 1];
+        result.plate_type = plate_label(plate->get_bed_type(true));
     }
     for (const std::string& name : presets->filament_presets) {
         ConfiguredFilament filament{name, {}};
@@ -561,8 +826,9 @@ std::vector<PrinterDevice> OrcaWorkspaceAdapter::printers() const
         device.activity   = found.activity == PrinterSetup::PrinterActivity::Printing ? "printing" :
                             found.activity == PrinterSetup::PrinterActivity::Idle     ? "idle" :
                                                                                         "offline";
+        // The device reports a float; 0.4f is not 0.4 once widened.
         if (found.nozzle_diameter > 0.)
-            device.nozzle_diameter = found.nozzle_diameter;
+            device.nozzle_diameter = std::round(found.nozzle_diameter * 100.) / 100.;
         if (found.observed_at_ms != 0)
             device.observed_at_ms = found.observed_at_ms;
         for (const auto& spool : found.spools) {

@@ -396,6 +396,90 @@ public:
     std::vector<PrinterDevice> printers() const override { return m_printers; }
 
     ConfiguredPrinter configured_printer() const override { return m_configured_printer; }
+    std::string current_process_preset() const override { return m_process_preset; }
+
+    // A preset is known when set_presets_for_testing listed it, and
+    // compatible when its entry says so. A printer switch replaces an
+    // incompatible process, as Orca does.
+    PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const override
+    {
+        PrinterSetupPreview result;
+        const auto find = [this](PresetKind kind, const std::string& name) -> const PresetEntry* {
+            const auto found = m_presets.find(kind);
+            if (found == m_presets.end()) return nullptr;
+            for (const PresetEntry& entry : found->second)
+                if (entry.name == name) return &entry;
+            return nullptr;
+        };
+        result.resulting      = m_configured_printer;
+        result.process_preset = m_process_preset;
+        const bool printer_changes = request.printer_preset && *request.printer_preset != m_configured_printer.preset;
+        if (request.printer_preset) {
+            if (find(PresetKind::Printer, *request.printer_preset) == nullptr)
+                result.issues.push_back({"unknown_preset", "No printer preset " + *request.printer_preset});
+            result.resulting.preset = *request.printer_preset;
+        }
+        if (request.process_preset) {
+            const PresetEntry* entry = find(PresetKind::Process, *request.process_preset);
+            if (entry == nullptr) result.issues.push_back({"unknown_preset", "No process preset " + *request.process_preset});
+            else if (!entry->compatible) result.issues.push_back({"incompatible_preset", "Not made for this printer"});
+            else result.process_preset = entry->name;
+        } else if (printer_changes && m_process_incompatible_after_printer) {
+            result.substitutions.push_back({"process", m_process_preset, "not made for the new printer"});
+        }
+        if (request.filament_presets)
+            for (std::size_t slot = 0; slot < request.filament_presets->size(); ++slot) {
+                const std::string& name = (*request.filament_presets)[slot];
+                if (find(PresetKind::Filament, name) == nullptr) {
+                    result.issues.push_back({"unknown_preset", "No filament preset " + name});
+                    continue;
+                }
+                if (slot >= result.resulting.filaments.size()) {
+                    result.issues.push_back({"invalid_argument", "Too many filament slots"});
+                    break;
+                }
+                result.resulting.filaments[slot] = {name, m_filament_materials.count(name) ? m_filament_materials.at(name) : ""};
+            }
+        if (request.plate_type) {
+            if (std::find(m_plates.begin(), m_plates.end(), *request.plate_type) == m_plates.end())
+                result.issues.push_back({"unsupported_plate", "Not a plate this printer offers"});
+            else
+                result.resulting.plate_type = *request.plate_type;
+        }
+        const bool process_changes = result.process_preset != m_process_preset || !result.substitutions.empty();
+        if (m_process_dirty && (printer_changes || process_changes))
+            result.unsaved_edits.push_back({"process", m_process_preset, 2});
+        result.valid = result.issues.empty();
+        return result;
+    }
+
+    CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) override
+    {
+        applied = preview_printer_setup(request);
+        if (!applied.valid)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, applied.issues.front().message);
+        if (!applied.unsaved_edits.empty() && !request.discard_unsaved_edits)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Unsaved preset edits would be lost");
+        ++setup_applies;
+        m_process_dirty = false;
+        m_configured_printer = applied.resulting;
+        m_process_preset     = applied.substitutions.empty() ? applied.process_preset : "substitute process";
+        m_snapshot.setup.printer_preset = m_configured_printer.preset;
+        publish(WorkspaceChangeReasons::Settings);
+        return CommandResult::success();
+    }
+
+    void set_setup_for_testing(std::string process, std::vector<std::string> plates, std::map<std::string, std::string> materials)
+    {
+        m_process_preset     = std::move(process);
+        m_plates             = std::move(plates);
+        m_filament_materials = std::move(materials);
+    }
+    std::vector<std::string> m_plates;
+    std::map<std::string, std::string> m_filament_materials;
+    bool m_process_dirty{false};
+    bool m_process_incompatible_after_printer{false};
+    std::uint32_t setup_applies{0};
     void set_configured_printer_for_testing(ConfiguredPrinter printer) { m_configured_printer = std::move(printer); }
     ConfiguredPrinter m_configured_printer;
 

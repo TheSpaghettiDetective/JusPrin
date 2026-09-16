@@ -148,6 +148,43 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                 (arguments["path"].is_string() && !arguments["path"].get_ref<const std::string&>().empty() &&
                  arguments["path"].get_ref<const std::string&>().size() <= 1024));
 
+    if (definition.handler == ToolHandler::PrinterSetupPreview || definition.handler == ToolHandler::PrinterSetup) {
+        const bool apply = definition.handler == ToolHandler::PrinterSetup;
+        if (!(apply ? has_only(arguments, {"printerPreset", "plateType", "processPreset", "filamentPresets", "unsavedEdits", "confirmFacts"}) :
+                      has_only(arguments, {"printerPreset", "plateType", "processPreset", "filamentPresets"})) ||
+            arguments.empty())
+            return false;
+        for (const char* key : {"printerPreset", "plateType", "processPreset"})
+            if (arguments.contains(key) && (!arguments[key].is_string() || arguments[key].get_ref<const std::string&>().empty() ||
+                                            arguments[key].get_ref<const std::string&>().size() > kToolLabelLimit))
+                return false;
+        if (arguments.contains("filamentPresets")) {
+            const json& names = arguments["filamentPresets"];
+            if (!names.is_array() || names.empty() || names.size() > 16 ||
+                !std::all_of(names.begin(), names.end(), [](const json& name) {
+                    return name.is_string() && !name.get_ref<const std::string&>().empty() &&
+                           name.get_ref<const std::string&>().size() <= kToolLabelLimit;
+                }))
+                return false;
+        }
+        if (arguments.contains("unsavedEdits") && arguments["unsavedEdits"] != "discard")
+            return false;
+        if (arguments.contains("confirmFacts")) {
+            const json& facts = arguments["confirmFacts"];
+            if (!facts.is_array() || facts.empty() || facts.size() > 16)
+                return false;
+            for (const json& fact : facts)
+                if (!has_only(fact, {"fact", "value", "hours"}) || !fact.contains("fact") || !fact.contains("value") ||
+                    !fact["fact"].is_string() || fact["fact"].get_ref<const std::string&>().empty() ||
+                    fact["fact"].get_ref<const std::string&>().size() > 64 || !fact["value"].is_string() ||
+                    fact["value"].get_ref<const std::string&>().empty() || fact["value"].get_ref<const std::string&>().size() > kToolLabelLimit ||
+                    (fact.contains("hours") && (!fact["hours"].is_number_unsigned() || fact["hours"].get<std::uint64_t>() < 1 ||
+                                                fact["hours"].get<std::uint64_t>() > 720)))
+                    return false;
+        }
+        return true;
+    }
+
     if (definition.handler == ToolHandler::PresetsList) {
         if (!has_only(arguments, {"kind", "query", "compatibleOnly", "limit", "cursor"}) || !arguments.contains("kind") ||
             !arguments["kind"].is_string() || !optional_string(arguments, "query") || !optional_string(arguments, "cursor") ||
@@ -309,6 +346,13 @@ std::vector<ToolDefinition> make_definitions()
                                                  {"what", "configured", "observed", "source"})}}},
          {"truncated", boolean_schema()}},
         {"configured", "plateObservable", "factKey", "confirmedFacts", "mismatches", "truncated"});
+    const json setup_changes = {{"type", "array"}, {"maxItems", 32},
+                                {"items", object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "plate", "process", "filament"})}}},
+                                                         {"from", string_schema()}, {"reason", string_schema()}},
+                                                        {"kind", "from", "reason"})}};
+    const json setup_edits = {{"type", "array"}, {"maxItems", 3},
+                              {"items", object_schema({{"kind", string_schema()}, {"preset", string_schema()}, {"count", integer_schema()}},
+                                                      {"kind", "preset", "count"})}};
     // The summary's two flags, plus the steps when the history section is asked for.
     const json history_section = object_schema(
         {{"canUndo", boolean_schema()}, {"canRedo", boolean_schema()}, {"restorable", boolean_schema()},
@@ -498,6 +542,36 @@ std::vector<ToolDefinition> make_definitions()
          object_schema({{"history", history_section}, {"notReversed", list_schema(text)}, {"sessionId", id}, {"revision", revision}},
                        {"history", "notReversed", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::HistoryRestore},
+        {"printer_setup", "Set up the printer",
+         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. If the switch would drop unsaved preset edits, the call is refused unless unsavedEdits is \"discard\", which the user must have agreed to. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. Waits for approval in JusPrin.",
+         object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()}, {"processPreset", string_schema()},
+                        {"filamentPresets", {{"type", "array"}, {"items", string_schema()}, {"minItems", 1}, {"maxItems", 16}}},
+                        {"unsavedEdits", {{"type", "string"}, {"enum", json::array({"discard"})}}},
+                        {"confirmFacts", {{"type", "array"}, {"minItems", 1}, {"maxItems", 16},
+                                          {"items", object_schema({{"fact", string_schema()}, {"value", string_schema()},
+                                                                   {"hours", {{"type", "integer"}, {"minimum", 1}}}},
+                                                                  {"fact", "value"})}}}}),
+         object_schema({{"printer", printer_section}, {"processPreset", string_schema()},
+                        {"substituted", setup_changes}, {"discarded", setup_edits},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"printer", "processPreset", "substituted", "discarded", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterSetup},
+        {"printer_setup_preview", "Preview a printer setup",
+         "Dry run of printer_setup with the same preset and plate inputs: whether it is valid and why not, the resulting printer, plate, process and filaments, what OrcaSlicer would replace on its own because it no longer fits, unsaved preset edits the switch would drop, and the mismatches that would remain against the connected printer and the user's confirmed facts. Changes nothing.",
+         object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()}, {"processPreset", string_schema()},
+                        {"filamentPresets", {{"type", "array"}, {"items", string_schema()}, {"minItems", 1}, {"maxItems", 16}}}}),
+         object_schema({{"valid", boolean_schema()},
+                        {"issues", {{"type", "array"}, {"maxItems", 32},
+                                    {"items", object_schema({{"code", string_schema()}, {"message", string_schema()}}, {"code", "message"})}}},
+                        {"resulting", object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()},
+                                                     {"processPreset", string_schema()},
+                                                     {"filamentPresets", {{"type", "array"}, {"items", string_schema()}, {"maxItems", 16}}}},
+                                                    {"printerPreset", "plateType", "processPreset", "filamentPresets"})},
+                        {"substituted", setup_changes}, {"unsavedEdits", setup_edits},
+                        {"mismatches", printer_section["properties"]["mismatches"]},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"valid", "issues", "resulting", "substituted", "unsavedEdits", "mismatches", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterSetupPreview},
         {"presets_list", "List printer, filament, or process presets",
          "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},
@@ -742,6 +816,10 @@ std::string ToolRegistry::approval_title(const ToolDefinition& definition, const
         }
         if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";
         return title;
+    }
+    if (definition.handler == ToolHandler::PrinterSetup) {
+        // The coordinator replaces this with the previewed outcome.
+        return definition.title;
     }
     if (definition.handler == ToolHandler::SettingsApplyPatch) {
         const auto arguments = json::parse(arguments_json);
