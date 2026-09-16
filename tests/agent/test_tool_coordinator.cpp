@@ -830,3 +830,34 @@ TEST_CASE("presets are listed by kind, filtered, and paged", "[tools][presets]")
     CHECK_FALSE(registry.validate_call(*registry.find("presets_list"), R"({"kind":"sla"})").valid());
     CHECK_FALSE(registry.validate_call(*registry.find("presets_list"), R"({"kind":"filament","limit":99})").valid());
 }
+
+TEST_CASE("printers are listed with what they reported and when", "[tools][printers]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    Workspace::PrinterDevice busy{"FAKE001", "Fake A1 mini", "N1", "lan", "printing"};
+    busy.nozzle_diameter = 0.4;
+    busy.materials       = {"Bambu PLA Basic"};
+    busy.observed_at_ms  = 1789000000000;
+    // A printer the app has heard nothing from is still a printer the user
+    // has, and reports nothing rather than zeros.
+    const Workspace::PrinterDevice silent{"OLD002", "Shelf printer", "X1", "cloud", "offline"};
+    h.workspace.set_printers_for_testing({busy, silent});
+
+    const std::string action = h.coordinator.propose({"printer_list", "{}"}, "m-1").action_id;
+    h.pump_to_completion(action);
+    const auto result = json::parse(h.coordinator.find(action)->result_json);
+    CHECK(registry.validate_output(*registry.find("printer_list"), result));
+    REQUIRE(result["items"].size() == 2);
+    CHECK(result["items"][0]["activity"] == "printing");
+    CHECK(result["items"][0]["nozzleDiameter"] == 0.4);
+    CHECK(result["items"][0]["materials"][0] == "Bambu PLA Basic");
+    CHECK(result["items"][0]["observedAtMs"] == 1789000000000);
+    CHECK(result["items"][1]["activity"] == "offline");
+    CHECK_FALSE(result["items"][1].contains("nozzleDiameter"));
+    CHECK_FALSE(result["items"][1].contains("observedAtMs"));
+    CHECK(result["items"][1]["materials"].empty());
+    CHECK(result["truncated"] == false);
+
+    CHECK_FALSE(registry.validate_call(*registry.find("printer_list"), R"({"connected":true})").valid());
+}

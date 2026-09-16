@@ -369,6 +369,32 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (definition->handler == ToolHandler::PrinterList) {
+        const auto snapshot = m_workspace.snapshot();
+        bool       truncated = false;
+        json       items     = json::array();
+        for (const Workspace::PrinterDevice& device : m_workspace.printers()) {
+            if (items.size() == 25) { truncated = true; break; }
+            json entry{{"id", device.id}, {"name", device.name}, {"model", device.model},
+                       {"connection", device.connection}, {"activity", device.activity},
+                       {"materials", json::array()}};
+            for (const std::string& material : device.materials)
+                if (entry["materials"].size() < 16) entry["materials"].push_back(material);
+            // Absent, not zero: a nozzle of zero would be a claim the device
+            // never made.
+            if (device.nozzle_diameter) entry["nozzleDiameter"] = *device.nozzle_diameter;
+            if (device.observed_at_ms) entry["observedAtMs"] = *device.observed_at_ms;
+            items.push_back(std::move(entry));
+        }
+        activity.result_json = json{{"items", std::move(items)}, {"truncated", truncated},
+                                    {"sessionId", std::to_string(snapshot.session.value())},
+                                    {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (definition->handler == ToolHandler::PresetsList) {
         const auto arguments = json::parse(activity.arguments_json);
         const std::string& kind = arguments.at("kind").get_ref<const std::string&>();

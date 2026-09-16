@@ -389,6 +389,9 @@ public:
         m_presets[kind] = std::move(presets);
     }
 
+    std::vector<PrinterDevice> printers() const override { return m_printers; }
+    void set_printers_for_testing(std::vector<PrinterDevice> printers) { m_printers = std::move(printers); }
+
     SliceReport slice_report(PlateId plate) const override
     {
         const auto found = m_reports.find(plate.value());
@@ -424,6 +427,7 @@ public:
     std::uint32_t slice_starts{0};
     std::map<std::uint64_t, SliceReport> m_reports;
     std::map<PresetKind, std::vector<PresetEntry>> m_presets;
+    std::vector<PrinterDevice> m_printers;
 
     // slice changes what consumers may say about the plate, so it has to
     // advance the revision. The Orca adapter matches this by listening to

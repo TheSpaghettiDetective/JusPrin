@@ -7,6 +7,10 @@
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
+// What a printer is doing, as far as this application can see. Offline is a
+// statement about what was observed, not a claim that the machine is off.
+enum class PrinterActivity : std::uint8_t { Offline, Idle, Printing };
+
 struct DiscoveredPrinter
 {
     std::string stable_id;
@@ -15,6 +19,11 @@ struct DiscoveredPrinter
     std::string device_model_id;
     std::string connection;
     bool connected{false};
+    PrinterActivity activity{PrinterActivity::Offline};
+    // When the device last said anything, as milliseconds since the epoch.
+    // Zero when it never has: a printer known from a previous session but not
+    // heard from since is a real state, and a fabricated timestamp is not.
+    std::int64_t observed_at_ms{0};
     // What the printer reported about itself; zero or empty when it has not said.
     double nozzle_diameter{0.};
     std::string ams_name;

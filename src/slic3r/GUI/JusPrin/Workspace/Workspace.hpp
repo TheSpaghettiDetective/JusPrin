@@ -224,6 +224,24 @@ struct PresetListResult
     bool                     truncated{false};
 };
 
+// A physical printer this application knows about, as it last reported itself.
+// Fields it has not reported are absent rather than guessed: a nozzle of zero
+// would be a claim, and this is a record of what was heard.
+struct PrinterDevice
+{
+    std::string id;
+    std::string name;
+    std::string model;
+    std::string connection; // lan, cloud, or empty when it has not said
+    // offline, idle, or printing -- what this application can observe, not a
+    // claim about the machine.
+    std::string activity{"offline"};
+    std::optional<double>    nozzle_diameter;
+    std::vector<std::string> materials;
+    // Milliseconds since the epoch, absent when the device has never reported.
+    std::optional<std::int64_t> observed_at_ms;
+};
+
 // One filament's share of a sliced plate. Lengths and weights are derived the
 // way Orca's own preview derives them -- volume per filament times that
 // filament's diameter and density -- so a report can never disagree with the
@@ -660,6 +678,11 @@ public:
     // a fresh one, because asking writes to preset configs and can move the
     // selection.
     virtual PresetListResult list_presets(const PresetQuery& query) const = 0;
+
+    // Every physical printer the application knows, reachable or not. A
+    // printer it has not heard from is a real answer to "what printers do I
+    // have", which is not the same question setup asks.
+    virtual std::vector<PrinterDevice> printers() const = 0;
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
     virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;

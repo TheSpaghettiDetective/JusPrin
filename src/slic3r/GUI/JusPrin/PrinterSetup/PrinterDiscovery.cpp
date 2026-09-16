@@ -6,6 +6,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 
 #include <algorithm>
+#include <chrono>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -35,15 +36,26 @@ void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
 
 } // namespace
 
-std::vector<DiscoveredPrinter> discover_printers()
+std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable)
 {
     std::vector<DiscoveredPrinter> result;
     DeviceManager* devices = wxGetApp().getDeviceManager();
     if (!devices) return result;
     for (const auto& [id, machine] : devices->get_my_machine_list()) {
-        if (!machine || (!machine->is_online() && !machine->is_connected())) continue;
+        if (!machine) continue;
+        const bool reachable = machine->is_online() || machine->is_connected();
+        if (!reachable && !include_unreachable) continue;
         DiscoveredPrinter printer{id, machine->get_dev_name(), machine->get_dev_ip(), machine->printer_type,
-                                  machine->connection_type(), true};
+                                  machine->connection_type(), reachable};
+        // Upstream's own predicate, never a copy of it: the list of states that
+        // count as printing has been got wrong here before.
+        printer.activity = !machine->is_connected()         ? PrinterActivity::Offline :
+                           machine->is_in_printing()        ? PrinterActivity::Printing :
+                                                              PrinterActivity::Idle;
+        if (machine->last_update_time.time_since_epoch().count() != 0)
+            printer.observed_at_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                         machine->last_update_time.time_since_epoch())
+                                         .count();
         read_reported_hardware(*machine, printer);
         result.push_back(std::move(printer));
     }

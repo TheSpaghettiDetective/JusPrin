@@ -133,6 +133,9 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return true;
     }
 
+    if (definition.handler == ToolHandler::PrinterList)
+        return arguments.empty();
+
     if (definition.handler == ToolHandler::PresetsList) {
         if (!has_only(arguments, {"kind", "query", "compatibleOnly", "limit", "cursor"}) || !arguments.contains("kind") ||
             !arguments["kind"].is_string() || !optional_string(arguments, "query") || !optional_string(arguments, "cursor") ||
@@ -422,6 +425,20 @@ std::vector<ToolDefinition> make_definitions()
          plan_output,
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlanSet,
          true},
+        {"printer_list", "List the printers this app knows",
+         "List the physical printers this application knows about: what each is doing, the nozzle and loaded materials it last reported, and when it last said anything. A printer it has not heard from is listed as offline, which is a statement about what can be observed rather than a claim about the machine; fields it has not reported are absent rather than zero.",
+         object_schema(json::object()),
+         object_schema({{"items", array_schema(object_schema({{"id", id}, {"name", string_schema()}, {"model", string_schema()},
+                                                              {"connection", string_schema()},
+                                                              {"activity", {{"type", "string"},
+                                                                            {"enum", json::array({"offline", "idle", "printing"})}}},
+                                                              {"nozzleDiameter", number_schema()},
+                                                              {"materials", array_schema(id, 16)},
+                                                              {"observedAtMs", revision}},
+                                                             {"id", "name", "model", "connection", "activity", "materials"}), 25)},
+                        {"truncated", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"items", "truncated", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterList},
         {"presets_list", "List printer, filament, or process presets",
          "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},

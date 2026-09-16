@@ -10,6 +10,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
@@ -452,6 +453,33 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
     SimpleEvent event(plate ? EVT_GLTOOLBAR_SLICE_PLATE : EVT_GLTOOLBAR_SLICE_ALL);
     m_plater.GetEventHandler()->ProcessEvent(event);
     return CommandResult::success();
+}
+
+std::vector<PrinterDevice> OrcaWorkspaceAdapter::printers() const
+{
+    wxASSERT(wxIsMainThread());
+    std::vector<PrinterDevice> result;
+    // The fork's own discovery, asked to include what it normally hides:
+    // setup offers printers you can connect to now, but "what printers do I
+    // have" is a different question and an unreachable one is a real answer.
+    for (const PrinterSetup::DiscoveredPrinter& found : PrinterSetup::discover_printers(true)) {
+        PrinterDevice device;
+        device.id         = found.stable_id;
+        device.name       = found.name;
+        device.model      = found.device_model_id;
+        device.connection = found.connection;
+        device.activity   = found.activity == PrinterSetup::PrinterActivity::Printing ? "printing" :
+                            found.activity == PrinterSetup::PrinterActivity::Idle     ? "idle" :
+                                                                                        "offline";
+        if (found.nozzle_diameter > 0.)
+            device.nozzle_diameter = found.nozzle_diameter;
+        if (found.observed_at_ms != 0)
+            device.observed_at_ms = found.observed_at_ms;
+        for (const auto& spool : found.spools)
+            device.materials.push_back(spool.name);
+        result.push_back(std::move(device));
+    }
+    return result;
 }
 
 PresetListResult OrcaWorkspaceAdapter::list_presets(const PresetQuery& query) const
