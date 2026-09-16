@@ -328,9 +328,18 @@ namespace {
 // Unsupported schema keywords are programmer errors, never silently ignored.
 bool matches_schema(const json& value, const json& schema)
 {
-    static const std::set<std::string> supported{"type", "properties", "required", "additionalProperties", "items", "minimum", "maxItems"};
+    static const std::set<std::string> supported{"type",    "properties", "required", "additionalProperties",
+                                                 "items",   "minimum",    "maxItems", "enum",
+                                                 "maxLength"};
     for (const auto& item : schema.items())
         if (!supported.count(item.key())) throw std::logic_error("Unsupported canonical tool schema keyword: " + item.key());
+    // A closed vocabulary constrains the value itself whatever its type, so it
+    // is checked before the type dispatch: a provenance word, an action state,
+    // a section name.
+    if (const auto allowed = schema.find("enum");
+        allowed != schema.end() &&
+        std::none_of(allowed->begin(), allowed->end(), [&value](const json& candidate) { return candidate == value; }))
+        return false;
     const std::string type = schema.at("type");
     if (type == "object") {
         if (!value.is_object()) return false;
@@ -343,7 +352,12 @@ bool matches_schema(const json& value, const json& schema)
     } else if (type == "array") {
         if (!value.is_array() || value.size() > schema.value("maxItems", kToolListLimit)) return false;
         for (const auto& item : value) if (!matches_schema(item, schema.at("items"))) return false;
-    } else if (type == "string") return value.is_string();
+    } else if (type == "string")
+        // Counted in UTF-8 bytes, not code points: every output bound this
+        // registry states is a byte bound, and so is the truncation the
+        // producers apply to meet it.
+        return value.is_string() && (!schema.contains("maxLength") ||
+                                     value.get_ref<const std::string&>().size() <= schema["maxLength"].get<std::size_t>());
     else if (type == "boolean") return value.is_boolean();
     else if (type == "integer" || type == "number")
         return (type == "integer" ? value.is_number_integer() : value.is_number()) &&

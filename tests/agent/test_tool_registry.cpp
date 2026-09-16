@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -118,4 +119,33 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     unsupported.output_schema["maximum"] = 1;
     CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, snapshot)), std::logic_error);
     CHECK(registry.approval_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
+}
+
+TEST_CASE("output validation understands closed vocabularies and string bounds", "[tools][registry][validation]")
+{
+    const auto& registry = ToolRegistry::instance();
+    // The vocabulary is exercised on a definition built here rather than on a
+    // shipped tool: the keywords land before the first catalog row needs them.
+    ToolDefinition definition = *registry.find("inspect_selection");
+    definition.output_schema = json{{"type", "object"},
+                                    {"properties",
+                                     {{"provenance", {{"type", "string"}, {"enum", json::array({"file", "observed"})}}},
+                                      {"label", {{"type", "string"}, {"maxLength", 8}}}}},
+                                    {"required", json::array({"provenance", "label"})},
+                                    {"additionalProperties", false}};
+
+    CHECK(registry.validate_output(definition, json{{"provenance", "observed"}, {"label", "front"}}));
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", "guessed"}, {"label", "front"}}));
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", "file"}, {"label", "far too long"}}));
+    // Eight bytes, four code points: the bound the producers truncate to is
+    // the bound this validator enforces.
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", "file"}, {"label", "ééééé"}}));
+    CHECK(registry.validate_output(definition, json{{"provenance", "file"}, {"label", "éééé"}}));
+
+    // enum is not string-only, and an unsupported keyword is still a defect.
+    definition.output_schema["properties"]["provenance"] = json{{"type", "integer"}, {"enum", json::array({1, 2})}};
+    CHECK(registry.validate_output(definition, json{{"provenance", 2}, {"label", "front"}}));
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", 3}, {"label", "front"}}));
+    definition.output_schema["properties"]["label"]["pattern"] = "^f";
+    CHECK_THROWS_AS(registry.validate_output(definition, json{{"provenance", 1}, {"label", "front"}}), std::logic_error);
 }
