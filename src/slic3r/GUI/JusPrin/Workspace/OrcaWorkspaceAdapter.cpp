@@ -6,6 +6,7 @@
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -259,6 +260,18 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
 
     PartPlateList& plate_list = m_plater.get_partplate_list();
     const int active_index = plate_list.get_curr_plate_index();
+    // One background process serves the whole application, so "running" is a
+    // property of the workspace; during a slice-all the plate it names moves as
+    // the run advances.
+    result.slicing.running = m_plater.is_background_process_slicing();
+    if (result.slicing.running) {
+        if (PartPlate* current = plate_list.get_plate(active_index); current != nullptr) {
+            result.slicing.plate   = PlateId(m_session, current->id().id);
+            const int percent      = current->get_slicing_percent();
+            if (percent >= 0 && percent <= 100)
+                result.slicing.percent = percent;
+        }
+    }
     result.plates.reserve(plate_list.get_plate_count());
     for (int index = 0; index < plate_list.get_plate_count(); ++index) {
         PartPlate* plate = plate_list.get_plate(index);
@@ -395,6 +408,49 @@ CommandResult OrcaWorkspaceAdapter::redo()
     wxASSERT(wxIsMainThread());
     if (!m_plater.can_redo_project() || !m_plater.redo_project())
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to redo");
+    return CommandResult::success();
+}
+
+CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bool preempt)
+{
+    wxASSERT(wxIsMainThread());
+    // Nothing in Orca records who started a run, so a slice in flight may be
+    // the person's. Taking it over is the caller's decision to state.
+    if (m_plater.is_background_process_slicing() && !preempt)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                      "A slice is already running. Wait for it, or ask again with preempt.");
+
+    PartPlateList& plates = m_plater.get_partplate_list();
+    if (plate) {
+        if (plate->session() != m_session)
+            return CommandResult::failure(WorkspaceError::StaleId, "That plate belongs to a project that is no longer open");
+        int index = -1;
+        for (int candidate = 0; candidate < plates.get_plate_count(); ++candidate) {
+            const PartPlate* found = plates.get_plate(candidate);
+            if (found != nullptr && found->id().id == plate->value()) {
+                index = candidate;
+                break;
+            }
+        }
+        if (index < 0)
+            return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
+        PartPlate* target = plates.get_plate(index);
+        if (target == nullptr || !target->can_slice())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                          "That plate cannot be sliced as it stands");
+        // Orca slices the current plate, so selecting it is part of starting
+        // the run, exactly as the header's own Slice button does it.
+        if (plates.get_curr_plate_index() != index)
+            m_plater.select_plate(index);
+    }
+
+    // The toolbar events are Orca's own entry points: they carry the slice-all
+    // bookkeeping, the Prepare switch, and the auto-preview rule with them.
+    // Posting them keeps one owner for slicing rather than a second path.
+    m_plater.exit_gizmo();
+    m_plater.update(true, true);
+    SimpleEvent event(plate ? EVT_GLTOOLBAR_SLICE_PLATE : EVT_GLTOOLBAR_SLICE_ALL);
+    m_plater.GetEventHandler()->ProcessEvent(event);
     return CommandResult::success();
 }
 

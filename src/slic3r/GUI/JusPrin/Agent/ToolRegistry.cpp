@@ -119,18 +119,24 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true; // the summary, as every caller before sections existed asked for
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 3)
+        if (!sections.is_array() || sections.empty() || sections.size() > 4)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "intent" && name != "plan") || !seen.insert(name).second)
+            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing") ||
+                !seen.insert(name).second)
                 return false;
         }
         return true;
     }
+
+    if (definition.handler == ToolHandler::SliceStart)
+        return has_only(arguments, {"plateId", "preempt"}) &&
+               (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
+               (!arguments.contains("preempt") || arguments["preempt"].is_boolean());
 
     if (definition.handler == ToolHandler::IntentUpdate) {
         if (!has_only(arguments, {"fields"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
@@ -291,6 +297,20 @@ std::vector<ToolDefinition> make_definitions()
                                             {"projectUndo", boolean_schema()}},
                                            {"plan", "sessionId", "revision", "projectUndo"});
 
+    // What the slicer is doing, and what each plate currently holds. One
+    // background process serves the whole application, so "running" is not a
+    // per-plate fact and is not reported as one.
+    const json slicing_plate = object_schema({{"plateId", id}, {"name", string_schema()}, {"sliced", boolean_schema()},
+                                              {"estimateStatus", {{"type", "string"},
+                                                                  {"enum", json::array({"current", "recomputing", "stale", "none"})}}},
+                                              {"invalidatedBy", string_schema()}},
+                                             {"plateId", "name", "sliced", "estimateStatus", "invalidatedBy"});
+    const json slicing_section = object_schema({{"running", boolean_schema()}, {"plateId", id},
+                                                {"percent", integer_schema()}, {"handle", id},
+                                                {"plates", array_schema(slicing_plate, 16)},
+                                                {"truncated", boolean_schema()}},
+                                               {"running", "plates", "truncated"});
+
     std::vector<ToolDefinition> definitions{
         {"settings_search", "Search process settings",
          "Find a page of process settings by key, label, or description. Requires an active FFF process preset. A page is not the full writable list; read known keys directly with settings_get or follow nextCursor.",
@@ -369,6 +389,14 @@ std::vector<ToolDefinition> make_definitions()
          plan_output,
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlanSet,
          true},
+        {"slice_start", "Slice the plate",
+         "Start Orca's own slicing run for one plate, or every plate when you name none, and return once it has started. Read the slicing section of workspace_inspect for the result; it is not ready when this returns. Fails when a slice is already running unless you pass preempt, because nothing records who started that run and it may be the user's. Runs without an approval card unless it preempts.",
+         object_schema({{"plateId", id}, {"preempt", boolean_schema()}}),
+         object_schema({{"handle", id}, {"started", boolean_schema()}, {"slicing", slicing_section},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"handle", "started", "slicing", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceStart,
+         true},
         {"workspace_inspect",
          "Inspect the live workspace",
          "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and native history; ask for the intent or plan sections to read what this print is for and the plan in force. IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
@@ -376,7 +404,7 @@ std::vector<ToolDefinition> make_definitions()
                                       {"items", {{"type", "string"},
                                                  {"enum", json::array({"summary", "intent", "plan"})}}},
                                       {"maxItems", 3}}}}),
-         object_schema({{"intent", intent_section}, {"plan", plan_section},
+         object_schema({{"intent", intent_section}, {"plan", plan_section}, {"slicing", slicing_section},
                         {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
@@ -528,6 +556,19 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
         for (auto& value : arguments["changes"])
             if (!value.is_string()) value = value.is_boolean() ? (value.get<bool>() ? "1" : "0") : value.dump();
     return {arguments.dump(), std::nullopt};
+}
+
+bool ToolRegistry::requires_approval(const ToolDefinition& definition, const std::string& arguments_json) const
+{
+    bool computation_only = definition.computation_only;
+    if (definition.handler == ToolHandler::SliceStart) {
+        const auto arguments = json::parse(arguments_json, nullptr, false);
+        // Slicing itself only replaces a computed result. Taking over a run
+        // somebody else may have started is not that, and brings the card.
+        if (!arguments.is_discarded() && arguments.value("preempt", false))
+            computation_only = false;
+    }
+    return approval_required(definition.action_class, computation_only);
 }
 
 std::string ToolRegistry::approval_title(const ToolDefinition& definition, const std::string& arguments_json) const

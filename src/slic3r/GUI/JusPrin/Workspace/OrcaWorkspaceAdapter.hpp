@@ -28,6 +28,7 @@ public:
     CommandResult remove_object(ObjectId id) override;
     CommandResult undo() override;
     CommandResult redo() override;
+    CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override;
     SettingsSearchResult search_settings(const SettingsQuery& query) const override;
     SettingsReadResult read_settings(const std::vector<std::string>& keys) const override;
     SettingsPreview preview_settings(const SettingsPatch& patch) const override;

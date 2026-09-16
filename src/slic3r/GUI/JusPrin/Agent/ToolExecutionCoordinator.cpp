@@ -113,7 +113,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     if (definition != nullptr) {
         activity.title             = definition->title;
         activity.action_class      = definition->action_class;
-        activity.requires_approval = approval_required(definition->action_class, definition->computation_only);
+        activity.requires_approval = m_registry.requires_approval(*definition, request.arguments_json);
     } else {
         activity.title = "Unknown tool request";
     }
@@ -353,7 +353,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan")};
+            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing")};
         }
         if ((sections.intent || sections.plan) && m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
@@ -362,8 +362,37 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         json result = workspace_inspection(m_workspace.snapshot(), sections);
         if (sections.intent) result["intent"] = intent_section_result(m_product_state->print_intent());
         if (sections.plan) result["plan"] = plan_section_result(m_product_state->plan());
+        if (sections.slicing) result["slicing"] = slicing_section_result(m_workspace.snapshot(), m_slice_handle);
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::SliceStart) {
+        const auto arguments = json::parse(activity.arguments_json);
+        std::optional<Workspace::PlateId> plate;
+        if (arguments.contains("plateId"))
+            plate = Workspace::PlateId(Workspace::ProjectSessionId(activity.session),
+                                       std::stoull(arguments["plateId"].get<std::string>()));
+        const auto started = m_workspace.start_slice(plate, arguments.value("preempt", false));
+        if (!started.succeeded()) {
+            fail(activity, started.error == Workspace::WorkspaceError::UnavailableOperation ? "unavailable_operation" :
+                           started.error == Workspace::WorkspaceError::StaleId ? "stale_id" : "invalid_id",
+                 started.message);
+            return;
+        }
+        // The run is Orca's, and it outlives this call: the handle is how the
+        // caller finds it again in the slicing section, which is where the
+        // result appears when the slicer is done.
+        m_slice_handle       = activity.action_id;
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"handle", activity.action_id}, {"started", true},
+                                    {"slicing", slicing_section_result(snapshot, m_slice_handle)},
+                                    {"sessionId", std::to_string(snapshot.session.value())},
+                                    {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
         notify(activity);
         return;
     }

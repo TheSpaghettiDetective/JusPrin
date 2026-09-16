@@ -187,6 +187,26 @@ json plan_section_result(const PlanRecord& plan)
             {"updatedAt", plan.updated_at}, {"truncated", truncated}};
 }
 
+json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)
+{
+    bool truncated = false;
+    json plates = json::array();
+    for (const auto& plate : snapshot.plates) {
+        if (plates.size() == 16) { truncated = true; break; }
+        const char* status = !plate.estimate ? "none" :
+            plate.estimate_status == Workspace::EstimateStatus::Current ? "current" :
+            plate.estimate_status == Workspace::EstimateStatus::Recomputing ? "recomputing" : "stale";
+        plates.push_back({{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
+                          {"sliced", plate.sliced}, {"estimateStatus", status},
+                          {"invalidatedBy", label(plate.invalidated_by, truncated)}});
+    }
+    json result{{"running", snapshot.slicing.running}, {"plates", std::move(plates)}, {"truncated", truncated}};
+    if (snapshot.slicing.plate) result["plateId"] = std::to_string(snapshot.slicing.plate->value());
+    if (snapshot.slicing.percent) result["percent"] = *snapshot.slicing.percent;
+    if (!handle.empty()) result["handle"] = handle;
+    return result;
+}
+
 json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections)
 {
     bool truncated = false;

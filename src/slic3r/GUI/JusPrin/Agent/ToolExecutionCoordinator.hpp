@@ -157,6 +157,9 @@ private:
     Workspace::WorkspaceSubscription m_workspace_subscription;
     std::shared_ptr<ObserverState>    m_observers;
     IProductState*                   m_product_state{nullptr};
+    // The slice_start call behind the run now in flight, so the slicing
+    // section can say which handle a reader is watching.
+    std::string                      m_slice_handle;
     ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;

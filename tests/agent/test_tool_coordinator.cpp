@@ -111,7 +111,7 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     STATIC_CHECK(!approval_required(ActionClass::ReadOnly, true));
 
     // Exactly which shipped tools claim it, so adding one is a visible diff
-    // here. slice_start and activity_cancel join plan_set when they land.
+    // here. activity_cancel joins them when it lands.
     std::vector<std::string> exempt;
     for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
         INFO(definition.name);
@@ -120,7 +120,7 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
         CHECK(approval_required(definition.action_class, definition.computation_only) ==
               (definition.action_class != ActionClass::ReadOnly && !definition.computation_only));
     }
-    CHECK(exempt == std::vector<std::string>{"plan_set"});
+    CHECK(exempt == std::vector<std::string>{"plan_set", "slice_start"});
 }
 
 TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")
@@ -654,4 +654,64 @@ TEST_CASE("workspace_inspect without sections is what it always was", "[tools][i
     h.coordinator.pump();
     REQUIRE(h.coordinator.find(missing)->state == ToolState::Failed);
     CHECK(h.coordinator.find(missing)->error->code == "unavailable_operation");
+}
+
+TEST_CASE("slicing starts through Orca's own run and is read back, not waited on", "[tools][slicing]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const auto plate = h.workspace.snapshot().plates.at(0).id;
+
+    // Slicing replaces a computed result and nothing else, so it needs no card.
+    const auto& started = h.coordinator.propose({"slice_start", json{{"plateId", std::to_string(plate.value())}}.dump()}, "m-1");
+    const std::string handle = started.action_id;
+    CHECK_FALSE(started.requires_approval);
+    h.pump_to_completion(handle);
+    REQUIRE(h.coordinator.find(handle)->state == ToolState::Succeeded);
+    const auto result = json::parse(h.coordinator.find(handle)->result_json);
+    CHECK(registry.validate_output(*registry.find("slice_start"), result));
+    CHECK(result["handle"] == handle);
+    CHECK(result["started"] == true);
+    CHECK(result["slicing"]["running"] == true);
+    CHECK(result["slicing"]["plateId"] == std::to_string(plate.value()));
+    CHECK(h.workspace.slice_starts == 1);
+
+    // The call returned; the run has not finished. That is what the section is
+    // for, and the handle says which run the reader is watching.
+    const auto read = [&h](const char* correlation) {
+        const std::string action = h.coordinator.propose({"workspace_inspect", R"({"sections":["slicing"]})"}, correlation).action_id;
+        h.pump_to_completion(action);
+        return json::parse(h.coordinator.find(action)->result_json)["slicing"];
+    };
+    auto during = read("m-2");
+    CHECK(during["running"] == true);
+    CHECK(during["handle"] == handle);
+    CHECK(during["plates"][0]["sliced"] == false);
+
+    // A second run while one is in flight is refused: nothing in Orca records
+    // who started the first, so it may be the user's.
+    const auto& refused = h.coordinator.propose({"slice_start", "{}"}, "m-3");
+    h.pump_to_completion(refused.action_id);
+    REQUIRE(h.coordinator.find(refused.action_id)->state == ToolState::Failed);
+    CHECK(h.coordinator.find(refused.action_id)->error->code == "unavailable_operation");
+    CHECK(h.workspace.slice_starts == 1);
+
+    // Taking it over is a decision only the user can make, so preempt brings
+    // the card back even though slicing is otherwise computation-only.
+    const auto& preempting = h.coordinator.propose({"slice_start", R"({"preempt":true})"}, "m-4");
+    CHECK(preempting.requires_approval);
+    CHECK(preempting.state == ToolState::Pending);
+    const std::string preempt_action = preempting.action_id;
+    REQUIRE(h.coordinator.approve(preempt_action));
+    h.pump_to_completion(preempt_action);
+    CHECK(h.coordinator.find(preempt_action)->state == ToolState::Succeeded);
+    CHECK(h.workspace.slice_starts == 2);
+
+    h.workspace.finish_slice_for_testing(true);
+    auto after = read("m-5");
+    CHECK(after["running"] == false);
+    CHECK(after["plates"][0]["sliced"] == true);
+    CHECK_FALSE(after.contains("plateId"));
 }

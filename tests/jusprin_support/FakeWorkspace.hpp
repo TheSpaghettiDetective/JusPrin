@@ -333,6 +333,44 @@ public:
     }
 
     // Publishing here is part of the contract, not a fixture convenience: a
+    // Starting a run is a Plates change: whether a slice is in flight is part
+    // of what a plate can currently say about itself.
+    CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override
+    {
+        if (m_snapshot.slicing.running && !preempt)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                          "A slice is already running. Wait for it, or ask again with preempt.");
+        if (plate) {
+            if (plate->session() != m_snapshot.session)
+                return CommandResult::failure(WorkspaceError::StaleId, "That plate belongs to a project that is no longer open");
+            const auto found = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(),
+                                            [&plate](const WorkspacePlate& candidate) { return candidate.id == *plate; });
+            if (found == m_snapshot.plates.end())
+                return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
+        }
+        m_snapshot.slicing.running = true;
+        m_snapshot.slicing.plate   = plate ? plate : (m_snapshot.plates.empty() ? std::optional<PlateId>() :
+                                                                                 m_snapshot.plates.front().id);
+        m_snapshot.slicing.percent = 0;
+        ++slice_starts;
+        publish(WorkspaceChangeReasons::Plates);
+        return CommandResult::success();
+    }
+
+    // What the owner reports while a run is in flight, and when it ends.
+    void finish_slice_for_testing(bool sliced)
+    {
+        const auto plate            = m_snapshot.slicing.plate;
+        m_snapshot.slicing          = {};
+        if (plate)
+            for (WorkspacePlate& candidate : m_snapshot.plates)
+                if (candidate.id == *plate)
+                    candidate.sliced = sliced;
+        publish(WorkspaceChangeReasons::Plates);
+    }
+
+    std::uint32_t slice_starts{0};
+
     // slice changes what consumers may say about the plate, so it has to
     // advance the revision. The Orca adapter matches this by listening to
     // EVT_SLICE_STATUS_CHANGED -- it did not, once, and the setup card kept

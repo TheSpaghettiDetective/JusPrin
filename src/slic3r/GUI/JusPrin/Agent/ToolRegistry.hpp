@@ -52,6 +52,7 @@ enum class ToolHandler : std::uint8_t {
     SettingsApplyPatch,
     IntentUpdate,
     PlanSet,
+    SliceStart,
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint
@@ -96,6 +97,10 @@ public:
     std::vector<std::reference_wrapper<const ToolDefinition>> exposed(ToolExposure exposure) const;
 
     ToolValidationResult validate_call(const ToolDefinition& definition, const std::string& arguments_json) const;
+    // Whether this call needs a card. Almost always a property of the
+    // definition alone; slice_start is the exception, because pre-empting a
+    // run that may be the user's is a decision only they can take.
+    bool requires_approval(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
     bool validate_output(const ToolDefinition& definition, const nlohmann::json& result) const;
     std::string approval_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
 

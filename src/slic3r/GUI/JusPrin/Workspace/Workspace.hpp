@@ -157,6 +157,18 @@ struct WorkspaceSetup
     }
 };
 
+// What the slicer is doing right now. OrcaSlicer runs one background slicing
+// process for the whole application, not one per plate, so "running" is a
+// property of the workspace and the plate it is working on is a separate
+// question. During a slice-all the plate moves as the run advances.
+struct WorkspaceSlicing
+{
+    bool                   running{false};
+    std::optional<PlateId> plate;
+    // 0-100, or absent when the owner reports no figure.
+    std::optional<int>     percent;
+};
+
 struct WorkspaceSnapshot
 {
     ProjectSessionId            session;
@@ -175,6 +187,7 @@ struct WorkspaceSnapshot
     // does not say. A cost is a bare number without it, so consumers drop the
     // money rather than denominate it in a guess.
     std::string                 currency;
+    WorkspaceSlicing            slicing;
 };
 
 enum class WorkspaceError : std::uint8_t {
@@ -541,6 +554,17 @@ public:
     virtual CommandResult remove_object(ObjectId id)                            = 0;
     virtual CommandResult undo()                                                = 0;
     virtual CommandResult redo()                                                = 0;
+
+    // Starts Orca's own slicing run: one plate, or every plate when no plate
+    // is named. It returns once the run has started, not when it finishes --
+    // the result arrives as a Plates change and is read from the snapshot, the
+    // way the GUI's own Slice button behaves.
+    //
+    // Refuses with UnavailableOperation when a slice is already running unless
+    // preempt is set, because nothing in Orca records who started a run: a
+    // slice in flight may be the person's, and taking it over is a decision
+    // the caller must make deliberately rather than by racing.
+    virtual CommandResult start_slice(std::optional<PlateId> plate, bool preempt) = 0;
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
     virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;

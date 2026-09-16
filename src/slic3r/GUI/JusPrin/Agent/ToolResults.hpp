@@ -18,11 +18,15 @@ struct InspectSections
     bool summary{true};
     bool intent{false};
     bool plan{false};
+    bool slicing{false};
 };
 
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});
 nlohmann::json intent_section_result(const std::vector<IntentField>& fields);
 nlohmann::json plan_section_result(const PlanRecord& plan);
+// `handle` names the slice_start call that started the run in flight, when the
+// tool system started it; empty when the run is the person's or there is none.
+nlohmann::json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle);
 nlohmann::json selection_inspection(const Workspace::WorkspaceSnapshot& snapshot);
 nlohmann::json settings_search_result(const Workspace::SettingsSearchResult&, const Workspace::WorkspaceSnapshot&);
 nlohmann::json settings_read_result(const Workspace::SettingsReadResult&, const Workspace::WorkspaceSnapshot&);
