@@ -1,6 +1,7 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "ModalAnswers.hpp"
 #include "OrcaSettings.hpp"
+#include "OrcaGeometry.hpp"
 #include "HostLocale.hpp"
 
 #include "libslic3r/ClipperUtils.hpp"
@@ -709,65 +710,6 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
     return CommandResult::success();
 }
 
-namespace {
-Vec3 vec3(const Vec3d& v) { return {v.x(), v.y(), v.z()}; }
-
-// "f<revision>-<object>-<volume>-<plane>-<feature>": everything needed to find
-// the feature again in the same revision.
-struct FeatureAddress
-{
-    std::uint64_t revision{0}, object{0};
-    std::size_t   volume{0};
-    int           plane{0}, feature{0};
-};
-
-std::string feature_handle(const FeatureAddress& address)
-{
-    return "f" + std::to_string(address.revision) + "-" + std::to_string(address.object) + "-" +
-           std::to_string(address.volume) + "-" + std::to_string(address.plane) + "-" + std::to_string(address.feature);
-}
-
-std::optional<FeatureAddress> parse_feature_handle(const std::string& text)
-{
-    FeatureAddress address;
-    unsigned long long revision = 0, object = 0, volume = 0;
-    int plane = 0, feature = 0;
-    char tail = 0;
-    if (std::sscanf(text.c_str(), "f%llu-%llu-%llu-%d-%d%c", &revision, &object, &volume, &plane, &feature, &tail) != 5 ||
-        plane < 0 || feature < 0)
-        return std::nullopt;
-    address.revision = revision;
-    address.object   = object;
-    address.volume   = static_cast<std::size_t>(volume);
-    address.plane    = plane;
-    address.feature  = feature;
-    return address;
-}
-
-// Whether a point in the volume's frame lies on one of the plane's triangles.
-bool covered_by(const indexed_triangle_set& its, const std::vector<int>& triangles, const Vec3d& point)
-{
-    for (int index : triangles) {
-        const auto& face = its.indices[index];
-        const Vec3d a = its.vertices[face[0]].cast<double>(), b = its.vertices[face[1]].cast<double>(),
-                    c = its.vertices[face[2]].cast<double>();
-        const Vec3d v0 = b - a, v1 = c - a, v2 = point - a;
-        const double d00 = v0.dot(v0), d01 = v0.dot(v1), d11 = v1.dot(v1), d20 = v2.dot(v0), d21 = v2.dot(v1);
-        const double denominator = d00 * d11 - d01 * d01;
-        if (std::abs(denominator) < 1e-12)
-            continue;
-        const double v = (d11 * d20 - d01 * d21) / denominator, w = (d00 * d21 - d01 * d20) / denominator;
-        if (v >= -1e-6 && w >= -1e-6 && v + w <= 1 + 1e-6)
-            return true;
-    }
-    return false;
-}
-
-Transform3d world_of(const ModelObject& object, const ModelVolume& volume)
-{
-    return object.instances.front()->get_matrix() * volume.get_matrix();
-}
-} // namespace
 
 // Runs an Orca job unchanged and says how it ended. Orca's worker has no
 // completion event; finalize runs on the UI thread, and a job dropped from
@@ -2315,31 +2257,8 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
             result.issues.push_back(print_scope_setting(key));
             continue;
         }
-        const auto invalid = [&result, &def, setting_key = key](std::string message) {
-            result.issues.push_back({setting_key, "invalid_setting_value", std::move(message), def.enum_values, {}, def.min, def.max});
-        };
-        if (!complete_setting_number(text, print_config_def.get(key)->type)) {
-            invalid("Expected a complete finite " + def.type + " value.");
-            continue;
-        }
-        try {
-            next.set_deserialize_strict(key, text);
-        } catch (const BadOptionValueException& error) {
-            invalid(error.what());
-            continue;
-        }
-        const auto* option = next.option(key);
-        const auto* definition = print_config_def.get(key);
-        // Bounds by type: a boolean has none, and reading one as a float is
-        // undefined behaviour.
-        if (definition->type == coEnum) {
-            if (!definition->has_enum_value(option->serialize())) invalid("Value is not in the allowed enum values.");
-        } else if (definition->type == coInt) {
-            if (!definition->is_value_valid(static_cast<double>(next.opt_int(key)))) invalid("Value is outside the setting's bounds.");
-        } else if (definition->type == coFloat || definition->type == coPercent || definition->type == coFloatOrPercent) {
-            if (!definition->is_value_valid(static_cast<const ConfigOptionFloat*>(option)->value))
-                invalid("Value is outside the setting's bounds.");
-        }
+        if (auto refused = set_setting_value(next, key, text))
+            result.issues.push_back({key, "invalid_setting_value", std::move(*refused), def.enum_values, {}, def.min, def.max});
     }
     if (!result.issues.empty()) return result;
     check_process_dialogs(next, result);

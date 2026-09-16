@@ -59,8 +59,14 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     auto tools = list.messages()[0]["result"]["tools"];
     CHECK(list.messages()[0]["result"]["ttlMs"] == 0);
     CHECK(list.messages()[0]["result"]["cacheScope"] == "private");
-    REQUIRE(tools.size() == 21);
-    CHECK(tools.back()["name"] == "workspace_inspect");
+    // Pages hold 25 tools; the rest of the catalog is on the next page.
+    REQUIRE(tools.size() == 25);
+    REQUIRE(list.messages()[0]["result"]["nextCursor"] == "jusprin-v1:25");
+    Client rest(h.runtime.server(), request("tools/list", {{"cursor", "jusprin-v1:25"}}));
+    REQUIRE(h.finish(rest));
+    const auto remaining = rest.messages()[0]["result"]["tools"];
+    REQUIRE(remaining.size() == 1);
+    CHECK(remaining.back()["name"] == "workspace_inspect");
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));
     CHECK_FALSE(inspect.streaming());

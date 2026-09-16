@@ -1,4 +1,5 @@
 #include "ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 
@@ -390,6 +391,26 @@ json objects_section_result(const std::vector<Workspace::ObjectDetails>& objects
         items.push_back(std::move(row));
     }
     return {{"items", std::move(items)}, {"truncated", truncated}};
+}
+
+json region_result(const Workspace::RegionRecord& record, const Workspace::RegionStatus* status)
+{
+    bool truncated = false;
+    json artifacts = json::array();
+    for (const Workspace::RegionArtifact& artifact : record.artifacts)
+        if (artifacts.size() < 8)
+            artifacts.push_back(text(Workspace::region_artifact_words(artifact), truncated));
+    json result{{"regionId", record.id}, {"kind", record.kind}, {"label", text(record.label, truncated)},
+                {"geometry", record.geometry.type}, {"artifacts", std::move(artifacts)}};
+    if (status) {
+        if (status->object)
+            result["objectId"] = std::to_string(status->object->value());
+        result["bindingLost"]      = status->binding_lost;
+        result["artifactsMissing"] = status->artifacts_missing;
+    } else {
+        result["objectId"] = std::to_string(record.object);
+    }
+    return result;
 }
 
 json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,

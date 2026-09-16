@@ -524,6 +524,129 @@ struct DeleteItem
     PlateId       plate;
 };
 
+// Dividing an object: by a plane given in the world frame as the object
+// stands now, the side its normal points to being the upper piece; or into
+// its separate shells, as objects or as parts of the same object.
+struct DivideRequest
+{
+    enum class Mode : std::uint8_t { Plane, Shells };
+    Mode mode{Mode::Plane};
+    Vec3 point{0, 0, 0};
+    Vec3 normal{0, 0, 1};
+    bool keep_upper{true};
+    bool keep_lower{true};
+    bool as_parts{false};
+};
+
+struct DividedPiece
+{
+    std::optional<ObjectId> object; // set once the divide has happened
+    std::string             name;
+    double                  volume{0};
+    Vec3                    size{0, 0, 0};
+    Vec3                    center{0, 0, 0};
+    // Downward faces steeper than the support threshold, as the piece lies
+    // on the bed: an estimate of what needs support, not a slice.
+    double                  overhang_area{0};
+};
+
+struct DivideResult
+{
+    std::vector<DividedPiece> pieces;
+    double                    overhang_area_before{0};
+};
+
+struct RepairResult
+{
+    bool        changed{false};
+    std::size_t open_edges_before{0}, open_edges_after{0};
+    std::size_t facets_before{0}, facets_after{0};
+    std::size_t parts_before{0}, parts_after{0};
+    double      volume_before{0}, volume_after{0};
+};
+
+// Regions: what a part of an object means ("a precision hole", "the face
+// people see"), kept by JusPrin, and the Orca artifacts generated from it --
+// support enforcers and blockers, modifier volumes, seam and support paint,
+// object overrides. The record is JusPrin's; the artifacts are Orca's and in
+// its undo stack, so either can outlive the other.
+//
+// Geometry is kept in the mesh frame of one model part of the object, which
+// no placement changes, so a region stays bound while the object is moved,
+// turned or scaled, and only a change to the mesh itself can unbind it.
+struct RegionGeometry
+{
+    // face, hole, box, cylinder, direction, or object (the whole object).
+    std::string type;
+    // A request's face or hole handle; not stored.
+    std::string handle;
+    Vec3        center{0, 0, 0};
+    // A face's outward normal, a hole's or cylinder's axis, a direction.
+    Vec3        normal{0, 0, 0};
+    Vec3        size{0, 0, 0};       // box
+    double      area{0};             // face
+    double      diameter{0};         // hole, cylinder
+    double      length{0};           // hole depth, cylinder length
+    double      tolerance_degrees{0}; // direction
+};
+
+struct RegionArtifact
+{
+    // volume (target: support_blocker, support_enforcer, modifier), paint
+    // (target: support, seam, color; state: enforcer, blocker, or the
+    // extruder), or override (target: the key; state: the value).
+    std::string      type;
+    std::string      target;
+    std::string      state;
+    std::string      name;       // a volume's name, how it is found again
+    std::size_t      part{0};    // paint: the model part painted
+    std::vector<int> facets;     // paint: that part's facet indices
+};
+
+constexpr std::size_t kRegionLimit = 32;
+
+struct RegionRecord
+{
+    std::string id; // r1, r2, ...
+    std::string kind;
+    std::string label;
+    // The object it belongs to: its id in the session that wrote it, its name,
+    // and the facet count of each model part, which is how it is found again
+    // in a later session, whose ids are new.
+    std::uint64_t              session{0};
+    std::uint64_t              object{0};
+    std::string                object_name;
+    std::vector<std::size_t>   part_facets;
+    std::size_t                part{0}; // the model part whose mesh frame holds the geometry
+    RegionGeometry             geometry;
+    std::map<std::string, std::string> settings;
+    int                        extruder{0};
+    std::vector<RegionArtifact> artifacts;
+    std::string                provenance{"user_confirmed"};
+    std::uint64_t              seq{0};
+    std::string                updated_at;
+};
+
+// One row of region_annotate. A row naming an existing region replaces it;
+// with nothing else it regenerates that region's artifacts as stored.
+struct RegionRequest
+{
+    std::string                        region_id;
+    std::optional<ObjectId>            object;
+    std::string                        kind;
+    std::optional<RegionGeometry>      geometry;
+    std::map<std::string, std::string> settings;
+    int                                extruder{0};
+};
+
+struct RegionStatus
+{
+    RegionRecord            record;
+    std::optional<ObjectId> object;            // absent when no object matches any more
+    bool                    binding_lost{false};
+    bool                    artifacts_missing{false};
+};
+
 // One question Orca asked while opening, and what it was told.
 struct LoadDecision
 {
@@ -1129,6 +1252,28 @@ public:
     virtual CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
                                          std::vector<ObjectId>& added) = 0;
     virtual CommandResult delete_items(const std::vector<DeleteItem>& items) = 0;
+
+    // Reshaping. `preview_divide` works on a copy and changes nothing;
+    // `divide_object`, `merge_objects` and `repair_object` are one undo step
+    // each. A merge's result is the new object.
+    virtual CommandResult preview_divide(ObjectId id, const DivideRequest& request, DivideResult& result) const = 0;
+    virtual CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) = 0;
+    virtual CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) = 0;
+    virtual CommandResult repair_object(ObjectId id, RepairResult& result) = 0;
+
+    // Regions. `plan_regions` resolves requests against the open project and
+    // the stored records without changing anything: each planned record says
+    // what its artifacts will be. `apply_regions` removes the artifacts of the
+    // records being replaced and generates the planned ones, as one undo step,
+    // and returns the records as generated. `remove_regions` removes records'
+    // artifacts as one undo step. `region_status` finds each record's object
+    // and says whether its geometry and artifacts are still there.
+    virtual CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
+                                       std::vector<RegionRecord>& planned) const = 0;
+    virtual CommandResult apply_regions(const std::vector<RegionRecord>& planned, const std::vector<RegionRecord>& replaced,
+                                        std::vector<RegionRecord>& applied) = 0;
+    virtual CommandResult remove_regions(const std::vector<RegionRecord>& records) = 0;
+    virtual std::vector<RegionStatus> region_status(const std::vector<RegionRecord>& records) const = 0;
 
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
     // The change log's feed: every edit, delivered synchronously as the

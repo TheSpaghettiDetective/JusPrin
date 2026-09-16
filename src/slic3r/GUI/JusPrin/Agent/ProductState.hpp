@@ -36,6 +36,10 @@ public:
     // Replaces the plan whole and returns it as stored.
     virtual PlanRecord set_plan(PlanRecord record) = 0;
 
+    // Region annotations, replaced whole; returns them as stored.
+    virtual std::vector<Workspace::RegionRecord> regions() const = 0;
+    virtual std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records) = 0;
+
     // Writes whatever product state is still pending into the project's
     // auxiliary directory, so a save that happens now carries it.
     virtual void flush_to_project() = 0;

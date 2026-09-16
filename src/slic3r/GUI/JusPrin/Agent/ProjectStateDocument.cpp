@@ -1,4 +1,5 @@
 #include "ProjectStateDocument.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 
 #include <algorithm>
 #include <set>
@@ -382,6 +383,7 @@ json fresh_document()
                 {"physicalPrints", json::array()},
                 {"printIntent", json::array()},
                 {"plan", json::object()},
+                {"regions", json::array()},
                 {"changes", json::array()}};
 }
 
@@ -1014,6 +1016,32 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     stored["risks"]       = record.risks;
     touch();
     return record;
+}
+
+std::vector<Workspace::RegionRecord> ProjectStateDocument::regions() const
+{
+    std::vector<Workspace::RegionRecord> records;
+    const json& stored = m_doc["regions"];
+    if (stored.is_array())
+        for (const json& entry : stored)
+            records.push_back(Workspace::region_record_from(entry));
+    return records;
+}
+
+std::vector<Workspace::RegionRecord> ProjectStateDocument::set_regions(std::vector<Workspace::RegionRecord> records,
+                                                                       const std::string& timestamp)
+{
+    json stored = json::array();
+    for (Workspace::RegionRecord& record : records) {
+        if (record.seq == 0) {
+            record.seq        = next_seq();
+            record.updated_at = timestamp;
+        }
+        stored.push_back(Workspace::region_record_json(record));
+    }
+    m_doc["regions"] = std::move(stored);
+    touch();
+    return records;
 }
 
 ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::string& timestamp)

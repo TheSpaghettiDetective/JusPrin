@@ -17,6 +17,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -147,6 +148,11 @@ private:
     void          start_running(ToolActivity& activity);
     void          execute(ToolActivity& activity);
     void          fail(ToolActivity& activity, std::string code, std::string message, std::string details_json = "{}");
+    // The ids of the regions whose geometry is still found, and, after a
+    // change, those of them that no longer are: what a place, divide or
+    // repair result reports as unbound.
+    std::set<std::string> bound_regions() const;
+    nlohmann::json        regions_unbound(const std::set<std::string>& bound_before) const;
     void          notify(const ToolActivity& activity);
     void          invalidate_pending(const Workspace::WorkspaceChanged& change);
 

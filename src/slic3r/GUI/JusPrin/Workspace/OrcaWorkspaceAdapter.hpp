@@ -57,6 +57,16 @@ public:
     CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
                                  std::vector<ObjectId>& added) override;
     CommandResult delete_items(const std::vector<DeleteItem>& items) override;
+    CommandResult preview_divide(ObjectId id, const DivideRequest& request, DivideResult& result) const override;
+    CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) override;
+    CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) override;
+    CommandResult repair_object(ObjectId id, RepairResult& result) override;
+    CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
+                               std::vector<RegionRecord>& planned) const override;
+    CommandResult apply_regions(const std::vector<RegionRecord>& planned, const std::vector<RegionRecord>& replaced,
+                                std::vector<RegionRecord>& applied) override;
+    CommandResult remove_regions(const std::vector<RegionRecord>& records) override;
+    std::vector<RegionStatus> region_status(const std::vector<RegionRecord>& records) const override;
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override;
 
 private:
@@ -69,6 +79,13 @@ private:
     // The object a settings target names; the caller has checked it exists.
     ModelObject* settings_object(const SettingsTarget& target) const;
     CommandResult id_error(ObjectId id) const;
+    // Regions (OrcaRegions.cpp): the object a record belongs to now, and the
+    // edits behind apply and remove, which share one undo step.
+    std::optional<std::size_t> region_object(const RegionRecord& record) const;
+    void remove_region_artifacts(ModelObject& object, const RegionRecord& record);
+    void generate_region_artifacts(ModelObject& object, RegionRecord& record);
+    CommandResult change_regions(const std::vector<RegionRecord>& removed, const std::vector<RegionRecord>& added,
+                                 const char* snapshot_name);
     void on_project_state_changed(const ProjectStateChanged& change);
     void on_slice_status_changed(wxCommandEvent& event);
     // Per plate: whether it holds a valid slice, and which result. Compared on

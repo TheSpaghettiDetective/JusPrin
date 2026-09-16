@@ -2,6 +2,7 @@
 
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "FakeSettings.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -321,6 +322,178 @@ public:
 
     // Objects and copies go; parts and plates are recorded only, since the
     // fixture keeps neither.
+    // Reshaping: a divide or a split makes two pieces, the second a new
+    // object; a merge makes a new object of the listed ones; a repair closes
+    // the fixture's open edges once.
+    CommandResult preview_divide(ObjectId id, const DivideRequest& request, DivideResult& result) const override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        if (request.mode == DivideRequest::Mode::Plane && !request.keep_upper && !request.keep_lower)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "A cut keeps a piece");
+        result = {};
+        result.overhang_area_before = 100;
+        result.pieces = {{std::nullopt, "lower", 4000, {20, 20, 10}, {0, 0, 5}, 0},
+                         {std::nullopt, "upper", 4000, {20, 20, 10}, {0, 0, 5}, 25}};
+        return CommandResult::success();
+    }
+
+    CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) override
+    {
+        if (CommandResult checked = preview_divide(id, request, result); !checked.succeeded())
+            return checked;
+        save_undo("Cut by Plane");
+        const ObjectId added(m_session, ++m_last_object_id);
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            for (std::size_t index = 0; index < plate.objects.size(); ++index)
+                if (plate.objects[index].id == id) {
+                    WorkspaceObject copy = plate.objects[index];
+                    copy.id   = added;
+                    copy.name = copy.name + " (upper)";
+                    plate.objects.push_back(copy);
+                    break;
+                }
+        m_known_object_ids.insert(added);
+        result.pieces[0].object = id;
+        result.pieces[1].object = added;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) override
+    {
+        if (ids.size() < 2)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Merge 2 to 16 objects");
+        for (ObjectId id : ids)
+            if (CommandResult validation = validate(id); !validation.succeeded())
+                return validation;
+        save_undo("Assemble");
+        WorkspaceObject assembly = *find_object(ids.front());
+        assembly.id   = ObjectId(m_session, ++m_last_object_id);
+        assembly.name = "Assembly";
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            plate.objects.erase(std::remove_if(plate.objects.begin(), plate.objects.end(),
+                                               [&ids](const WorkspaceObject& o) { return std::find(ids.begin(), ids.end(), o.id) != ids.end(); }),
+                                plate.objects.end());
+        m_snapshot.plates.front().objects.push_back(assembly);
+        m_known_object_ids.insert(assembly.id);
+        merged = assembly.id;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    CommandResult repair_object(ObjectId id, RepairResult& result) override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        result = {m_open_edges > 0, m_open_edges, 0, 12, m_open_edges > 0 ? 14u : 12u, 1, 1, 8000, 8000};
+        if (m_open_edges > 0) {
+            save_undo("Repairing model object");
+            m_open_edges = 0;
+            publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        }
+        return CommandResult::success();
+    }
+    std::size_t m_open_edges{2};
+
+    // Regions: resolved against the fixture's objects, with artifacts that are
+    // present until a test says otherwise. Faces paint facets 0 to 2.
+    CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
+                               std::vector<RegionRecord>& planned) const override
+    {
+        planned.clear();
+        if (requests.empty() || requests.size() > kRegionLimit)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Annotate 1 to 32 regions at a time");
+        for (const RegionRequest& request : requests) {
+            const RegionRecord* existing = nullptr;
+            for (const RegionRecord& record : stored)
+                if (!request.region_id.empty() && record.id == request.region_id)
+                    existing = &record;
+            if (!request.region_id.empty() && existing == nullptr)
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "There is no region " + request.region_id);
+            RegionRecord record;
+            record.kind = request.kind.empty() && existing ? existing->kind : request.kind;
+            if (!region_kind(record.kind))
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + record.kind + "\" is not a region kind");
+            const std::string geometry_type = request.geometry ? request.geometry->type : existing ? existing->geometry.type : std::string();
+            if (!geometry_type.empty() && !region_kind_accepts(record.kind, geometry_type))
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "A " + record.kind + " region cannot be a " + geometry_type);
+            const ObjectId object = request.object ? *request.object : ObjectId(m_snapshot.session, existing->object);
+            if (CommandResult validation = validate(object); !validation.succeeded())
+                return validation;
+            if (request.geometry && !request.geometry->handle.empty() && m_changes.revision() != m_analysis_revision)
+                return CommandResult::failure(WorkspaceError::FeatureExpired, "The project changed since the features were read");
+            record.id          = existing ? existing->id : next_region_id(stored, planned);
+            record.session     = m_snapshot.session.value();
+            record.object      = object.value();
+            record.object_name = object_name(object);
+            record.part_facets = {12};
+            record.geometry    = request.geometry ? *request.geometry : existing->geometry;
+            record.geometry.handle.clear();
+            if (record.geometry.type == "face")
+                record.geometry.area = 400;
+            if (record.geometry.type == "hole") {
+                record.geometry.diameter = 5;
+                record.geometry.length   = 20;
+            }
+            if (!region_kind_accepts(record.kind, record.geometry.type))
+                return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                              "A " + record.kind + " region cannot be a " + record.geometry.type);
+            record.extruder = request.extruder;
+            record.settings = !request.settings.empty() ? request.settings : region_default_settings(record.kind);
+            record.artifacts = region_artifact_plan(record);
+            for (RegionArtifact& artifact : record.artifacts)
+                if (artifact.type == "paint")
+                    artifact.facets = {0, 1, 2};
+            record.label = region_label(record);
+            planned.push_back(std::move(record));
+        }
+        return CommandResult::success();
+    }
+
+    CommandResult apply_regions(const std::vector<RegionRecord>& planned, const std::vector<RegionRecord>& replaced,
+                                std::vector<RegionRecord>& applied) override
+    {
+        save_undo("Annotate regions");
+        for (const RegionRecord& record : replaced)
+            m_region_artifacts.erase(record.id);
+        for (const RegionRecord& record : planned)
+            m_region_artifacts.insert(record.id);
+        applied = planned;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    CommandResult remove_regions(const std::vector<RegionRecord>& records) override
+    {
+        save_undo("Remove regions");
+        for (const RegionRecord& record : records)
+            m_region_artifacts.erase(record.id);
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    std::vector<RegionStatus> region_status(const std::vector<RegionRecord>& records) const override
+    {
+        std::vector<RegionStatus> statuses;
+        for (const RegionRecord& record : records) {
+            const ObjectId object(ProjectSessionId(record.session), record.object);
+            RegionStatus   status{record, std::nullopt, true, true};
+            if (record.session == m_snapshot.session.value() && validate(object).succeeded()) {
+                status.object            = object;
+                status.binding_lost      = m_unbound_regions.count(record.id) > 0;
+                status.artifacts_missing = m_region_artifacts.count(record.id) == 0;
+            }
+            statuses.push_back(std::move(status));
+        }
+        return statuses;
+    }
+
+    // Fixture seams: an Undo that took a region's artifacts, and a mesh edit
+    // that took its geometry.
+    void drop_region_artifacts_for_testing(const std::string& id) { m_region_artifacts.erase(id); }
+    void unbind_region_for_testing(const std::string& id) { m_unbound_regions.insert(id); }
+
     CommandResult delete_items(const std::vector<DeleteItem>& items) override
     {
         for (const DeleteItem& item : items)
@@ -680,6 +853,7 @@ public:
 
     void set_history_restorable_for_testing(bool restorable) { m_history_restorable = restorable; }
     bool m_history_restorable{true};
+    std::set<std::string> m_region_artifacts, m_unbound_regions;
     std::vector<std::uint64_t> m_undo_ids, m_redo_ids;
     std::uint64_t m_last_step_id{0};
 
@@ -923,6 +1097,15 @@ private:
             for (WorkspaceObject& object : plate.objects)
                 if (object.id == id)
                     fn(object);
+    }
+
+    std::string object_name(ObjectId id) const
+    {
+        for (const WorkspacePlate& plate : m_snapshot.plates)
+            for (const WorkspaceObject& object : plate.objects)
+                if (object.id == id)
+                    return object.name;
+        return {};
     }
 
     CommandResult validate(ObjectId id) const

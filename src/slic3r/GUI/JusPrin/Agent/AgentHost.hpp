@@ -257,6 +257,13 @@ private:
             m_persistence.flush();
             return stored;
         }
+        std::vector<Workspace::RegionRecord> regions() const override { return m_persistence.document().regions(); }
+        std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records) override
+        {
+            auto stored = m_persistence.document().set_regions(std::move(records), m_persistence.timestamp());
+            m_persistence.flush();
+            return stored;
+        }
         void flush_to_project() override { m_persistence.flush(); }
         bool has_printer_facts() const override { return !m_facts_path.empty(); }
         std::vector<Workspace::PrinterFact> printer_facts(const std::string& printer) const override

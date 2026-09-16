@@ -15,6 +15,7 @@
 #include "AgentProtocol.hpp"
 #include "ManufacturingHistory.hpp"
 #include "ToolExecution.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -250,6 +251,10 @@ public:
     PlanRecord plan() const;
     // Replaces the plan wholesale: it is one statement, not a list of edits.
     PlanRecord set_plan(PlanRecord record, const std::string& timestamp);
+    // Region annotations. The list is replaced whole; a record with no seq is
+    // new or changed and is stamped on the way in.
+    std::vector<Workspace::RegionRecord> regions() const;
+    std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records, const std::string& timestamp);
 
     // -- Change log -----------------------------------------------------------
     // Appends with the next seq, placed in the active conversation after its

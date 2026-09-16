@@ -2517,10 +2517,14 @@ private:
                 const auto tools = result["tools"];
                 // The live catalog is the registry's MCP-exposed list, in its
                 // deterministic order, and nothing else: a tool that forgets
-                // its exposure shows up here as a count that moved.
-                self->check(tools.size() == Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Mcp).size() &&
-                                tools.back()["name"] == "workspace_inspect",
-                            "mcp_real_registry_catalog");
+                // its exposure shows up here as a name that moved. A page
+                // holds 25; the rest follows the cursor.
+                const auto exposed = Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Mcp);
+                bool same = tools.size() == std::min<std::size_t>(25, exposed.size()) &&
+                            result.contains("nextCursor") == (exposed.size() > 25);
+                for (std::size_t index = 0; same && index < tools.size(); ++index)
+                    same = tools[index]["name"] == exposed[index].get().name;
+                self->check(same, "mcp_real_registry_catalog");
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];
@@ -2922,6 +2926,8 @@ private:
             "new_project_starts_new_identity", [self = shared_from_this()] {
                 self->verify_project_open_answers_dialogs();
                 self->verify_support_settings_patch();
+                self->verify_regions();
+                self->verify_reshape();
                 self->wait_until(
                     [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
                     "saved_state_adopted_on_reopen", [self] {
@@ -3094,6 +3100,211 @@ private:
         m_plater->undo();
         check(!object->config.has("wall_loops"), "settings_object_undo_removes_override");
         tab->load_config(original);
+    }
+
+    // Regions through the real adapter, on a T bar with a 10 mm hole through
+    // it: a precision hole becomes a support blocker filling the hole, a face
+    // becomes seam paint; Undo strands the record, Redo restores it, a turn
+    // keeps it bound, and removal takes the artifacts away.
+    void verify_regions()
+    {
+        auto* workspace = installed_shell()->workspace();
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        Workspace::ImportRequest             import;
+        import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl";
+        check(workspace->import_objects(import, decisions, added).succeeded() && added.size() == 1, "regions_fixture_imported");
+        if (added.size() != 1) return;
+        const Workspace::ObjectId tee = added.front();
+        ModelObject* object = nullptr;
+        for (ModelObject* candidate : m_plater->model().objects)
+            if (candidate->id().id == tee.value()) object = candidate;
+
+        Workspace::AnalysisRequest wanted;
+        wanted.features = true;
+        Workspace::ObjectAnalysis analysis;
+        check(workspace->analyze_object(tee, wanted, analysis).succeeded() && analysis.features, "regions_features_read");
+        if (!analysis.features) return;
+        const auto hole = std::find_if(analysis.features->holes.begin(), analysis.features->holes.end(),
+                                       [](const Workspace::HoleFeature& h) { return std::abs(h.diameter - 10) < 0.2; });
+        const auto top = std::find_if(analysis.features->faces.begin(), analysis.features->faces.end(),
+                                      [](const Workspace::FaceFeature& f) { return f.normal[2] > 0.99 && f.area > 900; });
+        check(hole != analysis.features->holes.end(), "regions_hole_found");
+        check(top != analysis.features->faces.end(), "regions_top_face_found");
+        if (hole == analysis.features->holes.end() || top == analysis.features->faces.end()) return;
+
+        std::vector<Workspace::RegionRequest> requests(2);
+        requests[0].object   = tee;
+        requests[0].kind     = "precision_hole";
+        requests[0].geometry = Workspace::RegionGeometry{"hole", hole->handle};
+        requests[1].object   = tee;
+        requests[1].kind     = "seam_preferred";
+        requests[1].geometry = Workspace::RegionGeometry{"face", top->handle};
+        std::vector<Workspace::RegionRecord> planned, applied;
+        const auto plan = workspace->plan_regions(requests, {}, planned);
+        if (!plan.succeeded()) std::cout << "regions plan: " << plan.message << std::endl;
+        check(plan.succeeded() && planned.size() == 2, "regions_planned");
+        if (planned.size() != 2) return;
+        std::cout << "regions: " << planned[0].label << " | " << planned[1].label << std::endl;
+        check(std::abs(planned[0].geometry.length - 20) < 0.05, "regions_hole_depth_is_through");
+        check(planned[1].artifacts.size() == 1 && !planned[1].artifacts[0].facets.empty(), "regions_face_facets_resolved");
+        const std::size_t volumes_before = object->volumes.size();
+        {
+            DialogCounter counter;
+            check(workspace->apply_regions(planned, {}, applied).succeeded(), "regions_applied");
+            check(counter.shown == 0, "regions_show_no_dialog");
+        }
+        check(object->volumes.size() == volumes_before + 1 && object->volumes.back()->is_support_blocker() &&
+                  object->volumes.back()->name == "JusPrin r1 support blocker",
+              "regions_blocker_added");
+        // The blocker fills the hole: 10 mm across, 20 mm along Y, centred on
+        // the hole's axis in the object's frame.
+        const BoundingBoxf3 blocker = object->volumes.back()->mesh().transformed_bounding_box(object->volumes.back()->get_matrix());
+        const BoundingBoxf3 part    = object->volumes.front()->mesh().transformed_bounding_box(object->volumes.front()->get_matrix());
+        std::cout << "blocker size " << blocker.size().transpose() << " centre " << blocker.center().transpose()
+                  << " part centre " << part.center().transpose() << std::endl;
+        check(std::abs(blocker.size().y() - 20) < 0.1 && std::abs(blocker.size().x() - 10) < 0.2 &&
+                  std::abs(blocker.size().z() - 10) < 0.2,
+              "regions_blocker_fills_the_hole");
+        check(std::abs(blocker.center().x() - part.center().x()) < 0.1 && std::abs(blocker.center().y() - part.center().y()) < 0.1 &&
+                  std::abs(blocker.center().z() - (part.min.z() + 28)) < 0.1,
+              "regions_blocker_on_the_hole_axis");
+        check(object->volumes.front()->seam_facets.has_facets(*object->volumes.front(), EnforcerBlockerType::ENFORCER),
+              "regions_seam_painted");
+
+        auto status = [&] { return workspace->region_status(applied); };
+        auto all = [](const std::vector<Workspace::RegionStatus>& statuses, bool Workspace::RegionStatus::*field, bool value) {
+            return std::all_of(statuses.begin(), statuses.end(), [&](const auto& s) { return s.object && s.*field == value; });
+        };
+        check(all(status(), &Workspace::RegionStatus::binding_lost, false) && all(status(), &Workspace::RegionStatus::artifacts_missing, false),
+              "regions_status_bound_and_present");
+        m_plater->undo();
+        check(all(status(), &Workspace::RegionStatus::artifacts_missing, true) && all(status(), &Workspace::RegionStatus::binding_lost, false),
+              "regions_undo_strands_the_record");
+        m_plater->redo();
+        check(all(status(), &Workspace::RegionStatus::artifacts_missing, false), "regions_redo_restores_artifacts");
+
+        // Turning the object is not a mesh change.
+        Workspace::PlacementRequest turn;
+        turn.rotate = Workspace::Vec3{0, 0, 90};
+        Workspace::PlacementResult turned;
+        check(workspace->place_object(tee, turn, "regions-turn", turned).succeeded(), "regions_object_turned");
+        check(all(status(), &Workspace::RegionStatus::binding_lost, false) && all(status(), &Workspace::RegionStatus::artifacts_missing, false),
+              "regions_survive_a_turn");
+
+        check(workspace->remove_regions(applied).succeeded(), "regions_removed");
+        check(object->volumes.size() == volumes_before &&
+                  !object->volumes.front()->seam_facets.has_facets(*object->volumes.front(), EnforcerBlockerType::ENFORCER),
+              "regions_removal_takes_the_artifacts");
+        check(all(status(), &Workspace::RegionStatus::artifacts_missing, true), "regions_status_after_removal");
+        check(workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, tee}}).succeeded(), "regions_fixture_removed");
+    }
+
+    // Reshaping through the real adapter: a preview that changes nothing, a
+    // plane cut, a merge of the pieces, a split back into shells, and a
+    // repair of a mesh with a hole in it, none of which may ask anything.
+    void verify_reshape()
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto import_file = [&](const std::string& path) -> std::optional<Workspace::ObjectId> {
+            std::vector<Workspace::LoadDecision> decisions;
+            std::vector<Workspace::ObjectId>     added;
+            Workspace::ImportRequest             import;
+            import.path = path;
+            if (!workspace->import_objects(import, decisions, added).succeeded() || added.size() != 1)
+                return std::nullopt;
+            return added.front();
+        };
+        const auto tee = import_file(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl");
+        check(tee.has_value(), "reshape_fixture_imported");
+        if (!tee) return;
+        const auto count = [this] { return m_plater->model().objects.size(); };
+        const std::size_t objects_before = count();
+
+        // The bar is 36 mm tall and centred; cut it through the stem.
+        const BoundingBoxf3 box = m_plater->model().objects.back()->instance_bounding_box(0);
+        Workspace::DivideRequest cut;
+        cut.point  = {box.center().x(), box.center().y(), box.min.z() + 10};
+        cut.normal = {0, 0, 1};
+        Workspace::DivideResult preview;
+        const auto revision = workspace->snapshot().revision;
+        const auto steps    = workspace->history().steps.size();
+        const bool dirty    = m_plater->is_project_dirty();
+        {
+            DialogCounter counter;
+            check(workspace->preview_divide(*tee, cut, preview).succeeded() && preview.pieces.size() == 2, "reshape_preview_two_pieces");
+            check(counter.shown == 0, "reshape_preview_shows_no_dialog");
+        }
+        for (const auto& piece : preview.pieces)
+            std::cout << "preview piece " << piece.name << " size " << piece.size[0] << " " << piece.size[1] << " " << piece.size[2]
+                      << " overhang " << piece.overhang_area << std::endl;
+        std::cout << "overhang before " << preview.overhang_area_before << std::endl;
+        check(count() == objects_before && workspace->snapshot().revision == revision &&
+                  workspace->history().steps.size() == steps && m_plater->is_project_dirty() == dirty,
+              "reshape_preview_changes_nothing");
+        check(preview.overhang_area_before > 500 && preview.pieces.size() == 2 &&
+                  std::abs(preview.pieces[0].size[2] + preview.pieces[1].size[2] - 36) < 0.2,
+              "reshape_preview_heights_add_up");
+
+        Workspace::DivideResult divided;
+        {
+            DialogCounter counter;
+            check(workspace->divide_object(*tee, cut, divided).succeeded(), "reshape_cut");
+            check(counter.shown == 0, "reshape_cut_shows_no_dialog");
+        }
+        check(count() == objects_before + 1 && divided.pieces.size() == 2 && divided.pieces[0].object && divided.pieces[1].object,
+              "reshape_cut_makes_two_objects");
+        if (divided.pieces.size() != 2 || !divided.pieces[0].object || !divided.pieces[1].object) return;
+
+        Workspace::ObjectId merged;
+        {
+            DialogCounter counter;
+            check(workspace->merge_objects({*divided.pieces[0].object, *divided.pieces[1].object}, merged).succeeded(), "reshape_merge");
+            check(counter.shown == 0, "reshape_merge_shows_no_dialog");
+        }
+        check(count() == objects_before && m_plater->model().objects.back()->volumes.size() == 2, "reshape_merge_makes_one_object_of_two_parts");
+
+        Workspace::DivideRequest shells;
+        shells.mode = Workspace::DivideRequest::Mode::Shells;
+        Workspace::DivideResult split;
+        check(workspace->divide_object(merged, shells, split).succeeded() && split.pieces.size() == 2 && count() == objects_before + 1,
+              "reshape_split_to_objects");
+        for (const auto& piece : split.pieces)
+            if (piece.object)
+                workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, *piece.object}});
+
+        // A 20 mm cube with one facet missing.
+        const fs::path open = fs::temp_directory_path() / fs::unique_path("jusprin-open-%%%%.stl");
+        {
+            std::ofstream out(open.string());
+            out << "solid open" << std::endl;
+            const double s = 20;
+            const double v[8][3] = {{0,0,0},{s,0,0},{s,s,0},{0,s,0},{0,0,s},{s,0,s},{s,s,s},{0,s,s}};
+            const int f[11][3] = {{0,2,1},{0,3,2},{4,5,6},{4,6,7},{0,1,5},{0,5,4},{1,2,6},{1,6,5},{2,3,7},{2,7,6},{3,0,4}};
+            for (const auto& tri : f) {
+                out << "facet normal 0 0 0" << std::endl << "outer loop" << std::endl;
+                for (int i : tri) out << "vertex " << v[i][0] << " " << v[i][1] << " " << v[i][2] << std::endl;
+                out << "endloop" << std::endl << "endfacet" << std::endl;
+            }
+            out << "endsolid open" << std::endl;
+        }
+        const auto broken = import_file(open.string());
+        check(broken.has_value(), "reshape_open_mesh_imported");
+        if (broken) {
+            Workspace::RepairResult repaired;
+            {
+                DialogCounter counter;
+                check(workspace->repair_object(*broken, repaired).succeeded(), "reshape_repair");
+                check(counter.shown == 0, "reshape_repair_shows_no_dialog");
+            }
+            std::cout << "repair open edges " << repaired.open_edges_before << " -> " << repaired.open_edges_after << ", facets "
+                      << repaired.facets_before << " -> " << repaired.facets_after << std::endl;
+            check(repaired.changed && repaired.open_edges_before > 0 && repaired.open_edges_after == 0, "reshape_repair_closes_the_mesh");
+            Workspace::RepairResult again;
+            check(workspace->repair_object(*broken, again).succeeded() && !again.changed, "reshape_repair_of_a_closed_mesh_changes_nothing");
+            workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, *broken}});
+        }
+        fs::remove(open);
     }
 
     // Phase 6: record one real sliced plate as a deterministic build, then an

@@ -51,6 +51,8 @@ nlohmann::json printer_device_result(const Workspace::PrinterDevice& device);
 nlohmann::json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details);
 
 nlohmann::json objects_section_result(const std::vector<Workspace::ObjectDetails>& objects);
+// One region record as the tools show it, with its status when known.
+nlohmann::json region_result(const Workspace::RegionRecord& record, const Workspace::RegionStatus* status);
 nlohmann::json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,
                                       const Workspace::WorkspaceSnapshot& snapshot);
 

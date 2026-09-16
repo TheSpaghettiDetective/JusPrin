@@ -49,6 +49,20 @@ public:
         return m_plan;
     }
 
+    std::vector<Workspace::RegionRecord> regions() const override { return m_regions; }
+
+    std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records) override
+    {
+        ++writes;
+        for (Workspace::RegionRecord& record : records)
+            if (record.seq == 0) {
+                record.seq        = ++m_seq;
+                record.updated_at = timestamp;
+            }
+        m_regions = std::move(records);
+        return m_regions;
+    }
+
     // Facts are app-level and time-bound in the real store; here they are
     // just remembered, which is all a coordinator test needs to observe.
     void flush_to_project() override { ++flushes; }
@@ -83,6 +97,7 @@ public:
 private:
     std::vector<IntentField> m_fields;
     PlanRecord               m_plan;
+    std::vector<Workspace::RegionRecord> m_regions;
     std::vector<Workspace::PrinterFact> m_facts;
     std::uint64_t            m_seq{0};
 };

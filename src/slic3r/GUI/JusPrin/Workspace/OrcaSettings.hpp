@@ -115,6 +115,31 @@ inline bool complete_setting_number(const std::string& text, ConfigOptionType ty
     return true;
 }
 
+// Parses one value into `config` the way a patch does, with the setting's
+// own bounds; the result says why a value was refused.
+inline std::optional<std::string> set_setting_value(DynamicPrintConfig& config, const std::string& key, const std::string& text)
+{
+    const ConfigOptionDef* definition = print_config_def.get(key);
+    if (!complete_setting_number(text, definition->type))
+        return "Expected a complete finite " + setting_type(definition->type) + " value.";
+    try {
+        config.set_deserialize_strict(key, text);
+    } catch (const BadOptionValueException& error) {
+        return std::string(error.what());
+    }
+    const ConfigOption* option = config.option(key);
+    // Bounds by type: a boolean has none, and reading one as a float is
+    // undefined behaviour.
+    if (definition->type == coEnum)
+        return definition->has_enum_value(option->serialize()) ? std::nullopt : std::optional<std::string>("Value is not in the allowed enum values.");
+    const bool numeric = definition->type == coInt || definition->type == coFloat || definition->type == coPercent ||
+                         definition->type == coFloatOrPercent;
+    if (numeric && !definition->is_value_valid(definition->type == coInt ? static_cast<double>(config.opt_int(key)) :
+                                                                           static_cast<const ConfigOptionFloat*>(option)->value))
+        return std::string("Value is outside the setting's bounds.");
+    return std::nullopt;
+}
+
 // Audit against ConfigManipulation::update_print_fff_config. These are every
 // active modal predicate, including unrelated pre-existing invalid values:
 // update() evaluates the entire config after any allowed batch. Keep refusal

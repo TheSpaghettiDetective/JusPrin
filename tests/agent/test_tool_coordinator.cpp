@@ -1325,7 +1325,7 @@ TEST_CASE("object analysis reports geometry, and a measure fails once its handle
     CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"measure"}}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"mesh"}},
                                                         {"measure", {{"from", "a"}, {"to", "b"}}}}.dump()).valid());
-    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"regions"}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"regions", "regions"}}}.dump()).valid());
 
     const std::string inspect = h.coordinator.propose({"workspace_inspect", R"({"sections":["objects"]})"}, "m-2").action_id;
     h.coordinator.pump();
@@ -1611,4 +1611,195 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
                             R"({"keys":["wall_loops"],"target":{"objectId":"5","plate":"1"}})",
                             R"({"changes":{"wall_loops":3},"target":{}})"})
         CHECK_FALSE(registry.validate_call(*registry.find(std::string(bad).find("keys") != std::string::npos ? "settings_get" : "settings_preview_patch"), bad).valid());
+}
+
+TEST_CASE("region annotations are approved, read back with their status, regenerated and deleted", "[tools][regions]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    h.workspace.set_analysis_for_testing(h.cube_id(), {});
+    auto run = [&h](const std::string& tool, const json& arguments) {
+        const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
+        if (proposed.state == ToolState::Pending)
+            REQUIRE(h.coordinator.approve(proposed.action_id));
+        h.pump_to_completion(proposed.action_id);
+        return *h.coordinator.find(proposed.action_id);
+    };
+    auto regions = [&]() {
+        const auto done = run("object_analyze", json{{"sessionId", session}, {"objectId", cube}, {"include", {"regions"}}});
+        REQUIRE(done.state == ToolState::Succeeded);
+        const auto result = json::parse(done.result_json);
+        CHECK(registry.validate_output(*registry.find("object_analyze"), result));
+        return result["regions"]["items"];
+    };
+
+    const json annotate{{"sessionId", session},
+                        {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "hole"}, {"handle", "f1-21-0-1-0"}}}},
+                                     {{"objectId", cube}, {"kind", "hidden"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}};
+    const ToolActivity pending = h.coordinator.propose({"region_annotate", annotate.dump()}, "m-2");
+    REQUIRE(pending.state == ToolState::Pending);
+    CHECK(pending.title.find("r1 precision hole, hole of 5 mm on") != std::string::npos);
+    CHECK(pending.title.find("support blocker volume") != std::string::npos);
+    CHECK(pending.title.find("r2 hidden") != std::string::npos);
+    REQUIRE(h.coordinator.approve(pending.action_id));
+    h.pump_to_completion(pending.action_id);
+    const auto annotated = *h.coordinator.find(pending.action_id);
+    REQUIRE(annotated.state == ToolState::Succeeded);
+    const auto result = json::parse(annotated.result_json);
+    CHECK(registry.validate_output(*registry.find("region_annotate"), result));
+    CHECK(result["projectUndo"] == true);
+    CHECK(result["regions"][1]["artifacts"] == json::array({"seam enforcer paint on 3 facets"}));
+    REQUIRE(store.regions().size() == 2);
+    CHECK(store.regions()[0].provenance == "user_confirmed");
+
+    auto listed = regions();
+    REQUIRE(listed.size() == 2);
+    CHECK(listed[0]["regionId"] == "r1");
+    CHECK(listed[0]["bindingLost"] == false);
+    CHECK(listed[0]["artifactsMissing"] == false);
+
+    // Undo took the artifacts, a mesh edit took the geometry; the records stay.
+    h.workspace.drop_region_artifacts_for_testing("r1");
+    h.workspace.unbind_region_for_testing("r2");
+    listed = regions();
+    CHECK(listed[0]["artifactsMissing"] == true);
+    CHECK(listed[1]["bindingLost"] == true);
+
+    // Regenerating by id keeps the record and brings the artifacts back.
+    CHECK(run("region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r1"}}}}}).state == ToolState::Succeeded);
+    CHECK(regions()[0]["artifactsMissing"] == false);
+    CHECK(store.regions().size() == 2);
+
+    const auto refused = h.coordinator.propose({"region_annotate", json{{"sessionId", session},
+        {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}}.dump()}, "m-3");
+    CHECK(refused.state == ToolState::Failed);
+    CHECK(refused.error->code == "invalid_argument");
+    CHECK(h.coordinator.propose({"region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r9"}}}}}.dump()}, "m-4")
+              .error->code == "invalid_argument");
+    for (const json& bad : {json{{"sessionId", session}, {"regions", json::array()}},
+                            json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "hidden"}}}}},
+                            json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "hidden"},
+                                                                     {"geometry", {{"type", "direction"}, {"vector", {0, 0, 1}}}}}}}},
+                            json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "reinforce"},
+                                                                     {"geometry", {{"type", "box"}, {"center", {0, 0, 0}}}}}}}}})
+        CHECK_FALSE(registry.validate_call(*registry.find("region_annotate"), bad.dump()).valid());
+    CHECK(registry.validate_call(*registry.find("region_annotate"),
+                                 json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "reinforce"}, {"settings", {{"wall_loops", 6}}},
+                                                                           {"geometry", {{"type", "box"}, {"center", {0, 0, 0}}, {"sizeMm", {5, 5, 5}}}}}}}}.dump())
+              .arguments_json.find("\"wall_loops\":\"6\"") != std::string::npos);
+
+    const ToolActivity removal = h.coordinator.propose({"project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}.dump()}, "m-5");
+    CHECK(removal.title.find("region r2 (hidden") != std::string::npos);
+    REQUIRE(h.coordinator.approve(removal.action_id));
+    h.pump_to_completion(removal.action_id);
+    const auto removed = json::parse(h.coordinator.find(removal.action_id)->result_json);
+    CHECK(registry.validate_output(*registry.find("project_delete_items"), removed));
+    CHECK(removed["removedRegions"] == json::array({"r2"}));
+    REQUIRE(store.regions().size() == 1);
+    CHECK(store.regions()[0].id == "r1");
+    CHECK(run("project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}).error->code == "invalid_argument");
+}
+
+TEST_CASE("region records survive the project document round trip", "[tools][regions][persistence]")
+{
+    ProjectStateDocument document;
+    Workspace::RegionRecord record;
+    record.id          = "r3";
+    record.kind        = "no_support";
+    record.object_name = "tee";
+    record.part_facets = {224};
+    record.geometry.type     = "hole";
+    record.geometry.center   = {0, 0, 28};
+    record.geometry.normal   = {0, -1, 0};
+    record.geometry.diameter = 10;
+    record.geometry.length   = 20;
+    record.artifacts = {{"volume", "support_blocker", "", "JusPrin r3 support blocker", 0, {}},
+                        {"paint", "seam", "blocker", "", 0, {4, 5}}};
+    const auto stored = document.set_regions({record}, "2026-09-16T00:00:00Z");
+    REQUIRE(stored[0].seq > 0);
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) != ProjectStateDocument::LoadResult::Corrupt);
+    const auto loaded = reloaded.regions();
+    REQUIRE(loaded.size() == 1);
+    CHECK(loaded[0].id == "r3");
+    CHECK(loaded[0].geometry.center[2] == 28);
+    CHECK(loaded[0].geometry.length == 20);
+    CHECK(loaded[0].artifacts[1].facets == std::vector<int>{4, 5});
+    CHECK(loaded[0].artifacts[0].name == "JusPrin r3 support blocker");
+    CHECK(loaded[0].updated_at == "2026-09-16T00:00:00Z");
+}
+
+TEST_CASE("objects are divided after a preview, merged and repaired, and unbound regions are listed", "[tools][reshape]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    auto run = [&h, &registry](const std::string& tool, const json& arguments) {
+        const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
+        if (proposed.state == ToolState::Pending)
+            REQUIRE(h.coordinator.approve(proposed.action_id));
+        h.pump_to_completion(proposed.action_id);
+        const ToolActivity done = *h.coordinator.find(proposed.action_id);
+        if (done.state == ToolState::Succeeded)
+            CHECK(registry.validate_output(*registry.find(tool), json::parse(done.result_json)));
+        return std::make_pair(proposed, done);
+    };
+    const json plane{{"sessionId", session}, {"objectId", cube},
+                     {"plane", {{"point", {0, 0, 10}}, {"normal", {0, 0, 1}}}}};
+
+    const auto [previewed, preview] = run("object_divide_preview", plane);
+    CHECK_FALSE(previewed.requires_approval);
+    const auto previewed_result = json::parse(preview.result_json);
+    CHECK(previewed_result["pieces"].size() == 2);
+    CHECK_FALSE(previewed_result["pieces"][0].contains("objectId"));
+    CHECK(previewed_result["overhangAreaAfterMm2"] == 25);
+    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+
+    const auto [proposed, divided] = run("object_divide", plane);
+    CHECK(proposed.title == "Cut " + h.workspace.snapshot().plates[0].objects[0].name +
+                                " by the plane through (0, 0, 10) facing (0, 0, 1), keeping both pieces: 20 x 20 x 10 mm, 20 x 20 x 10 mm");
+    const auto divided_result = json::parse(divided.result_json);
+    REQUIRE(divided_result["pieces"].size() == 2);
+    CHECK(divided_result["pieces"][1].contains("objectId"));
+    CHECK(h.workspace.snapshot().plates[0].objects.size() == 2);
+
+    const std::string upper = divided_result["pieces"][1]["objectId"];
+    const auto [merge_card, merged] = run("object_merge", json{{"sessionId", session}, {"objectIds", {cube, upper}}});
+    CHECK(merge_card.title.find("Merge ") == 0);
+    CHECK(merge_card.title.find(" and ") != std::string::npos);
+    const std::string assembly = json::parse(merged.result_json)["objectId"];
+    CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
+    CHECK(std::to_string(h.workspace.snapshot().plates[0].objects[0].id.value()) == assembly);
+
+    const auto [repair_card, repaired] = run("object_repair", json{{"sessionId", session}, {"objectId", assembly}});
+    CHECK(repair_card.title == "Repair the mesh of Assembly");
+    const auto repaired_result = json::parse(repaired.result_json);
+    CHECK(repaired_result["changed"] == true);
+    CHECK(repaired_result["openEdges"] == json{{"before", 2}, {"after", 0}});
+    CHECK(json::parse(run("object_repair", json{{"sessionId", session}, {"objectId", assembly}}).second.result_json)["changed"] == false);
+
+    // A region bound to the divided object is reported by the preview.
+    h.workspace.set_analysis_for_testing(h.workspace.snapshot().plates[0].objects[0].id, {});
+    CHECK(run("region_annotate", json{{"sessionId", session},
+                                      {"regions", {{{"objectId", assembly}, {"kind", "hidden"},
+                                                    {"geometry", {{"type", "face"}, {"handle", "f1-0-0-0-0"}}}}}}}).second.state == ToolState::Succeeded);
+    const json split{{"sessionId", session}, {"objectId", assembly}, {"shells", "objects"}};
+    CHECK(json::parse(run("object_divide_preview", split).second.result_json)["regionsUnbound"] == json::array({"r1"}));
+    h.workspace.unbind_region_for_testing("r1");
+    CHECK(json::parse(run("object_divide", split).second.result_json)["regionsUnbound"] == json::array());
+
+    for (const json& bad : {json{{"sessionId", session}, {"objectId", cube}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shells", "objects"}, {"plane", {{"point", {0, 0, 0}}, {"normal", {0, 0, 1}}}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"plane", {{"point", {0, 0}}, {"normal", {0, 0, 1}}}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"plane", {{"point", {0, 0, 0}}, {"normal", {0, 0, 1}}, {"keep", "middle"}}}}})
+        CHECK_FALSE(registry.validate_call(*registry.find("object_divide"), bad.dump()).valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("object_merge"), json{{"sessionId", session}, {"objectIds", {cube, cube}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("object_merge"), json{{"sessionId", session}, {"objectIds", {cube}}}.dump()).valid());
 }

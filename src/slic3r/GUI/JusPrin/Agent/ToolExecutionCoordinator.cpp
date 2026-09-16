@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -58,6 +59,95 @@ std::optional<Workspace::ObjectId> parse_object_argument(const std::string& argu
     } catch (const std::exception&) {
         return std::nullopt;
     }
+}
+
+Workspace::DivideRequest divide_request(const json& arguments)
+{
+    Workspace::DivideRequest request;
+    if (arguments.contains("shells")) {
+        request.mode     = Workspace::DivideRequest::Mode::Shells;
+        request.as_parts = arguments["shells"] == "parts";
+        return request;
+    }
+    const json& plane = arguments["plane"];
+    for (int axis = 0; axis < 3; ++axis) {
+        request.point[axis]  = plane["point"][axis].get<double>();
+        request.normal[axis] = plane["normal"][axis].get<double>();
+    }
+    const std::string keep = plane.value("keep", "both");
+    request.keep_upper     = keep != "lower";
+    request.keep_lower     = keep != "upper";
+    request.as_parts       = plane.value("asParts", false);
+    return request;
+}
+
+// Millimetres to a hundredth, as the cards and results show them.
+json rounded_vec(const Workspace::Vec3& v)
+{
+    return json::array({std::round(v[0] * 100) / 100 + 0.0, std::round(v[1] * 100) / 100 + 0.0, std::round(v[2] * 100) / 100 + 0.0});
+}
+
+std::string number_words(double value)
+{
+    std::ostringstream out;
+    out << std::round(value * 100) / 100 + 0.0;
+    return out.str();
+}
+
+json divide_result(const Workspace::DivideResult& divided, json regions_unbound, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    json   pieces = json::array();
+    double after  = 0;
+    for (const Workspace::DividedPiece& piece : divided.pieces) {
+        after += piece.overhang_area;
+        if (pieces.size() == 64)
+            continue;
+        json row{{"name", piece.name.substr(0, kToolTextLimit)}, {"volumeMm3", std::round(piece.volume * 100) / 100},
+                 {"sizeMm", rounded_vec(piece.size)}, {"centerMm", rounded_vec(piece.center)},
+                 {"overhangAreaMm2", std::round(piece.overhang_area * 100) / 100}};
+        if (piece.object)
+            row["objectId"] = std::to_string(piece.object->value());
+        pieces.push_back(std::move(row));
+    }
+    return {{"pieces", std::move(pieces)}, {"overhangAreaBeforeMm2", std::round(divided.overhang_area_before * 100) / 100},
+            {"overhangAreaAfterMm2", std::round(after * 100) / 100}, {"regionsUnbound", std::move(regions_unbound)},
+            {"truncated", divided.pieces.size() > 64},
+            {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+}
+
+std::vector<Workspace::RegionRequest> region_requests(const json& arguments)
+{
+    const Workspace::ProjectSessionId     session(std::stoull(arguments["sessionId"].get<std::string>()));
+    std::vector<Workspace::RegionRequest> requests;
+    const auto vec = [](const json& value) {
+        return Workspace::Vec3{value[0].get<double>(), value[1].get<double>(), value[2].get<double>()};
+    };
+    for (const json& row : arguments["regions"]) {
+        Workspace::RegionRequest request;
+        request.region_id = row.value("regionId", "");
+        if (row.contains("objectId"))
+            request.object = Workspace::ObjectId(session, std::stoull(row["objectId"].get<std::string>()));
+        request.kind     = row.value("kind", "");
+        request.extruder = row.value("extruder", 0);
+        if (row.contains("settings"))
+            request.settings = row["settings"].get<std::map<std::string, std::string>>();
+        if (row.contains("geometry")) {
+            const json&               g = row["geometry"];
+            Workspace::RegionGeometry geometry;
+            geometry.type   = g["type"];
+            geometry.handle = g.value("handle", "");
+            if (g.contains("center")) geometry.center = vec(g["center"]);
+            if (g.contains("sizeMm")) geometry.size = vec(g["sizeMm"]);
+            if (g.contains("axis")) geometry.normal = vec(g["axis"]);
+            if (g.contains("vector")) geometry.normal = vec(g["vector"]);
+            geometry.diameter          = g.value("diameterMm", 0.0);
+            geometry.length            = g.value("lengthMm", 0.0);
+            geometry.tolerance_degrees = g.value("toleranceDegrees", 0.0);
+            request.geometry           = geometry;
+        }
+        requests.push_back(std::move(request));
+    }
+    return requests;
 }
 
 Workspace::PrinterSetupRequest setup_request(const json& arguments)
@@ -220,6 +310,83 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
+    const auto name_of_object = [&snapshot](const json& id) {
+        for (const auto& plate : snapshot.plates)
+            for (const auto& object : plate.objects)
+                if (std::to_string(object.id.value()) == id) return object.name;
+        return "object " + id.get<std::string>();
+    };
+    const auto bounded_title = [&stored]() {
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    };
+
+    if (definition->handler == ToolHandler::ObjectDivide) {
+        // The card says what the pieces will be, from the same dry run the
+        // preview tool reports.
+        const auto arguments = json::parse(stored.arguments_json);
+        const auto object    = parse_object_argument(stored.arguments_json);
+        const auto request   = divide_request(arguments);
+        Workspace::DivideResult preview;
+        const auto previewed = object ? m_workspace.preview_divide(*object, request, preview) :
+                                        Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+        if (!previewed.succeeded()) {
+            fail(stored, workspace_error_code(previewed.error), previewed.message);
+            return stored;
+        }
+        const std::string name = name_of_object(arguments["objectId"]);
+        if (request.mode == Workspace::DivideRequest::Mode::Shells) {
+            stored.title = "Split " + name + " into its " + std::to_string(preview.pieces.size()) + " shells as " +
+                           (request.as_parts ? "parts of one object" : "separate objects");
+        } else {
+            const std::string kept = request.keep_upper && request.keep_lower ? "keeping both pieces" :
+                                     request.keep_upper ? "keeping the upper piece" : "keeping the lower piece";
+            stored.title = "Cut " + name + " by the plane through (" + number_words(request.point[0]) + ", " +
+                           number_words(request.point[1]) + ", " + number_words(request.point[2]) + ") facing (" +
+                           number_words(request.normal[0]) + ", " + number_words(request.normal[1]) + ", " +
+                           number_words(request.normal[2]) + "), " + kept + (request.as_parts ? " as parts" : "");
+        }
+        stored.title += ":";
+        for (std::size_t index = 0; index < preview.pieces.size(); ++index) {
+            const auto& size = preview.pieces[index].size;
+            stored.title += (index == 0 ? " " : ", ") + number_words(size[0]) + " x " + number_words(size[1]) + " x " +
+                            number_words(size[2]) + " mm";
+        }
+        bounded_title();
+    }
+
+    if (definition->handler == ToolHandler::ObjectMerge) {
+        const auto arguments = json::parse(stored.arguments_json);
+        stored.title = "Merge";
+        const auto& ids = arguments["objectIds"];
+        for (std::size_t index = 0; index < ids.size(); ++index)
+            stored.title += (index == 0 ? " " : index + 1 == ids.size() ? " and " : ", ") + name_of_object(ids[index]);
+        stored.title += " into one object";
+        bounded_title();
+    }
+
+    if (definition->handler == ToolHandler::ObjectRepair) {
+        const auto arguments = json::parse(stored.arguments_json);
+        stored.title = "Repair the mesh of " + name_of_object(arguments["objectId"]);
+        bounded_title();
+    }
+
+    if (definition->handler == ToolHandler::RegionAnnotate) {
+        if (m_product_state == nullptr) {
+            fail(stored, "unavailable_operation", "Region annotations are not available here.");
+            return stored;
+        }
+        std::vector<Workspace::RegionRecord> planned;
+        const auto plan = m_workspace.plan_regions(region_requests(json::parse(stored.arguments_json)), m_product_state->regions(), planned);
+        if (!plan.succeeded()) {
+            fail(stored, workspace_error_code(plan.error), plan.message);
+            return stored;
+        }
+        stored.title = "Annotate";
+        for (std::size_t index = 0; index < planned.size(); ++index)
+            stored.title += (index == 0 ? " " : "; ") + planned[index].id + " " + planned[index].label;
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
+
     if (definition->handler == ToolHandler::ProjectDeleteItems) {
         const auto arguments = json::parse(stored.arguments_json);
         const auto object_name = [&snapshot](const std::string& id) {
@@ -236,6 +403,11 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
                 item = "plate " + row["plateId"].get<std::string>();
                 for (const auto& plate : snapshot.plates)
                     if (std::to_string(plate.id.value()) == row["plateId"]) item = plate.name;
+            } else if (row.contains("regionId")) {
+                item = "region " + row["regionId"].get<std::string>();
+                if (m_product_state != nullptr)
+                    for (const auto& region : m_product_state->regions())
+                        if (region.id == row["regionId"]) item += " (" + region.label + ")";
             } else if (row.contains("partId")) {
                 item = "a part of " + object_name(row["objectId"]);
             } else if (row.contains("instance")) {
@@ -775,8 +947,27 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto arguments = json::parse(activity.arguments_json);
         const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
         std::vector<Workspace::DeleteItem> items;
+        std::vector<Workspace::RegionRecord> regions, kept;
+        std::set<std::string>                removed;
+        for (const auto& row : arguments["items"])
+            if (row.contains("regionId"))
+                removed.insert(row["regionId"].get<std::string>());
+        if (!removed.empty()) {
+            if (m_product_state == nullptr) {
+                fail(activity, "unavailable_operation", "Region annotations are not available here.");
+                return;
+            }
+            for (const Workspace::RegionRecord& record : m_product_state->regions())
+                (removed.count(record.id) ? regions : kept).push_back(record);
+            if (regions.size() != removed.size()) {
+                fail(activity, "invalid_argument", "A named region is not in the project; read object_analyze's regions section.");
+                return;
+            }
+        }
         for (const auto& row : arguments["items"]) {
             Workspace::DeleteItem item;
+            if (row.contains("regionId"))
+                continue;
             if (row.contains("plateId")) {
                 item.kind  = Workspace::DeleteItem::Kind::Plate;
                 item.plate = Workspace::PlateId(session, std::stoull(row["plateId"].get<std::string>()));
@@ -792,16 +983,27 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             }
             items.push_back(item);
         }
-        const auto deleted = m_workspace.delete_items(items);
+        const auto deleted = items.empty() ? Workspace::CommandResult::success() : m_workspace.delete_items(items);
         if (!deleted.succeeded()) {
             fail(activity, workspace_error_code(deleted.error), deleted.message);
             return;
         }
-        const auto snapshot  = m_workspace.snapshot();
-        activity.result_json = json{{"objects", objects_section_result(m_workspace.object_details())},
-                                    {"plateCount", snapshot.plates.size()},
-                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
-                                   .dump();
+        if (!regions.empty()) {
+            // The artifacts go as their own undo step; the records go with them.
+            const auto cleared = m_workspace.remove_regions(regions);
+            if (!cleared.succeeded()) {
+                fail(activity, workspace_error_code(cleared.error), cleared.message);
+                return;
+            }
+            m_product_state->set_regions(kept);
+        }
+        const auto snapshot = m_workspace.snapshot();
+        json       result{{"objects", objects_section_result(m_workspace.object_details())},
+                          {"plateCount", snapshot.plates.size()},
+                          {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+        if (!removed.empty())
+            result["removedRegions"] = json(std::vector<std::string>(removed.begin(), removed.end()));
+        activity.result_json = result.dump();
         activity.state = ToolState::Succeeded;
         notify(activity);
         return;
@@ -876,6 +1078,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         request.drop_to_bed = arguments.contains("dropToBed");
         request.auto_orient = arguments.contains("autoOrient");
         Workspace::PlacementResult placed;
+        const auto bound_before = bound_regions();
         const auto done = object ? m_workspace.place_object(*object, request, activity.action_id, placed) :
                                    Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
         if (!done.succeeded()) {
@@ -898,8 +1101,133 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                     {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
         if (placed.orienting)
             result["handle"] = activity.action_id;
+        result["regionsUnbound"] = regions_unbound(bound_before);
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectDividePreview) {
+        const auto object = parse_object_argument(activity.arguments_json);
+        Workspace::DivideResult preview;
+        const auto previewed = object ? m_workspace.preview_divide(*object, divide_request(json::parse(activity.arguments_json)), preview) :
+                                        Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+        if (!previewed.succeeded()) {
+            fail(activity, workspace_error_code(previewed.error), previewed.message);
+            return;
+        }
+        // Dividing replaces the object's mesh, so every region still bound to
+        // it would lose its binding.
+        json unbound = json::array();
+        if (m_product_state != nullptr)
+            for (const Workspace::RegionStatus& status : m_workspace.region_status(m_product_state->regions()))
+                if (status.object && *status.object == *object && !status.binding_lost)
+                    unbound.push_back(status.record.id);
+        activity.result_json = divide_result(preview, std::move(unbound), m_workspace.snapshot()).dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectDivide) {
+        const auto object       = parse_object_argument(activity.arguments_json);
+        const auto bound_before = bound_regions();
+        Workspace::DivideResult divided;
+        const auto done = object ? m_workspace.divide_object(*object, divide_request(json::parse(activity.arguments_json)), divided) :
+                                   Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        activity.result_json = divide_result(divided, regions_unbound(bound_before), m_workspace.snapshot()).dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectMerge) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
+        std::vector<Workspace::ObjectId>  ids;
+        for (const json& id : arguments["objectIds"])
+            ids.emplace_back(session, std::stoull(id.get<std::string>()));
+        const auto            bound_before = bound_regions();
+        Workspace::ObjectId   merged;
+        const auto            done = m_workspace.merge_objects(ids, merged);
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"objectId", std::to_string(merged.value())}, {"regionsUnbound", regions_unbound(bound_before)},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectRepair) {
+        const auto object       = parse_object_argument(activity.arguments_json);
+        const auto bound_before = bound_regions();
+        Workspace::RepairResult repaired;
+        const auto done = object ? m_workspace.repair_object(*object, repaired) :
+                                   Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        const auto pair     = [](double before, double after) {
+            return json{{"before", std::round(before * 100) / 100}, {"after", std::round(after * 100) / 100}};
+        };
+        activity.result_json =
+            json{{"changed", repaired.changed},
+                 {"openEdges", pair(double(repaired.open_edges_before), double(repaired.open_edges_after))},
+                 {"facets", pair(double(repaired.facets_before), double(repaired.facets_after))},
+                 {"parts", pair(double(repaired.parts_before), double(repaired.parts_after))},
+                 {"volumeMm3", pair(repaired.volume_before, repaired.volume_after)},
+                 {"regionsUnbound", regions_unbound(bound_before)},
+                 {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::RegionAnnotate) {
+        std::vector<Workspace::RegionRecord> stored = m_product_state->regions(), planned, applied, replaced;
+        const auto plan = m_workspace.plan_regions(region_requests(json::parse(activity.arguments_json)), stored, planned);
+        if (!plan.succeeded()) {
+            fail(activity, workspace_error_code(plan.error), plan.message);
+            return;
+        }
+        for (const Workspace::RegionRecord& record : stored)
+            if (std::any_of(planned.begin(), planned.end(), [&record](const auto& p) { return p.id == record.id; }))
+                replaced.push_back(record);
+        const auto done = m_workspace.apply_regions(planned, replaced, applied);
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        // Replaced records keep their place; new ones go last.
+        for (Workspace::RegionRecord& record : stored)
+            for (const Workspace::RegionRecord& written : applied)
+                if (written.id == record.id)
+                    record = written;
+        for (const Workspace::RegionRecord& written : applied)
+            if (std::none_of(replaced.begin(), replaced.end(), [&written](const auto& r) { return r.id == written.id; }))
+                stored.push_back(written);
+        m_product_state->set_regions(std::move(stored));
+        const auto snapshot = m_workspace.snapshot();
+        json       rows     = json::array();
+        for (const Workspace::RegionRecord& written : applied)
+            rows.push_back(region_result(written, nullptr));
+        activity.result_json = json{{"regions", std::move(rows)}, {"projectUndo", true},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
         notify(activity);
         return;
     }
@@ -913,6 +1241,11 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             request.features = request.features || section == "features";
             request.fit      = request.fit || section == "fit";
             request.orientations = request.orientations || section == "orientations";
+        }
+        const bool regions = std::find(arguments["include"].begin(), arguments["include"].end(), "regions") != arguments["include"].end();
+        if (regions && m_product_state == nullptr) {
+            fail(activity, "unavailable_operation", "Region annotations are not available here.");
+            return;
         }
         for (const auto& candidate : arguments.value("candidates", json::array())) {
             Workspace::OrientationCandidate row;
@@ -931,7 +1264,26 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             fail(activity, workspace_error_code(analyzed.error), analyzed.message);
             return;
         }
-        activity.result_json = object_analysis_result(*object, analysis, m_workspace.snapshot()).dump();
+        json result = object_analysis_result(*object, analysis, m_workspace.snapshot());
+        if (regions) {
+            json items     = json::array();
+            bool truncated = false;
+            for (const Workspace::RegionStatus& status : m_workspace.region_status(m_product_state->regions())) {
+                // A record whose object cannot be found any more is shown on the
+                // object it was written for, if that is this one.
+                const bool here = status.object ? *status.object == *object :
+                                                  status.record.session == object->session().value() && status.record.object == object->value();
+                if (!here)
+                    continue;
+                if (items.size() == Workspace::kRegionLimit) {
+                    truncated = true;
+                    break;
+                }
+                items.push_back(region_result(status.record, &status));
+            }
+            result["regions"] = {{"items", std::move(items)}, {"truncated", truncated}};
+        }
+        activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
         return;
@@ -1238,6 +1590,26 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
 
     fail(activity, "execution_failed", "The registered tool has no executable handler.");
+}
+
+std::set<std::string> ToolExecutionCoordinator::bound_regions() const
+{
+    std::set<std::string> bound;
+    if (m_product_state != nullptr)
+        for (const Workspace::RegionStatus& status : m_workspace.region_status(m_product_state->regions()))
+            if (status.object && !status.binding_lost)
+                bound.insert(status.record.id);
+    return bound;
+}
+
+json ToolExecutionCoordinator::regions_unbound(const std::set<std::string>& bound_before) const
+{
+    const std::set<std::string> bound = bound_regions();
+    json                        lost  = json::array();
+    for (const std::string& id : bound_before)
+        if (!bound.count(id))
+            lost.push_back(id);
+    return lost;
 }
 
 void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, std::string message, std::string details_json)

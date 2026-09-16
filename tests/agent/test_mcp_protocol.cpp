@@ -164,12 +164,23 @@ TEST_CASE("the MCP catalog's advertised size is recorded", "[mcp][protocol][budg
     Mcp::Request request;
     request.id     = 1;
     request.method = "tools/list";
-    const json listed = Mcp::list_tools(request).body["result"]["tools"];
+    // Every page: a client loads the whole catalog.
+    json listed = json::array();
+    for (;;) {
+        const json page = Mcp::list_tools(request).body["result"];
+        for (const json& tool : page["tools"])
+            listed.push_back(tool);
+        if (!page.contains("nextCursor"))
+            break;
+        request.params["cursor"] = page["nextCursor"];
+    }
     // The same measurement the offline helper prints, kept where a change to
     // a schema shows up as a number rather than as a surprise in a client.
+    // The byte bound is a tripwire, not the budget: the guide's load decision
+    // rests on the measured tokens, and the journey catalog passed 32 KB at M5.
     WARN("MCP tool definitions: " << listed.size() << ", " << listed.dump().size() << " bytes");
     CHECK(listed.size() <= 40);
-    CHECK(listed.dump().size() <= 32 * 1024);
+    CHECK(listed.dump().size() <= 48 * 1024);
     for (const json& tool : listed)
         CHECK_FALSE(tool.contains("outputSchema"));
 }

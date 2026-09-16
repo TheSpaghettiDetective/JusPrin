@@ -175,6 +175,9 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                 return false;
             if (item.contains("plateId"))
                 return item.size() == 1 && is_unsigned_string(item["plateId"]);
+            if (item.contains("regionId"))
+                return item.size() == 1 && item["regionId"].is_string() && !item["regionId"].get_ref<const std::string&>().empty() &&
+                       item["regionId"].get_ref<const std::string&>().size() <= 16;
             if (!has_only(item, {"objectId", "partId", "instance"}) || !item.contains("objectId") ||
                 !is_unsigned_string(item["objectId"]) || (item.contains("partId") && item.contains("instance")))
                 return false;
@@ -281,19 +284,109 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return orientation <= 1 && sizing <= 1 && anything;
     }
 
+    if (definition.handler == ToolHandler::ObjectDividePreview || definition.handler == ToolHandler::ObjectDivide) {
+        if (!has_only(arguments, {"sessionId", "objectId", "plane", "shells"}) || arguments.size() != 3 ||
+            !is_unsigned_string(arguments["sessionId"]) || !arguments.contains("objectId") || !is_unsigned_string(arguments["objectId"]))
+            return false;
+        if (arguments.contains("shells"))
+            return arguments["shells"] == "objects" || arguments["shells"] == "parts";
+        const json& plane = arguments["plane"];
+        const auto  numbers = [](const json& value) {
+            return value.is_array() && value.size() == 3 &&
+                   std::all_of(value.begin(), value.end(), [](const json& v) { return v.is_number(); });
+        };
+        return plane.is_object() && has_only(plane, {"point", "normal", "keep", "asParts"}) && plane.contains("point") &&
+               plane.contains("normal") && numbers(plane["point"]) && numbers(plane["normal"]) &&
+               (!plane.contains("keep") || plane["keep"] == "both" || plane["keep"] == "upper" || plane["keep"] == "lower") &&
+               (!plane.contains("asParts") || plane["asParts"].is_boolean());
+    }
+
+    if (definition.handler == ToolHandler::ObjectMerge) {
+        if (!has_only(arguments, {"sessionId", "objectIds"}) || arguments.size() != 2 || !is_unsigned_string(arguments["sessionId"]))
+            return false;
+        const json& ids = arguments["objectIds"];
+        std::set<std::string> seen;
+        return ids.is_array() && ids.size() >= 2 && ids.size() <= 16 && std::all_of(ids.begin(), ids.end(), [&seen](const json& id) {
+                   return is_unsigned_string(id) && seen.insert(id.get<std::string>()).second;
+               });
+    }
+
+    if (definition.handler == ToolHandler::ObjectRepair)
+        return has_only(arguments, {"sessionId", "objectId"}) && arguments.size() == 2 && is_unsigned_string(arguments["sessionId"]) &&
+               arguments.contains("objectId") && is_unsigned_string(arguments["objectId"]);
+
+    if (definition.handler == ToolHandler::RegionAnnotate) {
+        if (!has_only(arguments, {"sessionId", "regions"}) || arguments.size() != 2 || !is_unsigned_string(arguments["sessionId"]))
+            return false;
+        const json& rows = arguments["regions"];
+        if (!rows.is_array() || rows.empty() || rows.size() > 32)
+            return false;
+        const auto numbers = [](const json& value) {
+            return value.is_array() && value.size() == 3 &&
+                   std::all_of(value.begin(), value.end(), [](const json& v) { return v.is_number(); });
+        };
+        const auto positive = [](const json& object, const char* key) {
+            return object.contains(key) && object[key].is_number() && object[key].get<double>() > 0;
+        };
+        return std::all_of(rows.begin(), rows.end(), [&](const json& row) {
+            if (!row.is_object() || !has_only(row, {"regionId", "objectId", "kind", "geometry", "settings", "extruder"}))
+                return false;
+            const bool existing = row.contains("regionId");
+            if (existing && (!row["regionId"].is_string() || row["regionId"].get_ref<const std::string&>().empty() ||
+                             row["regionId"].get_ref<const std::string&>().size() > 16))
+                return false;
+            // A new region names its object, kind and geometry; an existing one
+            // may name any of them to change it.
+            if (!existing && (!row.contains("objectId") || !row.contains("kind") || !row.contains("geometry")))
+                return false;
+            if (row.contains("objectId") && !is_unsigned_string(row["objectId"]))
+                return false;
+            if (row.contains("kind") && (!row["kind"].is_string() || row["kind"].get_ref<const std::string&>().size() > 32))
+                return false;
+            if (row.contains("extruder") && (!row["extruder"].is_number_unsigned() || row["extruder"].get<std::uint64_t>() < 1 ||
+                                             row["extruder"].get<std::uint64_t>() > 16))
+                return false;
+            if (row.contains("settings")) {
+                const json& settings = row["settings"];
+                if (!settings.is_object() || settings.empty() || settings.size() > 8 ||
+                    !std::all_of(settings.begin(), settings.end(), [](const json& v) { return v.is_string() || v.is_number() || v.is_boolean(); }))
+                    return false;
+            }
+            if (!row.contains("geometry"))
+                return true;
+            const json& geometry = row["geometry"];
+            if (!geometry.is_object() || !geometry.contains("type") || !geometry["type"].is_string())
+                return false;
+            const std::string type = geometry["type"];
+            if (type == "face" || type == "hole")
+                return has_only(geometry, {"type", "handle"}) && geometry.size() == 2 && geometry["handle"].is_string() &&
+                       !geometry["handle"].get_ref<const std::string&>().empty() && geometry["handle"].get_ref<const std::string&>().size() <= 64;
+            if (type == "box")
+                return has_only(geometry, {"type", "center", "sizeMm"}) && geometry.size() == 3 && numbers(geometry["center"]) &&
+                       numbers(geometry["sizeMm"]);
+            if (type == "cylinder")
+                return has_only(geometry, {"type", "center", "axis", "diameterMm", "lengthMm"}) && geometry.size() == 5 &&
+                       numbers(geometry["center"]) && numbers(geometry["axis"]) && positive(geometry, "diameterMm") && positive(geometry, "lengthMm");
+            if (type == "direction")
+                return has_only(geometry, {"type", "vector", "toleranceDegrees"}) && geometry.size() == 3 && numbers(geometry["vector"]) &&
+                       positive(geometry, "toleranceDegrees") && geometry["toleranceDegrees"].get<double>() <= 90;
+            return type == "object" && geometry.size() == 1;
+        });
+    }
+
     if (definition.handler == ToolHandler::ObjectAnalyze) {
         if (!has_only(arguments, {"sessionId", "objectId", "include", "measure", "candidates"}) || !arguments.contains("sessionId") ||
             !is_unsigned_string(arguments["sessionId"]) || !arguments.contains("objectId") ||
             !is_unsigned_string(arguments["objectId"]) || !arguments.contains("include"))
             return false;
         const json& include = arguments["include"];
-        if (!include.is_array() || include.empty() || include.size() > 5)
+        if (!include.is_array() || include.empty() || include.size() > 6)
             return false;
         std::set<std::string> seen;
         for (const auto& section : include)
             if (!section.is_string() || !seen.insert(section.get<std::string>()).second ||
                 (section != "mesh" && section != "features" && section != "fit" && section != "measure" &&
-                 section != "orientations"))
+                 section != "orientations" && section != "regions"))
                 return false;
         if (arguments.contains("candidates")) {
             const json& candidates = arguments["candidates"];
@@ -548,6 +641,15 @@ std::vector<ToolDefinition> make_definitions()
          {"truncated", boolean_schema()}},
         {"configured", "plateObservable", "factKey", "confirmedFacts", "mismatches", "truncated"});
     const json vector3 = {{"type", "array"}, {"items", number_schema()}, {"maxItems", 3}};
+    const json region_text{{"type", "string"}, {"maxLength", kToolTextLimit}};
+    const json piece_row = object_schema({{"objectId", id}, {"name", region_text}, {"volumeMm3", number_schema()},
+                                          {"sizeMm", vector3}, {"centerMm", vector3}, {"overhangAreaMm2", number_schema()}},
+                                         {"name", "volumeMm3", "sizeMm", "centerMm", "overhangAreaMm2"});
+    const json before_after = object_schema({{"before", number_schema()}, {"after", number_schema()}}, {"before", "after"});
+    const json region_row = object_schema({{"regionId", id}, {"objectId", id}, {"kind", id}, {"label", region_text},
+                                           {"geometry", id}, {"artifacts", {{"type", "array"}, {"items", region_text}, {"maxItems", 8}}},
+                                           {"bindingLost", boolean_schema()}, {"artifactsMissing", boolean_schema()}},
+                                          {"regionId", "kind", "label", "geometry", "artifacts"});
     const json objects_section = list_schema(object_schema(
         {{"objectId", id}, {"name", string_schema()}, {"plateIds", {{"type", "array"}, {"items", id}}},
          {"instanceCount", integer_schema()}, {"partCount", integer_schema()}, {"modifierCount", integer_schema()},
@@ -818,13 +920,15 @@ std::vector<ToolDefinition> make_definitions()
          import_result,
          ActionClass::Mutation, ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectImportFile},
         {"project_delete_items", "Delete from the project",
-         "Delete up to 32 items in one undo step: {objectId} for a whole object, {objectId, partId} for one part (part ids come from object_analyze mesh), {objectId, instance} for one copy, or {plateId} for a plate, whose objects OrcaSlicer moves to another plate. The last solid part or copy of an object is refused; delete the object. Calling it shows the user an approval card in JusPrin and waits for their decision, and the card names each item.",
+         "Delete up to 32 items in one undo step: {objectId} for a whole object, {objectId, partId} for one part (part ids come from object_analyze mesh), {objectId, instance} for one copy, {plateId} for a plate, whose objects OrcaSlicer moves to another plate, or {regionId} for a region annotation and what it generated. The last solid part or copy of an object is refused; delete the object. Calling it shows the user an approval card in JusPrin and waits for their decision, and the card names each item.",
          object_schema({{"sessionId", id},
                         {"items", {{"type", "array"}, {"minItems", 1}, {"maxItems", 32},
                                    {"items", object_schema({{"objectId", id}, {"partId", id}, {"instance", integer_schema()},
-                                                            {"plateId", id}})}}}},
+                                                            {"plateId", id}, {"regionId", id}})}}}},
                        {"sessionId", "items"}),
-         object_schema({{"objects", objects_section}, {"plateCount", integer_schema()}, {"sessionId", id}, {"revision", revision}},
+         object_schema({{"objects", objects_section}, {"plateCount", integer_schema()},
+                        {"removedRegions", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"sessionId", id}, {"revision", revision}},
                        {"objects", "plateCount", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectDeleteItems},
         {"plate_layout", "Lay out the plates",
@@ -845,7 +949,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"objects", "addedPlateIds", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlateLayout},
         {"object_place", "Place an object",
-         "Place one copy of an object for printing, in one undo step. instance picks an existing copy (default 0, the first); to add copies use plate_layout quantity. Facets, all optional, applied in this order: unitsFix (inches or meters: the file's numbers are in those units, as object_analyze mesh unitsSuspicion reports; OrcaSlicer multiplies the size by 25.4 or 1000 and replaces the object, so the result names the new objectId; never scale by hand to fix units), scale (factors x, y, z) or scaleTo (a uniform scale that makes the size along one axis sizeMm), mirrorAxis, then at most one of faceDown (a face handle from object_analyze features, put on the bed), rotateDegrees (about the world x, y, z axes) or autoOrient (OrcaSlicer's own auto-orient for minimal support; it runs as a job whose state is read from workspace_inspect's slicing section under the returned handle), then position (x, y of the instance on the bed, mm) and dropToBed. To orient for another goal, score candidates with object_analyze orientations and place the chosen face down. Mirror and scale are named on the approval card. Calling it shows the user an approval card in JusPrin and waits for their decision.",
+         "Place one copy of an object for printing, in one undo step. instance picks an existing copy (default 0, the first); to add copies use plate_layout quantity. Facets, all optional, applied in this order: unitsFix (inches or meters: the file's numbers are in those units, as object_analyze mesh unitsSuspicion reports; OrcaSlicer multiplies the size by 25.4 or 1000 and replaces the object, so the result names the new objectId; never scale by hand to fix units), scale (factors x, y, z) or scaleTo (a uniform scale that makes the size along one axis sizeMm), mirrorAxis, then at most one of faceDown (a face handle from object_analyze features, put on the bed), rotateDegrees (about the world x, y, z axes) or autoOrient (OrcaSlicer's own auto-orient for minimal support; it runs as a job whose state is read from workspace_inspect's slicing section under the returned handle), then position (x, y of the instance on the bed, mm) and dropToBed. To orient for another goal, score candidates with object_analyze orientations and place the chosen face down. Mirror and scale are named on the approval card. regionsUnbound lists region annotations whose geometry the change lost (a units fix rescales the mesh); moving or turning keeps them. Calling it shows the user an approval card in JusPrin and waits for their decision.",
          object_schema({{"sessionId", id}, {"objectId", id}, {"instance", integer_schema()},
                         {"unitsFix", {{"type", "string"}, {"enum", json::array({"inches", "meters"})}}},
                         {"scale", vector3},
@@ -861,14 +965,83 @@ std::vector<ToolDefinition> make_definitions()
          object_schema({{"objectId", id},
                         {"transform", object_schema({{"positionMm", vector3}, {"rotationDegrees", vector3}, {"scale", vector3}},
                                                     {"positionMm", "rotationDegrees", "scale"})},
-                        {"sizeMm", vector3}, {"handle", id}, {"sessionId", id}, {"revision", revision}},
-                       {"objectId", "transform", "sizeMm", "sessionId", "revision"}),
+                        {"sizeMm", vector3}, {"handle", id},
+                        {"regionsUnbound", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"objectId", "transform", "sizeMm", "regionsUnbound", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectPlace},
-        {"object_analyze", "Analyze an object",
-         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, each part with its id and kind, open and repaired edges, and whether OrcaSlicer thinks it was modelled in inches or metres), features (the largest flat faces, each with a handle, area, sizeMm -- its two side lengths, longest first, which is how to find \"the 25 by 6 mm face\" -- centre and outward normal (0,0,-1 is the face on the bed), and hole mouths with a handle, diameter, centre and axis; millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (OrcaSlicer's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
+        {"object_divide_preview", "Preview dividing an object",
+         "Work out, without changing anything, what object_divide would make: each piece's size, volume, centre and overhang area (downward faces steeper than the support threshold, as the piece would lie: an estimate of what needs support), the overhang area before, and the region annotations that dividing would unbind. Same arguments as object_divide.",
          object_schema({{"sessionId", id}, {"objectId", id},
-                        {"include", {{"type", "array"}, {"minItems", 1}, {"maxItems", 5},
-                                     {"items", {{"type", "string"}, {"enum", json::array({"mesh", "features", "fit", "orientations", "measure"})}}}}},
+                        {"plane", object_schema({{"point", vector3}, {"normal", vector3},
+                                                 {"keep", {{"type", "string"}, {"enum", json::array({"both", "upper", "lower"})}}},
+                                                 {"asParts", boolean_schema()}},
+                                                {"point", "normal"})},
+                        {"shells", {{"type", "string"}, {"enum", json::array({"objects", "parts"})}}}},
+                       {"sessionId", "objectId"}),
+         object_schema({{"pieces", {{"type", "array"}, {"maxItems", 64}, {"items", piece_row}}},
+                        {"overhangAreaBeforeMm2", number_schema()}, {"overhangAreaAfterMm2", number_schema()},
+                        {"regionsUnbound", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"truncated", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"pieces", "overhangAreaBeforeMm2", "overhangAreaAfterMm2", "regionsUnbound", "truncated", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectDividePreview},
+        {"object_divide", "Divide an object",
+         "Divide one object in one undo step: plane {point, normal} in millimetres in the world frame as the object stands now, cuts it with OrcaSlicer's cut (the side the normal points to is upper; keep both, upper or lower; asParts keeps the pieces as parts of one object); or shells (objects or parts) splits it into its separate shells. The pieces are new objects with new ids, listed in the result; region annotations on the object are unbound (regionsUnbound). Preview first with object_divide_preview. Calling it shows the user an approval card in JusPrin describing the pieces, and waits for their decision.",
+         object_schema({{"sessionId", id}, {"objectId", id},
+                        {"plane", object_schema({{"point", vector3}, {"normal", vector3},
+                                                 {"keep", {{"type", "string"}, {"enum", json::array({"both", "upper", "lower"})}}},
+                                                 {"asParts", boolean_schema()}},
+                                                {"point", "normal"})},
+                        {"shells", {{"type", "string"}, {"enum", json::array({"objects", "parts"})}}}},
+                       {"sessionId", "objectId"}),
+         object_schema({{"pieces", {{"type", "array"}, {"maxItems", 64}, {"items", piece_row}}},
+                        {"overhangAreaBeforeMm2", number_schema()}, {"overhangAreaAfterMm2", number_schema()},
+                        {"regionsUnbound", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"truncated", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"pieces", "overhangAreaBeforeMm2", "overhangAreaAfterMm2", "regionsUnbound", "truncated", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectDivide},
+        {"object_merge", "Merge objects",
+         "Merge 2 to 16 objects into one object with each as a part, in one undo step, keeping where each is; the result is the new object's id, and region annotations on the merged objects are unbound. Calling it shows the user an approval card in JusPrin naming the objects, and waits for their decision.",
+         object_schema({{"sessionId", id}, {"objectIds", {{"type", "array"}, {"items", id}, {"minItems", 2}, {"maxItems", 16}}}},
+                       {"sessionId", "objectIds"}),
+         object_schema({{"objectId", id}, {"regionsUnbound", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"objectId", "regionsUnbound", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectMerge},
+        {"object_repair", "Repair an object's mesh",
+         "Repair the mesh of one object with OrcaSlicer's CGAL repair, in one undo step, when object_analyze mesh reports open edges; the result says what changed (open edges, facets, parts, volume, before and after). Paint on the object is cleared and region annotations whose geometry changed are listed as unbound. Nothing changes, and no undo step is added, when there are no open edges. Calling it shows the user an approval card in JusPrin and waits for their decision.",
+         object_schema({{"sessionId", id}, {"objectId", id}}, {"sessionId", "objectId"}),
+         object_schema({{"changed", boolean_schema()},
+                        {"openEdges", before_after}, {"facets", before_after}, {"parts", before_after}, {"volumeMm3", before_after},
+                        {"regionsUnbound", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"changed", "openEdges", "facets", "parts", "volumeMm3", "regionsUnbound", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectRepair},
+        {"region_annotate", "Mark what parts of an object mean",
+         "Record what up to 32 regions of an object mean, and make OrcaSlicer print them that way. Each row is {objectId, kind, geometry} for a new region, or {regionId} to regenerate a stored one (adding objectId, kind or geometry replaces that part of it). kind: smooth_face and visible (no seam, and for smooth_face no support marks), hidden and seam_preferred (seam goes here), seam_forbidden, no_support and precision_hole (supports kept out; for a hole, a blocker fills it), support_allowed, reinforce and flexible (a modifier with settings, default wall_loops and sparse_infill_density; with geometry object, the object's own settings), material (extruder, 1-based). geometry: {type: face|hole, handle} from object_analyze features; {type: box, center, sizeMm} or {type: cylinder, center, axis, diameterMm, lengthMm} in millimetres in the world frame as the object stands now; {type: direction, vector, toleranceDegrees} for every face pointing that way now; {type: object}. The region stays with the object when it is moved or turned. Generates support and seam paint, support blockers and enforcers, modifier volumes or object settings in one undo step: project Undo removes those but not the annotation, which object_analyze then reports as artifactsMissing. Delete a region with project_delete_items {regionId}. Calling it shows the user an approval card in JusPrin listing each region and what it generates, and waits for their decision.",
+         object_schema({{"sessionId", id},
+                        {"regions", {{"type", "array"}, {"minItems", 1}, {"maxItems", 32},
+                                     {"items", object_schema({{"regionId", id}, {"objectId", id},
+                                                              {"kind", {{"type", "string"}, {"enum", json::array({"smooth_face", "no_support", "support_allowed", "precision_hole", "reinforce", "flexible", "visible", "hidden", "seam_preferred", "seam_forbidden", "material"})}}},
+                                                              {"geometry", object_schema({{"type", {{"type", "string"}, {"enum", json::array({"face", "hole", "box", "cylinder", "direction", "object"})}}},
+                                                                                          {"handle", id}, {"center", vector3}, {"sizeMm", vector3},
+                                                                                          {"axis", vector3}, {"diameterMm", number_schema()},
+                                                                                          {"lengthMm", number_schema()}, {"vector", vector3},
+                                                                                          {"toleranceDegrees", number_schema()}},
+                                                                                         {"type"})},
+                                                              {"settings", {{"type", "object"}, {"maxProperties", 8},
+                                                                            {"additionalProperties", {{"type", json::array({"string", "number", "boolean"})}}}}},
+                                                              {"extruder", {{"type", "integer"}, {"minimum", 1}}}})}}}},
+                       {"sessionId", "regions"}),
+         object_schema({{"regions", {{"type", "array"}, {"maxItems", 32}, {"items", region_row}}},
+                        {"projectUndo", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"regions", "projectUndo", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::RegionAnnotate},
+        {"object_analyze", "Analyze an object",
+         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, each part with its id and kind, open and repaired edges, and whether OrcaSlicer thinks it was modelled in inches or metres), features (the largest flat faces, each with a handle, area, sizeMm -- its two side lengths, longest first, which is how to find \"the 25 by 6 mm face\" -- centre and outward normal (0,0,-1 is the face on the bed), and hole mouths with a handle, diameter, centre and axis; millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (OrcaSlicer's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to), regions (the region annotations on this object, what each generated, and whether its geometry is still there -- bindingLost -- or project Undo or an edit removed what it generated -- artifactsMissing; region_annotate with the regionId regenerates it). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
+         object_schema({{"sessionId", id}, {"objectId", id},
+                        {"include", {{"type", "array"}, {"minItems", 1}, {"maxItems", 6},
+                                     {"items", {{"type", "string"}, {"enum", json::array({"mesh", "features", "fit", "orientations", "measure", "regions"})}}}}},
                         {"measure", object_schema({{"from", id}, {"to", id}}, {"from", "to"})},
                         {"candidates", {{"type", "array"}, {"minItems", 1}, {"maxItems", 8},
                                         {"items", object_schema({{"up", vector3}, {"faceDown", id}})}}}},
@@ -898,6 +1071,9 @@ std::vector<ToolDefinition> make_definitions()
                                                                                       {"handle", "diameterMm", "center", "axis"})}}},
                                                     {"truncated", boolean_schema()}},
                                                    {"faces", "holes", "truncated"})},
+                        {"regions", object_schema({{"items", {{"type", "array"}, {"maxItems", 32}, {"items", region_row}}},
+                                                   {"truncated", boolean_schema()}},
+                                                  {"items", "truncated"})},
                         {"fit", object_schema({{"instances", {{"type", "array"}, {"maxItems", 16},
                                                               {"items", object_schema({{"instance", integer_schema()}, {"plateId", id},
                                                                                        {"inside", boolean_schema()}},
@@ -1125,9 +1301,16 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
     json arguments = json::parse(arguments_json, nullptr, false);
     if (arguments.is_discarded() || !valid_arguments(definition, arguments))
         return {{}, ToolError{"invalid_arguments", "The tool arguments do not match the registered contract."}};
-    if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch)
-        for (auto& value : arguments["changes"])
+    const auto canonical = [](json& values) {
+        for (auto& value : values)
             if (!value.is_string()) value = value.is_boolean() ? (value.get<bool>() ? "1" : "0") : value.dump();
+    };
+    if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch)
+        canonical(arguments["changes"]);
+    if (definition.handler == ToolHandler::RegionAnnotate)
+        for (auto& row : arguments["regions"])
+            if (row.contains("settings"))
+                canonical(row["settings"]);
     return {arguments.dump(), std::nullopt};
 }
 
