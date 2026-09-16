@@ -28,7 +28,7 @@ namespace Slic3r::GUI::JusPrin::SetupCommands {
 struct PrinterInfo
 {
     std::string preset_name;
-    wxString    nickname;        // printer_model, else the label without " nozzle"
+    wxString    nickname;        // a named printer's name, else printer_model, else the label without " nozzle"
     double      nozzle{0.};
     std::size_t extruder_count{1};
     bool        valid{false};
@@ -66,8 +66,8 @@ struct NozzleVariant
     double      nozzle{0.};
     bool        current{false};
 };
-// Sibling printer presets for the same printer model that differ only in
-// nozzle, smallest first.
+// The installed system presets for the current printer model, one per
+// nozzle, smallest first. `current` marks the one the printer is on.
 std::vector<NozzleVariant> nozzle_variants();
 
 struct BedTypeChoice

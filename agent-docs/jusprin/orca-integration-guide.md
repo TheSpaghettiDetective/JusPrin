@@ -207,6 +207,29 @@ so `has_printable_instances()` read immediately after placement can still
 report the stale value. Judge printability from the slice result, not from a
 check in the same event-loop turn as the placement.
 
+### OrcaSlicer has no printer object; a named printer is a user profile
+
+Upstream never loads `PhysicalPrinterCollection` (`load_printers` has no
+caller), and its "Physical Printer" dialog is a Save-as: it asks for a name and
+stores the print-host settings in a **user printer profile** that inherits the
+system one. Two machines of one model are therefore two user profiles on the
+same system parent, and a system profile alone is only a model. JusPrin's
+`Printers/NamedPrinters` follows that: Add a printer installs and selects the
+system profile, then `Tab::save_preset(name)` saves it as the printer, and Home
+lists user printer profiles plus Bambu devices no printer stands for. The only
+thing upstream does not store is which Bambu device a printer was added from;
+that link lives in the app config section `jusprin_printer_devices`.
+
+Upstream has no rename. A rename is `Tab::save_preset(new)` on the selected
+profile followed by deleting the old one, which is what a person does by hand.
+An unselected profile is deleted the way `CreatePresetsDialog` does it (queue
+the cloud deletion, then `PresetCollection::delete_preset`); the selected one
+goes through `Tab::select_preset("", true)`, which selects its parent. A
+profile with no parent is a custom printer, and `Tab::delete_preset` also
+deletes the filament and process profiles made for it, so that case goes
+through Orca's own confirmation. Names that differ only in case are one file on
+Windows and macOS; never save one over the other and then delete the first.
+
 ### Application teardown can re-enter destroyed owners
 
 Quitting while model volumes are loaded can crash:
@@ -410,7 +433,7 @@ ever abandons.
 Bambu header-menu state, Select Machine, and print jobs are driven by the
 in-process fake in `src/slic3r/GUI/JusPrin/Testing/`. Operators (humans and
 agents) follow [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md):
-JSON `jusprin.fake_printer`, a real Bambu Lab **system** preset, a scratch
+JSON `jusprin.fake_printer`, a Bambu Lab system preset or a printer named on one, a scratch
 `--datadir`, and the printer **menu** first row rather than the chip label.
 Do not send keys or clicks to some other JusPrin already on the machine.
 

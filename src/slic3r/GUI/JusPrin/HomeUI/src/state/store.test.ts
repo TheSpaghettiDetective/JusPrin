@@ -16,6 +16,10 @@ const project: ProjectInfo = {
 const printer: PrinterInfo = {
   id: 'x1',
   name: 'X1 Carbon',
+  kind: 'named',
+  canOpenSettings: true,
+  canRename: true,
+  canRemove: true,
   state: 'printing',
   spools: [],
   canLaunchMonitor: true,
@@ -84,5 +88,20 @@ describe('the Home reducer', () => {
       envelope: envelope('state', { appearance: 'light', projects: [], printers: [] }),
     });
     expect(recovered.error).toBeUndefined();
+  });
+
+  // The host sends a fresh state right after a refusal, so a state must not
+  // wipe the reason before the person has read it.
+  it('keeps a printer refusal through the following state until the next printer action', () => {
+    const refused = reduce(initialState, {
+      kind: 'envelope',
+      envelope: envelope('printer_error', { id: 'named:Garage', message: 'That name is reserved.' }),
+    });
+    const refreshed = reduce(refused, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [printer] }),
+    });
+    expect(refreshed.printerError).toEqual({ id: 'named:Garage', message: 'That name is reserved.' });
+    expect(reduce(refreshed, { kind: 'printer_action' }).printerError).toBeUndefined();
   });
 });

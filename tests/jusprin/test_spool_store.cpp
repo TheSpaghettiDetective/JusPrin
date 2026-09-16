@@ -250,6 +250,32 @@ TEST_CASE("rename, recolour and remove persist; an unknown id changes nothing", 
     CHECK(found->colour == "#EDEAE0");
 }
 
+TEST_CASE("a renamed printer keeps its spools and a removed one takes them along", "[spools]")
+{
+    TempDir dir;
+    StepClock clock;
+    CountingUuid uuid;
+    {
+        SpoolStore store(config_for(dir.file(), clock, uuid));
+        store.add(make_spool("Garage X1C", "Generic PLA", "#101010", "Black"));
+        store.add(make_spool("Garage X1C", "Generic PETG", "#F5F5F0", "White"));
+        store.add(make_spool("Office A1", "Generic PLA", "#C0392B", "Red"));
+
+        CHECK(store.move_printer("Garage X1C", "Shed X1C") == 2);
+        CHECK(store.move_printer("No such printer", "Anything") == 0);
+        CHECK(store.spools_for("Garage X1C").empty());
+        CHECK(store.remove_printer("Office A1") == 1);
+        CHECK(store.remove_printer("Office A1") == 0);
+    }
+
+    StepClock reload_clock;
+    CountingUuid reload_uuid;
+    SpoolStore reopened(config_for(dir.file(), reload_clock, reload_uuid));
+    CHECK(reopened.spools_for("Shed X1C").size() == 2);
+    CHECK(reopened.spools_for("Office A1").empty());
+    CHECK(reopened.size() == 2);
+}
+
 TEST_CASE("a damaged file is moved aside, never overwritten", "[spools]")
 {
     TempDir dir;

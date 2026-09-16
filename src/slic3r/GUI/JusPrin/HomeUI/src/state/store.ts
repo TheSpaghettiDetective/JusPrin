@@ -3,7 +3,14 @@
 // is always recoverable from the next `state` envelope.
 
 import type { ConnectionState } from '../bridge/client';
-import type { Appearance, Envelope, PrinterInfo, ProjectInfo, StatePayload } from '../bridge/protocol';
+import type {
+  Appearance,
+  Envelope,
+  PrinterErrorPayload,
+  PrinterInfo,
+  ProjectInfo,
+  StatePayload,
+} from '../bridge/protocol';
 
 export interface HomeState {
   connection: ConnectionState;
@@ -15,6 +22,9 @@ export interface HomeState {
   projects: ProjectInfo[];
   printers: PrinterInfo[];
   error?: string;
+  // The last printer action the host refused. The host follows a refusal with
+  // a fresh state, so only the person's next printer action clears it.
+  printerError?: PrinterErrorPayload;
 }
 
 export const initialState: HomeState = {
@@ -27,11 +37,15 @@ export const initialState: HomeState = {
 
 export type HomeAction =
   | { kind: 'connection'; state: ConnectionState; detail?: string }
-  | { kind: 'envelope'; envelope: Envelope };
+  | { kind: 'envelope'; envelope: Envelope }
+  | { kind: 'printer_action' };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
     return { ...state, connection: action.state, connectionDetail: action.detail };
+  }
+  if (action.kind === 'printer_action') {
+    return { ...state, printerError: undefined };
   }
   const { type, payload } = action.envelope;
   switch (type) {
@@ -52,6 +66,8 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       return { ...state, printers: (payload as { printers: PrinterInfo[] }).printers ?? [] };
     case 'appearance':
       return { ...state, appearance: (payload as { appearance: Appearance }).appearance };
+    case 'printer_error':
+      return { ...state, printerError: payload as PrinterErrorPayload };
     case 'bridge_error':
       return { ...state, error: (payload as { message?: string }).message };
     default:

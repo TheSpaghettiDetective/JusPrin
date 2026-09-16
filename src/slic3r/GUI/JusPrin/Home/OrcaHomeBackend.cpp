@@ -4,12 +4,16 @@
 
 #include "OrcaHomeBackend.hpp"
 
+#include "slic3r/GUI/BindDialog.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/SelectMachinePop.hpp"
+#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -20,6 +24,8 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
+#include <set>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -70,6 +76,60 @@ wxString remaining_text(int seconds)
         return wxString::Format(_L("%dh %dm left"), minutes / 60, minutes % 60);
     return wxString::Format(_L("%dm left"), std::max(minutes, 1));
 }
+
+// A card id says what the card stands for, so an action never has to guess
+// whether a name is a printer or a device serial.
+const std::string kNamedPrefix  = "named:";
+const std::string kDevicePrefix = "device:";
+
+// The rest of `id` after `prefix`, or nothing when it has another prefix.
+std::optional<std::string> strip(const std::string& id, const std::string& prefix)
+{
+    if (id.compare(0, prefix.size(), prefix) != 0)
+        return std::nullopt;
+    return id.substr(prefix.size());
+}
+
+std::string nozzle_text(double diameter)
+{
+    return std::string(wxString::Format(_L("%.1f mm nozzle"), diameter).ToUTF8());
+}
+
+// What the device reports about itself and its job.
+void describe_device(MachineObject& machine, PrinterEntry& printer)
+{
+    const bool printing        = machine_is_printing(machine);
+    const bool connected       = machine.is_connected();
+    printer.state              = !connected ? PrinterState::Offline
+                                 : printing ? PrinterState::Printing
+                                            : PrinterState::Idle;
+    printer.can_launch_monitor = connected;
+    if (printing) {
+        printer.progress_percent = machine.mc_print_percent;
+        wxString status          = _L("Printing") + middle_dot() + wxString::Format("%d%%", machine.mc_print_percent);
+        const wxString remaining = remaining_text(machine.mc_left_time);
+        if (!remaining.empty())
+            status += middle_dot() + remaining;
+        printer.status_text = std::string(status.ToUTF8());
+    }
+    if (connected)
+        printer.connection_text = std::string(_L("Connected").ToUTF8());
+    if (const DevExtderSystem* extruders = machine.GetExtderSystem()) {
+        const float diameter = extruders->GetNozzleDiameter(0);
+        if (diameter > 0.f)
+            printer.nozzle_text = nozzle_text(diameter);
+    }
+}
+
+MachineObject* my_machine(const std::string& device_id)
+{
+    DeviceManager* devices = wxGetApp().getDeviceManager();
+    return devices != nullptr ? devices->get_my_machine(device_id) : nullptr;
+}
+
+std::string utf8(const wxString& text) { return std::string(text.ToUTF8()); }
+
+std::string gone() { return utf8(_L("This printer no longer exists.")); }
 
 } // namespace
 
@@ -134,7 +194,6 @@ std::vector<ProjectEntry> OrcaHomeBackend::recent_projects() const
 
 std::vector<PrinterEntry> OrcaHomeBackend::printers() const
 {
-    std::vector<PrinterEntry>             printers;
     std::map<std::string, MachineObject*> machines;
     if (DeviceManager* devices = wxGetApp().getDeviceManager()) {
         for (const auto& entry : devices->get_my_machine_list())
@@ -142,77 +201,51 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
                 machines.emplace(entry.first, entry.second);
     }
 
-    for (const auto& entry : machines) {
-        MachineObject* machine = entry.second;
-        PrinterEntry   printer;
-        printer.id                 = entry.first;
-        printer.name               = machine->get_dev_name();
-        const bool printing        = machine_is_printing(*machine);
-        const bool connected       = machine->is_connected();
-        printer.state              = !connected ? PrinterState::Offline
-                                     : printing ? PrinterState::Printing
-                                                : PrinterState::Idle;
-        printer.can_launch_monitor = connected;
-        if (printing) {
-            printer.progress_percent = machine->mc_print_percent;
-            wxString status          = _L("Printing") + middle_dot() +
-                              wxString::Format("%d%%", machine->mc_print_percent);
-            const wxString remaining = remaining_text(machine->mc_left_time);
-            if (!remaining.empty())
-                status += middle_dot() + remaining;
-            printer.status_text = std::string(status.ToUTF8());
+    // The printers the person added, each with the device it stands for when
+    // that device is here. The device's own reading of the nozzle wins: a
+    // printer whose hardware was changed says so.
+    std::vector<PrinterEntry> printers;
+    std::set<std::string>     represented;
+    const std::string         material = utf8(SetupCommands::current_filament().material);
+    for (const Printers::NamedPrinter& named : Printers::named_printers()) {
+        PrinterEntry printer;
+        printer.id                = kNamedPrefix + named.name;
+        printer.name              = named.name;
+        printer.kind              = PrinterKind::Named;
+        printer.can_open_settings = true;
+        printer.can_rename        = true;
+        printer.can_remove        = true;
+        if (named.nozzle > 0.)
+            printer.nozzle_text = nozzle_text(named.nozzle);
+        if (const auto found = machines.find(named.device_id); !named.device_id.empty() && found != machines.end()) {
+            describe_device(*found->second, printer);
+            represented.insert(named.device_id);
         }
-        if (connected)
-            printer.connection_text = std::string(_L("Connected").ToUTF8());
-        // The nozzle the device reports, not the one the preset assumes: a
-        // printer whose hardware was changed says so here.
-        if (const DevExtderSystem* extruders = machine->GetExtderSystem()) {
-            const float diameter = extruders->GetNozzleDiameter(0);
-            if (diameter > 0.f)
-                printer.nozzle_text = std::string(wxString::Format(_L("%.1f mm nozzle"), diameter).ToUTF8());
-        }
+        // Spools are remembered per printer; the material the project has
+        // loaded only describes the one in force.
+        if (m_spools != nullptr)
+            for (const Workspace::Spool& spool : m_spools->spools_for(named.name))
+                printer.spools.push_back(SpoolEntry{spool.colour});
+        if (named.selected && !printer.spools.empty())
+            printer.material_label = material;
         printers.push_back(std::move(printer));
     }
 
-    // Printers Orca knows as presets but no device reports: they belong in the
-    // column, without a job.
-    if (const PresetBundle* presets = wxGetApp().preset_bundle) {
-        for (const PhysicalPrinter& physical : presets->physical_printers) {
-            const bool known = std::any_of(printers.begin(), printers.end(),
-                                           [&](const PrinterEntry& seen) { return seen.name == physical.name; });
-            if (known)
-                continue;
-            PrinterEntry printer;
-            printer.id    = physical.name;
-            printer.name  = physical.name;
-            printer.state = PrinterState::Idle;
-            printers.push_back(std::move(printer));
-        }
+    // Devices no named printer stands for. Their name and binding are the
+    // device's, so renaming and removing them are upstream's device dialogs,
+    // offered where upstream's device list offers them.
+    for (const auto& [id, machine] : machines) {
+        if (represented.count(id) > 0)
+            continue;
+        PrinterEntry printer;
+        printer.id         = kDevicePrefix + id;
+        printer.name       = machine->get_dev_name();
+        printer.kind       = PrinterKind::Device;
+        printer.can_rename = !machine->is_lan_mode_printer() && machine->is_online();
+        printer.can_remove = !machine->is_lan_mode_printer();
+        describe_device(*machine, printer);
+        printers.push_back(std::move(printer));
     }
-
-    // Spools are remembered per Orca printer *preset*, and only one preset is
-    // in force at a time, so the only printer whose reels the store can name is
-    // the selected one. The rest show no swatch row rather than another
-    // printer's filament.
-    if (m_spools != nullptr) {
-        std::string selected_dev;
-        if (DeviceManager* devices = wxGetApp().getDeviceManager())
-            if (MachineObject* selected = devices->get_selected_machine())
-                selected_dev = selected->get_dev_id();
-        if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr && !selected_dev.empty()) {
-            const std::string preset = presets->printers.get_selected_preset_name();
-            for (PrinterEntry& printer : printers) {
-                if (printer.id != selected_dev)
-                    continue;
-                for (const Workspace::Spool& spool : m_spools->spools_for(preset))
-                    printer.spools.push_back(SpoolEntry{spool.colour});
-                if (!printer.spools.empty())
-                    printer.material_label =
-                        presets->filaments.get_selected_preset().config.opt_string("filament_type", 0);
-            }
-        }
-    }
-
     return printers;
 }
 
@@ -273,19 +306,74 @@ void OrcaHomeBackend::import_model()
 
 void OrcaHomeBackend::launch_monitor(const std::string& printer_id)
 {
+    // A named printer is monitored through the device it stands for.
+    std::string device_id = strip(printer_id, kDevicePrefix).value_or(std::string());
+    if (const auto name = strip(printer_id, kNamedPrefix))
+        for (const Printers::NamedPrinter& named : Printers::named_printers())
+            if (named.name == *name)
+                device_id = named.device_id;
+    if (device_id.empty())
+        return; // the card changed under the click; the refreshed rail says so
     // Upstream's own path to the Monitor, as the device popup and the
     // multi-machine page use. Selecting the tab and the machine by hand
     // instead left Home on screen: jump_to_monitor also guards on the Monitor
     // panel existing and selects the machine inside it. Upstream may still
     // decline the switch -- it vetoes the Monitor tab when the network plugin
     // is missing -- and that refusal is upstream's to make.
-    m_frame.jump_to_monitor(printer_id);
+    m_frame.jump_to_monitor(device_id);
 }
 
 void OrcaHomeBackend::add_printer()
 {
     if (Plater* plater = wxGetApp().plater())
         PrinterSetup::show_printer_setup(&m_frame, dark(), *plater);
+}
+
+std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id)
+{
+    const auto name   = strip(printer_id, kNamedPrefix);
+    Plater*    plater = wxGetApp().plater();
+    if (!name || plater == nullptr)
+        return gone();
+    return utf8(Printers::open_named_printer_settings(*plater, *name));
+}
+
+std::string OrcaHomeBackend::rename_printer(const std::string& printer_id, const std::string& new_name)
+{
+    Plater* plater = wxGetApp().plater();
+    if (plater == nullptr)
+        return gone();
+    if (const auto name = strip(printer_id, kNamedPrefix))
+        return utf8(Printers::rename_named_printer(*plater, m_spools, *name, new_name));
+    // A device keeps its own name. Upstream's dialog, as the device list
+    // opens it, validates and sends the new one.
+    MachineObject* machine = my_machine(strip(printer_id, kDevicePrefix).value_or(std::string()));
+    if (machine == nullptr)
+        return gone();
+    EditDevNameDialog dialog(plater);
+    dialog.set_machine_obj(machine);
+    dialog.ShowModal();
+    return {};
+}
+
+std::string OrcaHomeBackend::remove_printer(const std::string& printer_id)
+{
+    Plater* plater = wxGetApp().plater();
+    if (plater == nullptr)
+        return gone();
+    if (const auto name = strip(printer_id, kNamedPrefix))
+        return utf8(Printers::remove_named_printer(*plater, m_spools, *name));
+    // Removing a device unbinds it from the account, through upstream's
+    // dialog, which confirms and reports for itself, as the device list does.
+    const std::string device_id = strip(printer_id, kDevicePrefix).value_or(std::string());
+    MachineObject*    machine   = my_machine(device_id);
+    if (machine == nullptr)
+        return gone();
+    UnBindMachineDialog dialog(plater);
+    dialog.update_machine_info(machine);
+    if (dialog.ShowModal() == wxID_OK)
+        wxGetApp().getDeviceManager()->set_selected_machine("");
+    return {};
 }
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

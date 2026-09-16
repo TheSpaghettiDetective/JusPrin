@@ -423,3 +423,182 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The header row ends in the status dot and the printer's actions menu. */
+.printer-head-end {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.printer-actions {
+  position: relative;
+  display: flex;
+}
+
+/* A quiet icon button: the menu is secondary to the card it sits on. */
+.printer-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--button-icon-radius);
+  cursor: pointer;
+}
+
+.printer-menu-button .glyph {
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+}
+
+.printer-menu-button:hover,
+.printer-menu-button[aria-expanded='true'] {
+  color: var(--text-primary);
+  background: var(--action-secondary-hover);
+}
+
+.printer-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--popover-row-gap);
+  min-width: max-content;
+  padding: var(--popover-padding-y) 0;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--popover-radius);
+  box-shadow: var(--elevation-medium);
+}
+
+.printer-menu button {
+  display: flex;
+  align-items: center;
+  height: var(--menu-row-height);
+  margin: 0 var(--menu-row-side-inset);
+  padding: 0 12px;
+  font: var(--font-body);
+  color: var(--text-primary);
+  text-align: left;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: var(--menu-row-radius);
+  cursor: pointer;
+}
+
+.printer-menu button:hover:enabled,
+.printer-menu button:focus-visible {
+  background: var(--surface-subtle);
+}
+
+.printer-menu button:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+.printer-menu button.danger:enabled {
+  color: var(--status-danger);
+}
+
+/* A refusal from the host, such as a name another profile already has. */
+.printer-error {
+  margin: 0;
+  padding: 8px 12px;
+  font: var(--font-body-small);
+  color: var(--status-danger);
+  background: var(--surface-raised);
+  border: 1px solid var(--status-danger);
+  border-radius: var(--radius-standard);
+}
+
+/* Rename and remove are the add-printer dialog's kind: the same width,
+   radius, and scrim over the whole window. */
+.printer-dialog-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px 16px;
+  background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent);
+}
+
+.printer-dialog {
+  width: 100%;
+  max-width: var(--printer-dialog-width);
+  padding: 24px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--printer-dialog-radius);
+  box-shadow: var(--elevation-strong);
+}
+
+.printer-dialog h2 {
+  margin: 0 0 12px;
+  font: var(--font-section);
+  color: var(--text-primary);
+}
+
+.printer-dialog p {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.printer-dialog p[role='alert'] {
+  color: var(--status-danger);
+}
+
+.printer-dialog label {
+  display: block;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-dialog input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-standard);
+}
+
+.printer-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.button-danger {
+  display: inline-flex;
+  align-items: center;
+  font: var(--font-body-small-bold);
+  padding: var(--button-primary-padding);
+  border-radius: var(--radius-compact);
+  color: var(--action-danger-text);
+  background: var(--action-danger);
+  border: 1px solid var(--action-danger-border);
+  cursor: pointer;
+}
+
+.button-primary:disabled {
+  color: var(--action-disabled-text);
+  background: var(--action-disabled);
+  border-color: var(--action-disabled);
+  cursor: default;
+}

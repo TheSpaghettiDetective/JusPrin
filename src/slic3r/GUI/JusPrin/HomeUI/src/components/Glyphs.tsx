@@ -32,6 +32,17 @@ export function UploadGlyph() {
   );
 }
 
+// The horizontal kebab the header and the Agent page use for an actions menu.
+export function MoreGlyph() {
+  return (
+    <svg className="glyph" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <circle cx="3.5" cy="8" r="1.3" />
+      <circle cx="8" cy="8" r="1.3" />
+      <circle cx="12.5" cy="8" r="1.3" />
+    </svg>
+  );
+}
+
 export function PlusGlyph() {
   return (
     <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">

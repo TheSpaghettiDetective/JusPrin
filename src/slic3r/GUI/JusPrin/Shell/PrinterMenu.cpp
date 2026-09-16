@@ -1,6 +1,7 @@
 #include "PrinterMenu.hpp"
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
+#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -128,7 +129,7 @@ void PrinterMenu::show_nozzles(const Ptr& self)
         HeaderMenuItem row;
         row.label                = nozzle_text(variant.nozzle);
         row.decoration.check     = variant.current;
-        row.invoke = [self, name = variant.preset_name] { SetupCommands::select_printer_preset(self->m_plater, name); };
+        row.invoke = [self, name = variant.preset_name] { Printers::select_nozzle(self->m_plater, name); };
         choices.push_back(std::move(row));
     }
     show_sublist(self, _L("Nozzle"), std::move(choices));

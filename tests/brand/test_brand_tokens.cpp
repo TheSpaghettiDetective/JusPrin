@@ -314,6 +314,21 @@ TEST_CASE("the printer card geometry is explicit", "[brand]")
         "component.printerCard");
 }
 
+// The header's menus and Home's printer-card menu are one control: an icon
+// button opening a popover of rows. Both sides read these, so a change here
+// moves both.
+TEST_CASE("the menu geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& component = tokens.at("component");
+    require_exact_table<int>(component.at("button").at("icon"),
+        {{"width", 26}, {"height", 26}, {"iconSize", 16}, {"radius", 4}}, "component.button.icon");
+    require_exact_table<int>(component.at("menuRow"), {{"height", 32}, {"radius", 4}, {"sideInset", 4}},
+        "component.menuRow");
+    require_exact_table<int>(component.at("popover"), {{"paddingY", 4}, {"rowGap", 0}, {"radius", 8}},
+        "component.popover");
+}
+
 TEST_CASE("the add-printer dialog geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();

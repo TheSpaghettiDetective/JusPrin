@@ -1,4 +1,5 @@
 #include "SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/PrintConfig.hpp"
@@ -60,7 +61,10 @@ PrinterInfo current_printer()
         return info;
     const Preset& printer = presets->printers.get_edited_preset();
     info.preset_name = printer.name;
-    info.nickname    = wxString::FromUTF8(printer.config.opt_string("printer_model"));
+    // A named printer is called what the person called it; a system profile
+    // is only a model.
+    info.nickname = wxString::FromUTF8(Printers::is_named_printer(printer) ? printer.name
+                                                                            : printer.config.opt_string("printer_model"));
     if (info.nickname.empty()) {
         info.nickname = wxString::FromUTF8(printer.label(false));
         // Custom profiles often encode the nozzle in their display name.
@@ -110,16 +114,19 @@ std::vector<NozzleVariant> nozzle_variants()
     const std::string model  = edited.config.opt_string("printer_model");
     if (model.empty())
         return variants;
+    // A named printer sits on one of these system profiles. Its own profile
+    // is a printer, not a nozzle, so user profiles are never offered here.
+    const std::string& current = presets->printers.get_selected_preset_base().name;
 
     for (const Preset& preset : presets->printers) {
-        if (!preset.is_visible || preset.is_default)
+        if (!preset.is_visible || !preset.is_system)
             continue;
         if (preset.config.opt_string("printer_model") != model)
             continue;
         const auto* nozzle = preset.config.option<ConfigOptionFloats>("nozzle_diameter");
         if (nozzle == nullptr || nozzle->values.empty())
             continue;
-        variants.push_back({preset.name, nozzle->values.front(), preset.name == edited.name});
+        variants.push_back({preset.name, nozzle->values.front(), preset.name == current});
     }
     std::sort(variants.begin(), variants.end(),
               [](const NozzleVariant& a, const NozzleVariant& b) { return a.nozzle < b.nozzle; });

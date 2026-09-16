@@ -5,6 +5,13 @@
 //   --project-card-thumbnail-aspect  the unitless `4 / 3` for aspect-ratio
 //   --printer-card-<name>   column width, progress height, radius
 //   --status-dot-size, --swatch-size, --swatch-radius
+// and the printer card's menu, from the shared menu geometry:
+//   --button-icon-<name>    the kebab button: width, height, icon size, radius
+//   --menu-row-<name>       height, radius, side inset
+//   --popover-<name>        vertical padding, row gap, radius
+// and its rename and remove dialogs, which are the add-printer dialog's kind:
+//   --printer-dialog-width, --printer-dialog-radius
+//   --printer-dialog-scrim  the scrim's strength, a percentage for color-mix()
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
 import {
@@ -24,6 +31,10 @@ interface CardTokens {
     statusDot: { size: number };
     swatch: Record<string, number>;
     icon: { sizes: number[] };
+    button: { icon: Record<string, number> };
+    menuRow: Record<string, number>;
+    popover: Record<string, number>;
+    printerSetup: { dialogWidth: number; radius: number; scrimAlpha: number };
   };
 }
 
@@ -45,6 +56,17 @@ function pixelSection(section: Record<string, number>): Record<string, number> {
   return rest;
 }
 
+// The native scrim takes an alpha out of 255; CSS mixes the scrim colour by a
+// percentage.
+function printerDialog(): Record<string, string> {
+  const setup = component.printerSetup;
+  return {
+    width: `${setup.dialogWidth}px`,
+    radius: `${setup.radius}px`,
+    scrim: `${Math.round((setup.scrimAlpha / 255) * 100)}%`,
+  };
+}
+
 export function staticVariableNames(): string[] {
   return [
     ...sharedStaticVariableNames(),
@@ -53,6 +75,10 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('printer-card', component.printerCard),
     ...pixelVariableNames('status-dot', component.statusDot),
     ...pixelVariableNames('swatch', component.swatch),
+    ...pixelVariableNames('button-icon', component.button.icon),
+    ...pixelVariableNames('menu-row', component.menuRow),
+    ...pixelVariableNames('popover', component.popover),
+    ...Object.keys(printerDialog()).map((name) => `--printer-dialog-${name}`),
     ...elevationVariableNames(),
     GLYPH,
   ];
@@ -69,5 +95,11 @@ export function applyStaticTokens(): void {
   applyPixelTokens('printer-card', component.printerCard);
   applyPixelTokens('status-dot', component.statusDot);
   applyPixelTokens('swatch', component.swatch);
+  applyPixelTokens('button-icon', component.button.icon);
+  applyPixelTokens('menu-row', component.menuRow);
+  applyPixelTokens('popover', component.popover);
+  for (const [name, value] of Object.entries(printerDialog())) {
+    document.documentElement.style.setProperty(`--printer-dialog-${name}`, value);
+  }
   document.documentElement.style.setProperty(GLYPH, `${Math.min(...component.icon.sizes)}px`);
 }

@@ -188,6 +188,31 @@ bool SpoolStore::remove(const std::string& id)
     return true;
 }
 
+std::size_t SpoolStore::move_printer(const std::string& from, const std::string& to)
+{
+    std::size_t moved = 0;
+    for (Spool& spool : m_spools)
+        if (spool.printer_preset == from) {
+            spool.printer_preset = to;
+            ++moved;
+        }
+    if (moved > 0)
+        write();
+    return moved;
+}
+
+std::size_t SpoolStore::remove_printer(const std::string& printer_preset)
+{
+    const auto before = m_spools.size();
+    m_spools.erase(std::remove_if(m_spools.begin(), m_spools.end(),
+                                  [&](const Spool& s) { return s.printer_preset == printer_preset; }),
+                   m_spools.end());
+    const std::size_t removed = before - m_spools.size();
+    if (removed > 0)
+        write();
+    return removed;
+}
+
 bool SpoolStore::touch(const std::string& id)
 {
     auto found = std::find_if(m_spools.begin(), m_spools.end(), [&](const Spool& s) { return s.id == id; });

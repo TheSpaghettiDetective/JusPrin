@@ -34,15 +34,19 @@ Quit JusPrin first. The app rewrites `JusPrin2.conf` on exit.
 JSON `true` is what the app stores; `get("jusprin", "fake_printer")` reads as
 the string `"true"`. An INI `[jusprin]` block is ignored.
 
-Keep a **real Bambu Lab system preset** selected, typically
-`Bambu Lab A1 mini 0.4 nozzle`. `is_bbl_vendor()` must be true. An embedded
-3mf preset named `Bambu Lab A1 mini 0.4 nozzle(Tape_4_3MF.3mf)` is not enough;
-the agent stays `orca`.
+Keep a **Bambu Lab printer** selected: a real system preset, typically
+`Bambu Lab A1 mini 0.4 nozzle`, or a named printer that inherits one.
+`is_bbl_vendor()` must be true; it reads the inherited `printer_model`, so
+either works. An embedded 3mf preset named
+`Bambu Lab A1 mini 0.4 nozzle(Tape_4_3MF.3mf)` is not enough; the agent stays
+`orca`.
 
-Install the system preset with **Add a printer…** in the printer menu, or copy
-`Resources/profiles/BBL` into `<datadir>/system/` and add the A1 mini model to
-the `models` array in `JusPrin2.conf`. Opening `~/Downloads/Tape_4_3MF.3mf`
-only helps after that vendor is installed.
+**Add a printer…** in the printer menu installs the system preset and saves it
+as a named printer (a user profile such as `Bambu Lab A1 mini`), which is what
+Home lists. Alternatively copy `Resources/profiles/BBL` into
+`<datadir>/system/` and add the A1 mini model to the `models` array in
+`JusPrin2.conf`, then select the system preset. Opening
+`~/Downloads/Tape_4_3MF.3mf` only helps after that vendor is installed.
 
 Launch a **scratch** `--datadir`. Do not point fake mode at the everyday
 config. Set `"single_instance": false` in the `app` object if another JusPrin

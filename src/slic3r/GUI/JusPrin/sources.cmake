@@ -41,6 +41,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp
     GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp
     GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp
+    GUI/JusPrin/Printers/NamedPrinters.cpp
+    GUI/JusPrin/Printers/NamedPrinters.hpp
+    GUI/JusPrin/Printers/PrinterNames.cpp
+    GUI/JusPrin/Printers/PrinterNames.hpp
     GUI/JusPrin/Home/HomeSnapshot.cpp
     GUI/JusPrin/Home/HomeSnapshot.hpp
     GUI/JusPrin/Home/HomeBackend.hpp

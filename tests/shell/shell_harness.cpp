@@ -63,7 +63,9 @@
 //              deterministic recognizer: dismissal and scrim lifetime, the
 //              choice/Not this one/Start over/correction transitions, adding a
 //              shipped but disabled profile, the network state, Set it up
-//              myself, and install rollback
+//              myself, and install rollback; then named printers: a second
+//              printer of one model, Home's list, rename, remove, and a
+//              nozzle change that keeps the printer's own settings
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
@@ -89,6 +91,9 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
+#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
@@ -444,6 +449,10 @@ private:
     // would. Controls are found by the accessible names the dialog gives them.
 
     static constexpr const char* kSetupFixturePrinter = "Bambu Lab X1 Carbon 0.4 nozzle";
+    // Adding the Neo saves its system profile as a printer named after the
+    // model, and that printer is what stays selected afterwards.
+    static constexpr const char* kAddedPrinter        = "Creality Ender-3 V2 Neo";
+    static constexpr const char* kAddedPrinterProfile = "Creality Ender-3 V2 Neo 0.4 nozzle";
 
     static PrinterSetup::PrinterSetupDialog* printer_setup_dialog()
     {
@@ -546,13 +555,14 @@ private:
     {
         m_frame->CallAfter([discovered = std::move(discovered), agent_connected, start_on_first_printer]() mutable {
             Plater& plater = *wxGetApp().plater();
-            auto apply = [&plater](const PrinterSetup::PrinterCandidate& candidate, std::string& error) {
-                return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
-                                                                 candidate.variant, candidate.default_material, error);
+            PrinterSetup::PrinterSetupController* flow = nullptr;
+            auto apply = [&plater, &flow](const PrinterSetup::PrinterCandidate& candidate, std::string& error) {
+                return PrinterSetup::add_printer(plater, candidate, flow->evidence().discovered_device, error);
             };
             auto controller = std::make_unique<PrinterSetup::PrinterSetupController>(
                 PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
                 std::make_unique<PrinterSetup::FakePrinterRecognition>(), std::move(apply));
+            flow = controller.get();
             if (start_on_first_printer) controller->use_discovered(discovered.front());
             const ShellTheme theme = ShellTheme::load_from_resources();
             // Mirrors PrinterSetupLauncher.cpp's make_setup_webview: a second,
@@ -723,7 +733,7 @@ private:
                 self->check(selected_printer() == kSetupFixturePrinter, "setup_correction_changes_nothing");
                 self->check(!wxGetApp().app_config->vendors().count("Creality"), "setup_neo_not_enabled_before_confirmation");
                 press(setup_control("Add this printer"));
-                self->after_setup_closes("setup_add", "Creality Ender-3 V2 Neo 0.4 nozzle", [self] {
+                self->after_setup_closes("setup_add", kAddedPrinter, [self] {
                     const auto vendors = wxGetApp().app_config->vendors();
                     const auto creality = vendors.find("Creality");
                     self->check(creality != vendors.end() && creality->second.count("Creality Ender-3 V2 Neo") &&
@@ -759,10 +769,10 @@ private:
                                      "setup_network_access_code_is_validated", [self] {
                         self->check(dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->GetValue() == "not valid!",
                                     "setup_rejected_access_code_stays_for_editing");
-                        self->check(selected_printer() == "Creality Ender-3 V2 Neo 0.4 nozzle",
+                        self->check(selected_printer() == kAddedPrinter,
                                     "setup_rejected_access_code_changes_nothing");
                         press(setup_control("Close Add a printer"));
-                        self->after_setup_closes("setup_network", "Creality Ender-3 V2 Neo 0.4 nozzle",
+                        self->after_setup_closes("setup_network", kAddedPrinter,
                                                  [self] { self->verify_setup_no_agent(); });
                     });
                 });
@@ -783,7 +793,7 @@ private:
                 self->check(printer_setup_dialog() != nullptr, "setup_no_agent_dialog_stays_open");
                 self->check(!setup_labels().Contains("No agent connected"), "setup_no_agent_card_replaced_by_embedded_flow");
                 press(setup_control("Close Add a printer"));
-                self->after_setup_closes("setup_no_agent", "Creality Ender-3 V2 Neo 0.4 nozzle",
+                self->after_setup_closes("setup_no_agent", kAddedPrinter,
                                          [self] { self->verify_setup_manual(); });
             });
         });
@@ -813,7 +823,7 @@ private:
                 self->wait_until([] { return printer_wizard() == nullptr; }, "setup_manual_wizard_cancelled", [self] {
                     self->wait_until_settled("setup_manual_settled", [self] {
                         self->check(!self->m_setup_scrim, "setup_manual_scrim_destroyed");
-                        self->check(selected_printer() == "Creality Ender-3 V2 Neo 0.4 nozzle",
+                        self->check(selected_printer() == kAddedPrinter,
                                     "setup_manual_cancel_keeps_printer");
                         self->verify_setup_install_commands();
                     });
@@ -838,6 +848,106 @@ private:
             *m_plater, "BBL", "Bambu Lab X1 Carbon", "0.4", {}, error);
         check(enabled && error.empty() && selected_printer() == kSetupFixturePrinter,
               "setup_install_selects_an_already_enabled_profile");
+        verify_named_printers();
+    }
+
+    static Preset* printer_profile(const std::string& name)
+    {
+        return wxGetApp().preset_bundle->printers.find_preset(name, false, true);
+    }
+
+    // A printer is a named user profile: a second one of a model is a second
+    // printer, Home lists each, and renaming or removing one leaves the rest.
+    void verify_named_printers()
+    {
+        const Preset* first = printer_profile(kAddedPrinter);
+        check(first != nullptr && first->is_user() && first->inherits() == kAddedPrinterProfile,
+              "named_add_saved_a_user_profile_on_the_system_one");
+
+        const auto catalog = PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir());
+        const auto neo = std::find_if(catalog.candidates().begin(), catalog.candidates().end(), [](const auto& candidate) {
+            return candidate.model_id == "Creality Ender-3 V2 Neo" && candidate.variant == "0.4";
+        });
+        check(neo != catalog.candidates().end(), "named_catalog_has_the_neo");
+        if (neo == catalog.candidates().end()) {
+            fail("the catalogue has no Ender-3 V2 Neo 0.4");
+            return;
+        }
+        std::string error;
+        const bool added = PrinterSetup::add_printer(*m_plater, *neo, std::nullopt, error);
+        const std::string second = std::string(kAddedPrinter) + " (2)";
+        check(added && error.empty() && selected_printer() == second, "named_second_of_a_model_is_a_second_printer");
+        check(printer_profile(kAddedPrinter) != nullptr, "named_second_add_keeps_the_first");
+
+        Home::OrcaHomeBackend home(*m_frame, nullptr);
+        const auto cards = home.printers();
+        const auto card = [&](const std::string& name) -> const Home::PrinterEntry* {
+            const auto found = std::find_if(cards.begin(), cards.end(),
+                                            [&](const Home::PrinterEntry& entry) { return entry.id == "named:" + name; });
+            return found == cards.end() ? nullptr : &*found;
+        };
+        const auto* listed = card(second);
+        check(card(kAddedPrinter) != nullptr && listed != nullptr && listed->name == second,
+              "named_home_lists_both_printers_by_name");
+        check(listed != nullptr && listed->kind == Home::PrinterKind::Named && listed->can_open_settings &&
+                  listed->can_rename && listed->can_remove,
+              "named_home_offers_the_printer_menu");
+
+        check(!Printers::rename_named_printer(*m_plater, nullptr, second, kAddedPrinter).empty() &&
+                  selected_printer() == second,
+              "named_rename_refuses_a_taken_name");
+        check(!Printers::rename_named_printer(*m_plater, nullptr, second, "Shed/Neo").empty(),
+              "named_rename_refuses_illegal_characters");
+        check(Printers::rename_named_printer(*m_plater, nullptr, second, "Shed Neo").empty() &&
+                  selected_printer() == "Shed Neo" && printer_profile(second) == nullptr,
+              "named_rename_of_the_selected_printer");
+        check(Printers::rename_named_printer(*m_plater, nullptr, kAddedPrinter, "Garage Neo").empty() &&
+                  selected_printer() == "Shed Neo" && printer_profile(kAddedPrinter) == nullptr,
+              "named_rename_of_another_printer_keeps_the_selection");
+        const Preset* garage = printer_profile("Garage Neo");
+        check(garage != nullptr && garage->inherits() == kAddedPrinterProfile, "named_rename_keeps_the_parent");
+        check(Printers::remove_named_printer(*m_plater, nullptr, "Garage Neo").empty() &&
+                  printer_profile("Garage Neo") == nullptr && selected_printer() == "Shed Neo",
+              "named_remove_of_another_printer_keeps_the_selection");
+        check(Printers::remove_named_printer(*m_plater, nullptr, "Shed Neo").empty() &&
+                  printer_profile("Shed Neo") == nullptr && selected_printer() == kAddedPrinterProfile,
+              "named_remove_of_the_selected_printer_selects_its_parent");
+        verify_named_nozzle();
+    }
+
+    // The nozzle belongs to the printer: changing it moves the printer onto
+    // the other nozzle's system profile and keeps the printer's own settings.
+    void verify_named_nozzle()
+    {
+        std::string error;
+        check(SetupCommands::install_and_select_printer(*m_plater, "BBL", "Bambu Lab X1 Carbon", "0.6", {}, error) &&
+                  SetupCommands::install_and_select_printer(*m_plater, "BBL", "Bambu Lab X1 Carbon", "0.4", {}, error),
+              "named_nozzle_installs_two_nozzles");
+        const std::string name = Printers::add_named_printer(*m_plater, "Lab X1C", {});
+        PresetCollection& printers = wxGetApp().preset_bundle->printers;
+        printers.get_edited_preset().config.set_key_value("print_host", new ConfigOptionString("192.0.2.9"));
+        wxGetApp().get_tab(Preset::TYPE_PRINTER)->save_preset(name);
+        check(SetupCommands::current_printer().nickname == name, "named_header_shows_the_printers_name");
+
+        const auto variants = SetupCommands::nozzle_variants();
+        const auto current = std::find_if(variants.begin(), variants.end(), [](const auto& v) { return v.current; });
+        check(variants.size() >= 2 && current != variants.end() && current->preset_name == kSetupFixturePrinter,
+              "named_nozzle_menu_marks_the_printers_nozzle");
+        check(std::none_of(variants.begin(), variants.end(), [&](const auto& v) { return v.preset_name == name; }),
+              "named_nozzle_menu_offers_no_printer");
+
+        Printers::select_nozzle(*m_plater, "Bambu Lab X1 Carbon 0.6 nozzle");
+        const Preset* lab = printer_profile(name);
+        check(selected_printer() == name && lab != nullptr && lab->inherits() == "Bambu Lab X1 Carbon 0.6 nozzle",
+              "named_nozzle_change_keeps_the_printer");
+        check(lab != nullptr && lab->config.option<ConfigOptionFloats>("nozzle_diameter")->values.front() == 0.6,
+              "named_nozzle_change_takes_the_nozzle");
+        check(lab != nullptr && lab->config.opt_string("print_host") == "192.0.2.9",
+              "named_nozzle_change_keeps_the_printers_own_settings");
+
+        check(Printers::remove_named_printer(*m_plater, nullptr, name).empty(), "named_nozzle_cleanup_removes_the_printer");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(selected_printer() == kSetupFixturePrinter, "named_cleanup_restores_the_fixture_printer");
         finish();
     }
 

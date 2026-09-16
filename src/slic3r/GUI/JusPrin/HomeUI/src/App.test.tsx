@@ -48,6 +48,10 @@ function printer(overrides: Partial<PrinterInfo> = {}): PrinterInfo {
   return {
     id: 'x1',
     name: 'X1 Carbon',
+    kind: 'named',
+    canOpenSettings: true,
+    canRename: true,
+    canRemove: true,
     state: 'printing',
     statusText: 'Printing · 43% · 2h left',
     progressPercent: 43,
@@ -176,6 +180,104 @@ describe('Home', () => {
     expect(host.lastOfType('new_project')).toBeDefined();
     expect(host.lastOfType('launch_monitor')!.payload).toEqual({ id: 'x1' });
     expect(host.lastOfType('add_printer')).toBeDefined();
+  });
+
+  it('offers the three printer actions from each card header', async () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer(), printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Printer settings…',
+      'Rename',
+      'Remove printer…',
+    ]);
+    await userEvent.click(within(menu).getByText('Printer settings…'));
+    expect(host.lastOfType('open_printer_settings')!.payload).toEqual({ id: 'mk4' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('renames a named printer after checking the new name', async () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer(), printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rename printer' });
+    const input = within(dialog).getByLabelText('Printer name');
+    expect(input).toHaveValue('X1 Carbon');
+
+    await userEvent.clear(input);
+    await userEvent.type(input, 'prusa mk4');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Another printer is already named');
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Garage/X1');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('can’t contain');
+
+    await userEvent.clear(input);
+    await userEvent.type(input, '  Garage X1C  {Enter}');
+    expect(host.lastOfType('rename_printer')!.payload).toEqual({ id: 'x1', name: 'Garage X1C' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('removes a named printer only once the person confirms', async () => {
+    const host = start();
+    host.deliver('state', state());
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove printer…' }));
+    const dialog = screen.getByRole('dialog', { name: 'Remove printer?' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('remove_printer')).toBeUndefined();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove printer…' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
+    expect(host.lastOfType('remove_printer')!.payload).toEqual({ id: 'x1' });
+  });
+
+  // A device's name and binding are Orca's to change, in Orca's dialogs, so
+  // the page asks nothing itself and never sends a name.
+  it('hands a device rename and removal to the host, and disables what it cannot do', async () => {
+    const host = start();
+    const device = printer({ id: 'device:FAKE001', name: 'Lab P1S', kind: 'device', canOpenSettings: false });
+    host.deliver('state', state({ printers: [device] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Lab P1S' }));
+    expect(screen.getByRole('menuitem', { name: 'Printer settings…' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(host.lastOfType('rename_printer')!.payload).toEqual({ id: 'device:FAKE001' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Lab P1S' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove printer…' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(host.lastOfType('remove_printer')!.payload).toEqual({ id: 'device:FAKE001' });
+  });
+
+  it('gives a card with no available actions no menu button', () => {
+    const host = start();
+    const lan = printer({
+      id: 'device:LAN001',
+      name: 'Bench A1 mini',
+      kind: 'device',
+      canOpenSettings: false,
+      canRename: false,
+      canRemove: false,
+    });
+    host.deliver('state', state({ printers: [lan] }));
+    expect(screen.getByText('Bench A1 mini')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actions for Bench A1 mini' })).not.toBeInTheDocument();
+  });
+
+  it('shows a refused printer action until the next one', async () => {
+    const host = start();
+    host.deliver('state', state());
+    host.deliver('printer_error', { id: 'x1', message: 'That name is reserved. Choose another.' });
+    host.deliver('state', state());
+    expect(screen.getByRole('alert')).toHaveTextContent('That name is reserved. Choose another.');
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Printer settings…' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('follows the host into dark mode', () => {

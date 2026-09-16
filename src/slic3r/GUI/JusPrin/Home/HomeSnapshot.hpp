@@ -44,10 +44,25 @@ enum class PrinterState { Idle, Printing, Offline };
 
 const char* to_string(PrinterState state);
 
+// What a card stands for, which decides how the page asks about its actions.
+// A named printer is one the person added and names in JusPrin; the page
+// confirms a rename or removal itself. A device is a Bambu printer on the
+// network or the account that no named printer stands for; its rename and
+// removal are Orca's own dialogs, which confirm for themselves.
+enum class PrinterKind { Named, Device };
+
+const char* to_string(PrinterKind kind);
+
 struct PrinterEntry
 {
     std::string             id;
     std::string             name;
+    PrinterKind             kind{PrinterKind::Named};
+    // The card's menu. An action the card cannot offer is sent as false and
+    // shown disabled, so the menu keeps its shape.
+    bool                    can_open_settings{false};
+    bool                    can_rename{false};
+    bool                    can_remove{false};
     PrinterState            state{PrinterState::Idle};
     std::string             status_text;
     // Below zero whenever there is no job to report; only a printing printer

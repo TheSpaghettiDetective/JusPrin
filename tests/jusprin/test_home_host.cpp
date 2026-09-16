@@ -7,6 +7,10 @@
 
 #include <nlohmann/json.hpp>
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "slic3r/GUI/JusPrin/Home/HomeHost.hpp"
 
 using namespace Slic3r::GUI::JusPrin::Home;
@@ -37,6 +41,27 @@ public:
     void import_model() override { ++imports; }
     void launch_monitor(const std::string& id) override { monitored.push_back(id); }
     void add_printer() override { ++wizards; }
+
+    std::vector<std::string>                         settings_opened;
+    std::vector<std::pair<std::string, std::string>> renamed;
+    std::vector<std::string>                         removed;
+    std::string                                      refusal; // what every printer action answers
+
+    std::string open_printer_settings(const std::string& id) override
+    {
+        settings_opened.push_back(id);
+        return refusal;
+    }
+    std::string rename_printer(const std::string& id, const std::string& name) override
+    {
+        renamed.emplace_back(id, name);
+        return refusal;
+    }
+    std::string remove_printer(const std::string& id) override
+    {
+        removed.push_back(id);
+        return refusal;
+    }
 };
 
 // Collects the envelopes the host sends to the page.
@@ -247,4 +272,45 @@ TEST_CASE("appearance follows the host, and only while connected", "[home]")
     host.push_appearance(true);
     REQUIRE(wire.of_type("appearance").size() == 1);
     CHECK(wire.of_type("appearance").front().at("payload").at("appearance") == "dark");
+}
+
+TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states_after_hello = wire.of_type("state").size();
+
+    host.on_page_message(page_message("open_printer_settings", json{{"id", "named:Garage X1C"}}));
+    host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Shed X1C"}}));
+    host.on_page_message(page_message("remove_printer", json{{"id", "named:Shed X1C"}}));
+
+    CHECK(backend.settings_opened == std::vector<std::string>{"named:Garage X1C"});
+    REQUIRE(backend.renamed.size() == 1);
+    CHECK(backend.renamed.front() == std::make_pair(std::string("named:Garage X1C"), std::string("Shed X1C")));
+    CHECK(backend.removed == std::vector<std::string>{"named:Shed X1C"});
+    CHECK(wire.of_type("printer_error").empty());
+    CHECK(wire.of_type("state").size() == states_after_hello + 3);
+}
+
+// A refusal is the person's to read, and the rail is sent again either way so
+// the page never shows a name the host did not accept.
+TEST_CASE("a refused printer action reaches the page with its reason", "[home]")
+{
+    FakeBackend backend;
+    backend.refusal = "Another printer or profile is already named \"Office A1\".";
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states_after_hello = wire.of_type("state").size();
+
+    host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Office A1"}}));
+
+    const auto errors = wire.of_type("printer_error");
+    REQUIRE(errors.size() == 1);
+    CHECK(errors.front().at("correlationId") == "w-1");
+    CHECK(errors.front().at("payload").at("id") == "named:Garage X1C");
+    CHECK(errors.front().at("payload").at("message") == backend.refusal);
+    CHECK(wire.of_type("state").size() == states_after_hello + 1);
 }

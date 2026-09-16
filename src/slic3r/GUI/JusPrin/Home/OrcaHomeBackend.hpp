@@ -38,6 +38,10 @@ public:
     void launch_monitor(const std::string& printer_id) override;
     void add_printer() override;
 
+    std::string open_printer_settings(const std::string& printer_id) override;
+    std::string rename_printer(const std::string& printer_id, const std::string& new_name) override;
+    std::string remove_printer(const std::string& printer_id) override;
+
 private:
     MainFrame&             m_frame;
     Workspace::SpoolStore* m_spools{nullptr};

@@ -21,7 +21,10 @@ export type PageMessageType =
   | 'new_project'
   | 'import_project'
   | 'launch_monitor'
-  | 'add_printer';
+  | 'add_printer'
+  | 'open_printer_settings'
+  | 'rename_printer'
+  | 'remove_printer';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -30,6 +33,7 @@ export type HostMessageType =
   | 'projects'
   | 'printers'
   | 'appearance'
+  | 'printer_error'
   | 'bridge_error';
 
 export type Appearance = 'light' | 'dark';
@@ -68,9 +72,20 @@ export interface SpoolInfo {
   colour: string;
 }
 
+// A named printer is one the person added and names in JusPrin: this page
+// confirms its rename and removal. A device is a Bambu printer no named
+// printer stands for: its rename and removal open Orca's own dialogs, which
+// confirm for themselves.
+export type PrinterKind = 'named' | 'device';
+
 export interface PrinterInfo {
   id: string;
   name: string;
+  kind: PrinterKind;
+  // The card menu's items; one the host sends as false is shown disabled.
+  canOpenSettings: boolean;
+  canRename: boolean;
+  canRemove: boolean;
   state: PrinterState;
   // Host-formatted status line, e.g. "Printing · 43% · 2h left". Present
   // whenever the host has something to say about the current job.
@@ -82,6 +97,13 @@ export interface PrinterInfo {
   materialLabel?: string;
   spools: SpoolInfo[];
   canLaunchMonitor: boolean;
+}
+
+// A printer action the host understood but could not carry out, such as a
+// name another profile already has. The message is translated.
+export interface PrinterErrorPayload {
+  id: string;
+  message: string;
 }
 
 export interface StatePayload {

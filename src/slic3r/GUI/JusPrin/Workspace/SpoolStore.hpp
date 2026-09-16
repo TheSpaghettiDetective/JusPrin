@@ -98,6 +98,12 @@ public:
     bool remove(const std::string& id);
     bool touch(const std::string& id);
 
+    // A printer is its Orca printer preset, so renaming the preset moves its
+    // spools and removing it takes them along. Each returns how many spools
+    // changed; a printer with none is a normal answer.
+    std::size_t move_printer(const std::string& from, const std::string& to);
+    std::size_t remove_printer(const std::string& printer_preset);
+
     std::size_t size() const { return m_spools.size(); }
 
 private:

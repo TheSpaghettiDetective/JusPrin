@@ -162,3 +162,30 @@ TEST_CASE("an offline printer is its own state", "[home]")
     snapshot.printers = {offline};
     CHECK(state_payload(snapshot).at("printers").at(0).at("state") == "offline");
 }
+
+// The page decides how to confirm an action from the card's kind, and never
+// offers what the host said the card cannot do.
+TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]")
+{
+    Snapshot     snapshot;
+    PrinterEntry named;
+    named.id                = "named:Garage X1C";
+    named.kind              = PrinterKind::Named;
+    named.can_open_settings = true;
+    named.can_rename        = true;
+    named.can_remove        = true;
+    PrinterEntry device;
+    device.id   = "device:FAKE001";
+    device.kind = PrinterKind::Device;
+    snapshot.printers = {named, device};
+
+    const json printers = state_payload(snapshot).at("printers");
+    CHECK(printers.at(0).at("kind") == "named");
+    CHECK(printers.at(0).at("canOpenSettings") == true);
+    CHECK(printers.at(0).at("canRename") == true);
+    CHECK(printers.at(0).at("canRemove") == true);
+    CHECK(printers.at(1).at("kind") == "device");
+    CHECK(printers.at(1).at("canOpenSettings") == false);
+    CHECK(printers.at(1).at("canRename") == false);
+    CHECK(printers.at(1).at("canRemove") == false);
+}

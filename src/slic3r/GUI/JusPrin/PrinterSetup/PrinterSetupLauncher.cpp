@@ -11,6 +11,7 @@
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
@@ -61,6 +62,17 @@ private:
 
 } // namespace
 
+bool add_printer(Plater& plater, const PrinterCandidate& candidate, const std::optional<DiscoveredPrinter>& device,
+                 std::string& error)
+{
+    if (!SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id, candidate.variant,
+                                                   candidate.default_material, error))
+        return false;
+    Printers::add_named_printer(plater, device && !device->name.empty() ? device->name : candidate.model_name,
+                                device ? device->stable_id : std::string());
+    return true;
+}
+
 void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
 {
     // Both entry points, Home and the printer menu, belong to the shell.
@@ -77,12 +89,16 @@ void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Pla
         if (!model.empty()) config.model = model;
     }
     auto recognition = std::make_unique<OpenAIPrinterRecognition>(std::move(config), Agent::make_openai_http_transport());
-    auto apply = [&plater](const PrinterCandidate& candidate, std::string& error) {
-        return SetupCommands::install_and_select_printer(plater, candidate.vendor_id, candidate.model_id,
-                                                         candidate.variant, candidate.default_material, error);
+    // The controller is built from `apply`, so the flow it answers for is
+    // filled in once it exists; it outlives every call, which only happens
+    // inside dialog.ShowModal() below.
+    PrinterSetupController* flow = nullptr;
+    auto apply = [&plater, &flow](const PrinterCandidate& candidate, std::string& error) {
+        return add_printer(plater, candidate, flow->evidence().discovered_device, error);
     };
     auto controller = std::make_unique<PrinterSetupController>(PrinterCatalog::load(Slic3r::resources_dir()),
                                                                 std::move(recognition), std::move(apply));
+    flow = controller.get();
     // The same answer the Agent panel gives when it shows its empty state.
     const bool agent_connected =
         shell->agent_pane()->web_view().host().availability() == Agent::AgentAvailability::Ready;

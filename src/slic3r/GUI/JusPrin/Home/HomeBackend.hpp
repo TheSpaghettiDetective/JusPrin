@@ -33,6 +33,14 @@ public:
     virtual void import_model()                                 = 0;
     virtual void launch_monitor(const std::string& printer_id)  = 0;
     virtual void add_printer()                                  = 0;
+
+    // The printer card's menu. Each returns an empty string when the action
+    // ran or the person cancelled it, and otherwise a message for the person,
+    // already translated: the request was understood but cannot be carried
+    // out, such as a name another profile has.
+    virtual std::string open_printer_settings(const std::string& printer_id)                       = 0;
+    virtual std::string rename_printer(const std::string& printer_id, const std::string& new_name) = 0;
+    virtual std::string remove_printer(const std::string& printer_id)                              = 0;
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

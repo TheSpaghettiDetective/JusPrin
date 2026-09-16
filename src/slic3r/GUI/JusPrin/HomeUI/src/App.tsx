@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
+import type { PrinterActions } from './components/PrinterMenu';
 import { PlusGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
@@ -26,6 +27,20 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
 
   useEffect(() => {
     client.start();
+  }, [client]);
+
+  // Each action clears the last refusal first: its message was about the
+  // previous request, not this one.
+  const printerActions = useMemo<PrinterActions>(() => {
+    const send = (type: 'open_printer_settings' | 'rename_printer' | 'remove_printer', payload: object) => {
+      dispatch({ kind: 'printer_action' });
+      client.send(type, payload);
+    };
+    return {
+      onOpenSettings: (id) => send('open_printer_settings', { id }),
+      onRename: (id, name) => send('rename_printer', name === undefined ? { id } : { id, name }),
+      onRemove: (id) => send('remove_printer', { id }),
+    };
   }, [client]);
 
   useEffect(() => {
@@ -79,10 +94,17 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
       </main>
       <aside className="printer-column">
         <span className="section-label">Printers</span>
+        {state.printerError && (
+          <p className="printer-error" role="alert">
+            {state.printerError.message}
+          </p>
+        )}
         {state.printers.map((printer) => (
           <PrinterCard
             key={printer.id}
             printer={printer}
+            otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
+            actions={printerActions}
             onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
           />
         ))}

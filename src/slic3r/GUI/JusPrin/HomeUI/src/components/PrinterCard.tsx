@@ -1,14 +1,20 @@
 import type { PrinterInfo } from '../bridge/protocol';
 import { MonitorGlyph, PrinterGlyph } from './Glyphs';
+import { PrinterActions, PrinterMenu } from './PrinterMenu';
 
 // A printing printer opens into its job; every other printer stays one row.
 // Giving both states the same green dot made them indistinguishable, so only
-// a printing printer's dot is colored.
+// a printing printer's dot is colored. Either way the header row ends in the
+// printer's actions menu.
 export function PrinterCard({
   printer,
+  otherNames,
+  actions,
   onLaunchMonitor,
 }: {
   printer: PrinterInfo;
+  otherNames: string[];
+  actions: PrinterActions;
   onLaunchMonitor: (id: string) => void;
 }) {
   const printing = printer.state === 'printing';
@@ -18,11 +24,20 @@ export function PrinterCard({
       <span className="printer-name">{printer.name}</span>
     </span>
   );
+  // A LAN-only device offers none of the actions; a menu of disabled rows
+  // would be a button that does nothing, so it has none.
+  const hasActions = printer.canOpenSettings || printer.canRename || printer.canRemove;
+  const end = (
+    <span className="printer-head-end">
+      <span className={printing ? 'status-dot printing' : 'status-dot'} aria-hidden="true" />
+      {hasActions && <PrinterMenu printer={printer} otherNames={otherNames} actions={actions} />}
+    </span>
+  );
   if (!printing) {
     return (
       <div className="printer-card collapsed">
         {name}
-        <span className="status-dot" aria-hidden="true" />
+        {end}
       </div>
     );
   }
@@ -30,7 +45,7 @@ export function PrinterCard({
     <div className="printer-card">
       <div className="printer-head">
         {name}
-        <span className="status-dot printing" aria-hidden="true" />
+        {end}
       </div>
       {printer.statusText && <div className="printer-job">{printer.statusText}</div>}
       {printer.progressPercent !== undefined && (

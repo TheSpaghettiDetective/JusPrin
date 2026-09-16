@@ -15,7 +15,10 @@
     "new_project",
     "import_project",
     "launch_monitor",
-    "add_printer"
+    "add_printer",
+    "open_printer_settings",
+    "rename_printer",
+    "remove_printer"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -24,6 +27,7 @@
     "projects",
     "printers",
     "appearance",
+    "printer_error",
     "bridge_error"
   ]
 }

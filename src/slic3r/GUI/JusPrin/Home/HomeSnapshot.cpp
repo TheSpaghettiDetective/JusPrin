@@ -28,6 +28,15 @@ const char* to_string(PrinterState state)
     return "idle";
 }
 
+const char* to_string(PrinterKind kind)
+{
+    switch (kind) {
+    case PrinterKind::Device: return "device";
+    case PrinterKind::Named: break;
+    }
+    return "named";
+}
+
 namespace {
 
 void set_if_present(json& target, const char* key, const std::string& value)
@@ -57,9 +66,13 @@ json printer_json(const PrinterEntry& printer)
     json out{
         {"id", printer.id},
         {"name", printer.name},
+        {"kind", to_string(printer.kind)},
         {"state", to_string(printer.state)},
         {"spools", std::move(spools)},
         {"canLaunchMonitor", printer.can_launch_monitor},
+        {"canOpenSettings", printer.can_open_settings},
+        {"canRename", printer.can_rename},
+        {"canRemove", printer.can_remove},
     };
     set_if_present(out, "statusText", printer.status_text);
     set_if_present(out, "connectionText", printer.connection_text);
