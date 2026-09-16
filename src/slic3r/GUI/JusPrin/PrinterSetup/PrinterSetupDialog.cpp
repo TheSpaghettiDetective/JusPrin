@@ -1,7 +1,7 @@
 #include "PrinterSetupDialog.hpp"
 
 #include "PrinterPhoto.hpp"
-#include "slic3r/GUI/ConfigWizard.hpp"
+#include "PrinterSetupLauncher.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -790,7 +790,10 @@ void PrinterSetupDialog::start_over()
 void PrinterSetupDialog::open_manual_setup()
 {
     EndModal(wxID_CANCEL);
-    wxGetApp().CallAfter([] { wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS); });
+    wxGetApp().CallAfter([] {
+        if (Plater* plater = wxGetApp().plater())
+            run_manual_setup(*plater);
+    });
 }
 
 void PrinterSetupDialog::set_up_agent()

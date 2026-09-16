@@ -946,6 +946,32 @@ private:
               "named_nozzle_change_keeps_the_printers_own_settings");
 
         check(Printers::remove_named_printer(*m_plater, nullptr, name).empty(), "named_nozzle_cleanup_removes_the_printer");
+        verify_named_wizard_install();
+    }
+
+    // "Set it up myself" runs Orca's wizard, which only enables models. What
+    // it newly enabled becomes a printer, as a recognized model does; the
+    // wizard itself is a web page this harness cannot drive, so the enabling
+    // is done the way the wizard's apply does it.
+    void verify_named_wizard_install()
+    {
+        const auto before  = wxGetApp().app_config->vendors();
+        const auto custom  = before.find("Custom");
+        check(custom == before.end() || custom->second.count("Generic Klipper Printer") == 0 ||
+                  custom->second.at("Generic Klipper Printer").empty(),
+              "named_wizard_klipper_not_enabled_before");
+        std::string error;
+        check(SetupCommands::install_and_select_printer(*m_plater, "Custom", "Generic Klipper Printer", "0.4", {}, error),
+              "named_wizard_enables_klipper");
+        PrinterSetup::name_installed_printers(*m_plater, before);
+        const Preset* klipper = printer_profile("Generic Klipper Printer");
+        check(selected_printer() == "Generic Klipper Printer" && klipper != nullptr && klipper->is_user() &&
+                  klipper->inherits() == "MyKlipper 0.4 nozzle",
+              "named_wizard_install_becomes_a_printer");
+        PrinterSetup::name_installed_printers(*m_plater, wxGetApp().app_config->vendors());
+        check(printer_profile("Generic Klipper Printer (2)") == nullptr, "named_wizard_names_only_new_models");
+        check(Printers::remove_named_printer(*m_plater, nullptr, "Generic Klipper Printer").empty(),
+              "named_wizard_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         check(selected_printer() == kSetupFixturePrinter, "named_cleanup_restores_the_fixture_printer");
         finish();

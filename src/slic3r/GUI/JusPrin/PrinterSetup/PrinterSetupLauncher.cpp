@@ -6,7 +6,9 @@
 #include "PrinterSetupController.hpp"
 #include "PrinterSetupDialog.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
@@ -71,6 +73,42 @@ bool add_printer(Plater& plater, const PrinterCandidate& candidate, const std::o
     Printers::add_named_printer(plater, device && !device->name.empty() ? device->name : candidate.model_name,
                                 device ? device->stable_id : std::string());
     return true;
+}
+
+void run_manual_setup(Plater& plater)
+{
+    const Printers::VendorMap before = wxGetApp().app_config->vendors();
+    // False when the person closed the wizard without applying it.
+    if (wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS))
+        name_installed_printers(plater, before);
+}
+
+void name_installed_printers(Plater& plater, const Printers::VendorMap& before)
+{
+    PresetBundle&     presets  = *wxGetApp().preset_bundle;
+    const std::string selected = presets.printers.get_selected_preset_name();
+    const Preset&     current  = presets.printers.get_selected_preset();
+    const auto        models   = Printers::newly_installed_models(before, wxGetApp().app_config->vendors(),
+                                                                  current.config.opt_string("printer_model"),
+                                                                  current.config.opt_string("printer_variant"));
+    std::string keep;
+    for (const Printers::InstalledModel& model : models) {
+        const Preset* profile = presets.printers.find_system_preset_by_model_and_variant(model.model, model.variant);
+        if (profile == nullptr)
+            throw std::runtime_error("The wizard enabled " + model.model + " " + model.variant +
+                                     " but no system profile for it is loaded");
+        const std::string profile_name = profile->name;
+        if (!SetupCommands::select_printer_preset(plater, profile_name) ||
+            presets.printers.get_selected_preset_name() != profile_name)
+            return; // the person kept unsaved printer changes; nothing more is named
+        const std::string name = Printers::add_named_printer(plater, model.model, {});
+        if (profile_name == selected)
+            keep = name;
+    }
+    // Naming selects each printer in turn; the wizard's own choice is the one
+    // left selected, under its name when it was one of them.
+    if (!models.empty())
+        SetupCommands::select_printer_preset(plater, keep.empty() ? selected : keep);
 }
 
 void show_printer_setup(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
