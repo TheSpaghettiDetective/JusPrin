@@ -369,6 +369,22 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (definition->handler == ToolHandler::PresetsList) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const std::string& kind = arguments.at("kind").get_ref<const std::string&>();
+        Workspace::PresetQuery query;
+        query.kind = kind == "printer" ? Workspace::PresetKind::Printer :
+                     kind == "filament" ? Workspace::PresetKind::Filament : Workspace::PresetKind::Process;
+        query.text            = arguments.value("query", "");
+        query.compatible_only = arguments.value("compatibleOnly", true);
+        query.limit           = arguments.value("limit", std::size_t(25));
+        query.cursor          = arguments.value("cursor", "");
+        activity.result_json  = presets_list_result(m_workspace.list_presets(query), m_workspace.snapshot()).dump();
+        activity.state        = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (definition->handler == ToolHandler::SliceReportRead) {
         const auto arguments = json::parse(activity.arguments_json);
         const auto snapshot  = m_workspace.snapshot();

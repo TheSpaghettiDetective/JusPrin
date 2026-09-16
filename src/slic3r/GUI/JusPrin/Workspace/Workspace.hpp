@@ -190,6 +190,40 @@ struct WorkspaceSnapshot
     WorkspaceSlicing            slicing;
 };
 
+// The three preset families a print is chosen from. SLA has no place here
+// until the product has one.
+enum class PresetKind : std::uint8_t { Printer, Filament, Process };
+
+// One preset as Orca currently sees it. `compatible` is Orca's own cached
+// verdict, never re-derived: deriving it writes to the preset's config and
+// can change the selection.
+struct PresetEntry
+{
+    std::string name;   // canonical, what a selection takes
+    std::string label;  // the alias Orca shows, when it has one
+    std::string vendor; // the profile bundle it shipped in; empty for a user preset
+    bool        system{false};
+    bool        selected{false};
+    bool        compatible{true};
+};
+
+struct PresetQuery
+{
+    PresetKind  kind{PresetKind::Process};
+    std::string text;
+    bool        compatible_only{true};
+    std::size_t limit{25};
+    std::string cursor;
+};
+
+struct PresetListResult
+{
+    std::vector<PresetEntry> items;
+    std::string              next_cursor;
+    std::size_t              total{0};
+    bool                     truncated{false};
+};
+
 // One filament's share of a sliced plate. Lengths and weights are derived the
 // way Orca's own preview derives them -- volume per filament times that
 // filament's diameter and density -- so a report can never disagree with the
@@ -620,6 +654,12 @@ public:
     // `valid` is false when the plate holds no current slice, rather than
     // failing: "not sliced yet" is an answer, not an error.
     virtual SliceReport slice_report(PlateId plate) const = 0;
+
+    // A page of presets of one kind, as Orca has them. Read-only in the strict
+    // sense: it reports Orca's cached compatibility verdict and never asks for
+    // a fresh one, because asking writes to preset configs and can move the
+    // selection.
+    virtual PresetListResult list_presets(const PresetQuery& query) const = 0;
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
     virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;

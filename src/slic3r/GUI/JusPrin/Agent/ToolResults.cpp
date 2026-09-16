@@ -328,4 +328,17 @@ json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateI
     return result;
 }
 
+json presets_list_result(const Workspace::PresetListResult& presets, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    bool truncated = presets.truncated;
+    json items     = json::array();
+    for (const Workspace::PresetEntry& preset : presets.items)
+        items.push_back({{"name", label(preset.name, truncated)}, {"label", label(preset.label, truncated)},
+                         {"vendor", label(preset.vendor, truncated)}, {"system", preset.system},
+                         {"selected", preset.selected}, {"compatible", preset.compatible}});
+    return {{"items", std::move(items)}, {"total", presets.total}, {"nextCursor", presets.next_cursor},
+            {"truncated", truncated}, {"sessionId", std::to_string(snapshot.session.value())},
+            {"revision", snapshot.revision}};
+}
+
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -52,6 +52,7 @@ enum class ToolHandler : std::uint8_t {
     SettingsApplyPatch,
     IntentUpdate,
     PlanSet,
+    PresetsList,
     SliceStart,
     SliceReportRead,
     RecordBuild,

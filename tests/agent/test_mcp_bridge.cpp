@@ -80,7 +80,7 @@ TEST_CASE("MCP bridge offline legacy catalog is projected for each negotiated ve
     h.initialize(version);
     h.send(rpc(1, "tools/list"));
     const auto listed = h.wait(1)["result"];
-    CHECK(listed["tools"].size() == 9);
+    CHECK(listed["tools"].size() == 10);
     CHECK_FALSE(listed.contains("ttlMs")); CHECK_FALSE(listed.contains("cacheScope"));
     CHECK_FALSE(listed.contains("resultType"));
     // No negotiated version advertises an output schema any more; the bridge's

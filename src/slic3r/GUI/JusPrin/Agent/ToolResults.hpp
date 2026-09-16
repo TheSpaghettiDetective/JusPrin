@@ -39,6 +39,7 @@ struct SliceReportSections
 
 nlohmann::json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateId plate,
                                    const Workspace::WorkspaceSnapshot& snapshot, SliceReportSections sections);
+nlohmann::json presets_list_result(const Workspace::PresetListResult& presets, const Workspace::WorkspaceSnapshot& snapshot);
 nlohmann::json selection_inspection(const Workspace::WorkspaceSnapshot& snapshot);
 nlohmann::json settings_search_result(const Workspace::SettingsSearchResult&, const Workspace::WorkspaceSnapshot&);
 nlohmann::json settings_read_result(const Workspace::SettingsReadResult&, const Workspace::WorkspaceSnapshot&);

@@ -17,7 +17,10 @@ inline bool writable_setting(const std::string& key)
     return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
 }
 
-inline std::string settings_lower(std::string text)
+// Case-folded for a substring search over ASCII keys and labels. Not a
+// locale-aware fold: Orca's setting keys are ASCII, and a preset name that is
+// not still matches on the part that is.
+inline std::string ascii_lower(std::string text)
 {
     std::transform(text.begin(), text.end(), text.begin(), [](unsigned char ch) { return std::tolower(ch); });
     return text;
@@ -42,13 +45,13 @@ inline SettingsSearchResult search_setting_definitions(const std::vector<Setting
             return result;
         }
     }
-    const std::string text = settings_lower(query.text);
+    const std::string text = ascii_lower(query.text);
     std::vector<std::pair<int, const SettingDefinition*>> matches;
     for (const auto& def : definitions) {
-        const std::string key = settings_lower(def.key);
+        const std::string key = ascii_lower(def.key);
         int rank = key == text ? 0 : key.find(text) == 0 ? 1 :
-                   settings_lower(def.label).find(text) != std::string::npos ? 2 :
-                   settings_lower(def.description).find(text) != std::string::npos ? 3 : 4;
+                   ascii_lower(def.label).find(text) != std::string::npos ? 2 :
+                   ascii_lower(def.description).find(text) != std::string::npos ? 3 : 4;
         if (rank < 4)
             matches.emplace_back(rank, &def);
     }
@@ -73,7 +76,7 @@ inline std::vector<std::string> setting_suggestions(const std::string& key,
 {
     // Edit distance handles misspellings without maintaining a second alias catalog.
     std::vector<std::pair<std::size_t, std::string>> ranked;
-    const std::string needle = settings_lower(key);
+    const std::string needle = ascii_lower(key);
     for (const auto& def : definitions) {
         std::vector<std::size_t> row(def.key.size() + 1);
         std::iota(row.begin(), row.end(), 0);

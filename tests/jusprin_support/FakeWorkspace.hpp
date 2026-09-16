@@ -357,6 +357,38 @@ public:
         return CommandResult::success();
     }
 
+    PresetListResult list_presets(const PresetQuery& query) const override
+    {
+        PresetListResult result;
+        const auto found = m_presets.find(query.kind);
+        if (found == m_presets.end())
+            return result;
+        std::size_t offset = query.cursor.empty() ? 0 : std::stoull(query.cursor), skipped = 0;
+        for (const PresetEntry& preset : found->second) {
+            if (query.compatible_only && !preset.compatible)
+                continue;
+            if (!query.text.empty() && preset.name.find(query.text) == std::string::npos &&
+                preset.label.find(query.text) == std::string::npos)
+                continue;
+            ++result.total;
+            if (skipped++ < offset)
+                continue;
+            if (result.items.size() >= query.limit) {
+                result.truncated = true;
+                continue;
+            }
+            result.items.push_back(preset);
+        }
+        if (result.truncated)
+            result.next_cursor = std::to_string(offset + result.items.size());
+        return result;
+    }
+
+    void set_presets_for_testing(PresetKind kind, std::vector<PresetEntry> presets)
+    {
+        m_presets[kind] = std::move(presets);
+    }
+
     SliceReport slice_report(PlateId plate) const override
     {
         const auto found = m_reports.find(plate.value());
@@ -391,6 +423,7 @@ public:
 
     std::uint32_t slice_starts{0};
     std::map<std::uint64_t, SliceReport> m_reports;
+    std::map<PresetKind, std::vector<PresetEntry>> m_presets;
 
     // slice changes what consumers may say about the plate, so it has to
     // advance the revision. The Orca adapter matches this by listening to

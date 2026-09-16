@@ -454,6 +454,56 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
     return CommandResult::success();
 }
 
+PresetListResult OrcaWorkspaceAdapter::list_presets(const PresetQuery& query) const
+{
+    wxASSERT(wxIsMainThread());
+    PresetListResult result;
+    // Const throughout: the non-const accessors on a collection can select a
+    // preset when the current index is out of range, and update_compatible can
+    // both rewrite every compatibility flag and change the selection.
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr)
+        return result;
+    const PresetCollection& collection = query.kind == PresetKind::Printer ? presets->printers :
+                                         query.kind == PresetKind::Filament ?
+                                             static_cast<const PresetCollection&>(presets->filaments) :
+                                             static_cast<const PresetCollection&>(presets->prints);
+    // What a project actually prints with is the bundle's per-extruder choice,
+    // not the filament tab's selection; for the other kinds they are the same.
+    const std::string selected = query.kind == PresetKind::Filament && !presets->filament_presets.empty() ?
+                                     presets->filament_presets.front() :
+                                     collection.get_selected_preset_name();
+
+    const std::string needle = ascii_lower(query.text);
+    std::size_t       skipped = 0, offset = 0;
+    if (!query.cursor.empty())
+        std::from_chars(query.cursor.data(), query.cursor.data() + query.cursor.size(), offset);
+    for (const Preset& preset : collection) {
+        // A hidden preset is one this installation does not offer; a default
+        // is Orca's placeholder, not something anyone prints with.
+        if (!preset.is_visible || preset.is_default)
+            continue;
+        if (query.compatible_only && !preset.is_compatible)
+            continue;
+        const std::string label = preset.alias.empty() ? preset.name : preset.alias;
+        if (!needle.empty() && ascii_lower(preset.name).find(needle) == std::string::npos &&
+            ascii_lower(label).find(needle) == std::string::npos)
+            continue;
+        ++result.total;
+        if (skipped++ < offset)
+            continue;
+        if (result.items.size() >= query.limit) {
+            result.truncated = true;
+            continue; // keep counting, so the total is the whole answer
+        }
+        result.items.push_back({preset.name, label, preset.vendor != nullptr ? preset.vendor->name : std::string(),
+                                preset.is_system, preset.name == selected, preset.is_compatible});
+    }
+    if (result.truncated)
+        result.next_cursor = std::to_string(offset + result.items.size());
+    return result;
+}
+
 SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate) const
 {
     wxASSERT(wxIsMainThread());

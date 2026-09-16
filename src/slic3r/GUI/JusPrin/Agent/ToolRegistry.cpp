@@ -133,6 +133,19 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return true;
     }
 
+    if (definition.handler == ToolHandler::PresetsList) {
+        if (!has_only(arguments, {"kind", "query", "compatibleOnly", "limit", "cursor"}) || !arguments.contains("kind") ||
+            !arguments["kind"].is_string() || !optional_string(arguments, "query") || !optional_string(arguments, "cursor") ||
+            (arguments.contains("compatibleOnly") && !arguments["compatibleOnly"].is_boolean()))
+            return false;
+        const std::string& kind = arguments["kind"].get_ref<const std::string&>();
+        if (kind != "printer" && kind != "filament" && kind != "process")
+            return false;
+        return !arguments.contains("limit") ||
+               (arguments["limit"].is_number_unsigned() && arguments["limit"].get<std::uint64_t>() >= 1 &&
+                arguments["limit"].get<std::uint64_t>() <= 25);
+    }
+
     if (definition.handler == ToolHandler::SliceReportRead) {
         if (!has_only(arguments, {"plateId", "sections"}) ||
             (arguments.contains("plateId") && !is_unsigned_string(arguments["plateId"])))
@@ -409,6 +422,20 @@ std::vector<ToolDefinition> make_definitions()
          plan_output,
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlanSet,
          true},
+        {"presets_list", "List printer, filament, or process presets",
+         "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
+         object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},
+                        {"query", id}, {"compatibleOnly", boolean_schema()},
+                        {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id}},
+                       {"kind"}),
+         object_schema({{"items", array_schema(object_schema({{"name", id}, {"label", id}, {"vendor", string_schema()},
+                                                              {"system", boolean_schema()}, {"selected", boolean_schema()},
+                                                              {"compatible", boolean_schema()}},
+                                                             {"name", "label", "vendor", "system", "selected", "compatible"}), 25)},
+                        {"total", revision}, {"nextCursor", id}, {"truncated", boolean_schema()},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"items", "total", "nextCursor", "truncated", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PresetsList},
         {"slice_report", "Check the sliced plate",
          "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors, the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them. A plate that has not been sliced says so rather than failing.",
          object_schema({{"plateId", id}, {"sections", {{"type", "array"},

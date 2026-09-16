@@ -776,3 +776,57 @@ TEST_CASE("the slice report says what the plate holds, or that it holds nothing"
     REQUIRE(h.workspace.start_slice(plate, false).succeeded());
     CHECK(read("m-4", json::object())["valid"] == false);
 }
+
+TEST_CASE("presets are listed by kind, filtered, and paged", "[tools][presets]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    h.workspace.set_presets_for_testing(Workspace::PresetKind::Filament,
+                                        {{"Generic PLA @BBL", "Generic PLA", "BBL", true, true, true},
+                                         {"Generic PETG @BBL", "Generic PETG", "BBL", true, false, true},
+                                         {"My PLA tuned", "My PLA tuned", "", false, false, true},
+                                         {"Generic ABS @Other", "Generic ABS", "Other", true, false, false}});
+    const auto list = [&h](const char* correlation, json arguments) {
+        const std::string action = h.coordinator.propose({"presets_list", arguments.dump()}, correlation).action_id;
+        h.pump_to_completion(action);
+        return json::parse(h.coordinator.find(action)->result_json);
+    };
+
+    // Compatible only by default: an incompatible preset is not something the
+    // user can choose, so offering it would be a wrong answer.
+    const auto compatible = list("m-1", json{{"kind", "filament"}});
+    CHECK(registry.validate_output(*registry.find("presets_list"), compatible));
+    CHECK(compatible["total"] == 3);
+    CHECK(compatible["items"].size() == 3);
+    CHECK(compatible["items"][0]["selected"] == true);
+    CHECK(compatible["items"][0]["label"] == "Generic PLA");
+    CHECK(compatible["items"][2]["system"] == false);
+    CHECK(compatible["items"][2]["vendor"] == "");
+
+    const auto everything = list("m-2", json{{"kind", "filament"}, {"compatibleOnly", false}});
+    CHECK(everything["total"] == 4);
+    CHECK(everything["items"][3]["compatible"] == false);
+
+    const auto filtered = list("m-3", json{{"kind", "filament"}, {"query", "PETG"}});
+    CHECK(filtered["total"] == 1);
+    CHECK(filtered["items"][0]["name"] == "Generic PETG @BBL");
+
+    // A page says how much it is a page of, so the agent knows to follow the
+    // cursor rather than treating one page as the catalogue.
+    const auto page = list("m-4", json{{"kind", "filament"}, {"limit", 2}});
+    CHECK(page["items"].size() == 2);
+    CHECK(page["total"] == 3);
+    CHECK(page["truncated"] == true);
+    const auto rest = list("m-5", json{{"kind", "filament"}, {"limit", 2}, {"cursor", page["nextCursor"]}});
+    CHECK(rest["items"].size() == 1);
+    CHECK(rest["truncated"] == false);
+    CHECK(rest["items"][0]["name"] == "My PLA tuned");
+
+    // A kind this fixture knows nothing about is an empty list, not a failure.
+    const auto printers = list("m-6", json{{"kind", "printer"}});
+    CHECK(printers["items"].empty());
+    CHECK(printers["total"] == 0);
+
+    CHECK_FALSE(registry.validate_call(*registry.find("presets_list"), R"({"kind":"sla"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("presets_list"), R"({"kind":"filament","limit":99})").valid());
+}
