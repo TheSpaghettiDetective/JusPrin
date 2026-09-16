@@ -257,6 +257,7 @@ private:
             m_persistence.flush();
             return stored;
         }
+        void flush_to_project() override { m_persistence.flush(); }
         bool has_printer_facts() const override { return !m_facts_path.empty(); }
         std::vector<Workspace::PrinterFact> printer_facts(const std::string& printer) const override
         {

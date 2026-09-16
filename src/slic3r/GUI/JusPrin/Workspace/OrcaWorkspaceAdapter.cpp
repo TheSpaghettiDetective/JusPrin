@@ -7,6 +7,7 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
+#include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -14,7 +15,9 @@
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/nowide/fstream.hpp>
 
 #include <wx/thread.h>
 
@@ -246,6 +249,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
 
     result.setup.project_name  = m_plater.get_project_name().ToUTF8().data();
     result.setup.project_dirty = m_plater.is_project_dirty();
+    result.setup.project_path  = into_u8(m_plater.get_project_filename(".3mf"));
     if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr) {
         result.setup.printer_preset = presets->printers.get_selected_preset().label(false);
         if (presets->printers.get_edited_preset().printer_technology() == ptFFF) {
@@ -631,6 +635,52 @@ SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate) const
     if (paths.defined)
         report.toolpath_outside = !m_plater.build_volume().all_paths_inside(result, paths);
     return report;
+}
+
+CommandResult OrcaWorkspaceAdapter::save_project(const std::string& file_path)
+{
+    wxASSERT(wxIsMainThread());
+    // The same gates as the File menu's Save: a G-code preview or an exported
+    // file is not a project that can be saved.
+    if (m_plater.only_gcode_mode() || m_plater.using_exported_file())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                      "The open file is a preview, not a project that can be saved");
+    // Save renders plate thumbnails, which crash before the canvas has its GL
+    // state; the same guard as export_project_archive.
+    const GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
+    if (canvas == nullptr || !canvas->is_initialized())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project cannot be saved until the view is ready");
+
+    const boost::filesystem::path target(file_path);
+    if (!target.is_absolute() || boost::algorithm::to_lower_copy(target.extension().string()) != ".3mf")
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "Save to an absolute path ending in .3mf");
+    boost::system::error_code error;
+    if (!boost::filesystem::is_directory(target.parent_path(), error))
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The folder to save into does not exist");
+    // Save reports a failed write with a modal dialog. A write that would fail
+    // for want of permission fails here instead, where it can be reported.
+    {
+        const boost::filesystem::path probe = target.parent_path() / (".jusprin-write-check-" + std::to_string(m_session.value()));
+        boost::nowide::ofstream out(probe.string(), std::ios::binary | std::ios::trunc);
+        const bool writable = out.is_open();
+        out.close();
+        boost::filesystem::remove(probe, error);
+        if (!writable)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "That folder cannot be written to");
+    }
+
+    // Orca's own Save, not a copy of it. Save only asks where to save when the
+    // project has no file, so naming the file first is the whole difference:
+    // the export, the backup removal, the saved and dirty bookkeeping, and the
+    // recent-projects entry all stay upstream's.
+    const wxString previous = m_plater.get_project_filename(".3mf");
+    m_plater.set_project_filename(from_u8(file_path));
+    if (m_plater.save_project(false) != wxID_YES) {
+        if (!previous.IsEmpty())
+            m_plater.set_project_filename(previous);
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project could not be saved");
+    }
+    return CommandResult::success();
 }
 
 std::string OrcaWorkspaceAdapter::auxiliary_data_dir() const

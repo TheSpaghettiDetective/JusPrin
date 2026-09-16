@@ -862,3 +862,55 @@ TEST_CASE("printers are listed with what they reported and when", "[tools][print
 
     CHECK_FALSE(registry.validate_call(*registry.find("printer_list"), R"({"connected":true})").valid());
 }
+
+TEST_CASE("a save names its file on the card and writes nothing before approval", "[tools][project]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const std::filesystem::path folder = std::filesystem::temp_directory_path() /
+        ("jusprin-save-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(folder);
+    const std::string target = (folder / "benchy.3mf").u8string();
+
+    // A project that has never been saved has no file to save to.
+    const ToolActivity unsaved = h.coordinator.propose({"project_save", "{}"}, "m-1");
+    CHECK(unsaved.state == ToolState::Failed);
+    CHECK(unsaved.error->code == "unavailable_operation");
+
+    // A path is bound at proposal time and shown on the card; nothing is
+    // written while the card waits, and nothing at all if it is rejected.
+    const ToolActivity rejected = h.coordinator.propose({"project_save", json{{"path", target}}.dump()}, "m-2");
+    REQUIRE(rejected.state == ToolState::Pending);
+    CHECK(rejected.requires_approval);
+    CHECK(rejected.title == "Save the project to " + target);
+    const std::string rejected_id = rejected.action_id;
+    CHECK_FALSE(std::filesystem::exists(folder / "benchy.3mf"));
+    REQUIRE(h.coordinator.reject(rejected_id));
+    h.coordinator.pump();
+    CHECK_FALSE(std::filesystem::exists(folder / "benchy.3mf"));
+    CHECK(store.flushes == 0);
+
+    const std::string approved = h.coordinator.propose({"project_save", json{{"path", target}}.dump()}, "m-3").action_id;
+    REQUIRE(h.coordinator.approve(approved));
+    h.pump_to_completion(approved);
+    REQUIRE(h.coordinator.find(approved)->state == ToolState::Succeeded);
+    const auto result = json::parse(h.coordinator.find(approved)->result_json);
+    CHECK(registry.validate_output(*registry.find("project_save"), result));
+    CHECK(result["path"] == target);
+    CHECK(result["projectDirty"] == false);
+    CHECK(std::filesystem::exists(folder / "benchy.3mf"));
+    // The conversation travels in the project, so it went to disk first.
+    CHECK(store.flushes == 1);
+
+    // Once the project has a file, a bare save goes there -- and the card says
+    // it replaces what is there.
+    const ToolActivity again = h.coordinator.propose({"project_save", "{}"}, "m-4");
+    REQUIRE(again.state == ToolState::Pending);
+    CHECK(again.title == "Save the project, replacing " + target);
+
+    CHECK_FALSE(registry.validate_call(*registry.find("project_save"), R"({"path":""})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("project_save"), R"({"path":"x.3mf","overwrite":true})").valid());
+    std::filesystem::remove_all(folder);
+}

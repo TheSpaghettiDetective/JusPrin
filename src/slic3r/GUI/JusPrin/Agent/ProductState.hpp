@@ -36,6 +36,10 @@ public:
     // Replaces the plan whole and returns it as stored.
     virtual PlanRecord set_plan(PlanRecord record) = 0;
 
+    // Writes whatever product state is still pending into the project's
+    // auxiliary directory, so a save that happens now carries it.
+    virtual void flush_to_project() = 0;
+
     // Facts the person stated about a physical printer, app-level rather than
     // project-level, still unexpired. `printer` is the identity they belong to.
     // Only call the two below when this is true.

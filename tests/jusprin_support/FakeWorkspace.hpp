@@ -390,6 +390,27 @@ public:
     }
 
     std::vector<PrinterDevice> printers() const override { return m_printers; }
+
+    // A save writes a real file, so a test can prove nothing was written
+    // before approval, and marks the project clean at that path.
+    CommandResult save_project(const std::string& file_path) override
+    {
+        const std::filesystem::path target = std::filesystem::u8path(file_path);
+        if (!target.is_absolute() || target.extension() != ".3mf")
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Save to an absolute path ending in .3mf");
+        if (!std::filesystem::is_directory(target.parent_path()))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The folder to save into does not exist");
+        std::ofstream(target, std::ios::binary | std::ios::trunc) << "fake project";
+        m_snapshot.setup.project_path  = file_path;
+        m_snapshot.setup.project_dirty = false;
+        return CommandResult::success();
+    }
+
+    void set_project_path_for_testing(std::string path, bool dirty)
+    {
+        m_snapshot.setup.project_path  = std::move(path);
+        m_snapshot.setup.project_dirty = dirty;
+    }
     void set_printers_for_testing(std::vector<PrinterDevice> printers) { m_printers = std::move(printers); }
 
     SliceReport slice_report(PlateId plate) const override

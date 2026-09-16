@@ -136,6 +136,12 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     if (definition.handler == ToolHandler::PrinterList)
         return arguments.empty();
 
+    if (definition.handler == ToolHandler::ProjectSave)
+        return has_only(arguments, {"path"}) &&
+               (!arguments.contains("path") ||
+                (arguments["path"].is_string() && !arguments["path"].get_ref<const std::string&>().empty() &&
+                 arguments["path"].get_ref<const std::string&>().size() <= 1024));
+
     if (definition.handler == ToolHandler::PresetsList) {
         if (!has_only(arguments, {"kind", "query", "compatibleOnly", "limit", "cursor"}) || !arguments.contains("kind") ||
             !arguments["kind"].is_string() || !optional_string(arguments, "query") || !optional_string(arguments, "cursor") ||
@@ -439,6 +445,13 @@ std::vector<ToolDefinition> make_definitions()
                         {"truncated", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
                        {"items", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrinterList},
+        {"project_save", "Save the project",
+         "Save the open project to its own file, or to the absolute .3mf path you give, the way the user's Save does: the file becomes the project's file and the project is marked saved. Replaces whatever is at that path, so it waits for approval in JusPrin, and the card shows the exact path. A project that has never been saved needs a path.",
+         object_schema({{"path", {{"type", "string"}, {"maxLength", 1024}}}}),
+         object_schema({{"path", string_schema()}, {"saved", boolean_schema()}, {"projectDirty", boolean_schema()},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"path", "saved", "projectDirty", "sessionId", "revision"}),
+         ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectSave},
         {"presets_list", "List printer, filament, or process presets",
          "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},

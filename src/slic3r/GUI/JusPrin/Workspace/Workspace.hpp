@@ -144,6 +144,9 @@ struct WorkspaceSetup
 {
     std::string project_name;
     bool        project_dirty{false};
+    // Where the project was last opened from or saved to, UTF-8; empty for a
+    // project that has never been saved.
+    std::string project_path;
     std::string printer_preset;
     std::string filament_preset;
     std::string process_preset;
@@ -152,7 +155,7 @@ struct WorkspaceSetup
     friend bool operator==(const WorkspaceSetup& lhs, const WorkspaceSetup& rhs)
     {
         return lhs.project_name == rhs.project_name && lhs.project_dirty == rhs.project_dirty &&
-               lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset &&
+               lhs.project_path == rhs.project_path && lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset &&
                lhs.process_preset == rhs.process_preset && lhs.process_preset_dirty == rhs.process_preset_dirty;
     }
 };
@@ -699,6 +702,12 @@ public:
     // portable project archive at file_path, excluding auxiliary data — so a
     // clean copy carries no consumer files along.
     virtual CommandResult export_project_archive(const std::string& file_path) = 0;
+
+    // Saves the open project to file_path (UTF-8, absolute, ".3mf"), the way
+    // the person's own Save does: the file becomes the project's file, the
+    // project is marked saved, and auxiliary data travels with it. Unlike
+    // export_project_archive this is the project, not a copy of it.
+    virtual CommandResult save_project(const std::string& file_path) = 0;
 
     // Imports a model or project file's geometry into the CURRENT project,
     // adding objects rather than replacing the project. It is a single

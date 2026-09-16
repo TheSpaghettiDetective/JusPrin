@@ -39,6 +39,7 @@ public:
                                  SettingsPreview& applied) override;
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;
+    CommandResult save_project(const std::string& file_path) override;
     CommandResult import_model(const std::string& file_path) override;
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override;
 

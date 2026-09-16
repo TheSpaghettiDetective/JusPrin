@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <filesystem>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -134,6 +135,23 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     }
     stored.arguments_json = std::move(validation.arguments_json);
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
+
+    if (definition->handler == ToolHandler::ProjectSave) {
+        auto arguments = json::parse(stored.arguments_json);
+        const std::string path = arguments.value("path", snapshot.setup.project_path);
+        if (path.empty()) {
+            fail(stored, "unavailable_operation", "This project has never been saved. Give the path to save it to.");
+            return stored;
+        }
+        // The path is bound here, before approval, so the card names exactly
+        // the file that will be written and a rename in between cannot move it.
+        arguments["resolvedPath"] = path;
+        stored.arguments_json     = arguments.dump();
+        std::error_code error;
+        const bool      replaces = std::filesystem::exists(std::filesystem::u8path(path), error);
+        stored.title = std::string(replaces ? "Save the project, replacing " : "Save the project to ") + path;
+        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    }
 
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         auto arguments = json::parse(stored.arguments_json);
@@ -366,6 +384,27 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         if (sections.slicing) result["slicing"] = slicing_section_result(m_workspace.snapshot(), m_slice_handle);
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ProjectSave) {
+        const std::string path = json::parse(activity.arguments_json).at("resolvedPath").get<std::string>();
+        // The conversation and the rest of the product state travel inside the
+        // project file, so what is still pending goes to disk first.
+        if (m_product_state != nullptr)
+            m_product_state->flush_to_project();
+        const auto saved = m_workspace.save_project(path);
+        if (!saved.succeeded()) {
+            fail(activity, workspace_error_code(saved.error), saved.message);
+            return;
+        }
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"path", path}, {"saved", true}, {"projectDirty", snapshot.setup.project_dirty},
+                                    {"sessionId", std::to_string(snapshot.session.value())},
+                                    {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
         notify(activity);
         return;
     }

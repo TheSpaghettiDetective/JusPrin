@@ -90,7 +90,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    REQUIRE(body["tools"].size() == 13);
+    REQUIRE(body["tools"].size() == 14);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
@@ -106,7 +106,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection", "intent_update", "plan_set", "presets_list", "printer_list", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection", "intent_update", "plan_set", "presets_list", "printer_list", "project_save", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -170,7 +170,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "intent_update", "plan_set", "presets_list", "printer_list", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "intent_update", "plan_set", "presets_list", "printer_list", "project_save", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_report", "slice_start", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},

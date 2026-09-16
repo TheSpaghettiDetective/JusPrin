@@ -51,6 +51,7 @@ public:
 
     // Facts are app-level and time-bound in the real store; here they are
     // just remembered, which is all a coordinator test needs to observe.
+    void flush_to_project() override { ++flushes; }
     bool has_printer_facts() const override { return true; }
 
     std::vector<Workspace::PrinterFact> printer_facts(const std::string& printer) const override
@@ -77,6 +78,7 @@ public:
 
     std::string   timestamp{"2026-09-16T00:00:00Z"};
     std::uint32_t writes{0};
+    std::uint32_t flushes{0};
 
 private:
     std::vector<IntentField> m_fields;
