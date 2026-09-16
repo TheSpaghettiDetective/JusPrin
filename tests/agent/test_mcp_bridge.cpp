@@ -83,7 +83,9 @@ TEST_CASE("MCP bridge offline legacy catalog is projected for each negotiated ve
     CHECK(listed["tools"].size() == 5);
     CHECK_FALSE(listed.contains("ttlMs")); CHECK_FALSE(listed.contains("cacheScope"));
     CHECK_FALSE(listed.contains("resultType"));
-    CHECK(listed["tools"][0].contains("outputSchema") == (version != "2025-03-26"));
+    // No negotiated version advertises an output schema any more; the bridge's
+    // own March stripping stays for catalogs forwarded from an older live app.
+    CHECK_FALSE(listed["tools"][0].contains("outputSchema"));
     h.send(rpc(2, "tools/call", {{"name", "workspace_inspect"}}));
     const auto result = h.wait(2)["result"];
     CHECK(result["isError"] == true);

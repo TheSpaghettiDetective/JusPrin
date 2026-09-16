@@ -180,8 +180,9 @@ class BridgeProcessTests(unittest.TestCase):
                 self.assertEqual(self.child.initialize(version)["result"]["protocolVersion"], expected)
                 self.child.send(request(1, "tools/list"))
                 result = self.child.receive()["result"]
-                self.assertEqual(len(result["tools"]), 6)
+                self.assertEqual(len(result["tools"]), 5)
                 self.assertNotIn("ttlMs", result)
+                self.assertNotIn("outputSchema", result["tools"][0])
                 self.child.send(request(2, "tools/call", {"name": "workspace_inspect"}))
                 result = self.child.receive()["result"]
                 self.assertTrue(result["isError"])

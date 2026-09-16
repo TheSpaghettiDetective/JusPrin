@@ -118,7 +118,8 @@ TEST_CASE("MCP discovery and paged catalog are registry projections", "[mcp][reg
         const Agent::ToolDefinition& canonical = definitions.at(count++);
         CHECK(tool["name"] == canonical.name);
         CHECK(tool["inputSchema"] == canonical.input_schema);
-        CHECK(tool["outputSchema"] == canonical.output_schema);
+        // The output schema is an internal check, not a catalog field.
+        CHECK_FALSE(tool.contains("outputSchema"));
         CHECK(tool["annotations"]["readOnlyHint"] == (canonical.action_class == Agent::ActionClass::ReadOnly));
         if (!response["result"].contains("nextCursor")) break;
         page_request.params["cursor"] = response["result"]["nextCursor"];
