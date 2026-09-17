@@ -1,0 +1,59 @@
+Every user profile needs a system profile as its parent, which fixes its model and nozzle size. So changing the nozzle means moving the user profile to a different parent while keeping the user's own settings, not editing a field.
+
+does it mean that when user change the nozzle size or palte type on the prepare screen, jusprin will have to change the parent of the user printer frofile, and face a decision if the custom printer settings need to be transferred or discarded?
+
+---
+
+Unsaved edits first: - does it mean the setting the user changed but have not saved?   Tell me how I can reproduce this scenario.
+
+---
+
+if we 
+
+* don't allow users to switch nozzle size on the prepare screen.
+* auto-save printer setting changes.
+
+  We won't run into a situation when we have to make such choice at all, right? Check the code to confirm.
+
+---
+
+A user profile with no parent is a custom printer. Deleting one in Orca also deletes the filament and process profiles made for it, so "Remove printer" on that kind of card has to go through Orca's confirmation.
+
+explain this in plain eng
+
+---
+
+Does the custom printer explain this:
+
+I launchyed it "open /Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app" and saw "fake moonraker"
+Review changes before committing
+This diff is exactly the two fixes I verified live, both correct and clean. Committing now.
+Committed77bad9b
+Now let's dig into the actual "fake moonraker" report. Since you launched without `--datadir`, it used your real profile. Let me check what that printer actually is.
+Ran 5 commands
+Found it — confirmed directly from your own config, not a guess.
+Confirmed is_lan_mode_printer semantics for manually-added local machines
+It's not on `jusprin-newui-fakeprinter` after all — it's this branch, `jusprin-newui`, and it's working as designed, not a bug. I checked your real profile (`~/Library/Application Support/JusPrin2/JusPrin2.conf`) and found "Fake Moonraker" registered under `local_machines` at `127.0.0.1:7125` — that's the config path for a manually-added local network printer, not a named printer profile (there's no `Fake Moonraker.json` under `user/default/machine`, only your `Bambu Lab A1 mini 2`).
+I traced how that turns into a `MachineObject`: `DeviceManager`'s constructor loads every entry from `local_machines` and explicitly sets `dev_connection_type = "lan"` (DevManager.cpp:35), which is exactly what `is_lan_mode_printer()` checks. Home's backend then computes the card's capabilities for any printer that's a bare "Device" (not backed by a named printer) like this:
+
+```
+printer.can_rename = !machine->is_lan_mode_printer() && machine->is_online();
+```
+
+`printer.can_remove = !machine->is_lan_mode_printer();`
+(OrcaHomeBackend.cpp:244-245)
+Since it's LAN-mode, both come back `false`, and `can_open_settings` is never even set on that code path (stays `false` by default) — there's no printer profile to open settings for. `PrinterCard.tsx` then does:
+
+```
+const hasActions = printer.canOpenSettings || printer.canRename || printer.canRemove;
+```
+
+`...`
+`{hasActions && <PrinterMenu ... />}`
+(PrinterCard.tsx:29)
+All three are false, so no menu renders — and the comment right above that line spells out why: "A LAN-only device offers none of the actions; a menu of disabled rows would be a button that does nothing, so it has none." That's a deliberate design choice, not the bug we just fixed.
+If you want a menu for it, the fix on your end is to add it as a named printer instead (through "+ Add printer" → pick Klipper/generic → point `print_host` at `127.0.0.1:7125`), rather than however "Fake Moonraker" got registered as a bare local device. Named printers always get the full menu unconditionally.
+
+---
+
+yes, delete it
