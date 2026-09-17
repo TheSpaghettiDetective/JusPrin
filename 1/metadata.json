@@ -1,0 +1,75 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2PBJHAPBE8QRXK02ZJVGEVA",
+  "session_id": "3eedecf2-1f96-4fac-9e0f-959afd114ae4",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-17T00:17:00.925828Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "59ed0382dac5",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 33817,
+    "cache_read_tokens": 201422,
+    "output_tokens": 1526,
+    "api_call_count": 3,
+    "subagent_tokens": {
+      "input_tokens": 24,
+      "cache_creation_tokens": 48768,
+      "cache_read_tokens": 475908,
+      "output_tokens": 3822,
+      "api_call_count": 12
+    }
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-17T00:17:00.883467Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 894,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 894,
+    "total_lines_changed": 894,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 269,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/jusprin/handoff-prepare-to-gcode-tools.md": 174
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 95,
+      "user_lines_removed": 0,
+      "agent_lines_added": 174,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52
+      }
+    }
+  ]
+}

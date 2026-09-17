@@ -1,0 +1,31 @@
+does upstream orcaslicer have a way for user to delete a printer?
+
+---
+
+<task-notification>
+<task-id>a71e5d405e5a23ff9</task-id>
+<tool-use-id>toolu_01KbKQqH5wjepj1K4voERcq3</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/3eedecf2-1f96-4fac-9e0f-959afd114ae4/tasks/a71e5d405e5a23ff9.output</output-file>
+<status>completed</status>
+<summary>Agent "Find printer deletion UI in OrcaSlicer" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Findings
+
+**1. Yes — Delete Printer exists in the GUI.** It's a "Delete this preset" (❌) button on the Printer Settings tab toolbar (not a right-click context menu item on the combo box). It's shown/hidden dynamically depending on whether the selected printer is deletable.
+
+**2. Implementation:**
+- `src/slic3r/GUI/Tab.hpp:356` — `void delete_preset();` declaration; `m_btn_delete_preset` member (`Tab.hpp:158`).
+- `src/slic3r/GUI/Tab.cpp:6801` — `Tab::delete_preset()`, the main handler. It confirms with the user, warns if other presets/filament/process presets inherit or depend on it, and calls `PresetCollection::delete_preset()` / `physical_printers.delete_preset_from_printers()`.
+- `src/slic3r/GUI/Tab.cpp:5947` — `Tab::update_btns_enabling()` controls visibility: `m_btn_delete_preset-&gt;Show((m_type == Preset::TYPE_PRINTER &amp;&amp; m_preset_bundle-&gt;physical_printers.has_selection()) || preset.can_overwrite());`
+- Backing collection logic: `src/libslic3r/Preset.cpp:3017` `PresetCollection::delete_preset()`, `src/libslic3r/Preset.cpp:4046` `PhysicalPrinter::delete_preset()`, `src/libslic3r/Preset.cpp:4347` `PhysicalPrinterCollection::delete_preset_from_printers()`.
+
+**3. Yes, distinguished via `can_overwrite()`:**
+`src/libslic3r/Preset.hpp:247`:
+```cpp
+bool can_overwrite() const { return !this-&gt;is_default &amp;&amp; !this-&gt;is_system &amp;&amp; !this-&gt;is_from_bundle(); }
+```
+Only presets that are not default, not system (vendor-bundled), and not from a bundle can be deleted. `Tab.cpp:6814` also specifically checks `!current_preset.is_system` for the "third-party printer" deletion confirmation dialog (warning that attached filament/process presets will be deleted too).
+
+**4. Genuine upstream OrcaSlicer functionality.** All of this lives in `src/slic3r/GUI/Tab.cpp`, `Tab.hpp`, and `src/libslic3r/Preset.cpp/.hpp` — none under `src/slic3r/GUI/JusPrin/`. `git log --follow` on `Tab.cpp` traces back to pre-fork PrusaSlicer/OrcaSlicer commits, confirming it predates JusPrin. The only JusPrin-touched file matching these search terms, `src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp:180`, merely *enumerates* `physical_printers` read-only for the JusPrin home screen — it contains no delete logic.</result>
+<usage><subagent_tokens>49415</subagent_tokens><tool_uses>11</tool_uses><duration_ms>42995</duration_ms></usage>
+</task-notification>
