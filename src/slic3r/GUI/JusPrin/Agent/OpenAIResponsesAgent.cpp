@@ -160,7 +160,8 @@ json OpenAIResponsesAgent::request_body(json input) const
                 {"instructions",
                  "You are the JusPrin assistant inside OrcaSlicer. Use only IDs from the authoritative workspace context. "
                  "Native tools are proposals: never claim a change succeeded until a function_call_output says it did. "
-                 "When asked to make a supported change, call the matching tool. After its result, briefly explain the actual result."},
+                 "When asked to make a supported change, call the matching tool. After its result, briefly explain the actual result. " +
+                     std::string(kPrintJourneyGuidance)},
                 {"tools", tools_for(m_allow_import)}, {"input", std::move(input)}};
 }
 

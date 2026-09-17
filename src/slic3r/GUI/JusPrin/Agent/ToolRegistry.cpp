@@ -911,7 +911,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"projectName", "path", "plateCount", "objectCount", "decisions", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectOpen},
         {"project_save", "Save the project",
-         "Save the open project to its own file, or to the absolute .3mf path you give, the way the user's Save does: the file becomes the project's file and the project is marked saved. Replaces whatever is at that path, so it waits for approval in JusPrin, and the card shows the exact path. A project that has never been saved needs a path.",
+         "Save the open project to its own file, or to the absolute .3mf path you give, the way the user's Save does: the file becomes the project's file and the project is marked saved. Replaces whatever is at that path, so it waits for approval in JusPrin, and the card shows the exact path. A project that has never been saved needs a path. Only a .3mf project: G-code and other files are written with export_file.",
          object_schema({{"path", {{"type", "string"}, {"maxLength", 1024}}}}),
          object_schema({{"path", string_schema()}, {"saved", boolean_schema()}, {"projectDirty", boolean_schema()},
                         {"sessionId", id}, {"revision", revision}},
@@ -1216,7 +1216,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"items", "total", "nextCursor", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PresetsList},
         {"slice_report", "Check the sliced plate",
-         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors, the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them; intent measures the slice against each print-intent answer that names a time, a weight or a cost (under five hours, less than 50 g, at most $2), and lists the answers it could not measure. A plate that has not been sliced says so rather than failing.",
+         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them; intent measures the slice against each print-intent answer that names a time, a weight or a cost (under five hours, less than 50 g, at most $2), and lists the answers it could not measure. A plate that has not been sliced says so rather than failing.",
          object_schema({{"plateId", id}, {"sections", {{"type", "array"},
                                                        {"items", {{"type", "string"},
                                                                   {"enum", json::array({"summary", "findings", "material", "supports", "seams", "firstLayer", "islands", "intent"})}}},
@@ -1235,6 +1235,7 @@ std::vector<ToolDefinition> make_definitions()
                                                   {"printTimeSeconds", "prepareTimeSeconds", "totalGrams", "totalCost", "hasCost", "filaments"})},
                         {"findings", object_schema({{"items", array_schema(object_schema({{"code", id}, {"message", text},
                                                                                           {"critical", boolean_schema()},
+                                                                                          {"appliesWhen", {{"type", "string"}, {"enum", json::array({"timelapse"})}}},
                                                                                           {"object", string_schema()}},
                                                                                          {"code", "message", "critical", "object"}), 32)},
                                                     {"conflict", text}, {"toolpathOutsideBed", boolean_schema()},
@@ -1476,10 +1477,21 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
             for (const json& key : definition.input_schema.value("required", json::array()))
                 if (!arguments.contains(key.get<std::string>()))
                     missing += (missing.empty() ? "" : ", ") + key.get<std::string>();
+            std::string outside;
+            for (const auto& item : arguments.items()) {
+                const auto property = properties.find(item.key());
+                if (property != properties.end() && property->contains("enum") &&
+                    std::find((*property)["enum"].begin(), (*property)["enum"].end(), item.value()) == (*property)["enum"].end())
+                    outside += (outside.empty() ? "" : "; ") + item.key() + " must be one of " + (*property)["enum"].dump();
+            }
             if (!unexpected.empty())
                 message += " Not a parameter of this tool: " + unexpected + ".";
             if (!missing.empty())
                 message += " Missing: " + missing + ".";
+            if (!outside.empty())
+                message += " " + outside + ".";
+            if (definition.handler == ToolHandler::ProjectOpen && arguments.contains("path") == arguments.contains("new"))
+                message += " Give exactly one of path and new.";
         }
         return {{}, ToolError{"invalid_arguments", message}};
     }

@@ -213,6 +213,7 @@ export function MessageList({
                     key={activity.actionId}
                     members={members}
                     headline={headline}
+                    stillProposing={streamingMessageId !== null}
                     onDecision={onToolDecision}
                     onCancel={onToolCancel}
                   />

@@ -657,6 +657,14 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
             fail(stored, "unavailable_operation", "This project has never been saved. Give the path to save it to.");
             return stored;
         }
+        // Said before the card, not after approval: the adapter writes only a
+        // project file.
+        std::string extension = std::filesystem::u8path(path).extension().u8string();
+        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+        if (extension != ".3mf") {
+            fail(stored, "invalid_argument", "project_save writes a .3mf project. Write G-code, STL or presets with export_file.");
+            return stored;
+        }
         // The path is bound here, before approval, so the card names exactly
         // the file that will be written and a rename in between cannot move it.
         arguments["resolvedPath"] = path;

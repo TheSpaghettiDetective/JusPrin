@@ -1017,6 +1017,22 @@ TEST_CASE("tool activities reconstruct after a reload and pause while disconnect
     CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
 }
 
+TEST_CASE("the call that opened a project is not shown in the project it opened", "[agent][tools][project]")
+{
+    Harness harness;
+    harness.handshake();
+    const ToolActivity opening = harness.host.tools().propose({"project_open", R"({"new":true})"}, "m-open");
+    REQUIRE(opening.state == ToolState::Pending);
+    REQUIRE(harness.host.tools().approve(opening.action_id));
+    const std::size_t states_before = harness.of_type("state").size();
+    pump_tools_to_completion(harness);
+    REQUIRE(harness.workspace.opens == 1);
+    const std::vector<json> states = harness.of_type("state");
+    REQUIRE(states.size() > states_before);
+    for (std::size_t index = states_before; index < states.size(); ++index)
+        CHECK(states[index]["payload"]["toolActivities"].empty());
+}
+
 TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][tools][policy]")
 {
     Harness harness;

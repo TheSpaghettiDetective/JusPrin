@@ -847,6 +847,7 @@ struct SliceFinding
     std::string message;
     bool        critical{false};
     std::string object;
+    std::string applies_when; // empty, or "timelapse": only a print that records one
 };
 
 // Support printed where it should not be: inside a region kept free of

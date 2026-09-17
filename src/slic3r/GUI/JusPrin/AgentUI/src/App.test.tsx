@@ -388,6 +388,11 @@ describe('App', () => {
         actionClass: 'destructive' }),
     ];
     connect(host, emptyState({ conversation, toolActivities: plan }));
+    host.deliver('assistant_started', { messageId: 'm-4', inReplyTo: 'm-1', attempt: 1 });
+    expect(screen.getByRole('button', { name: 'Approve all' })).toBeDisabled();
+    expect(screen.getByTestId('plan-upright')).toHaveTextContent('The Agent is still adding to this plan');
+    host.deliver('assistant_completed', { messageId: 'm-4' });
+    expect(screen.getByRole('button', { name: 'Approve all' })).toBeEnabled();
 
     const card = screen.getByTestId('plan-upright');
     expect(card).toHaveTextContent('Print it upright with supports');

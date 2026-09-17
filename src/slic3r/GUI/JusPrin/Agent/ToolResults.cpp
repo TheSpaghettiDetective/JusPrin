@@ -594,8 +594,10 @@ json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateI
                               [](const Workspace::SliceFinding* finding) { return finding->critical; });
         for (const auto* finding : ordered) {
             if (items.size() == 32) { truncated = true; break; }
-            items.push_back({{"code", label(finding->code, truncated)}, {"message", text(finding->message, truncated)},
-                             {"critical", finding->critical}, {"object", label(finding->object, truncated)}});
+            json item{{"code", label(finding->code, truncated)}, {"message", text(finding->message, truncated)},
+                      {"critical", finding->critical}, {"object", label(finding->object, truncated)}};
+            if (!finding->applies_when.empty()) item["appliesWhen"] = finding->applies_when;
+            items.push_back(std::move(item));
         }
         result["findings"] = {{"items", std::move(items)}, {"conflict", text(report.conflict, truncated)},
                               {"toolpathOutsideBed", report.toolpath_outside}, {"truncated", truncated}};

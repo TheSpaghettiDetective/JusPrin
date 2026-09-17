@@ -748,7 +748,8 @@ TEST_CASE("the slice report says what the plate holds, or that it holds nothing"
     report.total_cost         = 0.47;
     report.filament_changes   = 2;
     report.findings           = {{"", "Supports are enabled but nothing needs them", false, "cube-a"},
-                                 {"1000C002", "The nozzle is too soft for this filament", true, ""}};
+                                 {"1000C002", "The nozzle is too soft for this filament", true, ""},
+                                 {"10018003", "Traditional timelapse may mark the surface", false, "", "timelapse"}};
     report.conflict           = "Conflicts of G-code paths at Z = 4.20mm (cube-a <-> cube-b)";
     h.workspace.set_slice_report_for_testing(plate, report);
     h.workspace.set_plate_sliced(plate, true);
@@ -772,6 +773,8 @@ TEST_CASE("the slice report says what the plate holds, or that it holds nothing"
     CHECK(findings["findings"]["items"][0]["code"] == "1000C002");
     CHECK(findings["findings"]["items"][0]["critical"] == true);
     CHECK(findings["findings"]["items"][1]["object"] == "cube-a");
+    CHECK_FALSE(findings["findings"]["items"][1].contains("appliesWhen"));
+    CHECK(findings["findings"]["items"][2]["appliesWhen"] == "timelapse");
     CHECK(findings["findings"]["conflict"] == report.conflict);
     CHECK(findings["findings"]["toolpathOutsideBed"] == false);
     CHECK(findings["material"]["filamentChanges"] == 2);
@@ -884,6 +887,10 @@ TEST_CASE("a save names its file on the card and writes nothing before approval"
     const ToolActivity unsaved = h.coordinator.propose({"project_save", "{}"}, "m-1");
     CHECK(unsaved.state == ToolState::Failed);
     CHECK(unsaved.error->code == "unavailable_operation");
+    // G-code is an export, refused before any card.
+    const ToolActivity gcode = h.coordinator.propose({"project_save", json{{"path", (folder / "benchy.GCODE").u8string()}}.dump()}, "m-0");
+    CHECK(gcode.state == ToolState::Failed);
+    CHECK(gcode.error->message.find("export_file") != std::string::npos);
 
     // A path is bound at proposal time and shown on the card; nothing is
     // written while the card waits, and nothing at all if it is rejected.
@@ -1890,6 +1897,9 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     REQUIRE_FALSE(refused.valid());
     CHECK(refused.error->message.find("Not a parameter of this tool: intent.") != std::string::npos);
     CHECK(registry.validate_call(*registry.find("settings_preview_patch"), "{}").error->message.find("Missing: changes.") != std::string::npos);
+    const auto opening = registry.validate_call(*registry.find("project_open"), R"({"path":"C:/a.stl","new":true,"oversized":"shrink"})");
+    CHECK(opening.error->message.find(R"(oversized must be one of ["keep","scaleToFit"].)") != std::string::npos);
+    CHECK(opening.error->message.find("Give exactly one of path and new.") != std::string::npos);
 }
 
 TEST_CASE("a slice started with wait returns when the run ends, without holding up other calls", "[tools][slicing]")

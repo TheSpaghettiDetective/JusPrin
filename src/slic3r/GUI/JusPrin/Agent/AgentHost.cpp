@@ -673,9 +673,14 @@ void AgentHost::send_state(const std::string& correlation_id)
         conversation.push_back(message_json(message));
 
     // Stored history first, overlaid by live coordinator records (the live
-    // record is fresher while an action runs).
+    // record is fresher while an action runs). The project_open that closed
+    // the last project is still live while it finishes; it is not this
+    // project's.
     std::vector<ToolActivity> merged = document.activities();
+    const std::uint64_t session = m_workspace.snapshot().session.value();
     for (const ToolActivity& live : m_tools.activities()) {
+        if (live.session != session)
+            continue;
         const auto existing = std::find_if(merged.begin(), merged.end(),
                                            [&live](const ToolActivity& a) { return a.action_id == live.action_id; });
         if (existing == merged.end())

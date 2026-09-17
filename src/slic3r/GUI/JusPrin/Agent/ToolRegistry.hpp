@@ -24,6 +24,13 @@ enum class ToolExposure : std::uint8_t {
     Internal = 1u << 2
 };
 
+// How a print request goes, for both adapters' instructions: the tools'
+// own descriptions say how each one works.
+inline constexpr const char* kPrintJourneyGuidance =
+    "For a print request: record what the user said with intent_update, ask only the questions whose answer would change what "
+    "you do, and record your plan, with everything you assumed instead of asking, through plan_set before you change the "
+    "project. Check the slice with slice_report before you export; a G-code file is written with export_file.";
+
 constexpr ToolExposure operator|(ToolExposure lhs, ToolExposure rhs)
 {
     return static_cast<ToolExposure>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));
