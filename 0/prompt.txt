@@ -132,3 +132,7 @@ fix the two printer menu bugs
 ---
 
 why is "fake moonraker" printer doesn't have a kabab menu?
+
+---
+
+commit. I launchyed it "open /Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app" and saw "fake moonraker"
