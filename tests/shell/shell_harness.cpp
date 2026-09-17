@@ -2973,6 +2973,7 @@ private:
             },
             "new_project_starts_new_identity", [self = shared_from_this()] {
                 self->verify_project_open_answers_dialogs();
+                self->verify_step_import();
                 self->verify_support_settings_patch();
                 self->verify_regions();
                 self->verify_reshape();
@@ -3150,6 +3151,34 @@ private:
         m_plater->undo();
         check(!object->config.has("wall_loops"), "settings_object_undo_removes_override");
         tab->load_config(original);
+    }
+
+    // A STEP file through the real adapter: Orca asks how finely to mesh it,
+    // and the request takes Orca's own defaults without showing the dialog.
+    void verify_step_import()
+    {
+        auto* workspace = installed_shell()->workspace();
+        const std::size_t before = m_plater->model().objects.size();
+        Workspace::ImportRequest import;
+        import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/box_20x15x10.step";
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        {
+            DialogCounter counter;
+            const auto imported = workspace->import_objects(import, decisions, added);
+            if (!imported.succeeded()) std::cout << "step import failed: " << imported.message << std::endl;
+            check(imported.succeeded() && added.size() == 1, "step_import_succeeds");
+            for (const auto& title : counter.titles) std::cout << "step import dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "step_import_shows_no_dialog");
+        }
+        for (const auto& decision : decisions) std::cout << "step import asked: " << decision.question << " -> " << decision.answer << std::endl;
+        check(m_plater->model().objects.size() == before + 1, "step_import_adds_one_object");
+        if (m_plater->model().objects.size() == before + 1) {
+            const Vec3d size = m_plater->model().objects.back()->bounding_box_exact().size();
+            check(std::abs(size.x() - 20.) < 0.01 && std::abs(size.y() - 15.) < 0.01 && std::abs(size.z() - 10.) < 0.01,
+                  "step_import_keeps_the_size");
+            check(workspace->undo().succeeded() && m_plater->model().objects.size() == before, "step_import_undone");
+        }
     }
 
     // Regions through the real adapter, on a T bar with a 10 mm hole through

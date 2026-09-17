@@ -27,6 +27,7 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Selection.hpp"
+#include "slic3r/GUI/StepMeshDialog.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include <boost/algorithm/string/case_conv.hpp>
@@ -1771,8 +1772,12 @@ int answer_load_question(wxWindow& dialog, const wxString& title, UnitChoice uni
         return scale_oversized ? wxID_YES : wxID_NO;
     if (title == wxString(SLIC3R_APP_FULL_NAME) + " - " + _L("Save"))
         return discard_unsaved ? wxID_NO : wxID_CANCEL;
-    // Orca's message dialogs read yes or ok; its other dialogs (OBJ colours,
-    // STEP meshing) read ok, and cancel keeps their defaults.
+    // Cancelling the STEP meshing question aborts the whole load; ok meshes
+    // with the precision the dialog opened with, Orca's own default.
+    if (dynamic_cast<StepMeshDialog*>(&dialog) != nullptr)
+        return wxID_OK;
+    // Orca's message dialogs read yes or ok; its OBJ colour dialog reads ok,
+    // and cancel keeps its defaults.
     return dynamic_cast<MsgDialog*>(&dialog) != nullptr ? wxID_NO : wxID_CANCEL;
 }
 
