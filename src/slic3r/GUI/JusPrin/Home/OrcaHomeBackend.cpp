@@ -15,7 +15,6 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
 #include <wx/filename.h>
@@ -325,17 +324,22 @@ void OrcaHomeBackend::launch_monitor(const std::string& printer_id)
 
 void OrcaHomeBackend::add_printer()
 {
-    if (Plater* plater = wxGetApp().plater())
-        PrinterSetup::show_printer_setup(&m_frame, dark(), *plater);
+    // The conversation replaces the printers column in place; the shell draws
+    // it and owns the session.
+    if (m_open_conversation)
+        m_open_conversation({});
 }
 
 std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id)
 {
-    const auto name   = strip(printer_id, kNamedPrefix);
-    Plater*    plater = wxGetApp().plater();
-    if (!name || plater == nullptr)
+    const auto name = strip(printer_id, kNamedPrefix);
+    if (!name)
         return gone();
-    return utf8(Printers::open_named_printer_settings(*plater, *name));
+    // "Printer settings…" opens that printer's own conversation, where "Set
+    // it up myself" still leads to OrcaSlicer's settings window.
+    if (m_open_conversation)
+        m_open_conversation(*name);
+    return {};
 }
 
 std::string OrcaHomeBackend::rename_printer(const std::string& printer_id, const std::string& new_name)

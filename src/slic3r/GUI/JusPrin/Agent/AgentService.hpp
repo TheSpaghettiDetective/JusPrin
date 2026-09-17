@@ -37,6 +37,17 @@ struct AgentConversationContext
     std::string text;
 };
 
+// What one conversation is for. The project conversation leaves this at its
+// defaults and gets the app's own assistant, the project workspace and every
+// in-app tool; a session with its own subject (the printer panel on Home)
+// states its instructions and names the tools that belong to it.
+struct AgentSessionProfile
+{
+    std::string              instructions;             // empty: the app's assistant
+    std::vector<std::string> tool_names;               // empty: every in-app tool
+    bool                     include_workspace{true};  // the open project's state
+};
+
 struct AgentRequest
 {
     enum class Purpose { Reply, ConversationTitle };
@@ -44,6 +55,7 @@ struct AgentRequest
     std::string                           request_id;
     std::string                           user_text;
     int                                   attempt{1};
+    AgentSessionProfile                   session;
     Workspace::WorkspaceSnapshot          workspace;
     std::vector<AgentConversationContext> conversation;
     std::vector<AgentAttachmentContext>   attachments;

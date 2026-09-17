@@ -11,6 +11,8 @@
 
 #include "HomeBackend.hpp"
 
+#include <functional>
+
 namespace Slic3r { namespace GUI {
 class MainFrame;
 }} // namespace Slic3r::GUI
@@ -27,6 +29,12 @@ public:
     // `spools` may be null: the shell owns the one store, and Home renders
     // without swatches rather than opening a second writer to the same file.
     OrcaHomeBackend(MainFrame& frame, Workspace::SpoolStore* spools);
+
+    // How Home opens the printer conversation, which replaces its printers
+    // column: an empty name adds a printer, a name changes that one. The
+    // shell owns the panel; Home only says what the person asked about.
+    using OpenConversation = std::function<void(const std::string& printer_name)>;
+    void set_conversation_opener(OpenConversation open) { m_open_conversation = std::move(open); }
 
     bool                      dark() const override;
     std::vector<ProjectEntry> recent_projects() const override;
@@ -45,6 +53,7 @@ public:
 private:
     MainFrame&             m_frame;
     Workspace::SpoolStore* m_spools{nullptr};
+    OpenConversation       m_open_conversation;
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

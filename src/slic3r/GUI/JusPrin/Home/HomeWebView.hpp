@@ -15,6 +15,7 @@
 class wxWebView;
 class wxWebViewEvent;
 class wxStaticText;
+class wxBoxSizer;
 
 namespace Slic3r { namespace GUI {
 class MainFrame;
@@ -42,8 +43,16 @@ public:
     // changes while another screen is in front.
     void refresh();
 
-    HomeHost&  host() { return *m_host; }
+    HomeHost&        host() { return *m_host; }
+    OrcaHomeBackend& backend() { return *m_backend; }
     wxWebView* webview() const { return m_webview; }
+
+    // Puts a panel of the shell's beside the page, at a fixed width, where
+    // the page's own printers column is. The page hides that column while the
+    // panel is shown, so the two never both claim it. The shell owns the
+    // panel's lifetime; passing nullptr takes it back out.
+    void attach_side_panel(wxWindow* panel, int width_dip);
+    void show_side_panel(bool shown);
 
 private:
     void on_script_message(wxWebViewEvent& event);
@@ -56,6 +65,10 @@ private:
     std::unique_ptr<HomeHost>         m_host;
     wxWebView*                m_webview{nullptr};
     wxStaticText*             m_error{nullptr};
+    // The page and the shell's panel side by side; the page takes the whole
+    // row while no panel is attached.
+    wxBoxSizer*               m_row{nullptr};
+    wxWindow*                 m_side_panel{nullptr};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

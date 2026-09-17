@@ -22,6 +22,14 @@ class wxBoxSizer;
 
 namespace Slic3r::GUI::JusPrin {
 
+// Which of the page's surfaces this view is. The page reads it from the query
+// string it is loaded with (see main.tsx):
+//   Conversation   the docked panel: header, chat list, thread, composer;
+//   EmbeddedSetup  a throwaway setup-only instance, the setup screens alone;
+//   PrinterPanel   Home's printer conversation: the printer session's own
+//                  header, pinned card and chips around the same thread.
+enum class AgentPageMode { Conversation, EmbeddedSetup, PrinterPanel };
+
 class AgentWebView : public wxPanel
 {
 public:
@@ -32,11 +40,7 @@ public:
                  Agent::AgentAvailability         availability,
                  Agent::AgentServicePtr            agent = {},
                  Agent::AgentSetupServicePtr       setup = {},
-                 // A throwaway, setup-only instance (e.g. embedded in the Add
-                 // a printer dialog): loads the page with ?embedded=1 so it
-                 // renders only the setup sub-component (see App.tsx), never
-                 // the conversation header, chat list, or composer.
-                 bool                              embedded = false);
+                 AgentPageMode                     mode = AgentPageMode::Conversation);
     ~AgentWebView() override;
 
     void apply_appearance(bool dark);

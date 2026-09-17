@@ -101,6 +101,7 @@ json state_payload(const Snapshot& snapshot)
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
         {"printers", std::move(printers)},
+        {"printerPanelOpen", snapshot.printer_panel_open},
     };
 }
 

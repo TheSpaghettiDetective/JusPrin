@@ -16,6 +16,7 @@
 // Orca does not store is which Bambu device a printer was added from; that
 // link lives in the app config under kDeviceSection, keyed by device id.
 
+#include "InstalledModels.hpp"
 #include "libslic3r/Preset.hpp"
 
 #include <wx/string.h>
@@ -58,5 +59,21 @@ wxString rename_named_printer(Plater& plater, Workspace::SpoolStore* spools, con
                               const std::string& to);
 wxString remove_named_printer(Plater& plater, Workspace::SpoolStore* spools, const std::string& name);
 wxString open_named_printer_settings(Plater& plater, const std::string& name);
+
+// Moves a named printer onto `system_preset`, the sibling system profile for
+// another nozzle size, keeping the person's own settings but not the ones the
+// two nozzle profiles themselves disagree on -- those belong to the nozzle.
+//
+// A printer's nozzle is fixed by the profile it inherits, so changing it is a
+// change of parent. It is made only where the person is editing that printer
+// and the panel states the result; nothing else in JusPrin moves a parent.
+// Returns a message for the person when it could not be done, empty when it
+// was, and empty when they cancelled Orca's own unsaved-changes prompt.
+wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset);
+
+// After OrcaSlicer's own printer wizard has run: a named printer for each
+// model it newly enabled, given the app config's vendor map from before it
+// ran. The wizard's own selection stays selected, under its new name.
+void name_installed_printers(Plater& plater, const VendorMap& before);
 
 } // namespace Slic3r::GUI::JusPrin::Printers

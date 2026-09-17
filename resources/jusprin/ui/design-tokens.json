@@ -340,21 +340,6 @@
       "size": 24,
       "radius": 4
     },
-    "printerSetup": {
-      "dialogWidth": 500,
-      "initialHeight": 454,
-      "recognizedHeight": 432,
-      "evidenceFieldHeight": 72,
-      "correctionFieldHeight": 36,
-      "photoDropHeight": 66,
-      "networkRowHeight": 44,
-      "artworkSize": 88,
-      "candidateMinHeight": 132,
-      "ambiguousArtworkHeight": 80,
-      "scrimAlpha": 88,
-      "radius": 12,
-      "controlRadius": 8
-    },
     "projectCard": {
       "minWidth": 240,
       "maxWidth": 320,
@@ -362,6 +347,11 @@
       "thumbnailAspectWidth": 4,
       "thumbnailAspectHeight": 3,
       "radius": 12
+    },
+    "printerDialog": {
+      "width": 500,
+      "radius": 12,
+      "scrimAlpha": 88
     },
     "printerCard": {
       "columnWidth": 320,

@@ -35,6 +35,8 @@ public:
 
     void push_state();
     void push_appearance(bool dark);
+    // The printer conversation opened or closed over the printers column.
+    void set_printer_panel_open(bool open);
 
     bool               connected() const { return m_connected; }
     unsigned long long messages_sent() const { return m_sent; }
@@ -47,6 +49,7 @@ private:
     IHomeBackend&      m_backend;
     Send               m_send;
     bool               m_connected{false};
+    bool               m_printer_panel_open{false};
     unsigned long long m_sent{0};
     unsigned long long m_received{0};
     unsigned long long m_next_id{1};

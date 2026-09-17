@@ -17,6 +17,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <map>
+#include <set>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Printers {
@@ -295,6 +296,78 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name)
         return gone();
     if (select(plater, name))
         SetupCommands::open_settings_tab(Preset::TYPE_PRINTER);
+    return {};
+}
+
+void name_installed_printers(Plater& plater, const VendorMap& before)
+{
+    PresetBundle&     presets  = bundle();
+    const std::string selected = presets.printers.get_selected_preset_name();
+    const Preset&     current  = presets.printers.get_selected_preset();
+    const auto        models   = newly_installed_models(before, wxGetApp().app_config->vendors(),
+                                                        current.config.opt_string("printer_model"),
+                                                        current.config.opt_string("printer_variant"));
+    std::string keep;
+    for (const InstalledModel& model : models) {
+        const Preset* profile = presets.printers.find_system_preset_by_model_and_variant(model.model, model.variant);
+        if (profile == nullptr)
+            throw std::runtime_error("The wizard enabled " + model.model + " " + model.variant +
+                                     " but no system profile for it is loaded");
+        const std::string profile_name = profile->name;
+        if (!SetupCommands::select_printer_preset(plater, profile_name) ||
+            presets.printers.get_selected_preset_name() != profile_name)
+            return; // the person kept unsaved printer changes; nothing more is named
+        const std::string name = add_named_printer(plater, model.model, {});
+        if (profile_name == selected)
+            keep = name;
+    }
+    // Naming selects each printer in turn; the wizard's own choice is the one
+    // left selected, under its name when it was one of them.
+    if (!models.empty())
+        SetupCommands::select_printer_preset(plater, keep.empty() ? selected : keep);
+}
+
+wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset)
+{
+    PresetCollection& printers = bundle().printers;
+    if (!is_selected(name) && !select(plater, name))
+        return _L("This printer could not be selected.");
+
+    const Preset& current = printers.get_selected_preset();
+    if (!is_named_printer(current))
+        return _L("Only a printer saved in this app can change its nozzle.");
+
+    const Preset* old_parent = printers.get_selected_preset_parent();
+    const Preset* new_parent = printers.find_preset(system_preset, false, true);
+    if (old_parent == nullptr || new_parent == nullptr || !new_parent->is_system)
+        return _L("This printer does not come with that nozzle size.");
+    if (old_parent == new_parent)
+        return {};
+    if (!settle_unsaved_changes(name))
+        return {};
+
+    // The new nozzle's profile, plus every setting the person changed on this
+    // printer -- except the ones the two nozzle profiles themselves disagree
+    // on, which belong to the nozzle.
+    const Preset&               saved   = printers.get_selected_preset();
+    DynamicPrintConfig          config  = new_parent->config;
+    const auto                  changed = PresetCollection::dirty_options(&saved, old_parent);
+    const auto                  nozzle  = PresetCollection::dirty_options(new_parent, old_parent);
+    const std::set<std::string> nozzle_keys(nozzle.begin(), nozzle.end());
+    for (const std::string& key : changed)
+        if (nozzle_keys.count(key) == 0)
+            config.set_key_value(key, saved.config.option(key)->clone());
+    Preset::inherits(config) = new_parent->name;
+
+    // Saving over an existing profile takes the edited config whole,
+    // including its parent, and stores the difference from that parent.
+    Tab& tab = printer_tab();
+    plater.update_objects_position_when_select_preset([&] {
+        printers.get_edited_preset().config = std::move(config);
+        tab.save_preset(name);
+        tab.select_preset(name, false, "", /*force_select=*/true);
+        plater.on_config_change(bundle().full_config());
+    });
     return {};
 }
 

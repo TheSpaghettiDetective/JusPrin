@@ -34,7 +34,8 @@ export type HostMessageType =
   | 'printers'
   | 'appearance'
   | 'printer_error'
-  | 'bridge_error';
+  | 'bridge_error'
+  | 'printer_panel';
 
 export type Appearance = 'light' | 'dark';
 
@@ -110,6 +111,10 @@ export interface StatePayload {
   appearance: Appearance;
   projects: ProjectInfo[];
   printers: PrinterInfo[];
+  // The printer conversation has taken the printers column, so the page
+  // leaves that place to it. Absent on hosts without the printer_panel
+  // capability.
+  printerPanelOpen?: boolean;
 }
 
 export interface Envelope<T = unknown> {

@@ -29,7 +29,8 @@ export type PageMessageType =
   | 'mcp_catalog'
   | 'mcp_preview'
   | 'mcp_connect'
-  | 'reveal_path';
+  | 'reveal_path'
+  | 'printer_action';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -53,7 +54,8 @@ export type HostMessageType =
   | 'mcp_preview'
   | 'mcp_status'
   | 'change_added'
-  | 'open_setup';
+  | 'open_setup'
+  | 'printer_session';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -368,6 +370,64 @@ export interface PhysicalPrintInfo {
   statistics: SliceStatisticsInfo;
 }
 
+// -- The printer panel ------------------------------------------------------
+// One session of the printer panel on Home: the facts it pins above the
+// thread, the cards its agent has drawn inside the thread, and what it offers
+// to tap. Absent on hosts without the printer_panel capability, and on every
+// host that is showing the project's own conversation.
+
+export type FactProvenance = 'settled' | 'assumed' | 'changed';
+
+export interface PrinterFact {
+  value: string; // empty: nobody has said yet
+  provenance: FactProvenance;
+  swatch?: string; // "#RRGGBB" of the first loaded spool
+}
+
+export interface PrinterCardInfo {
+  catalogId: string;
+  deviceId: string;
+  name: string;
+  subline: string;
+  picture: string; // data URL, empty when the profile ships no picture
+  action: 'add' | 'choose';
+}
+
+export interface NetworkPrinterInfo {
+  deviceId: string;
+  name: string;
+  serial: string;
+  online: boolean;
+}
+
+// A card the agent drew in the thread, anchored after the message that drew
+// it, in the same way tool activity and history entries are.
+export interface PrinterBlock {
+  id: string;
+  seq: number;
+  afterMessageId: string;
+  kind: 'tip' | 'network' | 'printers';
+  printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
+}
+
+export interface PrinterChip {
+  id: string;
+  label: string;
+  style: 'primary' | 'suggested' | 'plain';
+  action?: 'add'; // acts at once; the tap is the approval
+  say?: string; // sends this as the person's own message
+}
+
+export interface PrinterSessionPayload {
+  mode: 'add' | 'change';
+  caption: string; // NEW PRINTER / PRINTER
+  facts: { printer: PrinterFact; nozzle: PrinterFact; plate: PrinterFact; filament: PrinterFact };
+  blocks: PrinterBlock[];
+  chips: PrinterChip[];
+  chipHint: string;
+  placeholder: string; // a likely answer to what the agent just said
+}
+
 export interface StatePayload {
   conversationBusy?: boolean;
   agent: { status: AgentStatus };
@@ -384,6 +444,7 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
+  session?: PrinterSessionPayload; // only in the printer panel
 }
 
 export function isEnvelope(value: unknown): value is Envelope {

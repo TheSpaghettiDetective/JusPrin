@@ -103,18 +103,8 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.button.primary.padding_y == 8);
     CHECK(m.button.primary.radius == 8);
     CHECK(m.button.primary.text_role == TextRole::BodySmallBold);
-    CHECK(m.printer_setup.dialog_width == 500);
-    CHECK(m.printer_setup.initial_height == 454);
-    CHECK(m.printer_setup.recognized_height == 432);
-    CHECK(m.printer_setup.evidence_field_height == 72);
-    CHECK(m.printer_setup.correction_field_height == 36);
-    CHECK(m.printer_setup.photo_drop_height == 66);
-    CHECK(m.printer_setup.network_row_height == 44);
-    CHECK(m.printer_setup.artwork_size == 88);
-    CHECK(m.printer_setup.candidate_min_height == 132);
-    CHECK(m.printer_setup.ambiguous_artwork_height == 80);
-    CHECK(m.printer_setup.scrim_alpha == 88);
-    CHECK(m.printer_setup.control_radius == 8);
+    CHECK(m.printer_card.column_width == 320);
+    CHECK(m.printer_card.radius == 12);
 }
 
 TEST_CASE("the packaged token file yields the documented text roles", "[shell][theme]")

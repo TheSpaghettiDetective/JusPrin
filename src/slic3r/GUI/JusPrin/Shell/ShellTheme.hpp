@@ -92,21 +92,9 @@ struct AgentPaneMetrics {
     int resize_handle_line_width{0};
 };
 struct SwatchMetrics    { int size{0}; int radius{0}; };
-struct PrinterSetupMetrics {
-    int dialog_width{0};
-    int initial_height{0};
-    int recognized_height{0};
-    int evidence_field_height{0};
-    int correction_field_height{0};
-    int photo_drop_height{0};
-    int network_row_height{0};
-    int artwork_size{0};
-    int candidate_min_height{0};
-    int ambiguous_artwork_height{0};
-    int scrim_alpha{0};
-    int radius{0};
-    int control_radius{0};
-};
+// Home's printers column, which the printer conversation takes over while it
+// is open, so the two are the same width.
+struct PrinterCardMetrics { int column_width{0}; int radius{0}; };
 
 // Geometry from the token file's dimension and component sections. Every
 // value is DIP; callers wrap it in FromDIP().
@@ -136,7 +124,7 @@ struct ShellMetrics
     StatusRowMetrics status_row;
     AgentPaneMetrics agent_pane;
     SwatchMetrics    swatch;
-    PrinterSetupMetrics printer_setup;
+    PrinterCardMetrics  printer_card;
 };
 
 class ShellTheme

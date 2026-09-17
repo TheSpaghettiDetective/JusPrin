@@ -201,20 +201,9 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.swatch.size   = parse_int(swatch, "component.swatch", "size");
     m.swatch.radius = parse_int(swatch, "component.swatch", "radius");
 
-    const nlohmann::json& printer_setup = component.at("printerSetup");
-    m.printer_setup.dialog_width = parse_int(printer_setup, "component.printerSetup", "dialogWidth");
-    m.printer_setup.initial_height = parse_int(printer_setup, "component.printerSetup", "initialHeight");
-    m.printer_setup.recognized_height = parse_int(printer_setup, "component.printerSetup", "recognizedHeight");
-    m.printer_setup.evidence_field_height = parse_int(printer_setup, "component.printerSetup", "evidenceFieldHeight");
-    m.printer_setup.correction_field_height = parse_int(printer_setup, "component.printerSetup", "correctionFieldHeight");
-    m.printer_setup.photo_drop_height = parse_int(printer_setup, "component.printerSetup", "photoDropHeight");
-    m.printer_setup.network_row_height = parse_int(printer_setup, "component.printerSetup", "networkRowHeight");
-    m.printer_setup.artwork_size = parse_int(printer_setup, "component.printerSetup", "artworkSize");
-    m.printer_setup.candidate_min_height = parse_int(printer_setup, "component.printerSetup", "candidateMinHeight");
-    m.printer_setup.ambiguous_artwork_height = parse_int(printer_setup, "component.printerSetup", "ambiguousArtworkHeight");
-    m.printer_setup.scrim_alpha = parse_int(printer_setup, "component.printerSetup", "scrimAlpha");
-    m.printer_setup.radius = parse_int(printer_setup, "component.printerSetup", "radius");
-    m.printer_setup.control_radius = parse_int(printer_setup, "component.printerSetup", "controlRadius");
+    const nlohmann::json& printer_card = component.at("printerCard");
+    m.printer_card.column_width = parse_int(printer_card, "component.printerCard", "columnWidth");
+    m.printer_card.radius       = parse_int(printer_card, "component.printerCard", "radius");
     return m;
 }
 

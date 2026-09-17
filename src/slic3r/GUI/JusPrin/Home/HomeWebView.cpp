@@ -74,7 +74,11 @@ HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& f
         show_page_error(_L("The system web view could not be created."));
         return;
     }
-    sizer->Add(m_webview, 1, wxEXPAND);
+    // The page fills the row; a panel the shell attaches sits beside it,
+    // where the page's own printers column is.
+    m_row = new wxBoxSizer(wxHORIZONTAL);
+    m_row->Add(m_webview, 1, wxEXPAND);
+    sizer->Add(m_row, 1, wxEXPAND);
     m_webview->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &HomeWebView::on_script_message, this);
     m_webview->Bind(wxEVT_WEBVIEW_ERROR, &HomeWebView::on_load_error, this);
     m_webview->Bind(wxEVT_WEBVIEW_NAVIGATING, [this](wxWebViewEvent& event) {
@@ -103,6 +107,32 @@ void HomeWebView::apply_appearance(bool dark)
 }
 
 void HomeWebView::refresh() { m_host->push_state(); }
+
+void HomeWebView::attach_side_panel(wxWindow* panel, int width_dip)
+{
+    if (m_row == nullptr)
+        return;
+    if (m_side_panel != nullptr)
+        m_row->Detach(m_side_panel);
+    m_side_panel = panel;
+    if (m_side_panel != nullptr) {
+        m_side_panel->SetMinSize(wxSize(FromDIP(width_dip), -1));
+        m_row->Add(m_side_panel, 0, wxEXPAND);
+        m_side_panel->Hide();
+    }
+    Layout();
+}
+
+void HomeWebView::show_side_panel(bool shown)
+{
+    if (m_side_panel == nullptr)
+        return;
+    m_side_panel->Show(shown);
+    // The page drops its own printers column while the panel has that place,
+    // so the two never both claim it.
+    m_host->set_printer_panel_open(shown);
+    Layout();
+}
 
 void HomeWebView::on_script_message(wxWebViewEvent& event)
 {

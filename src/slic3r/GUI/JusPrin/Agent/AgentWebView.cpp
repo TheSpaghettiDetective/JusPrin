@@ -34,7 +34,7 @@ boost::filesystem::path agent_page_path()
     return boost::filesystem::path(resources_dir()) / "jusprin" / "agent" / "index.html";
 }
 
-wxString agent_page_url(bool embedded)
+wxString agent_page_url(AgentPageMode mode)
 {
     wxString url;
     if (const char* dev = std::getenv("JUSPRIN_AGENT_DEV_URL"); dev != nullptr && *dev != '\0') {
@@ -45,8 +45,10 @@ wxString agent_page_url(bool embedded)
             return {};
         url = wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
     }
-    if (embedded)
+    if (mode == AgentPageMode::EmbeddedSetup)
         url += "?embedded=1";
+    else if (mode == AgentPageMode::PrinterPanel)
+        url += "?panel=printer";
     return url;
 }
 
@@ -59,7 +61,7 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
                            Agent::AgentAvailability   availability,
                            Agent::AgentServicePtr      agent,
                            Agent::AgentSetupServicePtr setup,
-                           bool                        embedded)
+                           AgentPageMode               mode)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode(),
@@ -104,7 +106,7 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     // detail text.
     apply_appearance(GUI_App::dark_mode());
 
-    m_page_url = agent_page_url(embedded);
+    m_page_url = agent_page_url(mode);
     if (m_page_url.empty()) {
         show_bridge_error(_L("The packaged Agent page is missing from this build."));
     } else {

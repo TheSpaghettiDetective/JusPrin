@@ -2010,8 +2010,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    // Records the host keeps, and the printer panel's own tools: both are
+    // owned by the surface that asked for them, and both still run here,
+    // inside this approval and state machine.
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
-        definition->handler == ToolHandler::RecordPhysicalPrint) {
+        definition->handler == ToolHandler::RecordPhysicalPrint || definition->handler == ToolHandler::PrinterCatalogSearch ||
+        definition->handler == ToolHandler::PrinterPropose || definition->handler == ToolHandler::PrinterSuggest ||
+        definition->handler == ToolHandler::PrinterChange) {
         if (!m_extension_executor) {
             fail(activity, "execution_failed", "The registered tool executor is unavailable.");
             return;

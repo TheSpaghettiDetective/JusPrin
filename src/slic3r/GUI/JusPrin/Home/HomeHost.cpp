@@ -41,6 +41,7 @@ Snapshot HomeHost::collect() const
     snapshot.dark     = m_backend.dark();
     snapshot.projects = m_backend.recent_projects();
     snapshot.printers = m_backend.printers();
+    snapshot.printer_panel_open = m_printer_panel_open;
     return snapshot;
 }
 
@@ -49,6 +50,14 @@ void HomeHost::push_state()
     if (!m_connected)
         return;
     send("state", state_payload(collect()));
+}
+
+void HomeHost::set_printer_panel_open(bool open)
+{
+    m_printer_panel_open = open;
+    if (!m_connected)
+        return;
+    send("printer_panel", json{{"open", open}});
 }
 
 void HomeHost::push_appearance(bool dark)

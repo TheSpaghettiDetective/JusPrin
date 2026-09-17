@@ -53,6 +53,42 @@ public:
 
     void set_send(SendFn send);
 
+    // -- Sessions with a subject of their own --------------------------------
+    // The host is the project's conversation unless an owner says otherwise.
+    // A panel whose conversation is about something else -- the printer panel
+    // on Home -- supplies the four things that differ: what the model is told
+    // and may call, the turn that opens the conversation, the page messages of
+    // its own surface, and the state its surface pins above the thread.
+
+    // Stamped on every request this host makes.
+    void set_session_profile(AgentSessionProfile profile) { m_session_profile = std::move(profile); }
+    // Opens the conversation with the agent speaking first: `prompt` is the
+    // turn the model answers, and the page shows no user message for it.
+    void open_session(const std::string& prompt);
+    // Answers a page message this host does not know. Returning false leaves
+    // it to the host, which reports it as a type outside the protocol.
+    using PageMessageHandler = std::function<bool(const std::string& type, const nlohmann::json& payload)>;
+    void set_page_message_handler(PageMessageHandler handler) { m_page_message_handler = std::move(handler); }
+    // Carried in every `state` snapshot as `session`, so a page that reloads
+    // is told what its surface shows without asking the subject itself.
+    void set_session_state_provider(std::function<nlohmann::json()> provider)
+    {
+        m_session_state_provider = std::move(provider);
+    }
+    // Sends one envelope of a type this protocol declares. The subject uses
+    // it to push its own state between snapshots.
+    void send_page_envelope(const std::string& type, const nlohmann::json& payload);
+    // Runs the session's own tools, inside the coordinator's approval and
+    // state machine. Anything it leaves unhandled stays with the host.
+    void set_session_tool_executor(ToolExecutionCoordinator::ExtensionExecutor executor)
+    {
+        m_session_tool_executor = std::move(executor);
+    }
+    // Appends a message the agent is shown as having said, without asking the
+    // model for it: a panel whose opening line is always the same. Returns
+    // its id so the owner can anchor what it draws underneath.
+    std::string post_assistant_message(const std::string& text);
+
     // Invoked after every successful hello handshake (initial load and every
     // reload); the owner uses it to cancel its connection deadline.
     void set_handshake_listener(std::function<void()> listener) { m_handshake_listener = std::move(listener); }
@@ -299,6 +335,12 @@ private:
     SendFn                m_send;
     std::function<void()> m_handshake_listener;
     std::function<void()> m_setup_completed_listener;
+
+    AgentSessionProfile             m_session_profile;
+    std::string                     m_session_opening;
+    PageMessageHandler              m_page_message_handler;
+    ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
+    std::function<nlohmann::json()> m_session_state_provider;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};

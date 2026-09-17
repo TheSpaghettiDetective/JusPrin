@@ -1,7 +1,6 @@
 if (SLIC3R_GUI)
     add_executable(shell_integration_harness
         shell_harness.cpp
-        fake_printer_recognition.cpp
         ../jusprin_support/DeterministicMockAgent.cpp
     )
     target_compile_definitions(shell_integration_harness PRIVATE

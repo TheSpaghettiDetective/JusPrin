@@ -1807,3 +1807,296 @@ button.wide {
 .setup-manual {
   margin-top: -8px;
 }
+
+/* -- The printer panel on Home ------------------------------------------ */
+/* The Prepare panel's shape, with a printer's four facts pinned above the
+   thread instead of the project's setup card, and the cards the agent draws
+   inside it. Every value here resolves through the token variables. */
+
+.app--printer {
+  height: 100%;
+}
+
+.printer-header h1 {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.printer-manual-link {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: var(--font-label);
+  color: var(--action-primary);
+}
+
+.printer-manual-link:hover {
+  color: var(--action-primary-hover);
+}
+
+.printer-pinned {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 2px solid var(--action-primary);
+  border-radius: var(--radius-container);
+  background: var(--surface-subtle);
+}
+
+.printer-pinned-caption {
+  margin: 0;
+  font: var(--font-metadata);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--action-primary);
+}
+
+.printer-fact {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.printer-fact-label {
+  flex: 0 0 64px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-fact-value {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+/* Nobody has said yet; the em dash holds the row open. */
+.printer-fact-empty {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+/* The agent's stated guess, not a reading. */
+.printer-fact-assumed {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* Changed in this session: the one thing in the card that is new. */
+.printer-fact-changed {
+  color: var(--status-danger);
+}
+
+.printer-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* A photo is the fastest way in, said once, under the opening. */
+.printer-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--action-primary);
+  /* Not the selected surface: secondary text on it measures below 4.5:1 in
+     dark mode, and this paragraph is meant to be read. */
+  background: var(--surface-subtle);
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-tip-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--action-primary);
+}
+
+.printer-found {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.printer-found-caption {
+  margin: 0;
+  font: var(--font-metadata);
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.printer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+}
+
+.printer-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--text-tertiary);
+}
+
+.printer-dot-online {
+  background: var(--status-success);
+}
+
+.printer-row-name,
+.printer-card-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.printer-row-name small,
+.printer-card-name small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}
+
+/* Quiet outline button on a card: "Use this", "This one". */
+.printer-quiet-button {
+  flex: none;
+  padding: var(--button-secondary-padding);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
+  cursor: pointer;
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.printer-quiet-button:hover {
+  border-color: var(--border-strong);
+}
+
+.printer-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.printer-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+}
+
+.printer-card-picture {
+  flex: none;
+  width: 72px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: var(--radius-standard);
+  background: var(--surface-subtle);
+}
+
+/* The compact form is a question with two or three answers, so each row
+   keeps its own button and gives the picture less of the width. */
+.printer-cards-compact .printer-card {
+  padding: 8px 12px;
+}
+
+.printer-cards-compact .printer-card-picture {
+  width: 44px;
+  height: 34px;
+}
+
+.printer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
+}
+
+.printer-chip {
+  padding: var(--button-secondary-padding);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
+  cursor: pointer;
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.printer-chip:hover:enabled {
+  border-color: var(--border-strong);
+}
+
+.printer-chip:disabled {
+  color: var(--action-disabled);
+  cursor: default;
+}
+
+/* Same shape as the others; the fill is the only difference. */
+.printer-chip-primary {
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+  font: var(--font-label-bold);
+  color: var(--action-primary-text);
+}
+
+.printer-chip-suggested {
+  border-color: var(--border-strong);
+  font: var(--font-label-bold);
+}
+
+.printer-chip-hint {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+/* Labelled, because a picture is a primary way to name a printer. */
+.attach-button-photo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  padding: var(--button-secondary-padding);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.photo-glyph {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* What a staged photo is waiting for: words, or just send. */
+.composer-staged-hint {
+  align-self: center;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}

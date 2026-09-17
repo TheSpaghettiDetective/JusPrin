@@ -44,18 +44,9 @@ struct DiscoveredPrinter
     std::optional<double> bed_temperature;
 };
 
-struct PrinterEvidence
-{
-    std::string description;
-    std::string image_bytes;
-    std::string image_mime;
-    std::string image_name;
-    std::optional<DiscoveredPrinter> discovered_device;
-};
-
 struct PrinterCandidate
 {
-    // Opaque, session-local identifier exposed to the recognition provider.
+    // Opaque, session-local identifier for one model and nozzle variant.
     std::string id;
     std::string vendor_id;
     std::string vendor_name;
@@ -68,35 +59,6 @@ struct PrinterCandidate
     std::string default_material;
     std::string default_plate;
     std::string artwork_path;
-};
-
-enum class RecognitionDisposition { Recognized, Ambiguous, NoMatch };
-
-struct RecognitionResult
-{
-    RecognitionDisposition disposition{RecognitionDisposition::NoMatch};
-    std::vector<std::string> candidate_ids;
-    std::string evidence_summary;
-    std::string assumption;
-    // The nozzle diameter the evidence states, in millimetres; empty when it
-    // states none. The controller, not the provider, picks the variant.
-    std::string nozzle_mm;
-    // The part of a user correction the returned candidate cannot represent.
-    std::string unresolved_correction;
-};
-
-struct RecognitionError
-{
-    std::string code;
-    std::string message;
-    bool retryable{false};
-};
-
-struct RecognitionEvent
-{
-    std::uint64_t generation{0};
-    std::optional<RecognitionResult> result;
-    std::optional<RecognitionError> error;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

@@ -1,6 +1,7 @@
 #include "ShellController.hpp"
 
 #include "AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "StatusRow.hpp"
 
 #include "libslic3r/Utils.hpp"
@@ -239,6 +240,21 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_home = new Home::HomeWebView(&frame, *m_theme, frame, m_status_row->spool_store());
         m_home->Hide();
 
+        // The printer conversation lives beside Home's page, in the column
+        // the printers list otherwise holds, and Home's own actions open it.
+        m_printer_panel = new PrinterSetup::PrinterPanel(
+            m_home, *m_theme, GUI_App::dark_mode(), *m_workspace, *plater, m_status_row->spool_store(),
+            PrinterSetup::PrinterPanel::Callbacks{
+                [this] {
+                    m_home->show_side_panel(false);
+                    m_home->refresh();
+                },
+                [this] { refresh_home(); },
+                [this] { mark_agent_config_possibly_changed(); }});
+        m_home->attach_side_panel(m_printer_panel, m_theme->metrics().printer_card.column_width);
+        m_home->backend().set_conversation_opener(
+            [this](const std::string& printer_name) { open_printer_conversation(printer_name); });
+
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
         m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
@@ -309,6 +325,12 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         if (m_agent_pane != nullptr) {
             m_agent_pane->Destroy();
             m_agent_pane = nullptr;
+        }
+        // The printer panel holds a host of its own over the same workspace,
+        // so it goes with the pane rather than with Home's children later.
+        if (m_printer_panel != nullptr) {
+            m_printer_panel->Destroy();
+            m_printer_panel = nullptr;
         }
         if (m_status_row != nullptr) {
             m_status_row->Destroy();
@@ -447,6 +469,10 @@ void ShellController::uninstall()
         m_agent_pane->Destroy();
         m_agent_pane = nullptr;
     }
+    if (m_printer_panel != nullptr) {
+        m_printer_panel->Destroy();
+        m_printer_panel = nullptr;
+    }
     if (m_home != nullptr) {
         m_home->Destroy();
         m_home = nullptr;
@@ -470,6 +496,8 @@ void ShellController::apply_current_appearance()
         m_agent_pane->apply_appearance(dark);
     if (m_home != nullptr)
         m_home->apply_appearance(dark);
+    if (m_printer_panel != nullptr)
+        m_printer_panel->apply_appearance(dark);
     if (m_agent_resize_handle != nullptr)
         m_agent_resize_handle->Refresh();
 }
@@ -492,6 +520,20 @@ void ShellController::refresh_home()
 {
     if (m_home != nullptr)
         m_home->refresh();
+}
+
+void ShellController::open_printer_conversation(const std::string& printer_name)
+{
+    if (m_printer_panel == nullptr || m_home == nullptr || m_tabpanel == nullptr)
+        return;
+    // The panel lives on Home, so the printer menu's own entries come here
+    // first. Selecting the tab refreshes the gallery on its way in.
+    if (m_tabpanel->GetSelection() != MainFrame::tpHome)
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+    m_printer_panel->open(printer_name.empty() ? PrinterSetup::ConversationMode::Add :
+                                                 PrinterSetup::ConversationMode::Change,
+                          printer_name);
+    m_home->show_side_panel(true);
 }
 
 void ShellController::on_page_changed()

@@ -1,4 +1,5 @@
 #include "AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
@@ -313,26 +314,6 @@ bool base64_decode(const std::string& in, std::string& out)
     return true;
 }
 
-std::string base64_encode(const std::string& in)
-{
-    static const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string out;
-    int         val = 0, valb = -6;
-    for (unsigned char c : in) {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0) {
-            out.push_back(chars[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
-    }
-    if (valb > -6)
-        out.push_back(chars[((val << 8) >> (valb + 8)) & 0x3F]);
-    while (out.size() % 4)
-        out.push_back('=');
-    return out;
-}
-
 bool is_valid_utf8(const std::string& s)
 {
     std::size_t i = 0;
@@ -534,6 +515,13 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             .string();
     });
     m_tools.set_extension_executor([this](ToolHandler handler, const ToolActivity& activity) {
+        // A session with a subject of its own answers for its own tools; the
+        // host keeps the manufacturing records either way.
+        if (m_session_tool_executor) {
+            ToolExecutionCoordinator::ExtensionResult result = m_session_tool_executor(handler, activity);
+            if (result.handled)
+                return result;
+        }
         return execute_manufacturing_tool(handler, activity);
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
@@ -732,6 +720,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"changes", std::move(changes)},
                  {"context", context_json(snapshot, agent_authored_keys(snapshot),
                                           m_persistence.document().setup_intent(active))}};
+    if (m_session_state_provider)
+        payload["session"] = m_session_state_provider();
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
 
@@ -845,7 +835,7 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_mcp_connect(envelope_id, payload);
     else if (type == Protocol::kRevealPath)
         handle_reveal_path(envelope_id, payload);
-    else
+    else if (!(m_page_message_handler && m_page_message_handler(type, json::parse(payload, nullptr, false))))
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
 
@@ -1086,6 +1076,26 @@ void AgentHost::handle_remove_attachment(const std::string& envelope_id, const s
     m_persistence.commit();
     m_persistence.flush();
     send_state(envelope_id);
+}
+
+std::string AgentHost::post_assistant_message(const std::string& text)
+{
+    if (text.empty())
+        return {};
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string conversation_id = document.active_conversation_id();
+
+    ConversationMessage message;
+    message.id    = document.allocate_message_id();
+    message.role  = MessageRole::Assistant;
+    message.state = MessageState::Complete;
+    message.text  = text;
+    document.append_message(conversation_id, message, m_persistence.timestamp());
+    m_persistence.flush();
+    // Like a note, this starts nothing: it is a line the panel always says,
+    // and the model reads it as history on the person's first turn.
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump());
+    return message.id;
 }
 
 std::string AgentHost::post_note(const std::string& text)
@@ -1509,6 +1519,17 @@ std::optional<ConversationMessage> AgentHost::find_stored_message(const std::str
     return std::nullopt;
 }
 
+void AgentHost::open_session(const std::string& prompt)
+{
+    m_session_opening = prompt;
+    begin_reply({});
+}
+
+void AgentHost::send_page_envelope(const std::string& type, const json& payload)
+{
+    send_envelope(type.c_str(), payload.dump());
+}
+
 void AgentHost::begin_reply(const std::string& user_message_id)
 {
     ProjectStateDocument& document = m_persistence.document();
@@ -1570,11 +1591,13 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     request.request_id = document.project_id() + "-" + conversation_id + "-" + assistant.id + "-attempt-" +
                          std::to_string(assistant.attempt);
     request.attempt    = assistant.attempt;
+    request.session    = m_session_profile;
     request.workspace  = m_workspace.snapshot();
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
-    if (user)
-        request.user_text = user->text;
+    // The opening turn of a session has no user message: the agent speaks
+    // first, answering what its owner asked for when the panel opened.
+    request.user_text = user ? user->text : m_session_opening;
 
     // The provider gets bounded semantic history. The current user message is
     // supplied separately with its attachments, and the streaming placeholder

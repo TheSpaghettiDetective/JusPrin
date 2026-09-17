@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <string>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -37,6 +38,13 @@ public:
         // Injectable for deterministic tests.
         std::function<std::string()> clock; // ISO-8601 UTC timestamp
         std::function<std::string()> uuid;  // opaque unique identifier
+        // A conversation about something other than the open project -- the
+        // printer panel on Home -- keeps everything in memory: nothing it
+        // says belongs in this project's archive, and the session is gone
+        // when the panel closes. Such an instance follows no project
+        // boundary, writes no state.json and no recovery mirror, and holds
+        // attachment bytes for its own lifetime only.
+        bool in_memory{false};
     };
 
     ProjectPersistence(Workspace::IWorkspace& workspace, Config config);
@@ -135,6 +143,10 @@ private:
     std::function<void()>                   m_document_replaced;
     std::function<void(const ChangeEntry&)> m_change_added;
     std::function<void()>                   m_ledger_changed;
+
+    // Attachment bytes of an in-memory session, by the same relative path a
+    // project session writes on disk.
+    std::map<std::string, std::string> m_blobs;
 
     std::string m_attached_aux_dir;
     std::string m_draft;

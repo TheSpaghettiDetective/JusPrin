@@ -306,6 +306,16 @@ TEST_CASE("the project card geometry is explicit", "[brand]")
 // The printer column is a fixed rail, not a share of the window: the gallery
 // takes the width that is left. A printing printer's progress bar is the one
 // size inside the card that is not padding.
+// Home's own printer dialogs -- rename, remove -- are one small modal over
+// the gallery: the same width, the same corner, the same dimming behind it.
+TEST_CASE("the printer dialog geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("printerDialog"),
+        {{"width", 500}, {"radius", 12}, {"scrimAlpha", 88}},
+        "component.printerDialog");
+}
+
 TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
@@ -329,21 +339,6 @@ TEST_CASE("the menu geometry is explicit", "[brand]")
         "component.popover");
 }
 
-TEST_CASE("the add-printer dialog geometry is explicit", "[brand]")
-{
-    const json tokens = load_tokens();
-    require_exact_table<int>(tokens.at("component").at("printerSetup"),
-        {{"dialogWidth", 500}, {"initialHeight", 454}, {"recognizedHeight", 432},
-         {"evidenceFieldHeight", 72},
-         {"correctionFieldHeight", 36}, {"photoDropHeight", 66}, {"networkRowHeight", 44},
-         {"artworkSize", 88}, {"candidateMinHeight", 132}, {"ambiguousArtworkHeight", 80},
-         {"scrimAlpha", 88}, {"radius", 12}, {"controlRadius", 8}},
-        "component.printerSetup");
-}
-
-// Home sizes its inline glyphs -- the printer beside a name, the monitor on
-// its button -- from the smallest step of this scale, so it must stay the
-// smallest and stay 16.
 TEST_CASE("the icon scale is exactly the documented one", "[brand]")
 {
     const json tokens = load_tokens();

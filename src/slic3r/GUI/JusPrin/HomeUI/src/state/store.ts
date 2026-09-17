@@ -21,6 +21,8 @@ export interface HomeState {
   appearance: Appearance;
   projects: ProjectInfo[];
   printers: PrinterInfo[];
+  // The printer conversation is open in place of the printers column.
+  printerPanelOpen: boolean;
   error?: string;
   // The last printer action the host refused. The host follows a refusal with
   // a fresh state, so only the person's next printer action clears it.
@@ -33,6 +35,7 @@ export const initialState: HomeState = {
   appearance: 'light',
   projects: [],
   printers: [],
+  printerPanelOpen: false,
 };
 
 export type HomeAction =
@@ -57,6 +60,7 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         appearance: next.appearance,
         projects: next.projects ?? [],
         printers: next.printers ?? [],
+        printerPanelOpen: next.printerPanelOpen ?? false,
         error: undefined,
       };
     }
@@ -66,6 +70,8 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       return { ...state, printers: (payload as { printers: PrinterInfo[] }).printers ?? [] };
     case 'appearance':
       return { ...state, appearance: (payload as { appearance: Appearance }).appearance };
+    case 'printer_panel':
+      return { ...state, printerPanelOpen: (payload as { open: boolean }).open };
     case 'printer_error':
       return { ...state, printerError: payload as PrinterErrorPayload };
     case 'bridge_error':
