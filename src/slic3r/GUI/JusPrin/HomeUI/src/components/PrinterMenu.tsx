@@ -110,7 +110,16 @@ export function PrinterMenu({
           }
         }}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+          // WebKit does not move focus to a <button> on mouse click (only on
+          // keyboard activation), so clicking one menu item after another
+          // fires blur with relatedTarget: null here -- not because focus
+          // left the menu, but because WebKit never granted it to begin
+          // with. Treating that as "left" closed the menu before the
+          // item's own click could land. A real relatedTarget (Tab moving
+          // focus) still closes the menu when it points outside; pointer
+          // clicks outside are already handled by the dismiss listener
+          // below, which checks the actual click target instead of focus.
+          if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
         }}
       >
         <button

@@ -80,6 +80,12 @@ public:
     // it already refreshes Home's gallery on return.
     void mark_agent_config_possibly_changed() { m_agent_config_possibly_changed = true; }
 
+    // Orca's own printer wizard ("set it up myself") runs from a CallAfter,
+    // decoupled from the add-printer request that opened it, so nothing else
+    // tells Home about the printer it names. The caller asks for this refresh
+    // once the wizard flow (and any naming it does) has actually finished.
+    void refresh_home();
+
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
     // Applies what the Notebook's current page implies for the shell: Home

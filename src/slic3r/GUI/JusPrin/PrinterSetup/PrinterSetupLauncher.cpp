@@ -79,8 +79,14 @@ void run_manual_setup(Plater& plater)
 {
     const Printers::VendorMap before = wxGetApp().app_config->vendors();
     // False when the person closed the wizard without applying it.
-    if (wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS))
+    if (wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS)) {
         name_installed_printers(plater, before);
+        // This runs from a CallAfter queued by the add-printer dialog, well
+        // after that dialog's own request/push_state pair already completed,
+        // so nothing else tells Home a printer was just named.
+        if (ShellController* shell = installed_shell())
+            shell->refresh_home();
+    }
 }
 
 void name_installed_printers(Plater& plater, const Printers::VendorMap& before)

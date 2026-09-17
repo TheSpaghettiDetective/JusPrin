@@ -488,6 +488,12 @@ void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
     event.Skip();
 }
 
+void ShellController::refresh_home()
+{
+    if (m_home != nullptr)
+        m_home->refresh();
+}
+
 void ShellController::on_page_changed()
 {
     if (!m_installed || m_home == nullptr || m_tabpanel == nullptr)
