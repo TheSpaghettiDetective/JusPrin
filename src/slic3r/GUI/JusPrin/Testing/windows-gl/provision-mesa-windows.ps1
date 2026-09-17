@@ -10,7 +10,8 @@
 # not the importing DLL's), and opengl32.dll must sit in the mesa\ subfolder
 # (the launcher loads it by that exact relative path). Swapping them either
 # leaves the stub unresolvable or shadows the system GL and kills the app at
-# launch.
+# launch. Harnesses are the exception: they have no launcher, so they also get
+# a copy of opengl32.dll beside them.
 #
 # dxil.dll also goes beside the executable. Mesa's d3d12 driver, which it selects
 # by default on WARP, needs it to sign the shaders it translates; without it the
@@ -60,5 +61,10 @@ foreach ($dir in $exeDirs) {
     Copy-Item $Dxil $dir -Force
     New-Item -ItemType Directory -Force (Join-Path $dir 'mesa') | Out-Null
     Copy-Item (Join-Path $Source 'mesa\opengl32.dll') (Join-Path $dir 'mesa') -Force
+    # A harness links the app in and has no launcher to load mesa\opengl32.dll,
+    # so the stub must sit beside it to shadow the system GL 1.1.
+    if (Get-ChildItem $dir -Filter '*_harness.exe') {
+        Copy-Item (Join-Path $Source 'mesa\opengl32.dll') $dir -Force
+    }
     Write-Output "provisioned $dir"
 }

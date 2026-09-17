@@ -817,6 +817,20 @@ npm --prefix src/slic3r/GUI/JusPrin/AgentUI test
 build/tests/shell/Release/shell_integration_harness.exe --mcp-bridge
 ```
 
+The workspace adapter harness runs there too, and passes (617 checks, exit 0, as of 2026-09-17). Put the app's `src\Release` on `PATH`, or the exe cannot load the `api-ms-win-crt` DLLs, and read the exit code with `$LASTEXITCODE` in PowerShell:
+
+```powershell
+$env:PATH = "$PWD\build\src\Release;$env:PATH"
+build\tests\workspace\Release\workspace_adapter_integration_harness.exe
+```
+
+On 2026-09-16 it failed on Windows: `select_object(0)` returned false after `load_files`, seven checks failed, and the process died with `0xC0000005`. The test code was not stale. The cause was the machine setup. The Mesa provisioning script put `opengl32.dll` only in `mesa\`, where only the app launcher looks for it. A harness has no launcher, so this one ran on the system's GL 1.1 and its canvas never initialized. Selection is built from the canvas's volumes, so nothing could be selected, and the gizmo check then opened a paint gizmo with nothing selected. The script now also copies `opengl32.dll` beside each harness (see "Software GL on Windows machines without a GPU" in [engineering-method.md](engineering-method.md)); re-run it on existing build trees. With GL in place, two harness faults surfaced that only Windows shows:
+
+- The move-event check asserted that the move was the last change. On Windows, queued `EVT_GLCANVAS_OBJECT_SELECT` events publish two Selection-only changes after it, so the check now skips those.
+- The data-directory cleanup threw, because the open log file cannot be deleted, and the uncaught exception turned a PASS into `0xC0000409`. It now warns instead, as the shell harness already did.
+
+Pulling the script change does not fix a build tree that was already provisioned; run the script on it again. So that a tree without GL cannot fail this way unnoticed again, the harness now checks, right after its first model load, that the canvas initialized GL. If it did not, the harness stops with `HARNESS ERROR the 3D canvas did not initialize OpenGL` and the command to fix it, exits 1, and does not crash. A clean exit on that early path also needed the harness to close the main frame, as the shell harness does. It used to call `ExitMainLoop()`, which skips `MainFrame::shutdown()`, and a pending project backup then posted to the deleted frame.
+
 Node is required: the Agent and Home pages are built from TypeScript and their `index.html` is generated, not committed, so a tree without npm fails at configure time and an app built without them shows no Agent panel at all.
 
 The Python bridge tests run there too, with the helper named explicitly, since the default path in `tests/mcp/test_bridge_process.py` is the macOS bundle:
