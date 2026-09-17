@@ -291,6 +291,8 @@ void OpenAIResponsesAgent::finish_response(const json& response)
         // that call's result and may correct it, a bounded number of times
         // per turn.
         constexpr unsigned kRejectedCallLimit = 2;
+        if ((!available || !validation.valid()) && m_config.refusal_listener)
+            m_config.refusal_listener(request.tool, request.arguments_json, available ? validation.error->code : "unknown_tool");
         if (!call_id.empty() && !m_title_request && (!available || !validation.valid()) &&
             m_rejected_calls < kRejectedCallLimit) {
             ++m_rejected_calls;

@@ -352,7 +352,12 @@ TEST_CASE("OpenAI tells the model when it calls a tool that is not offered", "[a
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
-    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    std::vector<std::string> refused;
+    OpenAIResponsesConfig    config{"key"};
+    config.refusal_listener = [&refused](const std::string& tool, const std::string& arguments, const std::string& code) {
+        refused.push_back(tool + " " + arguments + " " + code);
+    };
+    OpenAIResponsesAgent agent(std::move(config), std::move(transport));
     REQUIRE(agent.start(request_fixture()));
     const json call{{"type", "function_call"}, {"call_id", "call-x"}, {"name", "support_enable"}, {"arguments", "{}"}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
@@ -362,6 +367,7 @@ TEST_CASE("OpenAI tells the model when it calls a tool that is not offered", "[a
     const json output = json::parse(json::parse(fake->requests.back().body)["input"].back()["output"].get<std::string>());
     CHECK(output["error"]["code"] == "unknown_tool");
     CHECK(output["error"]["message"].get<std::string>().find("support_enable") != std::string::npos);
+    CHECK(refused == std::vector<std::string>{"support_enable {} unknown_tool"});
 }
 
 TEST_CASE("reported usage carries the cached share of the input", "[agent][openai][usage]")

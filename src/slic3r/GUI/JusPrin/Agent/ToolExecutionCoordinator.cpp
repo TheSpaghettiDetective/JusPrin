@@ -28,6 +28,23 @@ constexpr WorkspaceChangeReasons kInvalidatingReasons = WorkspaceChangeReasons::
                                                         WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History |
                                                         WorkspaceChangeReasons::Project | WorkspaceChangeReasons::Settings;
 
+// A settings patch is bound to the values it previewed, which the apply
+// checks again; only a settings edit or a new project makes it stale. Model
+// edits, and the slicing and selection events that follow them, do not.
+constexpr WorkspaceChangeReasons kSettingsReasons = WorkspaceChangeReasons::Settings | WorkspaceChangeReasons::Project;
+
+bool settings_patch_tool(const std::string& tool) { return tool == "settings_apply_patch"; }
+
+// Whether a settings patch's preview still holds: same session, and no
+// settings change after the revision it was previewed at.
+bool settings_revision_holds(const json& arguments, const Workspace::WorkspaceSnapshot& snapshot, std::uint64_t settings_revision)
+{
+    return arguments.at("expectedSessionId") == std::to_string(snapshot.session.value()) &&
+           arguments.at("expectedRevision").is_number_unsigned() &&
+           arguments.at("expectedRevision").get<std::uint64_t>() <= snapshot.revision &&
+           arguments.at("expectedRevision").get<std::uint64_t>() >= settings_revision;
+}
+
 const char* workspace_error_code(WorkspaceError error)
 {
     switch (error) {
@@ -583,7 +600,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
 
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         auto arguments = json::parse(stored.arguments_json);
-        if (arguments["expectedSessionId"] != std::to_string(snapshot.session.value()) || arguments["expectedRevision"] != snapshot.revision) {
+        if (!settings_revision_holds(arguments, snapshot, m_last_settings_revision)) {
             fail(stored, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(arguments, snapshot).dump());
             return stored;
         }
@@ -748,9 +765,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     // redirect a proposal pinned to an object ID and do not invalidate it.
     // Every mutation is rechecked, not only the ones that waited for a card: a
     // computation-only action skips approval, not staleness.
+    const std::uint64_t invalidated = settings_patch_tool(activity.tool) ? m_last_settings_revision : m_last_invalidating_revision;
     if (activity.action_class != ActionClass::ReadOnly &&
-        (m_workspace.snapshot().session.value() != activity.session ||
-         m_last_invalidating_revision > activity.expected_revision)) {
+        (m_workspace.snapshot().session.value() != activity.session || invalidated > activity.expected_revision)) {
         fail(activity, "stale_revision", "The project changed before this action could execute. Propose it again.");
         return;
     }
@@ -1546,7 +1563,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         const auto args = json::parse(activity.arguments_json);
         const auto before = m_workspace.snapshot();
-        if (args.at("expectedSessionId") != std::to_string(before.session.value()) || args.at("expectedRevision") != before.revision) {
+        if (!settings_revision_holds(args, before, m_last_settings_revision)) {
             fail(activity, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(args, before).dump());
             return;
         }
@@ -1653,11 +1670,15 @@ void ToolExecutionCoordinator::invalidate_pending(const Workspace::WorkspaceChan
 {
     // Pending proposals fail eagerly. Approved/running proposals recheck this
     // revision at execution, without invalidating a command on its own event.
+    if ((change.reasons & kSettingsReasons) != WorkspaceChangeReasons::None)
+        m_last_settings_revision = change.revision;
     if ((change.reasons & kInvalidatingReasons) == WorkspaceChangeReasons::None)
         return;
     m_last_invalidating_revision = change.revision;
     for (ToolActivity& activity : m_activities) {
         if (activity.state != ToolState::Pending)
+            continue;
+        if (settings_patch_tool(activity.tool) && (change.reasons & kSettingsReasons) == WorkspaceChangeReasons::None)
             continue;
         fail(activity, "stale_revision", "The project changed after this action was proposed. Ask the Agent again.");
     }

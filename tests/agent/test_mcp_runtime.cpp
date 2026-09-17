@@ -113,7 +113,8 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
         CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     }
     SECTION("stale") {
-        REQUIRE(h.workspace.rename_object(h.workspace.snapshot().plates[0].objects[0].id, "Changed").succeeded());
+        // A settings patch is stale after a settings edit; model edits leave it.
+        h.workspace.set_setting_for_testing("brim_width", "7");
         REQUIRE(h.finish(client));
         CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "stale_workspace");
         CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");

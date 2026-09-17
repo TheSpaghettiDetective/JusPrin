@@ -800,7 +800,7 @@ std::vector<ToolDefinition> make_definitions()
          object_schema({{"changes", changes_input}, {"target", settings_target}}, {"changes"}), patch_output,
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
         {"settings_apply_patch", "Change process settings",
-         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a fresh preview with the same target. Calling it shows the user an approval card in JusPrin and waits for their decision. Leave target out, as in the preview, unless the user asked for one object to differ. A process change is not undone by project Undo; with target.objectId the change becomes that object's own override, and project Undo does undo it.",
+         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a preview of the same changes and target; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. Leave target out, as in the preview, unless the user asked for one object to differ. A process change is not undone by project Undo; with target.objectId the change becomes that object's own override, and project Undo does undo it.",
          object_schema({{"changes", changes_input}, {"target", settings_target}, {"expectedSessionId", id}, {"expectedRevision", revision},
                         {"intent", json{{"type", "string"}, {"maxLength", 40},
                                         {"description", "What the user asked this setup to be, in their own words, as "
@@ -1327,8 +1327,26 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                                                  const std::string&    arguments_json) const
 {
     json arguments = json::parse(arguments_json, nullptr, false);
-    if (arguments.is_discarded() || !valid_arguments(definition, arguments))
-        return {{}, ToolError{"invalid_arguments", "The tool arguments do not match the registered contract."}};
+    if (arguments.is_discarded() || !valid_arguments(definition, arguments)) {
+        // Name what is plainly wrong at the top level; the rest is in the
+        // schema the caller already has.
+        std::string message = "The tool arguments do not match the registered contract.";
+        const json properties = definition.input_schema.value("properties", json::object());
+        if (arguments.is_object()) {
+            std::string unexpected, missing;
+            for (const auto& item : arguments.items())
+                if (!properties.contains(item.key()))
+                    unexpected += (unexpected.empty() ? "" : ", ") + item.key();
+            for (const json& key : definition.input_schema.value("required", json::array()))
+                if (!arguments.contains(key.get<std::string>()))
+                    missing += (missing.empty() ? "" : ", ") + key.get<std::string>();
+            if (!unexpected.empty())
+                message += " Not a parameter of this tool: " + unexpected + ".";
+            if (!missing.empty())
+                message += " Missing: " + missing + ".";
+        }
+        return {{}, ToolError{"invalid_arguments", message}};
+    }
     const auto canonical = [](json& values) {
         for (auto& value : values)
             if (!value.is_string()) value = value.is_boolean() ? (value.get<bool>() ? "1" : "0") : value.dump();

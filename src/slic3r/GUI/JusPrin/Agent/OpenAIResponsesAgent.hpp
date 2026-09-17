@@ -58,6 +58,9 @@ struct OpenAIResponsesConfig
     std::string model{"gpt-5.4-mini"};
     std::string endpoint{"https://api.openai.com/v1/responses"};
     std::function<void(const AgentUsage&)> usage_listener;
+    // A tool call the adapter refused before it reached a card: the tool
+    // name, the arguments as the model sent them, and why.
+    std::function<void(const std::string&, const std::string&, const std::string&)> refusal_listener;
 };
 
 // Responses API adapter. Network callbacks only append protected input; all

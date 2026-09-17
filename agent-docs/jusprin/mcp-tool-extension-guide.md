@@ -736,9 +736,15 @@ does.
 
 - `ToolExecutionCoordinator::execute` dispatches on `ToolHandler` with
   explicit blocks; add a block per tool, not a generic dispatch table.
-- `kInvalidatingReasons` is one global mask and includes `Settings`, so any
-  pending proposal fails with `stale_revision` when the user edits a setting
-  in the GUI. A per-tool mask is a later refinement if evals show friction.
+- `kInvalidatingReasons` is the mask for most proposals and includes
+  `Settings`, so a pending proposal fails with `stale_revision` when the user
+  edits a setting in the GUI. `settings_apply_patch` has its own mask,
+  `Settings | Project`: the M5 live eval showed an agent annotating a region
+  between its settings preview and its apply, and the model edit (and the
+  slicing events after it) made every apply stale. A settings patch is bound
+  to the before values it previewed, which the apply checks again, so its
+  `expectedRevision` only has to be no older than the last settings or project
+  change; model edits do not matter.
 - `ToolRegistry::validate_output` accepts a closed schema vocabulary: `type`,
   `properties`, `required`, `additionalProperties`, `items`, `minimum`,
   `maxItems`, `enum`, `maxLength`. Any other keyword throws; extend the

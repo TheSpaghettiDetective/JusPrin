@@ -1850,3 +1850,43 @@ TEST_CASE("the slice report checks supports, seams, the first layer and islands 
     CHECK(h.workspace.last_slice_request.regions.empty());
     CHECK_FALSE(registry.validate_call(*registry.find("slice_report"), R"({"sections":["supports","supports"]})").valid());
 }
+
+TEST_CASE("a settings patch survives model edits after its preview, but not a settings edit", "[tools][settings]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const auto preview = h.workspace.snapshot();
+    const json patch{{"changes", {{"wall_loops", 4}}}, {"expectedSessionId", std::to_string(preview.session.value())},
+                     {"expectedRevision", preview.revision}};
+    // A copy is added after the preview; the patch still proposes and applies.
+    const ToolActivity copy = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
+    REQUIRE(h.coordinator.approve(copy.action_id));
+    h.pump_to_completion(copy.action_id);
+    REQUIRE(h.workspace.snapshot().revision > preview.revision);
+    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", patch.dump()}, "m-2");
+    REQUIRE(pending.state == ToolState::Pending);
+    // Another model edit while the card is up leaves it pending.
+    const ToolActivity another = h.coordinator.propose(h.duplicate_cube_request(), "m-3");
+    REQUIRE(h.coordinator.approve(another.action_id));
+    h.pump_to_completion(another.action_id);
+    CHECK(h.coordinator.find(pending.action_id)->state == ToolState::Pending);
+    REQUIRE(h.coordinator.approve(pending.action_id));
+    h.pump_to_completion(pending.action_id);
+    CHECK(h.coordinator.find(pending.action_id)->state == ToolState::Succeeded);
+
+    // A settings edit after the preview is stale, pending or not.
+    const auto second = h.workspace.snapshot();
+    const json again{{"changes", {{"wall_loops", 5}}}, {"expectedSessionId", std::to_string(second.session.value())},
+                     {"expectedRevision", second.revision}};
+    const ToolActivity waiting = h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-4");
+    REQUIRE(waiting.state == ToolState::Pending);
+    h.workspace.set_setting_for_testing("brim_width", "7");
+    CHECK(h.coordinator.find(waiting.action_id)->error->code == "stale_revision");
+    CHECK(h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-5").error->code == "stale_workspace");
+
+    // A refused call says what is wrong with it.
+    const auto refused = registry.validate_call(*registry.find("settings_preview_patch"), json{{"changes", {{"wall_loops", 3}}}, {"intent", "x"}}.dump());
+    REQUIRE_FALSE(refused.valid());
+    CHECK(refused.error->message.find("Not a parameter of this tool: intent.") != std::string::npos);
+    CHECK(registry.validate_call(*registry.find("settings_preview_patch"), "{}").error->message.find("Missing: changes.") != std::string::npos);
+}

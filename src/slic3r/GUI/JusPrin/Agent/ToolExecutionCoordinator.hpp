@@ -178,6 +178,9 @@ private:
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
     std::uint64_t                    m_last_invalidating_revision{0};
+    // The last change a settings patch cares about: a settings edit or a new
+    // project. A model edit between a preview and its apply does not move it.
+    std::uint64_t                    m_last_settings_revision{0};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent
