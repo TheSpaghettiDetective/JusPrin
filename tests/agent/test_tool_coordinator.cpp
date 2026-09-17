@@ -125,7 +125,7 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
         CHECK(approval_required(definition.action_class, definition.computation_only) ==
               (definition.action_class != ActionClass::ReadOnly && !definition.computation_only));
     }
-    CHECK(exempt == std::vector<std::string>{"plan_set", "slice_start"});
+    CHECK(exempt == std::vector<std::string>{"activity_cancel", "plan_set", "slice_start"});
 }
 
 TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")
@@ -1961,4 +1961,113 @@ TEST_CASE("the slice report measures the slice against the print intent", "[tool
     CHECK(time == json{{"field", "how long it may take"}, {"value", "under one hour"}, {"kind", "time"},
                        {"limit", 3600}, {"actual", 4500}, {"within", false}});
     CHECK(result["intent"]["unchecked"] == json::array({"what it is for"}));
+}
+
+TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][outputs]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const auto  snapshot = h.workspace.snapshot();
+    const std::string session = std::to_string(snapshot.session.value());
+    const auto plate = snapshot.plates.at(0).id;
+    auto run = [&h, &registry](const std::string& tool, const json& arguments) {
+        const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
+        if (proposed.state == ToolState::Pending)
+            REQUIRE(h.coordinator.approve(proposed.action_id));
+        h.pump_to_completion(proposed.action_id);
+        const ToolActivity done = *h.coordinator.find(proposed.action_id);
+        if (done.state == ToolState::Succeeded)
+            CHECK(registry.validate_output(*registry.find(tool), json::parse(done.result_json)));
+        return std::make_pair(proposed, done);
+    };
+
+    // A picture comes back beside its result.
+    const auto [render_card, rendered] = run("view_render", json{{"view", "front"}, {"widthPx", 640}, {"heightPx", 480}});
+    CHECK_FALSE(render_card.requires_approval);
+    REQUIRE(rendered.image);
+    CHECK(rendered.image->mime_type == "image/png");
+    CHECK(rendered.image->base64 == "iVBORw0KGgo=");
+    CHECK(json::parse(rendered.result_json)["view"] == "front");
+    CHECK_FALSE(registry.validate_call(*registry.find("view_render"), R"({"view":"back"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("view_render"), R"({"widthPx":4000})").valid());
+
+    // Attachments: a picture as an image, text as text, a missing one refused.
+    h.workspace.m_attachment_contents["Model Pictures/cover.png"] = {"Model Pictures/cover.png", "Model Pictures", "image/png", 9, "image", "cover", 2, 1, false};
+    h.workspace.m_attachment_contents["Others/notes.txt"] = {"Others/notes.txt", "Others", "text/plain", 5, "text", "hello", 0, 0, false};
+    const auto picture = run("project_attachment_read", json{{"id", "Model Pictures/cover.png"}}).second;
+    REQUIRE(picture.image);
+    CHECK(picture.image->base64 == "Y292ZXI=");
+    CHECK(json::parse(picture.result_json)["widthPx"] == 2);
+    const auto notes = run("project_attachment_read", json{{"id", "Others/notes.txt"}}).second;
+    CHECK_FALSE(notes.image);
+    CHECK(json::parse(notes.result_json)["text"] == "hello");
+    CHECK(run("project_attachment_read", json{{"id", "../secret.txt"}}).second.error->code == "invalid_argument");
+
+    // Slice detail says when there is no slice, then pages the layers.
+    CHECK(json::parse(run("slice_inspect", json{{"view", "layers"}}).second.result_json)["valid"] == false);
+    h.workspace.set_plate_sliced(plate, true);
+    const auto layers = json::parse(run("slice_inspect", json{{"view", "layers"}, {"count", 2}}).second.result_json);
+    CHECK(layers["layerCount"] == 3);
+    CHECK(layers["layers"].size() == 2);
+    CHECK(layers["next"] == 2);
+    CHECK(layers["layers"][1]["speedMmS"] == json{{"before", 20}, {"after", 60}});
+    const auto gcode = json::parse(run("slice_inspect", json{{"view", "gcode"}}).second.result_json);
+    CHECK(gcode["gcode"] == "G28\nG1 X10\nM104 S0\n");
+    CHECK_FALSE(gcode.contains("next"));
+
+    // A cancel needs no card and stops only what the tools started.
+    const auto started = run("slice_start", json::object()).second;
+    const std::string slice_handle = json::parse(started.result_json)["handle"];
+    const auto [cancel_card, cancelled] = run("activity_cancel", json{{"handle", slice_handle}});
+    CHECK_FALSE(cancel_card.requires_approval);
+    CHECK(json::parse(cancelled.result_json)["kind"] == "slice");
+    CHECK(json::parse(cancelled.result_json)["cancelled"] == true);
+    CHECK_FALSE(h.workspace.snapshot().slicing.running);
+    CHECK(json::parse(run("activity_cancel", json{{"handle", slice_handle}}).second.result_json)["cancelled"] == false);
+    // A slice the person starts afterwards is not stopped by the old handle.
+    REQUIRE(h.workspace.start_slice(std::nullopt, false).succeeded());
+    CHECK(json::parse(run("activity_cancel", json{{"handle", slice_handle}}).second.result_json)["cancelled"] == false);
+    CHECK(h.workspace.snapshot().slicing.running);
+    h.workspace.finish_slice_for_testing(false);
+    const ToolActivity waiting = h.coordinator.propose(h.duplicate_cube_request(), "m-2");
+    const auto dropped = json::parse(run("activity_cancel", json{{"handle", waiting.action_id}}).second.result_json);
+    CHECK(dropped["kind"] == "proposal");
+    CHECK(h.coordinator.find(waiting.action_id)->state == ToolState::Cancelled);
+    CHECK(run("activity_cancel", json{{"handle", "nothing"}}).second.error->code == "invalid_argument");
+
+    // An export writes only after approval, and never over a file unasked.
+    const auto folder = std::filesystem::temp_directory_path() / "jusprin-export-test";
+    std::filesystem::remove_all(folder);
+    std::filesystem::create_directories(folder);
+    const std::string target = (folder / "plate.gcode").u8string();
+    h.workspace.set_plate_sliced(plate, true);
+    std::ofstream(std::filesystem::u8path(target)) << "old";
+    const json exporting{{"sessionId", session}, {"kind", "gcode"}, {"path", target}};
+    CHECK(h.coordinator.propose({"export_file", exporting.dump()}, "m-3").error->code == "invalid_argument");
+    json replacing = exporting;
+    replacing["overwrite"] = true;
+    const ToolActivity card = h.coordinator.propose({"export_file", replacing.dump()}, "m-4");
+    REQUIRE(card.state == ToolState::Pending);
+    CHECK(card.title == "Export the G-code to " + target + ", replacing it");
+    REQUIRE(h.coordinator.reject(card.action_id));
+    const auto contents = [&target] {
+        std::ifstream file(std::filesystem::u8path(target));
+        return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    };
+    CHECK(contents() == "old");
+    CHECK(h.workspace.exports == 0);
+    h.workspace.m_details.license = "CC BY-NC-SA 4.0";
+    const ToolActivity licensed = h.coordinator.propose({"export_file", replacing.dump()}, "m-5");
+    CHECK(licensed.title.find("the project's license is CC BY-NC-SA 4.0") != std::string::npos);
+    REQUIRE(h.coordinator.approve(licensed.action_id));
+    h.pump_to_completion(licensed.action_id);
+    const auto exported = json::parse(h.coordinator.find(licensed.action_id)->result_json);
+    CHECK(registry.validate_output(*registry.find("export_file"), exported));
+    CHECK(exported["licenseRestricted"] == true);
+    CHECK(exported["files"] == json::array({target}));
+    CHECK(contents() == "gcode");
+    CHECK(registry.find("export_file")->action_class == ActionClass::Destructive);
+    CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "project_3mf"}, {"path", target}, {"plateId", "1"}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}, {"objectIds", {"1"}}}.dump()).valid());
+    std::filesystem::remove_all(folder);
 }

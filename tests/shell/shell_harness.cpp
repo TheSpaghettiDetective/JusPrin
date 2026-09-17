@@ -3400,9 +3400,132 @@ private:
                         std::cout << "seams on " << placement.region_id << " " << placement.kind << ": " << placement.seams << " of "
                                   << report.seams->count << std::endl;
                 self->check(seams_on_back, "slice_checks_seams_on_the_hidden_face");
-                self->finish_slice_checks(then);
+                self->verify_outputs(*plate);
+                self->verify_cancel(*plate, [self, then] { self->finish_slice_checks(then); });
             });
         });
+    }
+
+    // M6 through the real adapter, on the sliced plate: a rendered picture,
+    // a packed picture read back, the slice's layers and G-code, every export
+    // kind, and a cancelled slice; none may ask anything.
+    void verify_outputs(Workspace::PlateId plate)
+    {
+        auto* workspace = installed_shell()->workspace();
+        DialogCounter counter;
+
+        Workspace::RenderRequest render;
+        render.plate  = plate;
+        render.view   = "front";
+        render.width  = 640;
+        render.height = 480;
+        Workspace::RenderedImage picture;
+        const auto rendered = workspace->render_view(render, picture);
+        if (!rendered.succeeded()) std::cout << "render: " << rendered.message << std::endl;
+        check(rendered.succeeded() && picture.width == 640 && picture.height == 480 && picture.png.size() > 100 &&
+                  picture.png.compare(0, 8, std::string("\x89PNG\r\n\x1a\n", 8)) == 0,
+              "outputs_render_is_a_png");
+        // A plain background would compress to almost nothing; the plate's
+        // objects make a picture of some size.
+        std::cout << "rendered front view: " << picture.png.size() << " bytes" << std::endl;
+        check(picture.png.size() > 2000, "outputs_render_shows_something");
+
+        // A packed picture, larger than the cap, comes back scaled.
+        const fs::path pictures = fs::path(workspace->auxiliary_data_dir()) / "Model Pictures";
+        fs::create_directories(pictures);
+        {
+            wxImage large(2000, 1000);
+            large.SetRGB(wxRect(0, 0, 2000, 1000), 200, 60, 30);
+            large.SaveFile(wxString::FromUTF8((pictures / "cover.png").string()), wxBITMAP_TYPE_PNG);
+            std::ofstream((pictures / "notes.txt").string()) << "Print the bracket in PETG.";
+        }
+        Workspace::AttachmentContent cover, notes, escape;
+        check(workspace->read_attachment("Model Pictures/cover.png", cover).succeeded() && cover.kind == "image" &&
+                  cover.width == 1280 && cover.height == 640 && cover.truncated,
+              "outputs_attachment_picture_scaled");
+        check(workspace->read_attachment("Model Pictures/notes.txt", notes).succeeded() && notes.kind == "text" &&
+                  notes.data == "Print the bracket in PETG.",
+              "outputs_attachment_text");
+        check(!workspace->read_attachment("../Metadata/model_settings.config", escape).succeeded() &&
+                  !workspace->read_attachment("JusPrin/state.json", escape).succeeded(),
+              "outputs_attachment_stays_in_the_folder");
+        fs::remove_all(pictures);
+
+        Workspace::SliceInspectRequest inspect;
+        inspect.plate = plate;
+        inspect.count = 5;
+        const auto layers = workspace->inspect_slice(inspect);
+        check(layers.valid && layers.layer_count > 100 && layers.layers.size() == 5 && layers.next == 5 &&
+                  std::abs(layers.layers[0].z - 0.2) < 0.01 && layers.layers[1].seconds > 0 && !layers.layers[1].roles.empty(),
+              "outputs_inspect_layers");
+        if (layers.layers.size() > 1)
+            std::cout << "layer 1: z " << layers.layers[1].z << " time " << layers.layers[1].seconds << " s, speed "
+                      << layers.layers[1].speed_min << "-" << layers.layers[1].speed_max << ", roles " << layers.layers[1].roles.size()
+                      << std::endl;
+        inspect.gcode = true;
+        const auto gcode = workspace->inspect_slice(inspect);
+        check(gcode.valid && !gcode.gcode.empty() && gcode.gcode.size() <= 64 * 1024 && gcode.next.has_value(), "outputs_inspect_gcode");
+
+        const fs::path folder = fs::temp_directory_path() / fs::unique_path("jusprin-exports-%%%%");
+        fs::create_directories(folder);
+        const auto exported = [&](const std::string& kind, const fs::path& path, const char* name) {
+            Workspace::ExportRequest request;
+            request.kind  = kind;
+            request.path  = path.string();
+            request.plate = kind == "project_3mf" || kind == "presets" ? std::nullopt : std::optional<Workspace::PlateId>(plate);
+            Workspace::ExportResult result;
+            const auto done = workspace->export_file(request, result);
+            if (!done.succeeded()) std::cout << name << ": " << done.message << std::endl;
+            check(done.succeeded() && !result.files.empty() && result.bytes > 0, name);
+            return result;
+        };
+        exported("gcode", folder / "plate.gcode", "outputs_export_gcode");
+        std::string first_line;
+        {
+            std::ifstream written((folder / "plate.gcode").string());
+            std::getline(written, first_line);
+        }
+        check(!first_line.empty() && first_line[0] == ';', "outputs_export_gcode_is_gcode");
+        exported("sliced_3mf", folder / "plate.gcode.3mf", "outputs_export_sliced_3mf");
+        exported("project_3mf", folder / "project.3mf", "outputs_export_project_3mf");
+        exported("stl", folder / "plate.stl", "outputs_export_stl");
+        const auto presets = exported("presets", folder, "outputs_export_presets");
+        std::cout << "exported presets: " << presets.files.size() << " files" << std::endl;
+        Workspace::ExportRequest again;
+        again.kind = "gcode";
+        again.path = (folder / "plate.gcode").string();
+        check(!workspace->check_export(again).succeeded(), "outputs_export_refuses_to_replace_unasked");
+        again.path = "relative.gcode";
+        check(!workspace->check_export(again).succeeded(), "outputs_export_refuses_a_relative_path");
+        again.path = (fs::path(data_dir()) / "stolen.gcode").string();
+        again.overwrite = true;
+        check(!workspace->check_export(again).succeeded(), "outputs_export_refuses_the_data_folder");
+        boost::system::error_code removed;
+        fs::remove_all(folder, removed);
+        for (const auto& title : counter.titles) std::cout << "outputs dialog shown: " << title << std::endl;
+        check(counter.shown == 0, "outputs_show_no_dialog");
+    }
+
+    // A slice stopped while it runs, through the slicing notification's own
+    // Cancel.
+    void verify_cancel(Workspace::PlateId plate, std::function<void()> then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        const Workspace::SettingsPatch finer{{{"layer_height", "0.12"}}};
+        Workspace::SettingsPreview applied;
+        workspace->apply_settings(finer, Workspace::settings_confirmation(workspace->preview_settings(finer)), applied);
+        check(workspace->start_slice(plate, false).succeeded(), "outputs_cancel_slice_started");
+        wait_until([] { return installed_shell()->workspace()->snapshot().slicing.running; }, "outputs_cancel_slice_running",
+                   [self = shared_from_this(), then] {
+                       bool stopped = false;
+                       auto* workspace = installed_shell()->workspace();
+                       const bool done = workspace->cancel_slice(stopped).succeeded();
+                       std::cout << "cancel: succeeded " << done << " stopped " << stopped << " running after "
+                                 << workspace->snapshot().slicing.running << std::endl;
+                       self->check(done && stopped, "outputs_cancel_stops_the_slice");
+                       self->wait_until([] { return !installed_shell()->workspace()->snapshot().slicing.running; },
+                                        "outputs_cancel_slice_reported_stopped", then);
+                   });
     }
 
     void slice_then(const char* name, Workspace::PlateId plate, std::function<void()> then)

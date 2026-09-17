@@ -65,7 +65,7 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     Client rest(h.runtime.server(), request("tools/list", {{"cursor", "jusprin-v1:25"}}));
     REQUIRE(h.finish(rest));
     const auto remaining = rest.messages()[0]["result"]["tools"];
-    REQUIRE(remaining.size() == 1);
+    REQUIRE(remaining.size() == 6);
     CHECK(remaining.back()["name"] == "workspace_inspect");
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));

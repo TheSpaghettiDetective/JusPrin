@@ -301,6 +301,56 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                (!plane.contains("asParts") || plane["asParts"].is_boolean());
     }
 
+    if (definition.handler == ToolHandler::ViewRender) {
+        const auto size = [&arguments](const char* key) {
+            return !arguments.contains(key) || (arguments[key].is_number_unsigned() && arguments[key].get<std::uint64_t>() >= 64 &&
+                                                arguments[key].get<std::uint64_t>() <= 1280);
+        };
+        static const std::set<std::string> views{"iso", "front", "rear", "left", "right", "top", "bottom", "top_front", "plate"};
+        return has_only(arguments, {"plateId", "view", "widthPx", "heightPx"}) &&
+               (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
+               (!arguments.contains("view") || (arguments["view"].is_string() && views.count(arguments["view"].get<std::string>()))) &&
+               size("widthPx") && size("heightPx");
+    }
+
+    if (definition.handler == ToolHandler::AttachmentRead)
+        return has_only(arguments, {"id"}) && arguments.size() == 1 && arguments["id"].is_string() &&
+               !arguments["id"].get_ref<const std::string&>().empty() && arguments["id"].get_ref<const std::string&>().size() <= 512;
+
+    if (definition.handler == ToolHandler::SliceInspect) {
+        if (!has_only(arguments, {"plateId", "view", "first", "count"}) || !arguments.contains("view") ||
+            (arguments["view"] != "layers" && arguments["view"] != "gcode"))
+            return false;
+        return (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
+               (!arguments.contains("first") || arguments["first"].is_number_unsigned()) &&
+               (!arguments.contains("count") || (arguments["count"].is_number_unsigned() && arguments["count"].get<std::uint64_t>() >= 1 &&
+                                                 arguments["count"].get<std::uint64_t>() <= 100));
+    }
+
+    if (definition.handler == ToolHandler::ActivityCancel)
+        return has_only(arguments, {"handle"}) && arguments.size() == 1 && arguments["handle"].is_string() &&
+               !arguments["handle"].get_ref<const std::string&>().empty() && arguments["handle"].get_ref<const std::string&>().size() <= 64;
+
+    if (definition.handler == ToolHandler::ExportFile) {
+        static const std::set<std::string> kinds{"gcode", "sliced_3mf", "project_3mf", "stl", "presets"};
+        if (!has_only(arguments, {"sessionId", "kind", "path", "plateId", "objectIds", "overwrite"}) ||
+            !arguments.contains("sessionId") || !is_unsigned_string(arguments["sessionId"]) || !arguments.contains("kind") ||
+            !arguments["kind"].is_string() || !kinds.count(arguments["kind"].get<std::string>()) || !arguments.contains("path") ||
+            !arguments["path"].is_string() || arguments["path"].get_ref<const std::string&>().empty() ||
+            arguments["path"].get_ref<const std::string&>().size() > 1024)
+            return false;
+        if (arguments.contains("plateId") && (!is_unsigned_string(arguments["plateId"]) || arguments["kind"] == "project_3mf" ||
+                                              arguments["kind"] == "presets"))
+            return false;
+        if (arguments.contains("objectIds")) {
+            const json& ids = arguments["objectIds"];
+            if (arguments["kind"] != "stl" || arguments.contains("plateId") || !ids.is_array() || ids.empty() || ids.size() > 64 ||
+                !std::all_of(ids.begin(), ids.end(), [](const json& id) { return is_unsigned_string(id); }))
+                return false;
+        }
+        return !arguments.contains("overwrite") || arguments["overwrite"].is_boolean();
+    }
+
     if (definition.handler == ToolHandler::ObjectMerge) {
         if (!has_only(arguments, {"sessionId", "objectIds"}) || arguments.size() != 2 || !is_unsigned_string(arguments["sessionId"]))
             return false;
@@ -973,6 +1023,62 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"objectId", "transform", "sizeMm", "regionsUnbound", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectPlace},
+        {"view_render", "Picture a plate",
+         "Picture the prepare view of one plate (default the active plate) from a named view: iso (default), front, rear, left, right, top, bottom, top_front, or plate (straight down on the whole plate). The plate's printable objects are drawn without the bed, at widthPx by heightPx (64 to 1280, default 1024 by 768). The picture comes back beside the result: as an image block over MCP, and as an image in JusPrin. Use it to check how a placement or a divide looks.",
+         object_schema({{"plateId", id},
+                        {"view", {{"type", "string"}, {"enum", json::array({"iso", "front", "rear", "left", "right", "top", "bottom", "top_front", "plate"})}}},
+                        {"widthPx", {{"type", "integer"}, {"minimum", 64}, {"maximum", 1280}}},
+                        {"heightPx", {{"type", "integer"}, {"minimum", 64}, {"maximum", 1280}}}}),
+         object_schema({{"plateId", id}, {"view", id}, {"widthPx", integer_schema()}, {"heightPx", integer_schema()},
+                        {"mimeType", id}, {"bytes", integer_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"plateId", "view", "widthPx", "heightPx", "mimeType", "bytes", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ViewRender},
+        {"project_attachment_read", "Read a project attachment",
+         "Read one file packed in the project (its id from workspace_inspect's project section attachments): a picture comes back beside the result as an image (scaled to 1280 px and 2 MB when larger), text as text (up to 32 KB), and anything else as its name, type and size.",
+         object_schema({{"id", id}}, {"id"}),
+         object_schema({{"id", id}, {"folder", id}, {"kind", {{"type", "string"}, {"enum", json::array({"image", "text", "other"})}}},
+                        {"mimeType", id}, {"bytes", integer_schema()}, {"text", {{"type", "string"}, {"maxLength", 32 * 1024}}},
+                        {"widthPx", integer_schema()}, {"heightPx", integer_schema()}, {"truncated", boolean_schema()},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"id", "folder", "kind", "mimeType", "bytes", "truncated", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::AttachmentRead},
+        {"slice_inspect", "Inspect a slice in detail",
+         "Expert detail of a sliced plate (default the active plate). view layers: per layer, from first (default 0), up to count (1 to 100) layers: height, time, extrusion roles, speed, fan, temperature and volumetric flow ranges, with layerCount and the next first to ask for. view gcode: the G-code text from line first (0-based), up to 64 KB, with the next first. A plate that has not been sliced says so.",
+         object_schema({{"plateId", id}, {"view", {{"type", "string"}, {"enum", json::array({"layers", "gcode"})}}},
+                        {"first", integer_schema()}, {"count", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}},
+                       {"view"}),
+         object_schema({{"valid", boolean_schema()}, {"plateId", id}, {"view", id}, {"layerCount", integer_schema()},
+                        {"layers", array_schema(object_schema({{"index", integer_schema()}, {"zMm", number_schema()},
+                                                               {"heightMm", number_schema()}, {"seconds", number_schema()},
+                                                               {"roles", array_schema(string_schema(), 16)},
+                                                               {"speedMmS", before_after}, {"fanPercent", before_after},
+                                                               {"temperatureC", before_after}, {"flowMm3S", before_after}},
+                                                              {"index", "zMm", "heightMm", "seconds", "roles", "speedMmS", "fanPercent",
+                                                               "temperatureC", "flowMm3S"}), 100)},
+                        {"gcode", {{"type", "string"}, {"maxLength", 64 * 1024}}}, {"firstLine", integer_schema()},
+                        {"next", integer_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"valid", "plateId", "view", "sessionId", "revision"}),
+         ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceInspect},
+        {"activity_cancel", "Cancel a run",
+         "Stop something the tools started, by its handle: a slice (slice_start's handle), an arrange or orient job (plate_layout's or object_place's handle), or a call still waiting for approval (its action id). Says whether it stopped it; a job's end is read from workspace_inspect's slicing section. Runs without an approval card: the person can start any of these again.",
+         object_schema({{"handle", id}}, {"handle"}),
+         object_schema({{"handle", id}, {"kind", {{"type", "string"}, {"enum", json::array({"slice", "job", "proposal", "none"})}}},
+                        {"cancelled", boolean_schema()}, {"message", string_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"handle", "kind", "cancelled", "message", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ActivityCancel, true},
+        {"export_file", "Export a file",
+         "Write a file to an absolute path the user chose: gcode (a sliced plate's G-code, .gcode), sliced_3mf (a sliced plate with its G-code, .3mf), project_3mf (the whole project, .3mf, without changing which file the project is), stl (objectIds, or a plate's objects, as placed, .stl), or presets (the printer, filament and process presets in use, as files in the folder path). plateId picks the plate for gcode, sliced_3mf and stl (default the active plate). An existing file is replaced only with overwrite. The file is written only after approval: calling it shows the user an approval card in JusPrin with the exact path, and with the project's license when it restricts use, and waits for their decision.",
+         object_schema({{"sessionId", id},
+                        {"kind", {{"type", "string"}, {"enum", json::array({"gcode", "sliced_3mf", "project_3mf", "stl", "presets"})}}},
+                        {"path", id}, {"plateId", id},
+                        {"objectIds", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 64}}},
+                        {"overwrite", boolean_schema()}},
+                       {"sessionId", "kind", "path"}),
+         object_schema({{"kind", id}, {"files", array_schema(string_schema(), 32)}, {"bytes", integer_schema()},
+                        {"license", string_schema()}, {"licenseRestricted", boolean_schema()},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"kind", "files", "bytes", "license", "licenseRestricted", "sessionId", "revision"}),
+         ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ExportFile},
         {"object_divide_preview", "Preview dividing an object",
          "Work out, without changing anything, what object_divide would make: each piece's size, volume, centre and overhang area (downward faces steeper than the support threshold, as the piece would lie: an estimate of what needs support), the overhang area before, and the region annotations that dividing would unbind. Same arguments as object_divide.",
          object_schema({{"sessionId", id}, {"objectId", id},

@@ -58,6 +58,13 @@ public:
     CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
                                  std::vector<ObjectId>& added) override;
     CommandResult delete_items(const std::vector<DeleteItem>& items) override;
+    CommandResult render_view(const RenderRequest& request, RenderedImage& image) override;
+    CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override;
+    SliceInspection inspect_slice(const SliceInspectRequest& request) const override;
+    CommandResult check_export(const ExportRequest& request) const override;
+    CommandResult export_file(const ExportRequest& request, ExportResult& result) override;
+    CommandResult cancel_slice(bool& stopped) override;
+    CommandResult cancel_job(const std::string& handle, bool& stopped) override;
     CommandResult preview_divide(ObjectId id, const DivideRequest& request, DivideResult& result) const override;
     CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) override;
     CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) override;

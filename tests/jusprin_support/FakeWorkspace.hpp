@@ -322,6 +322,92 @@ public:
 
     // Objects and copies go; parts and plates are recorded only, since the
     // fixture keeps neither.
+    // Seeing and exporting. A render is a fixed tiny PNG; attachments are
+    // what a test puts in; a slice has three layers and three lines of
+    // G-code; an export writes the kind's name into the file.
+    CommandResult render_view(const RenderRequest& request, RenderedImage& image) override
+    {
+        const auto plate = request.plate ? request.plate : m_snapshot.active_plate;
+        if (!plate || std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [&](const auto& p) { return p.id == *plate; }))
+            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+        image = {*plate, request.view, request.width, request.height, std::string("\x89PNG\r\n\x1a\n", 8)};
+        return CommandResult::success();
+    }
+
+    CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override
+    {
+        const auto found = m_attachment_contents.find(id);
+        if (found == m_attachment_contents.end())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The project has no attachment " + id);
+        content = found->second;
+        return CommandResult::success();
+    }
+    std::map<std::string, AttachmentContent> m_attachment_contents;
+
+    SliceInspection inspect_slice(const SliceInspectRequest& request) const override
+    {
+        SliceInspection inspection;
+        const auto plate = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(), [&](const auto& p) { return p.id == request.plate; });
+        if (plate == m_snapshot.plates.end() || !plate->sliced)
+            return inspection;
+        inspection.valid = true;
+        if (request.gcode) {
+            inspection.gcode      = "G28\nG1 X10\nM104 S0\n";
+            inspection.first_line = request.first;
+            return inspection;
+        }
+        inspection.layer_count = 3;
+        for (std::size_t index = request.first; index < 3 && index < request.first + request.count; ++index)
+            inspection.layers.push_back({index, 0.2 * double(index + 1), 0.2, 30, {"Outer wall"}, 20, 60, 0, 100, 215, 215, 1, 8});
+        if (request.first + request.count < 3)
+            inspection.next = request.first + request.count;
+        return inspection;
+    }
+
+    CommandResult check_export(const ExportRequest& request) const override
+    {
+        if (!std::filesystem::u8path(request.path).is_absolute())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The export path must be absolute");
+        std::error_code error;
+        if (request.kind != "presets" && std::filesystem::exists(std::filesystem::u8path(request.path), error) && !request.overwrite)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, request.path + " exists; pass overwrite to replace it");
+        if (request.kind == "gcode" &&
+            std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [](const auto& p) { return p.sliced; }))
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Slice the plate first; it has no current G-code");
+        return CommandResult::success();
+    }
+
+    CommandResult export_file(const ExportRequest& request, ExportResult& result) override
+    {
+        if (CommandResult checked = check_export(request); !checked.succeeded())
+            return checked;
+        std::ofstream(std::filesystem::u8path(request.path), std::ios::binary) << request.kind;
+        result = {{request.path}, request.kind.size()};
+        ++exports;
+        return CommandResult::success();
+    }
+    std::size_t exports{0};
+
+    CommandResult cancel_slice(bool& stopped) override
+    {
+        stopped = m_snapshot.slicing.running;
+        if (stopped)
+            finish_slice_for_testing(false);
+        return CommandResult::success();
+    }
+
+    CommandResult cancel_job(const std::string& handle, bool& stopped) override
+    {
+        for (WorkspaceJob& job : m_snapshot.jobs)
+            if (job.handle == handle) {
+                stopped = job.state == "running";
+                if (stopped)
+                    job.state = "cancelled";
+                return CommandResult::success();
+            }
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "No job has the handle " + handle);
+    }
+
     // Reshaping: a divide or a split makes two pieces, the second a new
     // object; a merge makes a new object of the listed ones; a repair closes
     // the fixture's open edges once.

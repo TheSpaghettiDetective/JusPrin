@@ -524,6 +524,87 @@ struct DeleteItem
     PlateId       plate;
 };
 
+// A rendered picture of one plate as the prepare view shows it.
+struct RenderRequest
+{
+    std::optional<PlateId> plate;              // the active plate when absent
+    std::string            view{"iso"};        // iso, front, rear, left, right, top, bottom, top_front, plate
+    int                    width{1024};
+    int                    height{768};
+};
+
+struct RenderedImage
+{
+    PlateId     plate;
+    std::string view;
+    int         width{0};
+    int         height{0};
+    std::string png; // the encoded bytes
+};
+
+// One project attachment, read: an image as its bytes, text as text, and
+// anything else as what it is.
+struct AttachmentContent
+{
+    std::string   id;
+    std::string   folder;
+    std::string   mime_type;
+    std::uint64_t bytes{0};    // the file's size
+    std::string   kind;        // image, text, or other
+    std::string   data;        // image: encoded bytes (re-encoded when larger than the caps); text: the text
+    int           width{0};
+    int           height{0};
+    bool          truncated{false};
+};
+
+// Expert detail of a sliced plate: its layers, or its G-code text.
+struct SliceInspectRequest
+{
+    PlateId     plate;
+    bool        gcode{false};
+    std::size_t first{0}; // layer index, or 0-based line number
+    std::size_t count{100};
+};
+
+struct SliceLayer
+{
+    std::size_t              index{0};
+    double                   z{0};
+    double                   height{0};
+    double                   seconds{0};
+    std::vector<std::string> roles;
+    double                   speed_min{0}, speed_max{0};       // mm/s, extrusion moves
+    double                   fan_min{0}, fan_max{0};           // percent
+    double                   temperature_min{0}, temperature_max{0};
+    double                   flow_min{0}, flow_max{0};         // mm3/s
+};
+
+struct SliceInspection
+{
+    bool                    valid{false};
+    std::size_t             layer_count{0};
+    std::vector<SliceLayer> layers;
+    std::string             gcode;
+    std::size_t             first_line{0};
+    std::optional<std::size_t> next; // where the next call starts, absent at the end
+};
+
+// What export_file writes.
+struct ExportRequest
+{
+    std::string              kind;   // gcode, sliced_3mf, project_3mf, stl, presets
+    std::string              path;   // absolute, UTF-8; a folder for presets
+    std::optional<PlateId>   plate;  // gcode, sliced_3mf, stl: the active plate when absent
+    std::vector<ObjectId>    objects; // stl: these objects instead of the plate's
+    bool                     overwrite{false};
+};
+
+struct ExportResult
+{
+    std::vector<std::string> files;
+    std::uint64_t            bytes{0};
+};
+
 // Dividing an object: by a plane given in the world frame as the object
 // stands now, the side its normal points to being the upper piece; or into
 // its separate shells, as objects or as parts of the same object.
@@ -1325,6 +1406,19 @@ public:
     // export_project_archive this is the project, not a copy of it.
     virtual CommandResult save_project(const std::string& file_path) = 0;
     virtual ProjectDetails project_details() const = 0;
+
+    // Seeing and exporting. `render_view` draws one plate offscreen;
+    // `read_attachment` reads a file the project lists as an attachment;
+    // `inspect_slice` reads a current slice; `check_export` refuses what
+    // `export_file` would refuse, without writing; the cancels stop a run
+    // and say whether they stopped it.
+    virtual CommandResult render_view(const RenderRequest& request, RenderedImage& image) = 0;
+    virtual CommandResult read_attachment(const std::string& id, AttachmentContent& content) const = 0;
+    virtual SliceInspection inspect_slice(const SliceInspectRequest& request) const = 0;
+    virtual CommandResult check_export(const ExportRequest& request) const = 0;
+    virtual CommandResult export_file(const ExportRequest& request, ExportResult& result) = 0;
+    virtual CommandResult cancel_slice(bool& stopped) = 0;
+    virtual CommandResult cancel_job(const std::string& handle, bool& stopped) = 0;
     virtual CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) = 0;
 
     // Imports a model or project file's geometry into the CURRENT project,

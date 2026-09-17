@@ -1,4 +1,5 @@
 #include "ToolExecutionCoordinator.hpp"
+#include "Base64.hpp"
 #include "IntentChecks.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
@@ -7,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cmath>
+#include <cctype>
 #include <filesystem>
 #include <set>
 #include <sstream>
@@ -77,6 +79,36 @@ std::optional<Workspace::ObjectId> parse_object_argument(const std::string& argu
     } catch (const std::exception&) {
         return std::nullopt;
     }
+}
+
+// A license that limits what may be done with the prints or the files.
+bool license_restricts(const std::string& license)
+{
+    std::string lower = license;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+    for (char& c : lower)
+        if (c == '_' || c == ' ')
+            c = '-';
+    lower = "-" + lower + "-";
+    for (const char* mark : {"-nc-", "-nd-", "noncommercial", "non-commercial", "noderivatives", "no-derivatives",
+                             "all-rights-reserved", "personal-use"})
+        if (lower.find(mark) != std::string::npos)
+            return true;
+    return false;
+}
+
+Workspace::ExportRequest export_request(const json& arguments)
+{
+    const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
+    Workspace::ExportRequest request;
+    request.kind      = arguments["kind"];
+    request.path      = arguments["path"];
+    request.overwrite = arguments.value("overwrite", false);
+    if (arguments.contains("plateId"))
+        request.plate = Workspace::PlateId(session, std::stoull(arguments["plateId"].get<std::string>()));
+    for (const json& id : arguments.value("objectIds", json::array()))
+        request.objects.emplace_back(session, std::stoull(id.get<std::string>()));
+    return request;
 }
 
 Workspace::DivideRequest divide_request(const json& arguments)
@@ -234,6 +266,11 @@ ToolExecutionCoordinator::ToolExecutionCoordinator(Workspace::IWorkspace& worksp
     : m_workspace(workspace), m_registry(registry), m_observers(std::make_shared<ObserverState>())
 {
     m_workspace_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
+        if (!m_slice_handle.empty() && !m_slice_ended) {
+            const bool running = m_workspace.snapshot().slicing.running;
+            m_slice_seen_running = m_slice_seen_running || running;
+            m_slice_ended        = m_slice_seen_running && !running;
+        }
         invalidate_pending(change);
     });
 }
@@ -369,6 +406,29 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
             stored.title += (index == 0 ? " " : ", ") + number_words(size[0]) + " x " + number_words(size[1]) + " x " +
                             number_words(size[2]) + " mm";
         }
+        bounded_title();
+    }
+
+    if (definition->handler == ToolHandler::ExportFile) {
+        // The path is checked, and the card says it, before anything is
+        // written; the license is read from the project now.
+        const auto arguments = json::parse(stored.arguments_json);
+        const auto request   = export_request(arguments);
+        const auto checked   = m_workspace.check_export(request);
+        if (!checked.succeeded()) {
+            fail(stored, workspace_error_code(checked.error), checked.message);
+            return stored;
+        }
+        const std::string what = request.kind == "gcode"      ? "the G-code" :
+                                 request.kind == "sliced_3mf" ? "the sliced plate" :
+                                 request.kind == "project_3mf" ? "the project" :
+                                 request.kind == "stl"        ? "an STL" : "the presets in use";
+        std::error_code error;
+        const bool replaces = std::filesystem::exists(std::filesystem::u8path(request.path), error) && request.kind != "presets";
+        stored.title = "Export " + what + " to " + request.path + (replaces ? ", replacing it" : "");
+        const std::string license = m_workspace.project_details().license;
+        if (license_restricts(license))
+            stored.title += "; the project's license is " + license;
         bounded_title();
     }
 
@@ -1168,6 +1228,161 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    if (definition->handler == ToolHandler::ViewRender) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto snapshot  = m_workspace.snapshot();
+        Workspace::RenderRequest request;
+        if (arguments.contains("plateId"))
+            request.plate = Workspace::PlateId(snapshot.session, std::stoull(arguments["plateId"].get<std::string>()));
+        request.view   = arguments.value("view", "iso");
+        request.width  = arguments.value("widthPx", 1024);
+        request.height = arguments.value("heightPx", 768);
+        Workspace::RenderedImage rendered;
+        const auto done = m_workspace.render_view(request, rendered);
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        activity.image = std::make_shared<ToolImage>(ToolImage{"image/png", base64_bytes(rendered.png), rendered.width, rendered.height});
+        activity.result_json = json{{"plateId", std::to_string(rendered.plate.value())}, {"view", rendered.view},
+                                    {"widthPx", rendered.width}, {"heightPx", rendered.height}, {"mimeType", "image/png"},
+                                    {"bytes", rendered.png.size()},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::AttachmentRead) {
+        const auto arguments = json::parse(activity.arguments_json);
+        Workspace::AttachmentContent content;
+        const auto done = m_workspace.read_attachment(arguments["id"], content);
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        json result{{"id", content.id}, {"folder", content.folder}, {"kind", content.kind}, {"mimeType", content.mime_type},
+                    {"bytes", content.bytes}, {"truncated", content.truncated},
+                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+        if (content.kind == "image") {
+            activity.image = std::make_shared<ToolImage>(ToolImage{content.mime_type, base64_bytes(content.data), content.width, content.height});
+            result["widthPx"]  = content.width;
+            result["heightPx"] = content.height;
+        } else if (content.kind == "text") {
+            result["text"] = content.data;
+        }
+        activity.result_json = result.dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::SliceInspect) {
+        const auto arguments = json::parse(activity.arguments_json);
+        const auto snapshot  = m_workspace.snapshot();
+        std::optional<Workspace::PlateId> plate = snapshot.active_plate;
+        if (arguments.contains("plateId"))
+            plate = Workspace::PlateId(snapshot.session, std::stoull(arguments["plateId"].get<std::string>()));
+        if (!plate) {
+            fail(activity, "unavailable_operation", "This project has no plate to inspect.");
+            return;
+        }
+        Workspace::SliceInspectRequest request;
+        request.plate = *plate;
+        request.gcode = arguments["view"] == "gcode";
+        request.first = arguments.value("first", std::size_t(0));
+        request.count = arguments.value("count", std::size_t(100));
+        const auto inspection = m_workspace.inspect_slice(request);
+        json result{{"valid", inspection.valid}, {"plateId", std::to_string(plate->value())}, {"view", arguments["view"]},
+                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+        const auto range = [](double low, double high) {
+            return json{{"before", std::round(low * 100) / 100}, {"after", std::round(high * 100) / 100}};
+        };
+        if (inspection.valid && request.gcode) {
+            result["gcode"]     = inspection.gcode;
+            result["firstLine"] = inspection.first_line;
+        } else if (inspection.valid) {
+            json layers = json::array();
+            for (const Workspace::SliceLayer& layer : inspection.layers)
+                layers.push_back({{"index", layer.index}, {"zMm", std::round(layer.z * 1000) / 1000},
+                                  {"heightMm", std::round(layer.height * 1000) / 1000}, {"seconds", std::round(layer.seconds * 10) / 10},
+                                  {"roles", layer.roles}, {"speedMmS", range(layer.speed_min, layer.speed_max)},
+                                  {"fanPercent", range(layer.fan_min, layer.fan_max)},
+                                  {"temperatureC", range(layer.temperature_min, layer.temperature_max)},
+                                  {"flowMm3S", range(layer.flow_min, layer.flow_max)}});
+            result["layers"]     = std::move(layers);
+            result["layerCount"] = inspection.layer_count;
+        }
+        if (inspection.next)
+            result["next"] = *inspection.next;
+        activity.result_json = result.dump();
+        activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ActivityCancel) {
+        const std::string handle = json::parse(activity.arguments_json)["handle"];
+        const auto        before = m_workspace.snapshot();
+        std::string kind = "none", message;
+        bool        cancelled = false;
+        const ToolActivity* target = find(handle);
+        if (target != nullptr && target->action_id != activity.action_id && target->state == ToolState::Pending) {
+            kind      = "proposal";
+            cancelled = cancel(handle);
+            message   = cancelled ? "The waiting call was cancelled." : "The call had already been decided.";
+        } else if (handle == m_slice_handle && !handle.empty()) {
+            kind = "slice";
+            if (before.slicing.running && !m_slice_ended)
+                m_workspace.cancel_slice(cancelled);
+            message = cancelled ? "The slice was stopped." :
+                                  "That slice has ended; a slice started since is not the tools' to stop.";
+        } else if (std::any_of(before.jobs.begin(), before.jobs.end(), [&handle](const auto& job) { return job.handle == handle; })) {
+            kind = "job";
+            const auto done = m_workspace.cancel_job(handle, cancelled);
+            if (!done.succeeded()) {
+                fail(activity, workspace_error_code(done.error), done.message);
+                return;
+            }
+            message = cancelled ? "Cancelling the job; its end shows in workspace_inspect's slicing section." : "That job had already ended.";
+        } else {
+            fail(activity, "invalid_argument", "Nothing the tools started has the handle " + handle + ".");
+            return;
+        }
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"handle", handle}, {"kind", kind}, {"cancelled", cancelled}, {"message", message},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ExportFile) {
+        const auto request = export_request(json::parse(activity.arguments_json));
+        Workspace::ExportResult exported;
+        const auto done = m_workspace.export_file(request, exported);
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        const std::string license  = m_workspace.project_details().license;
+        const auto        snapshot = m_workspace.snapshot();
+        json              files    = json::array();
+        for (const std::string& file : exported.files)
+            if (files.size() < 32)
+                files.push_back(file);
+        activity.result_json = json{{"kind", request.kind}, {"files", std::move(files)}, {"bytes", exported.bytes},
+                                    {"license", license}, {"licenseRestricted", license_restricts(license)},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
     if (definition->handler == ToolHandler::ObjectDividePreview) {
         const auto object = parse_object_argument(activity.arguments_json);
         Workspace::DivideResult preview;
@@ -1512,6 +1727,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         // caller finds it again in the slicing section, which is where the
         // result appears when the slicer is done.
         m_slice_handle       = activity.action_id;
+        // The run may already be under way (and seen) when start returns.
+        m_slice_seen_running = m_workspace.snapshot().slicing.running;
+        m_slice_ended        = false;
         if (arguments.value("wait", false)) {
             m_slice_waits[activity.action_id] = {plate, false, std::chrono::steady_clock::now()};
             return;

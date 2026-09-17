@@ -172,6 +172,10 @@ private:
     // The slice_start call behind the run now in flight, so the slicing
     // section can say which handle a reader is watching.
     std::string                      m_slice_handle;
+    // Whether the run m_slice_handle started has been seen, and has ended. A
+    // later run is the person's, and activity_cancel does not stop it.
+    bool                             m_slice_seen_running{false};
+    bool                             m_slice_ended{false};
     std::string                      m_executing;
     ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
