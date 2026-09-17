@@ -1861,6 +1861,37 @@ TEST_CASE("a title failure stays separate from a successful conversation", "[age
     CHECK(harness.persistence.document().conversations().front().title == "My print");
 }
 
+TEST_CASE("a chat title is made from the user's words, not the reply", "[agent][bridge][conversations]")
+{
+    // With the reply beside the user's message, gpt-5.4-mini titled an English
+    // chat in Chinese; the title request carries only what the user wrote.
+    class RecordingAgent : public DeterministicMockAgent {
+    public:
+        bool start(const AgentRequest& request) override
+        {
+            requests.push_back(request);
+            return DeterministicMockAgent::start(request);
+        }
+        std::vector<AgentRequest> requests;
+    };
+    auto provider = std::make_unique<RecordingAgent>();
+    RecordingAgent* recording = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    const std::string text = "Turn on tree supports, only where they touch the build plate, and add a brim around the model.";
+    harness.send_user_message(text, "title-language");
+    harness.pump_all();
+    REQUIRE(harness.host.conversation().size() == 2);
+    REQUIRE_FALSE(harness.host.conversation().back().text.empty());
+
+    REQUIRE(recording->requests.size() == 2);
+    const AgentRequest& title = recording->requests.back();
+    CHECK(title.purpose == AgentRequest::Purpose::ConversationTitle);
+    REQUIRE(title.conversation.size() == 1);
+    CHECK(title.conversation.front().role == "user");
+    CHECK(title.conversation.front().text == text);
+}
+
 TEST_CASE("mcp_catalog lists stdio discovery entries without a live URL payload", "[agent][mcp_setup]")
 {
     Harness harness;
