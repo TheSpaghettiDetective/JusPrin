@@ -7,6 +7,7 @@ import { SetupCard } from './components/SetupCard';
 import { ChatHeader, ChatList } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
+import { PlanActivityCard, planHeadline, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
 import {
   AgentNotConfiguredHeader,
@@ -272,6 +273,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
   const externalActions = state.toolActivities.filter((activity) => activity.source === 'mcp' && activity.requiresApproval);
+  const externalPlans = planMembers(externalActions);
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
     ['pending', 'approved', 'running'].includes(activity.state));
@@ -362,8 +364,15 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       {errorNotice}
       {externalActions.length > 0 && <section className="external-actions" aria-label="External AI tools">
         <h2>External AI tools</h2>
-        {externalActions.map((activity) => <ToolActivityCard key={activity.actionId} activity={activity}
-          onDecision={sendToolDecision} onCancel={sendToolCancel} />)}
+        {externalActions.map((activity) => {
+          const members = activity.planId ? externalPlans.get(activity.planId) : undefined;
+          if (members && members[0].actionId !== activity.actionId) return null;
+          return members
+            ? <PlanActivityCard key={activity.actionId} members={members} headline={planHeadline(state.toolActivities)}
+                onDecision={sendToolDecision} onCancel={sendToolCancel} />
+            : <ToolActivityCard key={activity.actionId} activity={activity}
+                onDecision={sendToolDecision} onCancel={sendToolCancel} />;
+        })}
       </section>}
       {view === 'list' && chatList}
       <div className="chat-content" hidden={view === 'list'}>

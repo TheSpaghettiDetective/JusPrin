@@ -115,6 +115,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     activity.server         = "jusprin-native";
     activity.tool           = "plate_layout";
     activity.state          = ToolState::Succeeded;
+    activity.plan_id        = "upright";
     document.upsert_activity(activity, kT);
 
     ProjectStateDocument reloaded;
@@ -130,6 +131,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     REQUIRE(reloaded.activities().size() == 1);
     CHECK(reloaded.activities()[0].state == ToolState::Succeeded);
     CHECK(reloaded.activities()[0].source == ToolSource::Agent);
+    CHECK(reloaded.activities()[0].plan_id == "upright");
 
     SECTION("counters continue after a reload so IDs stay unique") {
         const std::string next_id = reloaded.allocate_message_id();

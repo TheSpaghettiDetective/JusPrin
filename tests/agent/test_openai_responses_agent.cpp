@@ -96,9 +96,8 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         const std::string name = tool["name"];
         // Strict mode cannot express an optional argument, so a tool gains one by
         // giving it up: workspace_inspect did when it gained sections, settings_get
-        // when it gained a target.
-        CHECK(tool["strict"] == (name == "history_restore" || name == "printer_list" || name == "object_merge" || name == "project_attachment_read" || name == "activity_cancel" ||
-                                 name == "object_repair"));
+        // when it gained a target, and every mutation when it gained planId.
+        CHECK(tool["strict"] == (name == "printer_list" || name == "project_attachment_read"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
         REQUIRE(definition != nullptr);

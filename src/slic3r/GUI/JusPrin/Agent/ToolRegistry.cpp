@@ -131,14 +131,14 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true; // the summary, as every caller before sections existed asked for
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 8)
+        if (!sections.is_array() || sections.empty() || sections.size() > 9)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer" && name != "project" && name != "objects") ||
+            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "history" && name != "printer" && name != "project" && name != "objects" && name != "activities") ||
                 !seen.insert(name).second)
                 return false;
         }
@@ -870,7 +870,7 @@ std::vector<ToolDefinition> make_definitions()
          intent_output,
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::IntentUpdate},
         {"plan_set", "Pin your plan for this print",
-         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan. Runs without an approval card because it records only your own words; project Undo does not undo this.",
+         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan. Runs without an approval card because it records only your own words; project Undo does not undo this. To have the user approve several changes at once, give each the same planId: each returns queued, and after the last one end your turn and ask for the approval; workspace_inspect activities shows how they ended.",
          object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
                                                                                       {"confidence", id}, {"alternative", text}},
                                                                                      {"topic", "statement"}), 16)},
@@ -1290,18 +1290,22 @@ std::vector<ToolDefinition> make_definitions()
          true},
         {"workspace_inspect",
          "Inspect the live workspace",
-         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+         "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, and a slice in flight), history (the undo steps, for history_restore), activities (the latest tool calls with their state, plan and error, to learn how an approved plan ended), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},
                                       {"items", {{"type", "string"},
-                                                 {"enum", json::array({"summary", "project", "objects", "intent", "plan", "slicing", "history", "printer"})}}},
-                                      {"maxItems", 8}}}}),
+                                                 {"enum", json::array({"summary", "project", "objects", "intent", "plan", "slicing", "history", "printer", "activities"})}}},
+                                      {"maxItems", 9}}}}),
          object_schema({{"intent", intent_section}, {"plan", plan_section}, {"slicing", slicing_section},
                         {"printer", printer_section}, {"project", project_section}, {"objects", objects_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
                          {"plateCount", revision}, {"objectCount", revision}, {"plates", list_schema(plate_summary)},
                          {"selection", selection_summary}, {"truncated", boolean_schema()},
-                         {"history", history_section}},
+                         {"history", history_section},
+                         {"activities", array_schema(object_schema({{"actionId", string_schema()}, {"tool", string_schema()}, {"title", string_schema()},
+                                                                   {"state", string_schema()}, {"planId", string_schema()},
+                                                                   {"error", object_schema({{"code", string_schema()}, {"message", string_schema()}}, json::array({"code", "message"}))}},
+                                                                  json::array({"actionId", "tool", "title", "state"})), 20)}},
                          // Only the identity is unconditional. The summary's own fields are
                          // present whenever the summary section is asked for, which is the
                          // default, so a caller that sends no sections sees what it always saw.
@@ -1354,6 +1358,12 @@ std::vector<ToolDefinition> make_definitions()
          ToolAvailability::Always,
          ToolHandler::RecordPhysicalPrint},
     };
+    // Every mutation can join a plan; the decoders never see the field.
+    for (ToolDefinition& definition : definitions)
+        if (definition.action_class != ActionClass::ReadOnly)
+            definition.input_schema["properties"]["planId"] = {
+                {"type", "string"}, {"maxLength", 64},
+                {"description", "Calls with the same planId share one approval card and run in order; each returns queued."}};
     std::sort(definitions.begin(), definitions.end(),
               [](const ToolDefinition& lhs, const ToolDefinition& rhs) { return lhs.name < rhs.name; });
     return definitions;
@@ -1441,6 +1451,18 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                                                  const std::string&    arguments_json) const
 {
     json arguments = json::parse(arguments_json, nullptr, false);
+    // A plan id belongs to the coordinator, not the tool: checked here, kept
+    // out of the tool's own decoder, and put back for the proposal to read.
+    std::optional<json> plan_id;
+    if (arguments.is_object() && arguments.contains("planId")) {
+        plan_id = arguments["planId"];
+        arguments.erase("planId");
+        if (definition.action_class == ActionClass::ReadOnly || !plan_id->is_string() || plan_id->get_ref<const std::string&>().empty() ||
+            plan_id->get_ref<const std::string&>().size() > 64)
+            return {{}, ToolError{"invalid_arguments", definition.action_class == ActionClass::ReadOnly ?
+                                                           "A read does not join a plan; only changes take a planId." :
+                                                           "planId must be a string of 1 to 64 characters."}};
+    }
     if (arguments.is_discarded() || !valid_arguments(definition, arguments)) {
         // Name what is plainly wrong at the top level; the rest is in the
         // schema the caller already has.
@@ -1471,6 +1493,8 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
         for (auto& row : arguments["regions"])
             if (row.contains("settings"))
                 canonical(row["settings"]);
+    if (plan_id)
+        arguments["planId"] = *plan_id;
     return {arguments.dump(), std::nullopt};
 }
 

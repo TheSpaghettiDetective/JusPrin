@@ -266,6 +266,7 @@ export interface ToolActivityInfo {
   arguments: Record<string, unknown>;
   actionClass: ActionClassName;
   requiresApproval: boolean;
+  planId?: string; // calls sharing it are decided on one card and run in order
   sessionId: string;
   expectedRevision: number;
   state: ToolStateName;

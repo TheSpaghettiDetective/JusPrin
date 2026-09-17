@@ -26,6 +26,21 @@ constexpr bool tool_state_terminal(ToolState state)
            state == ToolState::Rejected;
 }
 
+// The name the page, the saved state and the tools use.
+constexpr const char* tool_state_name(ToolState state)
+{
+    switch (state) {
+    case ToolState::Pending: return "pending";
+    case ToolState::Approved: return "approved";
+    case ToolState::Running: return "running";
+    case ToolState::Succeeded: return "succeeded";
+    case ToolState::Failed: return "failed";
+    case ToolState::Cancelled: return "cancelled";
+    case ToolState::Rejected: return "rejected";
+    }
+    return "pending";
+}
+
 // Approval classes from the handoff policy. ReadOnly actions do not change
 // durable project or external state; Mutation actions durably change the
 // project; Destructive actions revert, delete, overwrite, discard, print, or
@@ -106,6 +121,9 @@ struct ToolActivity
     int           progress_total{1};
     std::string   result_json; // structured result when Succeeded
     std::shared_ptr<const ToolImage> image; // a picture beside the result, when the tool returns one
+    // Calls sharing a plan id wait for one approval and run in the order they
+    // were proposed; empty for a call on its own.
+    std::string   plan_id;
     std::optional<ToolError> error;
     ToolSource source{ToolSource::Agent};
 };

@@ -769,6 +769,19 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   accent-color: var(--action-primary);
 }
 
+.tool-card .plan-members {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.tool-card .plan-member {
+  font: var(--font-label);
+}
+
+.tool-card .plan-member .tool-state {
+  margin-left: 8px;
+}
+
 .tool-card.state-cancelled,
 .tool-card.state-rejected {
   border-left-color: var(--border-subtle);

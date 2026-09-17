@@ -72,20 +72,6 @@ json message_json(const ConversationMessage& message)
     return result;
 }
 
-const char* tool_state_name(ToolState state)
-{
-    switch (state) {
-    case ToolState::Pending: return "pending";
-    case ToolState::Approved: return "approved";
-    case ToolState::Running: return "running";
-    case ToolState::Succeeded: return "succeeded";
-    case ToolState::Failed: return "failed";
-    case ToolState::Cancelled: return "cancelled";
-    case ToolState::Rejected: return "rejected";
-    }
-    return "pending";
-}
-
 const char* action_class_name(ActionClass action_class)
 {
     switch (action_class) {
@@ -117,6 +103,8 @@ json activity_json(const ToolActivity& activity)
                 {"expectedRevision", activity.expected_revision},
                 {"state", tool_state_name(activity.state)},
                 {"progress", json{{"current", activity.progress_current}, {"total", activity.progress_total}}}};
+    if (!activity.plan_id.empty())
+        result["planId"] = activity.plan_id;
     if (!activity.result_json.empty())
         result["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
@@ -1694,9 +1682,11 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
         // A call refused at proposal (a stale revision, an invalid patch) was
         // already terminal when the coordinator announced it, before this
         // continuation existed; hand the agent its result now.
-        if (tool_state_terminal(proposed.state)) {
-            const ToolActivity refused = proposed;
-            continue_after_tool(refused);
+        // A plan member waits for the plan's one card, which the person
+        // decides after this turn ends; the agent hears it is queued now.
+        if (tool_state_terminal(proposed.state) || (!proposed.plan_id.empty() && proposed.state == ToolState::Pending)) {
+            const ToolActivity answered = proposed;
+            continue_after_tool(answered);
         }
     } else {
         start_next_queued_reply();
@@ -1783,7 +1773,8 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     m_tool_continuations.erase(found);
 
     const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
-    json output{{"state", tool_state_name(activity.state)},
+    const bool queued = activity.state == ToolState::Pending;
+    json output{{"state", queued ? "queued" : tool_state_name(activity.state)},
                 {"actionId", activity.action_id},
                 {"workspaceRevision", current_workspace.revision},
                 {"workspace", context_json(current_workspace, agent_authored_keys(current_workspace))}};
@@ -1792,10 +1783,16 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     if (activity.error)
         output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
                                 {"details", json::parse(activity.error->details_json)}};
+    if (queued) {
+        output["planId"]  = activity.plan_id;
+        output["message"] = "Queued in plan " + activity.plan_id +
+                            ". Propose the plan's remaining calls with the same planId, then end your turn and ask the user to "
+                            "approve the plan card. Nothing has run yet.";
+    }
 
     AgentToolResult result;
     result.call_id     = continuation.call_id;
-    result.state       = tool_state_name(activity.state);
+    result.state       = queued ? "queued" : tool_state_name(activity.state);
     result.output_json = output.dump();
     result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {

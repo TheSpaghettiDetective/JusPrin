@@ -331,6 +331,14 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         return stored;
     }
     stored.arguments_json = std::move(validation.arguments_json);
+    {
+        const json arguments = json::parse(stored.arguments_json);
+        stored.plan_id       = arguments.value("planId", "");
+        // A plan waits for its card as a whole, including the members that
+        // would otherwise run without one.
+        if (!stored.plan_id.empty())
+            stored.requires_approval = true;
+    }
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
 
     if (definition->handler == ToolHandler::HistoryRestore) {
@@ -707,7 +715,19 @@ bool ToolExecutionCoordinator::approve(const std::string& action_id)
         fail(*activity, "stale_revision", "The project changed after this action was proposed. Ask the Agent again.");
         return false;
     }
-    start_running(*activity);
+    if (activity->plan_id.empty()) {
+        start_running(*activity);
+        return true;
+    }
+    // One decision for the whole plan, in the order it was proposed.
+    const std::string plan = activity->plan_id;
+    std::vector<std::string> members;
+    for (const ToolActivity& member : m_activities)
+        if (member.plan_id == plan && member.state == ToolState::Pending)
+            members.push_back(member.action_id);
+    for (const std::string& id : members)
+        if (ToolActivity* member = find_mutable(id); member != nullptr && member->state == ToolState::Pending)
+            start_running(*member);
     return true;
 }
 
@@ -718,6 +738,18 @@ bool ToolExecutionCoordinator::reject(const std::string& action_id)
         return false;
     activity->state = ToolState::Rejected;
     notify(*activity);
+    if (!activity->plan_id.empty()) {
+        const std::string plan = activity->plan_id;
+        std::vector<std::string> members;
+        for (const ToolActivity& member : m_activities)
+            if (member.plan_id == plan && member.state == ToolState::Pending)
+                members.push_back(member.action_id);
+        for (const std::string& id : members)
+            if (ToolActivity* member = find_mutable(id); member != nullptr && member->state == ToolState::Pending) {
+                member->state = ToolState::Rejected;
+                notify(*member);
+            }
+    }
     return true;
 }
 
@@ -801,8 +833,14 @@ void ToolExecutionCoordinator::finish_slice_waits()
 void ToolExecutionCoordinator::pump()
 {
     finish_slice_waits();
+    std::set<std::string> busy_plans; // plans with an earlier member still running
     for (ToolActivity& activity : m_activities) {
-        if (activity.state != ToolState::Running || m_slice_waits.count(activity.action_id))
+        if (activity.state != ToolState::Running || m_slice_waits.count(activity.action_id)) {
+            if (!activity.plan_id.empty() && activity.state == ToolState::Running)
+                busy_plans.insert(activity.plan_id);
+            continue;
+        }
+        if (!activity.plan_id.empty() && busy_plans.count(activity.plan_id))
             continue;
         if (activity.progress_current + 1 < activity.progress_total) {
             ++activity.progress_current;
@@ -868,9 +906,14 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     // redirect a proposal pinned to an object ID and do not invalidate it.
     // Every mutation is rechecked, not only the ones that waited for a card: a
     // computation-only action skips approval, not staleness.
+    // An approved plan's members follow one another: the changes its own
+    // earlier members made do not make the later ones stale, and any other
+    // change since the proposal does.
     const std::uint64_t invalidated = settings_patch_tool(activity.tool) ? m_last_settings_revision : m_last_invalidating_revision;
+    const bool          changed     = activity.plan_id.empty() ? invalidated > activity.expected_revision :
+                                                                 m_disturbed_plans.count(activity.plan_id) != 0;
     if (activity.action_class != ActionClass::ReadOnly &&
-        (m_workspace.snapshot().session.value() != activity.session || invalidated > activity.expected_revision)) {
+        (m_workspace.snapshot().session.value() != activity.session || changed)) {
         fail(activity, "stale_revision", "The project changed before this action could execute. Propose it again.");
         return;
     }
@@ -893,7 +936,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer"), asked("project"), asked("objects")};
+            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
         }
         if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
@@ -914,6 +957,22 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         if (sections.objects) result["objects"] = objects_section_result(m_workspace.object_details());
         if (sections.project) result["project"] = project_section_result(m_workspace.snapshot(), m_workspace.project_details());
         if (sections.history) result["history"] = history_section_result(m_workspace.snapshot(), m_workspace.history());
+        if (sections.activities) {
+            // The latest calls of either adapter, oldest first: how a queued
+            // plan's members ended, after the turn that proposed them.
+            constexpr std::size_t kRecentActivities = 20;
+            result["activities"] = json::array();
+            const std::size_t first = m_activities.size() > kRecentActivities + 1 ? m_activities.size() - kRecentActivities - 1 : 0;
+            for (std::size_t index = first; index < m_activities.size(); ++index) {
+                const ToolActivity& recent = m_activities[index];
+                if (recent.action_id == activity.action_id)
+                    continue;
+                json row{{"actionId", recent.action_id}, {"tool", recent.tool}, {"title", recent.title}, {"state", tool_state_name(recent.state)}};
+                if (!recent.plan_id.empty()) row["planId"] = recent.plan_id;
+                if (recent.error) row["error"] = json{{"code", recent.error->code}, {"message", recent.error->message}};
+                result["activities"].push_back(std::move(row));
+            }
+        }
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
@@ -1848,7 +1907,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         const auto args = json::parse(activity.arguments_json);
         const auto before = m_workspace.snapshot();
-        if (!settings_revision_holds(args, before, m_last_settings_revision)) {
+        // A plan's earlier members may have changed settings since this patch
+        // was read; its confirmed values still guard every key it writes.
+        if (!settings_revision_holds(args, before, activity.plan_id.empty() ? m_last_settings_revision : 0)) {
             fail(activity, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(args, before).dump());
             return;
         }
@@ -1928,6 +1989,19 @@ void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, st
     activity.state = ToolState::Failed;
     activity.error = ToolError{std::move(code), std::move(message), std::move(details_json)};
     notify(activity);
+    // A plan stops at its first failure: the members approved after it
+    // do not run.
+    if (!activity.plan_id.empty()) {
+        const std::string plan = activity.plan_id, failed = activity.action_id;
+        std::vector<std::string> rest;
+        for (const ToolActivity& member : m_activities)
+            if (member.plan_id == plan && member.action_id != failed &&
+                (member.state == ToolState::Approved || member.state == ToolState::Running))
+                rest.push_back(member.action_id);
+        for (const std::string& id : rest)
+            if (ToolActivity* member = find_mutable(id); member != nullptr && !tool_state_terminal(member->state))
+                fail(*member, "plan_step_failed", "An earlier call of this plan failed, so this one did not run.");
+    }
 }
 
 void ToolExecutionCoordinator::notify(const ToolActivity& activity)
@@ -1957,6 +2031,13 @@ void ToolExecutionCoordinator::invalidate_pending(const Workspace::WorkspaceChan
     // revision at execution, without invalidating a command on its own event.
     if ((change.reasons & kSettingsReasons) != WorkspaceChangeReasons::None)
         m_last_settings_revision = change.revision;
+    if ((change.reasons & (kInvalidatingReasons | kSettingsReasons)) != WorkspaceChangeReasons::None) {
+        const ToolActivity* executing = m_executing.empty() ? nullptr : find(m_executing);
+        for (const ToolActivity& activity : m_activities)
+            if (!activity.plan_id.empty() && (activity.state == ToolState::Approved || activity.state == ToolState::Running) &&
+                (executing == nullptr || executing->plan_id != activity.plan_id))
+                m_disturbed_plans.insert(activity.plan_id);
+    }
     if ((change.reasons & kInvalidatingReasons) == WorkspaceChangeReasons::None)
         return;
     m_last_invalidating_revision = change.revision;

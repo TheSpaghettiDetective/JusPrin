@@ -126,6 +126,37 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
     CHECK(messages[0]["params"]["progressToken"] == "test-progress");
 }
 
+TEST_CASE("MCP plan members answer at once and run on one approval", "[mcp][network][plan]")
+{
+    RuntimeHarness h;
+    const auto patch = [&](const char* key, const char* value) {
+        auto call = h.settings_patch();
+        call["params"]["arguments"]["changes"] = {{key, value}};
+        call["params"]["arguments"]["planId"]  = "walls";
+        return call;
+    };
+    Client first(h.runtime.server(), patch("wall_loops", "4"));
+    REQUIRE(h.finish(first));
+    const auto queued = first.messages().back()["result"];
+    CHECK(queued["isError"] == false);
+    CHECK_FALSE(queued.contains("structuredContent"));
+    CHECK(queued["_meta"]["io.jusprin/activity"]["state"] == "queued");
+    CHECK(json::parse(queued["content"][0]["text"].get<std::string>())["planId"] == "walls");
+    Client second(h.runtime.server(), patch("sparse_infill_density", "25%"));
+    REQUIRE(h.finish(second));
+    REQUIRE(h.coordinator.activities().size() == 2);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
+
+    const auto first_id = h.coordinator.activities().front().action_id;
+    const auto second_id = h.coordinator.activities().back().action_id;
+    REQUIRE(h.coordinator.approve(first_id));
+    REQUIRE(wait_for([&] { return Agent::tool_state_terminal(h.coordinator.find(second_id)->state); }, [&] { h.pump(); }));
+    CHECK(h.coordinator.find(first_id)->state == Agent::ToolState::Succeeded);
+    CHECK(h.coordinator.find(second_id)->state == Agent::ToolState::Succeeded);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
+    CHECK(h.workspace.read_settings({"sparse_infill_density"}).items[0].value == "25%");
+}
+
 TEST_CASE("MCP disconnect cancels pending native proposals", "[mcp][network][cancellation]")
 {
     RuntimeHarness h;

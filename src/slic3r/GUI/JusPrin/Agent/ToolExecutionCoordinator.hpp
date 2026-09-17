@@ -195,6 +195,9 @@ private:
         std::chrono::steady_clock::time_point started;
     };
     std::map<std::string, SliceWait> m_slice_waits;
+    // Approved plans that a change from outside the plan reached before all
+    // their members ran; their remaining members fail stale.
+    std::set<std::string>            m_disturbed_plans;
     void finish_slice_waits();
 };
 

@@ -24,6 +24,7 @@ struct InspectSections
     bool printer{false};
     bool project{false};
     bool objects{false};
+    bool activities{false};
 };
 
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});

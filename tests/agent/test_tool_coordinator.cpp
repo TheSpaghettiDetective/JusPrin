@@ -2071,3 +2071,80 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}, {"objectIds", {"1"}}}.dump()).valid());
     std::filesystem::remove_all(folder);
 }
+
+TEST_CASE("calls sharing a plan id wait for one decision and run in order", "[tools][plan]")
+{
+    Harness h;
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    const auto copies = [&](int quantity, const char* plan) {
+        json arguments{{"sessionId", session}, {"objects", json::array({json{{"objectId", cube}, {"quantity", quantity}}})}};
+        if (plan != nullptr) arguments["planId"] = plan;
+        return ToolRequest{"plate_layout", arguments.dump()};
+    };
+    const ToolActivity first  = h.coordinator.propose(copies(2, "copies"), "m-1");
+    const ToolActivity second = h.coordinator.propose(copies(3, "copies"), "m-2");
+    REQUIRE(first.state == ToolState::Pending);
+    REQUIRE(second.state == ToolState::Pending);
+    CHECK(first.plan_id == "copies");
+    CHECK(json::parse(first.arguments_json)["planId"] == "copies");
+
+    SECTION("one approval runs every member in order")
+    {
+        REQUIRE(h.coordinator.approve(first.action_id));
+        CHECK(h.coordinator.find(second.action_id)->state == ToolState::Running);
+        h.pump_to_completion(second.action_id);
+        CHECK(h.coordinator.find(first.action_id)->state == ToolState::Succeeded);
+        CHECK(h.coordinator.find(second.action_id)->state == ToolState::Succeeded);
+        CHECK(h.object_count() == 3);
+        std::vector<std::string> finished;
+        for (const ToolActivity& event : h.events)
+            if (event.state == ToolState::Succeeded) finished.push_back(event.action_id);
+        CHECK(finished == std::vector<std::string>{first.action_id, second.action_id});
+
+        const ToolActivity inspect = h.coordinator.propose({"workspace_inspect", R"({"sections":["activities"]})"}, "m-3");
+        h.pump_to_completion(inspect.action_id);
+        const auto activities = json::parse(h.coordinator.find(inspect.action_id)->result_json)["activities"];
+        REQUIRE(activities.size() == 2);
+        CHECK(activities[1] == json{{"actionId", second.action_id}, {"tool", "plate_layout"}, {"title", second.title},
+                                    {"state", "succeeded"}, {"planId", "copies"}});
+        CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("workspace_inspect"),
+                                                       json::parse(h.coordinator.find(inspect.action_id)->result_json)));
+    }
+    SECTION("one rejection rejects every member")
+    {
+        REQUIRE(h.coordinator.reject(second.action_id));
+        CHECK(h.coordinator.find(first.action_id)->state == ToolState::Rejected);
+        CHECK(h.object_count() == 1);
+    }
+    SECTION("an outside change stops the plan at its next member")
+    {
+        const ToolActivity alone = h.coordinator.propose(h.duplicate_cube_request(), "m-4");
+        REQUIRE(h.coordinator.approve(first.action_id));
+        REQUIRE(h.workspace.rename_object(h.cube_id(), "Edited after approval").succeeded());
+        h.pump_to_completion(second.action_id);
+        CHECK(h.coordinator.find(first.action_id)->error->code == "stale_revision");
+        CHECK(h.coordinator.find(second.action_id)->error->code == "plan_step_failed");
+        CHECK(h.object_count() == 1);
+        // A call outside the plan was not approved with it.
+        CHECK(h.coordinator.find(alone.action_id)->state == ToolState::Failed);
+    }
+    SECTION("a member proposed alone is not part of the plan")
+    {
+        const ToolActivity alone = h.coordinator.propose(copies(4, nullptr), "m-5");
+        REQUIRE(h.coordinator.approve(first.action_id));
+        CHECK(h.coordinator.find(alone.action_id)->state == ToolState::Pending);
+    }
+}
+
+TEST_CASE("a plan id is checked before any tool sees it", "[tools][plan][registry]")
+{
+    const auto& registry = ToolRegistry::instance();
+    for (const ToolDefinition& definition : registry.definitions())
+        CHECK(definition.input_schema["properties"].contains("planId") == (definition.action_class != ActionClass::ReadOnly));
+    const auto refused = registry.validate_call(*registry.find("workspace_inspect"), R"({"planId":"p"})");
+    REQUIRE_FALSE(refused.valid());
+    CHECK(refused.error->message == "A read does not join a plan; only changes take a planId.");
+    CHECK_FALSE(registry.validate_call(*registry.find("plate_layout"), R"({"planId":""})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("plate_layout"), R"({"planId":7})").valid());
+}
