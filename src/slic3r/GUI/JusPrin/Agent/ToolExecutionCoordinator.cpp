@@ -111,6 +111,30 @@ Workspace::ExportRequest export_request(const json& arguments)
     return request;
 }
 
+// What the slice being exported says is wrong with it, as the findings
+// section words it: Orca's warnings that apply to every print, a conflict, a
+// toolpath off the bed.
+std::vector<std::string> export_slice_warnings(Workspace::IWorkspace& workspace, const Workspace::ExportRequest& request)
+{
+    std::vector<std::string> warnings;
+    if (request.kind != "gcode" && request.kind != "sliced_3mf")
+        return warnings;
+    const auto plate = request.plate ? request.plate : workspace.snapshot().active_plate;
+    if (!plate)
+        return warnings;
+    const Workspace::SliceReport report = workspace.slice_report(*plate, {});
+    if (!report.valid)
+        return warnings;
+    for (const Workspace::SliceFinding& finding : report.findings)
+        if (finding.applies_when.empty())
+            warnings.push_back(finding.message);
+    if (!report.conflict.empty())
+        warnings.push_back(report.conflict);
+    if (report.toolpath_outside)
+        warnings.push_back("A toolpath leaves the printable area.");
+    return warnings;
+}
+
 Workspace::DivideRequest divide_request(const json& arguments)
 {
     Workspace::DivideRequest request;
@@ -437,6 +461,10 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         const std::string license = m_workspace.project_details().license;
         if (license_restricts(license))
             stored.title += "; the project's license is " + license;
+        const auto warnings = export_slice_warnings(m_workspace, request);
+        if (!warnings.empty())
+            stored.title += "; the slice has " + std::to_string(warnings.size()) + (warnings.size() == 1 ? " warning: " : " warnings, first: ") +
+                            warnings.front();
         bounded_title();
     }
 
@@ -1441,10 +1469,16 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         for (const std::string& file : exported.files)
             if (files.size() < 32)
                 files.push_back(file);
-        activity.result_json = json{{"kind", request.kind}, {"files", std::move(files)}, {"bytes", exported.bytes},
-                                    {"license", license}, {"licenseRestricted", license_restricts(license)},
-                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
-                                   .dump();
+        json result{{"kind", request.kind}, {"files", std::move(files)}, {"bytes", exported.bytes},
+                    {"license", license}, {"licenseRestricted", license_restricts(license)},
+                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
+        if (request.kind == "gcode" || request.kind == "sliced_3mf") {
+            result["sliceWarnings"] = json::array();
+            for (const std::string& warning : export_slice_warnings(m_workspace, request))
+                if (result["sliceWarnings"].size() < 8)
+                    result["sliceWarnings"].push_back(warning.substr(0, 512));
+        }
+        activity.result_json = result.dump();
         activity.state = ToolState::Succeeded;
         notify(activity);
         return;

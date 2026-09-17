@@ -2424,11 +2424,59 @@ private:
                 for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
                     self->check(item.value == expected[item.key], "live_settings_native_value_" + item.key);
                 if (stage < 2) self->live_agent_settings(stage + 1);
-                else {
-                    self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
-                    self->finish();
-                }
+                else self->live_agent_plan();
             }, [id, stage] { click_rendered_tool_decision(id, stage != 0); });
+        });
+    }
+
+    // Two patches in one plan: both answer queued, the turn ends, one click on
+    // the plan card runs both in order, and the later patch is not stale
+    // after the earlier one's change.
+    void live_agent_plan()
+    {
+        auto& view = installed_shell()->agent_pane()->web_view();
+        const auto first_activity = view.host().tools().activities().size();
+        const std::string prompt = "Make two separate settings changes as one plan: preview then call settings_apply_patch with "
+            "changes={\"layer_height\": \"0.16\"}, then preview then call settings_apply_patch with "
+            "changes={\"sparse_infill_density\": \"25%\"}, both with planId \"live-plan\". Then stop and ask me to approve the plan.";
+        WebView::RunScript(view.webview(), wxString::FromUTF8("window.__jusprinTest.send(" + nlohmann::json(prompt).dump() + ")"));
+        wait_until([first_activity] {
+            const auto& host = installed_shell()->agent_pane()->web_view().host();
+            const auto messages = host.conversation();
+            return host.tools().activities().size() > first_activity && !messages.empty() &&
+                   messages.back().role == Agent::MessageRole::Assistant &&
+                   (messages.back().state == Agent::MessageState::Complete || messages.back().state == Agent::MessageState::Failed);
+        }, "live_plan_turn_ended", [self = shared_from_this(), first_activity] {
+            const auto& host = installed_shell()->agent_pane()->web_view().host();
+            std::vector<std::string> members;
+            for (auto it = host.tools().activities().begin() + first_activity; it != host.tools().activities().end(); ++it)
+                if (it->plan_id == "live-plan" && it->state == Agent::ToolState::Pending) members.push_back(it->action_id);
+            self->check(members.size() == 2, "live_plan_two_members_waiting");
+            if (members.size() != 2) { self->fail("Live plan turn did not queue two patches"); return; }
+            const std::string script = "(() => { const b = document.querySelector('[data-testid=\"plan-live-plan\"] button.primary');"
+                                       " if (b && !b.disabled) b.click(); })()";
+            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), wxString::FromUTF8(script));
+            self->wait_until([members] {
+                const auto& host = installed_shell()->agent_pane()->web_view().host();
+                return std::all_of(members.begin(), members.end(), [&host](const std::string& id) {
+                    const auto* action = host.tools().find(id);
+                    return action && Agent::tool_state_terminal(action->state);
+                });
+            }, "live_plan_members_terminal", [self, members] {
+                const auto& host = installed_shell()->agent_pane()->web_view().host();
+                for (const auto& id : members)
+                    self->check(host.tools().find(id)->state == Agent::ToolState::Succeeded, "live_plan_member_succeeded");
+                for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
+                    self->check(item.value == self->m_settings_patch[item.key], "live_plan_native_value_" + item.key);
+                Workspace::SettingsPatch inverse;
+                for (const auto& [key, value] : self->m_settings_original.items()) inverse.changes[key] = value.get<std::string>();
+                Workspace::SettingsPreview applied;
+                auto* workspace = installed_shell()->workspace();
+                self->check(workspace->apply_settings(inverse, Workspace::settings_confirmation(workspace->preview_settings(inverse)), applied)
+                                .succeeded(), "live_plan_restored");
+                self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
+                self->finish();
+            });
         });
     }
 

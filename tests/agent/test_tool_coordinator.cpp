@@ -2076,6 +2076,22 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(exported["licenseRestricted"] == true);
     CHECK(exported["files"] == json::array({target}));
     CHECK(contents() == "gcode");
+    CHECK(exported["sliceWarnings"] == json::array());
+
+    // The card and the result name what the slice itself says is wrong.
+    Workspace::SliceReport warned;
+    warned.valid    = true;
+    warned.findings = {{"", "It seems object cube-a has floating cantilever.", false, "cube-a"},
+                       {"10018003", "Traditional timelapse may mark the surface", false, "", "timelapse"}};
+    warned.conflict = "Conflicts of G-code paths at Z = 4.20mm";
+    h.workspace.set_slice_report_for_testing(plate, warned);
+    const ToolActivity warning_card = h.coordinator.propose({"export_file", replacing.dump()}, "m-6");
+    CHECK(warning_card.title.find("the slice has 2 warnings, first: It seems object cube-a has floating cantilever.") != std::string::npos);
+    REQUIRE(h.coordinator.approve(warning_card.action_id));
+    h.pump_to_completion(warning_card.action_id);
+    const auto warned_result = json::parse(h.coordinator.find(warning_card.action_id)->result_json);
+    CHECK(registry.validate_output(*registry.find("export_file"), warned_result));
+    CHECK(warned_result["sliceWarnings"] == json::array({"It seems object cube-a has floating cantilever.", "Conflicts of G-code paths at Z = 4.20mm"}));
     CHECK(registry.find("export_file")->action_class == ActionClass::Destructive);
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "project_3mf"}, {"path", target}, {"plateId", "1"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}, {"objectIds", {"1"}}}.dump()).valid());
