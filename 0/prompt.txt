@@ -1,0 +1,134 @@
+try it againl. I will approve
+
+---
+
+does @agent-docs contain a doc for how to debug webview using hmr?
+
+---
+
+I created one commit. Same change, two hashes because it was cherry-picked:
+
+* This worktree: `bef82ed2` — Stop committing the Agent and Home HTML; rebuild them from TypeScript.
+* `jusprin-newui`: `5fc0efe2` — same message and patch.
+
+`5fc0efe2` is still on `jusprin-newui` (that branch has moved on with later commits). Nothing else from this work was committed.
+HMR is documented, briefly, in the page READMEs that landed in that commit:
+
+* Agent: `src/slic3r/GUI/JusPrin/AgentUI/README.md` — `npm run dev`, then `JUSPRIN_AGENT_DEV_URL=http://localhost:5173`
+* Home: `src/slic3r/GUI/JusPrin/HomeUI/README.md` — `npm run dev`, then `JUSPRIN_HOME_DEV_URL=http://localhost:5174`
+
+Those notes say the env var is read once at construction and there is no settings UI. They do not include the scratch-`--datadir` / `OPENAI_API_KEY=x` / Fast Refresh vs full-reload recipe I gave you in chat. `AGENTS.md` only mentions Node/npm for the CMake build.
+
+chec if this is true
+
+---
+
+why did you miss the doc and commit initially?
+
+---
+
+fix the two printer menu bugs
+
+---
+
+<task-notification>
+<task-id>bis4t3v1f</task-id>
+<tool-use-id>toolu_01JKrY4YGYXV6yLuXgMibBQV</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bis4t3v1f.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the rebuild to finish and show its tail" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbcjej2xi</task-id>
+<tool-use-id>toolu_01AiYHkgp3AeTUhbyeDev1iT</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bbcjej2xi.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for debug build to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7qtq760m</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/b7qtq760m.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for JS+native rebuild to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bkszer0lm</task-id>
+<tool-use-id>toolu_019nvjWPNV9K7mLnGjM6yozG</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bkszer0lm.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for final rebuild" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bth3djgvl</task-id>
+<tool-use-id>toolu_014dw9R7w3bswLNjsoH3xDmJ</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bth3djgvl.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for debug overlay build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b21kuqo0j</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/b21kuqo0j.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for dismiss-debug rebuild" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bi9r0dv3r</task-id>
+<tool-use-id>toolu_01BnydegssntDSs6bUSdiiMz</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bi9r0dv3r.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for onBlur-debug rebuild" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbfughy1k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bbfughy1k.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for clean final build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bn0e3qdoc</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bn0e3qdoc.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for test binaries to rebuild" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bgidfxnh6</task-id>
+<tool-use-id>toolu_01BSFSz6ttei4bQjWkumYi1a</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/13ca8d95-213c-487d-980d-3120f4c3354d/tasks/bgidfxnh6.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the harness run and check for any failures" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+why is "fake moonraker" printer doesn't have a kabab menu?

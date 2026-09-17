@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2PBJHAPBE8QRXK02ZJVGEVA",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterMenu.tsx",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 776,
+    "cache_creation_tokens": 634307,
+    "cache_read_tokens": 144300843,
+    "output_tokens": 206898,
+    "api_call_count": 388
+  }
+}
