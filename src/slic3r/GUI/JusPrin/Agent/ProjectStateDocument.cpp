@@ -310,6 +310,8 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     entry["progress"]         = json{{"current", activity.progress_current}, {"total", activity.progress_total}};
     if (!activity.plan_id.empty())
         entry["planId"] = activity.plan_id;
+    if (!activity.plan_scope.empty())
+        entry["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         entry["result"] = activity.result_json;
     if (activity.error)
@@ -336,6 +338,7 @@ ToolActivity read_activity(const json& entry)
     activity.action_class      = action_class_from(entry.value("actionClass", "read_only"));
     activity.requires_approval = entry.value("requiresApproval", false);
     activity.plan_id           = entry.value("planId", "");
+    activity.plan_scope        = entry.value("planScope", "");
     try {
         activity.session = std::stoull(entry.value("sessionId", "0"));
     } catch (const std::exception&) {

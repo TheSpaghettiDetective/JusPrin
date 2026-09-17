@@ -267,6 +267,7 @@ export interface ToolActivityInfo {
   actionClass: ActionClassName;
   requiresApproval: boolean;
   planId?: string; // calls sharing it are decided on one card and run in order
+  planScope?: string; // the chat an in-app plan belongs to; a plan is its source, scope and id
   sessionId: string;
   expectedRevision: number;
   state: ToolStateName;

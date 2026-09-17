@@ -46,12 +46,20 @@ export function planHeadline(activities: ToolActivityInfo[]): string | undefined
   return undefined;
 }
 
-// Each plan's members in proposal order, keyed by plan id.
+// A plan is its source, scope and id together, as the native coordinator
+// groups it: two clients or chats choosing the same id never share a card.
+export function planKey(activity: ToolActivityInfo): string | undefined {
+  if (!activity.planId) return undefined;
+  return [activity.source ?? 'agent', activity.planScope ?? '', activity.planId].join('\u001f');
+}
+
+// Each plan's members in proposal order, keyed by planKey.
 export function planMembers(activities: ToolActivityInfo[]): Map<string, ToolActivityInfo[]> {
   const plans = new Map<string, ToolActivityInfo[]>();
   for (const activity of activities) {
-    if (!activity.planId) continue;
-    plans.set(activity.planId, [...(plans.get(activity.planId) ?? []), activity]);
+    const key = planKey(activity);
+    if (!key) continue;
+    plans.set(key, [...(plans.get(key) ?? []), activity]);
   }
   return plans;
 }

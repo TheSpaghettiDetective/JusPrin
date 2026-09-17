@@ -13,7 +13,7 @@ import { AttachmentChip } from './AttachmentChip';
 import { ChangeRows } from './ChangeRows';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
-import { PlanActivityCard, planHeadline, planMembers } from './PlanActivityCard';
+import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 
 interface Props {
@@ -206,7 +206,11 @@ export function MessageList({
                 bubble
               )}
               {activitiesOf(message.id).map((activity) => {
-                const members = activity.planId ? plans.get(activity.planId) : undefined;
+                const key = planKey(activity);
+                const found = key ? plans.get(key) : undefined;
+                // A plan of one change is decided like any other call, once
+                // the agent can no longer add to it.
+                const members = found && (found.length > 1 || streamingMessageId !== null) ? found : undefined;
                 if (members && members[0].actionId !== activity.actionId) return null;
                 return members ? (
                   <PlanActivityCard

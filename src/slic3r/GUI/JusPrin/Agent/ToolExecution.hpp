@@ -124,8 +124,17 @@ struct ToolActivity
     // Calls sharing a plan id wait for one approval and run in the order they
     // were proposed; empty for a call on its own.
     std::string   plan_id;
+    // Where a plan id is unique: the chat for the in-app agent, empty for MCP.
+    // A plan is its source, scope and id together, so two clients choosing
+    // the same id never share a card.
+    std::string   plan_scope;
     std::optional<ToolError> error;
     ToolSource source{ToolSource::Agent};
 };
+
+inline bool same_plan(const ToolActivity& lhs, const ToolActivity& rhs)
+{
+    return !lhs.plan_id.empty() && lhs.plan_id == rhs.plan_id && lhs.source == rhs.source && lhs.plan_scope == rhs.plan_scope;
+}
 
 } // namespace Slic3r::GUI::JusPrin::Agent

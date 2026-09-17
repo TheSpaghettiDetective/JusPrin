@@ -996,7 +996,10 @@ enum class WorkspaceChangeReasons : std::uint32_t {
     Transform = 1u << 3,
     Plates    = 1u << 4,
     Project   = 1u << 5,
-    Settings  = 1u << 6
+    Settings  = 1u << 6,
+    // A slice started, ended, or stopped being current. What the plates hold
+    // to print changed, not the project, so it does not make a proposal stale.
+    Slicing   = 1u << 7
 };
 
 constexpr WorkspaceChangeReasons operator|(WorkspaceChangeReasons lhs, WorkspaceChangeReasons rhs)

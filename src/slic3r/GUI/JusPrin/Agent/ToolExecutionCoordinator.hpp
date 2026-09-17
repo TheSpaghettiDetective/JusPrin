@@ -125,7 +125,8 @@ public:
     // revision. Read-only actions are approved immediately by policy; every
     // other class waits for a user decision. Returns the new record.
     const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
-                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent);
+                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
+                                const std::string& plan_scope = {});
 
     // User decisions. Each returns true only when it changed the record's
     // state, so a resent decision (reconnect, reload) can never run an action

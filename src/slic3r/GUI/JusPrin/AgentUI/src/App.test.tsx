@@ -413,6 +413,40 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Approve all' })).not.toBeInTheDocument();
   });
 
+  it('shows a plan of one change as an ordinary card once the agent has finished proposing', async () => {
+    render(<App getTransport={() => host.transport} />);
+    const single = toolActivity({ planId: 'solo', title: 'Change the layer height' });
+    connect(host, emptyState({ conversation: proposalConversation(), toolActivities: [single] }));
+    host.deliver('assistant_started', { messageId: 'm-4', inReplyTo: 'm-1', attempt: 1 });
+    // A second change may still join it.
+    expect(screen.getByTestId('plan-solo')).toHaveTextContent('The Agent is still adding to this plan');
+    host.deliver('assistant_completed', { messageId: 'm-4' });
+    expect(screen.queryByTestId('plan-solo')).not.toBeInTheDocument();
+    const card = screen.getByTestId('tool-t-1');
+    expect(card).toHaveTextContent('Change the layer height');
+    await userEvent.click(within(card).getByRole('button', { name: 'Reject' }));
+    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'reject' });
+  });
+
+  it('never joins plans that only share an id', () => {
+    render(<App getTransport={() => host.transport} />);
+    const conversation = [
+      ...proposalConversation(),
+      { id: 'm-3', role: 'assistant', state: 'complete', text: '', attempt: 1, inReplyTo: 'm-1' },
+    ] as StatePayload['conversation'];
+    const inApp = [
+      { ...toolActivity({ planId: 'p' }), planScope: 'c-1' },
+      { ...toolActivity({ planId: 'p', actionId: 't-2', correlationId: 'm-3' }), planScope: 'c-1' },
+    ];
+    const external = { ...toolActivity({ correlationId: 'mcp-1', planId: 'p', actionId: 't-3', title: 'External change' }),
+      source: 'mcp' as const };
+    connect(host, emptyState({ conversation, toolActivities: [...inApp, external] }));
+    expect(screen.getByTestId('plan-p')).toHaveTextContent('2 changes');
+    const region = screen.getByRole('region', { name: 'External AI tools' });
+    expect(within(region).getByTestId('tool-t-3')).toHaveTextContent('External change');
+    expect(within(region).queryByTestId('plan-p')).not.toBeInTheDocument();
+  });
+
   it('groups an external plan into one card', async () => {
     render(<App getTransport={() => host.transport} />);
     const first = { ...toolActivity({ correlationId: 'mcp-1', planId: 'p' }), source: 'mcp' as const };

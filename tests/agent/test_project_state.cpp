@@ -116,6 +116,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     activity.tool           = "plate_layout";
     activity.state          = ToolState::Succeeded;
     activity.plan_id        = "upright";
+    activity.plan_scope     = "c-1";
     document.upsert_activity(activity, kT);
 
     ProjectStateDocument reloaded;
@@ -132,6 +133,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     CHECK(reloaded.activities()[0].state == ToolState::Succeeded);
     CHECK(reloaded.activities()[0].source == ToolSource::Agent);
     CHECK(reloaded.activities()[0].plan_id == "upright");
+    CHECK(reloaded.activities()[0].plan_scope == "c-1");
 
     SECTION("counters continue after a reload so IDs stay unique") {
         const std::string next_id = reloaded.allocate_message_id();

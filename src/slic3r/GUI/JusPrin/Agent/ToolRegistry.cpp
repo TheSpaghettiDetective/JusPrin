@@ -1366,7 +1366,8 @@ std::vector<ToolDefinition> make_definitions()
         if (joins_plans(definition))
             definition.input_schema["properties"]["planId"] = {
                 {"type", "string"}, {"maxLength", 64},
-                {"description", "Calls with the same planId share one approval card and run in order; each returns queued."}};
+                {"description", "Only to group two or more changes; leave it out for a single change. Calls with the same planId "
+                                "share one approval card and run in order; each returns queued, and you do not hear how they end."}};
     std::sort(definitions.begin(), definitions.end(),
               [](const ToolDefinition& lhs, const ToolDefinition& rhs) { return lhs.name < rhs.name; });
     return definitions;

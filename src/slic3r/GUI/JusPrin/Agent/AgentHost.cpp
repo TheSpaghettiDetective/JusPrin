@@ -105,6 +105,8 @@ json activity_json(const ToolActivity& activity)
                 {"progress", json{{"current", activity.progress_current}, {"total", activity.progress_total}}}};
     if (!activity.plan_id.empty())
         result["planId"] = activity.plan_id;
+    if (!activity.plan_scope.empty())
+        result["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         result["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
@@ -1677,7 +1679,8 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
     const ToolActivity& proposed =
-        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks});
+        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks}, ToolSource::Agent,
+                        stream.conversation_id);
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);

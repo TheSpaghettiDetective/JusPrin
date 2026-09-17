@@ -7,7 +7,7 @@ import { SetupCard } from './components/SetupCard';
 import { ChatHeader, ChatList } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
-import { PlanActivityCard, planHeadline, planMembers } from './components/PlanActivityCard';
+import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
 import {
   AgentNotConfiguredHeader,
@@ -365,7 +365,10 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       {externalActions.length > 0 && <section className="external-actions" aria-label="External AI tools">
         <h2>External AI tools</h2>
         {externalActions.map((activity) => {
-          const members = activity.planId ? externalPlans.get(activity.planId) : undefined;
+          const key = planKey(activity);
+          const found = key ? externalPlans.get(key) : undefined;
+          // A plan of one change is decided like any other call.
+          const members = found && found.length > 1 ? found : undefined;
           if (members && members[0].actionId !== activity.actionId) return null;
           return members
             ? <PlanActivityCard key={activity.actionId} members={members} headline={planHeadline(state.toolActivities)}

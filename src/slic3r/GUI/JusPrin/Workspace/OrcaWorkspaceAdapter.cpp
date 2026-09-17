@@ -249,7 +249,7 @@ void OrcaWorkspaceAdapter::on_slice_status_changed(wxCommandEvent& event)
             m_invalidated_by.erase(id);
     }
     m_known_slice_state = std::move(state);
-    publish_change(WorkspaceChangeReasons::Plates);
+    publish_change(WorkspaceChangeReasons::Slicing);
 }
 
 WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const

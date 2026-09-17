@@ -2171,6 +2171,100 @@ TEST_CASE("calls sharing a plan id wait for one decision and run in order", "[to
     }
 }
 
+TEST_CASE("a plan belongs to the client that proposed it", "[tools][plan]")
+{
+    Harness h;
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    const auto copies = [&](int quantity) {
+        return ToolRequest{"plate_layout", json{{"sessionId", session}, {"planId", "plan-1"},
+                                                {"objects", json::array({json{{"objectId", cube}, {"quantity", quantity}}})}}.dump()};
+    };
+    // The same id from the in-app agent and from an MCP client: the external
+    // card lists only the MCP member, so approving it must run only that one.
+    const ToolActivity in_app     = h.coordinator.propose(copies(2), "m-1", {}, ToolSource::Agent, "chat-1");
+    const ToolActivity other_chat = h.coordinator.propose(copies(5), "m-2", {}, ToolSource::Agent, "chat-2");
+    const ToolActivity external   = h.coordinator.propose(copies(3), "mcp-1", {}, ToolSource::Mcp);
+    REQUIRE(in_app.state == ToolState::Pending);
+    REQUIRE(other_chat.state == ToolState::Pending);
+    REQUIRE(external.state == ToolState::Pending);
+    CHECK(in_app.plan_scope == "chat-1");
+    CHECK(external.plan_scope.empty());
+    REQUIRE(h.coordinator.approve(external.action_id));
+    CHECK(h.coordinator.find(external.action_id)->state == ToolState::Running);
+    CHECK(h.coordinator.find(in_app.action_id)->state == ToolState::Pending);
+    CHECK(h.coordinator.find(other_chat.action_id)->state == ToolState::Pending);
+    // Another chat's decision is its own too.
+    REQUIRE(h.coordinator.reject(other_chat.action_id));
+    CHECK(h.coordinator.find(in_app.action_id)->state == ToolState::Pending);
+    // The first chat's plan is still undecided, and still takes members.
+    const ToolActivity joined = h.coordinator.propose(copies(4), "m-3", {}, ToolSource::Agent, "chat-1");
+    CHECK(joined.state == ToolState::Pending);
+    REQUIRE(h.coordinator.reject(in_app.action_id));
+    CHECK(h.coordinator.find(joined.action_id)->state == ToolState::Rejected);
+    h.pump_to_completion(external.action_id);
+    CHECK(h.coordinator.find(external.action_id)->state == ToolState::Succeeded);
+    CHECK(h.object_count() == 3);
+}
+
+TEST_CASE("a slice ending leaves waiting cards and approved plans alone", "[tools][slicing][plan]")
+{
+    Harness h;
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string plate   = std::to_string(h.workspace.snapshot().plates.at(0).id.value());
+
+    SECTION("a card waiting for the person survives the agent's own slice")
+    {
+        const ToolActivity waiting = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
+        const ToolActivity started = h.coordinator.propose({"slice_start", json{{"plateId", plate}}.dump()}, "m-2");
+        h.pump_to_completion(started.action_id);
+        REQUIRE(h.coordinator.find(started.action_id)->state == ToolState::Succeeded);
+        h.workspace.finish_slice_for_testing(true);
+        CHECK(h.coordinator.find(waiting.action_id)->state == ToolState::Pending);
+    }
+    SECTION("a plan goes on after its own slice")
+    {
+        const std::string cube = std::to_string(h.cube_id().value());
+        const ToolActivity slice = h.coordinator.propose(
+            {"slice_start", json{{"plateId", plate}, {"wait", true}, {"planId", "sliced"}}.dump()}, "m-1");
+        const ToolActivity after = h.coordinator.propose(
+            {"plate_layout", json{{"sessionId", session}, {"planId", "sliced"},
+                                  {"objects", json::array({json{{"objectId", cube}, {"quantity", 2}}})}}.dump()}, "m-2");
+        REQUIRE(h.coordinator.approve(slice.action_id));
+        for (int i = 0; i < 20; ++i)
+            h.coordinator.pump();
+        REQUIRE(h.coordinator.find(slice.action_id)->state == ToolState::Running);
+        h.workspace.finish_slice_for_testing(true);
+        h.pump_to_completion(after.action_id);
+        CHECK(h.coordinator.find(slice.action_id)->state == ToolState::Succeeded);
+        CHECK(h.coordinator.find(after.action_id)->state == ToolState::Succeeded);
+        CHECK(h.object_count() == 2);
+    }
+    SECTION("an export card waiting on a slice fails when that slice goes")
+    {
+        const auto id = h.workspace.snapshot().plates.at(0).id;
+        h.workspace.set_plate_sliced(id, true);
+        const std::string target = (std::filesystem::temp_directory_path() / "jusprin-slice-change.gcode").u8string();
+        std::filesystem::remove(std::filesystem::u8path(target));
+        const ToolActivity gcode = h.coordinator.propose(
+            {"export_file", json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}}.dump()}, "m-1");
+        const ToolActivity stl = h.coordinator.propose(
+            {"export_file", json{{"sessionId", session}, {"kind", "stl"},
+                                 {"path", (std::filesystem::temp_directory_path() / "jusprin-slice-change.stl").u8string()}}.dump()}, "m-2");
+        REQUIRE(gcode.state == ToolState::Pending);
+        REQUIRE(stl.state == ToolState::Pending);
+        h.workspace.set_plate_sliced(id, false);
+        CHECK(h.coordinator.find(gcode.action_id)->error->code == "stale_revision");
+        CHECK(h.coordinator.find(stl.action_id)->state == ToolState::Pending);
+    }
+    SECTION("a slice is still no reason to keep a stale card")
+    {
+        const ToolActivity waiting = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
+        REQUIRE(h.workspace.rename_object(h.cube_id(), "Edited").succeeded());
+        CHECK(h.coordinator.find(waiting.action_id)->error->code == "stale_revision");
+    }
+}
+
 TEST_CASE("a plan id is checked before any tool sees it", "[tools][plan][registry]")
 {
     const auto& registry = ToolRegistry::instance();

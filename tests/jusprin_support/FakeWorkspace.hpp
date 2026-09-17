@@ -655,7 +655,7 @@ public:
                                                                                  m_snapshot.plates.front().id);
         m_snapshot.slicing.percent = 0;
         ++slice_starts;
-        publish(WorkspaceChangeReasons::Plates);
+        publish(WorkspaceChangeReasons::Slicing);
         return CommandResult::success();
     }
 
@@ -1042,7 +1042,7 @@ public:
             for (WorkspacePlate& candidate : m_snapshot.plates)
                 if (candidate.id == *plate)
                     candidate.sliced = sliced;
-        publish(WorkspaceChangeReasons::Plates);
+        publish(WorkspaceChangeReasons::Slicing);
     }
 
     std::uint32_t slice_starts{0};
@@ -1059,7 +1059,7 @@ public:
         for (WorkspacePlate& plate : m_snapshot.plates)
             if (plate.id == id && plate.sliced != sliced) {
                 plate.sliced = sliced;
-                publish(WorkspaceChangeReasons::Plates);
+                publish(WorkspaceChangeReasons::Slicing);
                 return;
             }
     }
@@ -1075,7 +1075,7 @@ public:
                 plate.estimate        = std::move(estimate);
                 plate.estimate_status = status;
                 plate.invalidated_by  = std::move(invalidated_by);
-                publish(WorkspaceChangeReasons::Plates);
+                publish(WorkspaceChangeReasons::Slicing);
                 return;
             }
     }
