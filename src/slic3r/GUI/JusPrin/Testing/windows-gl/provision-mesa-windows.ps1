@@ -56,15 +56,23 @@ if (-not $exeDirs) {
     return
 }
 
+# -Source is usually one of the provisioned directories itself (the app's
+# src\Release), where Copy-Item refuses to overwrite a file with itself.
+function Copy-Provisioned([string]$From, [string]$ToDir) {
+    $to = Join-Path $ToDir (Split-Path $From -Leaf)
+    if ((Test-Path $to) -and (Resolve-Path $From).Path -eq (Resolve-Path $to).Path) { return }
+    Copy-Item $From $to -Force
+}
+
 foreach ($dir in $exeDirs) {
-    Copy-Item (Join-Path $Source 'libgallium_wgl.dll') $dir -Force
-    Copy-Item $Dxil $dir -Force
+    Copy-Provisioned (Join-Path $Source 'libgallium_wgl.dll') $dir
+    Copy-Provisioned $Dxil $dir
     New-Item -ItemType Directory -Force (Join-Path $dir 'mesa') | Out-Null
-    Copy-Item (Join-Path $Source 'mesa\opengl32.dll') (Join-Path $dir 'mesa') -Force
+    Copy-Provisioned (Join-Path $Source 'mesa\opengl32.dll') (Join-Path $dir 'mesa')
     # A harness links the app in and has no launcher to load mesa\opengl32.dll,
     # so the stub must sit beside it to shadow the system GL 1.1.
     if (Get-ChildItem $dir -Filter '*_harness.exe') {
-        Copy-Item (Join-Path $Source 'mesa\opengl32.dll') $dir -Force
+        Copy-Provisioned (Join-Path $Source 'mesa\opengl32.dll') $dir
     }
     Write-Output "provisioned $dir"
 }
