@@ -13,3 +13,7 @@ I ran /Users/kenneth/Projects/JusPrin/.claude/worktrees/journey-tools-review/bui
 ---
 
 are there still problems that you want to fix before we merge this feature?
+
+---
+
+go ahead and fix the blocking ones. then merge the branch to jusprin-newui. then delete  the work tree you created.
