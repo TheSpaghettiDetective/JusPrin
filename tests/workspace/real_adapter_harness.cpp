@@ -46,7 +46,8 @@ struct HarnessState
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
-    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(180)};    Mode mode{Mode::Automated};
+    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(180)};
+    Mode mode{Mode::Automated};
 };
 
 std::size_t object_count(const WorkspaceSnapshot& snapshot)
@@ -655,7 +656,14 @@ private:
         std::cerr << "HARNESS RESULT " << (result == 0 ? "PASS" : "FAIL") << " failures=" << m_failures << '\n';
         m_state->result = result;
         m_state->stop = true;
-        if (m_app.mainframe == nullptr) {
+        // On macOS Orca adds each web view's script handler from a CallAfter
+        // that waits on the page in a nested event loop, and in this harness,
+        // which does its work in one synchronous run, the first one has not
+        // returned by now, so Orca has not run post_init. Closing the frame
+        // ends that wait, and the web view setup and post_init it held back
+        // then run against destroyed windows. Leave by ending the loop, as
+        // this harness always did there.
+        if (m_app.mainframe == nullptr || !m_app.post_initialized()) {
             m_app.ExitMainLoop();
             return;
         }

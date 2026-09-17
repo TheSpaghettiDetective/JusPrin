@@ -66,11 +66,19 @@ class LinuxPackageTests(unittest.TestCase):
         # not invoke graphics or WebKit checks on this route.
         child = self.child()
         self.assertEqual(child.initialize()["result"]["protocolVersion"], "2025-06-18")
-        child.send(request(1, "tools/list"))
-        self.assertEqual({tool["name"] for tool in child.receive()["result"]["tools"]},
+        # The catalog is paged; follow the cursor to the end.
+        names, params, identifier = set(), None, 1
+        while True:
+            child.send(request(identifier, "tools/list", params))
+            result = child.receive()["result"]
+            names |= {tool["name"] for tool in result["tools"]}
+            if "nextCursor" not in result:
+                break
+            params, identifier = {"cursor": result["nextCursor"]}, identifier + 1
+        self.assertEqual(names,
                          {"workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch",
                           "intent_update", "plan_set", "presets_list", "printer_list", "slice_start", "slice_report", "project_save", "history_restore", "printer_setup", "printer_setup_preview", "project_open", "object_analyze", "object_place", "plate_layout", "object_import_file", "project_delete_items", "region_annotate", "object_divide", "object_divide_preview", "object_merge", "object_repair", "activity_cancel", "export_file", "project_attachment_read", "slice_inspect", "view_render"})
-        child.send(request(2, "tools/call", {"name": "workspace_inspect", "arguments": {}}))
+        child.send(request(identifier + 1, "tools/call", {"name": "workspace_inspect", "arguments": {}}))
         self.assertEqual(child.receive()["result"]["structuredContent"]["error"]["code"],
                          "workspace_unavailable")
 
