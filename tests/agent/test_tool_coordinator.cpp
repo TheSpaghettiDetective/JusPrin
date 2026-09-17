@@ -1890,3 +1890,31 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     CHECK(refused.error->message.find("Not a parameter of this tool: intent.") != std::string::npos);
     CHECK(registry.validate_call(*registry.find("settings_preview_patch"), "{}").error->message.find("Missing: changes.") != std::string::npos);
 }
+
+TEST_CASE("a slice started with wait returns when the run ends, without holding up other calls", "[tools][slicing]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const auto plate = h.workspace.snapshot().plates.at(0).id;
+    const ToolActivity started = h.coordinator.propose({"slice_start", json{{"plateId", std::to_string(plate.value())}, {"wait", true}}.dump()}, "m-1");
+    for (int i = 0; i < 20; ++i)
+        h.coordinator.pump();
+    CHECK(h.coordinator.find(started.action_id)->state == ToolState::Running);
+    CHECK(h.workspace.slice_starts == 1);
+
+    // A read proposed meanwhile still runs.
+    const ToolActivity read = h.coordinator.propose({"workspace_inspect", "{}"}, "m-2");
+    h.pump_to_completion(read.action_id);
+    CHECK(h.coordinator.find(read.action_id)->state == ToolState::Succeeded);
+    CHECK(h.coordinator.find(started.action_id)->state == ToolState::Running);
+
+    h.workspace.finish_slice_for_testing(true);
+    h.pump_to_completion(started.action_id);
+    const ToolActivity done = *h.coordinator.find(started.action_id);
+    REQUIRE(done.state == ToolState::Succeeded);
+    const auto result = json::parse(done.result_json);
+    CHECK(registry.validate_output(*registry.find("slice_start"), result));
+    CHECK(result["finished"] == true);
+    CHECK(result["slicing"]["running"] == false);
+    CHECK_FALSE(registry.validate_call(*registry.find("slice_start"), R"({"wait":"yes"})").valid());
+}

@@ -525,9 +525,10 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     }
 
     if (definition.handler == ToolHandler::SliceStart)
-        return has_only(arguments, {"plateId", "preempt"}) &&
+        return has_only(arguments, {"plateId", "preempt", "wait"}) &&
                (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
-               (!arguments.contains("preempt") || arguments["preempt"].is_boolean());
+               (!arguments.contains("preempt") || arguments["preempt"].is_boolean()) &&
+               (!arguments.contains("wait") || arguments["wait"].is_boolean());
 
     if (definition.handler == ToolHandler::IntentUpdate) {
         if (!has_only(arguments, {"fields"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
@@ -1020,7 +1021,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"changed", "openEdges", "facets", "parts", "volumeMm3", "regionsUnbound", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectRepair},
         {"region_annotate", "Mark what parts of an object mean",
-         "Record what up to 32 regions of an object mean, and make OrcaSlicer print them that way. Each row is {objectId, kind, geometry} for a new region, or {regionId} to regenerate a stored one (adding objectId, kind or geometry replaces that part of it). kind: smooth_face and visible (no seam, and for smooth_face no support marks), hidden and seam_preferred (seam goes here), seam_forbidden, no_support and precision_hole (supports kept out; for a hole, a blocker fills it), support_allowed, reinforce and flexible (a modifier with settings, default wall_loops and sparse_infill_density; with geometry object, the object's own settings), material (extruder, 1-based). geometry: {type: face|hole, handle} from object_analyze features; {type: box, center, sizeMm} or {type: cylinder, center, axis, diameterMm, lengthMm} in millimetres in the world frame as the object stands now; {type: direction, vector, toleranceDegrees} for every face pointing that way now; {type: object}. The region stays with the object when it is moved or turned. Generates support and seam paint, support blockers and enforcers, modifier volumes or object settings in one undo step: project Undo removes those but not the annotation, which object_analyze then reports as artifactsMissing. Delete a region with project_delete_items {regionId}. Calling it shows the user an approval card in JusPrin listing each region and what it generates, and waits for their decision.",
+         "Record what up to 32 regions of an object mean, and make OrcaSlicer print them that way. Each row is {objectId, kind, geometry} for a new region, or {regionId} to regenerate a stored one (adding objectId, kind or geometry replaces that part of it). kind says what the region is: seam_preferred or hidden puts the seam ON this face (use it for 'put the seam on the back'); seam_forbidden or visible keeps the seam OFF this face; smooth_face keeps both the seam and support marks off it; no_support keeps support off it, and precision_hole keeps support out of a hole (a blocker fills it); support_allowed asks for support there; reinforce and flexible (a modifier with settings, default wall_loops and sparse_infill_density; with geometry object, the object's own settings), material (extruder, 1-based). geometry: {type: face|hole, handle} from object_analyze features; {type: box, center, sizeMm} or {type: cylinder, center, axis, diameterMm, lengthMm} in millimetres in the world frame as the object stands now; {type: direction, vector, toleranceDegrees} for every face pointing that way now; {type: object}. The region stays with the object when it is moved or turned. Generates support and seam paint, support blockers and enforcers, modifier volumes or object settings in one undo step: project Undo removes those but not the annotation, which object_analyze then reports as artifactsMissing. Delete a region with project_delete_items {regionId}. Calling it shows the user an approval card in JusPrin listing each region and what it generates, and waits for their decision.",
          object_schema({{"sessionId", id},
                         {"regions", {{"type", "array"}, {"minItems", 1}, {"maxItems", 32},
                                      {"items", object_schema({{"regionId", id}, {"objectId", id},
@@ -1167,9 +1168,9 @@ std::vector<ToolDefinition> make_definitions()
                        {"valid", "plateId", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceReportRead},
         {"slice_start", "Slice the plate",
-         "Start Orca's own slicing run for one plate, or every plate when you name none, and return once it has started. Read the slicing section of workspace_inspect for the result; it is not ready when this returns. Fails when a slice is already running unless you pass preempt, because nothing records who started that run and it may be the user's. Runs without an approval card unless it preempts.",
-         object_schema({{"plateId", id}, {"preempt", boolean_schema()}}),
-         object_schema({{"handle", id}, {"started", boolean_schema()}, {"slicing", slicing_section},
+         "Start Orca's own slicing run for one plate, or every plate when you name none, and return once it has started; read the slicing section of workspace_inspect for the result, which is not ready then. With wait, return when the run ends instead (finished says whether the plates are sliced), which is what to use before reading slice_report. Fails when a slice is already running unless you pass preempt, because nothing records who started that run and it may be the user's. Runs without an approval card unless it preempts.",
+         object_schema({{"plateId", id}, {"preempt", boolean_schema()}, {"wait", boolean_schema()}}),
+         object_schema({{"handle", id}, {"started", boolean_schema()}, {"finished", boolean_schema()}, {"slicing", slicing_section},
                         {"sessionId", id}, {"revision", revision}},
                        {"handle", "started", "slicing", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceStart,

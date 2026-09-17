@@ -87,7 +87,9 @@ inline SettingsSearchResult search_setting_definitions(const std::vector<Setting
         const std::string key = ascii_lower(def.key), label = ascii_lower(def.label), description = ascii_lower(def.description);
         std::size_t matched = 0, best = 4;
         for (const std::string& term : terms) {
-            const std::size_t rank = key == term ? 0 : key.find(term) == 0 ? 1 : label.find(term) != std::string::npos ? 2 :
+            // A key that holds the term ranks with the keys that start with it:
+            // "support" finds enable_support among the support_ keys.
+            const std::size_t rank = key == term ? 0 : key.find(term) != std::string::npos ? 1 : label.find(term) != std::string::npos ? 2 :
                                      description.find(term) != std::string::npos ? 3 : 4;
             if (rank < 4) {
                 ++matched;
@@ -146,10 +148,17 @@ inline std::vector<std::string> setting_suggestions(const std::string& key,
                 diagonal = old;
             }
         }
+        // "enable" alone says nothing about which setting was meant; with a
+        // word that does ("support_enable"), it counts.
         std::size_t shared = 0;
+        bool        telling = false;
         for (const auto& word : words)
-            if (word.size() >= 4 && word != "enable" && ("_" + def.key + "_").find("_" + word + "_") != std::string::npos)
+            if (word.size() >= 4 && ("_" + def.key + "_").find("_" + word + "_") != std::string::npos) {
                 ++shared;
+                telling = telling || word != "enable";
+            }
+        if (!telling)
+            shared = 0;
         if (shared > 0 || row.back() <= std::max<std::size_t>(2, needle.size() / 3))
             ranked.emplace_back(std::numeric_limits<std::size_t>::max() - shared, !def.writable, row.back(), def.key);
     }

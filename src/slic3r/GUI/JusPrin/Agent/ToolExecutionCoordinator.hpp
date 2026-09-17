@@ -13,6 +13,7 @@
 #include "ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -181,6 +182,16 @@ private:
     // The last change a settings patch cares about: a settings edit or a new
     // project. A model edit between a preview and its apply does not move it.
     std::uint64_t                    m_last_settings_revision{0};
+    // slice_start calls that return when their run ends, by action id. Such a
+    // call stays Running without holding up the others.
+    struct SliceWait
+    {
+        std::optional<Workspace::PlateId>     plate;
+        bool                                  seen_running{false};
+        std::chrono::steady_clock::time_point started;
+    };
+    std::map<std::string, SliceWait> m_slice_waits;
+    void finish_slice_waits();
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

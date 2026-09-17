@@ -696,10 +696,52 @@ void ToolExecutionCoordinator::forget_if_closed(const std::string& action_id)
                        m_activities.end());
 }
 
+void ToolExecutionCoordinator::finish_slice_waits()
+{
+    for (auto wait = m_slice_waits.begin(); wait != m_slice_waits.end();) {
+        ToolActivity* activity = find_mutable(wait->first);
+        if (activity == nullptr || activity->state != ToolState::Running) {
+            wait = m_slice_waits.erase(wait);
+            continue;
+        }
+        const auto snapshot = m_workspace.snapshot();
+        if (snapshot.session.value() != activity->session) {
+            fail(*activity, "stale_revision", "The project changed while it was slicing.");
+            wait = m_slice_waits.erase(wait);
+            continue;
+        }
+        wait->second.seen_running = wait->second.seen_running || snapshot.slicing.running;
+        bool sliced = !snapshot.plates.empty();
+        for (const auto& plate : snapshot.plates)
+            if ((!wait->second.plate || plate.id == *wait->second.plate) && !plate.sliced)
+                sliced = false;
+        const auto elapsed = std::chrono::steady_clock::now() - wait->second.started;
+        // The run ends when it has been seen and stops. A run too quick to be
+        // seen, or one Orca did not need, ends when the plates read as sliced;
+        // a run that never reports ends the call after fifteen minutes.
+        const bool ended = !snapshot.slicing.running &&
+                           (wait->second.seen_running || (sliced && elapsed > std::chrono::seconds(3)) ||
+                            elapsed > std::chrono::minutes(15));
+        if (!ended) {
+            ++wait;
+            continue;
+        }
+        activity->result_json = json{{"handle", activity->action_id}, {"started", true}, {"finished", sliced},
+                                     {"slicing", slicing_section_result(snapshot, m_slice_handle)},
+                                     {"sessionId", std::to_string(snapshot.session.value())},
+                                     {"revision", snapshot.revision}}
+                                    .dump();
+        activity->state = ToolState::Succeeded;
+        wait = m_slice_waits.erase(wait);
+        notify(*activity);
+    }
+}
+
 void ToolExecutionCoordinator::pump()
 {
+    finish_slice_waits();
     for (ToolActivity& activity : m_activities) {
-        if (activity.state != ToolState::Running)
+        if (activity.state != ToolState::Running || m_slice_waits.count(activity.action_id))
             continue;
         if (activity.progress_current + 1 < activity.progress_total) {
             ++activity.progress_current;
@@ -1449,6 +1491,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         // caller finds it again in the slicing section, which is where the
         // result appears when the slicer is done.
         m_slice_handle       = activity.action_id;
+        if (arguments.value("wait", false)) {
+            m_slice_waits[activity.action_id] = {plate, false, std::chrono::steady_clock::now()};
+            return;
+        }
         const auto snapshot  = m_workspace.snapshot();
         activity.result_json = json{{"handle", activity.action_id}, {"started", true},
                                     {"slicing", slicing_section_result(snapshot, m_slice_handle)},

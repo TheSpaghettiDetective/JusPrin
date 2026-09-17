@@ -181,7 +181,12 @@ CommandResult OrcaWorkspaceAdapter::plan_regions(const std::vector<RegionRequest
                 } else if (asked.type == "hole" && feature.get_type() == Measure::SurfaceFeatureType::Circle) {
                     record.geometry = hole_from(its, measuring, address->plane, address->feature);
                 } else {
-                    return CommandResult::failure(WorkspaceError::InvalidArgument, asked.handle + " is not a " + asked.type + " handle");
+                    return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                                  asked.handle + " is a " +
+                                                      (feature.get_type() == Measure::SurfaceFeatureType::Circle ? "hole" :
+                                                       feature.get_type() == Measure::SurfaceFeatureType::Plane  ? "face" : "edge") +
+                                                      " handle, not a " + asked.type + " handle; use the handles listed under features " +
+                                                      (asked.type == "hole" ? "holes" : "faces"));
                 }
             } else if (asked.type == "box" || asked.type == "cylinder" || asked.type == "direction") {
                 // Given as the object stands now; kept in the first part's mesh

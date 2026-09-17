@@ -572,4 +572,5 @@ TEST_CASE("A guessed setting name with the right words suggests the real one fir
     definitions[2].key      = "support_on_build_plate_only";
     definitions[2].writable = true;
     CHECK(setting_suggestions("support_build_plate_only", definitions).front() == "support_on_build_plate_only");
+    CHECK(setting_suggestions("support_enable", definitions).front() == "enable_support");
 }
