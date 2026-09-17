@@ -59,10 +59,4 @@ wxString rename_named_printer(Plater& plater, Workspace::SpoolStore* spools, con
 wxString remove_named_printer(Plater& plater, Workspace::SpoolStore* spools, const std::string& name);
 wxString open_named_printer_settings(Plater& plater, const std::string& name);
 
-// The header's nozzle choice. On a named printer the nozzle is part of that
-// printer, so its profile moves onto `system_preset`, the sibling system
-// profile for the new nozzle, keeping the person's own settings; on a system
-// profile the sibling is simply selected, as before.
-void select_nozzle(Plater& plater, const std::string& system_preset);
-
 } // namespace Slic3r::GUI::JusPrin::Printers

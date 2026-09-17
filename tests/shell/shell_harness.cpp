@@ -912,40 +912,15 @@ private:
         check(Printers::remove_named_printer(*m_plater, nullptr, "Shed Neo").empty() &&
                   printer_profile("Shed Neo") == nullptr && selected_printer() == kAddedPrinterProfile,
               "named_remove_of_the_selected_printer_selects_its_parent");
-        verify_named_nozzle();
+        verify_named_header();
     }
 
-    // The nozzle belongs to the printer: changing it moves the printer onto
-    // the other nozzle's system profile and keeps the printer's own settings.
-    void verify_named_nozzle()
+    // The header names the selected printer by its own name.
+    void verify_named_header()
     {
-        std::string error;
-        check(SetupCommands::install_and_select_printer(*m_plater, "BBL", "Bambu Lab X1 Carbon", "0.6", {}, error) &&
-                  SetupCommands::install_and_select_printer(*m_plater, "BBL", "Bambu Lab X1 Carbon", "0.4", {}, error),
-              "named_nozzle_installs_two_nozzles");
-        const std::string name = Printers::add_named_printer(*m_plater, "Lab X1C", {});
-        PresetCollection& printers = wxGetApp().preset_bundle->printers;
-        printers.get_edited_preset().config.set_key_value("print_host", new ConfigOptionString("192.0.2.9"));
-        wxGetApp().get_tab(Preset::TYPE_PRINTER)->save_preset(name);
+        const std::string name = Printers::add_named_printer(*m_plater, "Lab Printer", {});
         check(SetupCommands::current_printer().nickname == name, "named_header_shows_the_printers_name");
-
-        const auto variants = SetupCommands::nozzle_variants();
-        const auto current = std::find_if(variants.begin(), variants.end(), [](const auto& v) { return v.current; });
-        check(variants.size() >= 2 && current != variants.end() && current->preset_name == kSetupFixturePrinter,
-              "named_nozzle_menu_marks_the_printers_nozzle");
-        check(std::none_of(variants.begin(), variants.end(), [&](const auto& v) { return v.preset_name == name; }),
-              "named_nozzle_menu_offers_no_printer");
-
-        Printers::select_nozzle(*m_plater, "Bambu Lab X1 Carbon 0.6 nozzle");
-        const Preset* lab = printer_profile(name);
-        check(selected_printer() == name && lab != nullptr && lab->inherits() == "Bambu Lab X1 Carbon 0.6 nozzle",
-              "named_nozzle_change_keeps_the_printer");
-        check(lab != nullptr && lab->config.option<ConfigOptionFloats>("nozzle_diameter")->values.front() == 0.6,
-              "named_nozzle_change_takes_the_nozzle");
-        check(lab != nullptr && lab->config.opt_string("print_host") == "192.0.2.9",
-              "named_nozzle_change_keeps_the_printers_own_settings");
-
-        check(Printers::remove_named_printer(*m_plater, nullptr, name).empty(), "named_nozzle_cleanup_removes_the_printer");
+        check(Printers::remove_named_printer(*m_plater, nullptr, name).empty(), "named_header_cleanup_removes_the_printer");
         verify_named_wizard_install();
     }
 
@@ -1544,7 +1519,9 @@ private:
         auto* menu = visible_header_menu();
         check(menu != nullptr, "printer_menu_opens");
         if (menu == nullptr) return;
-        check(wxWindow::FindWindowByName("Nozzle", menu) != nullptr, "printer_menu_has_nozzle_row");
+        auto* nozzle = wxWindow::FindWindowByName("Nozzle", menu);
+        check(nozzle != nullptr, "printer_menu_has_nozzle_row");
+        check(nozzle != nullptr && !nozzle->IsEnabled(), "nozzle_row_is_read_only");
         check(wxWindow::FindWindowByName("Plate", menu) != nullptr, "printer_menu_has_plate_row");
 
         auto* plate = static_cast<HeaderButton*>(wxWindow::FindWindowByName("Plate", menu));

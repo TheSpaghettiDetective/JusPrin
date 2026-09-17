@@ -1,7 +1,6 @@
 #include "PrinterMenu.hpp"
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
-#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -41,7 +40,6 @@ void PrinterMenu::show_root(const Ptr& self)
     if (menu == nullptr) return; // the popup went away; nothing to rebuild
     const auto printer    = SetupCommands::current_printer();
     const auto connection = SetupCommands::printer_connection();
-    const auto variants   = SetupCommands::nozzle_variants();
     const auto plates     = SetupCommands::bed_types();
 
     std::vector<HeaderMenuItem> rows;
@@ -82,15 +80,13 @@ void PrinterMenu::show_root(const Ptr& self)
     rows.push_back(std::move(machine));
     rows.push_back(separator());
 
+    // Read-only: a printer's nozzle is fixed by its parent system profile, and
+    // changing it here would mean moving the printer to another parent and
+    // deciding which of its own settings follow. Prepare only shows it.
     HeaderMenuItem nozzle;
-    nozzle.label                = _L("Nozzle");
-    nozzle.decoration.detail    = nozzle_text(printer.nozzle);
-    nozzle.enabled              = !variants.empty();
-    if (nozzle.enabled) {
-        nozzle.decoration.trailing = HeaderIcon::Right;
-        nozzle.keeps_open          = true;
-        nozzle.invoke              = [self] { show_nozzles(self); };
-    }
+    nozzle.label             = _L("Nozzle");
+    nozzle.decoration.detail = nozzle_text(printer.nozzle);
+    nozzle.enabled           = false;
     rows.push_back(std::move(nozzle));
 
     HeaderMenuItem plate;
@@ -120,19 +116,6 @@ void PrinterMenu::show_root(const Ptr& self)
     rows.push_back(std::move(add));
 
     menu->replace_items(std::move(rows));
-}
-
-void PrinterMenu::show_nozzles(const Ptr& self)
-{
-    std::vector<HeaderMenuItem> choices;
-    for (const auto& variant : SetupCommands::nozzle_variants()) {
-        HeaderMenuItem row;
-        row.label                = nozzle_text(variant.nozzle);
-        row.decoration.check     = variant.current;
-        row.invoke = [self, name = variant.preset_name] { Printers::select_nozzle(self->m_plater, name); };
-        choices.push_back(std::move(row));
-    }
-    show_sublist(self, _L("Nozzle"), std::move(choices));
 }
 
 void PrinterMenu::show_plates(const Ptr& self)

@@ -17,7 +17,6 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <map>
-#include <set>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Printers {
@@ -297,47 +296,6 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name)
     if (select(plater, name))
         SetupCommands::open_settings_tab(Preset::TYPE_PRINTER);
     return {};
-}
-
-void select_nozzle(Plater& plater, const std::string& system_preset)
-{
-    PresetCollection& printers = bundle().printers;
-    const Preset&     current  = printers.get_selected_preset();
-    if (!is_named_printer(current)) {
-        SetupCommands::select_printer_preset(plater, system_preset);
-        return;
-    }
-
-    const std::string name       = current.name;
-    const Preset*     old_parent = printers.get_selected_preset_parent();
-    const Preset*     new_parent = printers.find_preset(system_preset, false, true);
-    if (old_parent == nullptr || new_parent == nullptr || !new_parent->is_system)
-        throw std::logic_error("A named printer's nozzle moves between system profiles of its model");
-    if (old_parent == new_parent || !settle_unsaved_changes(name))
-        return;
-
-    // The new nozzle's profile, plus every setting the person changed on this
-    // printer -- except the ones the two nozzle profiles themselves disagree
-    // on, which belong to the nozzle.
-    const Preset&         saved   = printers.get_selected_preset();
-    DynamicPrintConfig    config  = new_parent->config;
-    const auto            changed = PresetCollection::dirty_options(&saved, old_parent);
-    const auto            nozzle  = PresetCollection::dirty_options(new_parent, old_parent);
-    const std::set<std::string> nozzle_keys(nozzle.begin(), nozzle.end());
-    for (const std::string& key : changed)
-        if (nozzle_keys.count(key) == 0)
-            config.set_key_value(key, saved.config.option(key)->clone());
-    Preset::inherits(config) = new_parent->name;
-
-    // Saving over an existing profile takes the edited config whole,
-    // including its parent, and stores the difference from that parent.
-    Tab& tab = printer_tab();
-    plater.update_objects_position_when_select_preset([&] {
-        printers.get_edited_preset().config = std::move(config);
-        tab.save_preset(name);
-        tab.select_preset(name, false, "", /*force_select=*/true);
-        plater.on_config_change(bundle().full_config());
-    });
 }
 
 } // namespace Slic3r::GUI::JusPrin::Printers

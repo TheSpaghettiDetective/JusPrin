@@ -104,38 +104,6 @@ wxString current_colour()
     return option_string(presets->project_config, "filament_colour");
 }
 
-std::vector<NozzleVariant> nozzle_variants()
-{
-    std::vector<NozzleVariant> variants;
-    const PresetBundle* presets = wxGetApp().preset_bundle;
-    if (presets == nullptr)
-        return variants;
-    const Preset&     edited = presets->printers.get_edited_preset();
-    const std::string model  = edited.config.opt_string("printer_model");
-    if (model.empty())
-        return variants;
-    // A named printer sits on one of these system profiles. Its own profile
-    // is a printer, not a nozzle, so user profiles are never offered here.
-    const std::string& current = presets->printers.get_selected_preset_base().name;
-
-    for (const Preset& preset : presets->printers) {
-        if (!preset.is_visible || !preset.is_system)
-            continue;
-        if (preset.config.opt_string("printer_model") != model)
-            continue;
-        const auto* nozzle = preset.config.option<ConfigOptionFloats>("nozzle_diameter");
-        if (nozzle == nullptr || nozzle->values.empty())
-            continue;
-        variants.push_back({preset.name, nozzle->values.front(), preset.name == current});
-    }
-    std::sort(variants.begin(), variants.end(),
-              [](const NozzleVariant& a, const NozzleVariant& b) { return a.nozzle < b.nozzle; });
-    // One variant is not a choice; the row shows the value without a submenu.
-    if (variants.size() < 2)
-        variants.clear();
-    return variants;
-}
-
 std::vector<BedTypeChoice> bed_types()
 {
     std::vector<BedTypeChoice> choices;

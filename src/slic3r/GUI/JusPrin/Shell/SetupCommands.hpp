@@ -60,16 +60,6 @@ FilamentInfo current_filament();          // extruder 0
 // The project's extruder-0 filament colour as "#RRGGBB", or empty.
 wxString     current_colour();
 
-struct NozzleVariant
-{
-    std::string preset_name;
-    double      nozzle{0.};
-    bool        current{false};
-};
-// The installed system presets for the current printer model, one per
-// nozzle, smallest first. `current` marks the one the printer is on.
-std::vector<NozzleVariant> nozzle_variants();
-
 struct BedTypeChoice
 {
     int      value{0};           // BedType enum value
