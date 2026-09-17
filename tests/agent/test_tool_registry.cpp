@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -65,31 +66,29 @@ TEST_CASE("tool registry definitions are unique deterministic and schema-backed"
 TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][exposure]")
 {
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::InApp)) ==
-          std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
+          std::vector<std::string>{"activity_cancel", "export_file", "history_restore", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "project_save", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
-          std::vector<std::string>{"settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
+          std::vector<std::string>{"activity_cancel", "export_file", "history_restore", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import_file", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "project_save", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
           std::vector<std::string>{"record_build", "record_export_copy", "record_physical_print"});
 
-    REQUIRE(ToolRegistry::instance().find("import_model") != nullptr);
-    CHECK(ToolRegistry::instance().find("import_model")->availability == ToolAvailability::ImportableAttachment);
+    REQUIRE(ToolRegistry::instance().find("object_import") != nullptr);
+    CHECK(ToolRegistry::instance().find("object_import")->availability == ToolAvailability::ImportableAttachment);
 }
 
 TEST_CASE("tool registry is the argument validation boundary", "[tools][registry][validation]")
 {
-    const ToolDefinition& duplicate = *ToolRegistry::instance().find("duplicate_object");
-    CHECK(ToolRegistry::instance()
-              .validate_call(duplicate, json{{"sessionId", "41"}, {"objectId", "72"}}.dump())
-              .valid());
+    const ToolDefinition& layout = *ToolRegistry::instance().find("plate_layout");
+    const auto copies = [](json object_id) {
+        return json::array({json{{"objectId", std::move(object_id)}, {"quantity", 2}}});
+    };
+    CHECK(ToolRegistry::instance().validate_call(layout, json{{"sessionId", "41"}, {"objects", copies("72")}}.dump()).valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(layout, json{{"sessionId", "41"}, {"objects", copies(72)}}.dump()).valid());
     CHECK_FALSE(ToolRegistry::instance()
-                    .validate_call(duplicate, json{{"sessionId", "41"}, {"objectId", 72}}.dump())
-                    .valid());
-    CHECK_FALSE(ToolRegistry::instance()
-                    .validate_call(duplicate,
-                                   json{{"sessionId", "41"}, {"objectId", "72"}, {"actionClass", "read_only"}}.dump())
+                    .validate_call(layout, json{{"sessionId", "41"}, {"objects", copies("72")}, {"actionClass", "read_only"}}.dump())
                     .valid());
 
-    const ToolDefinition& inspect = *ToolRegistry::instance().find("inspect_selection");
+    const ToolDefinition& inspect = *ToolRegistry::instance().find("workspace_inspect");
     CHECK(ToolRegistry::instance().validate_call(inspect, "{}").valid());
     CHECK_FALSE(ToolRegistry::instance().validate_call(inspect, json{{"extra", true}}.dump()).valid());
 }
@@ -105,7 +104,7 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     for (auto value : {"0.25", "invalid"}) {
         auto preview = workspace.preview_settings({{{"layer_height", value}}});
         CHECK(registry.validate_output(*registry.find("settings_preview_patch"), settings_preview_result(preview, snapshot)));
-        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, snapshot, false)));
+        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, snapshot, false, false)));
     }
     const auto& preview_tool = *registry.find("settings_preview_patch");
     const auto decoded = registry.validate_call(preview_tool, R"({"changes":{"unknown":true,"wall_loops":4,"layer_height":0.25}})");
@@ -118,4 +117,33 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     unsupported.output_schema["maximum"] = 1;
     CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, snapshot)), std::logic_error);
     CHECK(registry.approval_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
+}
+
+TEST_CASE("output validation understands closed vocabularies and string bounds", "[tools][registry][validation]")
+{
+    const auto& registry = ToolRegistry::instance();
+    // The vocabulary is exercised on a definition built here rather than on a
+    // shipped tool: the keywords land before the first catalog row needs them.
+    ToolDefinition definition = *registry.find("workspace_inspect");
+    definition.output_schema = json{{"type", "object"},
+                                    {"properties",
+                                     {{"provenance", {{"type", "string"}, {"enum", json::array({"file", "observed"})}}},
+                                      {"label", {{"type", "string"}, {"maxLength", 8}}}}},
+                                    {"required", json::array({"provenance", "label"})},
+                                    {"additionalProperties", false}};
+
+    CHECK(registry.validate_output(definition, json{{"provenance", "observed"}, {"label", "front"}}));
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", "guessed"}, {"label", "front"}}));
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", "file"}, {"label", "far too long"}}));
+    // Eight bytes, four code points: the bound the producers truncate to is
+    // the bound this validator enforces.
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", "file"}, {"label", "ééééé"}}));
+    CHECK(registry.validate_output(definition, json{{"provenance", "file"}, {"label", "éééé"}}));
+
+    // enum is not string-only, and an unsupported keyword is still a defect.
+    definition.output_schema["properties"]["provenance"] = json{{"type", "integer"}, {"enum", json::array({1, 2})}};
+    CHECK(registry.validate_output(definition, json{{"provenance", 2}, {"label", "front"}}));
+    CHECK_FALSE(registry.validate_output(definition, json{{"provenance", 3}, {"label", "front"}}));
+    definition.output_schema["properties"]["label"]["pattern"] = "^f";
+    CHECK_THROWS_AS(registry.validate_output(definition, json{{"provenance", 1}, {"label", "front"}}), std::logic_error);
 }

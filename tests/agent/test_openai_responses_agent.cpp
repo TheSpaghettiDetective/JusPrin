@@ -90,12 +90,14 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    REQUIRE(body["tools"].size() == 7);
+    REQUIRE(body["tools"].size() == 30);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
-        CHECK(tool["strict"] == (name == "duplicate_object" || name == "inspect_selection" || name == "settings_get" ||
-                                  name == "workspace_inspect"));
+        // Strict mode cannot express an optional argument, so a tool gains one by
+        // giving it up: workspace_inspect did when it gained sections, settings_get
+        // when it gained a target, and every mutation when it gained planId.
+        CHECK(tool["strict"] == (name == "printer_list" || name == "project_attachment_read"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
         REQUIRE(definition != nullptr);
@@ -104,7 +106,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"duplicate_object", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "history_restore", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "project_save", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -168,11 +170,11 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"duplicate_object", "import_model", "inspect_selection", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "history_restore", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "project_save", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},
-                    {"name", "import_model"},
+                    {"name", "object_import"},
                     {"arguments", json{{"sessionId", "41"}, {"attachmentId", "model-1"}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({call})}}}}));
@@ -180,7 +182,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     const auto event = poll_until(agent, AgentEventKind::ToolCall);
     REQUIRE(event);
     REQUIRE(event->tool);
-    CHECK(event->tool->request.tool == "import_model");
+    CHECK(event->tool->request.tool == "object_import");
 }
 
 TEST_CASE("OpenAI consumes a final SSE frame without a trailing delimiter", "[agent][openai]")
@@ -205,8 +207,8 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
 
     const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
     const json call{{"type", "function_call"}, {"id", "item-1"}, {"call_id", "call-9"},
-                    {"name", "duplicate_object"},
-                    {"arguments", json{{"sessionId", "41"}, {"objectId", "72"}}.dump()}};
+                    {"name", "plate_layout"},
+                    {"arguments", json{{"sessionId", "41"}, {"objects", json::array({json{{"objectId", "72"}, {"quantity", 2}}})}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({reasoning, call})}}}}));
     fake->complete();
@@ -214,7 +216,7 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     REQUIRE(event);
     REQUIRE(event->tool);
     CHECK(event->tool->call_id == "call-9");
-    CHECK(event->tool->request.tool == "duplicate_object");
+    CHECK(event->tool->request.tool == "plate_layout");
     CHECK(agent.busy());
 
     REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded","result":{"objectId":"73"}})"}));
@@ -251,8 +253,8 @@ TEST_CASE("a late completion from the tool-call request cannot end its continuat
     OpenAIResponsesAgent agent({"key"}, std::move(transport));
     REQUIRE(agent.start(request_fixture()));
 
-    const json call{{"type", "function_call"}, {"call_id", "call-9"}, {"name", "duplicate_object"},
-                    {"arguments", json{{"sessionId", "41"}, {"objectId", "72"}}.dump()}};
+    const json call{{"type", "function_call"}, {"call_id", "call-9"}, {"name", "plate_layout"},
+                    {"arguments", json{{"sessionId", "41"}, {"objects", json::array({json{{"objectId", "72"}, {"quantity", 2}}})}}.dump()}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
     REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
     REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded"})"}));
@@ -315,14 +317,26 @@ TEST_CASE("OpenAI maps credential timeout and service errors", "[agent][openai][
     }
 }
 
-TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", "[agent][openai][tools]")
+TEST_CASE("OpenAI returns malformed tool arguments to the model before native presentation", "[agent][openai][tools]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
     OpenAIResponsesAgent agent({"key"}, std::move(transport));
     REQUIRE(agent.start(request_fixture()));
-    const json call{{"type", "function_call"}, {"call_id", "call-bad"}, {"name", "duplicate_object"},
+    const json call{{"type", "function_call"}, {"call_id", "call-bad"}, {"name", "plate_layout"},
                     {"arguments", json{{"objectId", 72}}.dump()}};
+    // Twice the model is told and asked again; the third time ends the turn.
+    for (std::size_t attempt = 1; attempt <= 2; ++attempt) {
+        fake->data(sse(json{{"type", "response.completed"},
+                            {"response", json{{"output", json::array({call})}}}}));
+        CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+        REQUIRE(fake->requests.size() == attempt + 1);
+        const json input = json::parse(fake->requests.back().body)["input"];
+        CHECK(input.back()["type"] == "function_call_output");
+        CHECK(input.back()["call_id"] == "call-bad");
+        CHECK(json::parse(input.back()["output"].get<std::string>())["error"]["code"] == "invalid_arguments");
+        CHECK(agent.busy());
+    }
     fake->data(sse(json{{"type", "response.completed"},
                         {"response", json{{"output", json::array({call})}}}}));
     fake->complete();
@@ -331,4 +345,106 @@ TEST_CASE("OpenAI refuses malformed tool arguments before native presentation", 
     REQUIRE(event->error);
     CHECK(event->error->code == "malformed_tool_call");
     CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+}
+
+TEST_CASE("OpenAI tells the model when it calls a tool that is not offered", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    std::vector<std::string> refused;
+    OpenAIResponsesConfig    config{"key"};
+    config.refusal_listener = [&refused](const std::string& tool, const std::string& arguments, const std::string& code) {
+        refused.push_back(tool + " " + arguments + " " + code);
+    };
+    OpenAIResponsesAgent agent(std::move(config), std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json call{{"type", "function_call"}, {"call_id", "call-x"}, {"name", "support_enable"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::Failed));
+    REQUIRE(fake->requests.size() == 2);
+    const json output = json::parse(json::parse(fake->requests.back().body)["input"].back()["output"].get<std::string>());
+    CHECK(output["error"]["code"] == "unknown_tool");
+    CHECK(output["error"]["message"].get<std::string>().find("support_enable") != std::string::npos);
+    CHECK(refused == std::vector<std::string>{"support_enable {} unknown_tool"});
+}
+
+TEST_CASE("reported usage carries the cached share of the input", "[agent][openai][usage]")
+{
+    std::vector<AgentUsage> reported;
+    OpenAIResponsesConfig   config{"key"};
+    config.usage_listener = [&reported](const AgentUsage& usage) { reported.push_back(usage); };
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent(std::move(config), std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    fake->data(sse(json{{"type", "response.completed"},
+                        {"response", json{{"output", json::array()},
+                                          {"usage", json{{"input_tokens", 4102},
+                                                         {"input_tokens_details", json{{"cached_tokens", 3840}}},
+                                                         {"output_tokens", 51},
+                                                         {"total_tokens", 4153}}}}}}));
+    fake->complete();
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0].input == 4102);
+    CHECK(reported[0].cached_input == 3840);
+    CHECK(reported[0].output == 51);
+    CHECK(reported[0].total == 4153);
+
+    // A provider that reports no cache detail is zero cached, not a gap: the
+    // deferral decision reads the log as a number either way.
+    auto second = std::make_unique<FakeTransport>();
+    FakeTransport* second_fake = second.get();
+    OpenAIResponsesConfig plain{"key"};
+    plain.usage_listener = [&reported](const AgentUsage& usage) { reported.push_back(usage); };
+    OpenAIResponsesAgent bare(std::move(plain), std::move(second));
+    REQUIRE(bare.start(request_fixture()));
+    second_fake->data(sse(json{{"type", "response.completed"},
+                               {"response", json{{"output", json::array()},
+                                                 {"usage", json{{"input_tokens", 803}, {"output_tokens", 20},
+                                                                {"total_tokens", 823}}}}}}));
+    second_fake->complete();
+    REQUIRE(poll_until(bare, AgentEventKind::Completed));
+    REQUIRE(reported.size() == 2);
+    CHECK(reported[1].input == 803);
+    CHECK(reported[1].cached_input == 0);
+}
+
+TEST_CASE("the in-app catalog's per-turn size is recorded", "[agent][openai][budget]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    REQUIRE(fake->requests.size() == 1);
+
+    // The number the deferral decision rests on, alongside the cached-token
+    // share the live regression logs. Printed on every run; the bounds are an
+    // alarm for runaway growth, not a target to grow into.
+    const json  body  = json::parse(fake->requests.front().body);
+    const auto  bytes = body["tools"].dump().size();
+    WARN("in-app tool definitions: " << body["tools"].size() << ", " << bytes << " bytes");
+    CHECK(body["tools"].size() <= 40);
+    CHECK(bytes <= 48 * 1024); // a tripwire, as the MCP catalog's
+}
+
+TEST_CASE("an image result follows its function output as an image input", "[agent][openai][image]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json call{{"type", "function_call"}, {"call_id", "call-img"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    AgentToolResult result{"call-img", "succeeded", R"({"state":"succeeded"})"};
+    result.image = std::make_shared<ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 1});
+    REQUIRE(agent.continue_after_tool(result));
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() >= 2);
+    CHECK(input[input.size() - 2]["type"] == "function_call_output");
+    CHECK(input.back()["role"] == "user");
+    CHECK(input.back()["content"][1] == json{{"type", "input_image"}, {"image_url", "data:image/png;base64,iVBORw0KGgo="}});
 }

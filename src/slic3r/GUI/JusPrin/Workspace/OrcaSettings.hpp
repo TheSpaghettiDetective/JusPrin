@@ -40,6 +40,12 @@ inline SettingDefinition setting_definition(const std::string& key)
     const auto& def = *print_config_def.get(key);
     SettingDefinition result{key, setting_type(def.type), def.full_label.empty() ? def.label : def.full_label,
         def.category, def.tooltip, def.sidetext, {}, {}, def.enum_values, def.enum_labels, writable_setting(key) && !def.readonly};
+    // An open enum (the interface layer counts) takes any number; its list is
+    // a set of shortcuts, not the allowed values.
+    if (def.gui_type == ConfigOptionDef::GUIType::i_enum_open || def.gui_type == ConfigOptionDef::GUIType::f_enum_open) {
+        result.enum_values.clear();
+        result.enum_labels.clear();
+    }
     if (def.min != -std::numeric_limits<float>::max()) result.min = def.min;
     if (def.max != std::numeric_limits<float>::max()) result.max = def.max;
     return result;
@@ -57,6 +63,20 @@ inline SettingIssue missing_process_setting(const std::string& key)
 {
     return print_config_def.get(key) ? SettingIssue{key, "unsupported_scope", "This key is not a process setting."} :
         SettingIssue{key, "unknown_setting", "Unknown setting.", {}, setting_suggestions(key, process_definitions())};
+}
+
+// The keys an object can override: ObjectList's get_options for a whole
+// object, region options plus object options.
+inline bool object_setting(const std::string& key)
+{
+    static const PrintRegionConfig region;
+    static const PrintObjectConfig object;
+    return region.optptr(key) != nullptr || object.optptr(key) != nullptr;
+}
+
+inline SettingIssue print_scope_setting(const std::string& key)
+{
+    return {key, "unsupported_scope", "This setting applies to the whole print and cannot differ per object."};
 }
 
 inline bool has_process_setting(const std::string& key)
@@ -95,6 +115,31 @@ inline bool complete_setting_number(const std::string& text, ConfigOptionType ty
     return true;
 }
 
+// Parses one value into `config` the way a patch does, with the setting's
+// own bounds; the result says why a value was refused.
+inline std::optional<std::string> set_setting_value(DynamicPrintConfig& config, const std::string& key, const std::string& text)
+{
+    const ConfigOptionDef* definition = print_config_def.get(key);
+    if (!complete_setting_number(text, definition->type))
+        return "Expected a complete finite " + setting_type(definition->type) + " value.";
+    try {
+        config.set_deserialize_strict(key, text);
+    } catch (const BadOptionValueException& error) {
+        return std::string(error.what());
+    }
+    const ConfigOption* option = config.option(key);
+    // Bounds by type: a boolean has none, and reading one as a float is
+    // undefined behaviour.
+    if (definition->type == coEnum)
+        return definition->has_enum_value(option->serialize()) ? std::nullopt : std::optional<std::string>("Value is not in the allowed enum values.");
+    const bool numeric = definition->type == coInt || definition->type == coFloat || definition->type == coPercent ||
+                         definition->type == coFloatOrPercent;
+    if (numeric && !definition->is_value_valid(definition->type == coInt ? static_cast<double>(config.opt_int(key)) :
+                                                                           static_cast<const ConfigOptionFloat*>(option)->value))
+        return std::string("Value is outside the setting's bounds.");
+    return std::nullopt;
+}
+
 // Audit against ConfigManipulation::update_print_fff_config. These are every
 // active modal predicate, including unrelated pre-existing invalid values:
 // update() evaluates the entire config after any allowed batch. Keep refusal
@@ -130,6 +175,31 @@ inline void check_process_dialogs(const DynamicPrintConfig& config, SettingsPrev
     block(config.opt_enum<FuzzySkinMode>("fuzzy_skin_mode") != FuzzySkinMode::Displacement &&
         config.opt_enum<PerimeterGeneratorType>("wall_generator") != PerimeterGeneratorType::Arachne,
         "fuzzy_skin_mode", "This fuzzy skin mode requires wall_generator=arachne.");
+}
+
+// ConfigManipulation resets support_style to default, silently, when it does
+// not fit the support type. A patch that would be rewritten that way is
+// refused with the styles that fit, rather than approved and then changed.
+inline void check_support_style(const DynamicPrintConfig& config, const std::map<std::string, std::string>& patch,
+                                SettingsPreview& result)
+{
+    if (!config.opt_bool("enable_support") ||
+        (!patch.count("support_style") && !patch.count("support_type") && !patch.count("enable_support")))
+        return;
+    const bool tree = is_tree(config.opt_enum<SupportType>("support_type"));
+    const std::vector<SupportMaterialStyle> fitting = tree ?
+        std::vector<SupportMaterialStyle>{smsDefault, smsTreeSlim, smsTreeStrong, smsTreeHybrid, smsTreeOrganic} :
+        std::vector<SupportMaterialStyle>{smsDefault, smsGrid, smsSnug};
+    const auto style = config.opt_enum<SupportMaterialStyle>("support_style");
+    if (std::find(fitting.begin(), fitting.end(), style) != fitting.end())
+        return;
+    std::vector<std::string> allowed;
+    for (SupportMaterialStyle candidate : fitting)
+        allowed.push_back(ConfigOptionEnum<SupportMaterialStyle>(candidate).serialize());
+    result.issues.push_back({"support_style", "invalid_setting_value",
+                             std::string("With ") + (tree ? "tree" : "normal") +
+                                 " supports, support_style must be one of the allowed values; OrcaSlicer would reset it to default.",
+                             allowed});
 }
 
 inline bool process_tab_toggles_options(Tab& tab)

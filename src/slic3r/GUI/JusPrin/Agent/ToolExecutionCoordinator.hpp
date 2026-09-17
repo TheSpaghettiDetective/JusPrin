@@ -8,14 +8,17 @@
 // GUI-free and deterministic: execution advances only when the owner calls
 // pump(), so tests can drive it without timers.
 
+#include "ProductState.hpp"
 #include "ToolExecution.hpp"
 #include "ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -90,6 +93,11 @@ public:
     ToolActivitySubscription subscribe(ActivityCallback listener);
     void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
 
+    // The store behind the intent and plan tools. The owner holds project
+    // storage, so it supplies this; without it those tools report the
+    // operation unavailable rather than pretending to record anything.
+    void set_product_state(IProductState* state) { m_product_state = state; }
+
     // Action IDs default to a process-local counter; an owner with persisted
     // state injects its own allocator so IDs stay unique across restarts.
     void set_action_id_allocator(std::function<std::string()> allocator) { m_action_id_allocator = std::move(allocator); }
@@ -104,7 +112,12 @@ public:
 
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
-    void clear() { m_activities.clear(); }
+    // Forgets every activity except one that is executing: a command that
+    // replaces the project is still running while the project it was
+    // proposed in is torn down, and it has to be able to report.
+    void clear();
+    const std::string& executing_action_id() const { return m_executing; }
+    void forget_if_closed(const std::string& action_id);
     // Chat deletion may forget completed records, never in-flight work.
     void forget_terminal_activities(const std::vector<std::string>& message_ids);
 
@@ -112,7 +125,8 @@ public:
     // revision. Read-only actions are approved immediately by policy; every
     // other class waits for a user decision. Returns the new record.
     const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
-                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent);
+                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
+                                const std::string& plan_scope = {});
 
     // User decisions. Each returns true only when it changed the record's
     // state, so a resent decision (reconnect, reload) can never run an action
@@ -136,6 +150,11 @@ private:
     void          start_running(ToolActivity& activity);
     void          execute(ToolActivity& activity);
     void          fail(ToolActivity& activity, std::string code, std::string message, std::string details_json = "{}");
+    // The ids of the regions whose geometry is still found, and, after a
+    // change, those of them that no longer are: what a place, divide or
+    // repair result reports as unbound.
+    std::set<std::string> bound_regions() const;
+    nlohmann::json        regions_unbound(const std::set<std::string>& bound_before) const;
     void          notify(const ToolActivity& activity);
     void          invalidate_pending(const Workspace::WorkspaceChanged& change);
 
@@ -150,12 +169,37 @@ private:
     const ToolRegistry&               m_registry;
     Workspace::WorkspaceSubscription m_workspace_subscription;
     std::shared_ptr<ObserverState>    m_observers;
+    IProductState*                   m_product_state{nullptr};
+    // The slice_start call behind the run now in flight, so the slicing
+    // section can say which handle a reader is watching.
+    std::string                      m_slice_handle;
+    // Whether the run m_slice_handle started has been seen, and has ended. A
+    // later run is the person's, and activity_cancel does not stop it.
+    bool                             m_slice_seen_running{false};
+    bool                             m_slice_ended{false};
+    std::string                      m_executing;
     ExtensionExecutor                m_extension_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
     std::uint64_t                    m_last_invalidating_revision{0};
+    // The last change a settings patch cares about: a settings edit or a new
+    // project. A model edit between a preview and its apply does not move it.
+    std::uint64_t                    m_last_settings_revision{0};
+    // slice_start calls that return when their run ends, by action id. Such a
+    // call stays Running without holding up the others.
+    struct SliceWait
+    {
+        std::optional<Workspace::PlateId>     plate;
+        bool                                  seen_running{false};
+        std::chrono::steady_clock::time_point started;
+    };
+    std::map<std::string, SliceWait> m_slice_waits;
+    // Approved plans that a change from outside the plan reached before all
+    // their members ran; their remaining members fail stale.
+    std::set<std::string>            m_disturbed_plans;
+    void finish_slice_waits();
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

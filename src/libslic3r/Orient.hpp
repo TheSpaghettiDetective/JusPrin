@@ -140,6 +140,21 @@ struct OrientParams {
 
 using OrientMeshs = std::vector<OrientMesh>;
 
+// JusPrin: the costs orient() ranks its candidates by, for a caller that
+// shows them rather than applying the best. `up` is the direction that ends
+// up pointing up. Lower unprintability is better.
+struct OrientationScore
+{
+    Vec3d up;
+    float overhang{0};
+    float bottom{0};
+    float unprintability{0};
+};
+
+// Scores each direction in `ups` for `mesh`, or orient()'s own candidates
+// when `ups` is empty, best first, without changing anything.
+std::vector<OrientationScore> score_orientations(OrientMesh& mesh, const std::vector<Vec3d>& ups, const OrientParams& params);
+
 /**
  * \brief Orients the input polygons.
 

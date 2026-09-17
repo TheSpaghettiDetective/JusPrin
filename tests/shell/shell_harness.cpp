@@ -75,12 +75,14 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.hpp"
@@ -2308,6 +2310,7 @@ private:
         check(web_view.host().availability() == Agent::AgentAvailability::Ready, "live_agent_service_ready");
         check(m_plater->select_object(0), "live_agent_target_selected");
         m_objects_before_tool = m_plater->model().objects.size();
+        m_live_copies_before  = copy_count();
         const std::size_t attachments_before = persistence().document().attachments().size();
         WebView::RunScript(
             web_view.webview(),
@@ -2370,8 +2373,8 @@ private:
         const std::size_t activities_before = web_view.host().tools().activities().size();
         WebView::RunScript(
             web_view.webview(),
-            "window.__jusprinTest && window.__jusprinTest.send('Duplicate the currently selected object now. Use the "
-            "duplicate_object tool with the exact sessionId and objectId from the authoritative workspace context.');");
+            "window.__jusprinTest && window.__jusprinTest.send('Make one more copy of the currently selected object now. Use the "
+            "plate_layout tool with the exact sessionId and objectId from the authoritative workspace context and quantity 2.');");
         wait_until(
             [&web_view, activities_before] {
                 const auto& activities = web_view.host().tools().activities();
@@ -2384,7 +2387,7 @@ private:
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         const auto& activity = web_view.host().tools().activities().back();
-        check(activity.tool == "duplicate_object", "live_agent_proposed_typed_duplicate");
+        check(activity.tool == "plate_layout", "live_agent_proposed_typed_duplicate");
         check(activity.requires_approval, "live_agent_cannot_bypass_native_approval");
         m_live_action_id = activity.action_id;
         if (!m_live_rejection_done) {
@@ -2407,7 +2410,7 @@ private:
                         self->fail("live Agent rejection follow-up failed: " + code);
                         return;
                     }
-                    self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool,
+                    self->check(self->copy_count() == self->m_live_copies_before,
                                 "live_agent_rejection_changes_nothing");
                     self->m_live_rejection_done = true;
                     self->live_agent_send_mutation();
@@ -2441,7 +2444,7 @@ private:
     void live_agent_verify()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "live_agent_mutated_real_orca_model_once");
+        check(copy_count() == m_live_copies_before + 1, "live_agent_mutated_real_orca_model_once");
         check(m_plater->can_undo_project(), "live_agent_mutation_is_in_orca_history");
         const auto conversation = web_view.host().conversation();
         check(conversation.size() >= 3 && !conversation.back().text.empty(), "live_agent_explains_structured_native_result");
@@ -2453,13 +2456,13 @@ private:
         const auto selected = installed_shell()->workspace()->snapshot().plates[0].objects[0].id;
         const auto selection = installed_shell()->workspace()->select_object(selected);
         check(selection.succeeded() || selection.error == Workspace::WorkspaceError::NoChange, "live_agent_native_selection");
-        const auto inspect_id = web_view.host().tools().propose({"inspect_selection", "{}"}, "live-selection-proof").action_id;
+        const auto inspect_id = web_view.host().tools().propose({"workspace_inspect", "{}"}, "live-selection-proof").action_id;
         web_view.host().pump_tools();
         const auto* inspected = web_view.host().tools().find(inspect_id);
         check(inspected && inspected->state == Agent::ToolState::Succeeded &&
-              nlohmann::json::parse(inspected->result_json)["selection"].size() == 1, "live_agent_shared_selection_result");
+              nlohmann::json::parse(inspected->result_json)["selection"]["items"].size() == 1, "live_agent_shared_selection_result");
         check(installed_shell()->workspace()->undo().succeeded(), "live_agent_native_undo_executes");
-        check(m_plater->model().objects.size() == m_objects_before_tool, "live_agent_native_undo_restores_object_count");
+        check(copy_count() == m_live_copies_before, "live_agent_native_undo_restores_object_count");
         m_settings_original = nlohmann::json::object();
         for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
             m_settings_original[item.key] = item.value;
@@ -2534,11 +2537,59 @@ private:
                 for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
                     self->check(item.value == expected[item.key], "live_settings_native_value_" + item.key);
                 if (stage < 2) self->live_agent_settings(stage + 1);
-                else {
-                    self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
-                    self->finish();
-                }
+                else self->live_agent_plan();
             }, [id, stage] { click_rendered_tool_decision(id, stage != 0); });
+        });
+    }
+
+    // Two patches in one plan: both answer queued, the turn ends, one click on
+    // the plan card runs both in order, and the later patch is not stale
+    // after the earlier one's change.
+    void live_agent_plan()
+    {
+        auto& view = installed_shell()->agent_pane()->web_view();
+        const auto first_activity = view.host().tools().activities().size();
+        const std::string prompt = "I want to approve two settings changes on one approval card. Call settings_preview_patch then "
+            "settings_apply_patch with changes={\"layer_height\": \"0.16\"} and planId \"live-plan\"; then settings_preview_patch then "
+            "settings_apply_patch with changes={\"sparse_infill_density\": \"25%\"} and the same planId. Then stop and ask me to approve.";
+        WebView::RunScript(view.webview(), wxString::FromUTF8("window.__jusprinTest.send(" + nlohmann::json(prompt).dump() + ")"));
+        wait_until([first_activity] {
+            const auto& host = installed_shell()->agent_pane()->web_view().host();
+            const auto messages = host.conversation();
+            return host.tools().activities().size() > first_activity && !messages.empty() &&
+                   messages.back().role == Agent::MessageRole::Assistant &&
+                   (messages.back().state == Agent::MessageState::Complete || messages.back().state == Agent::MessageState::Failed);
+        }, "live_plan_turn_ended", [self = shared_from_this(), first_activity] {
+            const auto& host = installed_shell()->agent_pane()->web_view().host();
+            std::vector<std::string> members;
+            for (auto it = host.tools().activities().begin() + first_activity; it != host.tools().activities().end(); ++it)
+                if (it->plan_id == "live-plan" && it->state == Agent::ToolState::Pending) members.push_back(it->action_id);
+            self->check(members.size() == 2, "live_plan_two_members_waiting");
+            if (members.size() != 2) { self->fail("Live plan turn did not queue two patches"); return; }
+            const std::string script = "(() => { const b = document.querySelector('[data-testid=\"plan-live-plan\"] button.primary');"
+                                       " if (b && !b.disabled) b.click(); })()";
+            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), wxString::FromUTF8(script));
+            self->wait_until([members] {
+                const auto& host = installed_shell()->agent_pane()->web_view().host();
+                return std::all_of(members.begin(), members.end(), [&host](const std::string& id) {
+                    const auto* action = host.tools().find(id);
+                    return action && Agent::tool_state_terminal(action->state);
+                });
+            }, "live_plan_members_terminal", [self, members] {
+                const auto& host = installed_shell()->agent_pane()->web_view().host();
+                for (const auto& id : members)
+                    self->check(host.tools().find(id)->state == Agent::ToolState::Succeeded, "live_plan_member_succeeded");
+                for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
+                    self->check(item.value == self->m_settings_patch[item.key], "live_plan_native_value_" + item.key);
+                Workspace::SettingsPatch inverse;
+                for (const auto& [key, value] : self->m_settings_original.items()) inverse.changes[key] = value.get<std::string>();
+                Workspace::SettingsPreview applied;
+                auto* workspace = installed_shell()->workspace();
+                self->check(workspace->apply_settings(inverse, Workspace::settings_confirmation(workspace->preview_settings(inverse)), applied)
+                                .succeeded(), "live_plan_restored");
+                self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
+                self->finish();
+            });
         });
     }
 
@@ -2625,7 +2676,16 @@ private:
                 else
                     self->check(result["ttlMs"] == 0 && result["cacheScope"] == "private", "mcp_real_catalog_cache_policy");
                 const auto tools = result["tools"];
-                self->check(tools.size() == 5 && tools.back()["name"] == "workspace_inspect", "mcp_real_registry_catalog");
+                // The live catalog is the registry's MCP-exposed list, in its
+                // deterministic order, and nothing else: a tool that forgets
+                // its exposure shows up here as a name that moved. A page
+                // holds 25; the rest follows the cursor.
+                const auto exposed = Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Mcp);
+                bool same = tools.size() == std::min<std::size_t>(25, exposed.size()) &&
+                            result.contains("nextCursor") == (exposed.size() > 25);
+                for (std::size_t index = 0; same && index < tools.size(); ++index)
+                    same = tools[index]["name"] == exposed[index].get().name;
+                self->check(same, "mcp_real_registry_catalog");
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "workspace_inspect"}}));
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];
@@ -2845,11 +2905,20 @@ private:
     // page's Reject and Approve paths drive the native coordinator; the
     // approved run executes through Orca's own duplicate command; and undo
     // and redo go through Orca's history.
+    // Every printed copy in the real model: tool flows add instances.
+    std::size_t copy_count() const
+    {
+        std::size_t count = 0;
+        for (const ModelObject* object : m_plater->model().objects)
+            count += object->instances.size();
+        return count;
+    }
+
     void agent_tool_propose()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         check(m_plater->select_object(0), "tool_target_selected");
-        m_objects_before_tool = m_plater->model().objects.size();
+        m_objects_before_tool = copy_count();
         const std::size_t activities_before = web_view.host().tools().activities().size();
 
         WebView::RunScript(web_view.webview(),
@@ -2878,8 +2947,7 @@ private:
                 return activity != nullptr && activity->state == Agent::ToolState::Rejected;
             },
             "tool_rejected_via_page", [self = shared_from_this()] {
-                self->check(self->m_plater->model().objects.size() == self->m_objects_before_tool,
-                            "tool_rejection_changes_nothing");
+                self->check(self->copy_count() == self->m_objects_before_tool, "tool_rejection_changes_nothing");
                 self->agent_tool_approve();
             });
     }
@@ -2915,13 +2983,13 @@ private:
     {
         // The approved duplicate is authoritative Orca state and one Orca
         // history step.
-        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_duplicate_visible_in_model");
+        check(copy_count() == m_objects_before_tool + 1, "tool_duplicate_visible_in_model");
         check(m_plater->canvas3D()->get_volumes_count() >= 3, "tool_duplicate_visible_on_canvas");
         check(m_plater->can_undo_project(), "tool_change_is_undoable");
         check(m_plater->undo_project(), "tool_undo_through_orca");
-        check(m_plater->model().objects.size() == m_objects_before_tool, "tool_undo_removes_duplicate");
+        check(copy_count() == m_objects_before_tool, "tool_undo_removes_duplicate");
         check(m_plater->redo_project(), "tool_redo_through_orca");
-        check(m_plater->model().objects.size() == m_objects_before_tool + 1, "tool_redo_restores_duplicate");
+        check(copy_count() == m_objects_before_tool + 1, "tool_redo_restores_duplicate");
         agent_conversations();
     }
 
@@ -3017,21 +3085,667 @@ private:
                 return persistence().document().has_identity() && persistence().document().project_id() != m_saved_project_id;
             },
             "new_project_starts_new_identity", [self = shared_from_this()] {
-                self->m_plater->load_project(wxString::FromUTF8(self->m_saved_project_file), "<silence>");
-                self->wait_until(
-                    [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
-                    "saved_state_adopted_on_reopen", [self] {
-                        self->check(self->persistence().document().conversations().size() == 2,
-                                    "saved_conversations_survive_reopen");
-                        self->check(self->persistence().document().conversations().front().title == "Backpack frame test",
-                                    "renamed_chat_survives_project_reopen");
-                        const auto messages = self->persistence().document().messages(
-                            self->persistence().document().active_conversation_id());
-                        self->check(!messages.empty(), "saved_messages_survive_reopen");
-                        self->agent_phase6_history();
-                    });
+                self->verify_project_open_answers_dialogs();
+                self->verify_step_import();
+                self->verify_support_settings_patch();
+                self->verify_regions();
+                self->verify_reshape();
+                self->verify_slice_checks([self] {
+                    self->wait_until(
+                        [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
+                        "saved_state_adopted_on_reopen", [self] {
+                            self->check(self->persistence().document().conversations().size() == 2,
+                                        "saved_conversations_survive_reopen");
+                            self->check(self->persistence().document().conversations().front().title == "Backpack frame test",
+                                        "renamed_chat_survives_project_reopen");
+                            const auto messages = self->persistence().document().messages(
+                                self->persistence().document().active_conversation_id());
+                            self->check(!messages.empty(), "saved_messages_survive_reopen");
+                            self->agent_phase6_history();
+                        });
+                });
             });
     }
+
+    // Counts every dialog that becomes visible, other than the load progress
+    // window, while it is installed.
+    struct DialogCounter : wxEventFilter
+    {
+        int  shown = 0;
+        std::vector<std::string> titles;
+        DialogCounter() { wxEvtHandler::AddFilter(this); }
+        ~DialogCounter() override { wxEvtHandler::RemoveFilter(this); }
+        int FilterEvent(wxEvent& event) override
+        {
+            if (event.GetEventType() == wxEVT_SHOW) {
+                auto* dialog = dynamic_cast<wxDialog*>(event.GetEventObject());
+                // load_files' progress window asks nothing; it is titled, not typed.
+                if (dialog != nullptr && static_cast<wxShowEvent&>(event).IsShown() &&
+                    !dialog->GetTitle().StartsWith(wxGetTranslation("Loading"))) {
+                    ++shown;
+                    titles.push_back(dialog->GetTitle().ToUTF8().data());
+                }
+            }
+            return Event_Skip;
+        }
+    };
+
+    // project_open through the real adapter: a model saved in metres asks
+    // "Object too small" and a dirty project asks to be saved; both are
+    // answered from the request and neither may reach the screen.
+    void verify_project_open_answers_dialogs()
+    {
+        const fs::path tiny = fs::temp_directory_path() / fs::unique_path("jusprin-metres-%%%%.stl");
+        {
+            // A 20 mm cube written in metres.
+            std::ofstream out(tiny.string());
+            out << "solid tiny" << std::endl;
+            const double s = 0.02;
+            const double v[8][3] = {{0,0,0},{s,0,0},{s,s,0},{0,s,0},{0,0,s},{s,0,s},{s,s,s},{0,s,s}};
+            const int f[12][3] = {{0,2,1},{0,3,2},{4,5,6},{4,6,7},{0,1,5},{0,5,4},{1,2,6},{1,6,5},{2,3,7},{2,7,6},{3,0,4},{3,4,7}};
+            for (const auto& t : f) {
+                out << "facet normal 0 0 0" << std::endl << "outer loop" << std::endl;
+                for (int i : t) out << "vertex " << v[i][0] << " " << v[i][1] << " " << v[i][2] << std::endl;
+                out << "endloop" << std::endl << "endfacet" << std::endl;
+            }
+            out << "endsolid tiny" << std::endl;
+        }
+        auto* workspace = installed_shell()->workspace();
+        Workspace::ProjectOpenRequest request;
+        request.path            = tiny.string();
+        request.units           = Workspace::UnitChoice::ConvertIfTiny;
+        request.discard_unsaved = true;
+        std::vector<Workspace::LoadDecision> decisions;
+        {
+            DialogCounter counter;
+            check(workspace->open_project(request, decisions).succeeded(), "project_open_model_file");
+            for (const auto& title : counter.titles) std::cout << "project_open dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "project_open_model_shows_no_dialog");
+        }
+        check(std::any_of(decisions.begin(), decisions.end(),
+                          [](const Workspace::LoadDecision& d) { return d.answer == "yes"; }),
+              "project_open_answers_object_too_small");
+        const BoundingBoxf3 box = m_plater->model().objects.empty() ? BoundingBoxf3() : m_plater->model().objects.front()->bounding_box_exact();
+        check(m_plater->model().objects.size() == 1 && std::abs(box.size().x() - 20.) < 0.01,
+              "project_open_converted_metres");
+
+        // Make the project dirty, then reopen the saved project over it.
+        check(m_plater->duplicate_object(0) >= 0, "project_open_dirty_before_reopen");
+        request      = {};
+        request.path = m_saved_project_file;
+        decisions.clear();
+        check(!workspace->open_project(request, decisions).succeeded(), "project_open_refuses_unsaved_work");
+        request.discard_unsaved = true;
+        {
+            DialogCounter counter;
+            const auto opened = workspace->open_project(request, decisions);
+            if (!opened.succeeded()) std::cout << "project_open failed: " << opened.message << std::endl;
+            check(opened.succeeded(), "project_open_project_file");
+            for (const auto& title : counter.titles) std::cout << "project_open dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "project_open_project_shows_no_dialog");
+        }
+        // Orca asks to save only when the person has not told it to stop
+        // asking; whatever it asked was declined.
+        for (const auto& decision : decisions) std::cout << "project_open asked: " << decision.question << " -> " << decision.answer << std::endl;
+        check(std::all_of(decisions.begin(), decisions.end(), [](const Workspace::LoadDecision& d) { return d.answer == "no"; }),
+              "project_open_declines_saving");
+        fs::remove(tiny);
+    }
+
+    // M4's settings through the real adapter: a tree-support patch on the
+    // build plate with a brim reaches the support page's fields and asks
+    // nothing; a support style that does not fit is refused; an object
+    // override lands in the object's ModelConfig as one undo step.
+    void verify_support_settings_patch()
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto* tab       = wxGetApp().get_tab(Preset::TYPE_PRINT);
+        auto& prints    = wxGetApp().preset_bundle->prints;
+        const DynamicPrintConfig original = prints.get_edited_preset().config;
+        tab->activate_option("enable_support", "Support");
+        const Workspace::SettingsPatch supports{{{"enable_support", "1"}, {"support_type", "tree(auto)"},
+                                                 {"support_style", "organic"}, {"support_on_build_plate_only", "1"},
+                                                 {"brim_type", "outer_only"}, {"brim_width", "6"}}};
+        {
+            DialogCounter counter;
+            const auto preview = workspace->preview_settings(supports);
+            for (const auto& issue : preview.issues) std::cout << "support patch issue: " << issue.key << " " << issue.message << std::endl;
+            check(preview.valid, "settings_support_patch_valid");
+            Workspace::SettingsPreview applied;
+            check(workspace->apply_settings(supports, Workspace::settings_confirmation(preview), applied).succeeded(),
+                  "settings_support_patch_applies");
+            for (const auto& title : counter.titles) std::cout << "settings dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "settings_support_patch_shows_no_dialog");
+        }
+        const auto& config = prints.get_edited_preset().config;
+        for (const auto& [key, value] : supports.changes)
+            check(config.option(key)->serialize() == value, "settings_support_value_" + key);
+        for (const char* key : {"enable_support", "support_on_build_plate_only"}) {
+            Field* shown = tab->get_field(key);
+            check(shown != nullptr && boost::any_cast<bool>(shown->get_value()), std::string("settings_support_field_shows_") + key);
+        }
+        const auto mismatch = workspace->preview_settings({{{"support_style", "grid"}}});
+        check(!mismatch.valid && mismatch.issues.front().key == "support_style" &&
+                  std::count(mismatch.issues.front().allowed.begin(), mismatch.issues.front().allowed.end(), "organic") == 1,
+              "settings_support_style_mismatch_refused");
+        check(workspace->preview_settings({{{"support_style", "tree_strong"}}}).valid, "settings_support_style_fitting_accepted");
+        check(workspace->preview_settings({{{"support_on_build_plate_only", "0"}}}).valid, "settings_boolean_has_no_bounds");
+        Workspace::SettingsQuery changed;
+        changed.limit        = 25;
+        changed.changed_only = true;
+        const auto unsaved   = workspace->search_settings(changed);
+        check(std::any_of(unsaved.items.begin(), unsaved.items.end(), [](const auto& item) { return item.key == "brim_width"; }) &&
+                  std::none_of(unsaved.items.begin(), unsaved.items.end(), [](const auto& item) { return item.key == "layer_height"; }),
+              "settings_search_changed_only");
+
+        // One object's override.
+        const auto snapshot = workspace->snapshot();
+        check(!snapshot.plates.empty() && !snapshot.plates[0].objects.empty(), "settings_object_present");
+        if (snapshot.plates.empty() || snapshot.plates[0].objects.empty()) return;
+        Workspace::SettingsTarget target{snapshot.plates[0].objects[0].id};
+        const ModelObject* object = m_plater->model().objects.front();
+        const Workspace::SettingsPatch walls{{{"wall_loops", "5"}}, target};
+        {
+            DialogCounter counter;
+            const auto preview = workspace->preview_settings(walls);
+            check(preview.valid, "settings_object_patch_valid");
+            Workspace::SettingsPreview applied;
+            check(workspace->apply_settings(walls, Workspace::settings_confirmation(preview), applied).succeeded(),
+                  "settings_object_patch_applies");
+            check(counter.shown == 0, "settings_object_patch_shows_no_dialog");
+        }
+        check(object->config.has("wall_loops") && object->config.opt_int("wall_loops") == 5, "settings_object_override_in_model");
+        check(config.opt_int("wall_loops") == original.opt_int("wall_loops"), "settings_object_leaves_process_alone");
+        const auto read = workspace->read_settings({"wall_loops"}, target);
+        check(read.items.size() == 1 && read.items[0].value == "5" && read.items[0].overridden == true, "settings_object_read_back");
+        check(workspace->snapshot().can_undo, "settings_object_is_undoable");
+        check(workspace->preview_settings({{{"skirt_loops", "2"}}, target}).issues.front().code == "unsupported_scope",
+              "settings_object_refuses_print_scope");
+        m_plater->undo();
+        check(!object->config.has("wall_loops"), "settings_object_undo_removes_override");
+        tab->load_config(original);
+    }
+
+    // A STEP file through the real adapter: Orca asks how finely to mesh it,
+    // and the request takes Orca's own defaults without showing the dialog.
+    void verify_step_import()
+    {
+        auto* workspace = installed_shell()->workspace();
+        const std::size_t before = m_plater->model().objects.size();
+        Workspace::ImportRequest import;
+        import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/box_20x15x10.step";
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        {
+            DialogCounter counter;
+            const auto imported = workspace->import_objects(import, decisions, added);
+            if (!imported.succeeded()) std::cout << "step import failed: " << imported.message << std::endl;
+            check(imported.succeeded() && added.size() == 1, "step_import_succeeds");
+            for (const auto& title : counter.titles) std::cout << "step import dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "step_import_shows_no_dialog");
+        }
+        for (const auto& decision : decisions) std::cout << "step import asked: " << decision.question << " -> " << decision.answer << std::endl;
+        check(m_plater->model().objects.size() == before + 1, "step_import_adds_one_object");
+        if (m_plater->model().objects.size() == before + 1) {
+            const Vec3d size = m_plater->model().objects.back()->bounding_box_exact().size();
+            check(std::abs(size.x() - 20.) < 0.01 && std::abs(size.y() - 15.) < 0.01 && std::abs(size.z() - 10.) < 0.01,
+                  "step_import_keeps_the_size");
+            check(workspace->undo().succeeded() && m_plater->model().objects.size() == before, "step_import_undone");
+        }
+    }
+
+    // Regions through the real adapter, on a T bar with a 10 mm hole through
+    // it: a precision hole becomes a support blocker filling the hole, a face
+    // becomes seam paint; Undo strands the record, Redo restores it, a turn
+    // keeps it bound, and removal takes the artifacts away.
+    void verify_regions()
+    {
+        auto* workspace = installed_shell()->workspace();
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        Workspace::ImportRequest             import;
+        import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl";
+        check(workspace->import_objects(import, decisions, added).succeeded() && added.size() == 1, "regions_fixture_imported");
+        if (added.size() != 1) return;
+        const Workspace::ObjectId tee = added.front();
+        ModelObject* object = nullptr;
+        for (ModelObject* candidate : m_plater->model().objects)
+            if (candidate->id().id == tee.value()) object = candidate;
+
+        Workspace::AnalysisRequest wanted;
+        wanted.features = true;
+        Workspace::ObjectAnalysis analysis;
+        check(workspace->analyze_object(tee, wanted, analysis).succeeded() && analysis.features, "regions_features_read");
+        if (!analysis.features) return;
+        const auto hole = std::find_if(analysis.features->holes.begin(), analysis.features->holes.end(),
+                                       [](const Workspace::HoleFeature& h) { return std::abs(h.diameter - 10) < 0.2; });
+        const auto top = std::find_if(analysis.features->faces.begin(), analysis.features->faces.end(),
+                                      [](const Workspace::FaceFeature& f) { return f.normal[2] > 0.99 && f.area > 900; });
+        check(hole != analysis.features->holes.end(), "regions_hole_found");
+        check(top != analysis.features->faces.end(), "regions_top_face_found");
+        if (hole == analysis.features->holes.end() || top == analysis.features->faces.end()) return;
+
+        std::vector<Workspace::RegionRequest> requests(2);
+        requests[0].object   = tee;
+        requests[0].kind     = "precision_hole";
+        requests[0].geometry = Workspace::RegionGeometry{"hole", hole->handle};
+        requests[1].object   = tee;
+        requests[1].kind     = "seam_preferred";
+        requests[1].geometry = Workspace::RegionGeometry{"face", top->handle};
+        std::vector<Workspace::RegionRecord> planned, applied;
+        const auto plan = workspace->plan_regions(requests, {}, planned);
+        if (!plan.succeeded()) std::cout << "regions plan: " << plan.message << std::endl;
+        check(plan.succeeded() && planned.size() == 2, "regions_planned");
+        if (planned.size() != 2) return;
+        std::cout << "regions: " << planned[0].label << " | " << planned[1].label << std::endl;
+        check(std::abs(planned[0].geometry.length - 20) < 0.05, "regions_hole_depth_is_through");
+        check(planned[1].artifacts.size() == 1 && !planned[1].artifacts[0].facets.empty(), "regions_face_facets_resolved");
+        const std::size_t volumes_before = object->volumes.size();
+        {
+            DialogCounter counter;
+            check(workspace->apply_regions(planned, {}, applied).succeeded(), "regions_applied");
+            check(counter.shown == 0, "regions_show_no_dialog");
+        }
+        check(object->volumes.size() == volumes_before + 1 && object->volumes.back()->is_support_blocker() &&
+                  object->volumes.back()->name == "JusPrin r1 support blocker",
+              "regions_blocker_added");
+        // The blocker fills the hole and a millimetre around it: 12 mm across,
+        // 22 mm along Y, centred on the hole's axis in the object's frame.
+        const BoundingBoxf3 blocker = object->volumes.back()->mesh().transformed_bounding_box(object->volumes.back()->get_matrix());
+        const BoundingBoxf3 part    = object->volumes.front()->mesh().transformed_bounding_box(object->volumes.front()->get_matrix());
+        std::cout << "blocker size " << blocker.size().transpose() << " centre " << blocker.center().transpose()
+                  << " part centre " << part.center().transpose() << std::endl;
+        check(std::abs(blocker.size().y() - 22) < 0.1 && std::abs(blocker.size().x() - 12) < 0.2 &&
+                  std::abs(blocker.size().z() - 12) < 0.2,
+              "regions_blocker_fills_the_hole");
+        check(std::abs(blocker.center().x() - part.center().x()) < 0.1 && std::abs(blocker.center().y() - part.center().y()) < 0.1 &&
+                  std::abs(blocker.center().z() - (part.min.z() + 28)) < 0.1,
+              "regions_blocker_on_the_hole_axis");
+        check(object->volumes.front()->seam_facets.has_facets(*object->volumes.front(), EnforcerBlockerType::ENFORCER),
+              "regions_seam_painted");
+
+        auto status = [&] { return workspace->region_status(applied); };
+        auto all = [](const std::vector<Workspace::RegionStatus>& statuses, bool Workspace::RegionStatus::*field, bool value) {
+            return std::all_of(statuses.begin(), statuses.end(), [&](const auto& s) { return s.object && s.*field == value; });
+        };
+        check(all(status(), &Workspace::RegionStatus::binding_lost, false) && all(status(), &Workspace::RegionStatus::artifacts_missing, false),
+              "regions_status_bound_and_present");
+        m_plater->undo();
+        check(all(status(), &Workspace::RegionStatus::artifacts_missing, true) && all(status(), &Workspace::RegionStatus::binding_lost, false),
+              "regions_undo_strands_the_record");
+        m_plater->redo();
+        check(all(status(), &Workspace::RegionStatus::artifacts_missing, false), "regions_redo_restores_artifacts");
+
+        // Turning the object is not a mesh change.
+        Workspace::PlacementRequest turn;
+        turn.rotate = Workspace::Vec3{0, 0, 90};
+        Workspace::PlacementResult turned;
+        check(workspace->place_object(tee, turn, "regions-turn", turned).succeeded(), "regions_object_turned");
+        check(all(status(), &Workspace::RegionStatus::binding_lost, false) && all(status(), &Workspace::RegionStatus::artifacts_missing, false),
+              "regions_survive_a_turn");
+
+        check(workspace->remove_regions(applied).succeeded(), "regions_removed");
+        check(object->volumes.size() == volumes_before &&
+                  !object->volumes.front()->seam_facets.has_facets(*object->volumes.front(), EnforcerBlockerType::ENFORCER),
+              "regions_removal_takes_the_artifacts");
+        check(all(status(), &Workspace::RegionStatus::artifacts_missing, true), "regions_status_after_removal");
+        check(workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, tee}}).succeeded(), "regions_fixture_removed");
+    }
+
+    // Reshaping through the real adapter: a preview that changes nothing, a
+    // plane cut, a merge of the pieces, a split back into shells, and a
+    // repair of a mesh with a hole in it, none of which may ask anything.
+    void verify_reshape()
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto import_file = [&](const std::string& path) -> std::optional<Workspace::ObjectId> {
+            std::vector<Workspace::LoadDecision> decisions;
+            std::vector<Workspace::ObjectId>     added;
+            Workspace::ImportRequest             import;
+            import.path = path;
+            if (!workspace->import_objects(import, decisions, added).succeeded() || added.size() != 1)
+                return std::nullopt;
+            return added.front();
+        };
+        const auto tee = import_file(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl");
+        check(tee.has_value(), "reshape_fixture_imported");
+        if (!tee) return;
+        const auto count = [this] { return m_plater->model().objects.size(); };
+        const std::size_t objects_before = count();
+
+        // The bar is 36 mm tall and centred; cut it through the stem.
+        const BoundingBoxf3 box = m_plater->model().objects.back()->instance_bounding_box(0);
+        Workspace::DivideRequest cut;
+        cut.point  = {box.center().x(), box.center().y(), box.min.z() + 10};
+        cut.normal = {0, 0, 1};
+        Workspace::DivideResult preview;
+        const auto revision = workspace->snapshot().revision;
+        const auto steps    = workspace->history().steps.size();
+        const bool dirty    = m_plater->is_project_dirty();
+        {
+            DialogCounter counter;
+            check(workspace->preview_divide(*tee, cut, preview).succeeded() && preview.pieces.size() == 2, "reshape_preview_two_pieces");
+            check(counter.shown == 0, "reshape_preview_shows_no_dialog");
+        }
+        for (const auto& piece : preview.pieces)
+            std::cout << "preview piece " << piece.name << " size " << piece.size[0] << " " << piece.size[1] << " " << piece.size[2]
+                      << " overhang " << piece.overhang_area << std::endl;
+        std::cout << "overhang before " << preview.overhang_area_before << std::endl;
+        check(count() == objects_before && workspace->snapshot().revision == revision &&
+                  workspace->history().steps.size() == steps && m_plater->is_project_dirty() == dirty,
+              "reshape_preview_changes_nothing");
+        check(preview.overhang_area_before > 500 && preview.pieces.size() == 2 &&
+                  std::abs(preview.pieces[0].size[2] + preview.pieces[1].size[2] - 36) < 0.2,
+              "reshape_preview_heights_add_up");
+
+        Workspace::DivideResult divided;
+        {
+            DialogCounter counter;
+            check(workspace->divide_object(*tee, cut, divided).succeeded(), "reshape_cut");
+            check(counter.shown == 0, "reshape_cut_shows_no_dialog");
+        }
+        check(count() == objects_before + 1 && divided.pieces.size() == 2 && divided.pieces[0].object && divided.pieces[1].object,
+              "reshape_cut_makes_two_objects");
+        if (divided.pieces.size() != 2 || !divided.pieces[0].object || !divided.pieces[1].object) return;
+
+        Workspace::ObjectId merged;
+        {
+            DialogCounter counter;
+            check(workspace->merge_objects({*divided.pieces[0].object, *divided.pieces[1].object}, merged).succeeded(), "reshape_merge");
+            check(counter.shown == 0, "reshape_merge_shows_no_dialog");
+        }
+        check(count() == objects_before && m_plater->model().objects.back()->volumes.size() == 2, "reshape_merge_makes_one_object_of_two_parts");
+
+        Workspace::DivideRequest shells;
+        shells.mode = Workspace::DivideRequest::Mode::Shells;
+        Workspace::DivideResult split;
+        check(workspace->divide_object(merged, shells, split).succeeded() && split.pieces.size() == 2 && count() == objects_before + 1,
+              "reshape_split_to_objects");
+        for (const auto& piece : split.pieces)
+            if (piece.object)
+                workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, *piece.object}});
+
+        // A 20 mm cube with one facet missing.
+        const fs::path open = fs::temp_directory_path() / fs::unique_path("jusprin-open-%%%%.stl");
+        {
+            std::ofstream out(open.string());
+            out << "solid open" << std::endl;
+            const double s = 20;
+            const double v[8][3] = {{0,0,0},{s,0,0},{s,s,0},{0,s,0},{0,0,s},{s,0,s},{s,s,s},{0,s,s}};
+            const int f[11][3] = {{0,2,1},{0,3,2},{4,5,6},{4,6,7},{0,1,5},{0,5,4},{1,2,6},{1,6,5},{2,3,7},{2,7,6},{3,0,4}};
+            for (const auto& tri : f) {
+                out << "facet normal 0 0 0" << std::endl << "outer loop" << std::endl;
+                for (int i : tri) out << "vertex " << v[i][0] << " " << v[i][1] << " " << v[i][2] << std::endl;
+                out << "endloop" << std::endl << "endfacet" << std::endl;
+            }
+            out << "endsolid open" << std::endl;
+        }
+        const auto broken = import_file(open.string());
+        check(broken.has_value(), "reshape_open_mesh_imported");
+        if (broken) {
+            Workspace::RepairResult repaired;
+            {
+                DialogCounter counter;
+                check(workspace->repair_object(*broken, repaired).succeeded(), "reshape_repair");
+                check(counter.shown == 0, "reshape_repair_shows_no_dialog");
+            }
+            std::cout << "repair open edges " << repaired.open_edges_before << " -> " << repaired.open_edges_after << ", facets "
+                      << repaired.facets_before << " -> " << repaired.facets_after << std::endl;
+            check(repaired.changed && repaired.open_edges_before > 0 && repaired.open_edges_after == 0, "reshape_repair_closes_the_mesh");
+            Workspace::RepairResult again;
+            check(workspace->repair_object(*broken, again).succeeded() && !again.changed, "reshape_repair_of_a_closed_mesh_changes_nothing");
+            workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, *broken}});
+        }
+        fs::remove(open);
+    }
+
+    // The slice checks on a real slice: the T bar with supports on prints
+    // support inside its hole, which the report finds without any region;
+    // once the hole is a precision hole and the back face is hidden, a new
+    // slice keeps support out of the hole and puts seams on that face.
+    void verify_slice_checks(std::function<void()> then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto& prints    = wxGetApp().preset_bundle->prints;
+        m_slice_check_settings = prints.get_edited_preset().config;
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        Workspace::ImportRequest             import;
+        import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl";
+        const bool imported = workspace->import_objects(import, decisions, added).succeeded() && added.size() == 1;
+        check(imported, "slice_checks_fixture_imported");
+        const Workspace::SettingsPatch supports{{{"enable_support", "1"}, {"support_type", "normal(auto)"},
+                                                 {"support_on_build_plate_only", "0"}}};
+        Workspace::SettingsPreview applied;
+        check(workspace->apply_settings(supports, Workspace::settings_confirmation(workspace->preview_settings(supports)), applied).succeeded(),
+              "slice_checks_supports_on");
+        const auto plate = workspace->snapshot().active_plate;
+        if (!imported || !plate) {
+            then();
+            return;
+        }
+        m_slice_check_object = added.front();
+        slice_then("slice_checks_first_slice", *plate, [self = shared_from_this(), plate, then] {
+            auto* workspace = installed_shell()->workspace();
+            Workspace::SliceReportRequest request;
+            request.supports = request.seams = request.first_layer = request.islands = true;
+            const auto report = workspace->slice_report(*plate, request);
+            self->check(report.valid && report.supports && report.supports->generated, "slice_checks_supports_generated");
+            const auto hole_contact = [self](const Workspace::SliceReport& r) {
+                return r.supports && std::any_of(r.supports->contacts.begin(), r.supports->contacts.end(), [&](const auto& c) {
+                           return c.object && *c.object == self->m_slice_check_object;
+                       });
+            };
+            if (report.supports)
+                for (const auto& contact : report.supports->contacts)
+                    std::cout << "support contact " << contact.object_name << " " << contact.target << " " << contact.area
+                              << " mm2 over " << contact.layers << " layers" << std::endl;
+            self->check(hole_contact(report), "slice_checks_support_enters_the_hole");
+            self->check(report.first_layer && std::any_of(report.first_layer->objects.begin(), report.first_layer->objects.end(),
+                                                          [&](const auto& o) { return o.object && *o.object == self->m_slice_check_object &&
+                                                                                      std::abs(o.contact_area - 320) < 20; }),
+                        "slice_checks_first_layer_is_the_stem");
+            self->check(report.islands && report.seams && report.seams->count > 0, "slice_checks_islands_and_seams_read");
+
+            // Annotate the hole and the back face.
+            Workspace::AnalysisRequest wanted;
+            wanted.features = true;
+            Workspace::ObjectAnalysis analysis;
+            workspace->analyze_object(self->m_slice_check_object, wanted, analysis);
+            const auto& features = *analysis.features;
+            const auto hole = std::find_if(features.holes.begin(), features.holes.end(),
+                                           [](const auto& h) { return std::abs(h.diameter - 10) < 0.2; });
+            const auto back = std::find_if(features.faces.begin(), features.faces.end(),
+                                           [](const auto& f) { return f.normal[1] > 0.99; });
+            if (hole == features.holes.end() || back == features.faces.end()) {
+                self->check(false, "slice_checks_features_found");
+                self->finish_slice_checks(then);
+                return;
+            }
+            std::vector<Workspace::RegionRequest> requests(2);
+            requests[0].object   = self->m_slice_check_object;
+            requests[0].kind     = "precision_hole";
+            requests[0].geometry = Workspace::RegionGeometry{"hole", hole->handle};
+            requests[1].object   = self->m_slice_check_object;
+            requests[1].kind     = "hidden";
+            requests[1].geometry = Workspace::RegionGeometry{"face", back->handle};
+            std::vector<Workspace::RegionRecord> planned;
+            self->check(workspace->plan_regions(requests, {}, planned).succeeded() &&
+                            workspace->apply_regions(planned, {}, self->m_slice_check_regions).succeeded(),
+                        "slice_checks_regions_applied");
+            self->slice_then("slice_checks_second_slice", *plate, [self, plate, then, hole_contact] {
+                auto* workspace = installed_shell()->workspace();
+                Workspace::SliceReportRequest request;
+                request.supports = request.seams = true;
+                request.regions  = self->m_slice_check_regions;
+                const auto report = workspace->slice_report(*plate, request);
+                if (report.supports)
+                    for (const auto& contact : report.supports->contacts)
+                        std::cout << "support contact after " << contact.object_name << " " << contact.target << " " << contact.area << std::endl;
+                self->check(report.valid && !hole_contact(report), "slice_checks_precision_hole_keeps_support_out");
+                const bool seams_on_back = report.seams && std::any_of(report.seams->regions.begin(), report.seams->regions.end(),
+                                                                       [](const auto& r) { return r.region_id == "r2" && r.seams > 0; });
+                if (report.seams)
+                    for (const auto& placement : report.seams->regions)
+                        std::cout << "seams on " << placement.region_id << " " << placement.kind << ": " << placement.seams << " of "
+                                  << report.seams->count << std::endl;
+                self->check(seams_on_back, "slice_checks_seams_on_the_hidden_face");
+                self->verify_outputs(*plate);
+                self->verify_cancel(*plate, [self, then] { self->finish_slice_checks(then); });
+            });
+        });
+    }
+
+    // M6 through the real adapter, on the sliced plate: a rendered picture,
+    // a packed picture read back, the slice's layers and G-code, every export
+    // kind, and a cancelled slice; none may ask anything.
+    void verify_outputs(Workspace::PlateId plate)
+    {
+        auto* workspace = installed_shell()->workspace();
+        DialogCounter counter;
+
+        Workspace::RenderRequest render;
+        render.plate  = plate;
+        render.view   = "front";
+        render.width  = 640;
+        render.height = 480;
+        Workspace::RenderedImage picture;
+        const auto rendered = workspace->render_view(render, picture);
+        if (!rendered.succeeded()) std::cout << "render: " << rendered.message << std::endl;
+        check(rendered.succeeded() && picture.width == 640 && picture.height == 480 && picture.png.size() > 100 &&
+                  picture.png.compare(0, 8, std::string("\x89PNG\r\n\x1a\n", 8)) == 0,
+              "outputs_render_is_a_png");
+        // A plain background would compress to almost nothing; the plate's
+        // objects make a picture of some size.
+        std::cout << "rendered front view: " << picture.png.size() << " bytes" << std::endl;
+        check(picture.png.size() > 2000, "outputs_render_shows_something");
+
+        // A packed picture, larger than the cap, comes back scaled.
+        const fs::path pictures = fs::path(workspace->auxiliary_data_dir()) / "Model Pictures";
+        fs::create_directories(pictures);
+        {
+            wxImage large(2000, 1000);
+            large.SetRGB(wxRect(0, 0, 2000, 1000), 200, 60, 30);
+            large.SaveFile(wxString::FromUTF8((pictures / "cover.png").string()), wxBITMAP_TYPE_PNG);
+            std::ofstream((pictures / "notes.txt").string()) << "Print the bracket in PETG.";
+        }
+        Workspace::AttachmentContent cover, notes, escape;
+        check(workspace->read_attachment("Model Pictures/cover.png", cover).succeeded() && cover.kind == "image" &&
+                  cover.width == 1280 && cover.height == 640 && cover.truncated,
+              "outputs_attachment_picture_scaled");
+        check(workspace->read_attachment("Model Pictures/notes.txt", notes).succeeded() && notes.kind == "text" &&
+                  notes.data == "Print the bracket in PETG.",
+              "outputs_attachment_text");
+        check(!workspace->read_attachment("../Metadata/model_settings.config", escape).succeeded() &&
+                  !workspace->read_attachment("JusPrin/state.json", escape).succeeded(),
+              "outputs_attachment_stays_in_the_folder");
+        fs::remove_all(pictures);
+
+        Workspace::SliceInspectRequest inspect;
+        inspect.plate = plate;
+        inspect.count = 5;
+        const auto layers = workspace->inspect_slice(inspect);
+        check(layers.valid && layers.layer_count > 100 && layers.layers.size() == 5 && layers.next == 5 &&
+                  std::abs(layers.layers[0].z - 0.2) < 0.01 && layers.layers[1].seconds > 0 && !layers.layers[1].roles.empty(),
+              "outputs_inspect_layers");
+        if (layers.layers.size() > 1)
+            std::cout << "layer 1: z " << layers.layers[1].z << " time " << layers.layers[1].seconds << " s, speed "
+                      << layers.layers[1].speed_min << "-" << layers.layers[1].speed_max << ", roles " << layers.layers[1].roles.size()
+                      << std::endl;
+        inspect.gcode = true;
+        const auto gcode = workspace->inspect_slice(inspect);
+        check(gcode.valid && !gcode.gcode.empty() && gcode.gcode.size() <= 64 * 1024 && gcode.next.has_value(), "outputs_inspect_gcode");
+
+        const fs::path folder = fs::temp_directory_path() / fs::unique_path("jusprin-exports-%%%%");
+        fs::create_directories(folder);
+        const auto exported = [&](const std::string& kind, const fs::path& path, const char* name) {
+            Workspace::ExportRequest request;
+            request.kind  = kind;
+            request.path  = path.string();
+            request.plate = kind == "project_3mf" || kind == "presets" ? std::nullopt : std::optional<Workspace::PlateId>(plate);
+            Workspace::ExportResult result;
+            const auto done = workspace->export_file(request, result);
+            if (!done.succeeded()) std::cout << name << ": " << done.message << std::endl;
+            check(done.succeeded() && !result.files.empty() && result.bytes > 0, name);
+            return result;
+        };
+        exported("gcode", folder / "plate.gcode", "outputs_export_gcode");
+        std::string first_line;
+        {
+            std::ifstream written((folder / "plate.gcode").string());
+            std::getline(written, first_line);
+        }
+        check(!first_line.empty() && first_line[0] == ';', "outputs_export_gcode_is_gcode");
+        exported("sliced_3mf", folder / "plate.gcode.3mf", "outputs_export_sliced_3mf");
+        exported("project_3mf", folder / "project.3mf", "outputs_export_project_3mf");
+        exported("stl", folder / "plate.stl", "outputs_export_stl");
+        const auto presets = exported("presets", folder, "outputs_export_presets");
+        std::cout << "exported presets: " << presets.files.size() << " files" << std::endl;
+        Workspace::ExportRequest again;
+        again.kind = "gcode";
+        again.path = (folder / "plate.gcode").string();
+        check(!workspace->check_export(again).succeeded(), "outputs_export_refuses_to_replace_unasked");
+        again.path = "relative.gcode";
+        check(!workspace->check_export(again).succeeded(), "outputs_export_refuses_a_relative_path");
+        again.path = (fs::path(data_dir()) / "stolen.gcode").string();
+        again.overwrite = true;
+        check(!workspace->check_export(again).succeeded(), "outputs_export_refuses_the_data_folder");
+        boost::system::error_code removed;
+        fs::remove_all(folder, removed);
+        for (const auto& title : counter.titles) std::cout << "outputs dialog shown: " << title << std::endl;
+        check(counter.shown == 0, "outputs_show_no_dialog");
+    }
+
+    // A slice stopped while it runs, through the slicing notification's own
+    // Cancel.
+    void verify_cancel(Workspace::PlateId plate, std::function<void()> then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        const Workspace::SettingsPatch finer{{{"layer_height", "0.12"}}};
+        Workspace::SettingsPreview applied;
+        workspace->apply_settings(finer, Workspace::settings_confirmation(workspace->preview_settings(finer)), applied);
+        check(workspace->start_slice(plate, false).succeeded(), "outputs_cancel_slice_started");
+        wait_until([] { return installed_shell()->workspace()->snapshot().slicing.running; }, "outputs_cancel_slice_running",
+                   [self = shared_from_this(), then] {
+                       bool stopped = false;
+                       auto* workspace = installed_shell()->workspace();
+                       const bool done = workspace->cancel_slice(stopped).succeeded();
+                       std::cout << "cancel: succeeded " << done << " stopped " << stopped << " running after "
+                                 << workspace->snapshot().slicing.running << std::endl;
+                       self->check(done && stopped, "outputs_cancel_stops_the_slice");
+                       self->wait_until([] { return !installed_shell()->workspace()->snapshot().slicing.running; },
+                                        "outputs_cancel_slice_reported_stopped", then);
+                   });
+    }
+
+    void slice_then(const char* name, Workspace::PlateId plate, std::function<void()> then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        check(workspace->start_slice(plate, false).succeeded(), std::string(name) + "_started");
+        const auto sliced = [plate] {
+            const auto snapshot = installed_shell()->workspace()->snapshot();
+            return !snapshot.slicing.running &&
+                   std::any_of(snapshot.plates.begin(), snapshot.plates.end(), [&](const auto& p) { return p.id == plate && p.sliced; });
+        };
+        // A result from before the change still reads as sliced until the run
+        // starts; wait for the run first, then for its result.
+        wait_until([sliced] { return !sliced(); }, std::string(name) + "_running",
+                   [self = shared_from_this(), sliced, name, then] { self->wait_until(sliced, name, then); });
+    }
+
+    void finish_slice_checks(const std::function<void()>& then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        if (!m_slice_check_regions.empty())
+            workspace->remove_regions(m_slice_check_regions);
+        workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, m_slice_check_object}});
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(m_slice_check_settings);
+        then();
+    }
+
+    Workspace::ObjectId                  m_slice_check_object;
+    std::vector<Workspace::RegionRecord> m_slice_check_regions;
+    DynamicPrintConfig                   m_slice_check_settings;
 
     // Phase 6: record one real sliced plate as a deterministic build, then an
     // exported copy and completed physical print through the same page ->
@@ -3630,6 +4344,7 @@ private:
     std::uint64_t                 m_wait_ticks{0};
     nlohmann::json                m_settings_original, m_settings_patch;
     std::size_t                   m_objects_before_tool{0};
+    std::size_t                   m_live_copies_before{0};
     std::string                   m_saved_project_id;
     std::string                   m_saved_project_file;
     std::string                   m_live_action_id;
@@ -3675,9 +4390,13 @@ void install_harness_agent(HarnessState::Mode mode)
             return;
         Agent::OpenAIResponsesConfig config;
         config.api_key = key;
-        config.usage_listener = [](std::uint64_t input, std::uint64_t output, std::uint64_t total) {
-            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << input
-                      << " output_tokens=" << output << " total_tokens=" << total << '\n';
+        config.usage_listener = [](const Agent::AgentUsage& usage) {
+            // cached_input_tokens is the evidence the tool-loading decision
+            // rests on; report it on every request, not only when it is
+            // non-zero, so a chat that stops caching is visible in the log.
+            std::cerr << "JUSPRIN LIVE USAGE provider=openai input_tokens=" << usage.input
+                      << " cached_input_tokens=" << usage.cached_input << " output_tokens=" << usage.output
+                      << " total_tokens=" << usage.total << '\n';
         };
         host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), Agent::make_openai_http_transport()),
                        Agent::AgentAvailability::Ready);

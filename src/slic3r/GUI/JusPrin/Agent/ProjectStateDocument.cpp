@@ -1,4 +1,5 @@
 #include "ProjectStateDocument.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 
 #include <algorithm>
 #include <set>
@@ -41,20 +42,6 @@ MessageState message_state_from(const std::string& name)
     if (name == "stopped")
         return MessageState::Stopped;
     return MessageState::Complete;
-}
-
-const char* tool_state_name(ToolState state)
-{
-    switch (state) {
-    case ToolState::Pending: return "pending";
-    case ToolState::Approved: return "approved";
-    case ToolState::Running: return "running";
-    case ToolState::Succeeded: return "succeeded";
-    case ToolState::Failed: return "failed";
-    case ToolState::Cancelled: return "cancelled";
-    case ToolState::Rejected: return "rejected";
-    }
-    return "pending";
 }
 
 ToolState tool_state_from(const std::string& name)
@@ -135,6 +122,31 @@ ConversationMessage read_message(const json& entry)
             if (id.is_string())
                 message.attachment_ids.push_back(id.get<std::string>());
     return message;
+}
+
+void write_intent_field(json& entry, const IntentField& field)
+{
+    entry["field"]      = field.field;
+    entry["value"]      = field.value;
+    entry["provenance"] = provenance_name(field.provenance);
+    entry["seq"]        = field.seq;
+    entry["updatedAt"]  = field.updated_at;
+    if (!field.question.empty())
+        entry["question"] = field.question;
+    else
+        entry.erase("question");
+}
+
+IntentField read_intent_field(const json& entry)
+{
+    IntentField field;
+    field.field       = entry.value("field", "");
+    field.value       = entry.value("value", "");
+    field.question    = entry.value("question", "");
+    field.provenance  = provenance_from(entry.value("provenance", "agent_inferred"));
+    field.seq         = entry.value("seq", std::uint64_t(0));
+    field.updated_at  = entry.value("updatedAt", "");
+    return field;
 }
 
 void write_attachment_fields(json& entry, const AttachmentRecord& record)
@@ -296,6 +308,10 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     entry["expectedRevision"] = activity.expected_revision;
     entry["state"]            = tool_state_name(activity.state);
     entry["progress"]         = json{{"current", activity.progress_current}, {"total", activity.progress_total}};
+    if (!activity.plan_id.empty())
+        entry["planId"] = activity.plan_id;
+    if (!activity.plan_scope.empty())
+        entry["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         entry["result"] = activity.result_json;
     if (activity.error)
@@ -321,6 +337,8 @@ ToolActivity read_activity(const json& entry)
     activity.arguments_json    = entry.value("arguments", "");
     activity.action_class      = action_class_from(entry.value("actionClass", "read_only"));
     activity.requires_approval = entry.value("requiresApproval", false);
+    activity.plan_id           = entry.value("planId", "");
+    activity.plan_scope        = entry.value("planScope", "");
     try {
         activity.session = std::stoull(entry.value("sessionId", "0"));
     } catch (const std::exception&) {
@@ -355,6 +373,9 @@ json fresh_document()
                 {"builds", json::array()},
                 {"exportedCopies", json::array()},
                 {"physicalPrints", json::array()},
+                {"printIntent", json::array()},
+                {"plan", json::object()},
+                {"regions", json::array()},
                 {"changes", json::array()}};
 }
 
@@ -908,6 +929,111 @@ std::optional<BuildRecord> ProjectStateDocument::latest_build() const
     if (m_doc["builds"].empty())
         return std::nullopt;
     return read_build(m_doc["builds"].back());
+}
+
+std::vector<IntentField> ProjectStateDocument::print_intent() const
+{
+    std::vector<IntentField> fields;
+    for (const json& entry : m_doc["printIntent"])
+        fields.push_back(read_intent_field(entry));
+    return fields;
+}
+
+std::vector<IntentField> ProjectStateDocument::set_print_intent(const std::vector<IntentField>& fields,
+                                                                const std::string&              timestamp)
+{
+    for (const IntentField& field : fields) {
+        if (field.field.empty())
+            continue;
+        json* stored = nullptr;
+        for (json& entry : m_doc["printIntent"])
+            if (entry.value("field", "") == field.field)
+                stored = &entry;
+        if (stored == nullptr) {
+            // Ordered by field name so two builds that record the same answers
+            // in a different order still write the same document.
+            const auto after = std::find_if(m_doc["printIntent"].begin(), m_doc["printIntent"].end(),
+                                            [&field](const json& entry) { return entry.value("field", "") > field.field; });
+            stored = &*m_doc["printIntent"].insert(after, json::object());
+        }
+        IntentField written = field;
+        written.seq         = next_seq();
+        written.updated_at  = timestamp;
+        write_intent_field(*stored, written);
+    }
+    touch();
+    return print_intent();
+}
+
+PlanRecord ProjectStateDocument::plan() const
+{
+    const json& stored = m_doc["plan"];
+    PlanRecord  record;
+    record.seq        = stored.value("seq", std::uint64_t(0));
+    record.updated_at = stored.value("updatedAt", "");
+    record.headline   = stored.value("headline", "");
+    if (stored.contains("decisions") && stored["decisions"].is_array())
+        for (const json& entry : stored["decisions"])
+            record.decisions.push_back({entry.value("topic", ""), entry.value("statement", ""),
+                                        entry.value("confidence", ""), entry.value("alternative", "")});
+    const auto read_lines = [&stored](const char* key, std::vector<std::string>& into) {
+        if (!stored.contains(key) || !stored[key].is_array())
+            return;
+        for (const json& entry : stored[key])
+            if (entry.is_string())
+                into.push_back(entry.get<std::string>());
+    };
+    read_lines("assumptions", record.assumptions);
+    read_lines("risks", record.risks);
+    return record;
+}
+
+PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& timestamp)
+{
+    record.seq        = next_seq();
+    record.updated_at = timestamp;
+    json& stored      = m_doc["plan"];
+    if (!stored.is_object())
+        stored = json::object();
+    stored["seq"]         = record.seq;
+    stored["updatedAt"]   = record.updated_at;
+    stored["headline"]    = record.headline;
+    stored["decisions"]   = json::array();
+    for (const PlanDecision& decision : record.decisions)
+        stored["decisions"].push_back({{"topic", decision.topic},
+                                       {"statement", decision.statement},
+                                       {"confidence", decision.confidence},
+                                       {"alternative", decision.alternative}});
+    stored["assumptions"] = record.assumptions;
+    stored["risks"]       = record.risks;
+    touch();
+    return record;
+}
+
+std::vector<Workspace::RegionRecord> ProjectStateDocument::regions() const
+{
+    std::vector<Workspace::RegionRecord> records;
+    const json& stored = m_doc["regions"];
+    if (stored.is_array())
+        for (const json& entry : stored)
+            records.push_back(Workspace::region_record_from(entry));
+    return records;
+}
+
+std::vector<Workspace::RegionRecord> ProjectStateDocument::set_regions(std::vector<Workspace::RegionRecord> records,
+                                                                       const std::string& timestamp)
+{
+    json stored = json::array();
+    for (Workspace::RegionRecord& record : records) {
+        if (record.seq == 0) {
+            record.seq        = next_seq();
+            record.updated_at = timestamp;
+        }
+        stored.push_back(Workspace::region_record_json(record));
+    }
+    m_doc["regions"] = std::move(stored);
+    touch();
+    return records;
 }
 
 ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::string& timestamp)

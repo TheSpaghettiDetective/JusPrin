@@ -118,11 +118,12 @@ TEST_CASE("MCP discovery and paged catalog are registry projections", "[mcp][reg
         const Agent::ToolDefinition& canonical = definitions.at(count++);
         CHECK(tool["name"] == canonical.name);
         CHECK(tool["inputSchema"] == canonical.input_schema);
-        CHECK(tool["outputSchema"] == canonical.output_schema);
+        // The output schema is an internal check, not a catalog field.
+        CHECK_FALSE(tool.contains("outputSchema"));
         CHECK(tool["annotations"]["readOnlyHint"] == (canonical.action_class == Agent::ActionClass::ReadOnly));
         if (!response["result"].contains("nextCursor")) break;
         page_request.params["cursor"] = response["result"]["nextCursor"];
-    } while (count < 20);
+    } while (count < 64);
     CHECK(count == definitions.size());
     page_request.params["cursor"] = "bogus";
     CHECK(Mcp::list_tools(page_request).body["error"]["code"] == -32602);
@@ -156,4 +157,45 @@ TEST_CASE("MCP terminal results preserve structured content and error identity",
     activity.arguments_json = R"({"sessionId":"3","objectId":"42"})";
     CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["details"]["expectedSessionId"] == "3");
     CHECK(Mcp::sse_event({{"id", 1}}) == "event: message\ndata: {\"id\":1}\n\n");
+}
+
+TEST_CASE("the MCP catalog's advertised size is recorded", "[mcp][protocol][budget]")
+{
+    Mcp::Request request;
+    request.id     = 1;
+    request.method = "tools/list";
+    // Every page: a client loads the whole catalog.
+    json listed = json::array();
+    for (;;) {
+        const json page = Mcp::list_tools(request).body["result"];
+        for (const json& tool : page["tools"])
+            listed.push_back(tool);
+        if (!page.contains("nextCursor"))
+            break;
+        request.params["cursor"] = page["nextCursor"];
+    }
+    // The same measurement the offline helper prints, kept where a change to
+    // a schema shows up as a number rather than as a surprise in a client.
+    // The byte bound is a tripwire, not the budget: the guide's load decision
+    // rests on the measured tokens, and the journey catalog passed 32 KB at M5.
+    WARN("MCP tool definitions: " << listed.size() << ", " << listed.dump().size() << " bytes");
+    CHECK(listed.size() <= 40);
+    CHECK(listed.dump().size() <= 48 * 1024);
+    for (const json& tool : listed)
+        CHECK_FALSE(tool.contains("outputSchema"));
+}
+
+TEST_CASE("an image result is projected as an MCP image block beside the structured result", "[mcp][protocol][image]")
+{
+    Agent::ToolActivity activity;
+    activity.action_id   = "t-1";
+    activity.tool        = "workspace_inspect";
+    activity.state       = Agent::ToolState::Succeeded;
+    activity.result_json = Agent::workspace_inspection(Workspace::WorkspaceSnapshot{}).dump();
+    activity.image       = std::make_shared<Agent::ToolImage>(Agent::ToolImage{"image/png", "iVBORw0KGgo=", 2, 1});
+    const json result = Mcp::activity_result(activity, Workspace::WorkspaceSnapshot{});
+    REQUIRE(result["content"].size() == 2);
+    CHECK(result["content"][0]["type"] == "text");
+    CHECK(result["content"][1] == json{{"type", "image"}, {"data", "iVBORw0KGgo="}, {"mimeType", "image/png"}});
+    CHECK(result.contains("structuredContent"));
 }

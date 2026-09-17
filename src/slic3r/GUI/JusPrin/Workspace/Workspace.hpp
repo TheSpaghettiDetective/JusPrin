@@ -144,18 +144,48 @@ struct WorkspaceSetup
 {
     std::string project_name;
     bool        project_dirty{false};
+    // Where the project was last opened from or saved to, UTF-8; empty for a
+    // project that has never been saved.
+    std::string project_path;
     std::string printer_preset;
     std::string filament_preset;
     std::string process_preset;
     bool        process_preset_dirty{false};
+    // Any selected preset carries edits that are not saved.
+    bool        presets_dirty{false};
 
     friend bool operator==(const WorkspaceSetup& lhs, const WorkspaceSetup& rhs)
     {
         return lhs.project_name == rhs.project_name && lhs.project_dirty == rhs.project_dirty &&
-               lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset &&
+               lhs.presets_dirty == rhs.presets_dirty &&
+               lhs.project_path == rhs.project_path && lhs.printer_preset == rhs.printer_preset && lhs.filament_preset == rhs.filament_preset &&
                lhs.process_preset == rhs.process_preset && lhs.process_preset_dirty == rhs.process_preset_dirty;
     }
 };
+
+// What the slicer is doing right now. OrcaSlicer runs one background slicing
+// process for the whole application, not one per plate, so "running" is a
+// property of the workspace and the plate it is working on is a separate
+// question. During a slice-all the plate moves as the run advances.
+struct WorkspaceSlicing
+{
+    bool                   running{false};
+    std::optional<PlateId> plate;
+    // 0-100, or absent when the owner reports no figure.
+    std::optional<int>     percent;
+};
+
+// An OrcaSlicer UI job (orient, arrange) the tool system started. The
+// handle is the caller's; the state is what Orca's worker reported.
+struct WorkspaceJob
+{
+    std::string           handle;
+    std::string           kind;  // orient or arrange
+    std::string           state; // running, finished, cancelled, or failed
+    std::vector<ObjectId> not_placed; // arrange: objects no plate holds afterwards
+};
+
+inline constexpr std::size_t kJobLimit = 16;
 
 struct WorkspaceSnapshot
 {
@@ -175,6 +205,753 @@ struct WorkspaceSnapshot
     // does not say. A cost is a bare number without it, so consumers drop the
     // money rather than denominate it in a guess.
     std::string                 currency;
+    WorkspaceSlicing            slicing;
+    std::vector<WorkspaceJob>   jobs; // oldest first
+};
+
+// Geometry facts about one object, as object_analyze reports them. Lengths
+// are millimetres in the world frame of the object's first instance.
+using Vec3 = std::array<double, 3>;
+
+struct MeshPart
+{
+    std::uint64_t id{0};
+    std::string   name;
+    std::string   kind; // model, modifier, negative, enforcer, or blocker
+    std::size_t   facets{0};
+};
+
+struct MeshFacts
+{
+    std::vector<MeshPart> part_list; // at most 16
+    Vec3        size{};
+    double      volume{0};
+    std::size_t facets{0};
+    std::size_t parts{0};
+    int         open_edges{0};
+    int         edges_fixed{0}, degenerate_facets{0}, facets_removed{0}, facets_reversed{0}, backwards_edges{0};
+    std::string units_suspicion; // empty, "inches", or "meters": Orca's own load-time tests
+};
+
+// A flat face group or a hole found by Orca's Measure module. A handle names
+// the feature at the revision it was computed at and expires after it.
+struct FaceFeature
+{
+    std::string handle;
+    double      area{0};
+    Vec3        normal{}, center{};
+    // The face's extent in its own plane, longer side first, so a person's
+    // "the 25 by 6 mm face" can be found.
+    std::array<double, 2> size{};
+};
+
+// The circular border of a flat face that the face does not cover: the
+// mouth of a hole or pocket. `axis` is the face normal, pointing out of the
+// material.
+struct HoleFeature
+{
+    std::string handle;
+    double      diameter{0};
+    Vec3        center{}, axis{};
+};
+
+inline constexpr std::size_t kFeatureLimit = 32;
+
+struct ObjectFeatures
+{
+    std::vector<FaceFeature> faces; // largest first
+    std::vector<HoleFeature> holes; // largest first
+    bool                     truncated{false};
+};
+
+struct InstanceFit
+{
+    std::size_t            instance{0};
+    std::optional<PlateId> plate; // the plate that holds it entirely; absent when none does
+    bool                   inside{false};
+};
+
+struct ObjectFit
+{
+    std::vector<InstanceFit> instances;
+    std::vector<ObjectId>    overlaps;          // objects whose footprint crosses this one on its plate
+    std::vector<ObjectId>    likely_duplicates; // same shape and size
+    bool                     truncated{false};
+};
+
+struct FeatureMeasurement
+{
+    std::optional<double> distance;     // between the nearest points
+    std::optional<double> plane_distance; // between parallel planes, extended
+    std::optional<double> angle;        // degrees
+    std::optional<Vec3>   delta;        // x, y, z components
+};
+
+// One way to stand the object: a direction to point up, or a face handle
+// to put down.
+struct OrientationCandidate
+{
+    std::optional<Vec3> up;
+    std::string         face_down;
+};
+
+struct OrientationOption
+{
+    Vec3                     up{};
+    double                   unprintability{0}; // Orca's orient cost; lower is better
+    double                   overhang{0};       // weighted overhang area, as Orca counts it
+    double                   bed_contact{0};    // mm2 touching the bed
+    std::vector<std::string> faces_down;        // feature handles that would rest on the bed
+};
+
+inline constexpr std::size_t kOrientationLimit = 8;
+
+struct AnalysisRequest
+{
+    bool mesh{false};
+    bool features{false};
+    bool fit{false};
+    bool orientations{false};
+    std::vector<OrientationCandidate> candidates; // empty: Orca's own candidates
+    std::optional<std::pair<std::string, std::string>> measure;
+};
+
+struct ObjectAnalysis
+{
+    std::optional<MeshFacts>          mesh;
+    std::optional<ObjectFeatures>     features;
+    std::optional<ObjectFit>          fit;
+    std::optional<FeatureMeasurement> measurement;
+    std::optional<std::vector<OrientationOption>> orientations;
+};
+
+// One row of workspace_inspect's objects section.
+struct ObjectDetails
+{
+    ObjectId             id;
+    std::string          name;
+    std::vector<PlateId> plates;
+    std::size_t          instances{0}, parts{0}, modifiers{0}, negative_parts{0}, support_volumes{0};
+    bool                 printable{true};
+    int                  extruder{0};
+    Vec3                 size{};
+    std::size_t          overrides{0};
+};
+
+// Place one object instance for printing. Every facet is optional; the
+// adapter applies them in a fixed order -- units, scale, mirror, rotation,
+// position, drop -- under one undo step, then starts auto-orient, which runs
+// as Orca's own job.
+struct PlacementRequest
+{
+    std::size_t                          instance{0};
+    std::string                          units_fix;   // "", "inches", or "meters"
+    std::optional<Vec3>                  scale;       // factors
+    std::optional<std::pair<int, double>> scale_to;   // axis 0-2, size in mm; uniform
+    std::string                          mirror_axis; // "", "x", "y", or "z"
+    std::string                          face_down;   // a face handle from object_analyze
+    std::optional<Vec3>                  rotate;      // degrees about the world axes, x then y then z
+    std::optional<std::array<double, 2>> position;    // the instance's x, y on the bed
+    bool                                 drop_to_bed{false};
+    bool                                 auto_orient{false};
+};
+
+// Lay out the job: per-object rows, per-plate rows (a row without an id
+// adds a plate), and an optional arrange that runs as Orca's own job.
+struct LayoutObject
+{
+    ObjectId                   id;
+    std::optional<bool>        enabled;
+    std::optional<std::size_t> quantity;
+    std::optional<PlateId>     plate;
+    std::optional<std::string> name;
+    std::optional<int>         extruder;
+};
+
+struct LayoutPlate
+{
+    std::optional<PlateId>     id;
+    std::optional<std::string> name;
+    std::optional<std::string> bed_type; // untranslated plate name
+};
+
+struct LayoutArrange
+{
+    std::optional<PlateId> plate; // absent: every unlocked plate
+    std::optional<double>  spacing;
+    std::optional<bool>    rotation;
+};
+
+struct LayoutRequest
+{
+    std::vector<LayoutObject>    objects;
+    std::vector<LayoutPlate>     plates;
+    std::optional<LayoutArrange> arrange;
+};
+
+struct LayoutResult
+{
+    std::vector<PlateId> added_plates;
+    bool                 arranging{false};
+};
+
+// What a placement left: the object may be a new one (units conversion
+// replaces it), and auto-orient is still running under the job handle.
+struct PlacementResult
+{
+    ObjectId        object;
+    ObjectTransform transform;
+    Vec3            size{};
+    bool            orienting{false};
+};
+
+// What the selected presets say the hardware is. The plate type is the
+// untranslated name Orca stores, so it compares with what a person states.
+struct ConfiguredFilament
+{
+    std::string preset;
+    std::string material;
+};
+
+struct ConfiguredPrinter
+{
+    std::string                     preset;
+    std::string                     model; // the device model id a matching printer reports
+    std::vector<double>             nozzle_diameters;
+    std::string                     plate_type;
+    std::vector<ConfiguredFilament> filaments;
+};
+
+// Establish the hardware for a job. Every field is optional; what is left
+// out stays as it is unless a change it depends on forces Orca to replace it,
+// which the preview reports as a substitution.
+struct PrinterSetupRequest
+{
+    std::optional<std::string>              printer_preset; // canonical preset names
+    std::optional<std::string>              plate_type;     // untranslated plate name
+    std::optional<std::string>              process_preset;
+    std::optional<std::vector<std::string>> filament_presets; // from the first slot
+    // Orca asks what to do with unsaved edits in a preset it switches away
+    // from. There is no dialog here: the caller says so, or the setup is refused.
+    bool                                    discard_unsaved_edits{false};
+
+    bool empty() const { return !printer_preset && !plate_type && !process_preset && !filament_presets; }
+};
+
+struct SetupIssue
+{
+    std::string code, message;
+};
+
+// kind: printer, plate, process, or filament.
+struct SetupSubstitution
+{
+    std::string kind, from, reason;
+};
+
+struct UnsavedEdits
+{
+    std::string kind, preset;
+    std::size_t count{0};
+};
+
+struct PrinterSetupPreview
+{
+    bool                           valid{false};
+    std::vector<SetupIssue>        issues;
+    ConfiguredPrinter              resulting;
+    std::string                    process_preset;
+    // What Orca replaces on its own; `resulting` still names the current
+    // preset there, because which one Orca picks is its own scoring.
+    std::vector<SetupSubstitution> substitutions;
+    std::vector<UnsavedEdits>      unsaved_edits;
+};
+
+// What the project file says about itself, as OrcaSlicer's Project panel
+// shows it, and the files packed beside the model. Every text field is the
+// file's own words; nothing here is inferred.
+struct ProjectAttachment
+{
+    std::string   id;     // path inside the attachments folder, '/'-separated
+    std::string   folder; // Orca's category folder, such as "Model Pictures"
+    std::uint64_t bytes{0};
+};
+
+struct ProjectDetails
+{
+    std::string title, designer, description, license, copyright, origin;
+    std::string profile_title, profile_description;
+    std::vector<ProjectAttachment> attachments; // sorted by id, at most kAttachmentLimit
+    bool attachments_truncated{false};
+    // False when edits since the last automatic backup would be lost in a crash.
+    bool backup_current{true};
+};
+
+inline constexpr std::size_t kAttachmentLimit = 64;
+
+// Replace the open project: a project file, a model file as a new project,
+// or an empty project. Every question Orca would ask on the way is an input
+// here or answered with the conservative choice and reported.
+enum class UnitChoice : std::uint8_t { Keep, ConvertIfTiny, Inches };
+
+struct ProjectOpenRequest
+{
+    std::string path; // absolute, UTF-8; empty with new_project
+    bool        new_project{false};
+    bool        load_project_settings{true};
+    UnitChoice  units{UnitChoice::Keep};
+    bool        scale_oversized{false};
+    bool        discard_unsaved{false};
+};
+
+// Add the objects of a model file to the open project.
+struct ImportRequest
+{
+    std::string            path; // absolute, UTF-8
+    std::optional<PlateId> plate;
+    UnitChoice             units{UnitChoice::Keep};
+    bool                   scale_oversized{false};
+};
+
+// One thing to delete: an object, a part or an instance of one, or a plate.
+struct DeleteItem
+{
+    enum class Kind : std::uint8_t { Object, Part, Instance, Plate };
+    Kind          kind{Kind::Object};
+    ObjectId      object;
+    std::uint64_t part{0};
+    std::size_t   instance{0};
+    PlateId       plate;
+};
+
+// A rendered picture of one plate as the prepare view shows it.
+struct RenderRequest
+{
+    std::optional<PlateId> plate;              // the active plate when absent
+    std::string            view{"iso"};        // iso, front, rear, left, right, top, bottom, top_front, plate
+    int                    width{1024};
+    int                    height{768};
+};
+
+struct RenderedImage
+{
+    PlateId     plate;
+    std::string view;
+    int         width{0};
+    int         height{0};
+    std::string png; // the encoded bytes
+};
+
+// One project attachment, read: an image as its bytes, text as text, and
+// anything else as what it is.
+struct AttachmentContent
+{
+    std::string   id;
+    std::string   folder;
+    std::string   mime_type;
+    std::uint64_t bytes{0};    // the file's size
+    std::string   kind;        // image, text, or other
+    std::string   data;        // image: encoded bytes (re-encoded when larger than the caps); text: the text
+    int           width{0};
+    int           height{0};
+    bool          truncated{false};
+};
+
+// Expert detail of a sliced plate: its layers, or its G-code text.
+struct SliceInspectRequest
+{
+    PlateId     plate;
+    bool        gcode{false};
+    std::size_t first{0}; // layer index, or 0-based line number
+    std::size_t count{100};
+};
+
+struct SliceLayer
+{
+    std::size_t              index{0};
+    double                   z{0};
+    double                   height{0};
+    double                   seconds{0};
+    std::vector<std::string> roles;
+    double                   speed_min{0}, speed_max{0};       // mm/s, extrusion moves
+    double                   fan_min{0}, fan_max{0};           // percent
+    double                   temperature_min{0}, temperature_max{0};
+    double                   flow_min{0}, flow_max{0};         // mm3/s
+};
+
+struct SliceInspection
+{
+    bool                    valid{false};
+    std::size_t             layer_count{0};
+    std::vector<SliceLayer> layers;
+    std::string             gcode;
+    std::size_t             first_line{0};
+    std::optional<std::size_t> next; // where the next call starts, absent at the end
+};
+
+// What export_file writes.
+struct ExportRequest
+{
+    std::string              kind;   // gcode, sliced_3mf, project_3mf, stl, presets
+    std::string              path;   // absolute, UTF-8; a folder for presets
+    std::optional<PlateId>   plate;  // gcode, sliced_3mf, stl: the active plate when absent
+    std::vector<ObjectId>    objects; // stl: these objects instead of the plate's
+    bool                     overwrite{false};
+};
+
+struct ExportResult
+{
+    std::vector<std::string> files;
+    std::uint64_t            bytes{0};
+};
+
+// Dividing an object: by a plane given in the world frame as the object
+// stands now, the side its normal points to being the upper piece; or into
+// its separate shells, as objects or as parts of the same object.
+struct DivideRequest
+{
+    enum class Mode : std::uint8_t { Plane, Shells };
+    Mode mode{Mode::Plane};
+    Vec3 point{0, 0, 0};
+    Vec3 normal{0, 0, 1};
+    bool keep_upper{true};
+    bool keep_lower{true};
+    bool as_parts{false};
+};
+
+struct DividedPiece
+{
+    std::optional<ObjectId> object; // set once the divide has happened
+    std::string             name;
+    double                  volume{0};
+    Vec3                    size{0, 0, 0};
+    Vec3                    center{0, 0, 0};
+    // Downward faces steeper than the support threshold, as the piece lies
+    // on the bed: an estimate of what needs support, not a slice.
+    double                  overhang_area{0};
+};
+
+struct DivideResult
+{
+    std::vector<DividedPiece> pieces;
+    double                    overhang_area_before{0};
+};
+
+struct RepairResult
+{
+    bool        changed{false};
+    std::size_t open_edges_before{0}, open_edges_after{0};
+    std::size_t facets_before{0}, facets_after{0};
+    std::size_t parts_before{0}, parts_after{0};
+    double      volume_before{0}, volume_after{0};
+};
+
+// Regions: what a part of an object means ("a precision hole", "the face
+// people see"), kept by JusPrin, and the Orca artifacts generated from it --
+// support enforcers and blockers, modifier volumes, seam and support paint,
+// object overrides. The record is JusPrin's; the artifacts are Orca's and in
+// its undo stack, so either can outlive the other.
+//
+// Geometry is kept in the mesh frame of one model part of the object, which
+// no placement changes, so a region stays bound while the object is moved,
+// turned or scaled, and only a change to the mesh itself can unbind it.
+struct RegionGeometry
+{
+    // face, hole, box, cylinder, direction, or object (the whole object).
+    std::string type;
+    // A request's face or hole handle; not stored.
+    std::string handle;
+    Vec3        center{0, 0, 0};
+    // A face's outward normal, a hole's or cylinder's axis, a direction.
+    Vec3        normal{0, 0, 0};
+    Vec3        size{0, 0, 0};       // box
+    double      area{0};             // face
+    double      diameter{0};         // hole, cylinder
+    double      length{0};           // hole depth, cylinder length
+    double      tolerance_degrees{0}; // direction
+};
+
+struct RegionArtifact
+{
+    // volume (target: support_blocker, support_enforcer, modifier), paint
+    // (target: support, seam, color; state: enforcer, blocker, or the
+    // extruder), or override (target: the key; state: the value).
+    std::string      type;
+    std::string      target;
+    std::string      state;
+    std::string      name;       // a volume's name, how it is found again
+    std::size_t      part{0};    // paint: the model part painted
+    std::vector<int> facets;     // paint: that part's facet indices
+};
+
+constexpr std::size_t kRegionLimit = 32;
+
+struct RegionRecord
+{
+    std::string id; // r1, r2, ...
+    std::string kind;
+    std::string label;
+    // The object it belongs to: its id in the session that wrote it, its name,
+    // and the facet count of each model part, which is how it is found again
+    // in a later session, whose ids are new.
+    std::uint64_t              session{0};
+    std::uint64_t              object{0};
+    std::string                object_name;
+    std::vector<std::size_t>   part_facets;
+    std::size_t                part{0}; // the model part whose mesh frame holds the geometry
+    RegionGeometry             geometry;
+    std::map<std::string, std::string> settings;
+    int                        extruder{0};
+    std::vector<RegionArtifact> artifacts;
+    std::string                provenance{"user_confirmed"};
+    std::uint64_t              seq{0};
+    std::string                updated_at;
+};
+
+// One row of region_annotate. A row naming an existing region replaces it;
+// with nothing else it regenerates that region's artifacts as stored.
+struct RegionRequest
+{
+    std::string                        region_id;
+    std::optional<ObjectId>            object;
+    std::string                        kind;
+    std::optional<RegionGeometry>      geometry;
+    std::map<std::string, std::string> settings;
+    int                                extruder{0};
+};
+
+struct RegionStatus
+{
+    RegionRecord            record;
+    std::optional<ObjectId> object;            // absent when no object matches any more
+    bool                    binding_lost{false};
+    bool                    artifacts_missing{false};
+};
+
+// One question Orca asked while opening, and what it was told.
+struct LoadDecision
+{
+    std::string question;
+    std::string answer; // yes, no, ok, or cancel
+};
+
+// One real step in the project's undo history. `id` is stable while the
+// project stays open; a project replacement starts a new history, which is
+// why a restore also names the session.
+struct HistoryStep
+{
+    std::uint64_t id{0};
+    std::string   label; // OrcaSlicer's own step name, which may be empty
+    bool          applied{false};
+};
+
+struct WorkspaceHistory
+{
+    std::vector<HistoryStep> steps; // oldest first; the newest kHistoryLimit
+    bool                     truncated{false};
+    // False while a tool such as a gizmo keeps its own undo history, during
+    // which the project history cannot be moved.
+    bool                     restorable{false};
+};
+
+inline constexpr std::size_t kHistoryLimit = 32;
+
+// Where a restore leaves a step: undone (before) or done (after).
+enum class HistoryPoint : std::uint8_t { Before, After };
+
+// The three preset families a print is chosen from. SLA has no place here
+// until the product has one.
+enum class PresetKind : std::uint8_t { Printer, Filament, Process };
+
+// One preset as Orca currently sees it. `compatible` is Orca's own cached
+// verdict, never re-derived: deriving it writes to the preset's config and
+// can change the selection.
+struct PresetEntry
+{
+    std::string name;   // canonical, what a selection takes
+    std::string label;  // the alias Orca shows, when it has one
+    std::string vendor; // the profile bundle it shipped in; empty for a user preset
+    bool        system{false};
+    bool        selected{false};
+    bool        compatible{true};
+};
+
+struct PresetQuery
+{
+    PresetKind  kind{PresetKind::Process};
+    std::string text;
+    bool        compatible_only{true};
+    std::size_t limit{25};
+    std::string cursor;
+};
+
+struct PresetListResult
+{
+    std::vector<PresetEntry> items;
+    std::string              next_cursor;
+    std::size_t              total{0};
+    bool                     truncated{false};
+};
+
+// A physical printer this application knows about, as it last reported itself.
+// Fields it has not reported are absent rather than guessed: a nozzle of zero
+// would be a claim, and this is a record of what was heard.
+struct PrinterDevice
+{
+    std::string id;
+    std::string name;
+    std::string model;
+    std::string connection; // lan, cloud, or empty when it has not said
+    // offline, idle, or printing -- what this application can observe, not a
+    // claim about the machine.
+    std::string activity{"offline"};
+    std::optional<double>    nozzle_diameter;
+    std::vector<std::string> materials;
+    // The filament type of each entry in `materials`, such as PLA; empty
+    // where the device did not say.
+    std::vector<std::string> material_types;
+    // The machine the app is working with.
+    bool                     selected{false};
+    std::optional<int>       progress_percent;
+    std::string              job;
+    std::optional<double>    nozzle_temperature;
+    std::optional<double>    bed_temperature;
+    // Milliseconds since the epoch, absent when the device has never reported.
+    std::optional<std::int64_t> observed_at_ms;
+};
+
+// One filament's share of a sliced plate. Lengths and weights are derived the
+// way Orca's own preview derives them -- volume per filament times that
+// filament's diameter and density -- so a report can never disagree with the
+// number on screen.
+struct SliceFilamentUse
+{
+    std::size_t extruder{0};
+    double      length_mm{0.0};
+    double      grams{0.0};
+    double      cost{0.0};
+    bool        has_cost{false};
+    // Volumes that are not part of the model: purge between filaments and the
+    // prime tower. Absent in Orca means zero here.
+    double      flushed_mm3{0.0};
+    double      tower_mm3{0.0};
+    double      support_mm3{0.0};
+};
+
+// Something Orca says about this slice. `code` is a stable sentinel where Orca
+// has one and empty where the warning is only prose; `object` names the object
+// it belongs to and is empty for a warning about the whole plate.
+struct SliceFinding
+{
+    std::string code;
+    std::string message;
+    bool        critical{false};
+    std::string object;
+    std::string applies_when; // empty, or "timelapse": only a print that records one
+};
+
+// Support printed where it should not be: inside a region kept free of
+// support, or inside a hole found in the mesh.
+struct SupportContact
+{
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    std::string             region_id; // empty for a hole no region names
+    std::string             target;    // how the report names it
+    double                  area{0};   // mm2 of support inside it, summed over its layers
+    std::size_t             layers{0};
+    Vec3                    at{0, 0, 0}; // world centre of what it entered
+};
+
+struct SliceSupports
+{
+    bool                        generated{false};
+    std::size_t                 layers{0};
+    std::vector<SupportContact> contacts;
+    bool                        truncated{false};
+};
+
+// How many seams landed on a region that asks for or forbids them.
+struct SeamPlacement
+{
+    std::string region_id;
+    std::string kind;
+    std::string object_name;
+    std::size_t seams{0};
+};
+
+struct SliceSeams
+{
+    std::size_t                count{0};
+    std::vector<SeamPlacement> regions;
+};
+
+struct FirstLayerObject
+{
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    double                  contact_area{0}; // mm2 on the bed, all copies
+    bool                    brim{false};
+};
+
+struct SliceFirstLayer
+{
+    double                        height{0};
+    std::vector<FirstLayerObject> objects;
+};
+
+// A slice with nothing of the object below it: printed in the air unless
+// support holds it.
+struct SliceIsland
+{
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    double                  z{0};
+    double                  area{0};
+    bool                    supported{false};
+    Vec3                    at{0, 0, 0};
+};
+
+struct SliceIslands
+{
+    std::vector<SliceIsland> items;
+    bool                     truncated{false};
+};
+
+// Which of the slice checks a report computes, and the regions to check
+// against. The summary, findings and material sections are always read.
+struct SliceReportRequest
+{
+    bool                      supports{false};
+    bool                      seams{false};
+    bool                      first_layer{false};
+    bool                      islands{false};
+    std::vector<RegionRecord> regions;
+};
+
+// What a sliced plate can say about itself. Absent sections are absent, not
+// zero: a report for a plate that has never been sliced says so and stops.
+struct SliceReport
+{
+    bool          valid{false};
+    std::uint32_t print_time_seconds{0};
+    std::uint32_t prepare_time_seconds{0};
+    double        total_grams{0.0};
+    double        total_cost{0.0};
+    bool          has_cost{false};
+    std::vector<SliceFilamentUse> filaments;
+    std::uint32_t filament_changes{0};
+    std::uint32_t extruder_changes{0};
+    std::vector<SliceFinding> findings;
+    // Orca's own words for two paths that cross, when it found any.
+    std::string   conflict;
+    // A toolpath outside the printable area. Recomputed from the build volume
+    // rather than read from the result, whose flag is only ever set by a 3mf.
+    bool          toolpath_outside{false};
+    std::optional<SliceSupports>   supports;
+    std::optional<SliceSeams>      seams;
+    std::optional<SliceFirstLayer> first_layer;
+    std::optional<SliceIslands>    islands;
 };
 
 enum class WorkspaceError : std::uint8_t {
@@ -187,7 +964,9 @@ enum class WorkspaceError : std::uint8_t {
     InvalidArgument,
     NoChange,
     InvalidSettings,
-    StaleSettings
+    StaleSettings,
+    // A feature handle was computed at an earlier revision.
+    FeatureExpired
 };
 
 struct CommandResult
@@ -217,7 +996,10 @@ enum class WorkspaceChangeReasons : std::uint32_t {
     Transform = 1u << 3,
     Plates    = 1u << 4,
     Project   = 1u << 5,
-    Settings  = 1u << 6
+    Settings  = 1u << 6,
+    // A slice started, ended, or stopped being current. What the plates hold
+    // to print changed, not the project, so it does not make a proposal stale.
+    Slicing   = 1u << 7
 };
 
 constexpr WorkspaceChangeReasons operator|(WorkspaceChangeReasons lhs, WorkspaceChangeReasons rhs)
@@ -487,6 +1269,16 @@ struct SettingValue
     std::string key, value;
     bool differs_from_preset{false}, differs_from_system{false};
     SettingDefinition definition;
+    // Read for an object: whether the value is the object's own override.
+    std::optional<bool> overridden;
+};
+
+// What a settings call reads or writes: the process preset, or one object's
+// overrides on top of it (Orca's per-object settings, in its ModelConfig).
+// The caller checks that the object is in the open project.
+struct SettingsTarget
+{
+    std::optional<ObjectId> object;
 };
 
 struct SettingIssue
@@ -496,7 +1288,14 @@ struct SettingIssue
     std::optional<double> min, max;
 };
 
-struct SettingsQuery { std::string text; std::size_t limit{10}; std::string cursor; };
+struct SettingsQuery
+{
+    std::string text;
+    std::size_t limit{10};
+    std::string cursor;
+    bool        writable_only{false};
+    bool        changed_only{false}; // only settings that differ from the saved preset
+};
 struct SettingsSearchResult
 {
     std::vector<SettingDefinition> items;
@@ -511,7 +1310,11 @@ struct SettingsReadResult
     std::vector<SettingIssue> issues;
     std::optional<SettingIssue> error;
 };
-struct SettingsPatch { std::map<std::string, std::string> changes; };
+struct SettingsPatch
+{
+    std::map<std::string, std::string> changes;
+    SettingsTarget                     target;
+};
 struct SettingChange { std::string key, before, after; };
 struct SettingsPreview
 {
@@ -541,8 +1344,51 @@ public:
     virtual CommandResult remove_object(ObjectId id)                            = 0;
     virtual CommandResult undo()                                                = 0;
     virtual CommandResult redo()                                                = 0;
+
+    // Starts Orca's own slicing run: one plate, or every plate when no plate
+    // is named. It returns once the run has started, not when it finishes --
+    // the result arrives as a Plates change and is read from the snapshot, the
+    // way the GUI's own Slice button behaves.
+    //
+    // Refuses with UnavailableOperation when a slice is already running unless
+    // preempt is set, because nothing in Orca records who started a run: a
+    // slice in flight may be the person's, and taking it over is a decision
+    // the caller must make deliberately rather than by racing.
+    virtual CommandResult lay_out(const LayoutRequest& request, const std::string& job_handle, LayoutResult& result) = 0;
+    virtual CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
+                                       PlacementResult& result) = 0;
+    virtual CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const = 0;
+    virtual std::vector<ObjectDetails> object_details() const = 0;
+    virtual ConfiguredPrinter configured_printer() const = 0;
+    virtual std::string current_process_preset() const = 0;
+    // Read-only: evaluates compatibility without selecting, and leaves every
+    // preset and the revision as they were.
+    virtual PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const = 0;
+    // Applies in Orca's order -- printer, plate, process, filaments -- and
+    // reads the result back into `applied`, substitutions included.
+    virtual CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) = 0;
+    virtual WorkspaceHistory history() const = 0;
+    // Undo or redo until `step` is undone (Before) or done (After).
+    virtual CommandResult restore_history(std::uint64_t step, HistoryPoint point) = 0;
+    virtual CommandResult start_slice(std::optional<PlateId> plate, bool preempt) = 0;
+
+    // What one plate's current slice says about itself. Returns a report whose
+    // `valid` is false when the plate holds no current slice, rather than
+    // failing: "not sliced yet" is an answer, not an error.
+    virtual SliceReport slice_report(PlateId plate, const SliceReportRequest& request = {}) const = 0;
+
+    // A page of presets of one kind, as Orca has them. Read-only in the strict
+    // sense: it reports Orca's cached compatibility verdict and never asks for
+    // a fresh one, because asking writes to preset configs and can move the
+    // selection.
+    virtual PresetListResult list_presets(const PresetQuery& query) const = 0;
+
+    // Every physical printer the application knows, reachable or not. A
+    // printer it has not heard from is a real answer to "what printers do I
+    // have", which is not the same question setup asks.
+    virtual std::vector<PrinterDevice> printers() const = 0;
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
-    virtual SettingsReadResult read_settings(const std::vector<std::string>& keys) const = 0;
+    virtual SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
     virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
                                          SettingsPreview& applied) = 0;
@@ -558,12 +1404,57 @@ public:
     // clean copy carries no consumer files along.
     virtual CommandResult export_project_archive(const std::string& file_path) = 0;
 
+    // Saves the open project to file_path (UTF-8, absolute, ".3mf"), the way
+    // the person's own Save does: the file becomes the project's file, the
+    // project is marked saved, and auxiliary data travels with it. Unlike
+    // export_project_archive this is the project, not a copy of it.
+    virtual CommandResult save_project(const std::string& file_path) = 0;
+    virtual ProjectDetails project_details() const = 0;
+
+    // Seeing and exporting. `render_view` draws one plate offscreen;
+    // `read_attachment` reads a file the project lists as an attachment;
+    // `inspect_slice` reads a current slice; `check_export` refuses what
+    // `export_file` would refuse, without writing; the cancels stop a run
+    // and say whether they stopped it.
+    virtual CommandResult render_view(const RenderRequest& request, RenderedImage& image) = 0;
+    virtual CommandResult read_attachment(const std::string& id, AttachmentContent& content) const = 0;
+    virtual SliceInspection inspect_slice(const SliceInspectRequest& request) const = 0;
+    virtual CommandResult check_export(const ExportRequest& request) const = 0;
+    virtual CommandResult export_file(const ExportRequest& request, ExportResult& result) = 0;
+    virtual CommandResult cancel_slice(bool& stopped) = 0;
+    virtual CommandResult cancel_job(const std::string& handle, bool& stopped) = 0;
+    virtual CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) = 0;
+
     // Imports a model or project file's geometry into the CURRENT project,
     // adding objects rather than replacing the project. It is a single
     // undoable manufacturing change: the session is unchanged, prior IDs stay
     // valid, revision advances, and a Contents change is published. On success
     // object_id is the first added object (when one can be identified).
-    virtual CommandResult import_model(const std::string& file_path) = 0;
+    virtual CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+                                         std::vector<ObjectId>& added) = 0;
+    virtual CommandResult delete_items(const std::vector<DeleteItem>& items) = 0;
+
+    // Reshaping. `preview_divide` works on a copy and changes nothing;
+    // `divide_object`, `merge_objects` and `repair_object` are one undo step
+    // each. A merge's result is the new object.
+    virtual CommandResult preview_divide(ObjectId id, const DivideRequest& request, DivideResult& result) const = 0;
+    virtual CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) = 0;
+    virtual CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) = 0;
+    virtual CommandResult repair_object(ObjectId id, RepairResult& result) = 0;
+
+    // Regions. `plan_regions` resolves requests against the open project and
+    // the stored records without changing anything: each planned record says
+    // what its artifacts will be. `apply_regions` removes the artifacts of the
+    // records being replaced and generates the planned ones, as one undo step,
+    // and returns the records as generated. `remove_regions` removes records'
+    // artifacts as one undo step. `region_status` finds each record's object
+    // and says whether its geometry and artifacts are still there.
+    virtual CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
+                                       std::vector<RegionRecord>& planned) const = 0;
+    virtual CommandResult apply_regions(const std::vector<RegionRecord>& planned, const std::vector<RegionRecord>& replaced,
+                                        std::vector<RegionRecord>& applied) = 0;
+    virtual CommandResult remove_regions(const std::vector<RegionRecord>& records) = 0;
+    virtual std::vector<RegionStatus> region_status(const std::vector<RegionRecord>& records) const = 0;
 
     virtual WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) = 0;
     // The change log's feed: every edit, delivered synchronously as the

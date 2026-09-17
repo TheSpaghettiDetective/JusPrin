@@ -1,7 +1,8 @@
 // Conversation transcript with stable scroll anchoring: the list follows new
 // content only while the reader is at the bottom; scrolling up to reread
 // pins the viewport until they return to the bottom. Tool activity cards
-// render beneath the assistant message that proposed them; the change log and
+// render beneath the assistant message that proposed them, a plan's calls as
+// one card beneath the message that proposed its first call; the change log and
 // the manufacturing history render after the conversation item they follow,
 // in the order they happened.
 
@@ -12,6 +13,7 @@ import { AttachmentChip } from './AttachmentChip';
 import { ChangeRows } from './ChangeRows';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
+import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 
 interface Props {
@@ -104,6 +106,8 @@ export function MessageList({
     ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
   ];
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
+  const plans = planMembers(toolActivities);
+  const headline = planHeadline(toolActivities);
   // A change follows a message or one of its tool activities; both place it
   // after that message's group.
   const messageOfItem = new Map<string, string>();
@@ -201,14 +205,31 @@ export function MessageList({
               ) : (
                 bubble
               )}
-              {activitiesOf(message.id).map((activity) => (
-                <ToolActivityCard
-                  key={activity.actionId}
-                  activity={activity}
-                  onDecision={onToolDecision}
-                  onCancel={onToolCancel}
-                />
-              ))}
+              {activitiesOf(message.id).map((activity) => {
+                const key = planKey(activity);
+                const found = key ? plans.get(key) : undefined;
+                // A plan of one change is decided like any other call, once
+                // the agent can no longer add to it.
+                const members = found && (found.length > 1 || streamingMessageId !== null) ? found : undefined;
+                if (members && members[0].actionId !== activity.actionId) return null;
+                return members ? (
+                  <PlanActivityCard
+                    key={activity.actionId}
+                    members={members}
+                    headline={headline}
+                    stillProposing={streamingMessageId !== null}
+                    onDecision={onToolDecision}
+                    onCancel={onToolCancel}
+                  />
+                ) : (
+                  <ToolActivityCard
+                    key={activity.actionId}
+                    activity={activity}
+                    onDecision={onToolDecision}
+                    onCancel={onToolCancel}
+                  />
+                );
+              })}
             </div>
             <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} />
           </Fragment>

@@ -196,9 +196,18 @@ public:
             return true;
         }
         ToolRequest tool;
-        tool.tool = "duplicate_object";
-        tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
-                                   {"objectId", std::to_string(request.workspace.selected_objects.front().value())}}.dump();
+        if (stale_patch) {
+            // Refused at proposal: the revision is not the workspace's.
+            tool.tool           = "settings_apply_patch";
+            tool.arguments_json = json{{"changes", {{"wall_loops", "4"}}},
+                                       {"expectedSessionId", std::to_string(request.workspace.session.value())},
+                                       {"expectedRevision", request.workspace.revision + 100}}.dump();
+        } else {
+            tool.tool = "plate_layout";
+            tool.arguments_json = json{{"sessionId", std::to_string(request.workspace.session.value())},
+                                       {"objects", json::array({json{{"objectId", std::to_string(request.workspace.selected_objects.front().value())},
+                                                                     {"quantity", 2}}})}}.dump();
+        }
         events.push_back(AgentEvent::delta("I can do that."));
         events.push_back(AgentEvent::tool_call({"provider-call-1", std::move(tool), true}));
         active = true;
@@ -227,6 +236,7 @@ public:
     std::optional<AgentToolResult> continuation;
     std::deque<AgentEvent> events;
     bool active{false};
+    bool stale_patch{false};
 };
 
 class RetryingAgent final : public IAgentService
@@ -841,11 +851,13 @@ TEST_CASE("agent availability is a separate, honest state", "[agent][availabilit
 
 namespace {
 
+// Every printed copy: the proposed change adds an instance.
 std::size_t workspace_object_count(const Workspace::FakeWorkspace& workspace)
 {
     std::size_t count = 0;
     for (const Workspace::WorkspacePlate& plate : workspace.snapshot().plates)
-        count += plate.objects.size();
+        for (const Workspace::WorkspaceObject& object : plate.objects)
+            count += object.instances.size();
     return count;
 }
 
@@ -878,7 +890,7 @@ TEST_CASE("a proposed duplicate waits for approval and executes authoritatively"
 
     const json proposed = propose_duplicate(harness, "c-t1");
     CHECK(proposed["state"] == "pending");
-    CHECK(proposed["tool"] == "duplicate_object");
+    CHECK(proposed["tool"] == "plate_layout");
     CHECK(proposed["requiresApproval"] == true);
     CHECK(proposed["actionClass"] == "mutation");
     CHECK(proposed["server"] == "jusprin-native");
@@ -902,7 +914,7 @@ TEST_CASE("a proposed duplicate waits for approval and executes authoritatively"
 
         const json done = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
         CHECK(done["state"] == "succeeded");
-        CHECK(done["result"].contains("newObjectId"));
+        CHECK(done["result"]["objects"]["items"][0]["instanceCount"] == 2);
         CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
         CHECK(harness.workspace.snapshot().can_undo);
         // The executed change pushed fresh context like any native change.
@@ -1005,6 +1017,22 @@ TEST_CASE("tool activities reconstruct after a reload and pause while disconnect
     CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
 }
 
+TEST_CASE("the call that opened a project is not shown in the project it opened", "[agent][tools][project]")
+{
+    Harness harness;
+    harness.handshake();
+    const ToolActivity opening = harness.host.tools().propose({"project_open", R"({"new":true})"}, "m-open");
+    REQUIRE(opening.state == ToolState::Pending);
+    REQUIRE(harness.host.tools().approve(opening.action_id));
+    const std::size_t states_before = harness.of_type("state").size();
+    pump_tools_to_completion(harness);
+    REQUIRE(harness.workspace.opens == 1);
+    const std::vector<json> states = harness.of_type("state");
+    REQUIRE(states.size() > states_before);
+    for (std::size_t index = states_before; index < states.size(); ++index)
+        CHECK(states[index]["payload"]["toolActivities"].empty());
+}
+
 TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][tools][policy]")
 {
     Harness harness;
@@ -1020,7 +1048,8 @@ TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][too
     pump_tools_to_completion(harness);
     const json done = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
     CHECK(done["state"] == "succeeded");
-    CHECK(done["result"]["selection"] == json::array({"cube-a"}));
+    CHECK(done["result"]["selection"]["items"] ==
+          json::array({std::to_string(harness.workspace.snapshot().plates[0].objects[0].id.value())}));
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
@@ -1396,7 +1425,7 @@ TEST_CASE("a sent model attachment is imported through an approved tool action",
     const json* activity = h.last_of_type("tool_activity");
     REQUIRE(activity != nullptr);
     const std::string action_id = (*activity)["payload"]["activity"]["actionId"].get<std::string>();
-    CHECK((*activity)["payload"]["activity"]["tool"] == "import_model");
+    CHECK((*activity)["payload"]["activity"]["tool"] == "object_import");
     CHECK((*activity)["payload"]["activity"]["requiresApproval"] == true);
 
     // Approve; the coordinator resolves the attachment to its blob and imports
@@ -1418,7 +1447,7 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     Harness harness(std::move(provider));
     harness.handshake();
     REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
-    const std::size_t objects_before = harness.workspace.snapshot().plates[0].objects.size();
+    const std::size_t copies_before = harness.workspace.snapshot().plates[0].objects[0].instances.size();
 
     harness.send_user_message("duplicate it", "provider-c-1");
     for (int i = 0; i < 10 && harness.host.tools().activities().empty(); ++i)
@@ -1440,12 +1469,33 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     const json result = json::parse(scripted->continuation->output_json);
     CHECK(result["state"] == "succeeded");
     CHECK(result.contains("workspaceRevision"));
-    CHECK(result["workspace"]["plates"][0]["objects"].size() == objects_before + 1);
+    CHECK(result["workspace"]["plates"][0]["objects"][0]["instances"] == copies_before + 1);
 
     for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
         harness.host.pump_stream();
-    CHECK(harness.workspace.snapshot().plates[0].objects.size() == objects_before + 1);
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before + 1);
     REQUIRE(harness.host.conversation().size() == 3);
+    CHECK(harness.host.conversation().back().state == MessageState::Complete);
+    CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
+}
+
+TEST_CASE("a provider tool call refused at proposal still continues the turn", "[agent][provider][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    scripted->stale_patch = true;
+    Harness harness(std::move(provider));
+    harness.handshake();
+
+    harness.send_user_message("four walls", "provider-stale-c-1");
+    for (int i = 0; i < 10 && !scripted->continuation; ++i)
+        harness.host.pump_stream();
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "failed");
+    CHECK(json::parse(scripted->continuation->output_json)["error"]["code"] == "stale_workspace");
+    for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
+        harness.host.pump_stream();
+    CHECK_FALSE(harness.host.stream_active());
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
     CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
 }
@@ -1809,6 +1859,37 @@ TEST_CASE("a title failure stays separate from a successful conversation", "[age
     harness.deliver("rename_conversation", json{{"conversationId", harness.persistence.document().active_conversation_id()},
                                               {"title", "My print"}});
     CHECK(harness.persistence.document().conversations().front().title == "My print");
+}
+
+TEST_CASE("a chat title is made from the user's words, not the reply", "[agent][bridge][conversations]")
+{
+    // With the reply beside the user's message, gpt-5.4-mini titled an English
+    // chat in Chinese; the title request carries only what the user wrote.
+    class RecordingAgent : public DeterministicMockAgent {
+    public:
+        bool start(const AgentRequest& request) override
+        {
+            requests.push_back(request);
+            return DeterministicMockAgent::start(request);
+        }
+        std::vector<AgentRequest> requests;
+    };
+    auto provider = std::make_unique<RecordingAgent>();
+    RecordingAgent* recording = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    const std::string text = "Turn on tree supports, only where they touch the build plate, and add a brim around the model.";
+    harness.send_user_message(text, "title-language");
+    harness.pump_all();
+    REQUIRE(harness.host.conversation().size() == 2);
+    REQUIRE_FALSE(harness.host.conversation().back().text.empty());
+
+    REQUIRE(recording->requests.size() == 2);
+    const AgentRequest& title = recording->requests.back();
+    CHECK(title.purpose == AgentRequest::Purpose::ConversationTitle);
+    REQUIRE(title.conversation.size() == 1);
+    CHECK(title.conversation.front().role == "user");
+    CHECK(title.conversation.front().text == text);
 }
 
 TEST_CASE("mcp_catalog lists stdio discovery entries without a live URL payload", "[agent][mcp_setup]")

@@ -32,6 +32,11 @@ void McpRuntime::detach_calls()
     auto calls = std::move(m_calls);
     m_calls.clear();
     for (auto& entry : calls) {
+        // The call that is replacing the project answers when it finishes.
+        if (!entry.second.action_id.empty() && entry.second.action_id == m_coordinator.executing_action_id()) {
+            m_calls.insert(std::move(entry));
+            continue;
+        }
         m_coordinator.cancel(entry.second.action_id);
         const auto& pending = entry.second.pending;
         m_server.send(pending->connection_id, rpc_result(pending->request.id,
@@ -81,13 +86,36 @@ void McpRuntime::on_activity(const Agent::ToolActivity& activity)
         m_server.send(pending->connection_id, rpc_result(pending->request.id, std::move(result)), true);
         return;
     }
-    if (!activity.requires_approval) return;
+    // A plan member answers at once: its one card is decided in JusPrin
+    // after the client has proposed the rest. The answer is not the tool's
+    // result, so it carries no structured content to hold to the output schema.
+    if (!activity.plan_id.empty() && activity.state == Agent::ToolState::Pending) {
+        const json queued{{"state", "queued"}, {"actionId", activity.action_id}, {"planId", activity.plan_id},
+                          {"message", "Queued in plan " + activity.plan_id +
+                                          ". Propose the plan's remaining calls with the same planId, then ask the user to approve the "
+                                          "plan card in JusPrin. Nothing has run yet; read the outcome from workspace_inspect's "
+                                          "activities section."}};
+        json result{{"resultType", "complete"}, {"isError", false},
+                    {"content", json::array({{{"type", "text"}, {"text", queued.dump()}}})}};
+        result["_meta"]["io.jusprin/activity"] = {{"actionId", activity.action_id}, {"planId", activity.plan_id},
+                                                  {"state", "queued"}};
+        m_calls.erase(found);
+        m_server.send(pending->connection_id, rpc_result(pending->request.id, std::move(result)), true);
+        return;
+    }
+    // A read-only call has nothing to report between arrival and its result. A
+    // mutation does, including one the computation-only policy lets run
+    // without a card: it says "starting" where the others say "awaiting you".
+    if (activity.action_class == Agent::ActionClass::ReadOnly) return;
     const int progress = activity.state == Agent::ToolState::Pending ? 0 : activity.state == Agent::ToolState::Running ? 1 : -1;
     const auto& meta = pending->request.params["_meta"];
     if (progress <= call.last_progress || !meta.contains("progressToken")) return;
     call.last_progress = progress;
+    const char* message = progress != 0              ? "Running in JusPrin"
+                          : activity.requires_approval ? "Awaiting approval in JusPrin"
+                                                       : "Starting in JusPrin";
     m_server.send(pending->connection_id, {{"jsonrpc", "2.0"}, {"method", "notifications/progress"},
                   {"params", {{"progressToken", meta["progressToken"]}, {"progress", progress}, {"total", 2},
-                               {"message", progress == 0 ? "Awaiting approval in JusPrin" : "Running in JusPrin"}}}}, false);
+                               {"message", message}}}}, false);
 }
 } // namespace Slic3r::GUI::JusPrin::Mcp

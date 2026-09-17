@@ -7,6 +7,7 @@ import { SetupCard } from './components/SetupCard';
 import { ChatHeader, ChatList } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
+import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
 import {
   AgentNotConfiguredHeader,
@@ -150,7 +151,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   );
 
   const sendMessage = (text: string) => {
-    const attachmentIds = stagedAttachments.filter((a) => a.state === 'staged').map((a) => a.id);
+    // From the ref, not this render: the test hook keeps the first render's
+    // sendMessage, which would otherwise never see a later attachment.
+    const attachmentIds = stateRef.current.attachments.filter((a) => a.state === 'staged').map((a) => a.id);
     client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds });
   };
 
@@ -270,6 +273,7 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
   const externalActions = state.toolActivities.filter((activity) => activity.source === 'mcp' && activity.requiresApproval);
+  const externalPlans = planMembers(externalActions);
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
     ['pending', 'approved', 'running'].includes(activity.state));
@@ -360,8 +364,18 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       {errorNotice}
       {externalActions.length > 0 && <section className="external-actions" aria-label="External AI tools">
         <h2>External AI tools</h2>
-        {externalActions.map((activity) => <ToolActivityCard key={activity.actionId} activity={activity}
-          onDecision={sendToolDecision} onCancel={sendToolCancel} />)}
+        {externalActions.map((activity) => {
+          const key = planKey(activity);
+          const found = key ? externalPlans.get(key) : undefined;
+          // A plan of one change is decided like any other call.
+          const members = found && found.length > 1 ? found : undefined;
+          if (members && members[0].actionId !== activity.actionId) return null;
+          return members
+            ? <PlanActivityCard key={activity.actionId} members={members} headline={planHeadline(state.toolActivities)}
+                onDecision={sendToolDecision} onCancel={sendToolCancel} />
+            : <ToolActivityCard key={activity.actionId} activity={activity}
+                onDecision={sendToolDecision} onCancel={sendToolCancel} />;
+        })}
       </section>}
       {view === 'list' && chatList}
       <div className="chat-content" hidden={view === 'list'}>

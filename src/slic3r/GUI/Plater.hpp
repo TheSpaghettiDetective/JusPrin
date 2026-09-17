@@ -349,6 +349,12 @@ public:
     bool can_redo_project() const;
     bool undo_project();
     bool redo_project();
+    // Jump the project history to the snapshot taken at `timestamp`, as
+    // Orca's own undo and redo lists do. False while a gizmo owns the active
+    // history, for a timestamp the project history does not hold, or when
+    // nothing moved.
+    bool can_restore_project_history() const;
+    bool restore_project_history(size_t timestamp);
 
     // --- End of the grouped JusPrin fork additions. ---
 

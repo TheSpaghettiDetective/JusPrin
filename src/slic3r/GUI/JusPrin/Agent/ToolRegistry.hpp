@@ -24,6 +24,13 @@ enum class ToolExposure : std::uint8_t {
     Internal = 1u << 2
 };
 
+// How a print request goes, for both adapters' instructions: the tools'
+// own descriptions say how each one works.
+inline constexpr const char* kPrintJourneyGuidance =
+    "For a print request: record what the user said with intent_update, ask only the questions whose answer would change what "
+    "you do, and record your plan, with everything you assumed instead of asking, through plan_set before you change the "
+    "project. Check the slice with slice_report before you export; a G-code file is written with export_file.";
+
 constexpr ToolExposure operator|(ToolExposure lhs, ToolExposure rhs)
 {
     return static_cast<ToolExposure>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));
@@ -42,14 +49,38 @@ enum class ToolAvailability : std::uint8_t { Always, ImportableAttachment };
 // Stable executor association. The registry locates behavior without storing
 // workspace state or embedding Orca access in metadata lambdas.
 enum class ToolHandler : std::uint8_t {
-    DuplicateObject,
-    ImportModel,
-    InspectSelection,
     WorkspaceInspect,
     SettingsSearch,
     SettingsGet,
     SettingsPreviewPatch,
     SettingsApplyPatch,
+    IntentUpdate,
+    PlanSet,
+    PresetsList,
+    ObjectImport,
+    ObjectImportFile,
+    ProjectDeleteItems,
+    PlateLayout,
+    ObjectPlace,
+    ObjectAnalyze,
+    RegionAnnotate,
+    ObjectDividePreview,
+    ObjectDivide,
+    ObjectMerge,
+    ObjectRepair,
+    ViewRender,
+    AttachmentRead,
+    SliceInspect,
+    ActivityCancel,
+    ExportFile,
+    PrinterSetupPreview,
+    PrinterSetup,
+    HistoryRestore,
+    ProjectSave,
+    ProjectOpen,
+    PrinterList,
+    SliceStart,
+    SliceReportRead,
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint
@@ -65,8 +96,20 @@ struct ToolDefinition
     ActionClass       action_class{ActionClass::ReadOnly};
     ToolExposure      exposure{ToolExposure::None};
     ToolAvailability  availability{ToolAvailability::Always};
-    ToolHandler       handler{ToolHandler::InspectSelection};
+    ToolHandler       handler{ToolHandler::WorkspaceInspect};
+    // Qualifies this mutation for the computation-only exemption in
+    // approval_required(). Declared here, beside the action class, so the
+    // registry stays the only place a policy distinction is made. Last in the
+    // struct because every definition is a positional brace literal.
+    bool              computation_only{false};
 };
+
+// Whether a call to this tool may carry a planId: every change to the
+// project, not plan_set, which records the agent's own words.
+inline bool joins_plans(const ToolDefinition& definition)
+{
+    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet;
+}
 
 struct ToolValidationResult
 {
@@ -89,6 +132,10 @@ public:
     std::vector<std::reference_wrapper<const ToolDefinition>> exposed(ToolExposure exposure) const;
 
     ToolValidationResult validate_call(const ToolDefinition& definition, const std::string& arguments_json) const;
+    // Whether this call needs a card. Almost always a property of the
+    // definition alone; slice_start is the exception, because pre-empting a
+    // run that may be the user's is a decision only they can take.
+    bool requires_approval(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
     bool validate_output(const ToolDefinition& definition, const nlohmann::json& result) const;
     std::string approval_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
 

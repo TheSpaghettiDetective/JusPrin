@@ -59,8 +59,14 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     auto tools = list.messages()[0]["result"]["tools"];
     CHECK(list.messages()[0]["result"]["ttlMs"] == 0);
     CHECK(list.messages()[0]["result"]["cacheScope"] == "private");
-    REQUIRE(tools.size() == 5);
-    CHECK(tools.back()["name"] == "workspace_inspect");
+    // Pages hold 25 tools; the rest of the catalog is on the next page.
+    REQUIRE(tools.size() == 25);
+    REQUIRE(list.messages()[0]["result"]["nextCursor"] == "jusprin-v1:25");
+    Client rest(h.runtime.server(), request("tools/list", {{"cursor", "jusprin-v1:25"}}));
+    REQUIRE(h.finish(rest));
+    const auto remaining = rest.messages()[0]["result"]["tools"];
+    REQUIRE(remaining.size() == 6);
+    CHECK(remaining.back()["name"] == "workspace_inspect");
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));
     CHECK_FALSE(inspect.streaming());
@@ -107,7 +113,8 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
         CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
     }
     SECTION("stale") {
-        REQUIRE(h.workspace.rename_object(h.workspace.snapshot().plates[0].objects[0].id, "Changed").succeeded());
+        // A settings patch is stale after a settings edit; model edits leave it.
+        h.workspace.set_setting_for_testing("brim_width", "7");
         REQUIRE(h.finish(client));
         CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "stale_workspace");
         CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
@@ -117,6 +124,37 @@ TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][net
     REQUIRE(messages.size() >= 2);
     CHECK(messages[0]["method"] == "notifications/progress");
     CHECK(messages[0]["params"]["progressToken"] == "test-progress");
+}
+
+TEST_CASE("MCP plan members answer at once and run on one approval", "[mcp][network][plan]")
+{
+    RuntimeHarness h;
+    const auto patch = [&](const char* key, const char* value) {
+        auto call = h.settings_patch();
+        call["params"]["arguments"]["changes"] = {{key, value}};
+        call["params"]["arguments"]["planId"]  = "walls";
+        return call;
+    };
+    Client first(h.runtime.server(), patch("wall_loops", "4"));
+    REQUIRE(h.finish(first));
+    const auto queued = first.messages().back()["result"];
+    CHECK(queued["isError"] == false);
+    CHECK_FALSE(queued.contains("structuredContent"));
+    CHECK(queued["_meta"]["io.jusprin/activity"]["state"] == "queued");
+    CHECK(json::parse(queued["content"][0]["text"].get<std::string>())["planId"] == "walls");
+    Client second(h.runtime.server(), patch("sparse_infill_density", "25%"));
+    REQUIRE(h.finish(second));
+    REQUIRE(h.coordinator.activities().size() == 2);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
+
+    const auto first_id = h.coordinator.activities().front().action_id;
+    const auto second_id = h.coordinator.activities().back().action_id;
+    REQUIRE(h.coordinator.approve(first_id));
+    REQUIRE(wait_for([&] { return Agent::tool_state_terminal(h.coordinator.find(second_id)->state); }, [&] { h.pump(); }));
+    CHECK(h.coordinator.find(first_id)->state == Agent::ToolState::Succeeded);
+    CHECK(h.coordinator.find(second_id)->state == Agent::ToolState::Succeeded);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
+    CHECK(h.workspace.read_settings({"sparse_infill_density"}).items[0].value == "25%");
 }
 
 TEST_CASE("MCP disconnect cancels pending native proposals", "[mcp][network][cancellation]")
@@ -134,7 +172,7 @@ TEST_CASE("MCP disconnect cancels pending native proposals", "[mcp][network][can
 TEST_CASE("MCP exposure and schema failures cannot reach a native mutation", "[mcp][network]")
 {
     RuntimeHarness h;
-    const std::string name = GENERATE("duplicate_object", "inspect_selection", "import_model", "record_build", "missing", "settings_apply_patch");
+    const std::string name = GENERATE("object_import", "record_build", "missing", "settings_apply_patch");
     Client client(h.runtime.server(), request("tools/call", {{"name", name}, {"arguments", {{"actionClass", "read_only"}}}}));
     REQUIRE(h.finish(client));
     auto response = client.messages().back();
@@ -279,10 +317,6 @@ TEST_CASE("MCP workspace summaries are bounded schema-validated and explicit", "
     CHECK(result["objectCount"] == 1001);
     CHECK(result["plates"]["items"][0]["objects"]["items"].size() == Agent::kToolListLimit);
     CHECK(result.dump().size() < Mcp::kBodyLimit);
-    auto selection = Agent::selection_inspection(snapshot);
-    CHECK(selection["truncated"] == true);
-    CHECK(selection["selection"].size() == Agent::kToolListLimit);
-    CHECK(registry.validate_output(*registry.find("inspect_selection"), selection));
     result["revision"] = "not a number";
     CHECK_FALSE(registry.validate_output(*registry.find("workspace_inspect"), result));
 }

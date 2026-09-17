@@ -72,20 +72,6 @@ json message_json(const ConversationMessage& message)
     return result;
 }
 
-const char* tool_state_name(ToolState state)
-{
-    switch (state) {
-    case ToolState::Pending: return "pending";
-    case ToolState::Approved: return "approved";
-    case ToolState::Running: return "running";
-    case ToolState::Succeeded: return "succeeded";
-    case ToolState::Failed: return "failed";
-    case ToolState::Cancelled: return "cancelled";
-    case ToolState::Rejected: return "rejected";
-    }
-    return "pending";
-}
-
 const char* action_class_name(ActionClass action_class)
 {
     switch (action_class) {
@@ -117,6 +103,10 @@ json activity_json(const ToolActivity& activity)
                 {"expectedRevision", activity.expected_revision},
                 {"state", tool_state_name(activity.state)},
                 {"progress", json{{"current", activity.progress_current}, {"total", activity.progress_total}}}};
+    if (!activity.plan_id.empty())
+        result["planId"] = activity.plan_id;
+    if (!activity.plan_scope.empty())
+        result["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         result["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
@@ -510,13 +500,21 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
 
 } // namespace
 
+Workspace::PrinterFactsStore* AgentHost::DocumentProductState::facts() const
+{
+    if (!m_facts && !m_facts_path.empty())
+        m_facts = std::make_unique<Workspace::PrinterFactsStore>(Workspace::PrinterFactsStore::Config{m_facts_path, {}});
+    return m_facts.get();
+}
+
 AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                      ProjectPersistence&    persistence,
                      AgentAvailability      availability,
                      bool                   dark_appearance,
                      AgentServicePtr        agent,
                      AgentSetupServicePtr   setup)
-    : m_workspace(workspace), m_persistence(persistence), m_tools(workspace), m_agent(std::move(agent)),
+    : m_workspace(workspace), m_persistence(persistence), m_product_state(persistence), m_tools(workspace),
+      m_agent(std::move(agent)),
       m_setup(std::move(setup)), m_availability(availability), m_dark(dark_appearance)
 {
     refresh_workspace_identity();
@@ -526,6 +524,7 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         if (m_handshake)
             send_context();
     });
+    m_tools.set_product_state(&m_product_state);
     m_tools.set_action_id_allocator([this]() { return m_persistence.document().allocate_action_id(); });
     m_tools.set_attachment_path_resolver([this](const std::string& attachment_id) -> std::string {
         const std::optional<AttachmentRecord> record = m_persistence.document().find_attachment(attachment_id);
@@ -538,6 +537,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         return execute_manufacturing_tool(handler, activity);
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
+        // The last word of an action that replaced the project belongs to the
+        // project it closed, not to the one now open.
+        if (activity.session != m_workspace.snapshot().session.value())
+            return;
         m_persistence.document().upsert_activity(activity, m_persistence.timestamp());
         if (tool_state_terminal(activity.state))
             m_persistence.flush();
@@ -672,9 +675,14 @@ void AgentHost::send_state(const std::string& correlation_id)
         conversation.push_back(message_json(message));
 
     // Stored history first, overlaid by live coordinator records (the live
-    // record is fresher while an action runs).
+    // record is fresher while an action runs). The project_open that closed
+    // the last project is still live while it finishes; it is not this
+    // project's.
     std::vector<ToolActivity> merged = document.activities();
+    const std::uint64_t session = m_workspace.snapshot().session.value();
     for (const ToolActivity& live : m_tools.activities()) {
+        if (live.session != session)
+            continue;
         const auto existing = std::find_if(merged.begin(), merged.end(),
                                            [&live](const ToolActivity& a) { return a.action_id == live.action_id; });
         if (existing == merged.end())
@@ -1671,13 +1679,23 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
     const ToolActivity& proposed =
-        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks});
+        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks}, ToolSource::Agent,
+                        stream.conversation_id);
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);
         continuation.conversation_id     = stream.conversation_id;
         continuation.user_message_id     = stream.message.in_reply_to;
         m_tool_continuations[proposed.action_id] = std::move(continuation);
+        // A call refused at proposal (a stale revision, an invalid patch) was
+        // already terminal when the coordinator announced it, before this
+        // continuation existed; hand the agent its result now.
+        // A plan member waits for the plan's one card, which the person
+        // decides after this turn ends; the agent hears it is queued now.
+        if (tool_state_terminal(proposed.state) || (!proposed.plan_id.empty() && proposed.state == ToolState::Pending)) {
+            const ToolActivity answered = proposed;
+            continue_after_tool(answered);
+        }
     } else {
         start_next_queued_reply();
     }
@@ -1763,7 +1781,8 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     m_tool_continuations.erase(found);
 
     const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
-    json output{{"state", tool_state_name(activity.state)},
+    const bool queued = activity.state == ToolState::Pending;
+    json output{{"state", queued ? "queued" : tool_state_name(activity.state)},
                 {"actionId", activity.action_id},
                 {"workspaceRevision", current_workspace.revision},
                 {"workspace", context_json(current_workspace, agent_authored_keys(current_workspace))}};
@@ -1772,11 +1791,18 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     if (activity.error)
         output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
                                 {"details", json::parse(activity.error->details_json)}};
+    if (queued) {
+        output["planId"]  = activity.plan_id;
+        output["message"] = "Queued in plan " + activity.plan_id +
+                            ". Propose the plan's remaining calls with the same planId, then end your turn and ask the user to "
+                            "approve the plan card. Nothing has run yet.";
+    }
 
     AgentToolResult result;
     result.call_id     = continuation.call_id;
-    result.state       = tool_state_name(activity.state);
+    result.state       = queued ? "queued" : tool_state_name(activity.state);
     result.output_json = output.dump();
+    result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {
         begin_tool_followup(continuation);
         fail_stream(AgentError{"agent_continuation_failed", "The Agent could not receive the native tool result.", true});
@@ -1842,20 +1868,24 @@ void AgentHost::start_conversation_title(const std::string& conversation_id)
     AgentRequest request;
     request.purpose = AgentRequest::Purpose::ConversationTitle;
     request.request_id = document.project_id() + "-" + conversation_id + "-title-" + std::to_string(document.doc_revision());
-    // Only the first completed exchange is needed. No workspace, files, tools,
-    // or title-generation output enter the conversation's message history.
+    // The title is made from the user's first written message once it has a
+    // reply. Only the user's words are sent: with the reply beside them, the
+    // model titled an English chat in another language in 4 of 10 runs. No workspace,
+    // files, tools, or title-generation output enter the message history.
     bool has_reply = false;
     for (const auto& message : document.messages(conversation_id)) {
-        if (message.role == MessageRole::User && !request.conversation.empty()) break;
-        if (message.role == MessageRole::Note) continue; // never a turn to title
         if (message.state != MessageState::Complete) continue;
+        if (message.role == MessageRole::Assistant && !request.conversation.empty()) {
+            has_reply = true;
+            break;
+        }
+        if (message.role != MessageRole::User || message.text.empty() || !request.conversation.empty()) continue;
         std::string text = message.text;
         if (text.size() > 4096) {
             text.resize(4096);
             while (!text.empty() && !is_valid_utf8(text)) text.pop_back();
         }
-        request.conversation.push_back({message.role == MessageRole::User ? "user" : "assistant", std::move(text)});
-        has_reply = has_reply || message.role == MessageRole::Assistant;
+        request.conversation.push_back({"user", std::move(text)});
     }
     if (!has_reply) return;
     if (!m_agent->start(request)) {

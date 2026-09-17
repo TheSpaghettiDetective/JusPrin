@@ -181,7 +181,7 @@ Reply discovery(const Request& request)
                                          {"capabilities", {{"tools", {{"listChanged", false}}}}},
                                          {"ttlMs", 0},
                                          {"cacheScope", "private"},
-                                         {"instructions", "Inspect the live workspace, search or read process settings, then preview a patch. Apply with the sessionId and revision from that preview and wait for approval in the JusPrin Agent panel. After stale_workspace, read and preview again. Project Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable error means you should open JusPrin and a project. Closing a response cancels pending work."}})};
+                                         {"instructions", "Inspect the live workspace, search or read process settings, then preview a patch. Apply with the sessionId and revision from that preview and wait for approval in the JusPrin Agent panel. After stale_workspace, read and preview again. Project Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable error means you should open JusPrin and a project. Closing a response cancels pending work. " + std::string(Agent::kPrintJourneyGuidance)}})};
 }
 
 Reply list_tools(const Request& request, std::size_t page_size)
@@ -204,8 +204,11 @@ Reply list_tools(const Request& request, std::size_t page_size)
     for (; offset < end; ++offset) {
         const Agent::ToolDefinition& tool = definitions[offset];
         const bool read_only = tool.action_class == Agent::ActionClass::ReadOnly;
+        // No outputSchema on the wire: no client is known to use it, and it was
+        // two thirds of the catalog's bytes. Results are still checked against
+        // it internally on every success (see activity_result below).
         tools.push_back({{"name", tool.name}, {"title", tool.title}, {"description", tool.description},
-                         {"inputSchema", tool.input_schema}, {"outputSchema", tool.output_schema},
+                         {"inputSchema", tool.input_schema},
                          {"annotations", {{"readOnlyHint", read_only}, {"destructiveHint", tool.action_class == Agent::ActionClass::Destructive},
                                            {"idempotentHint", read_only}, {"openWorldHint", false}}}});
     }
@@ -236,6 +239,8 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
         if (!definition || !Agent::ToolRegistry::instance().validate_output(*definition, content))
             throw std::logic_error("Tool result violates its canonical output schema: " + activity.tool);
         result = tool_result(content);
+        if (activity.image)
+            result["content"].push_back({{"type", "image"}, {"data", activity.image->base64}, {"mimeType", activity.image->mime_type}});
     } else {
         std::string code = "execution_failed", message = "Tool execution failed.";
         if (activity.state == ToolState::Rejected) { code = "approval_rejected"; message = "The user rejected this action in JusPrin."; }

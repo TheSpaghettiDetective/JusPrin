@@ -4,6 +4,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 
 #include <memory>
+#include <set>
 #include <type_traits>
 
 using namespace Slic3r::GUI::JusPrin::Workspace;
@@ -530,4 +531,46 @@ TEST_CASE("Authoritative project subscriptions are safe during dispatch and owne
     owner->publish(ProjectStateChangeReason::Objects);
     destroys_owner.reset();
     skipped.reset();
+}
+
+TEST_CASE("Unknown setting names suggest the settings they guessed at", "[workspace][settings]")
+{
+    std::vector<SettingDefinition> definitions(4);
+    definitions[0].key      = "brim_width";
+    definitions[0].writable = true;
+    definitions[1].key      = "brim_object_gap";
+    definitions[2].key      = "enable_support";
+    definitions[2].writable = true;
+    definitions[3].key      = "brim_type";
+    definitions[3].writable = true;
+    const auto brim = setting_suggestions("enable_brim", definitions);
+    REQUIRE(brim.size() == 3);
+    CHECK(std::set<std::string>(brim.begin(), brim.begin() + 2) == std::set<std::string>{"brim_type", "brim_width"});
+    CHECK(brim[2] == "brim_object_gap");
+    CHECK(setting_suggestions("enable_suport", definitions).front() == "enable_support");
+}
+
+TEST_CASE("A settings search with several terms finds each of them", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    const auto found = workspace.search_settings({"brim_width wall_loops nothing_like_this", 25});
+    REQUIRE(found.items.size() >= 2);
+    std::vector<std::string> keys;
+    for (const auto& item : found.items) keys.push_back(item.key);
+    CHECK(std::find(keys.begin(), keys.end(), "brim_width") != keys.end());
+    CHECK(std::find(keys.begin(), keys.end(), "wall_loops") != keys.end());
+    CHECK(workspace.search_settings({"wall_loops"}).items.front().key == "wall_loops");
+}
+
+TEST_CASE("A guessed setting name with the right words suggests the real one first", "[workspace][settings]")
+{
+    std::vector<SettingDefinition> definitions(3);
+    definitions[0].key      = "enable_support";
+    definitions[0].writable = true;
+    definitions[1].key      = "only_one_wall_top";
+    definitions[1].writable = true;
+    definitions[2].key      = "support_on_build_plate_only";
+    definitions[2].writable = true;
+    CHECK(setting_suggestions("support_build_plate_only", definitions).front() == "support_on_build_plate_only");
+    CHECK(setting_suggestions("support_enable", definitions).front() == "enable_support");
 }

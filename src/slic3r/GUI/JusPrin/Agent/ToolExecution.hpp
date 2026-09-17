@@ -8,6 +8,7 @@
 // page cannot special-case the deterministic mock. GUI-free.
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -25,6 +26,21 @@ constexpr bool tool_state_terminal(ToolState state)
            state == ToolState::Rejected;
 }
 
+// The name the page, the saved state and the tools use.
+constexpr const char* tool_state_name(ToolState state)
+{
+    switch (state) {
+    case ToolState::Pending: return "pending";
+    case ToolState::Approved: return "approved";
+    case ToolState::Running: return "running";
+    case ToolState::Succeeded: return "succeeded";
+    case ToolState::Failed: return "failed";
+    case ToolState::Cancelled: return "cancelled";
+    case ToolState::Rejected: return "rejected";
+    }
+    return "pending";
+}
+
 // Approval classes from the handoff policy. ReadOnly actions do not change
 // durable project or external state; Mutation actions durably change the
 // project; Destructive actions revert, delete, overwrite, discard, print, or
@@ -37,9 +53,18 @@ enum class ToolSource : std::uint8_t { Agent, Mcp };
 
 // The first production release asks for approval before every durable
 // project mutation; read-only actions run without approval.
-constexpr bool approval_required(ActionClass action_class)
+//
+// One exemption: a mutation declared computation-only in the registry. It
+// changes no project geometry, preset, file, printer, or durable product
+// state; its only effect is computation, replacing a previously computed
+// result, or recording the agent's own statement; and the person can see and
+// reverse it in the UI. Without it every "check this print" would cost a card
+// and the card would stop meaning anything. Destructive actions never
+// qualify, whatever they declare.
+constexpr bool approval_required(ActionClass action_class, bool computation_only = false)
 {
-    return action_class != ActionClass::ReadOnly;
+    return action_class == ActionClass::Destructive ||
+           (action_class == ActionClass::Mutation && !computation_only);
 }
 
 // Destructive actions always require action-time approval and must never use
@@ -65,6 +90,20 @@ struct ToolRequest
     std::string arguments_json; // typed arguments, serialized
 };
 
+// A picture a read returns beside its structured result: PNG or JPEG,
+// base64-encoded, at most 1280 pixels on its long edge and 2 MB. Held in
+// memory for the adapters to project; never written to the project.
+struct ToolImage
+{
+    std::string mime_type;
+    std::string base64;
+    int         width{0};
+    int         height{0};
+};
+
+inline constexpr int         kToolImageEdge  = 1280;
+inline constexpr std::size_t kToolImageBytes = 2 * 1024 * 1024;
+
 struct ToolActivity
 {
     std::string   action_id;      // coordinator-assigned, stable across reloads
@@ -81,8 +120,21 @@ struct ToolActivity
     int           progress_current{0};
     int           progress_total{1};
     std::string   result_json; // structured result when Succeeded
+    std::shared_ptr<const ToolImage> image; // a picture beside the result, when the tool returns one
+    // Calls sharing a plan id wait for one approval and run in the order they
+    // were proposed; empty for a call on its own.
+    std::string   plan_id;
+    // Where a plan id is unique: the chat for the in-app agent, empty for MCP.
+    // A plan is its source, scope and id together, so two clients choosing
+    // the same id never share a card.
+    std::string   plan_scope;
     std::optional<ToolError> error;
     ToolSource source{ToolSource::Agent};
 };
+
+inline bool same_plan(const ToolActivity& lhs, const ToolActivity& rhs)
+{
+    return !lhs.plan_id.empty() && lhs.plan_id == rhs.plan_id && lhs.source == rhs.source && lhs.plan_scope == rhs.plan_scope;
+}
 
 } // namespace Slic3r::GUI::JusPrin::Agent

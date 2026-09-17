@@ -4,14 +4,17 @@
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <vector>
 #ifdef _WIN32
 #include <windows.h>
 #include <fcntl.h>
 #include <io.h>
+#include <shellapi.h>
 #else
 #include <csignal>
 #include <fcntl.h>
@@ -29,6 +32,61 @@ std::string environment(const char* key)
 {
     const char* value = std::getenv(key);
     return value ? value : "";
+}
+
+// Windows hands main() its arguments and getenv() its values in the active code
+// page, which cannot spell every path a user's data directory may contain.
+// Anything that becomes a path therefore comes from the wide APIs; on POSIX the
+// same bytes already are the native encoding.
+#ifdef _WIN32
+using NativeString = std::wstring;
+#else
+using NativeString = std::string;
+#endif
+
+NativeString native(const char* ascii) { return NativeString(ascii, ascii + std::strlen(ascii)); }
+
+fs::path native_path(const NativeString& value)
+{
+#ifdef _WIN32
+    return fs::path(value); // already UTF-16; u8path does not accept it
+#else
+    return fs::u8path(value);
+#endif
+}
+
+NativeString environment_path(const char* key)
+{
+#ifdef _WIN32
+    const auto name = native(key);
+    std::wstring value(MAX_PATH, L'\0');
+    auto size = GetEnvironmentVariableW(name.c_str(), value.data(), DWORD(value.size()));
+    if (size > value.size()) {
+        value.resize(size);
+        size = GetEnvironmentVariableW(name.c_str(), value.data(), DWORD(value.size()));
+    }
+    value.resize(size);
+    return value;
+#else
+    return environment(key);
+#endif
+}
+
+std::vector<NativeString> command_arguments(int argc, char** argv)
+{
+#ifdef _WIN32
+    (void) argc; (void) argv;
+    int count = 0;
+    wchar_t** wide = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (!wide) throw std::runtime_error("Cannot read the command line");
+    std::vector<NativeString> arguments(wide + 1, wide + count);
+    LocalFree(wide);
+    return arguments;
+#else
+    std::vector<NativeString> arguments;
+    for (int i = 1; i < argc; ++i) arguments.emplace_back(argv[i]);
+    return arguments;
+#endif
 }
 
 fs::path executable_path()
@@ -58,17 +116,17 @@ fs::path default_discovery_path()
 #endif
     if (fs::is_directory(root / "data_dir")) return root / "data_dir" / "jusprin" / "mcp.json";
 #ifdef _WIN32
-    const auto base = environment("APPDATA");
+    const auto base = environment_path("APPDATA");
 #elif defined(__APPLE__)
-    const auto home = environment("HOME");
+    const auto home = environment_path("HOME");
     const auto base = home.empty() ? "" : home + "/Library/Application Support";
 #else
-    const auto home = environment("HOME");
-    const auto xdg = environment("XDG_CONFIG_HOME");
+    const auto home = environment_path("HOME");
+    const auto xdg = environment_path("XDG_CONFIG_HOME");
     const auto base = !xdg.empty() ? xdg : home.empty() ? "" : home + "/.config";
 #endif
     if (base.empty()) throw std::runtime_error("Cannot locate application data; pass --discovery with the JusPrin discovery-file path");
-    return fs::u8path(base) / SLIC3R_APP_KEY / "jusprin" / "mcp.json";
+    return native_path(base) / SLIC3R_APP_KEY / "jusprin" / "mcp.json";
 }
 
 // Decouple pipe backpressure from network cancellation and shutdown. The queue
@@ -175,12 +233,13 @@ int main(int argc, char** argv)
     try {
         Mcp::Bridge::Config config;
         config.url_override = environment("JUSPRIN_MCP_URL");
-        const auto configured = environment("JUSPRIN_MCP_DISCOVERY");
-        if (!configured.empty()) config.discovery_path = fs::u8path(configured);
-        for (int i = 1; i < argc; ++i) {
-            const std::string option = argv[i];
-            if (option == "--discovery" && i + 1 < argc) config.discovery_path = fs::u8path(argv[++i]);
-            else if (option == "--version") { std::cout << Mcp::mcp_build_version() << '\n'; return 0; }
+        const auto configured = environment_path("JUSPRIN_MCP_DISCOVERY");
+        if (!configured.empty()) config.discovery_path = native_path(configured);
+        const auto arguments = command_arguments(argc, argv);
+        for (std::size_t i = 0; i < arguments.size(); ++i) {
+            const auto& option = arguments[i];
+            if (option == native("--discovery") && i + 1 < arguments.size()) config.discovery_path = native_path(arguments[++i]);
+            else if (option == native("--version")) { std::cout << Mcp::mcp_build_version() << '\n'; return 0; }
             else { std::cerr << "Usage: jusprin-mcp [--discovery PATH] [--version]\n"; return 2; }
         }
         if (config.discovery_path.empty()) config.discovery_path = default_discovery_path();

@@ -106,7 +106,9 @@ struct McpServer::Impl::Connection : std::enable_shared_from_this<Connection>
             reply({400, rpc_error(rpc.id, -32602, "This tool is not exposed by JusPrin MCP.", {{"code", "unknown_tool"}})});
             return;
         }
-        streaming = Agent::approval_required(definition->action_class);
+        // Every mutation streams, whether or not it waits for a card: the ones
+        // exempt from approval are the ones that take the longest to compute.
+        streaming = definition->action_class != Agent::ActionClass::ReadOnly;
         call = std::make_shared<PendingCall>();
         call->connection_id = id;
         call->request = std::move(rpc);

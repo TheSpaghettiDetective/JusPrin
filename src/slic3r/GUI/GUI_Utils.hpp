@@ -87,6 +87,10 @@ void update_dark_ui(wxWindow* window);
 #endif
 
 extern std::deque<wxDialog*> dialogStack;
+// JusPrin: an operation that must not stop to ask the person answers the
+// dialog instead. False when none is installed. Defined in
+// JusPrin/Workspace/ModalAnswers.cpp.
+bool answer_modal(wxWindow& dialog, int& answer);
 
 template<class P> class DPIAware : public P
 {
@@ -198,6 +202,8 @@ public:
 
     int ShowModal()
     {
+        if (int answer = 0; answer_modal(*this, answer))
+            return answer;
         dialogStack.push_front(this);
         int r = wxDialog::ShowModal();
         dialogStack.pop_front();

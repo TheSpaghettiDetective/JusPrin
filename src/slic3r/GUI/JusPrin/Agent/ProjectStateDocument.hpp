@@ -15,6 +15,7 @@
 #include "AgentProtocol.hpp"
 #include "ManufacturingHistory.hpp"
 #include "ToolExecution.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -77,6 +78,74 @@ struct AttachmentRecord
     std::string relative_dir() const { return "attachments/" + id; }
     // Relative path of the blob itself.
     std::string relative_path() const { return relative_dir() + "/" + stored_name; }
+};
+
+// Where a recorded fact came from. A tool never promotes an inferred value to
+// confirmed; only an approved write that showed the value on its card does.
+enum class Provenance : std::uint8_t { File, Observed, AgentInferred, UserConfirmed };
+
+// One spelling, shared by the stored document and every tool result.
+inline const char* provenance_name(Provenance provenance)
+{
+    switch (provenance) {
+    case Provenance::File: return "file";
+    case Provenance::Observed: return "observed";
+    case Provenance::UserConfirmed: return "user_confirmed";
+    case Provenance::AgentInferred: break;
+    }
+    return "agent_inferred";
+}
+
+inline Provenance provenance_from(const std::string& text)
+{
+    if (text == "file") return Provenance::File;
+    if (text == "observed") return Provenance::Observed;
+    if (text == "user_confirmed") return Provenance::UserConfirmed;
+    return Provenance::AgentInferred;
+}
+
+// One answer in the print intent: what the user wants out of this print,
+// rather than how to slice it. The field vocabulary belongs to the tool that
+// writes it and validates what it accepts; the store keeps what was written,
+// where it came from, and when. This is not a conversation's setup_intent,
+// which restates one delegation in the user's own words.
+struct IntentField
+{
+    std::string   field;
+    std::string   value;
+    // Set when the agent has asked about this field and has no answer yet: the
+    // question it asked, in the words it used. A field with a question and no
+    // value is what the agent still does not know, which is the only way to
+    // have that list when the field names are the agent's own invention.
+    std::string   question;
+    Provenance    provenance{Provenance::AgentInferred};
+    std::uint64_t seq{0};
+    std::string   updated_at;
+
+    bool answered() const { return !value.empty(); }
+};
+
+// One decision the agent made and is prepared to defend.
+struct PlanDecision
+{
+    std::string topic;       // orientation, supports, material, ...
+    std::string statement;   // the decision and its reasoning, in the user's terms
+    std::string confidence;  // the agent's own confidence in it
+    std::string alternative; // what else was considered, and why it lost
+};
+
+// The agent's pinned statement of how it means to print this project: what it
+// decided, what it assumed without being able to check, and what could still
+// go wrong. The agent's own words, not a description of the configuration --
+// the configuration is read from the presets, which cannot say why.
+struct PlanRecord
+{
+    std::uint64_t             seq{0};
+    std::string               updated_at;
+    std::string               headline;
+    std::vector<PlanDecision> decisions;
+    std::vector<std::string>  assumptions;
+    std::vector<std::string>  risks;
 };
 
 class ProjectStateDocument
@@ -170,6 +239,22 @@ public:
     std::size_t                      physical_print_count() const;
     std::optional<BuildRecord>       find_build(const std::string& build_id) const;
     std::optional<BuildRecord>       latest_build() const;
+
+    // -- Print intent and plan ------------------------------------------------
+    // Product state with no Orca owner: it travels in the project archive
+    // because it describes this print, and it is not in Orca's undo stack.
+    std::vector<IntentField> print_intent() const; // ordered by field name
+    // Upserts by field name and returns the fields as stored. A field the call
+    // does not mention keeps the value, provenance, and seq it had.
+    std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields, const std::string& timestamp);
+    // The pinned plan, or a default record when the agent has not written one.
+    PlanRecord plan() const;
+    // Replaces the plan wholesale: it is one statement, not a list of edits.
+    PlanRecord set_plan(PlanRecord record, const std::string& timestamp);
+    // Region annotations. The list is replaced whole; a record with no seq is
+    // new or changed and is stamped on the way in.
+    std::vector<Workspace::RegionRecord> regions() const;
+    std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records, const std::string& timestamp);
 
     // -- Change log -----------------------------------------------------------
     // Appends with the next seq, placed in the active conversation after its

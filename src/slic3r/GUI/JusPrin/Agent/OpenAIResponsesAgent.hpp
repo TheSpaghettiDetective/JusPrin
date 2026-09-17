@@ -39,13 +39,28 @@ public:
     virtual void cancel() = 0;
 };
 
+// What one request cost, as the provider reported it. `cached_input` is the
+// part of `input` the provider served from its prompt cache, and it is the
+// number the tool-loading decision rests on: a tools array that stays
+// byte-identical across a chat should be cached from the second request on,
+// and a catalog that is not being cached is paid for in full every turn.
+struct AgentUsage
+{
+    std::uint64_t input{0};
+    std::uint64_t cached_input{0};
+    std::uint64_t output{0};
+    std::uint64_t total{0};
+};
+
 struct OpenAIResponsesConfig
 {
     std::string api_key;
     std::string model{"gpt-5.4-mini"};
     std::string endpoint{"https://api.openai.com/v1/responses"};
-    std::function<void(std::uint64_t input_tokens, std::uint64_t output_tokens, std::uint64_t total_tokens)>
-        usage_listener;
+    std::function<void(const AgentUsage&)> usage_listener;
+    // A tool call the adapter refused before it reached a card: the tool
+    // name, the arguments as the model sent them, and why.
+    std::function<void(const std::string&, const std::string&, const std::string&)> refusal_listener;
 };
 
 // Responses API adapter. Network callbacks only append protected input; all
@@ -90,6 +105,7 @@ private:
     std::string                           m_pending_call_id;
     std::string                           m_request_id;
     unsigned                              m_request_sequence{0};
+    unsigned                              m_rejected_calls{0};
     std::uint64_t                         m_http_generation{0};
     bool                                  m_busy{false};
     bool                                  m_waiting_for_tool{false};

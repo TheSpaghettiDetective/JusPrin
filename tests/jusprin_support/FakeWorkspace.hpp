@@ -2,6 +2,7 @@
 
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "FakeSettings.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -64,17 +65,20 @@ public:
             result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
             return result;
         }
-        return search_setting_definitions(m_settings.definitions, query);
+        std::vector<std::string> changed;
+        for (const auto& [key, value] : m_settings.values)
+            if (m_settings.preset_values.at(key) != value) changed.push_back(key);
+        return search_setting_definitions(m_settings.definitions, query, changed);
     }
 
-    SettingsReadResult read_settings(const std::vector<std::string>& keys) const override
+    SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const override
     {
         if (!m_settings_available) {
             SettingsReadResult result;
             result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
             return result;
         }
-        return m_settings.read(keys);
+        return m_settings.read(keys, target);
     }
 
     SettingsPreview preview_settings(const SettingsPatch& patch) const override
@@ -92,6 +96,8 @@ public:
     {
         if (!m_settings_available)
             return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
+        if (patch.target.object && m_settings.preview(patch).valid)
+            save_undo("Change object settings");
         const auto result = m_settings.apply(patch, confirmed, applied);
         if (result.succeeded()) {
             for (auto& plate : m_snapshot.plates)
@@ -221,6 +227,8 @@ public:
         m_undo.pop_back();
         m_redo_names.push_back(std::move(m_undo_names.back()));
         m_undo_names.pop_back();
+        m_redo_ids.push_back(m_undo_ids.back());
+        m_undo_ids.pop_back();
         remember_ids();
         publish_edit({EditKind::Undo, EditActor::Person, m_redo_names.back()});
         publish(changes_between(before, m_snapshot) | WorkspaceChangeReasons::History);
@@ -238,6 +246,8 @@ public:
         m_redo.pop_back();
         m_undo_names.push_back(std::move(m_redo_names.back()));
         m_redo_names.pop_back();
+        m_undo_ids.push_back(m_redo_ids.back());
+        m_redo_ids.pop_back();
         remember_ids();
         publish_edit({EditKind::Redo, EditActor::Person, m_undo_names.back()});
         publish(changes_between(before, m_snapshot) | WorkspaceChangeReasons::History);
@@ -263,9 +273,11 @@ public:
                             CommandResult::failure(WorkspaceError::UnavailableOperation, "Writing the archive failed");
     }
 
-    CommandResult import_model(const std::string& file_path) override
+    CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+                                 std::vector<ObjectId>& added) override
     {
-        std::ifstream in(file_path, std::ios::binary);
+        const std::string& file_path = request.path;
+        std::ifstream in(std::filesystem::u8path(file_path), std::ios::binary);
         if (!in.is_open())
             return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
 
@@ -300,9 +312,299 @@ public:
         }
         target->objects.push_back(object);
         m_known_object_ids.insert(new_id);
+        last_import = request;
+        decisions   = m_open_decisions;
+        added.push_back(new_id);
         publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
         return CommandResult::success(new_id);
     }
+    ImportRequest last_import;
+
+    // Objects and copies go; parts and plates are recorded only, since the
+    // fixture keeps neither.
+    // Seeing and exporting. A render is a fixed tiny PNG; attachments are
+    // what a test puts in; a slice has three layers and three lines of
+    // G-code; an export writes the kind's name into the file.
+    CommandResult render_view(const RenderRequest& request, RenderedImage& image) override
+    {
+        const auto plate = request.plate ? request.plate : m_snapshot.active_plate;
+        if (!plate || std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [&](const auto& p) { return p.id == *plate; }))
+            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+        image = {*plate, request.view, request.width, request.height, std::string("\x89PNG\r\n\x1a\n", 8)};
+        return CommandResult::success();
+    }
+
+    CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override
+    {
+        const auto found = m_attachment_contents.find(id);
+        if (found == m_attachment_contents.end())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The project has no attachment " + id);
+        content = found->second;
+        return CommandResult::success();
+    }
+    std::map<std::string, AttachmentContent> m_attachment_contents;
+
+    SliceInspection inspect_slice(const SliceInspectRequest& request) const override
+    {
+        SliceInspection inspection;
+        const auto plate = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(), [&](const auto& p) { return p.id == request.plate; });
+        if (plate == m_snapshot.plates.end() || !plate->sliced)
+            return inspection;
+        inspection.valid = true;
+        if (request.gcode) {
+            inspection.gcode      = "G28\nG1 X10\nM104 S0\n";
+            inspection.first_line = request.first;
+            return inspection;
+        }
+        inspection.layer_count = 3;
+        for (std::size_t index = request.first; index < 3 && index < request.first + request.count; ++index)
+            inspection.layers.push_back({index, 0.2 * double(index + 1), 0.2, 30, {"Outer wall"}, 20, 60, 0, 100, 215, 215, 1, 8});
+        if (request.first + request.count < 3)
+            inspection.next = request.first + request.count;
+        return inspection;
+    }
+
+    CommandResult check_export(const ExportRequest& request) const override
+    {
+        if (!std::filesystem::u8path(request.path).is_absolute())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The export path must be absolute");
+        std::error_code error;
+        if (request.kind != "presets" && std::filesystem::exists(std::filesystem::u8path(request.path), error) && !request.overwrite)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, request.path + " exists; pass overwrite to replace it");
+        if (request.kind == "gcode" &&
+            std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [](const auto& p) { return p.sliced; }))
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Slice the plate first; it has no current G-code");
+        return CommandResult::success();
+    }
+
+    CommandResult export_file(const ExportRequest& request, ExportResult& result) override
+    {
+        if (CommandResult checked = check_export(request); !checked.succeeded())
+            return checked;
+        std::ofstream(std::filesystem::u8path(request.path), std::ios::binary) << request.kind;
+        result = {{request.path}, request.kind.size()};
+        ++exports;
+        return CommandResult::success();
+    }
+    std::size_t exports{0};
+
+    CommandResult cancel_slice(bool& stopped) override
+    {
+        stopped = m_snapshot.slicing.running;
+        if (stopped)
+            finish_slice_for_testing(false);
+        return CommandResult::success();
+    }
+
+    CommandResult cancel_job(const std::string& handle, bool& stopped) override
+    {
+        for (WorkspaceJob& job : m_snapshot.jobs)
+            if (job.handle == handle) {
+                stopped = job.state == "running";
+                if (stopped)
+                    job.state = "cancelled";
+                return CommandResult::success();
+            }
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "No job has the handle " + handle);
+    }
+
+    // Reshaping: a divide or a split makes two pieces, the second a new
+    // object; a merge makes a new object of the listed ones; a repair closes
+    // the fixture's open edges once.
+    CommandResult preview_divide(ObjectId id, const DivideRequest& request, DivideResult& result) const override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        if (request.mode == DivideRequest::Mode::Plane && !request.keep_upper && !request.keep_lower)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "A cut keeps a piece");
+        result = {};
+        result.overhang_area_before = 100;
+        result.pieces = {{std::nullopt, "lower", 4000, {20, 20, 10}, {0, 0, 5}, 0},
+                         {std::nullopt, "upper", 4000, {20, 20, 10}, {0, 0, 5}, 25}};
+        return CommandResult::success();
+    }
+
+    CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) override
+    {
+        if (CommandResult checked = preview_divide(id, request, result); !checked.succeeded())
+            return checked;
+        save_undo("Cut by Plane");
+        const ObjectId added(m_session, ++m_last_object_id);
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            for (std::size_t index = 0; index < plate.objects.size(); ++index)
+                if (plate.objects[index].id == id) {
+                    WorkspaceObject copy = plate.objects[index];
+                    copy.id   = added;
+                    copy.name = copy.name + " (upper)";
+                    plate.objects.push_back(copy);
+                    break;
+                }
+        m_known_object_ids.insert(added);
+        result.pieces[0].object = id;
+        result.pieces[1].object = added;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) override
+    {
+        if (ids.size() < 2)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Merge 2 to 16 objects");
+        for (ObjectId id : ids)
+            if (CommandResult validation = validate(id); !validation.succeeded())
+                return validation;
+        save_undo("Assemble");
+        WorkspaceObject assembly = *find_object(ids.front());
+        assembly.id   = ObjectId(m_session, ++m_last_object_id);
+        assembly.name = "Assembly";
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            plate.objects.erase(std::remove_if(plate.objects.begin(), plate.objects.end(),
+                                               [&ids](const WorkspaceObject& o) { return std::find(ids.begin(), ids.end(), o.id) != ids.end(); }),
+                                plate.objects.end());
+        m_snapshot.plates.front().objects.push_back(assembly);
+        m_known_object_ids.insert(assembly.id);
+        merged = assembly.id;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    CommandResult repair_object(ObjectId id, RepairResult& result) override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        result = {m_open_edges > 0, m_open_edges, 0, 12, m_open_edges > 0 ? 14u : 12u, 1, 1, 8000, 8000};
+        if (m_open_edges > 0) {
+            save_undo("Repairing model object");
+            m_open_edges = 0;
+            publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        }
+        return CommandResult::success();
+    }
+    std::size_t m_open_edges{2};
+    mutable SliceReportRequest last_slice_request;
+
+    // Regions: resolved against the fixture's objects, with artifacts that are
+    // present until a test says otherwise. Faces paint facets 0 to 2.
+    CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
+                               std::vector<RegionRecord>& planned) const override
+    {
+        planned.clear();
+        if (requests.empty() || requests.size() > kRegionLimit)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Annotate 1 to 32 regions at a time");
+        for (const RegionRequest& request : requests) {
+            const RegionRecord* existing = nullptr;
+            for (const RegionRecord& record : stored)
+                if (!request.region_id.empty() && record.id == request.region_id)
+                    existing = &record;
+            if (!request.region_id.empty() && existing == nullptr)
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "There is no region " + request.region_id);
+            RegionRecord record;
+            record.kind = request.kind.empty() && existing ? existing->kind : request.kind;
+            if (!region_kind(record.kind))
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + record.kind + "\" is not a region kind");
+            const std::string geometry_type = request.geometry ? request.geometry->type : existing ? existing->geometry.type : std::string();
+            if (!geometry_type.empty() && !region_kind_accepts(record.kind, geometry_type))
+                return CommandResult::failure(WorkspaceError::InvalidArgument, "A " + record.kind + " region cannot be a " + geometry_type);
+            const ObjectId object = request.object ? *request.object : ObjectId(m_snapshot.session, existing->object);
+            if (CommandResult validation = validate(object); !validation.succeeded())
+                return validation;
+            if (request.geometry && !request.geometry->handle.empty() && m_changes.revision() != m_analysis_revision)
+                return CommandResult::failure(WorkspaceError::FeatureExpired, "The project changed since the features were read");
+            record.id          = existing ? existing->id : next_region_id(stored, planned);
+            record.session     = m_snapshot.session.value();
+            record.object      = object.value();
+            record.object_name = object_name(object);
+            record.part_facets = {12};
+            record.geometry    = request.geometry ? *request.geometry : existing->geometry;
+            record.geometry.handle.clear();
+            if (record.geometry.type == "face")
+                record.geometry.area = 400;
+            if (record.geometry.type == "hole") {
+                record.geometry.diameter = 5;
+                record.geometry.length   = 20;
+            }
+            if (!region_kind_accepts(record.kind, record.geometry.type))
+                return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                              "A " + record.kind + " region cannot be a " + record.geometry.type);
+            record.extruder = request.extruder;
+            record.settings = !request.settings.empty() ? request.settings : region_default_settings(record.kind);
+            record.artifacts = region_artifact_plan(record);
+            for (RegionArtifact& artifact : record.artifacts)
+                if (artifact.type == "paint")
+                    artifact.facets = {0, 1, 2};
+            record.label = region_label(record);
+            planned.push_back(std::move(record));
+        }
+        return CommandResult::success();
+    }
+
+    CommandResult apply_regions(const std::vector<RegionRecord>& planned, const std::vector<RegionRecord>& replaced,
+                                std::vector<RegionRecord>& applied) override
+    {
+        save_undo("Annotate regions");
+        for (const RegionRecord& record : replaced)
+            m_region_artifacts.erase(record.id);
+        for (const RegionRecord& record : planned)
+            m_region_artifacts.insert(record.id);
+        applied = planned;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    CommandResult remove_regions(const std::vector<RegionRecord>& records) override
+    {
+        save_undo("Remove regions");
+        for (const RegionRecord& record : records)
+            m_region_artifacts.erase(record.id);
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+
+    std::vector<RegionStatus> region_status(const std::vector<RegionRecord>& records) const override
+    {
+        std::vector<RegionStatus> statuses;
+        for (const RegionRecord& record : records) {
+            const ObjectId object(ProjectSessionId(record.session), record.object);
+            RegionStatus   status{record, std::nullopt, true, true};
+            if (record.session == m_snapshot.session.value() && validate(object).succeeded()) {
+                status.object            = object;
+                status.binding_lost      = m_unbound_regions.count(record.id) > 0;
+                status.artifacts_missing = m_region_artifacts.count(record.id) == 0;
+            }
+            statuses.push_back(std::move(status));
+        }
+        return statuses;
+    }
+
+    // Fixture seams: an Undo that took a region's artifacts, and a mesh edit
+    // that took its geometry.
+    void drop_region_artifacts_for_testing(const std::string& id) { m_region_artifacts.erase(id); }
+    void unbind_region_for_testing(const std::string& id) { m_unbound_regions.insert(id); }
+
+    CommandResult delete_items(const std::vector<DeleteItem>& items) override
+    {
+        for (const DeleteItem& item : items)
+            if (item.kind != DeleteItem::Kind::Plate)
+                if (CommandResult validation = validate(item.object); !validation.succeeded())
+                    return validation;
+        save_undo("Delete items");
+        for (const DeleteItem& item : items) {
+            if (item.kind == DeleteItem::Kind::Object)
+                for (WorkspacePlate& plate : m_snapshot.plates)
+                    plate.objects.erase(std::remove_if(plate.objects.begin(), plate.objects.end(),
+                                                       [&](const WorkspaceObject& o) { return o.id == item.object; }),
+                                        plate.objects.end());
+            if (item.kind == DeleteItem::Kind::Instance)
+                for_each_object(item.object, [&](WorkspaceObject& object) {
+                    if (item.instance < object.instances.size())
+                        object.instances.erase(object.instances.begin() + item.instance);
+                });
+        }
+        last_delete = items;
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    std::vector<DeleteItem> last_delete;
 
     WorkspaceSubscription subscribe(WorkspaceChangedCallback callback) override
     {
@@ -333,6 +635,421 @@ public:
     }
 
     // Publishing here is part of the contract, not a fixture convenience: a
+    // Starting a run is a Plates change: whether a slice is in flight is part
+    // of what a plate can currently say about itself.
+    CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override
+    {
+        if (m_snapshot.slicing.running && !preempt)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                          "A slice is already running. Wait for it, or ask again with preempt.");
+        if (plate) {
+            if (plate->session() != m_snapshot.session)
+                return CommandResult::failure(WorkspaceError::StaleId, "That plate belongs to a project that is no longer open");
+            const auto found = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(),
+                                            [&plate](const WorkspacePlate& candidate) { return candidate.id == *plate; });
+            if (found == m_snapshot.plates.end())
+                return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
+        }
+        m_snapshot.slicing.running = true;
+        m_snapshot.slicing.plate   = plate ? plate : (m_snapshot.plates.empty() ? std::optional<PlateId>() :
+                                                                                 m_snapshot.plates.front().id);
+        m_snapshot.slicing.percent = 0;
+        ++slice_starts;
+        publish(WorkspaceChangeReasons::Slicing);
+        return CommandResult::success();
+    }
+
+    PresetListResult list_presets(const PresetQuery& query) const override
+    {
+        PresetListResult result;
+        const auto found = m_presets.find(query.kind);
+        if (found == m_presets.end())
+            return result;
+        std::size_t offset = query.cursor.empty() ? 0 : std::stoull(query.cursor), skipped = 0;
+        for (const PresetEntry& preset : found->second) {
+            if (query.compatible_only && !preset.compatible)
+                continue;
+            if (!query.text.empty() && preset.name.find(query.text) == std::string::npos &&
+                preset.label.find(query.text) == std::string::npos)
+                continue;
+            ++result.total;
+            if (skipped++ < offset)
+                continue;
+            if (result.items.size() >= query.limit) {
+                result.truncated = true;
+                continue;
+            }
+            result.items.push_back(preset);
+        }
+        if (result.truncated)
+            result.next_cursor = std::to_string(offset + result.items.size());
+        return result;
+    }
+
+    void set_presets_for_testing(PresetKind kind, std::vector<PresetEntry> presets)
+    {
+        m_presets[kind] = std::move(presets);
+    }
+
+    std::vector<PrinterDevice> printers() const override { return m_printers; }
+
+    ConfiguredPrinter configured_printer() const override { return m_configured_printer; }
+
+    // Placement moves the fixture's transform the way the request says and
+    // records the request; auto-orient leaves a running job to finish.
+    CommandResult place_object(ObjectId id, const PlacementRequest& request, const std::string& job_handle,
+                               PlacementResult& result) override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        if (!request.face_down.empty() && m_changes.revision() != m_analysis_revision)
+            return CommandResult::failure(WorkspaceError::FeatureExpired, "The project changed since the features were read");
+        last_placement = request;
+        save_undo("Place object");
+        ObjectTransform placed;
+        for_each_object(id, [&](WorkspaceObject& object) {
+            if (request.instance >= object.instances.size()) return;
+            auto& transform = object.instances[request.instance];
+            if (request.rotate)
+                for (int axis = 0; axis < 3; ++axis) transform.rotation[axis] += (*request.rotate)[axis];
+            if (request.position) {
+                transform.position[0] = (*request.position)[0];
+                transform.position[1] = (*request.position)[1];
+            }
+            if (request.scale)
+                for (int axis = 0; axis < 3; ++axis) transform.scale[axis] *= (*request.scale)[axis];
+            placed = transform;
+        });
+        if (request.auto_orient) {
+            m_snapshot.jobs.push_back({job_handle, "orient", "running", {}});
+            result.orienting = true;
+        }
+        result.object    = id;
+        result.transform = placed;
+        result.size      = {20, 20, 20};
+        publish(WorkspaceChangeReasons::Transform | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    void finish_job_for_testing(const std::string& handle, std::string state, std::vector<ObjectId> not_placed = {})
+    {
+        for (WorkspaceJob& job : m_snapshot.jobs)
+            if (job.handle == handle) {
+                job.state      = std::move(state);
+                job.not_placed = std::move(not_placed);
+            }
+        publish(WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::Transform);
+    }
+    PlacementRequest last_placement;
+
+    // Quantity is the fixture's instance count; a plate row without an id
+    // adds a plate; arrange leaves a running job.
+    CommandResult lay_out(const LayoutRequest& request, const std::string& job_handle, LayoutResult& result) override
+    {
+        for (const LayoutObject& row : request.objects)
+            if (CommandResult validation = validate(row.id); !validation.succeeded())
+                return validation;
+        last_layout = request;
+        save_undo("Lay out plates");
+        for (const LayoutObject& row : request.objects)
+            for_each_object(row.id, [&](WorkspaceObject& object) {
+                if (row.quantity) object.instances.resize(*row.quantity);
+                if (row.name) object.name = *row.name;
+            });
+        for (const LayoutPlate& row : request.plates)
+            if (!row.id) {
+                WorkspacePlate plate;
+                plate.id   = PlateId(m_session, 1000 + m_snapshot.plates.size());
+                plate.name = row.name.value_or("Plate " + std::to_string(m_snapshot.plates.size() + 1));
+                m_snapshot.plates.push_back(plate);
+                result.added_plates.push_back(plate.id);
+            }
+        if (request.arrange) {
+            m_snapshot.jobs.push_back({job_handle, "arrange", "running", {}});
+            result.arranging = true;
+        }
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    LayoutRequest last_layout;
+
+    // Analysis answers are scripted per object; a handle is good for the
+    // revision the fixture was given and expires after it.
+    CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const override
+    {
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        const auto found = m_analyses.find(id.value());
+        if (found == m_analyses.end())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "No analysis scripted for this object");
+        if (request.mesh) result.mesh = found->second.mesh;
+        if (request.features) result.features = found->second.features;
+        if (request.fit) result.fit = found->second.fit;
+        if (request.orientations) {
+            last_candidates     = request.candidates;
+            result.orientations = found->second.orientations;
+        }
+        if (request.measure) {
+            if (m_changes.revision() != m_analysis_revision)
+                return CommandResult::failure(WorkspaceError::FeatureExpired, "The project changed since the features were read");
+            result.measurement = found->second.measurement;
+        }
+        return CommandResult::success();
+    }
+    void set_analysis_for_testing(ObjectId id, ObjectAnalysis analysis)
+    {
+        m_analyses[id.value()] = std::move(analysis);
+        m_analysis_revision    = m_changes.revision();
+    }
+    std::map<std::uint64_t, ObjectAnalysis> m_analyses;
+    std::uint64_t m_analysis_revision{0};
+    mutable std::vector<OrientationCandidate> last_candidates;
+
+    std::vector<ObjectDetails> object_details() const override
+    {
+        std::vector<ObjectDetails> result;
+        for (const WorkspacePlate& plate : m_snapshot.plates)
+            for (const WorkspaceObject& object : plate.objects) {
+                ObjectDetails row;
+                row.id        = object.id;
+                row.name      = object.name;
+                row.plates    = {plate.id};
+                row.instances = object.instances.size();
+                row.parts     = 1;
+                result.push_back(row);
+            }
+        return result;
+    }
+    std::string current_process_preset() const override { return m_process_preset; }
+
+    // A preset is known when set_presets_for_testing listed it, and
+    // compatible when its entry says so. A printer switch replaces an
+    // incompatible process, as Orca does.
+    PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const override
+    {
+        PrinterSetupPreview result;
+        const auto find = [this](PresetKind kind, const std::string& name) -> const PresetEntry* {
+            const auto found = m_presets.find(kind);
+            if (found == m_presets.end()) return nullptr;
+            for (const PresetEntry& entry : found->second)
+                if (entry.name == name) return &entry;
+            return nullptr;
+        };
+        result.resulting      = m_configured_printer;
+        result.process_preset = m_process_preset;
+        const bool printer_changes = request.printer_preset && *request.printer_preset != m_configured_printer.preset;
+        if (request.printer_preset) {
+            if (find(PresetKind::Printer, *request.printer_preset) == nullptr)
+                result.issues.push_back({"unknown_preset", "No printer preset " + *request.printer_preset});
+            result.resulting.preset = *request.printer_preset;
+        }
+        if (request.process_preset) {
+            const PresetEntry* entry = find(PresetKind::Process, *request.process_preset);
+            if (entry == nullptr) result.issues.push_back({"unknown_preset", "No process preset " + *request.process_preset});
+            else if (!entry->compatible) result.issues.push_back({"incompatible_preset", "Not made for this printer"});
+            else result.process_preset = entry->name;
+        } else if (printer_changes && m_process_incompatible_after_printer) {
+            result.substitutions.push_back({"process", m_process_preset, "not made for the new printer"});
+        }
+        if (request.filament_presets)
+            for (std::size_t slot = 0; slot < request.filament_presets->size(); ++slot) {
+                const std::string& name = (*request.filament_presets)[slot];
+                if (find(PresetKind::Filament, name) == nullptr) {
+                    result.issues.push_back({"unknown_preset", "No filament preset " + name});
+                    continue;
+                }
+                if (slot >= result.resulting.filaments.size()) {
+                    result.issues.push_back({"invalid_argument", "Too many filament slots"});
+                    break;
+                }
+                result.resulting.filaments[slot] = {name, m_filament_materials.count(name) ? m_filament_materials.at(name) : ""};
+            }
+        if (request.plate_type) {
+            if (std::find(m_plates.begin(), m_plates.end(), *request.plate_type) == m_plates.end())
+                result.issues.push_back({"unsupported_plate", "Not a plate this printer offers"});
+            else
+                result.resulting.plate_type = *request.plate_type;
+        }
+        const bool process_changes = result.process_preset != m_process_preset || !result.substitutions.empty();
+        if (m_process_dirty && (printer_changes || process_changes))
+            result.unsaved_edits.push_back({"process", m_process_preset, 2});
+        result.valid = result.issues.empty();
+        return result;
+    }
+
+    CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) override
+    {
+        applied = preview_printer_setup(request);
+        if (!applied.valid)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, applied.issues.front().message);
+        if (!applied.unsaved_edits.empty() && !request.discard_unsaved_edits)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Unsaved preset edits would be lost");
+        ++setup_applies;
+        m_process_dirty = false;
+        m_configured_printer = applied.resulting;
+        m_process_preset     = applied.substitutions.empty() ? applied.process_preset : "substitute process";
+        m_snapshot.setup.printer_preset = m_configured_printer.preset;
+        publish(WorkspaceChangeReasons::Settings);
+        return CommandResult::success();
+    }
+
+    void set_setup_for_testing(std::string process, std::vector<std::string> plates, std::map<std::string, std::string> materials)
+    {
+        m_process_preset     = std::move(process);
+        m_plates             = std::move(plates);
+        m_filament_materials = std::move(materials);
+    }
+    std::vector<std::string> m_plates;
+    std::map<std::string, std::string> m_filament_materials;
+    bool m_process_dirty{false};
+    bool m_process_incompatible_after_printer{false};
+    std::uint32_t setup_applies{0};
+    void set_configured_printer_for_testing(ConfiguredPrinter printer) { m_configured_printer = std::move(printer); }
+    ConfiguredPrinter m_configured_printer;
+
+    WorkspaceHistory history() const override
+    {
+        WorkspaceHistory result;
+        result.restorable = m_history_restorable;
+        for (std::size_t index = 0; index < m_undo_ids.size(); ++index)
+            result.steps.push_back({m_undo_ids[index], m_undo_names[index], true});
+        for (std::size_t index = m_redo_ids.size(); index-- > 0;)
+            result.steps.push_back({m_redo_ids[index], m_redo_names[index], false});
+        if (result.steps.size() > kHistoryLimit) {
+            result.steps.erase(result.steps.begin(), result.steps.end() - kHistoryLimit);
+            result.truncated = true;
+        }
+        return result;
+    }
+
+    CommandResult restore_history(std::uint64_t step, HistoryPoint point) override
+    {
+        if (!m_history_restorable)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Another tool owns the history");
+        const WorkspaceHistory all = history();
+        const auto found = std::find_if(all.steps.begin(), all.steps.end(),
+                                        [step](const HistoryStep& candidate) { return candidate.id == step; });
+        if (found == all.steps.end())
+            return CommandResult::failure(WorkspaceError::StaleId, "That step is no longer in the history");
+        const std::size_t applied = static_cast<std::size_t>(found - all.steps.begin()) + (point == HistoryPoint::After ? 1 : 0);
+        if (applied == m_undo.size())
+            return CommandResult::failure(WorkspaceError::NoChange, "The project is already there");
+        while (m_undo.size() > applied) undo();
+        while (m_undo.size() < applied) redo();
+        return CommandResult::success();
+    }
+
+    void set_history_restorable_for_testing(bool restorable) { m_history_restorable = restorable; }
+    bool m_history_restorable{true};
+    std::set<std::string> m_region_artifacts, m_unbound_regions;
+    std::vector<std::uint64_t> m_undo_ids, m_redo_ids;
+    std::uint64_t m_last_step_id{0};
+
+    // A save writes a real file, so a test can prove nothing was written
+    // before approval, and marks the project clean at that path.
+    CommandResult save_project(const std::string& file_path) override
+    {
+        const std::filesystem::path target = std::filesystem::u8path(file_path);
+        if (!target.is_absolute() || target.extension() != ".3mf")
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Save to an absolute path ending in .3mf");
+        if (!std::filesystem::is_directory(target.parent_path()))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The folder to save into does not exist");
+        std::ofstream(target, std::ios::binary | std::ios::trunc) << "fake project";
+        m_snapshot.setup.project_path  = file_path;
+        m_snapshot.setup.project_dirty = false;
+        return CommandResult::success();
+    }
+
+    // A project file becomes a fresh session holding one object named after
+    // it; what Orca would have asked is whatever the test scripted.
+    CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) override
+    {
+        const std::filesystem::path target = std::filesystem::u8path(request.path);
+        if (!request.new_project && (!target.is_absolute() || !std::filesystem::is_regular_file(target)))
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Open an absolute path to a file that exists");
+        if ((m_snapshot.setup.project_dirty || m_snapshot.setup.presets_dirty) && !request.discard_unsaved)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");
+        ++opens;
+        last_open = request;
+        WorkspaceSnapshot next;
+        next.setup.project_name = request.new_project ? "Untitled" : target.stem().u8string();
+        if (target.extension() == ".3mf") next.setup.project_path = request.path;
+        WorkspacePlate plate;
+        plate.id     = PlateId(ProjectSessionId(m_session.value() + 1), 1);
+        plate.name   = "Plate 1";
+        plate.active = true;
+        if (!request.new_project) {
+            WorkspaceObject object;
+            object.id   = ObjectId(ProjectSessionId(m_session.value() + 1), 1);
+            object.name = next.setup.project_name;
+            object.instances.push_back({});
+            plate.objects.push_back(object);
+        }
+        next.plates       = {plate};
+        next.active_plate = plate.id;
+        decisions         = m_open_decisions;
+        replace_project(std::move(next));
+        if (on_open_for_testing) on_open_for_testing();
+        return CommandResult::success();
+    }
+    ProjectDetails project_details() const override { return m_details; }
+    ProjectDetails m_details;
+    std::vector<LoadDecision> m_open_decisions;
+    // What the host does when a project is replaced under it.
+    std::function<void()>     on_open_for_testing;
+    ProjectOpenRequest        last_open;
+    std::uint32_t             opens{0};
+
+    void set_project_path_for_testing(std::string path, bool dirty)
+    {
+        m_snapshot.setup.project_path  = std::move(path);
+        m_snapshot.setup.project_dirty = dirty;
+    }
+    void set_printers_for_testing(std::vector<PrinterDevice> printers) { m_printers = std::move(printers); }
+
+    SliceReport slice_report(PlateId plate, const SliceReportRequest& request = {}) const override
+    {
+        const auto found = m_reports.find(plate.value());
+        if (found == m_reports.end())
+            return {};
+        const auto& sliced = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(),
+                                          [&plate](const WorkspacePlate& candidate) { return candidate.id == plate; });
+        // A fixture cannot describe a report for a plate that is not sliced, or
+        // one whose slice is being replaced: the real adapter refuses both.
+        if (sliced == m_snapshot.plates.end() || !sliced->sliced || m_snapshot.slicing.running)
+            return {};
+        // Only the checks a caller asked for are computed.
+        SliceReport report = found->second;
+        if (!request.supports) report.supports.reset();
+        if (!request.seams) report.seams.reset();
+        if (!request.first_layer) report.first_layer.reset();
+        if (!request.islands) report.islands.reset();
+        last_slice_request = request;
+        return report;
+    }
+
+    void set_slice_report_for_testing(PlateId plate, SliceReport report)
+    {
+        report.valid      = true;
+        m_reports[plate.value()] = std::move(report);
+    }
+
+    // What the owner reports while a run is in flight, and when it ends.
+    void finish_slice_for_testing(bool sliced)
+    {
+        const auto plate            = m_snapshot.slicing.plate;
+        m_snapshot.slicing          = {};
+        if (plate)
+            for (WorkspacePlate& candidate : m_snapshot.plates)
+                if (candidate.id == *plate)
+                    candidate.sliced = sliced;
+        publish(WorkspaceChangeReasons::Slicing);
+    }
+
+    std::uint32_t slice_starts{0};
+    std::map<std::uint64_t, SliceReport> m_reports;
+    std::map<PresetKind, std::vector<PresetEntry>> m_presets;
+    std::vector<PrinterDevice> m_printers;
+
     // slice changes what consumers may say about the plate, so it has to
     // advance the revision. The Orca adapter matches this by listening to
     // EVT_SLICE_STATUS_CHANGED -- it did not, once, and the setup card kept
@@ -342,7 +1059,7 @@ public:
         for (WorkspacePlate& plate : m_snapshot.plates)
             if (plate.id == id && plate.sliced != sliced) {
                 plate.sliced = sliced;
-                publish(WorkspaceChangeReasons::Plates);
+                publish(WorkspaceChangeReasons::Slicing);
                 return;
             }
     }
@@ -358,7 +1075,7 @@ public:
                 plate.estimate        = std::move(estimate);
                 plate.estimate_status = status;
                 plate.invalidated_by  = std::move(invalidated_by);
-                publish(WorkspaceChangeReasons::Plates);
+                publish(WorkspaceChangeReasons::Slicing);
                 return;
             }
     }
@@ -476,6 +1193,15 @@ private:
                     fn(object);
     }
 
+    std::string object_name(ObjectId id) const
+    {
+        for (const WorkspacePlate& plate : m_snapshot.plates)
+            for (const WorkspaceObject& object : plate.objects)
+                if (object.id == id)
+                    return object.name;
+        return {};
+    }
+
     CommandResult validate(ObjectId id) const
     {
         if (!id)
@@ -494,8 +1220,10 @@ private:
     {
         m_undo.emplace_back(m_snapshot);
         m_undo_names.push_back(name);
+        m_undo_ids.push_back(++m_last_step_id);
         m_redo.clear();
         m_redo_names.clear();
+        m_redo_ids.clear();
         publish_edit({EditKind::Step, EditActor::Person, std::move(name)});
     }
 

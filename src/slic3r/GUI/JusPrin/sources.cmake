@@ -1,5 +1,6 @@
 list(APPEND SLIC3R_GUI_SOURCES
     GUI/ProjectState.hpp
+    GUI/JusPrin/Agent/IntentChecks.hpp
     GUI/JusPrin/Agent/AgentHost.cpp
     GUI/JusPrin/Agent/AgentHost.hpp
     GUI/JusPrin/Agent/AgentConfiguration.cpp
@@ -15,6 +16,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp
+    GUI/JusPrin/Agent/ProductState.hpp
     GUI/JusPrin/Agent/ProjectPersistence.cpp
     GUI/JusPrin/Agent/ProjectPersistence.hpp
     GUI/JusPrin/Agent/ProjectStateDocument.cpp
@@ -96,14 +98,25 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/SetupCommands.cpp
     GUI/JusPrin/Shell/SetupCommands.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
+    GUI/JusPrin/Workspace/ModalAnswers.cpp
+    GUI/JusPrin/Workspace/ModalAnswers.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
+    GUI/JusPrin/Workspace/OrcaGeometry.hpp
+    GUI/JusPrin/Workspace/OrcaRegions.cpp
+    GUI/JusPrin/Workspace/OrcaReshape.cpp
+    GUI/JusPrin/Workspace/OrcaSliceChecks.cpp
+    GUI/JusPrin/Workspace/OrcaOutputs.cpp
+    GUI/JusPrin/Workspace/Regions.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
+    GUI/JusPrin/Workspace/PrinterFactsStore.cpp
+    GUI/JusPrin/Workspace/PrinterFactsStore.hpp
     GUI/JusPrin/Workspace/PlaterProjectState.cpp
     GUI/JusPrin/Workspace/PlaterProjectState.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
     GUI/JusPrin/Workspace/SpoolStore.cpp
     GUI/JusPrin/Workspace/SpoolStore.hpp
+    GUI/JusPrin/Workspace/UtcTime.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp
     GUI/JusPrin/Testing/FakeBambuAgent.hpp
 )
