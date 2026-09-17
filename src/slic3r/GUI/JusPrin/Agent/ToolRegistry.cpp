@@ -870,7 +870,7 @@ std::vector<ToolDefinition> make_definitions()
          intent_output,
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::IntentUpdate},
         {"plan_set", "Pin your plan for this print",
-         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan. Runs without an approval card because it records only your own words; project Undo does not undo this. To have the user approve several changes at once, give each the same planId: each returns queued, and after the last one end your turn and ask for the approval; workspace_inspect activities shows how they ended.",
+         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan. Runs without an approval card because it records only your own words; project Undo does not undo this. It records your reasoning and groups nothing: to have the user approve several changes on one card, pass the same planId to each change tool; each returns queued, and after the last one end your turn and ask for the approval; workspace_inspect activities shows how they ended.",
          object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
                                                                                       {"confidence", id}, {"alternative", text}},
                                                                                      {"topic", "statement"}), 16)},
@@ -1360,9 +1360,10 @@ std::vector<ToolDefinition> make_definitions()
          ToolAvailability::Always,
          ToolHandler::RecordPhysicalPrint},
     };
-    // Every mutation can join a plan; the decoders never see the field.
+    // Every change can join a plan; the decoders never see the field.
+    // plan_set records the agent's own words and is not a change to group.
     for (ToolDefinition& definition : definitions)
-        if (definition.action_class != ActionClass::ReadOnly)
+        if (joins_plans(definition))
             definition.input_schema["properties"]["planId"] = {
                 {"type", "string"}, {"maxLength", 64},
                 {"description", "Calls with the same planId share one approval card and run in order; each returns queued."}};
@@ -1459,10 +1460,10 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
     if (arguments.is_object() && arguments.contains("planId")) {
         plan_id = arguments["planId"];
         arguments.erase("planId");
-        if (definition.action_class == ActionClass::ReadOnly || !plan_id->is_string() || plan_id->get_ref<const std::string&>().empty() ||
+        if (!joins_plans(definition) || !plan_id->is_string() || plan_id->get_ref<const std::string&>().empty() ||
             plan_id->get_ref<const std::string&>().size() > 64)
-            return {{}, ToolError{"invalid_arguments", definition.action_class == ActionClass::ReadOnly ?
-                                                           "A read does not join a plan; only changes take a planId." :
+            return {{}, ToolError{"invalid_arguments", !joins_plans(definition) ?
+                                                           definition.name + " does not join a plan; only changes to the project take a planId." :
                                                            "planId must be a string of 1 to 64 characters."}};
     }
     if (arguments.is_discarded() || !valid_arguments(definition, arguments)) {

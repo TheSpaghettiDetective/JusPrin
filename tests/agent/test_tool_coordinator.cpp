@@ -2155,6 +2155,14 @@ TEST_CASE("calls sharing a plan id wait for one decision and run in order", "[to
         // A call outside the plan was not approved with it.
         CHECK(h.coordinator.find(alone.action_id)->state == ToolState::Failed);
     }
+    SECTION("a decided or broken plan takes no new members")
+    {
+        REQUIRE(h.coordinator.reject(first.action_id));
+        const ToolActivity late = h.coordinator.propose(copies(4, "copies"), "m-6");
+        CHECK(late.state == ToolState::Failed);
+        CHECK(late.error->code == "plan_closed");
+        CHECK(h.coordinator.propose(copies(4, "fresh"), "m-7").state == ToolState::Pending);
+    }
     SECTION("a member proposed alone is not part of the plan")
     {
         const ToolActivity alone = h.coordinator.propose(copies(4, nullptr), "m-5");
@@ -2167,10 +2175,12 @@ TEST_CASE("a plan id is checked before any tool sees it", "[tools][plan][registr
 {
     const auto& registry = ToolRegistry::instance();
     for (const ToolDefinition& definition : registry.definitions())
-        CHECK(definition.input_schema["properties"].contains("planId") == (definition.action_class != ActionClass::ReadOnly));
+        CHECK(definition.input_schema["properties"].contains("planId") ==
+              (definition.action_class != ActionClass::ReadOnly && definition.name != "plan_set"));
     const auto refused = registry.validate_call(*registry.find("workspace_inspect"), R"({"planId":"p"})");
     REQUIRE_FALSE(refused.valid());
-    CHECK(refused.error->message == "A read does not join a plan; only changes take a planId.");
+    CHECK(refused.error->message == "workspace_inspect does not join a plan; only changes to the project take a planId.");
+    CHECK_FALSE(registry.validate_call(*registry.find("plan_set"), R"({"headline":"h","planId":"p"})").valid());
     CHECK_FALSE(registry.validate_call(*registry.find("plate_layout"), R"({"planId":""})").valid());
     CHECK_FALSE(registry.validate_call(*registry.find("plate_layout"), R"({"planId":7})").valid());
 }

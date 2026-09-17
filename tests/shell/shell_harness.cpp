@@ -2436,9 +2436,9 @@ private:
     {
         auto& view = installed_shell()->agent_pane()->web_view();
         const auto first_activity = view.host().tools().activities().size();
-        const std::string prompt = "Make two separate settings changes as one plan: preview then call settings_apply_patch with "
-            "changes={\"layer_height\": \"0.16\"}, then preview then call settings_apply_patch with "
-            "changes={\"sparse_infill_density\": \"25%\"}, both with planId \"live-plan\". Then stop and ask me to approve the plan.";
+        const std::string prompt = "I want to approve two settings changes on one approval card. Call settings_preview_patch then "
+            "settings_apply_patch with changes={\"layer_height\": \"0.16\"} and planId \"live-plan\"; then settings_preview_patch then "
+            "settings_apply_patch with changes={\"sparse_infill_density\": \"25%\"} and the same planId. Then stop and ask me to approve.";
         WebView::RunScript(view.webview(), wxString::FromUTF8("window.__jusprinTest.send(" + nlohmann::json(prompt).dump() + ")"));
         wait_until([first_activity] {
             const auto& host = installed_shell()->agent_pane()->web_view().host();

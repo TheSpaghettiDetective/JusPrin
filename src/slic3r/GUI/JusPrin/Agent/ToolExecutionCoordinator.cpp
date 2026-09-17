@@ -362,6 +362,15 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         // would otherwise run without one.
         if (!stored.plan_id.empty())
             stored.requires_approval = true;
+        // A plan takes members only while its card is undecided and whole.
+        const bool closed = std::any_of(m_activities.begin(), m_activities.end(), [&stored](const ToolActivity& member) {
+            return member.action_id != stored.action_id && member.plan_id == stored.plan_id && member.state != ToolState::Pending;
+        });
+        if (!stored.plan_id.empty() && closed) {
+            fail(stored, "plan_closed",
+                 "Plan " + stored.plan_id + " was already decided, or one of its calls failed. Propose this with a new planId.");
+            return stored;
+        }
     }
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
 

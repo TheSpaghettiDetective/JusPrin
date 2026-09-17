@@ -104,6 +104,13 @@ struct ToolDefinition
     bool              computation_only{false};
 };
 
+// Whether a call to this tool may carry a planId: every change to the
+// project, not plan_set, which records the agent's own words.
+inline bool joins_plans(const ToolDefinition& definition)
+{
+    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet;
+}
+
 struct ToolValidationResult
 {
     std::string              arguments_json;
