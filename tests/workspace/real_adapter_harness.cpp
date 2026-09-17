@@ -46,8 +46,7 @@ struct HarnessState
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
-    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(180)};
-    Mode mode{Mode::Automated};
+    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(180)};    Mode mode{Mode::Automated};
 };
 
 std::size_t object_count(const WorkspaceSnapshot& snapshot)
@@ -97,6 +96,8 @@ public:
                 return;
             }
             setup_and_run_commands();
+            if (m_finished)
+                return;
             m_app.CallAfter([self = shared_from_this()] {
                 self->m_app.CallAfter([self] { self->verify_committed_transform(); });
             });
@@ -273,6 +274,15 @@ private:
         m_plater = plater;
 
         verify_selection_tail_redo();
+        // The canvas initializes GL while loading the first model. Selection
+        // is built from its volumes, so without usable GL (on Windows: no Mesa
+        // opengl32.dll beside the harness) the later checks fail without
+        // naming the cause, and the gizmo check crashes. Stop here instead.
+        if (!m_plater->canvas3D()->is_initialized()) {
+            fail("the 3D canvas did not initialize OpenGL; on Windows without a GPU, run "
+                 "src/slic3r/GUI/JusPrin/Testing/windows-gl/provision-mesa-windows.ps1 on this build tree");
+            return;
+        }
         verify_cross_plate_duplicate();
         verify_legacy_delete_history();
         verify_disabled_gizmo_wheel();
@@ -555,7 +565,15 @@ private:
     {
         try {
             check(transform_event_count() == m_transform_events_before + 1, "committed_move_observed_once");
-            check(!m_changes.empty() && has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Transform),
+            // The move reaches the adapter through the queued
+            // EVT_GLCANVAS_INSTANCE_MOVED, interleaved with queued
+            // EVT_GLCANVAS_OBJECT_SELECT events that each publish a
+            // Selection-only change, so the move need not be the last change
+            // (on Windows two follow it). Skip those.
+            const auto last = std::find_if(m_changes.rbegin(), m_changes.rend(), [](const WorkspaceChanged& change) {
+                return change.reasons != WorkspaceChangeReasons::Selection;
+            });
+            check(last != m_changes.rend() && has_reason(last->reasons, WorkspaceChangeReasons::Transform),
                   "committed_move_has_transform_reason");
 
             GLCanvas3D& canvas = *m_plater->canvas3D();
@@ -637,7 +655,17 @@ private:
         std::cerr << "HARNESS RESULT " << (result == 0 ? "PASS" : "FAIL") << " failures=" << m_failures << '\n';
         m_state->result = result;
         m_state->stop = true;
-        m_app.ExitMainLoop();
+        if (m_app.mainframe == nullptr) {
+            m_app.ExitMainLoop();
+            return;
+        }
+        // Leave the way the application leaves, as the shell harness does: a
+        // forced close runs MainFrame::shutdown(), which clears the backup
+        // callback and stops background threads, and the loop ends once the
+        // frame is gone. ExitMainLoop() skipped that, and a backup posted
+        // shortly after a model load then reached a deleted frame. Deferred
+        // so nothing on the current stack uses the frame after shutdown.
+        m_app.CallAfter([frame = m_app.mainframe] { frame->Close(true); });
     }
 
     static constexpr std::size_t invalid_index = static_cast<std::size_t>(-1);
@@ -737,7 +765,14 @@ int main(int argc, char** argv)
     installer.join();
 
     fs::current_path(original_directory);
-    fs::remove_all(data_directory);
+    // The boost::log sink keeps log/debug_*.log.0 open until static
+    // destruction, so on Windows this cannot delete everything; a throwing
+    // remove_all would end a PASS run in std::terminate. Report instead.
+    boost::system::error_code error;
+    fs::remove_all(data_directory, error);
+    if (error)
+        std::cerr << "HARNESS WARNING data dir not fully removed: " << error.message() << " ("
+                  << data_directory.string() << ")\n";
     if (state->result < 0)
         return gui_result == 0 ? 1 : gui_result;
     return state->result;

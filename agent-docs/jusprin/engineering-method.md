@@ -138,12 +138,14 @@ Placement is not interchangeable:
 | file | goes | because |
 | --- | --- | --- |
 | `opengl32.dll` | `mesa\` subfolder | the launcher loads it by that path; beside the executable it shadows the system GL and the app dies at launch |
+| `opengl32.dll` again | beside each `*_harness.exe` | a harness links the app in and has no launcher, so only a copy beside it replaces the system GL 1.1 |
 | `libgallium_wgl.dll` | beside the executable | the `opengl32.dll` stub imports it, and Windows resolves imports against the process directory |
 | `dxil.dll` | beside the executable | Mesa's `d3d12` driver signs translated shaders with it; Windows Server does not ship it, Windows SDKs carry it under `Redist\D3D\x64` |
 
 Each gap has its own silent signature:
 
 - **No `libgallium_wgl.dll`:** GL falls back to 1.1, the log has `glcontext not ready, postpone init` and no `got opengl version` line, and the canvas stays black for the whole session — the retry after a postponed init exists only on Linux.
+- **No `opengl32.dll` beside a harness:** the same GL 1.1 signature, in the harness only. The canvas never builds its volumes, so `Plater::select_object` returns false after `load_files`, and the workspace harness then crashed opening a paint gizmo with nothing selected (`0xC0000005`).
 - **No `dxil.dll`:** GL initializes through `d3d12`, then the process exits with `0x80070057` on the first canvas draw, with no log line, no dialog, and no event-log entry. `slow_bootup` only moves this crash from startup to the first canvas paint.
 
 Confirm what actually loaded from the process's module list rather than from
