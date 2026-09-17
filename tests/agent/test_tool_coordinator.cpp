@@ -1803,3 +1803,50 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
     CHECK_FALSE(registry.validate_call(*registry.find("object_merge"), json{{"sessionId", session}, {"objectIds", {cube, cube}}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("object_merge"), json{{"sessionId", session}, {"objectIds", {cube}}}.dump()).valid());
 }
+
+TEST_CASE("the slice report checks supports, seams, the first layer and islands against the regions", "[tools][slicing][report][regions]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const auto plate = h.workspace.snapshot().plates.at(0).id;
+    Workspace::RegionRecord hole;
+    hole.id   = "r1";
+    hole.kind = "precision_hole";
+    store.set_regions({hole});
+
+    Workspace::SliceReport report;
+    report.supports    = Workspace::SliceSupports{true, 40, {{h.cube_id(), "Cube", "r1", "region r1 (precision hole)", 12.345, 6, {1, 2, 3}},
+                                                             {std::nullopt, "Cube", "", "hole of 5 mm", 3, 2, {0, 0, 0}}}, false};
+    report.seams       = Workspace::SliceSeams{120, {{"r2", "hidden", "Cube", 118}}};
+    report.first_layer = Workspace::SliceFirstLayer{0.2, {{h.cube_id(), "Cube", 400, true}}};
+    report.islands     = Workspace::SliceIslands{{{h.cube_id(), "Cube", 12.4, 30, false, {5, 5, 12.4}}}, false};
+    h.workspace.set_slice_report_for_testing(plate, report);
+    h.workspace.set_plate_sliced(plate, true);
+
+    const auto read = [&h](json arguments) {
+        const std::string action = h.coordinator.propose({"slice_report", arguments.dump()}, "m-1").action_id;
+        h.pump_to_completion(action);
+        return json::parse(h.coordinator.find(action)->result_json);
+    };
+    const auto checked = read(json{{"sections", {"supports", "seams", "firstLayer", "islands"}}});
+    CHECK(registry.validate_output(*registry.find("slice_report"), checked));
+    CHECK_FALSE(checked.contains("summary"));
+    CHECK(checked["supports"]["contacts"][0] == json{{"objectId", std::to_string(h.cube_id().value())}, {"object", "Cube"},
+                                                     {"regionId", "r1"}, {"target", "region r1 (precision hole)"},
+                                                     {"areaMm2", 12.35}, {"layers", 6}, {"at", {1, 2, 3}}});
+    CHECK(checked["supports"]["contacts"][1]["objectId"] == "");
+    CHECK(checked["seams"]["regions"][0]["seams"] == 118);
+    CHECK(checked["firstLayer"]["objects"][0]["brim"] == true);
+    CHECK(checked["islands"]["items"][0]["supported"] == false);
+    // The regions went to the workspace with the request; a summary-only
+    // read asks for no checks.
+    CHECK(h.workspace.last_slice_request.regions.size() == 1);
+    CHECK(h.workspace.last_slice_request.supports);
+    const auto plain = read(json::object());
+    CHECK_FALSE(plain.contains("supports"));
+    CHECK_FALSE(h.workspace.last_slice_request.supports);
+    CHECK(h.workspace.last_slice_request.regions.empty());
+    CHECK_FALSE(registry.validate_call(*registry.find("slice_report"), R"({"sections":["supports","supports"]})").valid());
+}

@@ -2928,18 +2928,20 @@ private:
                 self->verify_support_settings_patch();
                 self->verify_regions();
                 self->verify_reshape();
-                self->wait_until(
-                    [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
-                    "saved_state_adopted_on_reopen", [self] {
-                        self->check(self->persistence().document().conversations().size() == 2,
-                                    "saved_conversations_survive_reopen");
-                        self->check(self->persistence().document().conversations().front().title == "Backpack frame test",
-                                    "renamed_chat_survives_project_reopen");
-                        const auto messages = self->persistence().document().messages(
-                            self->persistence().document().active_conversation_id());
-                        self->check(!messages.empty(), "saved_messages_survive_reopen");
-                        self->agent_phase6_history();
-                    });
+                self->verify_slice_checks([self] {
+                    self->wait_until(
+                        [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
+                        "saved_state_adopted_on_reopen", [self] {
+                            self->check(self->persistence().document().conversations().size() == 2,
+                                        "saved_conversations_survive_reopen");
+                            self->check(self->persistence().document().conversations().front().title == "Backpack frame test",
+                                        "renamed_chat_survives_project_reopen");
+                            const auto messages = self->persistence().document().messages(
+                                self->persistence().document().active_conversation_id());
+                            self->check(!messages.empty(), "saved_messages_survive_reopen");
+                            self->agent_phase6_history();
+                        });
+                });
             });
     }
 
@@ -3157,14 +3159,14 @@ private:
         check(object->volumes.size() == volumes_before + 1 && object->volumes.back()->is_support_blocker() &&
                   object->volumes.back()->name == "JusPrin r1 support blocker",
               "regions_blocker_added");
-        // The blocker fills the hole: 10 mm across, 20 mm along Y, centred on
-        // the hole's axis in the object's frame.
+        // The blocker fills the hole and a millimetre around it: 12 mm across,
+        // 22 mm along Y, centred on the hole's axis in the object's frame.
         const BoundingBoxf3 blocker = object->volumes.back()->mesh().transformed_bounding_box(object->volumes.back()->get_matrix());
         const BoundingBoxf3 part    = object->volumes.front()->mesh().transformed_bounding_box(object->volumes.front()->get_matrix());
         std::cout << "blocker size " << blocker.size().transpose() << " centre " << blocker.center().transpose()
                   << " part centre " << part.center().transpose() << std::endl;
-        check(std::abs(blocker.size().y() - 20) < 0.1 && std::abs(blocker.size().x() - 10) < 0.2 &&
-                  std::abs(blocker.size().z() - 10) < 0.2,
+        check(std::abs(blocker.size().y() - 22) < 0.1 && std::abs(blocker.size().x() - 12) < 0.2 &&
+                  std::abs(blocker.size().z() - 12) < 0.2,
               "regions_blocker_fills_the_hole");
         check(std::abs(blocker.center().x() - part.center().x()) < 0.1 && std::abs(blocker.center().y() - part.center().y()) < 0.1 &&
                   std::abs(blocker.center().z() - (part.min.z() + 28)) < 0.1,
@@ -3306,6 +3308,131 @@ private:
         }
         fs::remove(open);
     }
+
+    // The slice checks on a real slice: the T bar with supports on prints
+    // support inside its hole, which the report finds without any region;
+    // once the hole is a precision hole and the back face is hidden, a new
+    // slice keeps support out of the hole and puts seams on that face.
+    void verify_slice_checks(std::function<void()> then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto& prints    = wxGetApp().preset_bundle->prints;
+        m_slice_check_settings = prints.get_edited_preset().config;
+        std::vector<Workspace::LoadDecision> decisions;
+        std::vector<Workspace::ObjectId>     added;
+        Workspace::ImportRequest             import;
+        import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl";
+        const bool imported = workspace->import_objects(import, decisions, added).succeeded() && added.size() == 1;
+        check(imported, "slice_checks_fixture_imported");
+        const Workspace::SettingsPatch supports{{{"enable_support", "1"}, {"support_type", "normal(auto)"},
+                                                 {"support_on_build_plate_only", "0"}}};
+        Workspace::SettingsPreview applied;
+        check(workspace->apply_settings(supports, Workspace::settings_confirmation(workspace->preview_settings(supports)), applied).succeeded(),
+              "slice_checks_supports_on");
+        const auto plate = workspace->snapshot().active_plate;
+        if (!imported || !plate) {
+            then();
+            return;
+        }
+        m_slice_check_object = added.front();
+        slice_then("slice_checks_first_slice", *plate, [self = shared_from_this(), plate, then] {
+            auto* workspace = installed_shell()->workspace();
+            Workspace::SliceReportRequest request;
+            request.supports = request.seams = request.first_layer = request.islands = true;
+            const auto report = workspace->slice_report(*plate, request);
+            self->check(report.valid && report.supports && report.supports->generated, "slice_checks_supports_generated");
+            const auto hole_contact = [self](const Workspace::SliceReport& r) {
+                return r.supports && std::any_of(r.supports->contacts.begin(), r.supports->contacts.end(), [&](const auto& c) {
+                           return c.object && *c.object == self->m_slice_check_object;
+                       });
+            };
+            if (report.supports)
+                for (const auto& contact : report.supports->contacts)
+                    std::cout << "support contact " << contact.object_name << " " << contact.target << " " << contact.area
+                              << " mm2 over " << contact.layers << " layers" << std::endl;
+            self->check(hole_contact(report), "slice_checks_support_enters_the_hole");
+            self->check(report.first_layer && std::any_of(report.first_layer->objects.begin(), report.first_layer->objects.end(),
+                                                          [&](const auto& o) { return o.object && *o.object == self->m_slice_check_object &&
+                                                                                      std::abs(o.contact_area - 320) < 20; }),
+                        "slice_checks_first_layer_is_the_stem");
+            self->check(report.islands && report.seams && report.seams->count > 0, "slice_checks_islands_and_seams_read");
+
+            // Annotate the hole and the back face.
+            Workspace::AnalysisRequest wanted;
+            wanted.features = true;
+            Workspace::ObjectAnalysis analysis;
+            workspace->analyze_object(self->m_slice_check_object, wanted, analysis);
+            const auto& features = *analysis.features;
+            const auto hole = std::find_if(features.holes.begin(), features.holes.end(),
+                                           [](const auto& h) { return std::abs(h.diameter - 10) < 0.2; });
+            const auto back = std::find_if(features.faces.begin(), features.faces.end(),
+                                           [](const auto& f) { return f.normal[1] > 0.99; });
+            if (hole == features.holes.end() || back == features.faces.end()) {
+                self->check(false, "slice_checks_features_found");
+                self->finish_slice_checks(then);
+                return;
+            }
+            std::vector<Workspace::RegionRequest> requests(2);
+            requests[0].object   = self->m_slice_check_object;
+            requests[0].kind     = "precision_hole";
+            requests[0].geometry = Workspace::RegionGeometry{"hole", hole->handle};
+            requests[1].object   = self->m_slice_check_object;
+            requests[1].kind     = "hidden";
+            requests[1].geometry = Workspace::RegionGeometry{"face", back->handle};
+            std::vector<Workspace::RegionRecord> planned;
+            self->check(workspace->plan_regions(requests, {}, planned).succeeded() &&
+                            workspace->apply_regions(planned, {}, self->m_slice_check_regions).succeeded(),
+                        "slice_checks_regions_applied");
+            self->slice_then("slice_checks_second_slice", *plate, [self, plate, then, hole_contact] {
+                auto* workspace = installed_shell()->workspace();
+                Workspace::SliceReportRequest request;
+                request.supports = request.seams = true;
+                request.regions  = self->m_slice_check_regions;
+                const auto report = workspace->slice_report(*plate, request);
+                if (report.supports)
+                    for (const auto& contact : report.supports->contacts)
+                        std::cout << "support contact after " << contact.object_name << " " << contact.target << " " << contact.area << std::endl;
+                self->check(report.valid && !hole_contact(report), "slice_checks_precision_hole_keeps_support_out");
+                const bool seams_on_back = report.seams && std::any_of(report.seams->regions.begin(), report.seams->regions.end(),
+                                                                       [](const auto& r) { return r.region_id == "r2" && r.seams > 0; });
+                if (report.seams)
+                    for (const auto& placement : report.seams->regions)
+                        std::cout << "seams on " << placement.region_id << " " << placement.kind << ": " << placement.seams << " of "
+                                  << report.seams->count << std::endl;
+                self->check(seams_on_back, "slice_checks_seams_on_the_hidden_face");
+                self->finish_slice_checks(then);
+            });
+        });
+    }
+
+    void slice_then(const char* name, Workspace::PlateId plate, std::function<void()> then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        check(workspace->start_slice(plate, false).succeeded(), std::string(name) + "_started");
+        const auto sliced = [plate] {
+            const auto snapshot = installed_shell()->workspace()->snapshot();
+            return !snapshot.slicing.running &&
+                   std::any_of(snapshot.plates.begin(), snapshot.plates.end(), [&](const auto& p) { return p.id == plate && p.sliced; });
+        };
+        // A result from before the change still reads as sliced until the run
+        // starts; wait for the run first, then for its result.
+        wait_until([sliced] { return !sliced(); }, std::string(name) + "_running",
+                   [self = shared_from_this(), sliced, name, then] { self->wait_until(sliced, name, then); });
+    }
+
+    void finish_slice_checks(const std::function<void()>& then)
+    {
+        auto* workspace = installed_shell()->workspace();
+        if (!m_slice_check_regions.empty())
+            workspace->remove_regions(m_slice_check_regions);
+        workspace->delete_items({Workspace::DeleteItem{Workspace::DeleteItem::Kind::Object, m_slice_check_object}});
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(m_slice_check_settings);
+        then();
+    }
+
+    Workspace::ObjectId                  m_slice_check_object;
+    std::vector<Workspace::RegionRecord> m_slice_check_regions;
+    DynamicPrintConfig                   m_slice_check_settings;
 
     // Phase 6: record one real sliced plate as a deterministic build, then an
     // exported copy and completed physical print through the same page ->

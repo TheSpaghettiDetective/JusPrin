@@ -67,6 +67,10 @@ struct SliceReportSections
     bool summary{true};
     bool findings{false};
     bool material{false};
+    bool supports{false};
+    bool seams{false};
+    bool first_layer{false};
+    bool islands{false};
 };
 
 nlohmann::json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateId plate,

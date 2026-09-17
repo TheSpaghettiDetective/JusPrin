@@ -768,6 +768,85 @@ struct SliceFinding
     std::string object;
 };
 
+// Support printed where it should not be: inside a region kept free of
+// support, or inside a hole found in the mesh.
+struct SupportContact
+{
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    std::string             region_id; // empty for a hole no region names
+    std::string             target;    // how the report names it
+    double                  area{0};   // mm2 of support inside it, summed over its layers
+    std::size_t             layers{0};
+    Vec3                    at{0, 0, 0}; // world centre of what it entered
+};
+
+struct SliceSupports
+{
+    bool                        generated{false};
+    std::size_t                 layers{0};
+    std::vector<SupportContact> contacts;
+    bool                        truncated{false};
+};
+
+// How many seams landed on a region that asks for or forbids them.
+struct SeamPlacement
+{
+    std::string region_id;
+    std::string kind;
+    std::string object_name;
+    std::size_t seams{0};
+};
+
+struct SliceSeams
+{
+    std::size_t                count{0};
+    std::vector<SeamPlacement> regions;
+};
+
+struct FirstLayerObject
+{
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    double                  contact_area{0}; // mm2 on the bed, all copies
+    bool                    brim{false};
+};
+
+struct SliceFirstLayer
+{
+    double                        height{0};
+    std::vector<FirstLayerObject> objects;
+};
+
+// A slice with nothing of the object below it: printed in the air unless
+// support holds it.
+struct SliceIsland
+{
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    double                  z{0};
+    double                  area{0};
+    bool                    supported{false};
+    Vec3                    at{0, 0, 0};
+};
+
+struct SliceIslands
+{
+    std::vector<SliceIsland> items;
+    bool                     truncated{false};
+};
+
+// Which of the slice checks a report computes, and the regions to check
+// against. The summary, findings and material sections are always read.
+struct SliceReportRequest
+{
+    bool                      supports{false};
+    bool                      seams{false};
+    bool                      first_layer{false};
+    bool                      islands{false};
+    std::vector<RegionRecord> regions;
+};
+
 // What a sliced plate can say about itself. Absent sections are absent, not
 // zero: a report for a plate that has never been sliced says so and stops.
 struct SliceReport
@@ -787,6 +866,10 @@ struct SliceReport
     // A toolpath outside the printable area. Recomputed from the build volume
     // rather than read from the result, whose flag is only ever set by a 3mf.
     bool          toolpath_outside{false};
+    std::optional<SliceSupports>   supports;
+    std::optional<SliceSeams>      seams;
+    std::optional<SliceFirstLayer> first_layer;
+    std::optional<SliceIslands>    islands;
 };
 
 enum class WorkspaceError : std::uint8_t {
@@ -1207,7 +1290,7 @@ public:
     // What one plate's current slice says about itself. Returns a report whose
     // `valid` is false when the plate holds no current slice, rather than
     // failing: "not sliced yet" is an answer, not an error.
-    virtual SliceReport slice_report(PlateId plate) const = 0;
+    virtual SliceReport slice_report(PlateId plate, const SliceReportRequest& request = {}) const = 0;
 
     // A page of presets of one kind, as Orca has them. Read-only in the strict
     // sense: it reports Orca's cached compatibility verdict and never asks for

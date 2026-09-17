@@ -28,9 +28,6 @@
 namespace Slic3r::GUI::JusPrin::Workspace {
 namespace {
 
-constexpr double kPositionTolerance = 0.05; // mm
-constexpr double kAngleTolerance    = 0.5 * PI / 180.0;
-
 // A painted facet's state, read without the GUI's selector. The original
 // facets are the first entries of the selector's triangle list.
 class PaintReader : public TriangleSelector
@@ -45,17 +42,6 @@ public:
         return triangle.valid() && !triangle.is_split() && triangle.get_state() == state;
     }
 };
-
-Vec3d eigen(const Vec3& v) { return {v[0], v[1], v[2]}; }
-
-std::vector<ModelVolume*> model_parts(const ModelObject& object)
-{
-    std::vector<ModelVolume*> parts;
-    for (ModelVolume* volume : object.volumes)
-        if (volume->is_model_part())
-            parts.push_back(volume);
-    return parts;
-}
 
 std::vector<std::size_t> part_facets(const ModelObject& object)
 {
@@ -91,158 +77,6 @@ int find_volume(const ModelObject& object, const RegionArtifact& artifact)
         if (object.volumes[index]->name == artifact.name && object.volumes[index]->type() == volume_type(artifact.target))
             return static_cast<int>(index);
     return -1;
-}
-
-// The outward normal of a Measure plane, in the part's mesh frame.
-std::optional<Vec3d> plane_normal(const Measure::Measuring& measuring, int plane)
-{
-    for (const Measure::SurfaceFeature& feature : measuring.get_plane_features(plane))
-        if (feature.get_type() == Measure::SurfaceFeatureType::Plane) {
-            const auto [unused, normal, point] = feature.get_plane();
-            if (normal.allFinite() && normal.norm() > 0)
-                return normal.normalized();
-        }
-    return std::nullopt;
-}
-
-double facets_area(const indexed_triangle_set& its, const std::vector<int>& facets)
-{
-    double area = 0;
-    for (int index : facets) {
-        const auto& face = its.indices[index];
-        const Vec3d a = its.vertices[face[0]].cast<double>(), b = its.vertices[face[1]].cast<double>(),
-                    c = its.vertices[face[2]].cast<double>();
-        area += 0.5 * (b - a).cross(c - a).norm();
-    }
-    return area;
-}
-
-// A stored face, found again: the plane with the same normal, lying in the
-// same plane, with the same area.
-std::vector<int> match_face(const indexed_triangle_set& its, const RegionGeometry& face)
-{
-    const Measure::Measuring measuring(its);
-    const Vec3d              normal = eigen(face.normal).normalized();
-    for (int plane = 0; plane < measuring.get_num_of_planes(); ++plane) {
-        const auto found = plane_normal(measuring, plane);
-        if (!found || std::acos(std::clamp(found->dot(normal), -1.0, 1.0)) > kAngleTolerance)
-            continue;
-        const std::vector<int>& facets = measuring.get_plane_triangle_indices(plane);
-        const auto&             first  = its.indices[facets.front()];
-        if (std::abs(normal.dot(eigen(face.center) - its.vertices[first[0]].cast<double>())) > kPositionTolerance)
-            continue;
-        const double area = facets_area(its, facets);
-        if (std::abs(area - face.area) <= 0.02 * face.area + 1e-6)
-            return facets;
-    }
-    return {};
-}
-
-// A hole's mouth and its depth, in the part's mesh frame: the matching mouth
-// on the far side when the hole goes through, otherwise the part's extent.
-RegionGeometry hole_from(const indexed_triangle_set& its, const Measure::Measuring& measuring, int plane, int feature)
-{
-    const auto [center, radius, circle_normal] = measuring.get_plane_features(plane)[feature].get_circle();
-    const Vec3d    normal = plane_normal(measuring, plane).value_or(circle_normal.normalized());
-    RegionGeometry hole;
-    hole.type     = "hole";
-    hole.center   = vec3(center);
-    hole.normal   = vec3(normal);
-    hole.diameter = 2 * radius;
-    double depth = 0;
-    for (int other = 0; other < measuring.get_num_of_planes(); ++other)
-        for (const Measure::SurfaceFeature& candidate : measuring.get_plane_features(other)) {
-            if (candidate.get_type() != Measure::SurfaceFeatureType::Circle || (other == plane))
-                continue;
-            const auto [far_center, far_radius, unused] = candidate.get_circle();
-            const Vec3d offset = far_center - center;
-            const double along = offset.dot(normal);
-            if (std::abs(far_radius - radius) <= kPositionTolerance && along < 0 &&
-                (offset - along * normal).norm() <= kPositionTolerance)
-                depth = std::max(depth, -along);
-        }
-    if (depth <= 0)
-        for (const stl_vertex& vertex : its.vertices)
-            depth = std::max(depth, (center - vertex.cast<double>()).dot(normal));
-    hole.length = depth;
-    return hole;
-}
-
-bool same_hole(const indexed_triangle_set& its, const RegionGeometry& stored)
-{
-    const Measure::Measuring measuring(its);
-    for (int plane = 0; plane < measuring.get_num_of_planes(); ++plane)
-        for (const Measure::SurfaceFeature& feature : measuring.get_plane_features(plane))
-            if (feature.get_type() == Measure::SurfaceFeatureType::Circle) {
-                const auto [center, radius, unused] = feature.get_circle();
-                if ((center - eigen(stored.center)).norm() <= kPositionTolerance &&
-                    std::abs(2 * radius - stored.diameter) <= kPositionTolerance)
-                    return true;
-            }
-    return false;
-}
-
-std::vector<int> facets_facing(const indexed_triangle_set& its, const Vec3d& direction, double tolerance_degrees)
-{
-    std::vector<int> facets;
-    const double     limit = std::cos(tolerance_degrees * PI / 180.0);
-    for (int index = 0; index < static_cast<int>(its.indices.size()); ++index) {
-        const auto& face = its.indices[index];
-        Vec3d normal = (its.vertices[face[1]] - its.vertices[face[0]]).cast<double>().cross((its.vertices[face[2]] - its.vertices[face[0]]).cast<double>());
-        if (normal.norm() > 0 && normal.normalized().dot(direction) >= limit)
-            facets.push_back(index);
-    }
-    return facets;
-}
-
-// The facets a stored face or direction paints, on the part as it is now.
-std::vector<int> facets_of(const indexed_triangle_set& its, const RegionGeometry& geometry)
-{
-    if (geometry.type == "face")
-        return match_face(its, geometry);
-    return facets_facing(its, eigen(geometry.normal).normalized(), geometry.tolerance_degrees);
-}
-
-// The primitive's mesh in the object's frame: `part` places the part's mesh
-// frame, in which the geometry is stored.
-TriangleMesh primitive_mesh(const RegionGeometry& geometry, const Transform3d& part)
-{
-    // Stored boxes are aligned with the part's own axes, so only cylinders
-    // need a basis.
-    Transform3d local = Transform3d::Identity();
-    indexed_triangle_set its;
-    if (geometry.type == "box") {
-        its = its_make_cube(geometry.size[0], geometry.size[1], geometry.size[2]);
-        local.translate(eigen(geometry.center) - 0.5 * eigen(geometry.size));
-    } else {
-        its = its_make_cylinder(0.5 * geometry.diameter, geometry.length, 2 * PI / 48);
-        const Vec3d z = eigen(geometry.normal).normalized();
-        Vec3d       x = std::abs(z.x()) < 0.9 ? Vec3d::UnitX() : Vec3d::UnitY();
-        x = (x - z * z.dot(x)).normalized();
-        Matrix3d basis;
-        basis.col(0) = x;
-        basis.col(1) = z.cross(x);
-        basis.col(2) = z;
-        local.translate(eigen(geometry.center) - 0.5 * geometry.length * z);
-        local.rotate(basis);
-    }
-    TriangleMesh mesh(std::move(its));
-    mesh.transform(part * local);
-    return mesh;
-}
-
-// A hole's volume runs from its mouth into the part, centred halfway; a
-// reinforcing ring is the hole plus the wall around it.
-RegionGeometry volume_geometry(const RegionRecord& record)
-{
-    RegionGeometry geometry = record.geometry;
-    if (geometry.type == "hole") {
-        geometry.type   = "cylinder";
-        geometry.center = vec3(eigen(geometry.center) - 0.5 * geometry.length * eigen(geometry.normal).normalized());
-        if (record.kind == "reinforce")
-            geometry.diameter += 4.0;
-    }
-    return geometry;
 }
 
 } // namespace

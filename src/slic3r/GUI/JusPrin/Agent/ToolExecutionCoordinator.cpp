@@ -1398,9 +1398,18 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("findings"), asked("material")};
+            sections = {asked("summary"), asked("findings"), asked("material"), asked("supports"),
+                        asked("seams"),   asked("firstLayer"), asked("islands")};
         }
-        activity.result_json = slice_report_result(m_workspace.slice_report(*plate), *plate, snapshot, sections).dump();
+        Workspace::SliceReportRequest request;
+        request.supports    = sections.supports;
+        request.seams       = sections.seams;
+        request.first_layer = sections.first_layer;
+        request.islands     = sections.islands;
+        // The support and seam checks name the regions they cross.
+        if ((request.supports || request.seams) && m_product_state != nullptr)
+            request.regions = m_product_state->regions();
+        activity.result_json = slice_report_result(m_workspace.slice_report(*plate, request), *plate, snapshot, sections).dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
         return;

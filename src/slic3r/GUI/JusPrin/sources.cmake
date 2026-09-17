@@ -97,6 +97,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/OrcaGeometry.hpp
     GUI/JusPrin/Workspace/OrcaRegions.cpp
     GUI/JusPrin/Workspace/OrcaReshape.cpp
+    GUI/JusPrin/Workspace/OrcaSliceChecks.cpp
     GUI/JusPrin/Workspace/Regions.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
     GUI/JusPrin/Workspace/PrinterFactsStore.cpp

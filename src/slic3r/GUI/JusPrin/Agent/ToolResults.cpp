@@ -611,6 +611,45 @@ json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateI
         result["material"] = {{"filamentChanges", report.filament_changes}, {"extruderChanges", report.extruder_changes},
                               {"purgedMm3", purged}, {"primeTowerMm3", tower}, {"supportMm3", support}};
     }
+
+    const auto id_text = [](const std::optional<Workspace::ObjectId>& id) { return id ? std::to_string(id->value()) : std::string(); };
+    const auto hundredth = [](double value) { return std::round(value * 100) / 100 + 0.0; };
+    const auto place = [&hundredth](const Workspace::Vec3& at) { return json::array({hundredth(at[0]), hundredth(at[1]), hundredth(at[2])}); };
+    if (sections.supports && report.supports) {
+        bool truncated = report.supports->truncated;
+        json contacts = json::array();
+        for (const auto& contact : report.supports->contacts)
+            contacts.push_back({{"objectId", id_text(contact.object)}, {"object", label(contact.object_name, truncated)},
+                                {"regionId", contact.region_id}, {"target", label(contact.target, truncated)},
+                                {"areaMm2", hundredth(contact.area)}, {"layers", contact.layers}, {"at", place(contact.at)}});
+        result["supports"] = {{"generated", report.supports->generated}, {"layers", report.supports->layers},
+                              {"contacts", std::move(contacts)}, {"truncated", truncated}};
+    }
+    if (sections.seams && report.seams) {
+        bool truncated = false;
+        json regions = json::array();
+        for (const auto& placement : report.seams->regions)
+            regions.push_back({{"regionId", placement.region_id}, {"kind", placement.kind},
+                               {"object", label(placement.object_name, truncated)}, {"seams", placement.seams}});
+        result["seams"] = {{"count", report.seams->count}, {"regions", std::move(regions)}, {"truncated", truncated}};
+    }
+    if (sections.first_layer && report.first_layer) {
+        bool truncated = false;
+        json objects = json::array();
+        for (const auto& object : report.first_layer->objects)
+            objects.push_back({{"objectId", id_text(object.object)}, {"object", label(object.object_name, truncated)},
+                               {"contactAreaMm2", hundredth(object.contact_area)}, {"brim", object.brim}});
+        result["firstLayer"] = {{"heightMm", report.first_layer->height}, {"objects", std::move(objects)}, {"truncated", truncated}};
+    }
+    if (sections.islands && report.islands) {
+        bool truncated = report.islands->truncated;
+        json items = json::array();
+        for (const auto& island : report.islands->items)
+            items.push_back({{"objectId", id_text(island.object)}, {"object", label(island.object_name, truncated)},
+                             {"zMm", hundredth(island.z)}, {"areaMm2", hundredth(island.area)},
+                             {"supported", island.supported}, {"at", place(island.at)}});
+        result["islands"] = {{"items", std::move(items)}, {"truncated", truncated}};
+    }
     return result;
 }
 

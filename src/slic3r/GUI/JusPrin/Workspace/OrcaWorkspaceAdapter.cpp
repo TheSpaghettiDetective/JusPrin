@@ -1561,7 +1561,7 @@ PresetListResult OrcaWorkspaceAdapter::list_presets(const PresetQuery& query) co
     return result;
 }
 
-SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate) const
+SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate, const SliceReportRequest& request) const
 {
     wxASSERT(wxIsMainThread());
     SliceReport report;
@@ -1659,6 +1659,7 @@ SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate) const
             paths.merge(move.position.cast<double>());
     if (paths.defined)
         report.toolpath_outside = !m_plater.build_volume().all_paths_inside(result, paths);
+    check_slice(*target, request, report);
     return report;
 }
 

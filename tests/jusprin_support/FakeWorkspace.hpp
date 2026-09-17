@@ -395,6 +395,7 @@ public:
         return CommandResult::success();
     }
     std::size_t m_open_edges{2};
+    mutable SliceReportRequest last_slice_request;
 
     // Regions: resolved against the fixture's objects, with artifacts that are
     // present until a test says otherwise. Faces paint facets 0 to 2.
@@ -919,7 +920,7 @@ public:
     }
     void set_printers_for_testing(std::vector<PrinterDevice> printers) { m_printers = std::move(printers); }
 
-    SliceReport slice_report(PlateId plate) const override
+    SliceReport slice_report(PlateId plate, const SliceReportRequest& request = {}) const override
     {
         const auto found = m_reports.find(plate.value());
         if (found == m_reports.end())
@@ -930,7 +931,14 @@ public:
         // one whose slice is being replaced: the real adapter refuses both.
         if (sliced == m_snapshot.plates.end() || !sliced->sliced || m_snapshot.slicing.running)
             return {};
-        return found->second;
+        // Only the checks a caller asked for are computed.
+        SliceReport report = found->second;
+        if (!request.supports) report.supports.reset();
+        if (!request.seams) report.seams.reset();
+        if (!request.first_layer) report.first_layer.reset();
+        if (!request.islands) report.islands.reset();
+        last_slice_request = request;
+        return report;
     }
 
     void set_slice_report_for_testing(PlateId plate, SliceReport report)

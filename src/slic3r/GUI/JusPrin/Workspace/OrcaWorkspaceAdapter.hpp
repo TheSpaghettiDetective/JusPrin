@@ -9,6 +9,7 @@
 namespace Slic3r::GUI {
 class Job;
 class Plater;
+class PartPlate;
 }
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -41,7 +42,7 @@ public:
     WorkspaceHistory history() const override;
     CommandResult restore_history(std::uint64_t step, HistoryPoint point) override;
     CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override;
-    SliceReport   slice_report(PlateId plate) const override;
+    SliceReport   slice_report(PlateId plate, const SliceReportRequest& request = {}) const override;
     PresetListResult list_presets(const PresetQuery& query) const override;
     std::vector<PrinterDevice> printers() const override;
     SettingsSearchResult search_settings(const SettingsQuery& query) const override;
@@ -84,6 +85,8 @@ private:
     std::optional<std::size_t> region_object(const RegionRecord& record) const;
     void remove_region_artifacts(ModelObject& object, const RegionRecord& record);
     void generate_region_artifacts(ModelObject& object, RegionRecord& record);
+    // The slice checks of a report (OrcaSliceChecks.cpp).
+    void check_slice(PartPlate& plate, const SliceReportRequest& request, SliceReport& report) const;
     CommandResult change_regions(const std::vector<RegionRecord>& removed, const std::vector<RegionRecord>& added,
                                  const char* snapshot_name);
     void on_project_state_changed(const ProjectStateChanged& change);

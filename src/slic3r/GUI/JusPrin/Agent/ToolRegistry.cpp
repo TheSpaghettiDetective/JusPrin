@@ -509,14 +509,16 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true;
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 3)
+        if (!sections.is_array() || sections.empty() || sections.size() > 7)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "findings" && name != "material") || !seen.insert(name).second)
+            if ((name != "summary" && name != "findings" && name != "material" && name != "supports" && name != "seams" &&
+                 name != "firstLayer" && name != "islands") ||
+                !seen.insert(name).second)
                 return false;
         }
         return true;
@@ -1107,11 +1109,11 @@ std::vector<ToolDefinition> make_definitions()
                        {"items", "total", "nextCursor", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PresetsList},
         {"slice_report", "Check the sliced plate",
-         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors, the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them. A plate that has not been sliced says so rather than failing.",
+         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors, the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them. A plate that has not been sliced says so rather than failing.",
          object_schema({{"plateId", id}, {"sections", {{"type", "array"},
                                                        {"items", {{"type", "string"},
-                                                                  {"enum", json::array({"summary", "findings", "material"})}}},
-                                                       {"maxItems", 3}}}}),
+                                                                  {"enum", json::array({"summary", "findings", "material", "supports", "seams", "firstLayer", "islands"})}}},
+                                                       {"maxItems", 7}}}}),
          object_schema({{"valid", boolean_schema()}, {"plateId", id},
                         {"summary", object_schema({{"printTimeSeconds", integer_schema()},
                                                    {"prepareTimeSeconds", integer_schema()},
@@ -1135,6 +1137,32 @@ std::vector<ToolDefinition> make_definitions()
                                                     {"purgedMm3", number_schema()}, {"primeTowerMm3", number_schema()},
                                                     {"supportMm3", number_schema()}},
                                                    {"filamentChanges", "extruderChanges", "purgedMm3", "primeTowerMm3", "supportMm3"})},
+                        {"supports", object_schema({{"generated", boolean_schema()}, {"layers", integer_schema()},
+                                                    {"contacts", array_schema(object_schema({{"objectId", id}, {"object", string_schema()},
+                                                                                             {"regionId", id}, {"target", string_schema()},
+                                                                                             {"areaMm2", number_schema()}, {"layers", integer_schema()},
+                                                                                             {"at", vector3}},
+                                                                                            {"objectId", "object", "regionId", "target", "areaMm2", "layers", "at"}), 32)},
+                                                    {"truncated", boolean_schema()}},
+                                                   {"generated", "layers", "contacts", "truncated"})},
+                        {"seams", object_schema({{"count", integer_schema()},
+                                                 {"regions", array_schema(object_schema({{"regionId", id}, {"kind", id}, {"object", string_schema()},
+                                                                                         {"seams", integer_schema()}},
+                                                                                        {"regionId", "kind", "object", "seams"}), 32)},
+                                                 {"truncated", boolean_schema()}},
+                                                {"count", "regions", "truncated"})},
+                        {"firstLayer", object_schema({{"heightMm", number_schema()},
+                                                      {"objects", array_schema(object_schema({{"objectId", id}, {"object", string_schema()},
+                                                                                              {"contactAreaMm2", number_schema()}, {"brim", boolean_schema()}},
+                                                                                             {"objectId", "object", "contactAreaMm2", "brim"}), 32)},
+                                                      {"truncated", boolean_schema()}},
+                                                     {"heightMm", "objects", "truncated"})},
+                        {"islands", object_schema({{"items", array_schema(object_schema({{"objectId", id}, {"object", string_schema()},
+                                                                                         {"zMm", number_schema()}, {"areaMm2", number_schema()},
+                                                                                         {"supported", boolean_schema()}, {"at", vector3}},
+                                                                                        {"objectId", "object", "zMm", "areaMm2", "supported", "at"}), 32)},
+                                                   {"truncated", boolean_schema()}},
+                                                  {"items", "truncated"})},
                         {"sessionId", id}, {"revision", revision}},
                        {"valid", "plateId", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceReportRead},
