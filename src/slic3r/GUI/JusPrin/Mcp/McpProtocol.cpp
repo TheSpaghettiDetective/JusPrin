@@ -239,6 +239,8 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
         if (!definition || !Agent::ToolRegistry::instance().validate_output(*definition, content))
             throw std::logic_error("Tool result violates its canonical output schema: " + activity.tool);
         result = tool_result(content);
+        if (activity.image)
+            result["content"].push_back({{"type", "image"}, {"data", activity.image->base64}, {"mimeType", activity.image->mime_type}});
     } else {
         std::string code = "execution_failed", message = "Tool execution failed.";
         if (activity.state == ToolState::Rejected) { code = "approval_rejected"; message = "The user rejected this action in JusPrin."; }

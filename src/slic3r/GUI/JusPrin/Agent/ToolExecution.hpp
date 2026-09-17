@@ -8,6 +8,7 @@
 // page cannot special-case the deterministic mock. GUI-free.
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -74,6 +75,20 @@ struct ToolRequest
     std::string arguments_json; // typed arguments, serialized
 };
 
+// A picture a read returns beside its structured result: PNG or JPEG,
+// base64-encoded, at most 1280 pixels on its long edge and 2 MB. Held in
+// memory for the adapters to project; never written to the project.
+struct ToolImage
+{
+    std::string mime_type;
+    std::string base64;
+    int         width{0};
+    int         height{0};
+};
+
+inline constexpr int         kToolImageEdge  = 1280;
+inline constexpr std::size_t kToolImageBytes = 2 * 1024 * 1024;
+
 struct ToolActivity
 {
     std::string   action_id;      // coordinator-assigned, stable across reloads
@@ -90,6 +105,7 @@ struct ToolActivity
     int           progress_current{0};
     int           progress_total{1};
     std::string   result_json; // structured result when Succeeded
+    std::shared_ptr<const ToolImage> image; // a picture beside the result, when the tool returns one
     std::optional<ToolError> error;
     ToolSource source{ToolSource::Agent};
 };

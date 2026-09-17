@@ -9,6 +9,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
 #include "../jusprin_support/FakeProductState.hpp"
+#include "slic3r/GUI/JusPrin/Agent/IntentChecks.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
@@ -1917,4 +1918,47 @@ TEST_CASE("a slice started with wait returns when the run ends, without holding 
     CHECK(result["finished"] == true);
     CHECK(result["slicing"]["running"] == false);
     CHECK_FALSE(registry.validate_call(*registry.find("slice_start"), R"({"wait":"yes"})").valid());
+}
+
+TEST_CASE("the print intent's limits are read from its words", "[tools][intent][report]")
+{
+    CHECK(intent_seconds("under five hours") == 5 * 3600.0);
+    CHECK(intent_seconds("2 h 30 min") == 2 * 3600.0 + 1800);
+    CHECK(intent_seconds("an hour and a half") == 5400.0);
+    CHECK(intent_seconds("90 minutes") == 5400.0);
+    CHECK_FALSE(intent_seconds("decorative"));
+    CHECK_FALSE(intent_seconds("0.4 mm nozzle"));
+    CHECK(intent_grams("less than 50 g") == 50.0);
+    CHECK(intent_grams("0.2 kg at most") == 200.0);
+    CHECK(intent_money("at most $2.50") == 2.5);
+    CHECK(intent_money("under 3 euros") == 3.0);
+    CHECK(intent_money("\xE2\x82\xAC" "4") == 4.0);
+    CHECK(intent_is_floor("at least 2 hours of cooling"));
+}
+
+TEST_CASE("the slice report measures the slice against the print intent", "[tools][slicing][report][intent]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const auto plate = h.workspace.snapshot().plates.at(0).id;
+    store.set_print_intent({{"how long it may take", "under one hour", "", Provenance::UserConfirmed},
+                            {"filament", "less than 50 g", "", Provenance::UserConfirmed},
+                            {"what it is for", "decorative", "", Provenance::UserConfirmed},
+                            {"deadline", "", "When do you need it?", Provenance::AgentInferred}});
+    Workspace::SliceReport report;
+    report.print_time_seconds = 4500;
+    report.total_grams        = 23.5;
+    h.workspace.set_slice_report_for_testing(plate, report);
+    h.workspace.set_plate_sliced(plate, true);
+    const std::string action = h.coordinator.propose({"slice_report", json{{"sections", {"summary", "intent"}}}.dump()}, "m-1").action_id;
+    h.pump_to_completion(action);
+    const auto result = json::parse(h.coordinator.find(action)->result_json);
+    CHECK(registry.validate_output(*registry.find("slice_report"), result));
+    REQUIRE(result["intent"]["checks"].size() == 2);
+    const auto& time = result["intent"]["checks"][0]["kind"] == "time" ? result["intent"]["checks"][0] : result["intent"]["checks"][1];
+    CHECK(time == json{{"field", "how long it may take"}, {"value", "under one hour"}, {"kind", "time"},
+                       {"limit", 3600}, {"actual", 4500}, {"within", false}});
+    CHECK(result["intent"]["unchecked"] == json::array({"what it is for"}));
 }

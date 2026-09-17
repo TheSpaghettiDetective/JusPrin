@@ -186,6 +186,12 @@ bool OpenAIResponsesAgent::continue_after_tool(const AgentToolResult& result)
         return false;
     json input = m_input_history;
     input.push_back(json{{"type", "function_call_output"}, {"call_id", result.call_id}, {"output", result.output_json}});
+    // A function result is text only; the picture follows it as an image input.
+    if (result.image)
+        input.push_back(json{{"role", "user"},
+                             {"content", json::array({json{{"type", "input_text"}, {"text", "The image returned by call " + result.call_id + "."}},
+                                                      json{{"type", "input_image"},
+                                                           {"image_url", "data:" + result.image->mime_type + ";base64," + result.image->base64}}})}});
     m_waiting_for_tool = false;
     m_pending_call_id.clear();
     return post(std::move(input));

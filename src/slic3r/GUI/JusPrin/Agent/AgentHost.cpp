@@ -1797,6 +1797,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     result.call_id     = continuation.call_id;
     result.state       = tool_state_name(activity.state);
     result.output_json = output.dump();
+    result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {
         begin_tool_followup(continuation);
         fail_stream(AgentError{"agent_continuation_failed", "The Agent could not receive the native tool result.", true});

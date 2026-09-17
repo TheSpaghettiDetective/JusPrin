@@ -184,3 +184,18 @@ TEST_CASE("the MCP catalog's advertised size is recorded", "[mcp][protocol][budg
     for (const json& tool : listed)
         CHECK_FALSE(tool.contains("outputSchema"));
 }
+
+TEST_CASE("an image result is projected as an MCP image block beside the structured result", "[mcp][protocol][image]")
+{
+    Agent::ToolActivity activity;
+    activity.action_id   = "t-1";
+    activity.tool        = "workspace_inspect";
+    activity.state       = Agent::ToolState::Succeeded;
+    activity.result_json = Agent::workspace_inspection(Workspace::WorkspaceSnapshot{}).dump();
+    activity.image       = std::make_shared<Agent::ToolImage>(Agent::ToolImage{"image/png", "iVBORw0KGgo=", 2, 1});
+    const json result = Mcp::activity_result(activity, Workspace::WorkspaceSnapshot{});
+    REQUIRE(result["content"].size() == 2);
+    CHECK(result["content"][0]["type"] == "text");
+    CHECK(result["content"][1] == json{{"type", "image"}, {"data", "iVBORw0KGgo="}, {"mimeType", "image/png"}});
+    CHECK(result.contains("structuredContent"));
+}

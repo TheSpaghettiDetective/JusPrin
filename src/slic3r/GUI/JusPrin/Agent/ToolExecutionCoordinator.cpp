@@ -1,4 +1,5 @@
 #include "ToolExecutionCoordinator.hpp"
+#include "IntentChecks.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
@@ -1458,7 +1459,11 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                    [name](const json& value) { return value == name; });
             };
             sections = {asked("summary"), asked("findings"), asked("material"), asked("supports"),
-                        asked("seams"),   asked("firstLayer"), asked("islands")};
+                        asked("seams"),   asked("firstLayer"), asked("islands"),  asked("intent")};
+        }
+        if (sections.intent && m_product_state == nullptr) {
+            fail(activity, "unavailable_operation", "This build cannot read the print intent.");
+            return;
         }
         Workspace::SliceReportRequest request;
         request.supports    = sections.supports;
@@ -1468,7 +1473,23 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         // The support and seam checks name the regions they cross.
         if ((request.supports || request.seams) && m_product_state != nullptr)
             request.regions = m_product_state->regions();
-        activity.result_json = slice_report_result(m_workspace.slice_report(*plate, request), *plate, snapshot, sections).dump();
+        const Workspace::SliceReport report = m_workspace.slice_report(*plate, request);
+        json result = slice_report_result(report, *plate, snapshot, sections);
+        if (sections.intent && report.valid) {
+            std::vector<std::string> unchecked;
+            const auto checks = check_intent(m_product_state->print_intent(), report.print_time_seconds, report.total_grams,
+                                             report.has_cost ? std::optional<double>(report.total_cost) : std::nullopt, unchecked);
+            json rows = json::array();
+            for (const IntentCheck& check : checks)
+                if (rows.size() < 32)
+                    rows.push_back({{"field", check.field}, {"value", check.value}, {"kind", check.kind},
+                                    {"limit", std::round(check.limit * 100) / 100}, {"actual", std::round(check.actual * 100) / 100},
+                                    {"within", check.within}});
+            if (unchecked.size() > 32)
+                unchecked.resize(32);
+            result["intent"] = {{"checks", std::move(rows)}, {"unchecked", unchecked}};
+        }
+        activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
         return;

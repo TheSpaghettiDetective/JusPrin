@@ -430,3 +430,22 @@ TEST_CASE("the in-app catalog's per-turn size is recorded", "[agent][openai][bud
     CHECK(body["tools"].size() <= 40);
     CHECK(bytes <= 32 * 1024);
 }
+
+TEST_CASE("an image result follows its function output as an image input", "[agent][openai][image]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json call{{"type", "function_call"}, {"call_id", "call-img"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    AgentToolResult result{"call-img", "succeeded", R"({"state":"succeeded"})"};
+    result.image = std::make_shared<ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 1});
+    REQUIRE(agent.continue_after_tool(result));
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() >= 2);
+    CHECK(input[input.size() - 2]["type"] == "function_call_output");
+    CHECK(input.back()["role"] == "user");
+    CHECK(input.back()["content"][1] == json{{"type", "input_image"}, {"image_url", "data:image/png;base64,iVBORw0KGgo="}});
+}

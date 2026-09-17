@@ -71,6 +71,7 @@ struct SliceReportSections
     bool seams{false};
     bool first_layer{false};
     bool islands{false};
+    bool intent{false};
 };
 
 nlohmann::json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateId plate,

@@ -67,6 +67,7 @@ struct AgentToolResult
     std::string call_id;
     std::string state;
     std::string output_json;
+    std::shared_ptr<const ToolImage> image;
 };
 
 enum class AgentEventKind : std::uint8_t { TextDelta, ToolCall, Completed, Failed };
