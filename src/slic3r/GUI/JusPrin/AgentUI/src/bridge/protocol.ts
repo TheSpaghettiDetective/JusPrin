@@ -415,7 +415,7 @@ export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
-  kind: 'tip' | 'network' | 'printers' | 'unsupported';
+  kind: 'tip' | 'network' | 'printers' | 'unsupported' | 'offline';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
   // 'printers' only: false once a newer answer, or the person's own "Not
   // this one", has superseded it -- it then draws as one grey line per card.
@@ -423,6 +423,8 @@ export interface PrinterBlock {
   // 'unsupported' only: reason the agent gave. Always "not_listed" -- the
   // panel draws nothing for "not_fdm" beyond the agent's own sentence.
   reason?: 'not_listed';
+  // 'offline': the network device a live proposal card names stopped
+  // answering between "Use this" and Add. The card itself stays as it was.
 }
 
 // printer_suggest's own offers only now: adding and rejecting a proposal

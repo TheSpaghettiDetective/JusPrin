@@ -2211,6 +2211,26 @@ button.wide {
   color: var(--text-secondary);
 }
 
+/* WP11: one red line with its fix, as a chip either way. The card above
+   (the proposal, or the network row) is untouched by this. */
+.printer-failure {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--status-danger);
+}
+
+.printer-failure-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.printer-failure-action {
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+}
+
 .printer-chips {
   display: flex;
   flex-wrap: wrap;

@@ -70,7 +70,10 @@ export function CameraGlyph({ className }: { className: string }) {
 
 export interface PrinterBlockProps {
   block: PrinterBlock;
-  onAction: (action: 'network_pick' | 'candidate_pick' | 'add' | 'reject' | 'browse' | 'manual_setup', id: string) => void;
+  onAction: (
+    action: 'network_pick' | 'candidate_pick' | 'add' | 'add_anyway' | 'reject' | 'browse' | 'manual_setup',
+    id: string,
+  ) => void;
 }
 
 // Brand on its own small line, model bold beneath it: never one joined
@@ -143,6 +146,25 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
           </span>
           <span aria-hidden="true">›</span>
         </button>
+      </div>
+    );
+
+  // The network find a live proposal card names went quiet between "Use
+  // this" and Add (WP11): the card above is untouched, this is the one red
+  // line with its fix, as a chip either way -- never silently added or
+  // refused.
+  if (block.kind === 'offline')
+    return (
+      <div className="printer-failure">
+        <span>It stopped answering. Add it anyway, or check that it’s on.</span>
+        <div className="printer-failure-actions">
+          <button type="button" className="printer-quiet-button printer-failure-action" onClick={() => onAction('add_anyway', '')}>
+            Add it anyway
+          </button>
+          <button type="button" className="printer-quiet-button" onClick={() => onAction('add', '')}>
+            Check again
+          </button>
+        </div>
       </div>
     );
 

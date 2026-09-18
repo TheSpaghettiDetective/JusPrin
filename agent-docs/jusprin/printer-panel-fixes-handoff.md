@@ -173,6 +173,10 @@ No code changed for this item. Whoever picks it up next: try to reproduce live f
 
 Not one of the 25 findings: the test never hit them. If `20j` is drawn, build what it shows. Otherwise leave today's behaviour and list these as open for Kenneth: the agent request fails; a network printer stops answering between "Use this" and Add. The nearest rule in the design log is turn 14's, written for the "Connect AI tools" flow: errors one at a time, each with its fix. Whether it applies here is Kenneth's call; keep the pinned card and existing cards in place either way.
 
+**`20j` exists — built 2026-09-18, both states.**
+- **The network printer stopping between "Use this" and Add.** New: `PrinterConversation::add_proposed_printer` re-checks `network_printers()` for the proposal's device id right before adding (only when the proposal came from a network pick; a typed or photo-identified printer has no device to lose). Still offline: the proposal card is left exactly as it was (still live, still "Add this printer") and a new `offline`-kind block draws "It stopped answering. Add it anyway, or check that it's on." with two chips -- "Add it anyway" (`add_anyway`, adds regardless, keeping what it already reported) and "Check again" (reuses the plain `add` action, so a now-online printer just adds). A repeat "Check again" replaces the notice rather than stacking a second line.
+- **The agent's request failed.** Left as the existing generic mechanism: a failed assistant turn already renders `message.error.message` with a "Retry" button when `error.retryable` (`MessageList.tsx`), and `onRetry` was already wired into the printer panel's `MessageList` call. This is functionally the wireframe's "Try again" -- one line with its fix, nothing else in the panel changes -- with the app's existing generic copy ("Retry") rather than 20j's exact wording ("Try again"). Did not fork the generic error-rendering path or its copy for this one panel; if the wording match matters, that's a one-word copy change in a shared component, not new behavior.
+
 ---
 
 ## 3. Verification

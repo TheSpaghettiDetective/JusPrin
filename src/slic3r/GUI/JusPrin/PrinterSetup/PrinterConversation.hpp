@@ -140,7 +140,9 @@ private:
     nlohmann::json suggest(const nlohmann::json& arguments);
     nlohmann::json change(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
 
-    void add_proposed_printer(const std::string& access_code);
+    // `force` skips the still-online check (WP11's "Add it anyway"); a plain
+    // Add or "Check again" tap both call this with force false.
+    void add_proposed_printer(const std::string& access_code, bool force = false);
     void use_network_printer(const std::string& device_id);
     void choose_candidate(const std::string& catalog_id);
     void reject_proposal();
@@ -172,6 +174,10 @@ private:
     PinnedFact m_printer_fact, m_nozzle, m_plate, m_filament;
 
     PrinterProposal m_proposal;
+    // Where the live proposal card was drawn: a card the "Use this" flow
+    // finds stopped answering (WP11) draws its own failure block under the
+    // same message, rather than a new one no turn actually produced.
+    std::string     m_proposal_message_id;
     // The cards the agent has drawn in the thread, oldest first.
     nlohmann::json  m_blocks   = nlohmann::json::array();
     nlohmann::json  m_chips    = nlohmann::json::array();

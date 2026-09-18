@@ -484,6 +484,70 @@ TEST_CASE("the device Use this named is attached to the next proposal, not asked
     CHECK(backend.added.back().device_id.empty());
 }
 
+TEST_CASE("a network printer that stopped answering is neither added nor refused", "[printer-conversation]")
+{
+    FakeBackend     backend;
+    RecordingPanel  panel;
+    backend.network = {found_a1()};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}});
+    propose_one(conversation, "BBL/Bambu Lab A1 mini", json{{"provenance", "settled"}});
+
+    // It went quiet between "Use this" and this tap.
+    backend.network.front().connected = false;
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    CHECK(backend.added.empty());
+    CHECK(panel.closes == 0);
+
+    const json blocks = conversation.state_json().at("blocks");
+    const json& offline = blocks.back();
+    CHECK(offline.at("kind") == "offline");
+    // The proposal card itself is untouched: still live, still addable.
+    const json& card = blocks[blocks.size() - 2];
+    CHECK(card.at("kind") == "printers");
+    CHECK(card.at("live") == true);
+
+    // "Check again" while it is still quiet redraws the same notice, not a
+    // second one stacked under the first.
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    CHECK(backend.added.empty());
+    const json after_recheck = conversation.state_json().at("blocks");
+    CHECK(after_recheck.back().at("kind") == "offline");
+    int offline_blocks = 0;
+    for (const json& block : after_recheck)
+        if (block.at("kind") == "offline")
+            ++offline_blocks;
+    CHECK(offline_blocks == 1);
+
+    // "Add it anyway" keeps what it already reported and adds regardless.
+    conversation.handle_page_message("printer_action", json{{"action", "add_anyway"}});
+    REQUIRE(backend.added.size() == 1);
+    CHECK(backend.added.front().device_id == "01P00A3B");
+    CHECK(panel.closes == 1);
+}
+
+TEST_CASE("\"Check again\" adds once the network printer answers again", "[printer-conversation]")
+{
+    FakeBackend     backend;
+    RecordingPanel  panel;
+    backend.network = {found_a1()};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}});
+    propose_one(conversation, "BBL/Bambu Lab A1 mini", json{{"provenance", "settled"}});
+    backend.network.front().connected = false;
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    CHECK(backend.added.empty());
+
+    backend.network.front().connected = true;
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    REQUIRE(backend.added.size() == 1);
+    CHECK(backend.added.front().device_id == "01P00A3B");
+}
+
 TEST_CASE("a printer that has left the network says so instead", "[printer-conversation]")
 {
     FakeBackend         backend;

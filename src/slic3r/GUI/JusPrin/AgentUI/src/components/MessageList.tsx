@@ -44,7 +44,7 @@ interface Props {
   // it, the way history entries are. Absent everywhere else.
   printerBlocks?: PrinterBlock[];
   onPrinterAction?: (
-    action: 'network_pick' | 'candidate_pick' | 'add' | 'reject' | 'browse' | 'manual_setup',
+    action: 'network_pick' | 'candidate_pick' | 'add' | 'add_anyway' | 'reject' | 'browse' | 'manual_setup',
     id: string,
   ) => void;
   // "Answered · nothing changed" is about the open project, which the printer

@@ -494,6 +494,7 @@ json PrinterConversation::identify(const json& arguments, const std::string& mes
     // "Bambu Lab X1 Carbon"); prefixing vendor_name again doubled it, both
     // in the saved printer's name and the pinned card ("Bambulab Bambu Lab
     // X1 Carbon").
+    m_proposal_message_id = message_id;
     m_proposal = PrinterProposal{true,
                                  printer.vendor_id,
                                  printer.model_id,
@@ -605,6 +606,8 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         }
     } else if (action == "add")
         add_proposed_printer(payload.value("accessCode", std::string()));
+    else if (action == "add_anyway")
+        add_proposed_printer(payload.value("accessCode", std::string()), /*force=*/true);
     else if (action == "network_pick")
         use_network_printer(id);
     else if (action == "candidate_pick")
@@ -626,10 +629,33 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
     return true;
 }
 
-void PrinterConversation::add_proposed_printer(const std::string& access_code)
+void PrinterConversation::add_proposed_printer(const std::string& access_code, bool force)
 {
     if (!m_proposal.valid)
         return;
+
+    // A network find can stop answering between "Use this" and this tap
+    // (WP11); what it already reported is kept either way, so the person
+    // decides rather than the app silently adding or refusing.
+    if (!force && !m_proposal.device_id.empty()) {
+        const std::vector<DiscoveredPrinter> found = m_backend.network_printers();
+        const bool still_online = std::any_of(found.begin(), found.end(), [this](const DiscoveredPrinter& printer) {
+            return printer.stable_id == m_proposal.device_id && printer.connected;
+        });
+        if (!still_online) {
+            // A repeated "Check again" replaces the notice rather than
+            // stacking a new line under the card each time.
+            m_blocks.erase(std::remove_if(m_blocks.begin(), m_blocks.end(),
+                                          [](const json& block) { return block.value("kind", std::string()) == "offline"; }),
+                           m_blocks.end());
+            m_blocks.push_back(json{{"id", "b" + std::to_string(m_next_block++)},
+                                    {"seq", m_blocks.size() + 1},
+                                    {"afterMessageId", m_proposal_message_id},
+                                    {"kind", "offline"}});
+            m_host.session_changed();
+            return;
+        }
+    }
 
     AddPrinterRequest request;
     request.vendor_id   = m_proposal.vendor_id;

@@ -171,6 +171,19 @@ describe('the cards the agent draws', () => {
     await userEvent.click(screen.getByText('Set it up myself'));
     expect(onAction).toHaveBeenCalledWith('manual_setup', '');
   });
+
+  // WP11: a network find that went quiet between "Use this" and Add draws
+  // one red line with its fix, as a chip either way.
+  it('offers to add anyway or check again when the network printer went quiet', async () => {
+    const onAction = vi.fn();
+    render(<PrinterBlockView block={{ id: 'b5', seq: 5, afterMessageId: 'm1', kind: 'offline' }} onAction={onAction} />);
+
+    expect(screen.getByText('It stopped answering. Add it anyway, or check that it’s on.')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Add it anyway'));
+    expect(onAction).toHaveBeenCalledWith('add_anyway', '');
+    await userEvent.click(screen.getByText('Check again'));
+    expect(onAction).toHaveBeenCalledWith('add', '');
+  });
 });
 
 describe('the chips', () => {
