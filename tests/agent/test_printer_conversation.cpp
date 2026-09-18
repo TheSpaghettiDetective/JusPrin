@@ -178,6 +178,28 @@ TEST_CASE("the session offers only its own tools and not the project", "[printer
     CHECK(profile.instructions.find("Creality/Ender-3 V2 | 180 × 180 × 180 mm") != std::string::npos);
 }
 
+TEST_CASE("the opener and the instructions both say connecting is not this panel's job", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation adding(backend, panel);
+    adding.start(ConversationMode::Add);
+
+    CHECK(adding.opening_message().find("connecting comes later") != std::string::npos);
+    CHECK(adding.state_json().at("placeholder") == "e.g. \"bambu a1 mini\"");
+    CHECK(adding.profile().instructions.find("not something you can do from this panel") != std::string::npos);
+
+    SavedPrinter saved;
+    saved.name    = "Lab Printer";
+    backend.saved = {saved};
+    PrinterConversation changing(backend, panel);
+    changing.start(ConversationMode::Change, "Lab Printer");
+
+    CHECK(changing.state_json().at("placeholder") == "e.g. \"I swapped the plate\"");
+    CHECK(changing.opening_message().find("connection") == std::string::npos);
+    CHECK(changing.profile().instructions.find("not something you can do from this panel") != std::string::npos);
+}
+
 TEST_CASE("a proposal fills the pinned card and draws the printer", "[printer-conversation]")
 {
     FakeBackend         backend;

@@ -115,14 +115,15 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
 
     if (m_mode == ConversationMode::Change) {
         read_saved_printer();
-        m_placeholder = "e.g. \"I swapped the plate\" or \"is it connected?\"";
+        // One line, short enough not to clip mid-word in the panel's width.
+        m_placeholder = "e.g. \"I swapped the plate\"";
     } else {
         // The whole catalogue goes in the agent's prompt (see profile()) and
         // is kept here so a catalogId it answers with can be validated and
         // drawn without asking Orca again.
         m_catalog = m_backend.catalog_models();
         refresh_network();
-        m_placeholder = "e.g. \"bambu a1 mini\" or \"not sure, the small one\"";
+        m_placeholder = "e.g. \"bambu a1 mini\"";
         // A photo is the fastest way in, and the printers already on the
         // network are the fastest of all. Both belong under the opening,
         // where the person is deciding what to say.
@@ -188,7 +189,9 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
         << "You are JusPrin's printer assistant, in the printer panel on the Home screen. "
            "Keep every turn to one or two short sentences of plain language: no lists, no headings, and never read the pinned card back. "
            "The panel above the thread pins four facts -- Printer, Nozzle, Plate, Filament -- and you fill them only by calling printer_identify. "
-           "Offer what to do next with printer_suggest: up to three specific actions such as \"Use 0.3 mm layers\", never a bare Yes or No. ";
+           "Offer what to do next with printer_suggest: up to three specific actions such as \"Use 0.3 mm layers\", never a bare Yes or No. "
+           "This session has no way to connect a printer and no setup tutorial to give: never offer to connect one or walk through its "
+           "network setup. If asked, say in one sentence that connecting is not something you can do from this panel. ";
 
     if (m_mode == ConversationMode::Add) {
         instructions
@@ -245,7 +248,7 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
             instructions << ", " << m_filament.value;
         instructions
             << (m_printer.connected ? ", connected to this app." : ", not connected to this app.")
-            << "\nThey tell you what changed on it, or ask about it: nozzle, plate, spools, connection. Apply a change with printer_change; "
+            << "\nThey tell you what changed on it, or ask about it: nozzle, plate, spools. Apply a change with printer_change; "
                "it asks the person to approve that change on a card, so say what it now is only after the result says it was applied.\n"
                "The plate belongs to each project rather than to the printer, so a plate change is made in the project; say so if it comes up.";
     }
@@ -260,10 +263,15 @@ std::string PrinterConversation::opening_message() const
     // with a network round trip would open on an empty thread.
     if (m_mode == ConversationMode::Change) {
         const std::string name = m_printer_fact.value.empty() ? std::string("this printer") : m_printer_fact.value;
+        // Connecting is not something this panel can do (F7): the opener
+        // does not invite the question it would then have to decline.
         return "This is the " + name +
-               ". Tell me what changed on it, or ask anything about it: nozzle, plate, spools, connection. A photo of the part works too.";
+               ". Tell me what changed on it, or ask anything about it: nozzle, plate, spools. A photo of the part works too.";
     }
-    return "What printer do you have? Say it any way: \"bambu a1 mini\", \"the ender with the touchscreen\", \"not sure, the small one\".";
+    // Says what adding does and does not do, before asking anything, so the
+    // person is not later told "connecting comes later" as a surprise.
+    return "I'll add your printer so your projects slice for it; connecting comes later. What printer do you have? Say it any way: "
+          "\"bambu a1 mini\", \"the ender with the touchscreen\", \"not sure, the small one\".";
 }
 
 json PrinterConversation::state_json() const
