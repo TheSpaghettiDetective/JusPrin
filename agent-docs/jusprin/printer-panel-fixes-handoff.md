@@ -145,9 +145,16 @@ Reference: 18f in the same design file; `20h` if drawn.
 
 Today the panel opens the normal Add conversation with the composer disabled ("The Agent is not available") and nothing to do. Kenneth decided this state shows the same embedded agent-setup page the old dialog used (an `AgentWebView` loaded with `?embedded=1`; see `J/AgentUI/src/main.tsx`, and the `CallAfter` teardown note in `J/PrinterSetup/PrinterPanel.cpp`). The same applies when the only agent is an external AI tool connected over MCP. Keep the parts that need no agent live beside it: "Found on your network" rows and "Browse the full list". When setup completes, the panel becomes the Add opener (or the Change opener).
 
-### WP9 — Duplicated assistant text (F14)
+### WP9 — Duplicated assistant text (F14) — not reproduced, no fix applied (2026-09-18)
 
 Once, a reply rendered twice, concatenated with no space: `…and I'll match it.Okay—tell me…`. Seen after tapping "Not this one". Reproduce before fixing (house rule: no fix for a bug you cannot reproduce); suspect the stream-to-message merge in the Agent page or host.
+
+Investigated two concrete hypotheses instead of guessing at a fix, screen locked so live click-through wasn't possible:
+1. **Overlapping streams.** `AgentHost::begin_stream` (`AgentHost.cpp`) sets `m_stream = std::move(stream)` unconditionally, with no guard against a stream already being active -- a real gap. But traced the actual "Not this one" path (`reject_proposal` → `ask_agent` → `AgentHost::open_session` → `begin_reply`) and found `handle_agent_tool_call` already resets `m_stream` and marks the message Complete *before* `printer_identify`'s card (and its "Not this one" button) is ever drawn -- so by the time there's a button to tap, the prior stream is already settled. This path shouldn't be able to hit the overlap.
+2. **Frontend delta merge.** `AgentUI/src/state/store.ts`'s `assistant_delta` case already dedupes by sequence number (`seq <= message.lastSeq` is dropped) and `assistant_started` resets `text: ''` even for an existing message id -- no obvious double-append there either.
+3. A third, unconfirmed possibility worth a live check: two *separate* messages (an old one left stuck mid-stream, a new one from a second `begin_reply`) rendering as adjacent assistant bubbles with no visual gap between them would look exactly like one concatenated string, without either message's own text actually being corrupted. Couldn't test this without the live app.
+
+No code changed for this item. Whoever picks it up next: try to reproduce live first (screen access is what this session lacked, not a rejected hypothesis), and if it reproduces, check `MessageList.tsx`'s bubble-grouping logic for consecutive assistant messages before assuming the same message's text is actually corrupted.
 
 ### WP10 — Leaving the conversation (F10)
 
