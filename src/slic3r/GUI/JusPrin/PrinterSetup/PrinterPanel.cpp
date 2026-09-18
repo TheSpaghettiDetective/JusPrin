@@ -20,6 +20,11 @@ namespace {
 constexpr int kPumpIntervalMs = 33;
 constexpr int kPumpTimerId    = wxID_HIGHEST + 1803;
 
+// How often a torn-down web view that could not be destroyed yet is looked at
+// again.
+constexpr int kReleaseRetryMs = 50;
+constexpr int kReleaseTimerId = wxID_HIGHEST + 1804;
+
 } // namespace
 
 PrinterPanel::PrinterPanel(wxWindow*              parent,
@@ -39,12 +44,18 @@ PrinterPanel::PrinterPanel(wxWindow*              parent,
     // conversation-host side private.
     , m_conversation(new PrinterConversation(*m_backend, static_cast<IConversationHost&>(*this)))
     , m_pump(this, kPumpTimerId)
+    , m_release_timer(this, kReleaseTimerId)
 {
     SetSizer(new wxBoxSizer(wxVERTICAL));
     Bind(wxEVT_TIMER, &PrinterPanel::on_pump, this, kPumpTimerId);
+    Bind(wxEVT_TIMER, &PrinterPanel::on_release_retired, this, kReleaseTimerId);
 }
 
-PrinterPanel::~PrinterPanel() { m_pump.Stop(); }
+PrinterPanel::~PrinterPanel()
+{
+    m_pump.Stop();
+    m_release_timer.Stop();
+}
 
 void PrinterPanel::build_runtime()
 {
@@ -95,12 +106,42 @@ void PrinterPanel::tear_down_runtime()
     if (!m_web_view)
         return;
     GetSizer()->Detach(m_web_view.get());
+
+    // On macOS a new web view installs its script message handler from a
+    // CallAfter (WebView::CreateWebView), and wx waits for WebKit's reply to
+    // that install inside a nested event loop, with the app's
+    // is_adding_script_handler() flag set until it returns. A view destroyed
+    // during that wait is called back by WebKit after it is gone, and the app
+    // crashes. So while any view is mid-install, this runtime is hidden, cut
+    // off from the session, and destroyed once the install is over -- the same
+    // wait GUI_App::run_wizard makes.
+    if (wxGetApp().is_adding_script_handler()) {
+        m_web_view->Hide();
+        Agent::AgentHost& host = m_web_view->host();
+        host.set_session_state_provider({});
+        host.set_page_message_handler({});
+        host.set_session_tool_executor({});
+        host.set_setup_completed_listener({});
+        m_retired.push_back({std::move(m_persistence), std::move(m_web_view)});
+        m_release_timer.StartOnce(kReleaseRetryMs);
+        return;
+    }
+
     // Deleted here rather than handed to wx: the host inside it holds this
     // session's document by reference, and that document goes next. Both
     // callers are outside the view's own event handling -- open() comes from
     // the shell, close() from a CallAfter -- which is what makes this safe.
     m_web_view.reset();
     m_persistence.reset();
+}
+
+void PrinterPanel::on_release_retired(wxTimerEvent&)
+{
+    if (wxGetApp().is_adding_script_handler()) {
+        m_release_timer.StartOnce(kReleaseRetryMs);
+        return;
+    }
+    m_retired.clear();
 }
 
 void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)

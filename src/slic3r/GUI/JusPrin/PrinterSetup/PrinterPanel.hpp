@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace Slic3r::GUI { class Plater; }
 namespace Slic3r::GUI::JusPrin::Workspace { class SpoolStore; }
@@ -74,6 +75,15 @@ private:
     void build_runtime();
     void tear_down_runtime();
     void on_pump(wxTimerEvent& event);
+    void on_release_retired(wxTimerEvent& event);
+
+    // A torn-down runtime whose web view cannot be destroyed yet; see
+    // tear_down_runtime. The view goes first: its host holds the document.
+    struct RetiredRuntime
+    {
+        std::unique_ptr<Agent::ProjectPersistence> persistence;
+        std::unique_ptr<AgentWebView>              web_view;
+    };
 
     const ShellTheme&      m_theme;
     bool                   m_dark{false};
@@ -84,7 +94,9 @@ private:
     std::unique_ptr<PrinterConversation>      m_conversation;
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     std::unique_ptr<AgentWebView>             m_web_view;
+    std::vector<RetiredRuntime>               m_retired;
     wxTimer                                   m_pump;
+    wxTimer                                   m_release_timer;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup
