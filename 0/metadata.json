@@ -1,0 +1,74 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2VENNCAZ4DJVSY1DJ8XYH35",
+  "session_id": "81c54418-2f00-4c26-a129-4ddda1795da2",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-18T23:47:21.13431Z",
+  "branch": "claude/printer-panel-exit-crash",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "e3f9618de403",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 150,
+    "cache_creation_tokens": 336755,
+    "cache_read_tokens": 10552732,
+    "output_tokens": 52291,
+    "api_call_count": 76
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-18T23:47:21.061716Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 0,
+    "total_lines_changed": 1,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 4731,
+      "user_lines_removed": 5,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/README.md": 5,
+        "agent-docs/jusprin/README.md": 30,
+        "agent-docs/jusprin/architecture.md": 167,
+        "agent-docs/jusprin/design-system.md": 285,
+        "agent-docs/jusprin/engineering-method.md": 183,
+        "agent-docs/jusprin/fork-stewardship.md": 184,
+        "agent-docs/jusprin/mcp-tool-extension-guide.md": 924,
+        "agent-docs/jusprin/orca-feature-discovery.md": 843,
+        "agent-docs/jusprin/orca-integration-guide.md": 616,
+        "agent-docs/jusprin/poc-reference.md": 121,
+        "agent-docs/jusprin/product-definition.md": 845,
+        "agent-docs/macos-build-troubleshooting.md": 132,
+        "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp": 42,
+        "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp": 12,
+        "tests/shell/shell_harness.cpp": 49
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp": 1,
+        "tests/shell/shell_harness.cpp": 4
+      }
+    }
+  ]
+}
