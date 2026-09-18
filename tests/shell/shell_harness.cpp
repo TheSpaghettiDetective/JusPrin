@@ -1475,9 +1475,17 @@ private:
         // The printer half opens the printer menu; the spool half's row menu
         // is where Filament settings… now lives, one step in from the list.
         if (type == Preset::TYPE_PRINTER) {
+            // Printer settings… talks about the selected printer in the
+            // printer conversation on Home. Only a printer saved under a name
+            // can be changed there, so one is saved from the fixture's own
+            // profile and selected for the length of the check.
+            m_header_setup_restore_printer = wxGetApp().preset_bundle->printers.get_selected_preset_name();
+            m_header_setup_printer         = Printers::add_named_printer(*m_plater, "Header Printer", {});
+            check(SetupCommands::current_printer().nickname.ToStdString() == m_header_setup_printer,
+                  "header_setup_named_printer_selected");
             installed_shell()->status_row()->open_printer_menu();
             choose_header_item(ui_name("Printer settings…"),
-                [self=shared_from_this(),type] { self->verify_header_setup_open(type); });
+                [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
             return;
         }
         installed_shell()->status_row()->open_spool_menu();
@@ -1768,16 +1776,51 @@ private:
         check(chip_label(row, "Spool") == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
     }
 
+    // Since 0e55c4f9be the header's Printer settings… opens the printer
+    // conversation in Home's printers column, not Orca's settings window.
+    void verify_header_printer_settings_open()
+    {
+        wait_until([this] {
+                PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+                return panel != nullptr && panel->IsShown() && m_notebook->GetSelection() == MainFrame::tpHome;
+            }, "header_printer_settings_opens_printer_conversation_on_home",
+            [self=shared_from_this()] {
+                PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+                const nlohmann::json session = panel->session_json();
+                self->check(session.value("mode", "") == "change" &&
+                                session["facts"]["printer"].value("value", "") == self->m_header_setup_printer,
+                            "header_printer_settings_is_about_the_selected_printer");
+                self->check(!wxGetApp().params_dialog()->IsShown(), "header_printer_settings_leaves_settings_window_closed");
+                panel->close();
+                self->wait_until([panel] { return !panel->IsShown(); }, "header_printer_conversation_closes",
+                    [self] {
+                        installed_shell()->status_row()->request_prepare();
+                        self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor &&
+                                                         !self->m_plater->is_preview_shown(); },
+                            "header_printer_settings_returns_to_prepare", [self] {
+                                self->check(Printers::remove_named_printer(*self->m_plater, nullptr,
+                                                                          self->m_header_setup_printer).empty(),
+                                            "header_setup_named_printer_removed");
+                                SetupCommands::select_printer_preset(*self->m_plater, self->m_header_setup_restore_printer);
+                                self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() ==
+                                                self->m_header_setup_restore_printer,
+                                            "header_setup_fixture_printer_restored");
+                                self->verify_header_setup(Preset::TYPE_FILAMENT);
+                            });
+                    });
+            });
+    }
+
+    // Filament settings… still opens Orca's settings window on its tab.
     void verify_header_setup_open(Preset::Type type)
     {
-        const std::string kind = type == Preset::TYPE_PRINTER ? "printer" : "filament";
+        const std::string kind = "filament";
         wait_until([] { return wxGetApp().params_dialog()->IsShown(); },"header_setup_opens_" + kind + "_editor",
             [self=shared_from_this(),type,kind] {
                 self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
                             "header_setup_selects_" + kind + "_tab");
                 wxGetApp().params_dialog()->Close();
-                if (type == Preset::TYPE_PRINTER) self->verify_header_setup(Preset::TYPE_FILAMENT);
-                else self->verify_header_overflow();
+                self->verify_header_overflow();
             });
     }
 
@@ -4445,6 +4488,8 @@ private:
     std::unique_ptr<JusPrinTest::NativeMcpClient> m_mcp_client;
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
+    std::string                   m_header_setup_printer;
+    std::string                   m_header_setup_restore_printer;
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
