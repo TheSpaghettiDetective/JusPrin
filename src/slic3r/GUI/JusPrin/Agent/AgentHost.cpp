@@ -108,6 +108,17 @@ json activity_json(const ToolActivity& activity)
         result["planId"] = activity.plan_id;
     if (!activity.plan_scope.empty())
         result["planScope"] = activity.plan_scope;
+    // A call the session previewed at proposal time: the card draws this
+    // instead of the tool's name and server. Absent for every other call.
+    if (!activity.subtitle.empty()) {
+        result["subtitle"] = activity.subtitle;
+        if (!activity.consequence.empty())
+            result["consequence"] = activity.consequence;
+        if (!activity.accept_label.empty())
+            result["acceptLabel"] = activity.accept_label;
+        if (!activity.decline_label.empty())
+            result["declineLabel"] = activity.decline_label;
+    }
     if (!activity.result_json.empty())
         result["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
@@ -523,6 +534,11 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                 return result;
         }
         return execute_manufacturing_tool(handler, activity);
+    });
+    m_tools.set_approval_preview_executor([this](ToolHandler handler, const ToolActivity& activity) -> std::optional<ApprovalPreview> {
+        if (!m_session_approval_preview)
+            return std::nullopt;
+        return m_session_approval_preview(handler, activity);
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
         // The last word of an action that replaced the project belongs to the

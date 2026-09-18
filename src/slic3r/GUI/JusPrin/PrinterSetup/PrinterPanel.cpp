@@ -74,6 +74,9 @@ void PrinterPanel::build_runtime()
     host.set_session_tool_executor([this](Agent::ToolHandler handler, const Agent::ToolActivity& activity) {
         return m_conversation->execute_tool(handler, activity);
     });
+    host.set_session_approval_preview([this](Agent::ToolHandler handler, const Agent::ToolActivity& activity) {
+        return m_conversation->preview_approval(handler, activity);
+    });
     // Setting the agent up in here is the same act as setting it up anywhere
     // else; the rest of the shell has to look again afterwards.
     host.set_setup_completed_listener([this] {

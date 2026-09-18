@@ -597,6 +597,66 @@ TEST_CASE("a nozzle change goes through the backend and says it changed", "[prin
     CHECK(panel.refreshes == 1);
 }
 
+TEST_CASE("a pending nozzle change previews its own card", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    SavedPrinter   saved;
+    saved.name   = "Bambu Lab A1 mini";
+    saved.nozzle = 0.4;
+    backend.saved = {saved};
+
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Bambu Lab A1 mini");
+
+    const auto preview = conversation.preview_approval(Agent::ToolHandler::PrinterChange,
+                                                        call(Agent::ToolHandler::PrinterChange, json{{"nozzle", 0.6}}));
+    REQUIRE(preview.has_value());
+    CHECK(preview->title == "Change nozzle");
+    CHECK(preview->subtitle == "0.4 mm → 0.6 mm on Bambu Lab A1 mini");
+    CHECK(preview->consequence == "Every project that uses this printer slices for 0.6 mm.");
+    CHECK(preview->accept_label == "Set 0.6 mm");
+    CHECK(preview->decline_label == "Keep 0.4 mm");
+}
+
+TEST_CASE("a change this session cannot preview keeps the generic card", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    SavedPrinter   saved;
+    saved.name   = "Bambu Lab A1 mini";
+    saved.nozzle = 0.4;
+    backend.saved = {saved};
+
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Bambu Lab A1 mini");
+
+    // A spool change: no wireframe for it yet.
+    CHECK_FALSE(conversation
+                    .preview_approval(Agent::ToolHandler::PrinterChange,
+                                      call(Agent::ToolHandler::PrinterChange,
+                                           json{{"spools", json::array({json{{"name", "PLA"}, {"material", "PLA"}}})}}))
+                    .has_value());
+    // A nozzle change combined with a spool change: not the nozzle-only shape.
+    CHECK_FALSE(conversation
+                    .preview_approval(Agent::ToolHandler::PrinterChange,
+                                      call(Agent::ToolHandler::PrinterChange,
+                                           json{{"nozzle", 0.6},
+                                                {"spools", json::array({json{{"name", "PLA"}, {"material", "PLA"}}})}}))
+                    .has_value());
+    // Any other tool: not this session's to preview.
+    CHECK_FALSE(
+        conversation.preview_approval(Agent::ToolHandler::PrinterIdentify, call(Agent::ToolHandler::PrinterIdentify, json{})).has_value());
+
+    // An Add session has no printer subject to build "on <printer>" from.
+    PrinterConversation add_conversation(backend, panel);
+    add_conversation.start(ConversationMode::Add);
+    CHECK_FALSE(add_conversation
+                    .preview_approval(Agent::ToolHandler::PrinterChange,
+                                      call(Agent::ToolHandler::PrinterChange, json{{"nozzle", 0.6}}))
+                    .has_value());
+}
+
 TEST_CASE("changing a printer that is not there fails rather than inventing one", "[printer-conversation]")
 {
     FakeBackend         backend;

@@ -270,6 +270,14 @@ export interface ToolActivityInfo {
   requiresApproval: boolean;
   planId?: string; // calls sharing it are decided on one card and run in order
   planScope?: string; // the chat an in-app plan belongs to; a plan is its source, scope and id
+  // A human preview the call's own session drew at proposal time, in place
+  // of its title/tool/server: what changed from what to what, what it
+  // means, and what the buttons should say instead of Approve/Reject.
+  // Absent for a call the generic card still draws.
+  subtitle?: string;
+  consequence?: string;
+  acceptLabel?: string;
+  declineLabel?: string;
   sessionId: string;
   expectedRevision: number;
   state: ToolStateName;

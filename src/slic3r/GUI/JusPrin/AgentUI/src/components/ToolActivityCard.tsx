@@ -25,21 +25,36 @@ export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
   const stale = activity.state === 'failed' && activity.error?.code === 'stale_revision';
   const percent =
     activity.progress.total > 0 ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
+  // A call its own session previewed draws that instead of naming the tool
+  // (WP7, F15): what changed from what to what, and what it means.
+  const previewed = Boolean(activity.subtitle);
 
   return (
-    <div className={`tool-card state-${activity.state}`} data-testid={`tool-${activity.actionId}`}>
+    <div className={`tool-card state-${activity.state}${previewed ? ' tool-card-previewed' : ''}`} data-testid={`tool-${activity.actionId}`}>
       <div className="tool-title">{activity.title}</div>
-      <div className="tool-meta">
-        {activity.tool} · {activity.server}
-      </div>
+      {previewed ? (
+        <>
+          <div className="tool-subtitle">{activity.subtitle}</div>
+          {activity.consequence && <div className="tool-consequence">{activity.consequence}</div>}
+        </>
+      ) : (
+        <div className="tool-meta">
+          {activity.tool} · {activity.server}
+        </div>
+      )}
 
       {activity.state === 'pending' && (
         <div className="tool-actions">
-          <span className="tool-state">{stateLabels.pending}</span>
-          <button className="primary" onClick={() => onDecision(activity.actionId, 'approve')}>
-            Approve
+          {!previewed && <span className="tool-state">{stateLabels.pending}</span>}
+          <button
+            onClick={() => onDecision(activity.actionId, 'reject')}
+            className={previewed ? 'tool-decline' : undefined}
+          >
+            {activity.declineLabel || 'Reject'}
           </button>
-          <button onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
+          <button className="primary" onClick={() => onDecision(activity.actionId, 'approve')}>
+            {activity.acceptLabel || 'Approve'}
+          </button>
         </div>
       )}
 

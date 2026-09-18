@@ -130,11 +130,33 @@ struct ToolActivity
     std::string   plan_scope;
     std::optional<ToolError> error;
     ToolSource source{ToolSource::Agent};
+    // A human summary the card draws instead of the tool's name and server,
+    // for a call whose session could preview it at proposal time: what
+    // changed from what to what, and what it means, in the caller's own
+    // words. Empty subtitle leaves the card in its generic, title/tool/server
+    // shape. See ToolExecutionCoordinator::set_approval_preview_executor.
+    std::string   subtitle;      // "0.4 mm -> 0.6 mm on Bambu Lab A1 mini"
+    std::string   consequence;   // "Every project that uses this printer slices for 0.6 mm."
+    std::string   accept_label;  // "Set 0.6 mm"; empty means the generic "Approve"
+    std::string   decline_label; // "Keep 0.4 mm"; empty means the generic "Reject"
 };
 
 inline bool same_plan(const ToolActivity& lhs, const ToolActivity& rhs)
 {
     return !lhs.plan_id.empty() && lhs.plan_id == rhs.plan_id && lhs.source == rhs.source && lhs.plan_scope == rhs.plan_scope;
 }
+
+// What a session hands the card in place of the tool's name, for a call it
+// can preview without applying it. Returned by an ApprovalPreviewExecutor;
+// nullopt leaves the generic title the registry already computed.
+struct ApprovalPreview
+{
+    // Replaces the registry's title when non-empty; empty keeps it.
+    std::string title;
+    std::string subtitle;
+    std::string consequence;
+    std::string accept_label;
+    std::string decline_label;
+};
 
 } // namespace Slic3r::GUI::JusPrin::Agent

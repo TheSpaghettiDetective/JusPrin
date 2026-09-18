@@ -368,6 +368,31 @@ ToolExecutionCoordinator::ExtensionResult PrinterConversation::execute_tool(Tool
     return result;
 }
 
+std::optional<Agent::ApprovalPreview> PrinterConversation::preview_approval(ToolHandler handler, const ToolActivity& activity) const
+{
+    if (handler != ToolHandler::PrinterChange)
+        return std::nullopt;
+    // Only the nozzle change has a wireframe to build to (WP7); a spool or
+    // access code change, alone or combined with a nozzle change, keeps the
+    // generic card until one exists.
+    const json arguments = json::parse(activity.arguments_json, nullptr, false);
+    if (!arguments.is_object() || arguments.contains("spools") || arguments.contains("accessCode"))
+        return std::nullopt;
+    if (!arguments.contains("nozzle") || !arguments["nozzle"].is_number() || arguments["nozzle"].get<double>() <= 0.)
+        return std::nullopt;
+    if (m_mode != ConversationMode::Change || m_printer.name.empty())
+        return std::nullopt;
+
+    const std::string after = nozzle_text(arguments["nozzle"].get<double>());
+    Agent::ApprovalPreview preview;
+    preview.title         = "Change nozzle";
+    preview.subtitle      = m_nozzle.value + " → " + after + " on " + m_printer_fact.value;
+    preview.consequence   = "Every project that uses this printer slices for " + after + ".";
+    preview.accept_label  = "Set " + after;
+    preview.decline_label = "Keep " + m_nozzle.value;
+    return preview;
+}
+
 void PrinterConversation::collapse_live_printer_blocks()
 {
     for (json& block : m_blocks)

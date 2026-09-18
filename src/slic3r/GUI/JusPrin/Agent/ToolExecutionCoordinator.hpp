@@ -83,6 +83,12 @@ public:
     // records; future MCP adapters use the same seam, never a WebView path.
     using ExtensionExecutor = std::function<ExtensionResult(ToolHandler, const ToolActivity&)>;
 
+    // Asked once, at proposal time, for a call that still needs its card:
+    // a human summary read from the session's own current state, before
+    // anything runs. Nullopt (the tool's session has none, or does not
+    // preview) leaves the registry's generic title in place.
+    using ApprovalPreviewExecutor = std::function<std::optional<ApprovalPreview>(ToolHandler, const ToolActivity&)>;
+
     explicit ToolExecutionCoordinator(Workspace::IWorkspace& workspace,
                                       const ToolRegistry& registry = ToolRegistry::instance());
     ~ToolExecutionCoordinator();
@@ -92,6 +98,7 @@ public:
 
     ToolActivitySubscription subscribe(ActivityCallback listener);
     void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
+    void set_approval_preview_executor(ApprovalPreviewExecutor executor) { m_approval_preview_executor = std::move(executor); }
 
     // The store behind the intent and plan tools. The owner holds project
     // storage, so it supplies this; without it those tools report the
@@ -184,6 +191,7 @@ private:
     bool                             m_slice_ended{false};
     std::string                      m_executing;
     ExtensionExecutor                m_extension_executor;
+    ApprovalPreviewExecutor          m_approval_preview_executor;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;
     std::vector<ToolActivity>        m_activities;

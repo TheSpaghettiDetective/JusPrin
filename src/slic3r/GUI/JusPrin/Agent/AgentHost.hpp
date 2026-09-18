@@ -84,6 +84,13 @@ public:
     {
         m_session_tool_executor = std::move(executor);
     }
+    // Previews the session's own tools' cards at proposal time. Anything it
+    // leaves unhandled (or that never had a session preview set) keeps the
+    // registry's generic title.
+    void set_session_approval_preview(ToolExecutionCoordinator::ApprovalPreviewExecutor executor)
+    {
+        m_session_approval_preview = std::move(executor);
+    }
     // Appends a message the agent is shown as having said, without asking the
     // model for it: a panel whose opening line is always the same. Returns
     // its id so the owner can anchor what it draws underneath.
@@ -340,6 +347,7 @@ private:
     std::string                     m_session_opening;
     PageMessageHandler              m_page_message_handler;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
+    ToolExecutionCoordinator::ApprovalPreviewExecutor m_session_approval_preview;
     std::function<nlohmann::json()> m_session_state_provider;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};

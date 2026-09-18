@@ -124,6 +124,14 @@ public:
     Agent::ToolExecutionCoordinator::ExtensionResult execute_tool(Agent::ToolHandler                handler,
                                                                  const Agent::ToolActivity&        activity);
 
+    // A human summary of a pending printer_change's card, read from the
+    // panel's current pinned facts before anything is applied -- the same
+    // read execute_tool would do, without change_printer's side effect.
+    // Nullopt for any other handler, or a change this session cannot yet
+    // preview (see the .cpp): the generic card is what shows then.
+    std::optional<Agent::ApprovalPreview> preview_approval(Agent::ToolHandler         handler,
+                                                            const Agent::ToolActivity& activity) const;
+
     // The tool names this session offers, in registry order.
     static std::vector<std::string> session_tools();
 

@@ -395,6 +395,20 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     }
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
 
+    // A card still to be shown gets one chance to preview itself in the
+    // caller's own words; a call that will run without a card either way
+    // (read-only, pre-approved, computation-only) has no card to enrich.
+    if (stored.requires_approval && m_approval_preview_executor) {
+        if (const std::optional<ApprovalPreview> preview = m_approval_preview_executor(definition->handler, stored)) {
+            if (!preview->title.empty())
+                stored.title = preview->title;
+            stored.subtitle      = preview->subtitle;
+            stored.consequence   = preview->consequence;
+            stored.accept_label  = preview->accept_label;
+            stored.decline_label = preview->decline_label;
+        }
+    }
+
     if (definition->handler == ToolHandler::HistoryRestore) {
         const auto arguments = json::parse(stored.arguments_json);
         if (arguments["sessionId"] != std::to_string(snapshot.session.value())) {

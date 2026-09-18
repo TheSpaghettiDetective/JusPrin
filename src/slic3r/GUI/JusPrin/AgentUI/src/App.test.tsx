@@ -350,6 +350,34 @@ describe('App', () => {
     expect(screen.queryByText('Approve')).not.toBeInTheDocument();
   });
 
+  // WP7, F15: a call its own session could preview draws that instead of
+  // naming the tool, with buttons named for the outcome, not Approve/Reject.
+  it('draws a previewed card in its own words, with outcome-named buttons', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: proposalConversation() }));
+
+    host.deliver('tool_activity', {
+      activity: toolActivity({
+        tool: 'printer_change',
+        title: 'Change nozzle',
+        subtitle: '0.4 mm → 0.6 mm on Bambu Lab A1 mini',
+        consequence: 'Every project that uses this printer slices for 0.6 mm.',
+        acceptLabel: 'Set 0.6 mm',
+        declineLabel: 'Keep 0.4 mm',
+      }),
+    });
+    expect(screen.getByText('Change nozzle')).toBeInTheDocument();
+    expect(screen.getByText('0.4 mm → 0.6 mm on Bambu Lab A1 mini')).toBeInTheDocument();
+    expect(screen.getByText('Every project that uses this printer slices for 0.6 mm.')).toBeInTheDocument();
+    // No tool name, and the person never sees "printer_change · jusprin-native".
+    expect(screen.queryByText(/printer_change/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reject')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Set 0.6 mm'));
+    expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-1', decision: 'approve' });
+  });
+
   it.each(['ready', 'unavailable'] as const)('shows external MCP approvals without a chat message when Agent is %s', async (status) => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status } }));

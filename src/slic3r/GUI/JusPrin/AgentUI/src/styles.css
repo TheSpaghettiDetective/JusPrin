@@ -740,6 +740,36 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   color: var(--text-secondary);
 }
 
+/* A call its own session previewed (WP7, F15): before -> after, and what it
+   means, in place of the tool's name. */
+.tool-card .tool-subtitle {
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.tool-card .tool-consequence {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.tool-card .tool-decline {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.tool-card .tool-decline:hover:enabled {
+  color: var(--text-primary);
+  border-color: transparent;
+}
+
+.tool-card.tool-card-previewed .tool-actions {
+  justify-content: flex-end;
+}
+
 .tool-card .tool-actions {
   margin-top: 8px;
   display: flex;
