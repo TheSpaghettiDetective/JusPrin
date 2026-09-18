@@ -376,6 +376,24 @@ describe('App', () => {
 
     await userEvent.click(screen.getByText('Set 0.6 mm'));
     expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-1', decision: 'approve' });
+
+    // F25: once applied, the card shrinks to one grey line; the thread's
+    // own system line, not this card, carries what happened.
+    host.deliver('tool_activity', {
+      activity: toolActivity({
+        tool: 'printer_change',
+        title: 'Change nozzle',
+        subtitle: '0.4 mm → 0.6 mm on Bambu Lab A1 mini',
+        consequence: 'Every project that uses this printer slices for 0.6 mm.',
+        acceptLabel: 'Set 0.6 mm',
+        declineLabel: 'Keep 0.4 mm',
+        state: 'succeeded',
+        progress: { current: 1, total: 1 },
+      }),
+    });
+    expect(screen.getByText('Set 0.6 mm · Change nozzle')).toBeInTheDocument();
+    expect(screen.queryByText('0.4 mm → 0.6 mm on Bambu Lab A1 mini')).not.toBeInTheDocument();
+    expect(screen.queryByText('Every project that uses this printer slices for 0.6 mm.')).not.toBeInTheDocument();
   });
 
   it.each(['ready', 'unavailable'] as const)('shows external MCP approvals without a chat message when Agent is %s', async (status) => {

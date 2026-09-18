@@ -250,8 +250,10 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
             instructions << ", " << m_filament.value;
         instructions
             << (m_printer.connected ? ", connected to this app." : ", not connected to this app.")
-            << "\nThey tell you what changed on it, or ask about it: nozzle, plate, spools. Apply a change with printer_change; "
-               "it asks the person to approve that change on a card, so say what it now is only after the result says it was applied.\n"
+            << "\nThey tell you what changed on it, or ask about it: nozzle, plate, spools. Apply a change with printer_change; a change "
+               "you propose from what they typed asks them to approve it on a card, and a change a chip's tap already asked for applies "
+               "right away -- say what it now is only after the result says it was applied. After a successful nozzle change, offer an "
+               "\"Undo\" chip with printer_suggest whose own tap would set the nozzle back to what it was.\n"
                "The plate belongs to each project rather than to the printer, so a plate change is made in the project; say so if it comes up.";
     }
     profile.instructions = instructions.str();
@@ -560,8 +562,13 @@ json PrinterConversation::change(const json& arguments, std::optional<ToolError>
     const double was = m_printer.nozzle;
     m_printer        = changed;
     read_saved_printer();
-    if (request.nozzle && was != changed.nozzle)
+    // The card that proposed this collapses on its own; the thread still
+    // gets one grey line saying what happened, whether a card showed at all
+    // (a chip's tap skips it -- see WP7's pre-approval) or not (F25).
+    if (request.nozzle && was != changed.nozzle) {
         m_nozzle.provenance = "changed";
+        m_host.post_note("Nozzle set to " + m_nozzle.value);
+    }
     if (request.spools)
         m_filament.provenance = "changed";
     m_host.printers_changed({});

@@ -29,6 +29,18 @@ export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
   // (WP7, F15): what changed from what to what, and what it means.
   const previewed = Boolean(activity.subtitle);
 
+  // F25: once applied, a previewed card is done saying anything -- the
+  // thread's own system line ("Nozzle set to 0.6 mm") carries the news, so
+  // the card itself shrinks to a plain grey receipt, the same weight a
+  // rejected printer card collapses to.
+  if (previewed && activity.state === 'succeeded') {
+    return (
+      <div className="tool-card-collapsed" data-testid={`tool-${activity.actionId}`}>
+        {activity.acceptLabel} · {activity.title}
+      </div>
+    );
+  }
+
   return (
     <div className={`tool-card state-${activity.state}${previewed ? ' tool-card-previewed' : ''}`} data-testid={`tool-${activity.actionId}`}>
       <div className="tool-title">{activity.title}</div>

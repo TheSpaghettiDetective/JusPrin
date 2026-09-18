@@ -207,6 +207,9 @@ TEST_CASE("the opener and the instructions both say connecting is not this panel
     CHECK(changing.state_json().at("placeholder") == "e.g. \"I swapped the plate\"");
     CHECK(changing.opening_message().find("connection") == std::string::npos);
     CHECK(changing.profile().instructions.find("not something you can do from this panel") != std::string::npos);
+    // F25: an inverse always exists for a nozzle change (it was the printer's
+    // own prior variant), so the agent is told to always offer it.
+    CHECK(changing.profile().instructions.find("offer an \"Undo\" chip") != std::string::npos);
 }
 
 TEST_CASE("a proposal fills the pinned card and draws the printer", "[printer-conversation]")
@@ -595,6 +598,10 @@ TEST_CASE("a nozzle change goes through the backend and says it changed", "[prin
     CHECK(state.at("facts").at("nozzle").at("value") == "0.6 mm");
     CHECK(state.at("facts").at("nozzle").at("provenance") == "changed");
     CHECK(panel.refreshes == 1);
+    // F25: the thread gets a system line, whether the change came through a
+    // card or (as this call does) straight from execute_tool.
+    REQUIRE(panel.notes.size() == 1);
+    CHECK(panel.notes.front() == "Nozzle set to 0.6 mm");
 }
 
 TEST_CASE("a pending nozzle change previews its own card", "[printer-conversation]")

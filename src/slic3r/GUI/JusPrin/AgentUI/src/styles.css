@@ -821,6 +821,16 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   border-left-color: var(--status-danger);
 }
 
+/* F25: a previewed card that succeeded shrinks to this, the same weight a
+   rejected printer card collapses to -- the thread's own system line
+   carries the news, not the card. */
+.tool-card-collapsed {
+  align-self: stretch;
+  margin-left: 12px;
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
 /* Immutable build, external-copy, and physical-print timeline records */
 .history-card {
   align-self: stretch;
