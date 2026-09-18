@@ -130,6 +130,37 @@ describe('the printer panel page', () => {
     expect(screen.getByText('What printer do you have?')).toBeInTheDocument();
   });
 
+  // WP8, F4: the panel always seeds an opening line (PrinterPanel::open
+  // posts it before the page can render anything), so "no messages yet"
+  // can never gate this the way it does in the docked chat panel.
+  it('offers to set up the agent instead of a disabled composer, with no agent configured', () => {
+    open(
+      state({
+        agent: { status: 'unavailable' },
+        session: session({
+          blocks: [
+            { id: 'b1', seq: 1, afterMessageId: '', kind: 'tip' },
+            {
+              id: 'b2',
+              seq: 2,
+              afterMessageId: '',
+              kind: 'network',
+              printers: [{ deviceId: '01P00A3B', name: 'Bambu Lab A1 mini', serial: '01P00A3B', online: true }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(screen.getByText('No agent connected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('e.g. "I put a 0.6 nozzle on it"')).not.toBeInTheDocument();
+    // What needs no agent stays live beside the offer.
+    expect(screen.getByText('FOUND ON YOUR NETWORK')).toBeInTheDocument();
+    expect(screen.getByText('Bambu Lab A1 mini')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Browse the full list' })).toBeInTheDocument();
+  });
+
   it('asks a likely answer, and leads the composer with Photo', () => {
     open();
     expect(screen.getByPlaceholderText('e.g. "I put a 0.6 nozzle on it"')).toBeInTheDocument();

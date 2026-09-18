@@ -552,10 +552,11 @@ void ShellController::on_page_changed()
     const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
     if (home)
         m_home->refresh();
-    // A throwaway setup webview elsewhere (the Add a printer dialog) may have
-    // written a working agent config since the docked pane last checked; push
-    // it in now, the same "refresh on the way in" pattern as Home's gallery
-    // above, rather than reloading the page or polling continuously.
+    // Setup completed elsewhere -- the printer panel's own embedded setup
+    // flow (WP8) -- may have written a working agent config since the docked
+    // pane last checked; push it in now, the same "refresh on the way in"
+    // pattern as Home's gallery above, rather than reloading the page or
+    // polling continuously.
     if (m_agent_config_possibly_changed) {
         m_agent_config_possibly_changed = false;
         Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);

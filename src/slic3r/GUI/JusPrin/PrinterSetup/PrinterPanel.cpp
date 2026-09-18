@@ -120,7 +120,8 @@ void PrinterPanel::close()
     Hide();
     // The runtime is destroyed from the page's own message handler, so it
     // cannot be torn down inside a call its own host is still on the stack
-    // for -- the trap the add-printer dialog documented.
+    // for -- the same trap tear_down_runtime's own comment above guards
+    // against for the embedded setup webview.
     CallAfter([this] {
         tear_down_runtime();
         if (m_callbacks.closed)

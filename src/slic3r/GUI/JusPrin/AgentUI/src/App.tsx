@@ -9,7 +9,7 @@ import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
-import { PrinterBrowseView, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { PrinterBlockView, PrinterBrowseView, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -285,7 +285,11 @@ export function App({
   // Nothing has been delegated yet, so the dock's whole surface becomes the
   // one offer. A conversation carried in from a previously configured session
   // keeps its history and gets the banner above it instead.
-  const notConfigured = unavailable && state.messages.length === 0;
+  // The printer panel always seeds an opening line before the person can see
+  // anything (PrinterPanel::open posts it unconditionally), so "no messages
+  // yet" can never hold there -- unavailable alone is what "no agent" means
+  // in this panel (WP8, F4).
+  const notConfigured = unavailable && (printerPanel || state.messages.length === 0);
   const streaming = state.streamingMessageId !== null;
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
@@ -417,7 +421,18 @@ export function App({
           ) : (
             <>
               {notConfigured ? (
-                body()
+                <>
+                  {/* What needs no agent stays live beside the setup offer
+                      (WP8, F4): a network find is the app's own reading, not
+                      the agent's, and "Browse the full list" is the header
+                      link above, already unconditional. */}
+                  {session?.blocks
+                    .filter((block) => block.kind === 'network')
+                    .map((block) => (
+                      <PrinterBlockView key={block.id} block={block} onAction={(action, id) => printerAction(action, id)} />
+                    ))}
+                  {body()}
+                </>
               ) : (
                 <MessageList
                   messages={state.messages}
