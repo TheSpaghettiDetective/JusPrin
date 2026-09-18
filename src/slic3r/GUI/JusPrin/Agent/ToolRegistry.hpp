@@ -87,9 +87,7 @@ enum class ToolHandler : std::uint8_t {
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint,
-    PrinterCatalogSearch,
-    PrinterPropose,
-    PrinterSuggest,
+    PrinterIdentify,
     PrinterChange
 };
 
@@ -112,10 +110,12 @@ struct ToolDefinition
 };
 
 // Whether a call to this tool may carry a planId: every change to the
-// project, not plan_set, which records the agent's own words.
+// project, not plan_set, which records the agent's own words, and not the
+// printer panel's tools, whose session has no plans to group.
 inline bool joins_plans(const ToolDefinition& definition)
 {
-    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet;
+    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet &&
+           !has_exposure(definition.exposure, ToolExposure::Printer);
 }
 
 struct ToolValidationResult

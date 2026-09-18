@@ -1,8 +1,15 @@
 #pragma once
 
-// The subject of the printer panel's conversation: what the agent is told and
+// The subject of the printer panel's conversation: what the model is told and
 // may call there, what the panel pins above the thread, and what a tap on one
 // of its cards does.
+//
+// The model does the understanding: which printer someone has, and what
+// changed on one they own. Its one tool per mode checks that decision against
+// the printer data, carries it out and returns facts. Every tap whose result
+// the app already knows is handled here, and recorded in the thread as a note
+// -- a plain statement of what happened, never an instruction -- which the
+// model reads on its next turn.
 //
 // A session is opened for one printer question -- add a printer, or change
 // this one -- and is discarded when the panel closes. Nothing here is written
@@ -19,6 +26,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -33,25 +41,24 @@ enum class ConversationMode { Add, Change };
 struct PinnedFact
 {
     std::string value;
-    // settled: known, from the printer or the person. assumed: the agent's
-    // stated guess. changed: altered in this session, and the panel says so.
+    // settled: known, from the printer or the person. assumed: the profile's
+    // default, stated as such. changed: altered in this session.
     std::string provenance{"settled"};
     std::string swatch; // "#RRGGBB" of the first loaded spool, when there is one
 };
 
-// What "Add this printer" would save. Filled by printer_propose, spent by the
-// person tapping the chip, and never by the agent.
+// What "Add this printer" would save. Filled when one printer's card is
+// drawn, spent by the person tapping Add, and never by the model.
 struct PrinterProposal
 {
-    bool                valid{false};
-    std::string         vendor_id;
-    std::string         model_id;
-    std::string         model_name;
-    std::string         variant;
-    std::string         material;
-    std::string         device_id;
-    std::string         picture;
-    std::string         subline;
+    bool        valid{false};
+    std::string block_id; // the card it was drawn on
+    std::string vendor_id;
+    std::string model_id;
+    std::string model_name; // brand and model, as the card shows it
+    std::string variant;
+    std::string material;
+    std::string device_id;
 };
 
 // Everything the panel needs from its owner. The panel is the only
@@ -61,12 +68,13 @@ class IConversationHost
 public:
     virtual ~IConversationHost() = default;
 
-    // A muted line in the thread, such as "Use this" · 01P00A3B.
-    virtual void post_note(const std::string& text) = 0;
-    // The agent answers next, with no user message in the thread: the person
-    // tapped something rather than typing it.
-    virtual void ask_agent(const std::string& prompt) = 0;
-    // The pinned card, the chips and the thread's own cards have changed.
+    // A line in the thread stating what happened, which the model reads as
+    // the app's own words. Returns its message id.
+    virtual std::string post_note(const std::string& text) = 0;
+    // The model answers next, from the conversation as it stands.
+    virtual void start_turn() = 0;
+    // The pinned card, the chips and the thread's own cards have changed, and
+    // so may have what the model is told.
     virtual void session_changed() = 0;
     // The panel is done: back to the printer list.
     virtual void close_panel() = 0;
@@ -101,27 +109,55 @@ public:
     // not one of ours.
     bool handle_page_message(const std::string& type, const nlohmann::json& payload);
 
+    // Checks a call before its card is shown, and states the change on it.
+    std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity) const;
     // The session's own tools. Returns an unhandled result for any other
     // handler, so the host's own extensions still run.
-    Agent::ToolExecutionCoordinator::ExtensionResult execute_tool(Agent::ToolHandler                handler,
-                                                                 const Agent::ToolActivity&        activity);
+    Agent::ToolExecutionCoordinator::ExtensionResult execute_tool(Agent::ToolHandler         handler,
+                                                                 const Agent::ToolActivity& activity);
+    // What the model reads back for a call to this session's tools: the
+    // tool's own result, its error, or -- for a change the person kept as it
+    // was -- that nothing changed. nullopt for anything else.
+    std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
 
-    // The tool names this session offers, in registry order.
-    static std::vector<std::string> session_tools();
+    // The one tool each mode offers.
+    static std::vector<std::string> session_tools(ConversationMode mode);
+    // The printer list the Add instructions carry, one line per model:
+    // "<catalogId> | <brand> <model> | <build volume>".
+    std::string printer_list() const;
 
 private:
-    nlohmann::json search_catalog(const nlohmann::json& arguments);
-    nlohmann::json propose(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
-    nlohmann::json suggest(const nlohmann::json& arguments);
-    nlohmann::json change(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
+    nlohmann::json identify(const nlohmann::json& arguments, const std::string& message_id,
+                            std::optional<Agent::ToolError>& error);
+    nlohmann::json change(const nlohmann::json& arguments, const std::string& message_id,
+                          std::optional<Agent::ToolError>& error);
+
+    // One printer, as printer_identify returns it.
+    nlohmann::json identified_json(const CatalogPrinter& printer, double nozzle) const;
+    // The printer a Change session is about, as the model is told it.
+    nlohmann::json printer_json() const;
+    double         assumed_nozzle(const CatalogPrinter& printer) const;
+    // Draws one printer's card with Add, fills the pinned card, and makes it
+    // the printer "Add this printer" saves.
+    void show_proposal(const CatalogPrinter& printer, double nozzle, bool nozzle_stated, const std::string& block_id,
+                       const DiscoveredPrinter* device);
+    void clear_proposal();
+    // Every card that could still be tapped folds away: a newer answer, or a
+    // refusal, has replaced it.
+    void collapse_cards();
+    std::string next_block_id() { return "b" + std::to_string(m_next_block++); }
 
     void add_proposed_printer(const std::string& access_code);
     void use_network_printer(const std::string& device_id);
-    void choose_candidate(const std::string& catalog_id);
+    void choose_candidate(const std::string& catalog_id, const std::string& block_id);
+    void reject_proposal();
+    void undo_change(const std::string& block_id);
     void read_saved_printer();
     void refresh_network();
 
     const CatalogPrinter* catalog_entry(const std::string& id) const;
+    const CatalogPrinter* model_of(const DiscoveredPrinter& device) const;
+    nlohmann::json*       block(const std::string& id);
 
     IPrinterBackend&   m_backend;
     IConversationHost& m_host;
@@ -134,16 +170,23 @@ private:
     PinnedFact m_printer_fact, m_nozzle, m_plate, m_filament;
 
     PrinterProposal m_proposal;
-    // The cards the agent has drawn in the thread, oldest first.
-    nlohmann::json  m_blocks   = nlohmann::json::array();
-    nlohmann::json  m_chips    = nlohmann::json::array();
-    std::string     m_chip_hint;
+    // The cards in the thread, oldest first.
+    nlohmann::json  m_blocks = nlohmann::json::array();
     std::string     m_placeholder;
     unsigned        m_next_block{1};
+    // The nozzle the model named for the candidates on a card, by card id,
+    // so "This one" keeps it.
+    std::map<std::string, double> m_stated_nozzle;
 
-    // The catalogue entries this session has offered, by their catalogue id,
-    // so a tap can name one without searching again.
-    std::vector<CatalogPrinter>   m_catalog;
+    // What Undo puts back: the printer as it was before the last change.
+    struct UndoRecord
+    {
+        std::string                              block_id;
+        std::optional<double>                    nozzle;
+        std::optional<std::vector<PrinterSpool>> spools;
+    };
+    std::optional<UndoRecord> m_undo;
+
     std::vector<DiscoveredPrinter> m_network;
 };
 

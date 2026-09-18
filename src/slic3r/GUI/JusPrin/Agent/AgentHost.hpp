@@ -62,9 +62,10 @@ public:
 
     // Stamped on every request this host makes.
     void set_session_profile(AgentSessionProfile profile) { m_session_profile = std::move(profile); }
-    // Opens the conversation with the agent speaking first: `prompt` is the
-    // turn the model answers, and the page shows no user message for it.
-    void open_session(const std::string& prompt);
+    // The model answers next, from the conversation as it stands, with no
+    // user message: the person tapped something whose result the app has
+    // already recorded in the thread. Queued behind a turn in flight.
+    void start_turn();
     // Answers a page message this host does not know. Returning false leaves
     // it to the host, which reports it as a type outside the protocol.
     using PageMessageHandler = std::function<bool(const std::string& type, const nlohmann::json& payload)>;
@@ -84,6 +85,12 @@ public:
     {
         m_session_tool_executor = std::move(executor);
     }
+    // Checks a call to the session's own tools before its card or its run.
+    void set_session_tool_preflight(ToolExecutionCoordinator::ExtensionPreflight preflight);
+    // What the model reads back for a call to the session's own tools, in
+    // place of the host's envelope; nullopt keeps the host's.
+    using ToolOutputFormatter = std::function<std::optional<nlohmann::json>(const ToolActivity& activity)>;
+    void set_session_tool_output(ToolOutputFormatter formatter) { m_session_tool_output = std::move(formatter); }
     // Appends a message the agent is shown as having said, without asking the
     // model for it: a panel whose opening line is always the same. Returns
     // its id so the owner can anchor what it draws underneath.
@@ -337,9 +344,9 @@ private:
     std::function<void()> m_setup_completed_listener;
 
     AgentSessionProfile             m_session_profile;
-    std::string                     m_session_opening;
     PageMessageHandler              m_page_message_handler;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
+    ToolOutputFormatter             m_session_tool_output;
     std::function<nlohmann::json()> m_session_state_provider;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};

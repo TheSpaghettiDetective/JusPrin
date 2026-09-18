@@ -59,11 +59,14 @@ public:
     // What the panel's page draws above and inside its thread. The harness
     // reads it to see the session without driving the page.
     nlohmann::json session_json() const { return m_conversation->state_json(); }
+    // For the shell harness: the open session's host, and the thread it keeps.
+    Agent::AgentHost*                host();
+    const Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
 
 private:
     // IConversationHost
-    void post_note(const std::string& text) override;
-    void ask_agent(const std::string& prompt) override;
+    std::string post_note(const std::string& text) override;
+    void        start_turn() override;
     void session_changed() override;
     void close_panel() override;
     void printers_changed() override;

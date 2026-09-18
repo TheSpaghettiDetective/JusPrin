@@ -1,18 +1,22 @@
 // The printer panel's own parts: the card pinned above the thread, the cards
-// the agent draws inside it, and the row of things to tap.
+// drawn inside it, the row of things to tap, and the card that confirms a
+// change to a printer.
 //
-// Everything here renders host state. A tap either sends a typed printer
-// action, which C++ carries out, or sends the chip's own words as the
-// person's message -- never both, and never a change made on this side.
+// Everything here renders host state. A tap sends a typed printer action or a
+// tool decision, which C++ carries out -- never a change made on this side,
+// and never words sent as the person's.
 
 import { memo } from 'react';
 import type {
   NetworkPrinterInfo,
   PrinterBlock,
   PrinterCardInfo,
+  PrinterChangeConfirm,
   PrinterChip,
   PrinterFact,
   PrinterSessionPayload,
+  PrinterSpoolInfo,
+  ToolActivityInfo,
 } from '../bridge/protocol';
 
 const EM_DASH = '—';
@@ -66,12 +70,14 @@ export function CameraGlyph({ className }: { className: string }) {
   );
 }
 
+export type PrinterBlockAction = 'network_pick' | 'candidate_pick' | 'undo';
+
 export interface PrinterBlockProps {
   block: PrinterBlock;
-  onAction: (action: 'network_pick' | 'candidate_pick' | 'add', id: string) => void;
+  onAction: (action: PrinterBlockAction, id: string, blockId?: string) => void;
 }
 
-// One card the agent drew, in the thread, under the message that drew it.
+// One card in the thread, under the message it belongs to.
 export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction }: PrinterBlockProps) {
   if (block.kind === 'tip')
     return (
@@ -105,7 +111,23 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
     );
   }
 
+  if (block.kind === 'undo')
+    return (
+      <div className="printer-undo">
+        <span>{block.text}</span>
+        <span aria-hidden="true"> · </span>
+        <button type="button" className="printer-link-button" onClick={() => onAction('undo', block.id)}>
+          Undo
+        </button>
+      </div>
+    );
+
   const printers = (block.printers ?? []) as PrinterCardInfo[];
+  // A card a newer answer replaced, or the person refused, stays in the
+  // thread as a line, so the conversation still reads in order.
+  if (block.collapsed)
+    return <div className="printer-cards-collapsed">{printers.map((printer) => printer.name).join(' · ')}</div>;
+
   // One printer is an answer and gets the full card; two or three are a
   // question, and each carries the button that answers it.
   const compact = printers.length > 1;
@@ -123,7 +145,11 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
             {printer.subline && <small>{printer.subline}</small>}
           </span>
           {compact && (
-            <button type="button" className="printer-quiet-button" onClick={() => onAction('candidate_pick', printer.catalogId)}>
+            <button
+              type="button"
+              className="printer-quiet-button"
+              onClick={() => onAction('candidate_pick', printer.catalogId, block.id)}
+            >
               This one
             </button>
           )}
@@ -133,16 +159,33 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
   );
 });
 
-export interface ChipRowProps {
-  chips: PrinterChip[];
-  hint: string;
-  disabled: boolean;
-  onAdd: () => void;
-  onSay: (text: string) => void;
+// The code a Bambu printer shows under Settings > Network. It goes with Add
+// to the app, which connects the printer; it is never part of the chat.
+export function PrinterAccessCode({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <input
+      className="printer-access-code"
+      type="text"
+      autoComplete="off"
+      spellCheck={false}
+      maxLength={32}
+      aria-label="Access code"
+      placeholder="access code, optional"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
 }
 
-// Specific actions, never a bare Yes or No, with the composer always beneath.
-export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabled, onAdd, onSay }: ChipRowProps) {
+export interface ChipRowProps {
+  chips: PrinterChip[];
+  disabled: boolean;
+  onAdd: () => void;
+  onReject: () => void;
+}
+
+// What the person can do with the printer on the card. Both act natively.
+export const PrinterChipRow = memo(function PrinterChipRow({ chips, disabled, onAdd, onReject }: ChipRowProps) {
   if (chips.length === 0) return null;
   return (
     <div className="printer-chips">
@@ -152,12 +195,92 @@ export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabl
           type="button"
           className={`printer-chip printer-chip-${chip.style}`}
           disabled={disabled}
-          onClick={() => (chip.action === 'add' ? onAdd() : onSay(chip.say ?? chip.label))}
+          onClick={() => (chip.action === 'add' ? onAdd() : onReject())}
         >
           {chip.label}
         </button>
       ))}
-      {hint && <span className="printer-chip-hint">{hint}</span>}
     </div>
   );
 });
+
+function mm(value: number): string {
+  return `${value} mm`;
+}
+
+function SpoolList({ spools }: { spools: PrinterSpoolInfo[] }) {
+  if (spools.length === 0) return <span className="printer-change-none">none</span>;
+  return (
+    <ul className="printer-change-spools">
+      {spools.map((spool, index) => (
+        <li key={`${spool.name}-${index}`}>
+          {spool.colour && <span className="printer-swatch" style={{ background: spool.colour }} aria-hidden="true" />}
+          {spool.name}
+          {spool.material && spool.material !== spool.name && <small> {spool.material}</small>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// A change the model worked out from what the person said, stated in words
+// before anything is saved: the card is where a misreading is caught.
+export function PrinterChangeCard({
+  activity,
+  onDecision,
+}: {
+  activity: ToolActivityInfo;
+  onDecision: (actionId: string, decision: 'approve' | 'reject') => void;
+}) {
+  const args = activity.arguments as { nozzle?: number; spools?: PrinterSpoolInfo[]; confirm?: PrinterChangeConfirm };
+  const confirm = args.confirm;
+  const printer = confirm?.printer ?? 'this printer';
+  const nozzle = args.nozzle !== undefined && confirm?.before.nozzle !== undefined;
+  const spools = args.spools !== undefined && confirm?.before.spools !== undefined;
+  const keep = nozzle && !spools ? `Keep ${mm(confirm!.before.nozzle!)}` : 'Keep as it is';
+  const set = nozzle && !spools ? `Set ${mm(args.nozzle!)}` : spools && !nozzle ? 'Set these spools' : 'Set both';
+
+  return (
+    <div className={`printer-change state-${activity.state}`} data-testid={`tool-${activity.actionId}`}>
+      <div className="printer-change-title">{activity.title}</div>
+      {nozzle && (
+        <>
+          <div className="printer-change-line">
+            {mm(confirm!.before.nozzle!)} → <b>{mm(args.nozzle!)}</b> on {printer}
+          </div>
+          <div className="printer-change-note">Every project that uses this printer slices for {mm(args.nozzle!)}.</div>
+        </>
+      )}
+      {spools && (
+        <div className="printer-change-line printer-change-spool-diff">
+          <div>
+            <small>Now on {printer}</small>
+            <SpoolList spools={confirm!.before.spools!} />
+          </div>
+          <span aria-hidden="true">→</span>
+          <div>
+            <small>After</small>
+            <SpoolList spools={args.spools!} />
+          </div>
+        </div>
+      )}
+      {activity.state === 'pending' && (
+        <div className="printer-change-actions">
+          <button type="button" className="printer-chip printer-chip-plain" onClick={() => onDecision(activity.actionId, 'reject')}>
+            {keep}
+          </button>
+          <button
+            type="button"
+            className="printer-chip printer-chip-primary"
+            onClick={() => onDecision(activity.actionId, 'approve')}
+          >
+            {set}
+          </button>
+        </div>
+      )}
+      {activity.state === 'rejected' && <div className="printer-change-state">Kept as it was</div>}
+      {(activity.state === 'approved' || activity.state === 'running') && <div className="printer-change-state">Saving…</div>}
+      {activity.state === 'failed' && <div className="tool-error">{activity.error?.message ?? 'The change was not saved.'}</div>}
+    </div>
+  );
+}

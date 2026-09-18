@@ -1,13 +1,14 @@
 // The page in printer-panel mode: the same thread and composer as the docked
 // panel, with the printer session's header, pinned card and chips around
-// them. What it sends back is a typed printer action or an ordinary message.
+// them. What it sends back is a typed printer action, a tool decision, or
+// what the person typed -- never a tap dressed up as the person's words.
 
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from './App';
 import { PROTOCOL_NAME, PROTOCOL_VERSION } from './bridge/protocol';
-import type { Envelope, PrinterSessionPayload, StatePayload, WorkspaceContext } from './bridge/protocol';
+import type { Envelope, PrinterSessionPayload, StatePayload, ToolActivityInfo, WorkspaceContext } from './bridge/protocol';
 
 const context: WorkspaceContext = {
   sessionId: '1',
@@ -57,7 +58,6 @@ function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSession
     },
     blocks: [],
     chips: [{ id: 'add', label: 'Add this printer', style: 'primary', action: 'add' }],
-    chipHint: '',
     placeholder: 'e.g. "I put a 0.6 nozzle on it"',
     ...overrides,
   };
@@ -129,13 +129,13 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Add a photo' })).toBeInTheDocument();
   });
 
-  it('adds the printer natively and says an ordinary chip as the person', async () => {
+  it('adds the printer and refuses it natively, never as the person speaking', async () => {
     const host = open(
       state({
         session: session({
           chips: [
             { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-            { id: 'no', label: 'Not this one', style: 'plain', say: 'Not this one' },
+            { id: 'reject', label: 'Not this one', style: 'plain', action: 'reject' },
           ],
         }),
       }),
@@ -145,7 +145,70 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'add' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
-    expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Not this one' });
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'reject' });
+    expect(host.lastOfType('user_message')).toBeUndefined();
+  });
+
+  it('sends an access code with Add, and never into the chat', async () => {
+    const host = open(state({ session: session({ accessCode: true }) }));
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Access code' }), '12345678');
+    await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'add', id: '', accessCode: '12345678' });
+    expect(host.received.some((envelope) => envelope.type === 'user_message')).toBe(false);
+    expect(JSON.stringify(host.received.filter((envelope) => envelope.type !== 'printer_action'))).not.toContain('12345678');
+  });
+
+  it('offers no access code for a printer that was not found on the network', () => {
+    open();
+    expect(screen.queryByRole('textbox', { name: 'Access code' })).toBeNull();
+  });
+
+  it('confirms a change on its own card and hides the tools that only show printers', async () => {
+    const activity = (tool: string, extra: Partial<ToolActivityInfo>): ToolActivityInfo => ({
+      actionId: `t-${tool}`,
+      correlationId: 'm-1',
+      server: 'jusprin',
+      tool,
+      title: tool === 'printer_change' ? 'Change nozzle' : 'Show the printers you mean',
+      arguments: {},
+      actionClass: tool === 'printer_change' ? 'mutation' : 'read_only',
+      requiresApproval: tool === 'printer_change',
+      sessionId: '1',
+      expectedRevision: 1,
+      state: 'pending',
+      progress: { current: 0, total: 1 },
+      ...extra,
+    });
+    const host = open(
+      state({
+        session: session({ mode: 'change', caption: 'PRINTER', chips: [] }),
+        toolActivities: [
+          activity('printer_change', {
+            arguments: { nozzle: 0.6, confirm: { printer: 'Bambu Lab A1 mini', before: { nozzle: 0.4 } } },
+          }),
+          activity('printer_identify', { state: 'failed', error: { code: 'unknown_printer', message: 'not on the list' } }),
+        ],
+      }),
+    );
+
+    expect(screen.queryByText('not on the list')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Set 0.6 mm' }));
+    expect(host.lastOfType('tool_decision')!.payload).toMatchObject({ actionId: 't-printer_change', decision: 'approve' });
+  });
+
+  it('undoes the last change natively', async () => {
+    const host = open(
+      state({
+        session: session({
+          mode: 'change',
+          chips: [],
+          blocks: [{ id: 'b2', seq: 1, afterMessageId: 'm-1', kind: 'undo', text: 'Nozzle set to 0.6 mm' }],
+        }),
+      }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'undo', id: 'b2' });
   });
 
   it('draws the cards the agent drew, under the message that drew them', () => {

@@ -46,6 +46,10 @@ struct AgentSessionProfile
     std::string              instructions;             // empty: the app's assistant
     std::vector<std::string> tool_names;               // empty: every in-app tool
     bool                     include_workspace{true};  // the open project's state
+    // The thread's notes reach the model as the app's own statements. Off
+    // where the workspace is sent: there a note restates project state the
+    // snapshot already carries, and a stale one would contradict it.
+    bool                     notes_in_context{false};
 };
 
 struct AgentRequest

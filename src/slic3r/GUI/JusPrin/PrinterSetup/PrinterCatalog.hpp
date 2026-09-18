@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PrinterBackend.hpp"
 #include "PrinterSetupTypes.hpp"
 
 #include <string>
@@ -23,6 +24,11 @@ public:
     // One entry per printer model, which is what recognition is asked to name:
     // the 0.4 mm variant where the model ships one, otherwise its first.
     std::vector<const PrinterCandidate*> models() const;
+
+    // The printers the printer panel offers: one per model, with the nozzle
+    // sizes it ships and each size's default filament, in catalogue order.
+    // The Orca Arena bundle is left out (it stays in OrcaSlicer's wizard).
+    std::vector<CatalogPrinter> panel_printers() const;
 
 private:
     std::vector<PrinterCandidate> m_candidates;

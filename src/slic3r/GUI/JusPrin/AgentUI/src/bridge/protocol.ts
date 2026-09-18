@@ -406,16 +406,33 @@ export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
-  kind: 'tip' | 'network' | 'printers';
+  // undo: the last change to this printer, with the button that reverses it
+  kind: 'tip' | 'network' | 'printers' | 'undo';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
+  collapsed?: boolean; // a newer answer, or "Not this one", replaced it
+  text?: string; // the undo row's own words: "Nozzle set to 0.6 mm"
 }
 
 export interface PrinterChip {
   id: string;
   label: string;
-  style: 'primary' | 'suggested' | 'plain';
-  action?: 'add'; // acts at once; the tap is the approval
-  say?: string; // sends this as the person's own message
+  style: 'primary' | 'plain';
+  // Both act at once, natively: add saves the printer on the card, reject
+  // folds it away. Neither is sent as the person's words.
+  action: 'add' | 'reject';
+}
+
+// What a printer_change card states, added to the call's arguments by the
+// host before the card is shown: the printer, and what it has now.
+export interface PrinterChangeConfirm {
+  printer: string;
+  before: { nozzle?: number; spools?: PrinterSpoolInfo[] };
+}
+
+export interface PrinterSpoolInfo {
+  name: string;
+  material: string;
+  colour?: string;
 }
 
 export interface PrinterSessionPayload {
@@ -424,7 +441,10 @@ export interface PrinterSessionPayload {
   facts: { printer: PrinterFact; nozzle: PrinterFact; plate: PrinterFact; filament: PrinterFact };
   blocks: PrinterBlock[];
   chips: PrinterChip[];
-  chipHint: string;
+  // The printer on the card was found on the network and can be kept
+  // connected: the panel offers its own access-code field, whose value goes
+  // with Add to the app and never into the chat.
+  accessCode?: boolean;
   placeholder: string; // a likely answer to what the agent just said
 }
 

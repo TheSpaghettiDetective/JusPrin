@@ -2065,14 +2065,109 @@ button.wide {
   color: var(--action-primary-text);
 }
 
-.printer-chip-suggested {
-  border-color: var(--border-strong);
-  font: var(--font-label-bold);
-}
-
-.printer-chip-hint {
+/* A card a newer answer replaced, or the person refused: still in the
+   thread, as one quiet line, so the conversation reads in order. */
+.printer-cards-collapsed {
+  padding: 4px 12px;
+  border-left: 2px solid var(--border-subtle);
   font: var(--font-label);
   color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+/* The access code of a printer found on the network: the panel's own field,
+   whose value goes to the app with Add and never into the chat. */
+.printer-access-code {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  margin: 8px 12px 0;
+  padding: var(--button-secondary-padding);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.printer-access-code:focus {
+  border-color: var(--action-primary);
+  outline: none;
+}
+
+/* The last change to this printer, and the app's own way back. */
+.printer-undo {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  text-decoration: underline;
+}
+
+/* A change the model worked out, stated in words before it is saved. */
+.printer-change {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+}
+
+.printer-change.state-pending {
+  border-color: var(--action-primary);
+}
+
+.printer-change-title {
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.printer-change-line {
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.printer-change-note,
+.printer-change-state {
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}
+
+.printer-change-spool-diff {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.printer-change-spool-diff small {
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}
+
+.printer-change-spools {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.printer-change-none {
+  display: block;
+  color: var(--text-tertiary);
+}
+
+.printer-change-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 /* Labelled, because a picture is a primary way to name a printer. */

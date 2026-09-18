@@ -48,15 +48,26 @@ struct CatalogPrinter
 {
     std::string         id; // catalogue id, stable for this session
     std::string         vendor_id;
-    std::string         vendor_name;
-    std::string         model_id;
-    std::string         model_name;
+    std::string         vendor_name;  // the brand, as its vendor file names it
+    std::string         model_id;     // the profile's own name, which Orca installs by
+    std::string         model_name;   // that name with the brand not repeated
     std::string         device_model_id;
     std::string         build_volume; // "180 × 180 × 180 mm"
     std::string         picture;
-    std::string         default_plate;
-    std::string         default_material;
+    std::string         default_plate; // empty: the profile names none
     std::vector<double> nozzles;
+    // The machine profile's own default filament for each nozzle size, in
+    // the order of `nozzles`; empty where that profile names none.
+    std::vector<std::string> filaments;
+
+    std::string display_name() const { return vendor_name + " " + model_name; }
+    std::string filament_for(double nozzle) const
+    {
+        for (std::size_t i = 0; i < nozzles.size() && i < filaments.size(); ++i)
+            if (nozzles[i] == nozzle)
+                return filaments[i];
+        return {};
+    }
 };
 
 // Everything the app needs to save a printer the person has just agreed to.
@@ -77,7 +88,6 @@ struct ChangePrinterRequest
 {
     std::string                  name; // the saved printer to change
     std::optional<double>        nozzle;
-    std::optional<std::string>   access_code;
     std::optional<std::vector<PrinterSpool>> spools;
 };
 
@@ -86,8 +96,9 @@ class IPrinterBackend
 public:
     virtual ~IPrinterBackend() = default;
 
-    // Reads.
-    virtual std::vector<CatalogPrinter>   search_catalog(const std::string& text, std::size_t limit) const = 0;
+    // Reads. The catalogue is every model a person can add from this panel,
+    // in a stable order.
+    virtual const std::vector<CatalogPrinter>& catalog() const = 0;
     virtual std::vector<DiscoveredPrinter> network_printers() const = 0;
     virtual std::vector<SavedPrinter>     saved_printers() const = 0;
 

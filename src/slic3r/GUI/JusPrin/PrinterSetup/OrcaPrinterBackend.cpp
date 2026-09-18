@@ -16,59 +16,10 @@
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 
 #include <algorithm>
-#include <cctype>
-#include <sstream>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 namespace {
-
-std::string lowered(std::string text)
-{
-    std::transform(text.begin(), text.end(), text.begin(),
-                   [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
-    return text;
-}
-
-// Every word of the query has to appear somewhere in the entry, so "bambu a1
-// mini" narrows rather than widens, and a word nobody uses finds nothing.
-bool matches(const std::string& haystack, const std::vector<std::string>& words)
-{
-    return std::all_of(words.begin(), words.end(),
-                       [&haystack](const std::string& word) { return haystack.find(word) != std::string::npos; });
-}
-
-std::vector<std::string> words_of(const std::string& text)
-{
-    std::vector<std::string> words;
-    std::istringstream       stream(lowered(text));
-    std::string              word;
-    while (stream >> word) {
-        // "0.4mm", "a1," and "(combo)" are the same words with punctuation.
-        word.erase(std::remove_if(word.begin(), word.end(),
-                                  [](unsigned char letter) { return std::ispunct(letter) && letter != '.'; }),
-                   word.end());
-        if (!word.empty())
-            words.push_back(word);
-    }
-    return words;
-}
-
-CatalogPrinter entry_of(const PrinterCandidate& candidate)
-{
-    CatalogPrinter printer;
-    printer.id               = candidate.vendor_id + "/" + candidate.model_id;
-    printer.vendor_id        = candidate.vendor_id;
-    printer.vendor_name      = candidate.vendor_name;
-    printer.model_id         = candidate.model_id;
-    printer.model_name       = candidate.model_name;
-    printer.device_model_id  = candidate.device_model_id;
-    printer.build_volume     = candidate.build_volume;
-    printer.picture          = candidate.artwork_path;
-    printer.default_plate    = candidate.default_plate;
-    printer.default_material = candidate.default_material;
-    return printer;
-}
 
 double nozzle_of(const std::string& variant)
 {
@@ -84,38 +35,7 @@ double nozzle_of(const std::string& variant)
 OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, Workspace::SpoolStore* spools)
     : m_plater(plater), m_catalog(std::move(catalog)), m_spools(spools)
 {
-    // The catalogue carries one candidate per model and nozzle; a person has
-    // one printer with one nozzle, so fold the variants into the model and
-    // keep the sizes it ships as a fact about it.
-    for (const PrinterCandidate& candidate : m_catalog.candidates()) {
-        const std::string id = candidate.vendor_id + "/" + candidate.model_id;
-        const auto        known = std::find_if(m_models.begin(), m_models.end(),
-                                               [&id](const CatalogPrinter& printer) { return printer.id == id; });
-        CatalogPrinter&   printer = known == m_models.end() ? m_models.emplace_back(entry_of(candidate)) : *known;
-        const double      nozzle  = nozzle_of(candidate.variant);
-        if (nozzle > 0. && std::find(printer.nozzles.begin(), printer.nozzles.end(), nozzle) == printer.nozzles.end())
-            printer.nozzles.push_back(nozzle);
-    }
-    for (CatalogPrinter& printer : m_models)
-        std::sort(printer.nozzles.begin(), printer.nozzles.end());
-}
-
-std::vector<CatalogPrinter> OrcaPrinterBackend::search_catalog(const std::string& text, std::size_t limit) const
-{
-    const std::vector<std::string> words = words_of(text);
-    std::vector<CatalogPrinter>    found;
-    if (words.empty())
-        return found;
-
-    for (const CatalogPrinter& printer : m_models) {
-        if (found.size() >= limit)
-            break;
-        const std::string haystack =
-            lowered(printer.vendor_name + " " + printer.model_name + " " + printer.build_volume + " " + printer.device_model_id);
-        if (matches(haystack, words))
-            found.push_back(printer);
-    }
-    return found;
+    m_models = m_catalog.panel_printers();
 }
 
 std::vector<DiscoveredPrinter> OrcaPrinterBackend::network_printers() const { return discover_printers(); }
@@ -147,7 +67,7 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
         saved.nozzle    = named.nozzle;
 
         if (const CatalogPrinter* model = model_of(named.name)) {
-            saved.model     = model->vendor_name + " " + model->model_name;
+            saved.model     = model->display_name();
             saved.model_id  = model->model_id;
             saved.vendor_id = model->vendor_id;
             saved.picture   = model->picture;
@@ -245,14 +165,6 @@ std::string OrcaPrinterBackend::change_printer(const ChangePrinterRequest& reque
             record.colour          = spool.colour;
             m_spools->add(std::move(record));
         }
-    }
-
-    if (request.access_code) {
-        if (found->device_id.empty())
-            return "This printer is not one this app found on your network, so it has no access code.";
-        wxString code_error;
-        if (!SetupCommands::set_printer_access_code(found->device_id, *request.access_code, code_error))
-            return code_error.empty() ? std::string("That access code was not accepted.") : code_error.ToStdString();
     }
 
     for (const SavedPrinter& saved : saved_printers())

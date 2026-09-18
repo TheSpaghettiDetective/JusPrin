@@ -107,6 +107,10 @@ json OpenAIResponsesAgent::initial_input(const AgentRequest& request) const
         input.push_back(json{{"role", message.role}, {"content", message.text}});
     if (request.purpose == AgentRequest::Purpose::ConversationTitle)
         return input;
+    // A turn the app started, after one of its own notes: nothing was said,
+    // and an empty user message would read as the person saying nothing.
+    if (request.user_text.empty() && request.attachments.empty() && !request.session.include_workspace)
+        return input;
 
     json content = json::array();
     std::ostringstream context;

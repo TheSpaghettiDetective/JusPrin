@@ -11,10 +11,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
-import { PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
+import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
 import { applyStaticTokens } from '../tokens';
 import { Message } from '../state/store';
-import type { AttachmentInfo, PrinterBlock, PrinterChip, PrinterSessionPayload } from '../bridge/protocol';
+import type { AttachmentInfo, PrinterBlock, PrinterChip, PrinterSessionPayload, ToolActivityInfo } from '../bridge/protocol';
 import tokens from '../../../../../../../resources/jusprin/ui/design-tokens.json';
 
 const noop = () => {};
@@ -33,7 +33,6 @@ function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPaylo
     facts: { printer: empty, nozzle: empty, plate: empty, filament: empty },
     blocks: [],
     chips: [],
-    chipHint: '',
     placeholder: 'e.g. "bambu a1 mini" or "not sure, the small one"',
     ...overrides,
   };
@@ -70,7 +69,7 @@ const candidates: PrinterBlock = {
 
 const addChips: PrinterChip[] = [
   { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-  { id: 'no', label: 'Not this one', style: 'plain', say: 'Not this one' },
+  { id: 'reject', label: 'Not this one', style: 'plain', action: 'reject' },
 ];
 
 const photo: AttachmentInfo = {
@@ -81,7 +80,12 @@ const photo: AttachmentInfo = {
   sizeBytes: 402_110,
 } as AttachmentInfo;
 
-function panel(state: PrinterSessionPayload, messages: Message[], attachments: AttachmentInfo[] = []) {
+function panel(
+  state: PrinterSessionPayload,
+  messages: Message[],
+  attachments: AttachmentInfo[] = [],
+  activities: ToolActivityInfo[] = [],
+) {
   return renderToStaticMarkup(
     <div className="app app--printer">
       <div className="chat-content">
@@ -101,7 +105,8 @@ function panel(state: PrinterSessionPayload, messages: Message[], attachments: A
           messages={messages}
           attachments={attachments}
           streamingMessageId={null}
-          toolActivities={[]}
+          toolActivities={activities}
+          renderActivity={(activity) => <PrinterChangeCard activity={activity} onDecision={noop} />}
           builds={[]}
           exportedCopies={[]}
           physicalPrints={[]}
@@ -113,7 +118,8 @@ function panel(state: PrinterSessionPayload, messages: Message[], attachments: A
           onToolDecision={noop}
           onToolCancel={noop}
         />
-        <PrinterChipRow chips={state.chips} hint={state.chipHint} disabled={false} onAdd={noop} onSay={noop} />
+        {state.accessCode && <PrinterAccessCode value="" onChange={noop} />}
+        <PrinterChipRow chips={state.chips} disabled={false} onAdd={noop} onReject={noop} />
         <Composer
           disabled={false}
           placeholder={state.placeholder}
@@ -128,6 +134,23 @@ function panel(state: PrinterSessionPayload, messages: Message[], attachments: A
       </div>
     </div>,
   );
+}
+
+function changeActivity(state: ToolActivityInfo['state']): ToolActivityInfo {
+  return {
+    actionId: 't-1',
+    correlationId: 'm3',
+    server: 'jusprin',
+    tool: 'printer_change',
+    title: 'Change nozzle',
+    arguments: { nozzle: 0.6, confirm: { printer: 'Bambu Lab A1 mini', before: { nozzle: 0.4 } } },
+    actionClass: 'mutation',
+    requiresApproval: true,
+    sessionId: '1',
+    expectedRevision: 1,
+    state,
+    progress: { current: 0, total: 1 },
+  };
 }
 
 const opener = message('m1', 'assistant',
@@ -167,9 +190,6 @@ const cases = () => [
     body: panel(
       session({
         blocks: [candidates],
-        chips: [{ id: 'neither', label: 'Neither · not in the list', style: 'plain', say: 'Neither, it is not in the list' }],
-        chipHint: 'or a photo of the front',
-        placeholder: 'or say more: "it has a knob"',
       }),
       [
         message('m2', 'user', 'the ender with the touchscreen'),
@@ -189,15 +209,11 @@ const cases = () => [
           plate: settled('Textured PEI'),
           filament: settled('AMS lite · PLA Matte + 3', '#5f7d4f'),
         },
-        blocks: [card('Bambu Lab A1 mini', 'read from the printer just now')],
+        blocks: [{ ...card('Bambu Lab A1 mini', '0.4 mm nozzle · AMS lite · PLA Matte + 3 · read from the printer just now'), afterMessageId: 'm2' }],
         chips: addChips,
-        placeholder: 'access code, optional',
+        accessCode: true,
       }),
-      [
-        message('m2', 'note', '"Use this" · 01P00A3B'),
-        message('m3', 'assistant',
-          'Nothing to assume: it told me its nozzle, plate and spools. To keep it connected, enter its access code (Settings › Network on the printer).'),
-      ],
+      [message('m2', 'note', 'The person chose the network printer 01P00A3B, a Bambu Lab A1 mini that reports a 0.4 mm nozzle.')],
     ),
   },
   {
@@ -229,31 +245,68 @@ const cases = () => [
     ),
   },
   {
-    name: 'Change · a nozzle swapped',
-    note: 'the changed fact is the only red thing in the card',
+    name: 'G · "Not this one"',
+    note: 'the refused card folds to a line; the agent asks what next',
+    body: panel(
+      session({ blocks: [{ ...card('Bambu Lab A1 mini', '180 × 180 × 180 mm'), collapsed: true }] }),
+      [
+        message('m2', 'user', 'the small bambu one'),
+        message('m3', 'assistant', "That's the Bambu Lab A1 mini. I'll assume the 0.4 mm nozzle, the Textured PEI plate and Bambu PLA Basic."),
+        message('m4', 'note', 'The person said Bambu Lab A1 mini is not their printer.'),
+        message('m5', 'assistant', 'Which one is it, then? The model name is on a sticker on the back.'),
+      ],
+    ),
+  },
+  {
+    name: 'Change · confirming a nozzle',
+    note: 'the change in words before anything is saved',
     body: panel(
       session({
         mode: 'change',
         caption: 'PRINTER',
         facts: {
-          printer: settled('Bambu Lab A1 Combo'),
-          nozzle: { value: '0.6 mm', provenance: 'changed' },
-          plate: assumed('Textured PEI'),
-          filament: settled('AMS · 4 slots'),
+          printer: settled('Bambu Lab A1 mini'),
+          nozzle: settled('0.4 mm'),
+          plate: assumed('Textured PEI Plate'),
+          filament: settled('AMS lite · PLA Matte + 1', '#5f7d4f'),
         },
-        chips: [
-          { id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers' },
-          { id: 's2', label: 'Keep 0.2 mm', style: 'plain', say: 'Keep 0.2 mm' },
-        ],
-        chipHint: 'or just type',
-        placeholder: 'e.g. "I swapped the plate" or "is it connected?"',
+        placeholder: 'e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"',
       }),
       [
         message('m1', 'assistant',
-          'This is the A1 Combo. Tell me what changed on it, or ask anything about it: nozzle, plate, spools, connection. A photo of the part works too.'),
+          'This is the Bambu Lab A1 mini. Tell me what changed on it, or ask anything about it: nozzle, plate, spools, connection. A photo of the part works too.'),
         message('m2', 'user', 'i put a 0.6 nozzle on it'),
-        message('m3', 'assistant', 'Changed to 0.6 mm. With 0.6 you can also print thicker layers.'),
+        message('m3', 'assistant', ''),
       ],
+      [],
+      [changeActivity('pending')],
+    ),
+  },
+  {
+    name: 'Change · a nozzle swapped',
+    note: 'the changed fact is the only red thing in the card; Undo is the app’s',
+    body: panel(
+      session({
+        mode: 'change',
+        caption: 'PRINTER',
+        facts: {
+          printer: settled('Bambu Lab A1 mini'),
+          nozzle: { value: '0.6 mm', provenance: 'changed' },
+          plate: assumed('Textured PEI Plate'),
+          filament: settled('AMS lite · PLA Matte + 1', '#5f7d4f'),
+        },
+        blocks: [{ id: 'undo', seq: 1, afterMessageId: 'm3', kind: 'undo', text: 'Nozzle set to 0.6 mm' }],
+        placeholder: 'e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"',
+      }),
+      [
+        message('m1', 'assistant',
+          'This is the Bambu Lab A1 mini. Tell me what changed on it, or ask anything about it: nozzle, plate, spools, connection. A photo of the part works too.'),
+        message('m2', 'user', 'i put a 0.6 nozzle on it'),
+        message('m3', 'assistant', ''),
+        message('m4', 'assistant', "Done — it's on the 0.6 mm nozzle now. You can print thicker layers with it."),
+      ],
+      [],
+      [changeActivity('succeeded')],
     ),
   },
 ];

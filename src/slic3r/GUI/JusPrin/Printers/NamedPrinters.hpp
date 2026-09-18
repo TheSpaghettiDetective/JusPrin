@@ -67,8 +67,9 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name);
 // A printer's nozzle is fixed by the profile it inherits, so changing it is a
 // change of parent. It is made only where the person is editing that printer
 // and the panel states the result; nothing else in JusPrin moves a parent.
-// Returns a message for the person when it could not be done, empty when it
-// was, and empty when they cancelled Orca's own unsaved-changes prompt.
+// The open project's printer selection and its modified state stay as they
+// were, and no dialog is shown. Returns a message for the person when it could
+// not be done, empty when it was.
 wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset);
 
 // After OrcaSlicer's own printer wizard has run: a named printer for each

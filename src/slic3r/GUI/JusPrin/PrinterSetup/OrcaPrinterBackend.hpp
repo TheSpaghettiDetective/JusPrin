@@ -21,7 +21,7 @@ public:
     // refuses to change them.
     OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, Workspace::SpoolStore* spools);
 
-    std::vector<CatalogPrinter>    search_catalog(const std::string& text, std::size_t limit) const override;
+    const std::vector<CatalogPrinter>& catalog() const override { return m_models; }
     std::vector<DiscoveredPrinter> network_printers() const override;
     std::vector<SavedPrinter>      saved_printers() const override;
 

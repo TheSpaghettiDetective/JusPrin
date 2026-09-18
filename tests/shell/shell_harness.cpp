@@ -58,6 +58,14 @@
 //              setting by hand, asserts the thread's change rows and the
 //              "Answered · nothing changed" marker, and writes
 //              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
+//   --printer-live
+//              needs OPENAI_API_KEY: the printer-agent-tools handoff's worked
+//              examples through the real printer panel and the live model --
+//              words and taps sent as the page sends them, every exchange
+//              printed as HARNESS LIVE lines, and the mechanical outcomes
+//              checked (cards drawn or not, the change card, the saved
+//              nozzle, Undo). The key is written to this run's throwaway
+//              app config, where the panel reads it.
 //   --printer-setup
 //              drives the Add a printer modal from the printer menu with the
 //              deterministic recognizer: dismissal and scrim lifetime, the
@@ -91,6 +99,9 @@
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
+
+#include <deque>
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
@@ -193,7 +204,8 @@ struct HarnessState
         LiveAgentUnavailable,
         RecomputingCapture,
         TimelineCapture,
-        PrinterSetup
+        PrinterSetup,
+        PrinterLive
     };
 
     std::atomic<int>  result{-1};
@@ -286,6 +298,10 @@ public:
         try {
             if (m_state->mode == HarnessState::Mode::PrinterSetup) {
                 verify_printer_setup();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PrinterLive) {
+                begin_printer_live();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::McpSetup) {
@@ -506,6 +522,7 @@ private:
               "panel_changes_the_printer_it_was_opened_for");
         check(change["facts"]["printer"].value("value", "") == named, "panel_states_the_printer_by_name");
         check(change["facts"]["nozzle"].value("value", "") == "0.4 mm", "panel_states_the_nozzle_it_is_set_up_with");
+        verify_nozzle_change_leaves_the_project(named);
 
         // "‹ Printers" gives the column back.
         panel->close();
@@ -514,6 +531,386 @@ private:
         check(Printers::remove_named_printer(*m_plater, nullptr, named).empty(), "panel_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         verify_setup_install_commands();
+    }
+
+    // A nozzle changed from Home is a change to that printer, not to the
+    // project that happens to be open: the project keeps the printer it has
+    // selected and its modified state, and nothing asks the person anything
+    // (a dialog would stop this harness where it stands).
+    void verify_nozzle_change_leaves_the_project(const std::string& named)
+    {
+        PresetCollection&              printers = wxGetApp().preset_bundle->printers;
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
+                                                 nullptr);
+        const auto change = [&](double nozzle) {
+            PrinterSetup::ChangePrinterRequest request;
+            request.name   = named;
+            request.nozzle = nozzle;
+            PrinterSetup::SavedPrinter changed;
+            return backend.change_printer(request, changed);
+        };
+        const auto parent = [&] {
+            const Preset* profile = printer_profile(named);
+            return profile == nullptr ? std::string() : profile->inherits();
+        };
+        const auto edited_nozzle = [&] {
+            const auto* nozzle = printers.get_edited_preset().config.option<ConfigOptionFloats>("nozzle_diameter");
+            return nozzle == nullptr || nozzle->values.empty() ? 0. : nozzle->values.front();
+        };
+
+        // Another printer is the project's.
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const bool dirty = m_plater->is_project_dirty();
+        check(change(0.6).empty() && parent() == "Bambu Lab X1 Carbon 0.6 nozzle", "nozzle_change_moves_the_printer_to_its_size");
+        check(selected_printer() == kSetupFixturePrinter, "nozzle_change_keeps_the_projects_printer");
+        check(m_plater->is_project_dirty() == dirty, "nozzle_change_keeps_the_projects_modified_state");
+        check(edited_nozzle() == 0.4, "nozzle_change_leaves_the_projects_printer_settings");
+        // Undo is the same operation back.
+        check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_undo_moves_it_back");
+
+        // The printer is the project's, with nothing unsaved: the project's
+        // copy follows, still selected, still clean.
+        SetupCommands::select_printer_preset(*m_plater, named);
+        const bool dirty_on_it = m_plater->is_project_dirty();
+        check(change(0.6).empty() && selected_printer() == named, "nozzle_change_of_the_projects_printer_keeps_it_selected");
+        check(edited_nozzle() == 0.6 && !printers.current_is_dirty(), "nozzle_change_of_the_projects_printer_reaches_it");
+        check(m_plater->is_project_dirty() == dirty_on_it, "nozzle_change_of_the_projects_printer_keeps_its_modified_state");
+
+        // Unsaved edits to it are the person's: refused in words, with no
+        // prompt, and nothing moved.
+        printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
+        check(printers.current_is_dirty(), "nozzle_fixture_has_unsaved_printer_edits");
+        check(!change(0.4).empty() && parent() == "Bambu Lab X1 Carbon 0.6 nozzle",
+              "nozzle_change_refuses_over_unsaved_edits_without_a_prompt");
+        printers.discard_current_changes();
+        check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_cleanup_moves_it_back");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+    }
+
+    // --- The worked examples, live (--printer-live) ------------------------
+    //
+    // The handoff's worked examples through the real panel: its own session,
+    // the live model, the Orca backend. Words and taps go in as the page would
+    // send them; each exchange is printed for reading, and what can be checked
+    // mechanically is.
+
+    struct LiveStep
+    {
+        std::string            label;
+        std::function<void()>  act;   // opens a session, or sends words or a tap
+        std::function<bool()>  ready; // when the exchange has settled
+        std::function<void()>  check; // then
+    };
+    std::deque<LiveStep> m_live_steps;
+    std::size_t          m_live_printed{0};
+    std::size_t          m_live_messages_before{0};
+    std::string          m_live_printer;
+
+    PrinterSetup::PrinterPanel* live_panel() const
+    {
+        ShellController* shell = installed_shell();
+        return shell == nullptr ? nullptr : shell->printer_panel();
+    }
+
+    void live_send(const std::string& type, const nlohmann::json& payload)
+    {
+        static int next = 0;
+        live_panel()->host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                             {"version", Agent::Protocol::kVersion},
+                                                             {"id", "live-" + std::to_string(++next)},
+                                                             {"type", type},
+                                                             {"payload", payload}}
+                                                  .dump());
+    }
+
+    void say(const std::string& text)
+    {
+        static int next = 0;
+        live_send("user_message", {{"clientMessageId", "live-c-" + std::to_string(++next)}, {"text", text}});
+    }
+
+    std::vector<Agent::ConversationMessage> live_messages() const
+    {
+        const Agent::ProjectPersistence* persistence = live_panel()->persistence();
+        if (persistence == nullptr)
+            return {};
+        return persistence->document().messages(persistence->document().active_conversation_id());
+    }
+
+    const std::vector<Agent::ToolActivity>& live_activities() const { return live_panel()->host()->tools().activities(); }
+
+    std::vector<const Agent::ToolActivity*> live_calls(const std::string& tool) const
+    {
+        std::vector<const Agent::ToolActivity*> calls;
+        for (const Agent::ToolActivity& activity : live_activities())
+            if (activity.tool == tool)
+                calls.push_back(&activity);
+        return calls;
+    }
+
+    // Settled: nothing streaming, no tool mid-run, and either a card waits
+    // for the person or the model has had its last word.
+    bool live_settled() const
+    {
+        Agent::AgentHost* host = live_panel()->host();
+        if (host == nullptr || host->stream_active())
+            return false;
+        const auto& activities = live_activities();
+        if (!activities.empty()) {
+            const Agent::ToolState state = activities.back().state;
+            if (state == Agent::ToolState::Approved || state == Agent::ToolState::Running)
+                return false;
+            if (state == Agent::ToolState::Pending)
+                return true;
+        }
+        const auto messages = live_messages();
+        return !messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
+               messages.back().state == Agent::MessageState::Complete && !messages.back().text.empty();
+    }
+
+    static const char* tool_state_label(Agent::ToolState state)
+    {
+        switch (state) {
+        case Agent::ToolState::Pending: return "pending";
+        case Agent::ToolState::Approved: return "approved";
+        case Agent::ToolState::Running: return "running";
+        case Agent::ToolState::Succeeded: return "succeeded";
+        case Agent::ToolState::Failed: return "failed";
+        case Agent::ToolState::Cancelled: return "cancelled";
+        case Agent::ToolState::Rejected: return "rejected";
+        }
+        return "?";
+    }
+
+    void live_print_new()
+    {
+        const auto messages = live_messages();
+        for (std::size_t i = m_live_printed; i < messages.size(); ++i) {
+            const auto& message = messages[i];
+            const char* who = message.role == Agent::MessageRole::User ? "person" :
+                              message.role == Agent::MessageRole::Note ? "app" :
+                                                                         "model";
+            if (!message.text.empty())
+                std::cerr << "HARNESS LIVE   " << who << ": " << message.text << '\n';
+        }
+        m_live_printed = messages.size();
+    }
+
+    void run_live_steps()
+    {
+        if (m_live_steps.empty()) {
+            finish_printer_live();
+            return;
+        }
+        LiveStep step = std::move(m_live_steps.front());
+        m_live_steps.pop_front();
+        std::cerr << "HARNESS LIVE -- " << step.label << '\n';
+        step.act();
+        auto ready = step.ready ? step.ready : [this] { return live_settled(); };
+        wait_until(
+            ready, "live_" + step.label,
+            [self = shared_from_this(), check = step.check] {
+                self->live_print_new();
+                if (check)
+                    check();
+                self->run_live_steps();
+            },
+            [this, ticks = std::make_shared<int>(0)] {
+                if (++*ticks % 300 != 0 || live_panel()->host() == nullptr)
+                    return;
+                const auto messages = live_messages();
+                std::cerr << "HARNESS LIVE   waiting: stream=" << live_panel()->host()->stream_active()
+                          << " messages=" << messages.size() << " tools=" << live_activities().size();
+                if (!messages.empty())
+                    std::cerr << " last role=" << static_cast<int>(messages.back().role)
+                              << " state=" << static_cast<int>(messages.back().state) << " text=" << messages.back().text.size()
+                              << (messages.back().error ? " error=" + messages.back().error->code + " " + messages.back().error->message : "");
+                std::cerr << '\n';
+            });
+    }
+
+    void live_open(PrinterSetup::ConversationMode mode, const std::string& printer = {})
+    {
+        m_live_steps.push_back({mode == PrinterSetup::ConversationMode::Add ? "open: add" : "open: change " + printer,
+                                [this, mode, printer] {
+                                    live_panel()->open(mode, printer);
+                                    m_live_printed = 0;
+                                },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete(); },
+                                {}});
+    }
+
+    void live_say(const std::string& words, std::function<void()> check)
+    {
+        m_live_steps.push_back({"say: " + words, [this, words] { say(words); }, {}, std::move(check)});
+    }
+
+    bool live_identified(const std::string& id) const
+    {
+        for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+            if (call->state == Agent::ToolState::Succeeded && call->arguments_json.find("\"" + id + "\"") != std::string::npos)
+                return true;
+        return false;
+    }
+
+    bool live_drew_a_card() const
+    {
+        for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+            if (call->state == Agent::ToolState::Succeeded)
+                return true;
+        return false;
+    }
+
+    void live_print_calls()
+    {
+        for (const Agent::ToolActivity& activity : live_activities())
+            std::cerr << "HARNESS LIVE   tool " << activity.tool << ' ' << activity.arguments_json << " -> "
+                      << (activity.error ? activity.error->code : std::string(tool_state_label(activity.state))) << '\n';
+    }
+
+    void begin_printer_live()
+    {
+        if (live_panel() == nullptr || std::getenv("OPENAI_API_KEY") == nullptr) {
+            fail("the printer panel or the OpenAI key is missing");
+            return;
+        }
+        // The panel builds its own Agent from the app configuration, as the
+        // shipped app does, so the key goes there: this run's throwaway data
+        // directory, never the person's.
+        // As a std::string: a char* would pick AppConfig::set's bool overload.
+        wxGetApp().app_config->set("jusprin_agent", "openai_api_key", std::string(std::getenv("OPENAI_API_KEY")));
+        using Mode = PrinterSetup::ConversationMode;
+
+        live_open(Mode::Add);
+        live_say("the small bambu one", [this] {
+            live_print_calls();
+            check(live_identified("BBL/Bambu Lab A1 mini"), "live_small_bambu_is_the_a1_mini");
+            check(live_panel()->session_json()["facts"]["printer"].value("value", "") == "Bambu Lab A1 mini",
+                  "live_small_bambu_pins_the_card");
+        });
+        m_live_steps.push_back({"tap: Not this one", [this] { live_send("printer_action", {{"action", "reject"}}); }, {}, [this] {
+                                    const auto messages = live_messages();
+                                    check(std::any_of(messages.begin(), messages.end(),
+                                                      [](const Agent::ConversationMessage& message) {
+                                                          return message.role == Agent::MessageRole::Note &&
+                                                                 message.text.find("is not their printer") != std::string::npos;
+                                                      }),
+                                          "live_not_this_one_is_recorded");
+                                    check(live_panel()->session_json()["facts"]["printer"].value("value", "x").empty(),
+                                          "live_not_this_one_clears_the_pin");
+                                }});
+
+        live_open(Mode::Add);
+        live_say("voron 2.4 350mm", [this] {
+            live_print_calls();
+            check(live_identified("Voron/Voron 2.4 350"), "live_voron_350_is_found");
+        });
+
+        live_open(Mode::Add);
+        live_say("ender 3", [this] {
+            live_print_calls();
+            check(!live_drew_a_card(), "live_ender_3_draws_no_card");
+        });
+
+        live_open(Mode::Add);
+        live_say("prusa mk3s", [this] { live_print_calls(); });
+        live_say("the 0.3 nozzle", [this] {
+            live_print_calls();
+            bool refused = false;
+            for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+                refused = refused || (call->error && call->error->code == "unknown_nozzle");
+            check(refused, "live_prusa_0_3_is_refused_with_the_sizes");
+        });
+
+        live_open(Mode::Add);
+        live_say("the prusa, the 0.3 nozzle", [this] { live_print_calls(); });
+
+        live_open(Mode::Add);
+        live_say("my elegoo mars", [this] {
+            live_print_calls();
+            check(!live_drew_a_card(), "live_elegoo_mars_draws_no_card");
+        });
+
+        // A printer to change: the fixture's own profile under a name, while
+        // the project keeps the fixture selected.
+        m_live_steps.push_back({"make: Lab Printer",
+                                [this] {
+                                    m_live_printer = Printers::add_named_printer(*m_plater, "Lab Printer", {});
+                                    SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+                                },
+                                [] { return true; },
+                                {}});
+        m_live_steps.push_back({"open: change",
+                                [this] {
+                                    live_panel()->open(Mode::Change, m_live_printer);
+                                    m_live_printed = 0;
+                                },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete(); },
+                                {}});
+        live_say("i put a 0.6 nozzle on it", [this] {
+            live_print_calls();
+            const auto calls = live_calls("printer_change");
+            check(!calls.empty() && calls.back()->state == Agent::ToolState::Pending && calls.back()->title == "Change nozzle",
+                  "live_nozzle_change_waits_on_its_card");
+            const Preset* profile = printer_profile(m_live_printer);
+            check(profile != nullptr && profile->inherits() == kSetupFixturePrinter, "live_nothing_saved_before_the_card");
+        });
+        m_live_steps.push_back({"tap: Set 0.6 mm",
+                                [this] {
+                                    live_send("tool_decision", {{"actionId", live_activities().back().action_id}, {"decision", "approve"}});
+                                },
+                                {},
+                                [this] {
+                                    const Preset* profile = printer_profile(m_live_printer);
+                                    check(profile != nullptr && profile->inherits() == "Bambu Lab X1 Carbon 0.6 nozzle",
+                                          "live_nozzle_change_saved");
+                                    check(selected_printer() == kSetupFixturePrinter, "live_nozzle_change_keeps_the_projects_printer");
+                                }});
+        m_live_steps.push_back({"tap: Undo",
+                                [this] {
+                                    std::string undo;
+                                    // Held: a range-for over a temporary's member dangles.
+                                    const nlohmann::json session = live_panel()->session_json();
+                                    for (const auto& block : session["blocks"])
+                                        if (block.value("kind", "") == "undo")
+                                            undo = block.value("id", "");
+                                    std::cerr << "HARNESS LIVE   undo row: " << (undo.empty() ? "(none)" : undo) << '\n';
+                                    m_live_messages_before = live_messages().size();
+                                    live_send("printer_action", {{"action", "undo"}, {"id", undo}});
+                                },
+                                [this] { return live_messages().size() > m_live_messages_before; },
+                                [this] {
+                                    const Preset* profile = printer_profile(m_live_printer);
+                                    check(profile != nullptr && profile->inherits() == kSetupFixturePrinter,
+                                          "live_undo_restores_the_nozzle");
+                                    const auto messages = live_messages();
+                                    check(messages.size() == m_live_messages_before + 1 &&
+                                              messages.back().role == Agent::MessageRole::Note && !live_panel()->host()->stream_active(),
+                                          "live_undo_is_recorded_without_a_model_turn");
+                                }});
+        live_say("swapped to a hardened steel 0.4", [this] {
+            check(live_calls("printer_change").size() == 1, "live_hardened_steel_changes_nothing");
+        });
+        live_say("the plate is smooth PEI now", [this] {
+            check(live_calls("printer_change").size() == 1, "live_plate_is_the_projects");
+        });
+        live_say("i put a 0.3 on it", [this] {
+            live_print_calls();
+            const auto calls = live_calls("printer_change");
+            check(calls.size() >= 2 && calls.back()->error && calls.back()->error->code == "unknown_nozzle",
+                  "live_0_3_is_refused_before_any_card");
+        });
+        run_live_steps();
+    }
+
+    void finish_printer_live()
+    {
+        live_panel()->close();
+        wxYield();
+        if (!m_live_printer.empty())
+            Printers::remove_named_printer(*m_plater, nullptr, m_live_printer);
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        finish();
     }
 
     void verify_setup_install_commands()
@@ -4243,6 +4640,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
         else if (argument == "--printer-setup")
             state->mode = HarnessState::Mode::PrinterSetup;
+        else if (argument == "--printer-live")
+            state->mode = HarnessState::Mode::PrinterLive;
         else if (argument == "--recomputing-capture") {
             if (++index == argc) {
                 std::cerr << "--recomputing-capture requires an output directory\n";
@@ -4293,13 +4692,14 @@ int main(int argc, char** argv)
         }
 #endif
         if (state->mode == HarnessState::Mode::LiveAgent ||
-            state->mode == HarnessState::Mode::ManualLiveAgent ||
+            state->mode == HarnessState::Mode::ManualLiveAgent || state->mode == HarnessState::Mode::PrinterLive ||
             state->mode == HarnessState::Mode::LiveAgentUnavailable) {
             // The base config has the Agent off: no provider, no key, no
             // consent, exactly what a fresh install looks like.
             const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
-                                      state->mode == HarnessState::Mode::ManualLiveAgent;
+                                      state->mode == HarnessState::Mode::ManualLiveAgent ||
+                                      state->mode == HarnessState::Mode::PrinterLive;
             const std::string consent = live_enabled ? "true" : "false";
             const std::string to = "\"jusprin_agent\": {\n    \"cloud_consent\": " + consent +
                                    ",\n    \"enabled\": true,\n    \"model\": \"gpt-5.4-mini\",\n    \"provider\": \"openai\"\n  }";

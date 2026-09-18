@@ -5,8 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { PrinterBlock, PrinterChip, PrinterSessionPayload } from '../bridge/protocol';
-import { PrinterBlockView, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
+import type { PrinterBlock, PrinterChip, PrinterSessionPayload, ToolActivityInfo } from '../bridge/protocol';
+import { PrinterAccessCode, PrinterBlockView, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
 
 function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSessionPayload {
   return {
@@ -20,7 +20,6 @@ function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSession
     },
     blocks: [],
     chips: [],
-    chipHint: '',
     placeholder: 'e.g. "bambu a1 mini" or "not sure, the small one"',
     ...overrides,
   };
@@ -105,7 +104,28 @@ describe('the cards the agent draws', () => {
     const buttons = screen.getAllByRole('button', { name: 'This one' });
     expect(buttons).toHaveLength(2);
     await userEvent.click(buttons[1]);
-    expect(onAction).toHaveBeenCalledWith('candidate_pick', 'Creality/Ender-3 S1');
+    // The card is named too, so the app keeps the nozzle the model gave it.
+    expect(onAction).toHaveBeenCalledWith('candidate_pick', 'Creality/Ender-3 S1', 'b1');
+  });
+
+  it('folds a replaced card to one line with nothing left to tap', () => {
+    render(<PrinterBlockView block={{ ...printers, collapsed: true }} onAction={vi.fn()} />);
+    expect(screen.getByText('Bambu Lab A1 mini')).toHaveClass('printer-cards-collapsed');
+    expect(screen.queryByText('180 × 180 × 180 mm')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('names the last change and undoes it natively', async () => {
+    const onAction = vi.fn();
+    render(
+      <PrinterBlockView
+        block={{ id: 'b4', seq: 4, afterMessageId: 'm2', kind: 'undo', text: 'Nozzle set to 0.6 mm' }}
+        onAction={onAction}
+      />,
+    );
+    expect(screen.getByText('Nozzle set to 0.6 mm')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(onAction).toHaveBeenCalledWith('undo', 'b4');
   });
 
   it('lists what is on the network, with its serial and a way to use it', async () => {
@@ -138,37 +158,106 @@ describe('the cards the agent draws', () => {
 describe('the chips', () => {
   const chips: PrinterChip[] = [
     { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-    { id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers' },
+    { id: 'reject', label: 'Not this one', style: 'plain', action: 'reject' },
   ];
 
-  it('adds the printer natively and sends everything else as the person', async () => {
+  it('adds the printer or refuses it natively, never as the person speaking', async () => {
     const onAdd = vi.fn();
-    const onSay = vi.fn();
-    render(<PrinterChipRow chips={chips} hint="or just type" disabled={false} onAdd={onAdd} onSay={onSay} />);
+    const onReject = vi.fn();
+    render(<PrinterChipRow chips={chips} disabled={false} onAdd={onAdd} onReject={onReject} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect(onSay).not.toHaveBeenCalled();
+    expect(onReject).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Use 0.3 mm layers' }));
-    expect(onSay).toHaveBeenCalledWith('Use 0.3 mm layers');
-    expect(screen.getByText('or just type')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
+    expect(onReject).toHaveBeenCalledTimes(1);
   });
 
   it('is the chip shape either way, and differs only by fill', () => {
-    render(<PrinterChipRow chips={chips} hint="" disabled={false} onAdd={vi.fn()} onSay={vi.fn()} />);
+    render(<PrinterChipRow chips={chips} disabled={false} onAdd={vi.fn()} onReject={vi.fn()} />);
     const primary = screen.getByRole('button', { name: 'Add this printer' });
-    const plain = screen.getByRole('button', { name: 'Use 0.3 mm layers' });
+    const plain = screen.getByRole('button', { name: 'Not this one' });
     expect(primary).toHaveClass('printer-chip');
     expect(plain).toHaveClass('printer-chip');
     expect(primary).toHaveClass('printer-chip-primary');
-    expect(plain).toHaveClass('printer-chip-suggested');
+    expect(plain).toHaveClass('printer-chip-plain');
   });
 
   it('offers nothing while the agent is working', async () => {
-    const onSay = vi.fn();
-    render(<PrinterChipRow chips={chips} hint="" disabled onAdd={vi.fn()} onSay={onSay} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Use 0.3 mm layers' }));
-    expect(onSay).not.toHaveBeenCalled();
+    const onReject = vi.fn();
+    render(<PrinterChipRow chips={chips} disabled onAdd={vi.fn()} onReject={onReject} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
+    expect(onReject).not.toHaveBeenCalled();
+  });
+});
+
+describe('the access code', () => {
+  it('is a field of its own that reports what is typed and sends nothing', async () => {
+    const onChange = vi.fn();
+    render(<PrinterAccessCode value="" onChange={onChange} />);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Access code' }), '1');
+    expect(onChange).toHaveBeenCalledWith('1');
+  });
+});
+
+function change(overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo {
+  return {
+    actionId: 't-1',
+    correlationId: 'm2',
+    server: 'jusprin',
+    tool: 'printer_change',
+    title: 'Change nozzle',
+    arguments: { nozzle: 0.6, confirm: { printer: 'Bambu Lab A1 mini', before: { nozzle: 0.4 } } },
+    actionClass: 'mutation',
+    requiresApproval: true,
+    sessionId: '1',
+    expectedRevision: 1,
+    state: 'pending',
+    progress: { current: 0, total: 1 },
+    ...overrides,
+  };
+}
+
+describe('the change card', () => {
+  it('states a nozzle change in words and names both answers', async () => {
+    const onDecision = vi.fn();
+    render(<PrinterChangeCard activity={change()} onDecision={onDecision} />);
+
+    expect(screen.getByText('Change nozzle')).toBeInTheDocument();
+    expect(screen.getByText(/0\.4 mm →/)).toHaveTextContent('0.4 mm → 0.6 mm on Bambu Lab A1 mini');
+    expect(screen.getByText('Every project that uses this printer slices for 0.6 mm.')).toBeInTheDocument();
+    // No tool name on the card.
+    expect(screen.queryByText(/printer_change/)).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep 0.4 mm' }));
+    expect(onDecision).toHaveBeenCalledWith('t-1', 'reject');
+    await userEvent.click(screen.getByRole('button', { name: 'Set 0.6 mm' }));
+    expect(onDecision).toHaveBeenCalledWith('t-1', 'approve');
+  });
+
+  it('lists the spools before and after', () => {
+    render(
+      <PrinterChangeCard
+        activity={change({
+          title: 'Change spools',
+          arguments: {
+            spools: [{ name: 'Teal PLA', material: 'PLA', colour: '#2a9d8f' }],
+            confirm: { printer: 'Bambu Lab A1 mini', before: { spools: [{ name: 'Black PETG', material: 'PETG' }] } },
+          },
+        })}
+        onDecision={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Black PETG')).toBeInTheDocument();
+    expect(screen.getByText('Teal PLA')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set these spools' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep as it is' })).toBeInTheDocument();
+  });
+
+  it('says a kept printer was kept, and offers nothing more', () => {
+    render(<PrinterChangeCard activity={change({ state: 'rejected' })} onDecision={vi.fn()} />);
+    expect(screen.getByText('Kept as it was')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
-import { PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -110,6 +110,9 @@ export function App({
   // whenever the host resent state and re-closed the card mid-click.
   const collapseSetup = () => setSetupExpanded(false);
   const [commandError, setCommandError] = useState<string | null>(null);
+  // The printer panel's access-code field. Held here, not in host state: the
+  // code goes to the app with Add and nowhere else.
+  const [accessCode, setAccessCode] = useState('');
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
@@ -362,7 +365,8 @@ export function App({
 
   if (printerPanel) {
     const session = state.session;
-    const printerAction = (action: string, id = '') => client.send('printer_action', { action, id });
+    const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
+      client.send('printer_action', { action, id, ...extra });
     return (
       // The whole panel takes a photo, not only the composer: a picture of
       // the printer is dropped where the person is looking.
@@ -401,17 +405,22 @@ export function App({
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
               // In this panel a tool's result is the card it draws, so only a
-              // decision to make, or a failure to explain, is worth a row of
-              // its own beside it.
+              // change to confirm, or one that failed, is worth a card of its
+              // own. A printer the model named wrongly is its to explain.
               toolActivities={state.toolActivities.filter(
-                (activity) => activity.requiresApproval || activity.state === 'failed',
+                (activity) => activity.tool === 'printer_change' && (activity.requiresApproval || activity.state === 'failed'),
               )}
+              renderActivity={(activity) =>
+                activity.tool === 'printer_change' ? (
+                  <PrinterChangeCard activity={activity} onDecision={sendToolDecision} />
+                ) : undefined
+              }
               builds={[]}
               exportedCopies={[]}
               physicalPrints={[]}
               changes={[]}
               printerBlocks={session?.blocks}
-              onPrinterAction={(action, id) => printerAction(action, id)}
+              onPrinterAction={(action, id, blockId) => printerAction(action, id, blockId ? { blockId } : {})}
               answeredState={false}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolDecision={sendToolDecision}
@@ -419,13 +428,15 @@ export function App({
             />
           )}
           {!notConfigured && session && (
-            <PrinterChipRow
-              chips={session.chips}
-              hint={session.chipHint}
-              disabled={busy}
-              onAdd={() => printerAction('add')}
-              onSay={sendMessage}
-            />
+            <>
+              {session.accessCode && <PrinterAccessCode value={accessCode} onChange={setAccessCode} />}
+              <PrinterChipRow
+                chips={session.chips}
+                disabled={busy}
+                onAdd={() => printerAction('add', '', session.accessCode && accessCode ? { accessCode } : {})}
+                onReject={() => printerAction('reject')}
+              />
+            </>
           )}
           {!notConfigured && (
             <Composer

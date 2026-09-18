@@ -1519,10 +1519,22 @@ std::optional<ConversationMessage> AgentHost::find_stored_message(const std::str
     return std::nullopt;
 }
 
-void AgentHost::open_session(const std::string& prompt)
+void AgentHost::start_turn()
 {
-    m_session_opening = prompt;
+    // As a sent message does: the title is optional, the turn is not. An
+    // empty id is a turn with no user message of its own; the queue keeps it
+    // in order behind whatever the person already sent.
+    cancel_conversation_title();
+    if (agent_busy()) {
+        m_queued_user_message_ids.push_back({});
+        return;
+    }
     begin_reply({});
+}
+
+void AgentHost::set_session_tool_preflight(ToolExecutionCoordinator::ExtensionPreflight preflight)
+{
+    m_tools.set_extension_preflight(std::move(preflight));
 }
 
 void AgentHost::send_page_envelope(const std::string& type, const json& payload)
@@ -1595,9 +1607,10 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     request.workspace  = m_workspace.snapshot();
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
-    // The opening turn of a session has no user message: the agent speaks
-    // first, answering what its owner asked for when the panel opened.
-    request.user_text = user ? user->text : m_session_opening;
+    // A turn the app started has no user message: the model answers the
+    // conversation as it stands, whose last lines are the app's own notes.
+    if (user)
+        request.user_text = user->text;
 
     // The provider gets bounded semantic history. The current user message is
     // supplied separately with its attachments, and the streaming placeholder
@@ -1605,14 +1618,16 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     for (const ConversationMessage& message : document.messages(conversation_id)) {
         if (message.id == assistant.id || message.id == assistant.in_reply_to || message.text.empty())
             continue;
-        // Notes stay out of the model's context. They restate a setup change
-        // the workspace snapshot already carries authoritatively, so sending
-        // them would duplicate that state in prose and let a stale line
-        // contradict the snapshot.
-        if (message.role == MessageRole::Note)
+        // In the project's conversation notes stay out of the model's
+        // context. They restate a setup change the workspace snapshot already
+        // carries authoritatively, so sending them would duplicate that state
+        // in prose and let a stale line contradict the snapshot. A session
+        // with no workspace has no such snapshot, and its notes are the app's
+        // record of what the person did: they go in, as the app's own words.
+        if (message.role == MessageRole::Note && !m_session_profile.notes_in_context)
             continue;
         AgentConversationContext entry;
-        entry.role = role_name(message.role);
+        entry.role = message.role == MessageRole::Note ? "developer" : role_name(message.role);
         entry.text = message.text;
         request.conversation.emplace_back(std::move(entry));
     }
@@ -1803,17 +1818,24 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     PendingToolContinuation continuation = found->second;
     m_tool_continuations.erase(found);
 
-    const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
     const bool queued = activity.state == ToolState::Pending;
-    json output{{"state", queued ? "queued" : tool_state_name(activity.state)},
-                {"actionId", activity.action_id},
-                {"workspaceRevision", current_workspace.revision},
-                {"workspace", context_json(current_workspace, agent_authored_keys(current_workspace))}};
+    json output{{"state", queued ? "queued" : tool_state_name(activity.state)}};
+    // A session about something other than the project is never told about
+    // the project, in its tool results any more than in its turns.
+    if (m_session_profile.include_workspace) {
+        const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
+        output["actionId"]          = activity.action_id;
+        output["workspaceRevision"] = current_workspace.revision;
+        output["workspace"]         = context_json(current_workspace, agent_authored_keys(current_workspace));
+    }
     if (!activity.result_json.empty())
         output["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
         output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
                                 {"details", json::parse(activity.error->details_json)}};
+    if (m_session_tool_output)
+        if (std::optional<json> own = m_session_tool_output(activity))
+            output = std::move(*own);
     if (queued) {
         output["planId"]  = activity.plan_id;
         output["message"] = "Queued in plan " + activity.plan_id +
@@ -1888,6 +1910,9 @@ void AgentHost::start_conversation_title(const std::string& conversation_id)
 {
     const auto& document = m_persistence.document();
     if (agent_busy() || !m_agent || !document.needs_conversation_title(conversation_id)) return;
+    // A session about something other than the project has no chat list to
+    // title, and is gone when its panel closes.
+    if (!m_session_profile.include_workspace) return;
     AgentRequest request;
     request.purpose = AgentRequest::Purpose::ConversationTitle;
     request.request_id = document.project_id() + "-" + conversation_id + "-title-" + std::to_string(document.doc_revision());

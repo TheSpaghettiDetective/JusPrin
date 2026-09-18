@@ -74,6 +74,10 @@ void PrinterPanel::build_runtime()
     host.set_session_tool_executor([this](Agent::ToolHandler handler, const Agent::ToolActivity& activity) {
         return m_conversation->execute_tool(handler, activity);
     });
+    host.set_session_tool_preflight([this](Agent::ToolHandler handler, Agent::ToolActivity& activity) {
+        return m_conversation->preflight_tool(handler, activity);
+    });
+    host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
     // Setting the agent up in here is the same act as setting it up anywhere
     // else; the rest of the shell has to look again afterwards.
     host.set_setup_completed_listener([this] {
@@ -125,6 +129,8 @@ void PrinterPanel::close()
     });
 }
 
+Agent::AgentHost* PrinterPanel::host() { return m_web_view ? &m_web_view->host() : nullptr; }
+
 void PrinterPanel::apply_appearance(bool dark)
 {
     m_dark = dark;
@@ -144,22 +150,25 @@ void PrinterPanel::on_pump(wxTimerEvent&)
 
 // -- What the conversation asks of its panel ---------------------------------
 
-void PrinterPanel::post_note(const std::string& text)
+std::string PrinterPanel::post_note(const std::string& text)
 {
-    if (m_web_view)
-        m_web_view->host().post_note(text);
+    return m_web_view ? m_web_view->host().post_note(text) : std::string();
 }
 
-void PrinterPanel::ask_agent(const std::string& prompt)
+void PrinterPanel::start_turn()
 {
     if (m_web_view)
-        m_web_view->host().open_session(prompt);
+        m_web_view->host().start_turn();
 }
 
 void PrinterPanel::session_changed()
 {
-    if (m_web_view)
-        m_web_view->host().send_page_envelope(Agent::Protocol::kPrinterSession, m_conversation->state_json());
+    if (!m_web_view)
+        return;
+    // A change to the printer is also a change to what the model is told
+    // about it.
+    m_web_view->host().set_session_profile(m_conversation->profile());
+    m_web_view->host().send_page_envelope(Agent::Protocol::kPrinterSession, m_conversation->state_json());
 }
 
 void PrinterPanel::close_panel() { close(); }

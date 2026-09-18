@@ -27,6 +27,12 @@ json number_schema() { return json{{"type", "number"}}; }
 json integer_schema() { return json{{"type", "integer"}, {"minimum", 0}}; }
 json boolean_schema() { return json{{"type", "boolean"}}; }
 
+json printer_spool_schema()
+{
+    return object_schema(json{{"name", string_schema()}, {"material", string_schema()}, {"colour", string_schema()}},
+                         json::array({"name", "material"}));
+}
+
 json string_array_schema()
 {
     return json{{"type", "array"}, {"items", string_schema()}};
@@ -539,60 +545,29 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return true;
     }
 
-    if (definition.handler == ToolHandler::PrinterCatalogSearch)
-        return has_only(arguments, {"query", "limit"}) && arguments.contains("query") && arguments["query"].is_string() &&
-               !arguments["query"].get_ref<const std::string&>().empty() &&
-               arguments["query"].get_ref<const std::string&>().size() <= kToolLabelLimit &&
-               (!arguments.contains("limit") || (arguments["limit"].is_number_unsigned() &&
-                                                 arguments["limit"].get<std::uint64_t>() >= 1 &&
-                                                 arguments["limit"].get<std::uint64_t>() <= 8));
+    // The printer tools check the shape here. How many printers, and which
+    // sizes, are answered by the printer session with errors of their own,
+    // because those answers are what the model says next -- so a list of
+    // thirty printers passes here and is refused there as too many. A nozzle
+    // of null or 0 is how the model leaves it unsaid, and means that.
+    const auto valid_nozzle = [&arguments] {
+        return !arguments.contains("nozzle") || arguments["nozzle"].is_null() ||
+               (arguments["nozzle"].is_number() && arguments["nozzle"].get<double>() >= 0. && arguments["nozzle"].get<double>() <= 5.);
+    };
 
-    if (definition.handler == ToolHandler::PrinterPropose) {
-        if (!has_only(arguments, {"printers", "nozzle", "plate", "filament", "provenance"}) || !arguments.contains("printers"))
+    if (definition.handler == ToolHandler::PrinterIdentify) {
+        if (!has_only(arguments, {"catalogIds", "nozzle"}) || !arguments.contains("catalogIds") || !valid_nozzle())
             return false;
-        const json& printers = arguments["printers"];
-        // Two or three is a question for the person; more is a list to read.
-        if (!printers.is_array() || printers.empty() || printers.size() > 3)
+        const json& ids = arguments["catalogIds"];
+        if (!ids.is_array() || ids.empty() || ids.size() > kToolListLimit)
             return false;
-        for (const json& printer : printers)
-            if (!has_only(printer, {"catalogId", "deviceId", "subline"}) || !printer.contains("catalogId") ||
-                !optional_text(printer, "catalogId") || printer["catalogId"].get_ref<const std::string&>().empty() ||
-                !optional_text(printer, "deviceId") || !optional_text(printer, "subline"))
-                return false;
-        for (const char* key : {"plate", "filament"})
-            if (arguments.contains(key) && !optional_text(arguments, key))
-                return false;
-        if (arguments.contains("nozzle") && (!arguments["nozzle"].is_number() || arguments["nozzle"].get<double>() < 0. ||
-                                             arguments["nozzle"].get<double>() > 5.))
-            return false;
-        return !arguments.contains("provenance") ||
-               (arguments["provenance"] == "assumed" || arguments["provenance"] == "settled");
-    }
-
-    if (definition.handler == ToolHandler::PrinterSuggest) {
-        if (!has_only(arguments, {"actions", "hint"}) || !arguments.contains("actions") || !optional_text(arguments, "hint"))
-            return false;
-        const json& actions = arguments["actions"];
-        if (!actions.is_array() || actions.empty() || actions.size() > 3)
-            return false;
-        return std::all_of(actions.begin(), actions.end(), [](const json& action) {
-            return has_only(action, {"label", "suggested"}) && action.contains("label") && action["label"].is_string() &&
-                   !action["label"].get_ref<const std::string&>().empty() &&
-                   action["label"].get_ref<const std::string&>().size() <= 48 &&
-                   (!action.contains("suggested") || action["suggested"].is_boolean());
+        return std::all_of(ids.begin(), ids.end(), [](const json& id) {
+            return id.is_string() && !id.get_ref<const std::string&>().empty() && id.get_ref<const std::string&>().size() <= kToolLabelLimit;
         });
     }
 
     if (definition.handler == ToolHandler::PrinterChange) {
-        if (!has_only(arguments, {"nozzle", "accessCode", "spools"}) || arguments.empty())
-            return false;
-        if (arguments.contains("nozzle") && (!arguments["nozzle"].is_number() || arguments["nozzle"].get<double>() <= 0. ||
-                                             arguments["nozzle"].get<double>() > 5.))
-            return false;
-        // The access code is what the printer shows under Settings > Network.
-        if (arguments.contains("accessCode") &&
-            (!arguments["accessCode"].is_string() || arguments["accessCode"].get_ref<const std::string&>().empty() ||
-             arguments["accessCode"].get_ref<const std::string&>().size() > 32))
+        if (!has_only(arguments, {"nozzle", "spools"}) || !valid_nozzle())
             return false;
         if (!arguments.contains("spools"))
             return true;
@@ -1425,87 +1400,63 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Internal,
          ToolAvailability::Always,
          ToolHandler::RecordPhysicalPrint},
-        // The printer panel's own four. They exist only inside a printer
-        // session, which is why they carry no in-app or MCP exposure: the
-        // project conversation has no printer card to draw and no panel to
-        // draw it in.
-        {"printer_catalog_search",
-         "Search the printer catalogue",
-         "Find printer models this app can install, from the profiles it ships with, using the person's own words: a brand, a model, a "
-         "nickname, a size, or what a photo shows. Returns each model's catalogue id, build volume, the nozzle sizes it ships, and the "
-         "plate and material it comes with. Propose a printer only from a result of this search.",
-         object_schema(json{{"query", string_schema()}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 8}}}},
-                       json::array({"query"})),
-         object_schema(json{{"items", {{"type", "array"}, {"maxItems", 8},
-                                       {"items", object_schema(json{{"catalogId", id}, {"vendor", string_schema()},
-                                                                    {"model", string_schema()}, {"buildVolume", string_schema()},
-                                                                    {"nozzles", {{"type", "array"}, {"items", number_schema()},
-                                                                                 {"maxItems", 8}}},
-                                                                    {"plate", string_schema()}, {"material", string_schema()}},
-                                                               json::array({"catalogId", "vendor", "model", "buildVolume", "nozzles",
-                                                                            "plate", "material"}))}}}},
-                       json::array({"items"})),
+        // The printer panel's own two, one per mode. They exist only inside a
+        // printer session, which is why they carry no in-app or MCP exposure:
+        // the project conversation has no printer to identify or change.
+        // Neither decides anything: the model does, and these check its
+        // decision against the printer data and carry it out.
+        {"printer_identify",
+         "Show the printers you mean",
+         "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them to "
+         "the person, and returns the details to mention. It never picks a printer.",
+         object_schema(json{{"catalogIds", {{"type", "array"}, {"items", string_schema()},
+                                            {"description", "1 to 3 ids, copied exactly from the printer list."}}},
+                            {"nozzle", {{"type", "number"},
+                                        {"description", "Nozzle size in mm, only when the person or a photo said it."}}}},
+                       json::array({"catalogIds"})),
+         object_schema(json{{"printers",
+                             {{"type", "array"}, {"maxItems", 3},
+                              {"items", object_schema(json{{"catalogId", string_schema()},
+                                                           {"brand", string_schema()},
+                                                           {"model", string_schema()},
+                                                           {"buildVolume", string_schema()},
+                                                           {"nozzles", {{"type", "array"}, {"items", number_schema()}}},
+                                                           {"assumed", object_schema(json{{"nozzle", number_schema()},
+                                                                                          {"plate", {{"type", json::array({"string", "null"})}}},
+                                                                                          {"filament", {{"type", json::array({"string", "null"})}}}},
+                                                                                     json::array({"nozzle", "plate", "filament"}))},
+                                                           {"alreadyYours", boolean_schema()}},
+                                                      json::array({"catalogId", "brand", "model", "buildVolume", "nozzles",
+                                                                   "assumed", "alreadyYours"}))}}}},
+                       json::array({"printers"})),
          ActionClass::ReadOnly,
          ToolExposure::Printer,
          ToolAvailability::Always,
-         ToolHandler::PrinterCatalogSearch},
-        {"printer_propose",
-         "Show a printer and fill the pinned card",
-         "Draw a printer's card in the thread and fill the panel's pinned card with it. One printer when you are confident, or two or "
-         "three when they are genuinely hard to tell apart -- then the person picks one on its card. catalogId comes from "
-         "printer_catalog_search; deviceId only when this printer is one found on the network. nozzle in mm, 0 when nothing has been said "
-         "about it; plate and filament empty for what the model ships with. provenance says whether these facts were read from the printer "
-         "(settled) or are your stated guess (assumed). This proposes; it never adds the printer.",
-         object_schema(json{{"printers", {{"type", "array"}, {"minItems", 1}, {"maxItems", 3},
-                                          {"items", object_schema(json{{"catalogId", id}, {"deviceId", string_schema()},
-                                                                       {"subline", string_schema()}},
-                                                                  json::array({"catalogId"}))}}},
-                            {"nozzle", number_schema()},
-                            {"plate", string_schema()},
-                            {"filament", string_schema()},
-                            {"provenance", {{"type", "string"}, {"enum", json::array({"assumed", "settled"})}}}},
-                       json::array({"printers"})),
-         object_schema(json{{"proposed", integer_schema()}}, json::array({"proposed"})),
-         ActionClass::Mutation,
-         ToolExposure::Printer,
-         ToolAvailability::Always,
-         ToolHandler::PrinterPropose,
-         // It draws a card and fills the pinned one; nothing is saved until
-         // the person taps "Add this printer".
-         true},
-        {"printer_suggest",
-         "Offer what to do next",
-         "Offer up to three specific things the person can tap instead of typing, such as \"Use 0.3 mm layers\" -- an action each, never a "
-         "bare Yes or No, and never an offer to add the printer, which the card already carries. Mark at most one as suggested; hint is a "
-         "few muted words under the row, such as \"or a photo of the front\". Replaces whatever was offered before.",
-         object_schema(json{{"actions", {{"type", "array"}, {"minItems", 1}, {"maxItems", 3},
-                                         {"items", object_schema(json{{"label", {{"type", "string"}, {"maxLength", 48}}},
-                                                                      {"suggested", boolean_schema()}},
-                                                                 json::array({"label"}))}}},
-                            {"hint", {{"type", "string"}, {"maxLength", 48}}}},
-                       json::array({"actions"})),
-         object_schema(json{{"offered", integer_schema()}}, json::array({"offered"})),
-         ActionClass::Mutation,
-         ToolExposure::Printer,
-         ToolAvailability::Always,
-         ToolHandler::PrinterSuggest,
-         // Chips are an offer, not a change.
-         true},
+         ToolHandler::PrinterIdentify},
         {"printer_change",
          "Change this printer",
-         "Change the printer this panel is about: its nozzle in mm, the spools loaded on it, or the access code that keeps it connected. "
-         "Only what you pass changes. The nozzle moves the printer onto its model's profile for that size, so every project that uses this "
-         "printer prints with it. Calling it shows the person an approval card and waits for their decision; say what the printer now is "
-         "only after the result says it was applied. The plate belongs to a project, not to a printer, and cannot be changed here.",
-         object_schema(json{{"nozzle", number_schema()},
-                            {"accessCode", {{"type", "string"}, {"maxLength", 32}}},
+         "You work out what changed on this printer from what the person says. This tool checks it against what this printer's "
+         "profile allows, asks the person to confirm, saves it, and returns the printer as it now is. It never decides what changed.",
+         object_schema(json{{"nozzle", {{"type", "number"}, {"description", "The nozzle size now on it, in mm."}}},
                             {"spools", {{"type", "array"}, {"maxItems", 16},
+                                        {"description", "The complete list of spools loaded now; it replaces the whole list."},
                                         {"items", object_schema(json{{"name", {{"type", "string"}, {"maxLength", 64}}},
                                                                      {"material", {{"type", "string"}, {"maxLength", 32}}},
                                                                      {"colour", {{"type", "string"}, {"maxLength", 9}}}},
                                                                 json::array({"name", "material"}))}}}}),
-         object_schema(json{{"printer", string_schema()}, {"nozzle", number_schema()}, {"connected", boolean_schema()}},
-                       json::array({"printer", "nozzle", "connected"})),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"applied", "declined"})}}},
+                            {"changed", {{"type", "array"},
+                                         {"items", object_schema(json{{"field", {{"type", "string"}, {"enum", json::array({"nozzle", "spools"})}}},
+                                                                      {"before", {{"type", json::array({"number", "array"})}, {"items", printer_spool_schema()}}},
+                                                                      {"after", {{"type", json::array({"number", "array"})}, {"items", printer_spool_schema()}}}},
+                                                                 json::array({"field", "before", "after"}))}}},
+                            {"printer", object_schema(json{{"name", string_schema()},
+                                                           {"nozzle", number_schema()},
+                                                           {"nozzles", {{"type", "array"}, {"items", number_schema()}}},
+                                                           {"spools", {{"type", "array"}, {"items", printer_spool_schema()}}},
+                                                           {"connected", boolean_schema()}},
+                                                      json::array({"name", "nozzle", "nozzles", "spools", "connected"}))}},
+                       json::array({"state", "changed", "printer"})),
          ActionClass::Mutation,
          ToolExposure::Printer,
          ToolAvailability::Always,
@@ -1534,7 +1485,7 @@ bool matches_schema(const json& value, const json& schema)
 {
     static const std::set<std::string> supported{"type",    "properties", "required", "additionalProperties",
                                                  "items",   "minimum",    "maxItems", "enum",
-                                                 "maxLength"};
+                                                 "maxLength", "description"};
     for (const auto& item : schema.items())
         if (!supported.count(item.key())) throw std::logic_error("Unsupported canonical tool schema keyword: " + item.key());
     // A closed vocabulary constrains the value itself whatever its type, so it
@@ -1544,6 +1495,17 @@ bool matches_schema(const json& value, const json& schema)
         allowed != schema.end() &&
         std::none_of(allowed->begin(), allowed->end(), [&value](const json& candidate) { return candidate == value; }))
         return false;
+    if (schema.at("type").is_array()) {
+        for (const json& name : schema.at("type")) {
+            json one    = schema;
+            one["type"] = name;
+            if (name != "array")
+                one.erase("items");
+            if (name == "null" ? value.is_null() : matches_schema(value, one))
+                return true;
+        }
+        return false;
+    }
     const std::string type = schema.at("type");
     if (type == "object") {
         if (!value.is_object()) return false;

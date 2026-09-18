@@ -6,7 +6,7 @@
 // the manufacturing history render after the conversation item they follow,
 // in the order they happened.
 
-import { Fragment, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import {
   AttachmentInfo,
   BuildInfo,
@@ -23,7 +23,7 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
-import { PrinterBlockView } from './PrinterPanel';
+import { PrinterBlockAction, PrinterBlockView } from './PrinterPanel';
 
 interface Props {
   messages: Message[];
@@ -43,7 +43,10 @@ interface Props {
   // The printer panel's own cards, each anchored after the message that drew
   // it, the way history entries are. Absent everywhere else.
   printerBlocks?: PrinterBlock[];
-  onPrinterAction?: (action: 'network_pick' | 'candidate_pick' | 'add', id: string) => void;
+  onPrinterAction?: (action: PrinterBlockAction, id: string, blockId?: string) => void;
+  // A surface's own card for one of its tool calls, in place of the generic
+  // one; undefined keeps the generic card.
+  renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
   // "Answered · nothing changed" is about the open project, which the printer
   // panel is not having a conversation about.
   answeredState?: boolean;
@@ -101,6 +104,7 @@ export function MessageList({
   dimmed,
   printerBlocks = [],
   onPrinterAction,
+  renderActivity,
   answeredState = true,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
@@ -240,6 +244,8 @@ export function MessageList({
                 // the agent can no longer add to it.
                 const members = found && (found.length > 1 || streamingMessageId !== null) ? found : undefined;
                 if (members && members[0].actionId !== activity.actionId) return null;
+                const own = members ? undefined : renderActivity?.(activity);
+                if (own !== undefined) return <Fragment key={activity.actionId}>{own}</Fragment>;
                 return members ? (
                   <PlanActivityCard
                     key={activity.actionId}
