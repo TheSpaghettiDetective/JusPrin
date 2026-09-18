@@ -111,7 +111,7 @@ function panel(state: PrinterSessionPayload, messages: Message[], attachments: A
           onToolDecision={noop}
           onToolCancel={noop}
         />
-        <PrinterChipRow chips={state.chips} hint={state.chipHint} disabled={false} onSay={noop} />
+        <PrinterChipRow chips={state.chips} hint={state.chipHint} disabled={false} onSay={noop} onAttachFiles={noop} />
         <Composer
           disabled={false}
           placeholder={state.placeholder}
@@ -164,7 +164,15 @@ const cases = () => [
     body: panel(
       session({
         blocks: [candidates],
-        chips: [{ id: 'neither', label: 'Neither · not in the list', style: 'plain', say: 'Neither, it is not in the list' }],
+        chips: [
+          {
+            id: 'neither',
+            label: 'Neither · not in the list',
+            style: 'plain',
+            say: 'Neither, it is not in the list',
+            opensPhotoPicker: false,
+          },
+        ],
         chipHint: 'or a photo of the front',
         placeholder: 'or say more: "it has a knob"',
       }),
@@ -270,8 +278,8 @@ const cases = () => [
           filament: settled('AMS · 4 slots'),
         },
         chips: [
-          { id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers' },
-          { id: 's2', label: 'Keep 0.2 mm', style: 'plain', say: 'Keep 0.2 mm' },
+          { id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers', opensPhotoPicker: false },
+          { id: 's2', label: 'Keep 0.2 mm', style: 'plain', say: 'Keep 0.2 mm', opensPhotoPicker: false },
         ],
         chipHint: 'or just type',
         placeholder: 'e.g. "I swapped the plate" or "is it connected?"',

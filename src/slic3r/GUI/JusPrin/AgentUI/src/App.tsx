@@ -437,7 +437,13 @@ export function App({
                 />
               )}
               {!notConfigured && session && (
-                <PrinterChipRow chips={session.chips} hint={session.chipHint} disabled={busy} onSay={sendMessage} />
+                <PrinterChipRow
+                  chips={session.chips}
+                  hint={session.chipHint}
+                  disabled={busy}
+                  onSay={sendMessage}
+                  onAttachFiles={attachFiles}
+                />
               )}
               {!notConfigured && (
                 <Composer

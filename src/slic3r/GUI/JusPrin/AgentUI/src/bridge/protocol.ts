@@ -424,6 +424,8 @@ export interface PrinterChip {
   label: string;
   style: 'suggested' | 'plain';
   say: string; // sends this as the person's own message
+  // "Photo of the label": opens the photo picker instead of sending `say`.
+  opensPhotoPicker: boolean;
 }
 
 export interface PrinterBrandRow {

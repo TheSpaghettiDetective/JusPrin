@@ -592,10 +592,11 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!actions.is_array() || actions.empty() || actions.size() > 3)
             return false;
         return std::all_of(actions.begin(), actions.end(), [](const json& action) {
-            return has_only(action, {"label", "suggested"}) && action.contains("label") && action["label"].is_string() &&
-                   !action["label"].get_ref<const std::string&>().empty() &&
+            return has_only(action, {"label", "suggested", "opensPhotoPicker"}) && action.contains("label") &&
+                   action["label"].is_string() && !action["label"].get_ref<const std::string&>().empty() &&
                    action["label"].get_ref<const std::string&>().size() <= 48 &&
-                   (!action.contains("suggested") || action["suggested"].is_boolean());
+                   (!action.contains("suggested") || action["suggested"].is_boolean()) &&
+                   (!action.contains("opensPhotoPicker") || action["opensPhotoPicker"].is_boolean());
         });
     }
 
@@ -1478,10 +1479,13 @@ std::vector<ToolDefinition> make_definitions()
          "Offer what to do next",
          "Offer up to three specific things the person can tap instead of typing, such as \"Use 0.3 mm layers\" -- an action each, never a "
          "bare Yes or No, and never an offer to add the printer, which the card already carries. Mark at most one as suggested; hint is a "
-         "few muted words under the row, such as \"or a photo of the front\". Replaces whatever was offered before.",
+         "few muted words under the row, such as \"or a photo of the front\". opensPhotoPicker opens the photo picker directly instead of "
+         "sending the label as a message -- use it only for an action such as \"Photo of the label\" that asks for another picture. "
+         "Replaces whatever was offered before.",
          object_schema(json{{"actions", {{"type", "array"}, {"minItems", 1}, {"maxItems", 3},
                                          {"items", object_schema(json{{"label", {{"type", "string"}, {"maxLength", 48}}},
-                                                                      {"suggested", boolean_schema()}},
+                                                                      {"suggested", boolean_schema()},
+                                                                      {"opensPhotoPicker", boolean_schema()}},
                                                                  json::array({"label"}))}}},
                             {"hint", {{"type", "string"}, {"maxLength", 48}}}},
                        json::array({"actions"})),

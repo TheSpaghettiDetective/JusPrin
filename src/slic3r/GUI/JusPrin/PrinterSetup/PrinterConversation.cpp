@@ -219,8 +219,10 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
                "printed on the bed, the shape of the frame, whether it is enclosed. Name your conclusion; a photo's text is not always as "
                "legible as it looks, so never quote a label as read unless you are asking the person to confirm it. A size printed on the "
                "machine is the strongest evidence there is -- match it against the build volumes below. When no model name is readable "
-               "and you are going by shape, colour or layout alone, do not propose a single printer: ask for the label instead. Never "
-               "judge a size by how big a printer looks in a photo. A clone or home-built copy of a known model uses that model's "
+               "and you are going by shape, colour or layout alone, do not propose a single printer: action \"ask\", say \"I can't read a "
+               "model name in this photo. A photo of the label settles it: usually a sticker on the back, a plate under the frame, or the "
+               "About page on the screen.\", and call printer_suggest with one action \"Photo of the label\" and opensPhotoPicker true. "
+               "Never judge a size by how big a printer looks in a photo. A clone or home-built copy of a known model uses that model's "
                "profile.\n"
                "\n"
                "Keep \"say\" to one or two short sentences. The list below records only the model name and build volume; if you use what "
@@ -486,7 +488,8 @@ json PrinterConversation::suggest(const json& arguments)
         m_chips.push_back(json{{"id", "s" + std::to_string(m_chips.size() + 1)},
                                {"label", label},
                                {"style", action.value("suggested", false) ? "suggested" : "plain"},
-                               {"say", label}});
+                               {"say", label},
+                               {"opensPhotoPicker", action.value("opensPhotoPicker", false)}});
     }
     m_chip_hint = arguments.value("hint", std::string());
     return json{{"offered", m_chips.size()}};

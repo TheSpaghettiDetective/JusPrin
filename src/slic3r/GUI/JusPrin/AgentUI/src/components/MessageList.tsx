@@ -192,6 +192,16 @@ export function MessageList({
         // lands; elsewhere the bubble still renders (its attachments, error
         // or "Stopped" state may not be empty even when its text is).
         const workingOnCard = Boolean(onPrinterAction) && message.role === 'assistant' && !message.text && message.id === streamingMessageId;
+        // A single photo in the printer panel is the message itself, not a
+        // filed document beside the words -- elsewhere, or with more than
+        // one attachment, the ordinary chip list still applies.
+        const printerPhoto =
+          onPrinterAction && message.attachments?.length === 1
+            ? (() => {
+                const attachment = attachmentsById.get(message.attachments![0]);
+                return attachment?.kind === 'image' && attachment.previewDataUrl ? attachment : undefined;
+              })()
+            : undefined;
         const bubble = workingOnCard ? (
           <div className="printer-activity" role="status">
             Looking through the printer list…
@@ -205,19 +215,31 @@ export function MessageList({
                 bubble the user's turn keeps. */}
             {message.role === 'assistant' && <span className="agent-avatar" aria-hidden="true" />}
             <div className="message-content">
-              {message.text &&
-                (message.role === 'assistant' ? (
-                  <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
-                ) : (
-                  <span>{message.text}</span>
-                ))}
-              {message.attachments && message.attachments.length > 0 && (
-                <div className="message-attachments">
-                  {message.attachments.map((id) => {
-                    const attachment = attachmentsById.get(id);
-                    return attachment ? <AttachmentChip key={id} attachment={attachment} /> : null;
-                  })}
-                </div>
+              {printerPhoto ? (
+                <>
+                  {/* The picture is the turn, not a filed document beside
+                      it: about 120px wide, any words the person added
+                      underneath it as a caption. */}
+                  <img className="message-photo" src={printerPhoto.previewDataUrl} alt={printerPhoto.name || 'Photo'} />
+                  {message.text && <span className="message-photo-caption">{message.text}</span>}
+                </>
+              ) : (
+                <>
+                  {message.text &&
+                    (message.role === 'assistant' ? (
+                      <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
+                    ) : (
+                      <span>{message.text}</span>
+                    ))}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="message-attachments">
+                      {message.attachments.map((id) => {
+                        const attachment = attachmentsById.get(id);
+                        return attachment ? <AttachmentChip key={id} attachment={attachment} /> : null;
+                      })}
+                    </div>
+                  )}
+                </>
               )}
               {message.state === 'failed' && message.error && (
                 <div className="error">

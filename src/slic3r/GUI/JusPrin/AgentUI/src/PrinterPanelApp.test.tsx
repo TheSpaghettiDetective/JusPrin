@@ -202,6 +202,52 @@ describe('the printer panel page', () => {
     expect(screen.getByText('180 × 180 × 180 mm')).toBeInTheDocument();
   });
 
+  it('stages a photo as a small thumbnail inside the composer, not a wide chip', () => {
+    const host = open();
+    host.deliver('attachment_updated', {
+      attachment: {
+        id: 'a-1',
+        name: 'printer.jpg',
+        kind: 'image',
+        mime: 'image/jpeg',
+        sizeBytes: 4,
+        source: 'picker',
+        state: 'staged',
+        previewDataUrl: 'data:image/jpeg;base64,AAAA',
+      },
+    });
+
+    expect(screen.getByText('printer.jpg')).toBeInTheDocument();
+    expect(screen.getByText('add a note, or just send')).toBeInTheDocument();
+    expect(screen.getByAltText('')).toHaveClass('composer-staged-thumb');
+  });
+
+  it('sends a photo as the message itself, with a caption from any words added', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-2', role: 'user', state: 'complete', text: "it's this one", attempt: 1, attachments: ['a-1'] },
+        ],
+        attachments: [
+          {
+            id: 'a-1',
+            name: 'printer.jpg',
+            kind: 'image',
+            mime: 'image/jpeg',
+            sizeBytes: 4,
+            source: 'picker',
+            state: 'sent',
+            previewDataUrl: 'data:image/jpeg;base64,AAAA',
+          },
+        ],
+      }),
+    );
+
+    const photo = screen.getByAltText('printer.jpg');
+    expect(photo).toHaveClass('message-photo');
+    expect(screen.getByText("it's this one")).toHaveClass('message-photo-caption');
+  });
+
   it('draws the brand list when browsing, and filters it by typing', async () => {
     open(
       state({

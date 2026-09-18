@@ -150,70 +150,101 @@ export function Composer({
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
     >
-      {attachments.length > 0 && (
+      {/* The general composer (project chat) keeps its wide chip row above
+          the box; the printer panel's photo is a small thumbnail inside it,
+          above the text line -- so it moves inside .composer-row below. */}
+      {attachments.length > 0 && !photoButton && (
         <div className="composer-attachments" aria-label="Staged attachments">
           {attachments.map((attachment) => (
             <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
           ))}
-          {/* A staged photo waits for the person; it never sends itself. */}
-          {photoButton && <span className="composer-staged-hint">add a note, or just send</span>}
         </div>
       )}
-      <div className="composer-row">
-        <button
-          type="button"
-          className={photoButton ? 'attach-button attach-button-photo' : 'attach-button'}
-          aria-label={photoButton ? 'Add a photo' : 'Attach a file'}
-          disabled={disabled}
-          onClick={() => fileInput.current?.click()}
-        >
-          {photoButton ? <CameraGlyph className="photo-glyph" /> : <span className="attach-glyph" aria-hidden="true" />}
-          {photoButton && 'Photo'}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          className="attach-input"
-          aria-hidden="true"
-          tabIndex={-1}
-          style={{ display: 'none' }}
-          onChange={handlePickerChange}
-        />
-        <textarea
-          aria-label="Message the Agent"
-          placeholder={
-            disabled
-              ? disabledReason ?? 'The Agent is not available'
-              : placeholder ?? 'Ask about this print or request a change…'
-          }
-          value={text}
-          disabled={disabled}
-          onChange={(event) => {
-            touched.current = true;
-            onTyping?.();
-            setText(event.target.value);
-            reportDraft(event.target.value);
-          }}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          rows={2}
-        />
-        {streaming ? (
-          <button type="button" className="composer-send" onClick={onStop} aria-label="Stop generating">
-            <span className="stop-glyph" aria-hidden="true" />
-          </button>
-        ) : (
+      <div className={photoButton && attachments.length > 0 ? 'composer-row composer-row-photo' : 'composer-row'}>
+        {photoButton && attachments.length > 0 && (
+          <div className="composer-staged-photo" aria-label="Staged attachments">
+            {attachments.map((attachment) => (
+              <div className="composer-staged-thumb-wrap" key={attachment.id}>
+                {attachment.previewDataUrl ? (
+                  <img className="composer-staged-thumb" src={attachment.previewDataUrl} alt="" />
+                ) : (
+                  <span className="composer-staged-thumb composer-staged-thumb-empty" aria-hidden="true" />
+                )}
+                <button
+                  type="button"
+                  className="composer-staged-remove"
+                  aria-label={`Remove ${attachment.name || 'photo'}`}
+                  onClick={() => onRemoveAttachment(attachment.id)}
+                >
+                  <span className="remove-glyph" aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+            <span className="composer-staged-meta">
+              <span className="composer-staged-name">
+                {attachments.length === 1 ? attachments[0].name : `${attachments.length} photos`}
+              </span>
+              {/* A staged photo waits for the person; it never sends itself. */}
+              <span className="composer-staged-hint">add a note, or just send</span>
+            </span>
+          </div>
+        )}
+        <div className="composer-input-row">
           <button
             type="button"
-            className="composer-send"
-            onClick={send}
-            disabled={!canSend}
-            aria-label="Send message"
+            className={photoButton ? 'attach-button attach-button-photo' : 'attach-button'}
+            aria-label={photoButton ? 'Add a photo' : 'Attach a file'}
+            disabled={disabled}
+            onClick={() => fileInput.current?.click()}
           >
-            <SendGlyph />
+            {photoButton ? <CameraGlyph className="photo-glyph" /> : <span className="attach-glyph" aria-hidden="true" />}
+            {photoButton && 'Photo'}
           </button>
-        )}
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            className="attach-input"
+            aria-hidden="true"
+            tabIndex={-1}
+            style={{ display: 'none' }}
+            onChange={handlePickerChange}
+          />
+          <textarea
+            aria-label="Message the Agent"
+            placeholder={
+              disabled
+                ? disabledReason ?? 'The Agent is not available'
+                : placeholder ?? 'Ask about this print or request a change…'
+            }
+            value={text}
+            disabled={disabled}
+            onChange={(event) => {
+              touched.current = true;
+              onTyping?.();
+              setText(event.target.value);
+              reportDraft(event.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            rows={2}
+          />
+          {streaming ? (
+            <button type="button" className="composer-send" onClick={onStop} aria-label="Stop generating">
+              <span className="stop-glyph" aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="composer-send"
+              onClick={send}
+              disabled={!canSend}
+              aria-label="Send message"
+            >
+              <SendGlyph />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1345,6 +1345,12 @@ TEST_CASE("a message carries staged attachments and the mock acknowledges them",
     // The attachment is now durable history, not staged working state.
     REQUIRE(h.persistence.document().find_attachment("a-1").has_value());
     CHECK(h.persistence.document().find_attachment("a-1")->state == "sent");
+    // The page's own staged list only drops it once it hears this back; with
+    // no update here it stayed "staged" and rode along with the next message.
+    const json* sent_update = h.last_of_type("attachment_updated");
+    REQUIRE(sent_update != nullptr);
+    CHECK((*sent_update)["payload"]["attachment"]["id"] == "a-1");
+    CHECK((*sent_update)["payload"]["attachment"]["state"] == "sent");
 
     h.pump_all();
     const json* completed = h.last_of_type("assistant_completed");

@@ -174,11 +174,13 @@ describe('the cards the agent draws', () => {
 });
 
 describe('the chips', () => {
-  const chips: PrinterChip[] = [{ id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers' }];
+  const chips: PrinterChip[] = [
+    { id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers', opensPhotoPicker: false },
+  ];
 
   it('sends a chip as the person\'s own words', async () => {
     const onSay = vi.fn();
-    render(<PrinterChipRow chips={chips} hint="or just type" disabled={false} onSay={onSay} />);
+    render(<PrinterChipRow chips={chips} hint="or just type" disabled={false} onSay={onSay} onAttachFiles={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Use 0.3 mm layers' }));
     expect(onSay).toHaveBeenCalledWith('Use 0.3 mm layers');
@@ -187,8 +189,25 @@ describe('the chips', () => {
 
   it('offers nothing while the agent is working', async () => {
     const onSay = vi.fn();
-    render(<PrinterChipRow chips={chips} hint="" disabled onSay={onSay} />);
+    render(<PrinterChipRow chips={chips} hint="" disabled onSay={onSay} onAttachFiles={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: 'Use 0.3 mm layers' }));
     expect(onSay).not.toHaveBeenCalled();
+  });
+
+  it('"Photo of the label" opens the picker instead of sending its label', async () => {
+    const onSay = vi.fn();
+    const photoChips: PrinterChip[] = [
+      { id: 's1', label: 'Photo of the label', style: 'suggested', say: 'Photo of the label', opensPhotoPicker: true },
+    ];
+    const { container } = render(
+      <PrinterChipRow chips={photoChips} hint="" disabled={false} onSay={onSay} onAttachFiles={vi.fn()} />,
+    );
+    const clickSpy = vi.spyOn(HTMLInputElement.prototype, 'click');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Photo of the label' }));
+
+    expect(onSay).not.toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
 });

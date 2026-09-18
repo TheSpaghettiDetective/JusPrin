@@ -932,7 +932,12 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     message.client_message_id = client_id;
     message.attachment_ids    = sent_attachments;
     document.append_message(conversation_id, message, m_persistence.timestamp());
-    document.mark_attachments_sent(sent_attachments);
+    // The page's own staged list only drops an attachment once it hears this
+    // back; with no update here it stayed "staged" forever and rode along
+    // with the next message too.
+    for (const std::string& id : document.mark_attachments_sent(sent_attachments))
+        if (const std::optional<AttachmentRecord> sent = document.find_attachment(id))
+            send_attachment_updated(*sent, envelope_id);
     // The outgoing message is durable before any reply work starts.
     m_persistence.flush();
     // Sending cleared the composer; the draft it held is no longer working

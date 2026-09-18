@@ -1312,6 +1312,23 @@ input[type='radio']:checked {
   margin-top: 8px;
 }
 
+/* The printer panel's sent photo: the picture itself is the turn, not a
+   filed document beside it. */
+.message-photo {
+  display: block;
+  width: 120px;
+  max-width: 100%;
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
+}
+
+.message-photo-caption {
+  display: block;
+  margin-top: 8px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
 /* The container owns the border and the padding; the field is transparent. */
 .composer textarea {
   flex: 1;
@@ -2315,9 +2332,83 @@ button.wide {
   height: 16px;
 }
 
+/* The printer panel's composer grows a row above the text line while a
+   photo waits, still inside the one bordered box. */
+.composer-row-photo {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+}
+
+.composer-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.composer-staged-photo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer-staged-thumb-wrap {
+  position: relative;
+  flex: none;
+}
+
+.composer-staged-thumb {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-standard);
+  background: var(--surface-subtle);
+}
+
+.composer-staged-thumb-empty {
+  border: 1px solid var(--border-subtle);
+}
+
+.composer-staged-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--text-primary);
+  color: var(--surface-canvas);
+  cursor: pointer;
+}
+
+.composer-staged-remove .remove-glyph {
+  width: 10px;
+  height: 10px;
+}
+
+.composer-staged-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.composer-staged-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
 /* What a staged photo is waiting for: words, or just send. */
 .composer-staged-hint {
-  align-self: center;
   font: var(--font-metadata);
   color: var(--text-secondary);
 }

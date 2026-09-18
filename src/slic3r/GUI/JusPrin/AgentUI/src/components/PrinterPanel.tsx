@@ -5,8 +5,9 @@
 // action, which C++ carries out, or sends the chip's own words as the
 // person's message -- never both, and never a change made on this side.
 
-import { memo, useState } from 'react';
+import { ChangeEvent, memo, useRef, useState } from 'react';
 import type {
+  AttachmentSource,
   NetworkPrinterInfo,
   PrinterBlock,
   PrinterBrowse,
@@ -211,11 +212,22 @@ export interface ChipRowProps {
   hint: string;
   disabled: boolean;
   onSay: (text: string) => void;
+  // "Photo of the label" opens the same picker "Photo" does, rather than
+  // sending its label as a message.
+  onAttachFiles: (files: File[], source: AttachmentSource) => void;
 }
 
 // Specific actions, never a bare Yes or No, with the composer always beneath.
-export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabled, onSay }: ChipRowProps) {
+export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabled, onSay, onAttachFiles }: ChipRowProps) {
+  const fileInput = useRef<HTMLInputElement>(null);
   if (chips.length === 0) return null;
+
+  const handlePickerChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (files.length > 0) onAttachFiles(files, 'picker');
+  };
+
   return (
     <div className="printer-chips">
       {chips.map((chip) => (
@@ -224,12 +236,22 @@ export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabl
           type="button"
           className={`printer-chip printer-chip-${chip.style}`}
           disabled={disabled}
-          onClick={() => onSay(chip.say)}
+          onClick={() => (chip.opensPhotoPicker ? fileInput.current?.click() : onSay(chip.say))}
         >
           {chip.label}
         </button>
       ))}
       {hint && <span className="printer-chip-hint">{hint}</span>}
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        className="attach-input"
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{ display: 'none' }}
+        onChange={handlePickerChange}
+      />
     </div>
   );
 });
