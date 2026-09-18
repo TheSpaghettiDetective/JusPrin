@@ -185,13 +185,25 @@ export function MessageList({
               </div>
             </div>
           );
-        // Mid-turn, before any reply text has arrived, an assistant message
-        // has nothing to show yet: a bubble with only the avatar disc reads
-        // as an empty flash before each reply. The printer panel names the
-        // work instead, in one grey line that is gone the moment real text
-        // lands; elsewhere the bubble still renders (its attachments, error
-        // or "Stopped" state may not be empty even when its text is).
-        const workingOnCard = Boolean(onPrinterAction) && message.role === 'assistant' && !message.text && message.id === streamingMessageId;
+        // An assistant turn that only called a tool -- printer_identify,
+        // most often -- has nothing of its own to say: its card (rendered
+        // below, from activitiesOf/printerBlockViews) is the turn. A bubble
+        // with only the avatar disc reads as an empty flash, mid-stream
+        // (the printer panel names the work instead, in one grey line) and
+        // just as emptily once the stream ends still empty -- the model's
+        // own words about the answer land in the NEXT turn, once it sees
+        // the tool's result, not this one. Elsewhere the bubble still
+        // renders even with empty text (its attachments, error or "Stopped"
+        // state may not be empty even when its text is), so this is scoped
+        // to the printer panel and to a turn that is truly empty throughout.
+        const emptyPrinterTurn =
+          Boolean(onPrinterAction) &&
+          message.role === 'assistant' &&
+          !message.text &&
+          !message.attachments?.length &&
+          message.state !== 'stopped' &&
+          !(message.state === 'failed' && message.error);
+        const workingOnCard = emptyPrinterTurn && message.id === streamingMessageId;
         // A single photo in the printer panel is the message itself, not a
         // filed document beside the words -- elsewhere, or with more than
         // one attachment, the ordinary chip list still applies.
@@ -206,7 +218,7 @@ export function MessageList({
           <div className="printer-activity" role="status">
             Looking through the printer list…
           </div>
-        ) : (
+        ) : emptyPrinterTurn ? null : (
           <div className={`message ${message.role}`}>
             {/* The agent does not speak in a bubble: a 20px action/primary
                 disc stands beside plain text, as the Figma "Chat Bubble"

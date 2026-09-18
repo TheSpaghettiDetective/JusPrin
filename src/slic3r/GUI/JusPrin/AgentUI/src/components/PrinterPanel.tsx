@@ -172,6 +172,11 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
 
   // Superseded by a newer answer, or the person's own "Not this one": no
   // button, no picture, one quiet line each. Only one live card at a time.
+  // "Not this one" is only true for a card that actually offered it -- the
+  // single confident propose ('add'). A multi-candidate ask only ever
+  // offered "This one" per card; the person answered past it rather than
+  // rejecting any one of them, so claiming they did would be putting words
+  // in their mouth.
   if (block.live === false)
     return (
       <div className="printer-cards-collapsed">
@@ -180,7 +185,7 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
             {/* The model name already carries the vendor's ("Bambu Lab X1
                 Carbon"), so this stays one clean line instead of repeating
                 it from the vendor field too. */}
-            Not this one · {printer.model}
+            {printer.action === 'add' ? `Not this one · ${printer.model}` : printer.model}
           </div>
         ))}
       </div>

@@ -418,7 +418,10 @@ export interface PrinterBlock {
   kind: 'tip' | 'network' | 'printers' | 'unsupported' | 'offline';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
   // 'printers' only: false once a newer answer, or the person's own "Not
-  // this one", has superseded it -- it then draws as one grey line per card.
+  // this one", has superseded it -- it then draws as one grey line per card
+  // ("Not this one · X" only for a card whose action was 'add', the one
+  // shape that ever offered that as a choice; a superseded multi-candidate
+  // ask's cards draw their bare name instead).
   live?: boolean;
   // 'unsupported' only: reason the agent gave. Always "not_listed" -- the
   // panel draws nothing for "not_fdm" beyond the agent's own sentence.

@@ -129,6 +129,29 @@ describe('the cards the agent draws', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  // A multi-candidate ask never offered a per-card "Not this one" -- only
+  // "This one" -- so a later answer superseding it collapses to the bare
+  // name, not a rejection nobody made.
+  it('collapses a superseded multi-candidate ask without claiming a rejection', () => {
+    render(
+      <PrinterBlockView
+        block={{
+          ...printers,
+          live: false,
+          printers: [
+            { catalogId: 'Creality/Ender-3 V2', deviceId: '', vendor: 'Creality', model: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
+            { catalogId: 'Creality/Ender-3 S1', deviceId: '', vendor: 'Creality', model: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
+          ],
+        }}
+        onAction={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Ender-3 V2')).toBeInTheDocument();
+    expect(screen.getByText('Ender-3 S1')).toBeInTheDocument();
+    expect(screen.queryByText(/Not this one/)).toBeNull();
+  });
+
   it('lists what is on the network, with its serial and a way to use it', async () => {
     const onAction = vi.fn();
     render(

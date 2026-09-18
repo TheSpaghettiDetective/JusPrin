@@ -419,6 +419,51 @@ describe('the printer panel page', () => {
     expect(document.querySelector('.agent-avatar')).toBeNull();
   });
 
+  // A turn that only called a tool stays empty once the stream ends too --
+  // the model's own words about what it found land in the NEXT turn, after
+  // it sees the tool's result. "Looking through…" is gone the moment the
+  // stream settles (it names in-progress work, not a finished empty turn),
+  // so this turn draws nothing at all rather than a bare avatar disc.
+  it('draws nothing for a tool-only turn once its stream ends, still empty', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'x1c', attempt: 1 },
+          { id: 'm-2', role: 'assistant', state: 'complete', text: '', attempt: 1 },
+        ],
+        streamingMessageId: null,
+      }),
+    );
+
+    expect(screen.queryByText('Looking through the printer list…')).not.toBeInTheDocument();
+    expect(document.querySelector('.agent-avatar')).toBeNull();
+  });
+
+  // An empty-text turn is only ever hidden when it truly has nothing to
+  // show -- a failed request still needs its "Retry" (WP11's "Try again").
+  it('still shows a failed empty turn, with its Retry', async () => {
+    const host = open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'x1c', attempt: 1 },
+          {
+            id: 'm-2',
+            role: 'assistant',
+            state: 'failed',
+            text: '',
+            attempt: 1,
+            error: { code: 'agent_unavailable', message: 'The Agent service could not start this request.', retryable: true },
+          },
+        ],
+        streamingMessageId: null,
+      }),
+    );
+
+    expect(screen.getByText('The Agent service could not start this request.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(host.lastOfType('retry_message')!.payload).toEqual({ messageId: 'm-2' });
+  });
+
   it('follows the session the host sends after the state', () => {
     const host = open();
     host.deliver('printer_session', session({ caption: 'PRINTER', mode: 'change', chips: [] }));
