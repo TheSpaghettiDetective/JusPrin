@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2TM1KV4Q6248DWTZRE9JPJQ",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-conversation-panel-af11cb",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/printer-panel-fixes-handoff.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 4493,
+    "cache_read_tokens": 3135698,
+    "output_tokens": 2073,
+    "api_call_count": 4
+  }
+}
