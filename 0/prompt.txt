@@ -36,3 +36,7 @@ Also note: Kenneth decided WP10 — confirm before discarding a conversation tha
 <status>completed</status>
 <summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -60" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Continue with WP1's remaining Done-when table checks in the live app
