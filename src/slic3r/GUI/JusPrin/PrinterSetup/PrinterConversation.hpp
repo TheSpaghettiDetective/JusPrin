@@ -124,6 +124,15 @@ private:
     // newer answer, or by the person themselves rejecting the live one.
     void collapse_live_printer_blocks();
 
+    // "Browse the full list": brands, then one vendor's models, entirely
+    // inside the panel. Picking a model is the same tap as "This one" on an
+    // agent-drawn candidate -- it answers through the agent, not around it,
+    // so the assumptions it states are never duplicated in two places.
+    void open_browse();
+    void browse_into_vendor(const std::string& vendor_id);
+    void browse_back();
+    nlohmann::json browse_json() const;
+
     const CatalogPrinter* catalog_entry(const std::string& id) const;
 
     IPrinterBackend&   m_backend;
@@ -153,6 +162,12 @@ private:
     // single-printer proposal: the app already knows the device id, so the
     // model is never asked to echo it back.
     std::string m_pending_device_id;
+
+    // "Browse the full list": empty vendor id at the brands level, set once
+    // a brand is opened. The panel shows this instead of the thread while
+    // it is active; leaving it is the panel's own doing, not the agent's.
+    bool        m_browsing{false};
+    std::string m_browse_vendor_id;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

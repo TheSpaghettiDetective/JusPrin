@@ -426,6 +426,26 @@ export interface PrinterChip {
   say: string; // sends this as the person's own message
 }
 
+export interface PrinterBrandRow {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface PrinterBrowseModel {
+  catalogId: string;
+  model: string;
+  subline: string; // build volume
+  picture: string;
+}
+
+// "Browse the full list": brands, then one vendor's models, drawn inside
+// the panel in place of the thread. null when not open.
+export type PrinterBrowse =
+  | { level: 'vendors'; vendors: PrinterBrandRow[] }
+  | { level: 'models'; vendorId: string; vendorName: string; models: PrinterBrowseModel[] }
+  | null;
+
 export interface PrinterSessionPayload {
   mode: 'add' | 'change';
   caption: string; // NEW PRINTER / PRINTER
@@ -434,6 +454,7 @@ export interface PrinterSessionPayload {
   chips: PrinterChip[];
   chipHint: string;
   placeholder: string; // a likely answer to what the agent just said
+  browse: PrinterBrowse;
 }
 
 export interface StatePayload {

@@ -97,6 +97,8 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_catalog.clear();
     m_network.clear();
     m_pending_device_id.clear();
+    m_browsing = false;
+    m_browse_vendor_id.clear();
 
     m_printer_fact = m_nozzle = m_plate = m_filament = {};
     // A printer this app has not saved cannot be changed, and the header's
@@ -278,7 +280,8 @@ json PrinterConversation::state_json() const
                 {"blocks", m_blocks},
                 {"chips", m_chips},
                 {"chipHint", m_chip_hint},
-                {"placeholder", m_placeholder}};
+                {"placeholder", m_placeholder},
+                {"browse", browse_json()}};
 }
 
 const CatalogPrinter* PrinterConversation::catalog_entry(const std::string& id) const
@@ -286,6 +289,41 @@ const CatalogPrinter* PrinterConversation::catalog_entry(const std::string& id) 
     const auto entry = std::find_if(m_catalog.begin(), m_catalog.end(),
                                     [&id](const CatalogPrinter& printer) { return printer.id == id; });
     return entry == m_catalog.end() ? nullptr : &*entry;
+}
+
+json PrinterConversation::browse_json() const
+{
+    if (!m_browsing)
+        return nullptr;
+
+    if (m_browse_vendor_id.empty()) {
+        // One row per vendor this session's catalogue actually has a model
+        // for, in the order the catalogue lists them.
+        json vendors = json::array();
+        for (const CatalogPrinter& printer : m_catalog) {
+            const auto known = std::find_if(vendors.begin(), vendors.end(), [&](const json& vendor) {
+                return vendor.at("id") == printer.vendor_id;
+            });
+            if (known == vendors.end())
+                vendors.push_back(json{{"id", printer.vendor_id}, {"name", printer.vendor_name}, {"count", 1}});
+            else
+                (*known)["count"] = known->at("count").get<int>() + 1;
+        }
+        return json{{"level", "vendors"}, {"vendors", std::move(vendors)}};
+    }
+
+    std::string vendor_name;
+    json        models = json::array();
+    for (const CatalogPrinter& printer : m_catalog) {
+        if (printer.vendor_id != m_browse_vendor_id)
+            continue;
+        vendor_name = printer.vendor_name;
+        models.push_back(json{{"catalogId", printer.id},
+                              {"model", printer.model_name},
+                              {"subline", printer.build_volume},
+                              {"picture", picture_data_url(printer.picture)}});
+    }
+    return json{{"level", "models"}, {"vendorId", m_browse_vendor_id}, {"vendorName", vendor_name}, {"models", std::move(models)}};
 }
 
 // -- The session's tools ----------------------------------------------------
@@ -525,6 +563,18 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         choose_candidate(id);
     else if (action == "reject")
         reject_proposal();
+    else if (action == "browse")
+        open_browse();
+    else if (action == "browse_vendor")
+        browse_into_vendor(id);
+    else if (action == "browse_back")
+        browse_back();
+    else if (action == "browse_pick") {
+        m_browsing = false;
+        m_browse_vendor_id.clear();
+        m_host.session_changed();
+        choose_candidate(id);
+    }
     return true;
 }
 
@@ -605,6 +655,34 @@ void PrinterConversation::reject_proposal()
     m_host.session_changed();
     m_host.ask_agent("The person tapped \"Not this one\" on " + rejected +
                      ". Ask what tells the printer apart, or ask for a photo of it.");
+}
+
+void PrinterConversation::open_browse()
+{
+    m_browsing = true;
+    m_browse_vendor_id.clear();
+    m_host.session_changed();
+}
+
+void PrinterConversation::browse_into_vendor(const std::string& vendor_id)
+{
+    // An id from nowhere this panel drew (a vendor never listed, or a stale
+    // tap after "Browse" was closed) is a no-op, not a blank models level.
+    const bool known = std::any_of(m_catalog.begin(), m_catalog.end(),
+                                   [&vendor_id](const CatalogPrinter& printer) { return printer.vendor_id == vendor_id; });
+    if (!m_browsing || !known)
+        return;
+    m_browse_vendor_id = vendor_id;
+    m_host.session_changed();
+}
+
+void PrinterConversation::browse_back()
+{
+    if (!m_browse_vendor_id.empty())
+        m_browse_vendor_id.clear(); // brands level
+    else
+        m_browsing = false; // back to the thread
+    m_host.session_changed();
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

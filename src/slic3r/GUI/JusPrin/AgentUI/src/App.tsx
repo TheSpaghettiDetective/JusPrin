@@ -9,7 +9,7 @@ import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
-import { PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { PrinterBrowseView, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -384,58 +384,78 @@ export function App({
               ‹
             </button>
             <h1>Printers</h1>
-            <button type="button" className="printer-manual-link" onClick={() => printerAction('manual_setup')}>
-              Set it up myself
-            </button>
+            {/* Change mode keeps its own door (WP7); Add's is the in-panel
+                browse list, the same label everywhere it appears. */}
+            {session?.mode === 'change' ? (
+              <button type="button" className="printer-manual-link" onClick={() => printerAction('manual_setup')}>
+                Set it up myself
+              </button>
+            ) : (
+              <button type="button" className="printer-manual-link" onClick={() => printerAction('browse')}>
+                Browse the full list
+              </button>
+            )}
           </header>
           {session && !notConfigured && (
             <div className="pinned-setup">
               <PrinterPinnedCard session={session} />
             </div>
           )}
-          {notConfigured ? (
-            body()
+          {session?.browse ? (
+            <PrinterBrowseView
+              browse={session.browse}
+              onBack={() => printerAction('browse_back')}
+              onOpenVendor={(vendorId) => printerAction('browse_vendor', vendorId)}
+              onPick={(catalogId) => printerAction('browse_pick', catalogId)}
+              onManualSetup={() => printerAction('manual_setup')}
+            />
           ) : (
-            <MessageList
-              messages={state.messages}
-              attachments={state.attachments}
-              streamingMessageId={state.streamingMessageId}
-              // In this panel a tool's result is the card it draws, so only a
-              // decision to make, or a failure to explain, is worth a row of
-              // its own beside it.
-              toolActivities={state.toolActivities.filter(
-                (activity) => activity.requiresApproval || activity.state === 'failed',
+            <>
+              {notConfigured ? (
+                body()
+              ) : (
+                <MessageList
+                  messages={state.messages}
+                  attachments={state.attachments}
+                  streamingMessageId={state.streamingMessageId}
+                  // In this panel a tool's result is the card it draws, so only a
+                  // decision to make, or a failure to explain, is worth a row of
+                  // its own beside it.
+                  toolActivities={state.toolActivities.filter(
+                    (activity) => activity.requiresApproval || activity.state === 'failed',
+                  )}
+                  builds={[]}
+                  exportedCopies={[]}
+                  physicalPrints={[]}
+                  changes={[]}
+                  printerBlocks={session?.blocks}
+                  onPrinterAction={(action, id) => printerAction(action, id)}
+                  answeredState={false}
+                  onRetry={(messageId) => client.send('retry_message', { messageId })}
+                  onToolDecision={sendToolDecision}
+                  onToolCancel={sendToolCancel}
+                />
               )}
-              builds={[]}
-              exportedCopies={[]}
-              physicalPrints={[]}
-              changes={[]}
-              printerBlocks={session?.blocks}
-              onPrinterAction={(action, id) => printerAction(action, id)}
-              answeredState={false}
-              onRetry={(messageId) => client.send('retry_message', { messageId })}
-              onToolDecision={sendToolDecision}
-              onToolCancel={sendToolCancel}
-            />
-          )}
-          {!notConfigured && session && (
-            <PrinterChipRow chips={session.chips} hint={session.chipHint} disabled={busy} onSay={sendMessage} />
-          )}
-          {!notConfigured && (
-            <Composer
-              disabled={unavailable}
-              disabledReason={unavailable ? 'The Agent is not available' : undefined}
-              placeholder={session?.placeholder}
-              photoButton
-              streaming={streaming}
-              attachments={stagedAttachments}
-              onSend={sendMessage}
-              onStop={() => {
-                if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
-              }}
-              onAttachFiles={attachFiles}
-              onRemoveAttachment={removeAttachment}
-            />
+              {!notConfigured && session && (
+                <PrinterChipRow chips={session.chips} hint={session.chipHint} disabled={busy} onSay={sendMessage} />
+              )}
+              {!notConfigured && (
+                <Composer
+                  disabled={unavailable}
+                  disabledReason={unavailable ? 'The Agent is not available' : undefined}
+                  placeholder={session?.placeholder}
+                  photoButton
+                  streaming={streaming}
+                  attachments={stagedAttachments}
+                  onSend={sendMessage}
+                  onStop={() => {
+                    if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
+                  }}
+                  onAttachFiles={attachFiles}
+                  onRemoveAttachment={removeAttachment}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

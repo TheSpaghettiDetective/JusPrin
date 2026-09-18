@@ -5,10 +5,11 @@
 // action, which C++ carries out, or sends the chip's own words as the
 // person's message -- never both, and never a change made on this side.
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type {
   NetworkPrinterInfo,
   PrinterBlock,
+  PrinterBrowse,
   PrinterCardInfo,
   PrinterChip,
   PrinterFact,
@@ -229,6 +230,92 @@ export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabl
         </button>
       ))}
       {hint && <span className="printer-chip-hint">{hint}</span>}
+    </div>
+  );
+});
+
+export interface PrinterBrowseProps {
+  browse: PrinterBrowse;
+  onBack: () => void;
+  onOpenVendor: (vendorId: string) => void;
+  onPick: (catalogId: string) => void;
+  onManualSetup: () => void;
+}
+
+// Brands, then one vendor's models, inside the panel: replaces the thread
+// while it is open, the way a layer over it never quite reads as "still in
+// this conversation."
+export const PrinterBrowseView = memo(function PrinterBrowseView({
+  browse,
+  onBack,
+  onOpenVendor,
+  onPick,
+  onManualSetup,
+}: PrinterBrowseProps) {
+  const [filter, setFilter] = useState('');
+  if (!browse) return null;
+
+  if (browse.level === 'vendors') {
+    const query = filter.trim().toLowerCase();
+    const rows = query ? browse.vendors.filter((vendor) => vendor.name.toLowerCase().includes(query)) : browse.vendors;
+    return (
+      <div className="printer-browse">
+        <button type="button" className="printer-browse-back" onClick={onBack}>
+          ‹ Back to chat
+        </button>
+        <input
+          type="text"
+          className="printer-browse-filter"
+          placeholder="Filter brands"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+        />
+        <div className="printer-browse-rows">
+          {rows.map((vendor) => (
+            <button key={vendor.id} type="button" className="printer-browse-row" onClick={() => onOpenVendor(vendor.id)}>
+              <span>{vendor.name}</span>
+              <small>{vendor.count}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="printer-browse">
+      <button type="button" className="printer-browse-back" onClick={onBack}>
+        ‹ Brands
+      </button>
+      <p className="printer-browse-caption">
+        {browse.vendorName} · {browse.models.length}
+      </p>
+      <div className="printer-browse-rows">
+        {browse.models.map((model) => (
+          <button
+            key={model.catalogId}
+            type="button"
+            className="printer-browse-row printer-browse-model"
+            onClick={() => onPick(model.catalogId)}
+          >
+            {model.picture ? (
+              <img className="printer-browse-picture" src={model.picture} alt="" />
+            ) : (
+              <span className="printer-browse-picture printer-browse-picture-empty" aria-hidden="true" />
+            )}
+            <span>
+              <b>{model.model}</b>
+              <small>{model.subline}</small>
+            </span>
+          </button>
+        ))}
+        <button type="button" className="printer-browse-row printer-browse-manual" onClick={onManualSetup}>
+          <span>
+            Set it up myself
+            <small>my printer isn't listed</small>
+          </span>
+        </button>
+      </div>
     </div>
   );
 });

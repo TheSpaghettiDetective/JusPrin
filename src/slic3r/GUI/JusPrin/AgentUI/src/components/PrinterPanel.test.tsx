@@ -22,6 +22,7 @@ function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSession
     chips: [],
     chipHint: '',
     placeholder: 'e.g. "bambu a1 mini" or "not sure, the small one"',
+    browse: null,
     ...overrides,
   };
 }

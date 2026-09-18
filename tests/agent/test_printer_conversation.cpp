@@ -617,6 +617,94 @@ TEST_CASE("a printer this app has not saved is one to add", "[printer-conversati
     CHECK(conversation.opening_message().find("What printer do you have?") != std::string::npos);
 }
 
+TEST_CASE("browse opens at the brands level, one row per vendor with its count", "[printer-conversation]")
+{
+    FakeBackend backend;
+    // A second Bambu Lab model, so that vendor's row counts two.
+    CatalogPrinter combo = mini();
+    combo.id             = "BBL/Bambu Lab A1 Combo";
+    combo.model_id       = "Bambu Lab A1 Combo";
+    combo.model_name     = "A1 Combo";
+    backend.catalogue.push_back(combo);
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    REQUIRE(conversation.handle_page_message("printer_action", json{{"action", "browse"}}));
+
+    const json browse = conversation.state_json().at("browse");
+    CHECK(browse.at("level") == "vendors");
+    const json& vendors = browse.at("vendors");
+    REQUIRE(vendors.size() == 2);
+    const auto bbl = std::find_if(vendors.begin(), vendors.end(), [](const json& v) { return v.at("id") == "BBL"; });
+    REQUIRE(bbl != vendors.end());
+    CHECK(bbl->at("count") == 2);
+}
+
+TEST_CASE("browsing into a vendor lists its models with pictures and build volume", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    conversation.handle_page_message("printer_action", json{{"action", "browse"}});
+
+    REQUIRE(conversation.handle_page_message("printer_action", json{{"action", "browse_vendor"}, {"id", "BBL"}}));
+
+    const json browse = conversation.state_json().at("browse");
+    CHECK(browse.at("level") == "models");
+    CHECK(browse.at("vendorName") == "Bambu Lab");
+    REQUIRE(browse.at("models").size() == 1);
+    CHECK(browse.at("models")[0].at("model") == "A1 mini");
+    CHECK(browse.at("models")[0].at("subline") == "180 × 180 × 180 mm");
+}
+
+TEST_CASE("browsing into a vendor nobody listed does nothing", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    conversation.handle_page_message("printer_action", json{{"action", "browse"}});
+
+    conversation.handle_page_message("printer_action", json{{"action", "browse_vendor"}, {"id", "NotAVendor"}});
+
+    CHECK(conversation.state_json().at("browse").at("level") == "vendors");
+}
+
+TEST_CASE("browse back leaves the vendor first, then the list itself", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    conversation.handle_page_message("printer_action", json{{"action", "browse"}});
+    conversation.handle_page_message("printer_action", json{{"action", "browse_vendor"}, {"id", "BBL"}});
+
+    conversation.handle_page_message("printer_action", json{{"action", "browse_back"}});
+    CHECK(conversation.state_json().at("browse").at("level") == "vendors");
+
+    conversation.handle_page_message("printer_action", json{{"action", "browse_back"}});
+    CHECK(conversation.state_json().at("browse").is_null());
+}
+
+TEST_CASE("picking a browsed model closes browsing and asks the agent to propose it", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    conversation.handle_page_message("printer_action", json{{"action", "browse"}});
+    conversation.handle_page_message("printer_action", json{{"action", "browse_vendor"}, {"id", "BBL"}});
+
+    REQUIRE(conversation.handle_page_message("printer_action",
+                                             json{{"action", "browse_pick"}, {"id", "BBL/Bambu Lab A1 mini"}}));
+
+    CHECK(conversation.state_json().at("browse").is_null());
+    REQUIRE(panel.prompts.size() == 1);
+    CHECK(panel.prompts.front().find("BBL/Bambu Lab A1 mini") != std::string::npos);
+}
+
 TEST_CASE("a printer conversation writes nothing into the project", "[printer-conversation]")
 {
     Slic3r::GUI::JusPrin::Workspace::FakeWorkspace workspace;

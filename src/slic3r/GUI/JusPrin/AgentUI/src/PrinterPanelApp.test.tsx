@@ -59,6 +59,7 @@ function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSession
     chips: [],
     chipHint: '',
     placeholder: 'e.g. "I put a 0.6 nozzle on it"',
+    browse: null,
     ...overrides,
   };
 }
@@ -103,8 +104,14 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
   });
 
-  it('keeps the way out to OrcaSlicer’s own screens', async () => {
+  it('opens the in-panel browse list from the header, in Add mode', async () => {
     const host = open();
+    await userEvent.click(screen.getByRole('button', { name: 'Browse the full list' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'browse' });
+  });
+
+  it('keeps the way out to OrcaSlicer’s own screens, in Change mode', async () => {
+    const host = open(state({ session: session({ mode: 'change', caption: 'PRINTER' }) }));
     await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
   });
@@ -193,6 +200,50 @@ describe('the printer panel page', () => {
     );
 
     expect(screen.getByText('180 × 180 × 180 mm')).toBeInTheDocument();
+  });
+
+  it('draws the brand list when browsing, and filters it by typing', async () => {
+    open(
+      state({
+        session: session({
+          browse: { level: 'vendors', vendors: [
+            { id: 'BBL', name: 'Bambu Lab', count: 5 },
+            { id: 'Creality', name: 'Creality', count: 41 },
+          ] },
+        }),
+      }),
+    );
+
+    expect(screen.getByText('Bambu Lab')).toBeInTheDocument();
+    expect(screen.getByText('Creality')).toBeInTheDocument();
+
+    await userEvent.type(screen.getByPlaceholderText('Filter brands'), 'bambu');
+    expect(screen.getByText('Bambu Lab')).toBeInTheDocument();
+    expect(screen.queryByText('Creality')).toBeNull();
+  });
+
+  it('opens a brand, picks a model, and asks the agent to propose it', async () => {
+    const host = open(
+      state({
+        session: session({
+          browse: {
+            level: 'models',
+            vendorId: 'BBL',
+            vendorName: 'Bambu Lab',
+            models: [{ catalogId: 'BBL/Bambu Lab A1 mini', model: 'A1 mini', subline: '180 × 180 × 180 mm', picture: '' }],
+          },
+        }),
+      }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /A1 mini/ }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({
+      action: 'browse_pick',
+      id: 'BBL/Bambu Lab A1 mini',
+    });
+
+    // The way out for a printer that is not on the list at all.
+    expect(screen.getByText('Set it up myself')).toBeInTheDocument();
   });
 
   it('names the work instead of an empty bubble while a tool runs', () => {
