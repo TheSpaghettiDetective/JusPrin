@@ -3,9 +3,21 @@
 #include "PrinterSetupTypes.hpp"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
+
+// A vendor bundle kept out of the printer-identification flow only: the
+// agent's whole-catalog prompt (PrinterConversation) and the in-panel
+// "Browse the full list". resources/profiles/OrcaArena.json ships one
+// machine model (Orca Arena X1 Carbon) and about 40 filament and process
+// files with nothing in them marking a difference from an ordinary vendor;
+// its purpose is undocumented. Everywhere else -- OrcaSlicer's own printer
+// wizard, its preset lists, an already-installed printer of this vendor --
+// reads the profile files directly and never sees this constant, so it
+// stays unaffected.
+inline constexpr std::string_view kVendorHiddenFromPrinterFlow = "OrcaArena";
 
 class PrinterCatalog
 {

@@ -39,7 +39,7 @@ struct PinnedFact
     std::string swatch; // "#RRGGBB" of the first loaded spool, when there is one
 };
 
-// What "Add this printer" would save. Filled by printer_propose, spent by the
+// What "Add this printer" would save. Filled by printer_identify, spent by the
 // person tapping the chip, and never by the agent.
 struct PrinterProposal
 {
@@ -110,8 +110,7 @@ public:
     static std::vector<std::string> session_tools();
 
 private:
-    nlohmann::json search_catalog(const nlohmann::json& arguments);
-    nlohmann::json propose(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
+    nlohmann::json identify(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
     nlohmann::json suggest(const nlohmann::json& arguments);
     nlohmann::json change(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
 
@@ -141,10 +140,15 @@ private:
     std::string     m_placeholder;
     unsigned        m_next_block{1};
 
-    // The catalogue entries this session has offered, by their catalogue id,
-    // so a tap can name one without searching again.
+    // The whole catalogue the agent was given this session, for validating
+    // the catalogIds it answers with.
     std::vector<CatalogPrinter>   m_catalog;
     std::vector<DiscoveredPrinter> m_network;
+
+    // Set by "Use this" on a network find, read and cleared by the next
+    // single-printer proposal: the app already knows the device id, so the
+    // model is never asked to echo it back.
+    std::string m_pending_device_id;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

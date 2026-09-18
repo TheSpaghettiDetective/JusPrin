@@ -58,17 +58,7 @@ public:
     int                               manual_setups{0};
     std::vector<std::string>          settings_opened;
 
-    std::vector<CatalogPrinter> search_catalog(const std::string& text, std::size_t limit) const override
-    {
-        searched.push_back(text);
-        std::vector<CatalogPrinter> found;
-        for (const CatalogPrinter& printer : catalogue) {
-            if (found.size() >= limit)
-                break;
-            found.push_back(printer);
-        }
-        return found;
-    }
+    std::vector<CatalogPrinter> catalog_models() const override { return catalogue; }
     std::vector<DiscoveredPrinter> network_printers() const override { return network; }
     std::vector<SavedPrinter>      saved_printers() const override { return saved; }
 
@@ -92,8 +82,6 @@ public:
     }
     void run_manual_setup() override { ++manual_setups; }
     void open_printer_settings(const std::string& name) override { settings_opened.push_back(name); }
-
-    mutable std::vector<std::string> searched;
 };
 
 class RecordingPanel final : public IConversationHost
@@ -122,13 +110,15 @@ Agent::ToolActivity call(Agent::ToolHandler handler, const json& arguments, cons
     return activity;
 }
 
-json search(PrinterConversation& conversation, const std::string& query = "bambu a1 mini")
+// A "propose" identify call for one printer, as the agent would send it once
+// it has settled on a catalogId from the list the session gave it.
+Agent::ToolExecutionCoordinator::ExtensionResult propose_one(PrinterConversation& conversation, const std::string& catalog_id,
+                                                              json extra = json::object(), const std::string& message = "m-1")
 {
-    const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterCatalogSearch,
-                                                  call(Agent::ToolHandler::PrinterCatalogSearch, json{{"query", query}}));
-    REQUIRE(result.handled);
-    REQUIRE_FALSE(result.error.has_value());
-    return json::parse(result.result_json);
+    json arguments = json{{"action", "propose"}, {"catalogIds", json::array({catalog_id})}, {"say", "Assuming the usual."}};
+    arguments.update(extra);
+    return conversation.execute_tool(Agent::ToolHandler::PrinterIdentify,
+                                     call(Agent::ToolHandler::PrinterIdentify, arguments, message));
 }
 
 DiscoveredPrinter found_a1()
@@ -182,6 +172,10 @@ TEST_CASE("the session offers only its own tools and not the project", "[printer
     CHECK_FALSE(profile.include_workspace);
     CHECK(profile.instructions.find("printer panel") != std::string::npos);
     CHECK(profile.instructions.find("Never say a printer has been added") != std::string::npos);
+    // The whole catalogue the session was given, one model per line, so the
+    // agent never has to search for it.
+    CHECK(profile.instructions.find("BBL/Bambu Lab A1 mini | 180 × 180 × 180 mm") != std::string::npos);
+    CHECK(profile.instructions.find("Creality/Ender-3 V2 | 180 × 180 × 180 mm") != std::string::npos);
 }
 
 TEST_CASE("a proposal fills the pinned card and draws the printer", "[printer-conversation]")
@@ -190,13 +184,8 @@ TEST_CASE("a proposal fills the pinned card and draws the printer", "[printer-co
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    search(conversation);
 
-    const auto proposed = conversation.execute_tool(
-        Agent::ToolHandler::PrinterPropose,
-        call(Agent::ToolHandler::PrinterPropose,
-             json{{"printers", json::array({json{{"catalogId", "BBL/Bambu Lab A1 mini"}}})}, {"provenance", "assumed"}},
-             "m-7"));
+    const auto proposed = propose_one(conversation, "BBL/Bambu Lab A1 mini", json{{"provenance", "assumed"}}, "m-7");
     REQUIRE(proposed.handled);
     REQUIRE_FALSE(proposed.error.has_value());
 
@@ -228,13 +217,14 @@ TEST_CASE("two candidates settle nothing and ask on their own cards", "[printer-
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    search(conversation, "the ender with the touchscreen");
 
     const auto proposed = conversation.execute_tool(
-        Agent::ToolHandler::PrinterPropose,
-        call(Agent::ToolHandler::PrinterPropose,
-             json{{"printers", json::array({json{{"catalogId", "BBL/Bambu Lab A1 mini"}},
-                                            json{{"catalogId", "Creality/Ender-3 V2"}}})}}));
+        Agent::ToolHandler::PrinterIdentify,
+        call(Agent::ToolHandler::PrinterIdentify,
+             json{{"action", "propose"},
+                  {"catalogIds", json::array({"BBL/Bambu Lab A1 mini", "Creality/Ender-3 V2"})},
+                  {"question", "Bambu or Creality?"},
+                  {"say", "Two fit what you said."}}));
     REQUIRE_FALSE(proposed.error.has_value());
 
     const json state = conversation.state_json();
@@ -245,16 +235,55 @@ TEST_CASE("two candidates settle nothing and ask on their own cards", "[printer-
     CHECK(state.at("chips").empty());
 }
 
-TEST_CASE("a printer nobody searched for is refused", "[printer-conversation]")
+TEST_CASE("asking with no candidates settles nothing and draws nothing new", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    const std::size_t opening_blocks = conversation.state_json().at("blocks").size();
+
+    const auto asked = conversation.execute_tool(
+        Agent::ToolHandler::PrinterIdentify,
+        call(Agent::ToolHandler::PrinterIdentify,
+             json{{"action", "ask"}, {"catalogIds", json::array()}, {"question", "What size is the bed?"}, {"say", "Not enough yet."}}));
+    REQUIRE_FALSE(asked.error.has_value());
+
+    const json state = conversation.state_json();
+    CHECK(state.at("blocks").size() == opening_blocks);
+    CHECK(state.at("facts").at("printer").at("value") == "");
+    CHECK(state.at("chips").empty());
+}
+
+TEST_CASE("unsupported clears whatever was proposed before it", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    propose_one(conversation, "BBL/Bambu Lab A1 mini");
+    REQUIRE(conversation.state_json().at("facts").at("printer").at("value") == "Bambu Lab A1 mini");
+
+    const auto unsupported = conversation.execute_tool(
+        Agent::ToolHandler::PrinterIdentify,
+        call(Agent::ToolHandler::PrinterIdentify,
+             json{{"action", "unsupported"}, {"catalogIds", json::array()}, {"reason", "not_listed"}, {"say", "Not one this app ships."}}));
+    REQUIRE_FALSE(unsupported.error.has_value());
+
+    const json state = conversation.state_json();
+    CHECK(state.at("facts").at("printer").at("value") == "");
+    // The proposal's own chips are gone with it.
+    CHECK(state.at("chips").empty());
+}
+
+TEST_CASE("a catalogId that is not on the list this session was given is refused", "[printer-conversation]")
 {
     FakeBackend         backend;
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    const auto proposed = conversation.execute_tool(
-        Agent::ToolHandler::PrinterPropose,
-        call(Agent::ToolHandler::PrinterPropose, json{{"printers", json::array({json{{"catalogId", "BBL/Invented"}}})}}));
+    const auto proposed = propose_one(conversation, "BBL/Invented");
     REQUIRE(proposed.handled);
     REQUIRE(proposed.error.has_value());
     CHECK(proposed.error->code == "unknown_printer");
@@ -270,12 +299,8 @@ TEST_CASE("a nozzle the model does not ship is refused before it is offered", "[
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    search(conversation);
 
-    const auto proposed = conversation.execute_tool(
-        Agent::ToolHandler::PrinterPropose,
-        call(Agent::ToolHandler::PrinterPropose,
-             json{{"printers", json::array({json{{"catalogId", "BBL/Bambu Lab A1 mini"}}})}, {"nozzle", 0.7}}));
+    const auto proposed = propose_one(conversation, "BBL/Bambu Lab A1 mini", json{{"nozzle", 0.7}});
     REQUIRE(proposed.error.has_value());
     CHECK(proposed.error->code == "unknown_nozzle");
     // It says which sizes there are, so the agent can pass that on.
@@ -330,6 +355,31 @@ TEST_CASE("Use this states what the printer reported and asks the agent", "[prin
     CHECK(conversation.state_json().at("placeholder") == "access code, optional");
 }
 
+TEST_CASE("the device Use this named is attached to the next proposal, not asked of the model", "[printer-conversation]")
+{
+    FakeBackend     backend;
+    RecordingPanel  panel;
+    backend.network = {found_a1()};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}});
+    // The tool's own arguments never carry a deviceId; the app remembers
+    // which network find this answer is about.
+    propose_one(conversation, "BBL/Bambu Lab A1 mini", json{{"provenance", "settled"}});
+
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    REQUIRE(backend.added.size() == 1);
+    CHECK(backend.added.front().device_id == "01P00A3B");
+
+    // Spent: a printer proposed afterwards, with no network round trip in
+    // between, is not linked to a device that has moved on.
+    propose_one(conversation, "Creality/Ender-3 V2");
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    REQUIRE(backend.added.size() == 2);
+    CHECK(backend.added.back().device_id.empty());
+}
+
 TEST_CASE("a printer that has left the network says so instead", "[printer-conversation]")
 {
     FakeBackend         backend;
@@ -349,11 +399,7 @@ TEST_CASE("Add this printer saves it and hands Home back", "[printer-conversatio
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    search(conversation);
-    conversation.execute_tool(Agent::ToolHandler::PrinterPropose,
-                              call(Agent::ToolHandler::PrinterPropose,
-                                   json{{"printers", json::array({json{{"catalogId", "BBL/Bambu Lab A1 mini"}}})},
-                                        {"nozzle", 0.6}}));
+    propose_one(conversation, "BBL/Bambu Lab A1 mini", json{{"nozzle", 0.6}});
 
     conversation.handle_page_message("printer_action", json{{"action", "add"}, {"accessCode", "12345678"}});
     REQUIRE(backend.added.size() == 1);
@@ -373,10 +419,7 @@ TEST_CASE("a printer that could not be saved says why and stays open", "[printer
     backend.refusal = "That access code was not accepted.";
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    search(conversation);
-    conversation.execute_tool(Agent::ToolHandler::PrinterPropose,
-                              call(Agent::ToolHandler::PrinterPropose,
-                                   json{{"printers", json::array({json{{"catalogId", "BBL/Bambu Lab A1 mini"}}})}}));
+    propose_one(conversation, "BBL/Bambu Lab A1 mini");
 
     conversation.handle_page_message("printer_action", json{{"action", "add"}});
     CHECK(panel.closes == 0);

@@ -87,7 +87,11 @@ public:
     virtual ~IPrinterBackend() = default;
 
     // Reads.
-    virtual std::vector<CatalogPrinter>   search_catalog(const std::string& text, std::size_t limit) const = 0;
+    // The whole packaged catalogue, one entry per model, for the agent's
+    // identification prompt and for validating the catalogIds it answers
+    // with. Excludes kVendorHiddenFromPrinterFlow (see PrinterCatalog.hpp);
+    // everywhere else in the app still sees it, including "Set it up myself".
+    virtual std::vector<CatalogPrinter>   catalog_models() const = 0;
     virtual std::vector<DiscoveredPrinter> network_printers() const = 0;
     virtual std::vector<SavedPrinter>     saved_printers() const = 0;
 

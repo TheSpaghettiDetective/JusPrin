@@ -1,0 +1,4 @@
+# Per-case run artifacts: reproducible by re-running run.sh, not source.
+# Also where the test photos get copied to -- CC-licensed and credited in
+# ~/Downloads/printer-photos/ground-truth.json, not ours to commit.
+out/

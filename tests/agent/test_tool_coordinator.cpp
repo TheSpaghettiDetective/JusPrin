@@ -128,7 +128,7 @@ TEST_CASE("approval policy follows the handoff", "[tools][policy]")
     // The printer panel's two state tools join them: one draws the card it
     // was asked for, the other offers what to do next, and the person
     // adding or changing a printer approves that on its own card.
-    CHECK(exempt == std::vector<std::string>{"activity_cancel", "plan_set", "printer_propose", "printer_suggest",
+    CHECK(exempt == std::vector<std::string>{"activity_cancel", "plan_set", "printer_identify", "printer_suggest",
                                              "slice_start"});
 }
 

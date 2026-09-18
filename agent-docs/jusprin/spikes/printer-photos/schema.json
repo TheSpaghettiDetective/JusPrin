@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "action": {"type": "string", "enum": ["propose", "ask", "unsupported"]},
+    "catalogIds": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+    "question": {"type": "string"},
+    "say": {"type": "string"},
+    "evidence": {"type": "string"}
+  },
+  "required": ["action", "catalogIds", "question", "say", "evidence"]
+}

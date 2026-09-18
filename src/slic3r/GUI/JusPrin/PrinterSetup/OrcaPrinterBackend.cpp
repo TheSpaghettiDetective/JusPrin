@@ -16,43 +16,10 @@
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 
 #include <algorithm>
-#include <cctype>
-#include <sstream>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 namespace {
-
-std::string lowered(std::string text)
-{
-    std::transform(text.begin(), text.end(), text.begin(),
-                   [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
-    return text;
-}
-
-// Every word of the query has to appear somewhere in the entry, so "bambu a1
-// mini" narrows rather than widens, and a word nobody uses finds nothing.
-bool matches(const std::string& haystack, const std::vector<std::string>& words)
-{
-    return std::all_of(words.begin(), words.end(),
-                       [&haystack](const std::string& word) { return haystack.find(word) != std::string::npos; });
-}
-
-std::vector<std::string> words_of(const std::string& text)
-{
-    std::vector<std::string> words;
-    std::istringstream       stream(lowered(text));
-    std::string              word;
-    while (stream >> word) {
-        // "0.4mm", "a1," and "(combo)" are the same words with punctuation.
-        word.erase(std::remove_if(word.begin(), word.end(),
-                                  [](unsigned char letter) { return std::ispunct(letter) && letter != '.'; }),
-                   word.end());
-        if (!word.empty())
-            words.push_back(word);
-    }
-    return words;
-}
 
 CatalogPrinter entry_of(const PrinterCandidate& candidate)
 {
@@ -100,22 +67,13 @@ OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, W
         std::sort(printer.nozzles.begin(), printer.nozzles.end());
 }
 
-std::vector<CatalogPrinter> OrcaPrinterBackend::search_catalog(const std::string& text, std::size_t limit) const
+std::vector<CatalogPrinter> OrcaPrinterBackend::catalog_models() const
 {
-    const std::vector<std::string> words = words_of(text);
-    std::vector<CatalogPrinter>    found;
-    if (words.empty())
-        return found;
-
-    for (const CatalogPrinter& printer : m_models) {
-        if (found.size() >= limit)
-            break;
-        const std::string haystack =
-            lowered(printer.vendor_name + " " + printer.model_name + " " + printer.build_volume + " " + printer.device_model_id);
-        if (matches(haystack, words))
-            found.push_back(printer);
-    }
-    return found;
+    std::vector<CatalogPrinter> visible;
+    for (const CatalogPrinter& printer : m_models)
+        if (printer.vendor_id != kVendorHiddenFromPrinterFlow)
+            visible.push_back(printer);
+    return visible;
 }
 
 std::vector<DiscoveredPrinter> OrcaPrinterBackend::network_printers() const { return discover_printers(); }

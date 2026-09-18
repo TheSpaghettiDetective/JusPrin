@@ -539,26 +539,42 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return true;
     }
 
-    if (definition.handler == ToolHandler::PrinterCatalogSearch)
-        return has_only(arguments, {"query", "limit"}) && arguments.contains("query") && arguments["query"].is_string() &&
-               !arguments["query"].get_ref<const std::string&>().empty() &&
-               arguments["query"].get_ref<const std::string&>().size() <= kToolLabelLimit &&
-               (!arguments.contains("limit") || (arguments["limit"].is_number_unsigned() &&
-                                                 arguments["limit"].get<std::uint64_t>() >= 1 &&
-                                                 arguments["limit"].get<std::uint64_t>() <= 8));
-
-    if (definition.handler == ToolHandler::PrinterPropose) {
-        if (!has_only(arguments, {"printers", "nozzle", "plate", "filament", "provenance"}) || !arguments.contains("printers"))
+    if (definition.handler == ToolHandler::PrinterIdentify) {
+        if (!has_only(arguments, {"action", "catalogIds", "question", "say", "reason", "nozzle", "plate", "filament", "provenance"}) ||
+            !arguments.contains("action") || !arguments.contains("catalogIds") || !arguments.contains("say"))
             return false;
-        const json& printers = arguments["printers"];
+        const json& action = arguments["action"];
+        if (!action.is_string() || (action != "propose" && action != "ask" && action != "unsupported"))
+            return false;
+        if (!optional_text(arguments, "say") || arguments["say"].get_ref<const std::string&>().empty())
+            return false;
+        const json& ids = arguments["catalogIds"];
         // Two or three is a question for the person; more is a list to read.
-        if (!printers.is_array() || printers.empty() || printers.size() > 3)
+        if (!ids.is_array() || ids.size() > 3)
             return false;
-        for (const json& printer : printers)
-            if (!has_only(printer, {"catalogId", "deviceId", "subline"}) || !printer.contains("catalogId") ||
-                !optional_text(printer, "catalogId") || printer["catalogId"].get_ref<const std::string&>().empty() ||
-                !optional_text(printer, "deviceId") || !optional_text(printer, "subline"))
+        for (const json& catalog_id : ids)
+            if (!catalog_id.is_string() || catalog_id.get_ref<const std::string&>().empty())
                 return false;
+        if (!optional_text(arguments, "question"))
+            return false;
+        const bool asked = arguments.contains("question") && !arguments["question"].get_ref<const std::string&>().empty();
+
+        if (action == "propose" && ids.empty())
+            return false; // nothing to propose
+        // A question is what separates the panel's two candidate-card shapes
+        // (propose with 2-3, and ask) from a single confident proposal.
+        if ((action == "ask" || (action == "propose" && ids.size() > 1)) && !asked)
+            return false;
+        if (action == "unsupported") {
+            if (!ids.empty() || !arguments.contains("reason"))
+                return false;
+            const json& reason = arguments["reason"];
+            if (!reason.is_string() || (reason != "not_listed" && reason != "not_fdm"))
+                return false;
+        } else if (arguments.contains("reason")) {
+            return false; // a reason only makes sense when nothing was found
+        }
+
         for (const char* key : {"plate", "filament"})
             if (arguments.contains(key) && !optional_text(arguments, key))
                 return false;
@@ -1425,51 +1441,36 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Internal,
          ToolAvailability::Always,
          ToolHandler::RecordPhysicalPrint},
-        // The printer panel's own four. They exist only inside a printer
+        // The printer panel's own three. They exist only inside a printer
         // session, which is why they carry no in-app or MCP exposure: the
         // project conversation has no printer card to draw and no panel to
         // draw it in.
-        {"printer_catalog_search",
-         "Search the printer catalogue",
-         "Find printer models this app can install, from the profiles it ships with, using the person's own words: a brand, a model, a "
-         "nickname, a size, or what a photo shows. Returns each model's catalogue id, build volume, the nozzle sizes it ships, and the "
-         "plate and material it comes with. Propose a printer only from a result of this search.",
-         object_schema(json{{"query", string_schema()}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 8}}}},
-                       json::array({"query"})),
-         object_schema(json{{"items", {{"type", "array"}, {"maxItems", 8},
-                                       {"items", object_schema(json{{"catalogId", id}, {"vendor", string_schema()},
-                                                                    {"model", string_schema()}, {"buildVolume", string_schema()},
-                                                                    {"nozzles", {{"type", "array"}, {"items", number_schema()},
-                                                                                 {"maxItems", 8}}},
-                                                                    {"plate", string_schema()}, {"material", string_schema()}},
-                                                               json::array({"catalogId", "vendor", "model", "buildVolume", "nozzles",
-                                                                            "plate", "material"}))}}}},
-                       json::array({"items"})),
-         ActionClass::ReadOnly,
-         ToolExposure::Printer,
-         ToolAvailability::Always,
-         ToolHandler::PrinterCatalogSearch},
-        {"printer_propose",
-         "Show a printer and fill the pinned card",
-         "Draw a printer's card in the thread and fill the panel's pinned card with it. One printer when you are confident, or two or "
-         "three when they are genuinely hard to tell apart -- then the person picks one on its card. catalogId comes from "
-         "printer_catalog_search; deviceId only when this printer is one found on the network. nozzle in mm, 0 when nothing has been said "
-         "about it; plate and filament empty for what the model ships with. provenance says whether these facts were read from the printer "
-         "(settled) or are your stated guess (assumed). This proposes; it never adds the printer.",
-         object_schema(json{{"printers", {{"type", "array"}, {"minItems", 1}, {"maxItems", 3},
-                                          {"items", object_schema(json{{"catalogId", id}, {"deviceId", string_schema()},
-                                                                       {"subline", string_schema()}},
-                                                                  json::array({"catalogId"}))}}},
+        {"printer_identify",
+         "Answer which printer this is",
+         "The one tool for identifying the printer the person is adding, from the whole packaged catalogue given in this session's "
+         "instructions. Every turn answers through this tool, in one of three shapes. \"propose\", one catalogId: a clear match -- draws "
+         "the card and fills the pinned one; nozzle in mm (0 when nothing has been said, the model's own default is assumed), plate and "
+         "filament empty for what the model ships with, provenance says whether these facts were read from the printer (settled) or are "
+         "your stated guess (assumed). \"propose\", two or three catalogIds: genuinely hard to tell apart -- draws each as its own card "
+         "with a question that would separate them; nothing is saved or assumed yet. \"ask\", zero to three catalogIds: not enough to go "
+         "on -- a question, optionally with candidates shown while you ask. \"unsupported\", no catalogIds: not a printer this app ships a "
+         "profile for (reason not_listed), or not a filament printer at all (reason not_fdm). This never adds the printer -- that is the "
+         "person's own tap.",
+         object_schema(json{{"action", {{"type", "string"}, {"enum", json::array({"propose", "ask", "unsupported"})}}},
+                            {"catalogIds", {{"type", "array"}, {"maxItems", 3}, {"items", id}}},
+                            {"question", string_schema()},
+                            {"say", string_schema()},
+                            {"reason", {{"type", "string"}, {"enum", json::array({"not_listed", "not_fdm"})}}},
                             {"nozzle", number_schema()},
                             {"plate", string_schema()},
                             {"filament", string_schema()},
                             {"provenance", {{"type", "string"}, {"enum", json::array({"assumed", "settled"})}}}},
-                       json::array({"printers"})),
-         object_schema(json{{"proposed", integer_schema()}}, json::array({"proposed"})),
+                       json::array({"action", "catalogIds", "say"})),
+         object_schema(json{{"action", string_schema()}, {"shown", integer_schema()}}, json::array({"action", "shown"})),
          ActionClass::Mutation,
          ToolExposure::Printer,
          ToolAvailability::Always,
-         ToolHandler::PrinterPropose,
+         ToolHandler::PrinterIdentify,
          // It draws a card and fills the pinned one; nothing is saved until
          // the person taps "Add this printer".
          true},

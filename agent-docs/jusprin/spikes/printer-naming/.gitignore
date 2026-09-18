@@ -1,0 +1,2 @@
+# Per-case run artifacts: reproducible by re-running run.sh, not source.
+out/

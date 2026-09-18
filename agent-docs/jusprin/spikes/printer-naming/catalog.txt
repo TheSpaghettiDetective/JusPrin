@@ -1,0 +1,383 @@
+Afinia/Afinia H+1(HS) | 207x255x230
+Anker/Anker M5 | 235x235x250
+Anker/Anker M5 All-Metal Hot End | 235x235x250
+Anker/Anker M5C | 220x220x250
+Anycubic/Anycubic 4Max Pro | 270x205x200
+Anycubic/Anycubic 4Max Pro 2 | 270x210x190
+Anycubic/Anycubic Chiron | 400x400x450
+Anycubic/Anycubic Kobra | 220x220x250
+Anycubic/Anycubic Kobra 2 | 220x220x250
+Anycubic/Anycubic Kobra 2 Max | 420x420x500
+Anycubic/Anycubic Kobra 2 Neo | 220x220x250
+Anycubic/Anycubic Kobra 2 Plus | 320x320x400
+Anycubic/Anycubic Kobra 2 Pro | 220x220x250
+Anycubic/Anycubic Kobra 3 | 255x255x260
+Anycubic/Anycubic Kobra 3 Max | 426x420x501
+Anycubic/Anycubic Kobra Max | 400x400x450
+Anycubic/Anycubic Kobra Neo | 220x220x250
+Anycubic/Anycubic Kobra Plus | 300x300x350
+Anycubic/Anycubic Kobra S1 | 250x250x250
+Anycubic/Anycubic Kobra S1 Max | 350x350x350
+Anycubic/Anycubic Kobra X | 260x260x260
+Anycubic/Anycubic Predator | 370x370x455
+Anycubic/Anycubic Vyper | 250x255x265
+Anycubic/Anycubic i3 Mega S | 210x210x205
+Artillery/Artillery Genius | 220x220x250
+Artillery/Artillery Genius Pro | 220x220x250
+Artillery/Artillery Hornet | 230x230x250
+Artillery/Artillery M1 Pro | 260x260x260
+Artillery/Artillery Sidewinder X1 | 300x300x400
+Artillery/Artillery Sidewinder X2 | 300x300x400
+Artillery/Artillery Sidewinder X3 Plus | 300x305x400
+Artillery/Artillery Sidewinder X3 Pro | 240x245x260
+Artillery/Artillery Sidewinder X4 Plus | 300x310x400
+Artillery/Artillery Sidewinder X4 Pro | 240x250x260
+BIQU/BIQU B1 | 235x235x270
+BIQU/BIQU BX | 250x250x250
+BIQU/BIQU Hurakan | 220x220x270
+Bambulab/Bambu Lab A1 | 256x256x256
+Bambulab/Bambu Lab A1 mini | 180x180x180
+Bambulab/Bambu Lab H2D | 350x320x325
+Bambulab/Bambu Lab H2D Pro | 350x320x325
+Bambulab/Bambu Lab H2S | 340x320x340
+Bambulab/Bambu Lab P1P | 256x256x250
+Bambulab/Bambu Lab P1S | 256x256x250
+Bambulab/Bambu Lab P2S | 256x256x256
+Bambulab/Bambu Lab X1 | 256x256x250
+Bambulab/Bambu Lab X1 Carbon | 256x256x250
+Bambulab/Bambu Lab X1E | 256x256x250
+Bambulab/Bambu Lab X2D | 256x256x261
+Blocks/BLOCKS Pro S100 | 1000x1000x900
+Blocks/BLOCKS RD50 V2 | 500x500x500
+Blocks/BLOCKS RF50 | 500x500x500
+CONSTRUCT3D/Construct 1 | 225x260x180
+CONSTRUCT3D/Construct 1 XL | 325x370x400
+Chuanying/Chuanying X1 | 220x220x220
+Co Print/Co Print ChromaSet | 225x225x250
+CoLiDo/CoLiDo 160 V2 | 160x160x180
+CoLiDo/CoLiDo DIY 4.0 | 225x220x230
+CoLiDo/CoLiDo DIY 4.0 V2 | 230x230x255
+CoLiDo/CoLiDo SR1 | 220x220x251
+CoLiDo/CoLiDo X16 | 160x160x180
+Comgrow/Comgrow T300 | 300x300x350
+Comgrow/Comgrow T500 | 500x500x500
+Creality/Creality CR-10 Max | 450x450x470
+Creality/Creality CR-10 SE | 220x220x265
+Creality/Creality CR-10 V2 | 300x300x400
+Creality/Creality CR-10 V3 | 300x300x400
+Creality/Creality CR-6 Max | 390x390x400
+Creality/Creality CR-6 SE | 225x235x250
+Creality/Creality CR-M4 | 450x450x470
+Creality/Creality Ender-3 | 220x220x250
+Creality/Creality Ender-3 Pro | 220x220x250
+Creality/Creality Ender-3 S1 | 220x220x270
+Creality/Creality Ender-3 S1 Plus | 300x300x300
+Creality/Creality Ender-3 S1 Pro | 220x220x270
+Creality/Creality Ender-3 V2 | 220x220x250
+Creality/Creality Ender-3 V2 Neo | 220x220x250
+Creality/Creality Ender-3 V3 | 220x220x250
+Creality/Creality Ender-3 V3 KE | 220x220x245
+Creality/Creality Ender-3 V3 Plus | 300x300x330
+Creality/Creality Ender-3 V3 SE | 220x220x250
+Creality/Creality Ender-3 V4 | ?
+Creality/Creality Ender-5 | 220x220x300
+Creality/Creality Ender-5 Max | ?
+Creality/Creality Ender-5 Plus | 350x350x400
+Creality/Creality Ender-5 Pro (2019) | 220x220x300
+Creality/Creality Ender-5 S1 | 220x220x300
+Creality/Creality Ender-5S | 220x220x300
+Creality/Creality Ender-6 | 250x250x400
+Creality/Creality Hi | 260x260x300
+Creality/Creality K1 | 220x220x250
+Creality/Creality K1 Max | 300x300x300
+Creality/Creality K1 Max_CFS-C | ?
+Creality/Creality K1 SE | 220x220x250
+Creality/Creality K1 SE_CFS-C | ?
+Creality/Creality K1C | 220x220x250
+Creality/Creality K1C_CFS-C | ?
+Creality/Creality K1_CFS-C | ?
+Creality/Creality K2 | 260x260x260
+Creality/Creality K2 Plus | 350x350x350
+Creality/Creality K2 Pro | 300x300x300
+Creality/Creality K2 SE | ?
+Creality/Creality SPARKX i7 | ?
+Creality/Creality Sermoon V1 | 175x175x165
+Cubicon/Cubicon xCeler-I | 250x250x290
+Cubicon/Cubicon xCeler-Mini | 150x150x150
+Cubicon/Cubicon xCeler-Plus | 310x310x310
+Custom Printer/Generic Klipper Printer | 250x250x250
+Custom Printer/Generic Marlin Printer | 250x250x250
+Custom Printer/Generic RRF Printer | 250x250x250
+Custom Printer/Generic Repetier Printer | 250x250x250
+Custom Printer/Generic ToolChanger Printer | 350x350x300
+DeltaMaker/DeltaMaker 2 | 276x240x260
+DeltaMaker/DeltaMaker 2T | 276x240x460
+DeltaMaker/DeltaMaker 2XT | 276x240x565
+Dremel/Dremel 3D20 | 230x150x140
+Dremel/Dremel 3D40 | 225x155x170
+Dremel/Dremel 3D45 | 225x155x170
+Elegoo/Elegoo Centauri | 256x256x256
+Elegoo/Elegoo Centauri 2 | 256x256x256
+Elegoo/Elegoo Centauri Carbon | 256x256x256
+Elegoo/Elegoo Centauri Carbon 2 | 256x256x256
+Elegoo/Elegoo Neptune | 210x210x200
+Elegoo/Elegoo Neptune 2 | 235x235x250
+Elegoo/Elegoo Neptune 2D | 235x235x250
+Elegoo/Elegoo Neptune 2S | 235x235x250
+Elegoo/Elegoo Neptune 3 | 235x235x280
+Elegoo/Elegoo Neptune 3 Max | 425x425x500
+Elegoo/Elegoo Neptune 3 Plus | 325x325x400
+Elegoo/Elegoo Neptune 3 Pro | 230x230x280
+Elegoo/Elegoo Neptune 4 | 230x230x265
+Elegoo/Elegoo Neptune 4 Max | 426x426x480
+Elegoo/Elegoo Neptune 4 Plus | 325x325x385
+Elegoo/Elegoo Neptune 4 Pro | 230x230x265
+Elegoo/Elegoo Neptune X | 235x235x300
+Elegoo/Elegoo OrangeStorm Giga | 810x805x1010
+Eryone/Eryone ER20 | 243x220x200
+Eryone/Eryone ER20 Klipper | 243x220x190
+Eryone/Thinker X400 | 400x400x400
+FLSun/FLSun Q5 | 200x200x200
+FLSun/FLSun QQ-S Pro | 260x260x360
+FLSun/FLSun S1 | 320x320x430
+FLSun/FLSun Super Racer (SR) | 270x270x330
+FLSun/FLSun T1 | 260x260x330
+FLSun/FLSun V400 | 300x300x410
+Flashforge/Flashforge AD5X | 220x220x220
+Flashforge/Flashforge Adventurer 3 Series | 150x150x150
+Flashforge/Flashforge Adventurer 4 Series | 220x200x250
+Flashforge/Flashforge Adventurer 5M | 220x220x220
+Flashforge/Flashforge Adventurer 5M Pro | 220x220x220
+Flashforge/Flashforge Artemis | 190x195x200
+Flashforge/Flashforge Creator 5 | 256x256x256
+Flashforge/Flashforge Creator 5 Pro | 256x256x256
+Flashforge/Flashforge Guider 2s | 280x250x300
+Flashforge/Flashforge Guider 3 Ultra | 300x330x600
+Flashforge/Flashforge Guider4 | 300x300x300
+Flashforge/Flashforge Guider4 Pro | 300x300x300
+FlyingBear/FlyingBear Ghost 6 | 255x210x210
+FlyingBear/FlyingBear Ghost7 | 250x250x205
+FlyingBear/FlyingBear Reborn3 | 300x300x350
+FlyingBear/FlyingBear S1 | 220x220x250
+Folgertech/Folgertech FT-5 | 300x300x400
+Folgertech/Folgertech FT-6 | 700x350x400
+Folgertech/Folgertech i3 | 200x200x175
+Geeetech/Geeetech A10 M | 220x220x260
+Geeetech/Geeetech A10 Pro | 220x220x260
+Geeetech/Geeetech A10 T | 220x220x260
+Geeetech/Geeetech A20 | 250x250x260
+Geeetech/Geeetech A20 M | 250x250x260
+Geeetech/Geeetech A20 T | 250x250x260
+Geeetech/Geeetech A30 M | 320x320x420
+Geeetech/Geeetech A30 Pro | 320x320x420
+Geeetech/Geeetech A30 T | 320x320x420
+Geeetech/Geeetech M1 | 105x105x95
+Geeetech/Geeetech Mizar | 220x220x260
+Geeetech/Geeetech Mizar M | 255x255x260
+Geeetech/Geeetech Mizar Max | 320x320x400
+Geeetech/Geeetech Mizar Pro | 220x220x260
+Geeetech/Geeetech Mizar S | 255x255x260
+Geeetech/Geeetech Thunder | 250x250x260
+Ginger Additive/Ginger G1 | 1000x1000x1000
+InfiMech/InfiMech EX | 250x250x205
+InfiMech/InfiMech EX+APS | 250x250x167
+InfiMech/InfiMech TX | 220x220x250
+InfiMech/InfiMech TX Hardened Steel Nozzle | 220x220x250
+Kingroon/Kingroon KLP1 | 230x230x210
+Kingroon/Kingroon KP3S 3.0 | 180x180x180
+Kingroon/Kingroon KP3S PRO S1 | 200x200x200
+Kingroon/Kingroon KP3S PRO V2 | 205x205x200
+Kingroon/Kingroon KP3S V1 | 180x180x180
+LH/LH Stinger | 200x200x180
+LH/LH Stinger MMU | 200x200x180
+LONGER/LONGER LK10 | 225x225x265
+LONGER/LONGER LK10 Plus | 320x320x400
+Lulzbot/Lulzbot Taz 4 or 5 | 280x280x250
+Lulzbot/Lulzbot Taz 6 | 280x280x250
+Lulzbot/Lulzbot Taz Pro Dual | 280x280x280
+Lulzbot/Lulzbot Taz Pro S | 280x280x280
+M3D/M3D Enabler D8500 MM Model | ?
+MagicMaker/MM BoneKing | 310x306x300
+MagicMaker/MM hj SK | 220x210x300
+MagicMaker/MM hqs SF | 220x210x300
+MagicMaker/MM hqs hj | 220x210x300
+MagicMaker/MM slb | 125x125x160
+Mellow/M1 | 106x106x100
+OpenEYE/OpenEYE Peacock V2 | 233.5x228x200
+Orca Arena Printer/Orca Arena X1 Carbon | 256x256x250
+Peopoly/Peopoly Magneto X | 300x400x300
+Phrozen/Phrozen Arco | 300x300x300
+Positron 3D/The Positron | 180x180x165
+Prusa/Prusa CORE One | 250x220x270
+Prusa/Prusa CORE One HF | 250x220x270
+Prusa/Prusa CORE One L | 300x300x331
+Prusa/Prusa CORE One L HF | 300x300x331
+Prusa/Prusa MINI | 180x180x180
+Prusa/Prusa MINI IS | 180x180x180
+Prusa/Prusa MK3.5 | 250x210x210
+Prusa/Prusa MK3S | 250x210x210
+Prusa/Prusa MK4 | 250x210x220
+Prusa/Prusa MK4S | 250x210x220
+Prusa/Prusa MK4S HF | 250x210x220
+Prusa/Prusa XL | 360x360x360
+Prusa/Prusa XL 5T | 360x360x360
+Qidi/Qidi Q1 Pro | 245x245x240
+Qidi/Qidi Q2 | 270x270x256
+Qidi/Qidi Q2C | 270x270x256
+Qidi/Qidi X-CF Pro | 300x250x300
+Qidi/Qidi X-Max | 300x250x300
+Qidi/Qidi X-Max 3 | 325x325x315
+Qidi/Qidi X-Max 4 | 390x390x340
+Qidi/Qidi X-Plus | 270x200x200
+Qidi/Qidi X-Plus 3 | 280x280x270
+Qidi/Qidi X-Plus 4 | 305x305x280
+Qidi/Qidi X-Smart 3 | 175x180x170
+RH3D/E3NG v1.2S | 232x232x245
+Raise3D/Raise3D Pro3 | 340x300x300
+Raise3D/Raise3D Pro3 Plus | 340x300x605
+RatRig/RatRig V-Cast | 300x300x250
+RatRig/RatRig V-Core 3 200 | 200x200x200
+RatRig/RatRig V-Core 3 300 | 300x300x300
+RatRig/RatRig V-Core 3 400 | 400x400x400
+RatRig/RatRig V-Core 3 500 | 500x500x500
+RatRig/RatRig V-Core 4 300 | 300x300x300
+RatRig/RatRig V-Core 4 400 | 400x400x300
+RatRig/RatRig V-Core 4 500 | 500x500x500
+RatRig/RatRig V-Core 4 HYBRID 300 | 300x300x300
+RatRig/RatRig V-Core 4 HYBRID 400 | 400x400x400
+RatRig/RatRig V-Core 4 HYBRID 500 | 500x500x500
+RatRig/RatRig V-Core 4 IDEX 300 | 300x300x300
+RatRig/RatRig V-Core 4 IDEX 300 COPY MODE | 150x300x300
+RatRig/RatRig V-Core 4 IDEX 300 MIRROR MODE | 120x300x300
+RatRig/RatRig V-Core 4 IDEX 400 | 400x400x400
+RatRig/RatRig V-Core 4 IDEX 400 COPY MODE | 200x400x400
+RatRig/RatRig V-Core 4 IDEX 400 MIRROR MODE | 170x400x400
+RatRig/RatRig V-Core 4 IDEX 500 | 500x500x500
+RatRig/RatRig V-Core 4 IDEX 500 COPY MODE | 250x500x500
+RatRig/RatRig V-Core 4 IDEX 500 MIRROR MODE | 220x500x500
+RatRig/RatRig V-Minion | 180x180x180
+RolohaunDesign/Rolohaun Delta Flyer Refit | 110x110x115
+RolohaunDesign/Rook MK1 LDO | 110x110x111
+SecKit/SecKit SK-Tank | 350x350x400
+SecKit/Seckit Go3 | 300x300x275
+SeeMeCNC/SeeMeCNC Artemis 300 | 290x290x500
+SeeMeCNC/SeeMeCNC BOSSdelta 300 | 300x300x495
+SeeMeCNC/SeeMeCNC BOSSdelta 500 0505 | 500x500x500
+SeeMeCNC/SeeMeCNC BOSSdelta 500 0510 | 500x500x1000
+SeeMeCNC/SeeMeCNC BOSSdelta 500 0521 | 500x500x2100
+SeeMeCNC/SeeMeCNC RostockMAX v3.2 | 270x270x385
+SeeMeCNC/SeeMeCNC RostockMAX v4 | 280x280x385
+Snapmaker/Snapmaker A250 | 230x250x230
+Snapmaker/Snapmaker A250 BKit | 230x250x224
+Snapmaker/Snapmaker A250 Dual | 230x250x190
+Snapmaker/Snapmaker A250 Dual BKit | 230x250x184
+Snapmaker/Snapmaker A250 Dual QS+B Kit | 230x250x169
+Snapmaker/Snapmaker A250 Dual QSKit | 230x250x175
+Snapmaker/Snapmaker A250 QS+B Kit | 230x250x209
+Snapmaker/Snapmaker A250 QSKit | 230x250x215
+Snapmaker/Snapmaker A350 | 320x350x325
+Snapmaker/Snapmaker A350 BKit | 320x350x319
+Snapmaker/Snapmaker A350 Dual | 320x350x285
+Snapmaker/Snapmaker A350 Dual BKit | 320x350x279
+Snapmaker/Snapmaker A350 Dual QS+B Kit | 320x350x264
+Snapmaker/Snapmaker A350 Dual QSKit | 320x350x270
+Snapmaker/Snapmaker A350 QS+B Kit | 320x350x304
+Snapmaker/Snapmaker A350 QSKit | 320x350x310
+Snapmaker/Snapmaker Artisan | 400x400x400
+Snapmaker/Snapmaker J1 | 324x200x200
+Snapmaker/Snapmaker U1 | 270x270x270.1
+Sovol/Sovol SV01 | 280x240x300
+Sovol/Sovol SV01 Pro | 280x240x300
+Sovol/Sovol SV02 | 280x240x300
+Sovol/Sovol SV05 | 220x220x300
+Sovol/Sovol SV06 | 220x220x250
+Sovol/Sovol SV06 ACE | 220x220x250
+Sovol/Sovol SV06 Plus | 300x300x340
+Sovol/Sovol SV06 Plus ACE | 300x300x350
+Sovol/Sovol SV07 | 220x220x250
+Sovol/Sovol SV07 Plus | 300x300x350
+Sovol/Sovol SV08 | 350x350x345
+Sovol/Sovol SV08 MAX | 500x500x500
+Sovol/Sovol Zero | 152.4x152.4x152.4
+Tiertime/Tiertime UP300 HS | 207x255x230
+Tiertime/Tiertime UP310 Pro | 300x300x300
+Tiertime/Tiertime UP400 Pro | 400x350x380
+Tiertime/Tiertime UP600 HS | 500x400x600
+Tronxy/Tronxy X5SA 400 Marlin Firmware | 400x400x400
+TwoTrees/TwoTrees SK1 | 256x256x256
+TwoTrees/TwoTrees SP-5 Klipper | 310x310x350
+UltiMaker/UltiMaker 2 | 224x225x212
+Vivedino/Troodon 2.0 - Klipper | 350x350x330
+Vivedino/Troodon 2.0 - RRF | 350x350x330
+Volumic/EXO42 | 420x420x420
+Volumic/EXO42 IDRE | 372x420x400
+Volumic/EXO42 Performance | 420x420x420
+Volumic/EXO42 Stage 2 | 420x420x420
+Volumic/EXO65 | 650x650x650
+Volumic/EXO65 IDRE | 602x650x630
+Volumic/EXO65 Performance | 650x650x650
+Volumic/EXO65 Stage 2 | 650x650x650
+Volumic/SH65 | 650x300x300
+Volumic/SH65 IDRE | 602x300x280
+Volumic/SH65 Performance | 650x300x300
+Volumic/SH65 Stage 2 | 650x300x300
+Volumic/VS20MK2 | 200x200x220
+Volumic/VS30MK2 | 300x200x300
+Volumic/VS30MK3 | 300x200x300
+Volumic/VS30MK3 Stage 2 | 300x200x300
+Volumic/VS30SC | 300x200x300
+Volumic/VS30SC2 | 300x200x310
+Volumic/VS30SC2 Performance | 300x200x310
+Volumic/VS30SC2 Stage 2 | 300x200x310
+Volumic/VS30ULTRA | 290x200x300
+Voron/Voron 0.1 | 120x120x120
+Voron/Voron 2.4 250 | 250x250x225
+Voron/Voron 2.4 300 | 300x300x275
+Voron/Voron 2.4 350 | 350x350x325
+Voron/Voron Switchwire 250 | 250x210x240
+Voron/Voron Trident 250 | 250x250x250
+Voron/Voron Trident 300 | 300x300x250
+Voron/Voron Trident 350 | 350x350x250
+Voxelab/Voxelab Aquila X2 | 220x220x250
+Vzbot/Vzbot 235 AWD | 235x235x200
+Vzbot/Vzbot 330 AWD | 330x330x400
+WEMAKE3D/WEMAKE3D PhoenixProV1 | 300x300x400
+WEMAKE3D/WEMAKE3D TinyBotV1 | 210x210x400
+Wanhao/Wanhao D12-300 | 300x300x400
+Wanhao France/D12 230 PRO M2 DIRECT | 230x230x240
+Wanhao France/D12 230 PRO M2 MONO DUAL | 230x230x240
+Wanhao France/D12 230 PRO M2 MONO DUAL PoopTool | 230x230x240
+Wanhao France/D12 230 PRO SMARTPAD DIRECT | 230x230x240
+Wanhao France/D12 230 PRO SMARTPAD MONO DUAL | 230x230x240
+Wanhao France/D12 230 PRO SMARTPAD MONO DUAL PoopTool | 230x230x240
+Wanhao France/D12 300 PRO M2 DIRECT | 300x300x400
+Wanhao France/D12 300 PRO M2 MONO DUAL | 300x300x400
+Wanhao France/D12 300 PRO M2 MONO DUAL PoopTool | 310x310x400
+Wanhao France/D12 300 PRO SMARTPAD DIRECT | 300x300x400
+Wanhao France/D12 300 PRO SMARTPAD MONO DUAL | 300x300x400
+Wanhao France/D12 300 PRO SMARTPAD MONO DUAL PoopTool | 310x310x400
+Wanhao France/D12 500 PRO M2 MONO DUAL | 500x500x500
+Wanhao France/D12 500 PRO M2 MONO DUAL PoopTool | 510x510x500
+Wanhao France/D12 500 PRO SMARTPAD DIRECT | 500x500x500
+Wanhao France/D12 500 PRO SMARTPAD MONO DUAL | 500x500x500
+Wanhao France/D12 500 PRO SMARTPAD MONO DUAL PoopTool | 510x510x500
+WonderMaker/WonderMaker ZR | 300x300x300
+WonderMaker/WonderMaker ZR Ultra | 300x270x290
+WonderMaker/WonderMaker ZR Ultra S | 300x270x290
+Z-Bolt/Z-Bolt S1000 | 1000x1000x1000
+Z-Bolt/Z-Bolt S1000 Dual | 1000x1000x1000
+Z-Bolt/Z-Bolt S300 | 300x300x350
+Z-Bolt/Z-Bolt S300 Dual | 300x300x350
+Z-Bolt/Z-Bolt S400 | 400x400x700
+Z-Bolt/Z-Bolt S400 Dual | 400x400x700
+Z-Bolt/Z-Bolt S600 | 600x600x900
+Z-Bolt/Z-Bolt S600 Dual | 600x600x900
+Z-Bolt/Z-Bolt S800 Dual | 802x802x802
+innovatiQ/TiQ2 | 330x330x300
+innovatiQ/TiQ8 | 500x400x450
+re3D/re3D Gigabot 4 | 590x600x600
+re3D/re3D Gigabot 4 XLT | 590x760x900
+re3D/re3D GigabotX 2 | 552x593x470
+re3D/re3D GigabotX 2 XLT | 552x740x470
+re3D/re3D Terabot 4 | 915x915x1000
+re3D/re3D TerabotX 2 | 892x908x870

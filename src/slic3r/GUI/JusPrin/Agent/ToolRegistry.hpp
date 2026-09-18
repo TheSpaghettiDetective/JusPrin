@@ -87,8 +87,7 @@ enum class ToolHandler : std::uint8_t {
     RecordBuild,
     RecordExportCopy,
     RecordPhysicalPrint,
-    PrinterCatalogSearch,
-    PrinterPropose,
+    PrinterIdentify,
     PrinterSuggest,
     PrinterChange
 };

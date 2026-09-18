@@ -1,0 +1,4432 @@
+[
+ {
+  "catalogId": "Afinia/Afinia H+1(HS)",
+  "vendor": "Afinia",
+  "model": "Afinia H+1(HS)",
+  "buildVolume": "207x255x230",
+  "material": "Afinia ABS",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Anker/Anker M5",
+  "vendor": "Anker",
+  "model": "Anker M5",
+  "buildVolume": "235x235x250",
+  "material": "Anker Generic PLA",
+  "nozzles": [
+   0.2,
+   0.25,
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Anker/Anker M5 All-Metal Hot End",
+  "vendor": "Anker",
+  "model": "Anker M5 All-Metal Hot End",
+  "buildVolume": "235x235x250",
+  "material": "Anker Generic PLA",
+  "nozzles": [
+   0.2,
+   0.25,
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Anker/Anker M5C",
+  "vendor": "Anker",
+  "model": "Anker M5C",
+  "buildVolume": "220x220x250",
+  "material": "Anker Generic PLA",
+  "nozzles": [
+   0.2,
+   0.25,
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic 4Max Pro",
+  "vendor": "Anycubic",
+  "model": "Anycubic 4Max Pro",
+  "buildVolume": "270x205x200",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic 4Max Pro 2",
+  "vendor": "Anycubic",
+  "model": "Anycubic 4Max Pro 2",
+  "buildVolume": "270x210x190",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Chiron",
+  "vendor": "Anycubic",
+  "model": "Anycubic Chiron",
+  "buildVolume": "400x400x450",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra",
+  "buildVolume": "220x220x250",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 2",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 2",
+  "buildVolume": "220x220x250",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 2 Max",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 2 Max",
+  "buildVolume": "420x420x500",
+  "material": "Anycubic PLA @Anycubic Kobra 2 Max 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 2 Neo",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 2 Neo",
+  "buildVolume": "220x220x250",
+  "material": "Anycubic PLA @Anycubic Kobra 2 Neo 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 2 Plus",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 2 Plus",
+  "buildVolume": "320x320x400",
+  "material": "Anycubic PLA @Anycubic Kobra 2 Plus 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 2 Pro",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 2 Pro",
+  "buildVolume": "220x220x250",
+  "material": "Anycubic PLA @Anycubic Kobra 2 Pro 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 3",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 3",
+  "buildVolume": "255x255x260",
+  "material": "Anycubic PLA @Anycubic Kobra 3 0.4 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra 3 Max",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra 3 Max",
+  "buildVolume": "426x420x501",
+  "material": "Anycubic PLA @Anycubic Kobra 3 Max 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra Max",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra Max",
+  "buildVolume": "400x400x450",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra Neo",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra Neo",
+  "buildVolume": "220x220x250",
+  "material": "Anycubic Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra Plus",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra Plus",
+  "buildVolume": "300x300x350",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra S1",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra S1",
+  "buildVolume": "250x250x250",
+  "material": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra S1 Max",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra S1 Max",
+  "buildVolume": "350x350x350",
+  "material": "Anycubic PLA @Anycubic Kobra S1 Max 0.4 nozzle",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Kobra X",
+  "vendor": "Anycubic",
+  "model": "Anycubic Kobra X",
+  "buildVolume": "260x260x260",
+  "material": "Anycubic PLA @Anycubic Kobra X 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Predator",
+  "vendor": "Anycubic",
+  "model": "Anycubic Predator",
+  "buildVolume": "370x370x455",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic Vyper",
+  "vendor": "Anycubic",
+  "model": "Anycubic Vyper",
+  "buildVolume": "250x255x265",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Anycubic/Anycubic i3 Mega S",
+  "vendor": "Anycubic",
+  "model": "Anycubic i3 Mega S",
+  "buildVolume": "210x210x205",
+  "material": "Anycubic Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Genius",
+  "vendor": "Artillery",
+  "model": "Artillery Genius",
+  "buildVolume": "220x220x250",
+  "material": "Artillery Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Genius Pro",
+  "vendor": "Artillery",
+  "model": "Artillery Genius Pro",
+  "buildVolume": "220x220x250",
+  "material": "Artillery Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Hornet",
+  "vendor": "Artillery",
+  "model": "Artillery Hornet",
+  "buildVolume": "230x230x250",
+  "material": "Artillery Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery M1 Pro",
+  "vendor": "Artillery",
+  "model": "Artillery M1 Pro",
+  "buildVolume": "260x260x260",
+  "material": "Artillery PLA Basic",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Sidewinder X1",
+  "vendor": "Artillery",
+  "model": "Artillery Sidewinder X1",
+  "buildVolume": "300x300x400",
+  "material": "Artillery Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Sidewinder X2",
+  "vendor": "Artillery",
+  "model": "Artillery Sidewinder X2",
+  "buildVolume": "300x300x400",
+  "material": "Artillery Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Sidewinder X3 Plus",
+  "vendor": "Artillery",
+  "model": "Artillery Sidewinder X3 Plus",
+  "buildVolume": "300x305x400",
+  "material": "Artillery PLA Basic",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Sidewinder X3 Pro",
+  "vendor": "Artillery",
+  "model": "Artillery Sidewinder X3 Pro",
+  "buildVolume": "240x245x260",
+  "material": "Artillery PLA Basic",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Sidewinder X4 Plus",
+  "vendor": "Artillery",
+  "model": "Artillery Sidewinder X4 Plus",
+  "buildVolume": "300x310x400",
+  "material": "Artillery PLA Basic",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Artillery/Artillery Sidewinder X4 Pro",
+  "vendor": "Artillery",
+  "model": "Artillery Sidewinder X4 Pro",
+  "buildVolume": "240x250x260",
+  "material": "Artillery PLA Basic",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "BIQU/BIQU B1",
+  "vendor": "BIQU",
+  "model": "BIQU B1",
+  "buildVolume": "235x235x270",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "BIQU/BIQU BX",
+  "vendor": "BIQU",
+  "model": "BIQU BX",
+  "buildVolume": "250x250x250",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "BIQU/BIQU Hurakan",
+  "vendor": "BIQU",
+  "model": "BIQU Hurakan",
+  "buildVolume": "220x220x270",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab A1",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab A1",
+  "buildVolume": "256x256x256",
+  "material": "Bambu PLA Matte @BBL A1",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab A1 mini",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab A1 mini",
+  "buildVolume": "180x180x180",
+  "material": "Bambu PLA Matte @BBL A1M",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab H2D",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab H2D",
+  "buildVolume": "350x320x325",
+  "material": "Bambu PLA Basic @BBL H2D",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab H2D Pro",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab H2D Pro",
+  "buildVolume": "350x320x325",
+  "material": "Bambu PLA Basic @BBL H2DP",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab H2S",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab H2S",
+  "buildVolume": "340x320x340",
+  "material": "Bambu PLA Basic @BBL H2S",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab P1P",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab P1P",
+  "buildVolume": "256x256x250",
+  "material": "Bambu PLA Matte @BBL P1P",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab P1S",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab P1S",
+  "buildVolume": "256x256x250",
+  "material": "Bambu PLA Matte @BBL X1C",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab P2S",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab P2S",
+  "buildVolume": "256x256x256",
+  "material": "Bambu PLA Matte @BBL P2S",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab X1",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab X1",
+  "buildVolume": "256x256x250",
+  "material": "Bambu PLA Matte @BBL X1",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab X1 Carbon",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab X1 Carbon",
+  "buildVolume": "256x256x250",
+  "material": "Bambu PLA Matte @BBL X1C",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab X1E",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab X1E",
+  "buildVolume": "256x256x250",
+  "material": "Bambu PLA Matte @BBL X1C",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Bambulab/Bambu Lab X2D",
+  "vendor": "Bambulab",
+  "model": "Bambu Lab X2D",
+  "buildVolume": "256x256x261",
+  "material": "Bambu PLA Matte @BBL X2D",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Blocks/BLOCKS Pro S100",
+  "vendor": "Blocks",
+  "model": "BLOCKS Pro S100",
+  "buildVolume": "1000x1000x900",
+  "material": "Blocks Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8,
+   1.0,
+   1.2
+  ]
+ },
+ {
+  "catalogId": "Blocks/BLOCKS RD50 V2",
+  "vendor": "Blocks",
+  "model": "BLOCKS RD50 V2",
+  "buildVolume": "500x500x500",
+  "material": "Blocks Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Blocks/BLOCKS RF50",
+  "vendor": "Blocks",
+  "model": "BLOCKS RF50",
+  "buildVolume": "500x500x500",
+  "material": "Blocks Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "CONSTRUCT3D/Construct 1",
+  "vendor": "CONSTRUCT3D",
+  "model": "Construct 1",
+  "buildVolume": "225x260x180",
+  "material": "C1 Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "CONSTRUCT3D/Construct 1 XL",
+  "vendor": "CONSTRUCT3D",
+  "model": "Construct 1 XL",
+  "buildVolume": "325x370x400",
+  "material": "C1 Generic PLA",
+  "nozzles": [
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Chuanying/Chuanying X1",
+  "vendor": "Chuanying",
+  "model": "Chuanying X1",
+  "buildVolume": "220x220x220",
+  "material": "Chuanying Generic PETG",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Co Print/Co Print ChromaSet",
+  "vendor": "Co Print",
+  "model": "Co Print ChromaSet",
+  "buildVolume": "225x225x250",
+  "material": "CoPrint Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "CoLiDo/CoLiDo 160 V2",
+  "vendor": "CoLiDo",
+  "model": "CoLiDo 160 V2",
+  "buildVolume": "160x160x180",
+  "material": "CoLiDo Generic PLA @CoLiDo X16",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "CoLiDo/CoLiDo DIY 4.0",
+  "vendor": "CoLiDo",
+  "model": "CoLiDo DIY 4.0",
+  "buildVolume": "225x220x230",
+  "material": "CoLiDo Generic PLA @CoLiDo DIY 4.0",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "CoLiDo/CoLiDo DIY 4.0 V2",
+  "vendor": "CoLiDo",
+  "model": "CoLiDo DIY 4.0 V2",
+  "buildVolume": "230x230x255",
+  "material": "CoLiDo PLA+ @CoLiDo DIY 4.0 V2",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "CoLiDo/CoLiDo SR1",
+  "vendor": "CoLiDo",
+  "model": "CoLiDo SR1",
+  "buildVolume": "220x220x251",
+  "material": "CoLiDo PLA @CoLiDo SR1",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "CoLiDo/CoLiDo X16",
+  "vendor": "CoLiDo",
+  "model": "CoLiDo X16",
+  "buildVolume": "160x160x180",
+  "material": "CoLiDo Generic PLA @CoLiDo X16",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Comgrow/Comgrow T300",
+  "vendor": "Comgrow",
+  "model": "Comgrow T300",
+  "buildVolume": "300x300x350",
+  "material": "Comgrow T300 PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Comgrow/Comgrow T500",
+  "vendor": "Comgrow",
+  "model": "Comgrow T500",
+  "buildVolume": "500x500x500",
+  "material": "Comgrow Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-10 Max",
+  "vendor": "Creality",
+  "model": "Creality CR-10 Max",
+  "buildVolume": "450x450x470",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-10 SE",
+  "vendor": "Creality",
+  "model": "Creality CR-10 SE",
+  "buildVolume": "220x220x265",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-10 V2",
+  "vendor": "Creality",
+  "model": "Creality CR-10 V2",
+  "buildVolume": "300x300x400",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-10 V3",
+  "vendor": "Creality",
+  "model": "Creality CR-10 V3",
+  "buildVolume": "300x300x400",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-6 Max",
+  "vendor": "Creality",
+  "model": "Creality CR-6 Max",
+  "buildVolume": "390x390x400",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-6 SE",
+  "vendor": "Creality",
+  "model": "Creality CR-6 SE",
+  "buildVolume": "225x235x250",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality CR-M4",
+  "vendor": "Creality",
+  "model": "Creality CR-M4",
+  "buildVolume": "450x450x470",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3",
+  "vendor": "Creality",
+  "model": "Creality Ender-3",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 Pro",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 Pro",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 S1",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 S1",
+  "buildVolume": "220x220x270",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 S1 Plus",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 S1 Plus",
+  "buildVolume": "300x300x300",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 S1 Pro",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 S1 Pro",
+  "buildVolume": "220x220x270",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V2",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V2",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V2 Neo",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V2 Neo",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V3",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V3",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic ABS @Ender-3V3-all",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V3 KE",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V3 KE",
+  "buildVolume": "220x220x245",
+  "material": "Creality Generic ABS @Ender-3V3-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V3 Plus",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V3 Plus",
+  "buildVolume": "300x300x330",
+  "material": "Creality Generic ABS @Ender-3V3-all",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V3 SE",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V3 SE",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic ABS @Ender-3V3-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-3 V4",
+  "vendor": "Creality",
+  "model": "Creality Ender-3 V4",
+  "buildVolume": "",
+  "material": "Creality Generic ABS @Ender-3 V4-all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-5",
+  "vendor": "Creality",
+  "model": "Creality Ender-5",
+  "buildVolume": "220x220x300",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-5 Max",
+  "vendor": "Creality",
+  "model": "Creality Ender-5 Max",
+  "buildVolume": "",
+  "material": "Creality Hyper PLA-CF @Ender-5Max-all",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-5 Plus",
+  "vendor": "Creality",
+  "model": "Creality Ender-5 Plus",
+  "buildVolume": "350x350x400",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-5 Pro (2019)",
+  "vendor": "Creality",
+  "model": "Creality Ender-5 Pro (2019)",
+  "buildVolume": "220x220x300",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.2,
+   0.25,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-5 S1",
+  "vendor": "Creality",
+  "model": "Creality Ender-5 S1",
+  "buildVolume": "220x220x300",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-5S",
+  "vendor": "Creality",
+  "model": "Creality Ender-5S",
+  "buildVolume": "220x220x300",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Ender-6",
+  "vendor": "Creality",
+  "model": "Creality Ender-6",
+  "buildVolume": "250x250x400",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Hi",
+  "vendor": "Creality",
+  "model": "Creality Hi",
+  "buildVolume": "260x260x300",
+  "material": "Creality Generic ABS @Hi-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1",
+  "vendor": "Creality",
+  "model": "Creality K1",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic ABS",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1 Max",
+  "vendor": "Creality",
+  "model": "Creality K1 Max",
+  "buildVolume": "300x300x300",
+  "material": "Creality Generic ABS",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1 Max_CFS-C",
+  "vendor": "Creality",
+  "model": "Creality K1 Max_CFS-C",
+  "buildVolume": "",
+  "material": "Creality Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1 SE",
+  "vendor": "Creality",
+  "model": "Creality K1 SE",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic ABS @K1-all",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1 SE_CFS-C",
+  "vendor": "Creality",
+  "model": "Creality K1 SE_CFS-C",
+  "buildVolume": "",
+  "material": "Creality Generic ABS @K1-all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1C",
+  "vendor": "Creality",
+  "model": "Creality K1C",
+  "buildVolume": "220x220x250",
+  "material": "Creality Generic ABS @K1-all",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1C_CFS-C",
+  "vendor": "Creality",
+  "model": "Creality K1C_CFS-C",
+  "buildVolume": "",
+  "material": "Creality Generic ABS @K1-all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K1_CFS-C",
+  "vendor": "Creality",
+  "model": "Creality K1_CFS-C",
+  "buildVolume": "",
+  "material": "Creality Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K2",
+  "vendor": "Creality",
+  "model": "Creality K2",
+  "buildVolume": "260x260x260",
+  "material": "Creality Generic ABS @K2-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K2 Plus",
+  "vendor": "Creality",
+  "model": "Creality K2 Plus",
+  "buildVolume": "350x350x350",
+  "material": "Creality Generic ABS @K2-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K2 Pro",
+  "vendor": "Creality",
+  "model": "Creality K2 Pro",
+  "buildVolume": "300x300x300",
+  "material": "Creality Generic ABS @K2-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality K2 SE",
+  "vendor": "Creality",
+  "model": "Creality K2 SE",
+  "buildVolume": "",
+  "material": "Creality Generic ABS @K2-all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality SPARKX i7",
+  "vendor": "Creality",
+  "model": "Creality SPARKX i7",
+  "buildVolume": "",
+  "material": "Generic PETG @SPARKX i7-all",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Creality/Creality Sermoon V1",
+  "vendor": "Creality",
+  "model": "Creality Sermoon V1",
+  "buildVolume": "175x175x165",
+  "material": "Creality Generic PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Cubicon/Cubicon xCeler-I",
+  "vendor": "Cubicon",
+  "model": "Cubicon xCeler-I",
+  "buildVolume": "250x250x290",
+  "material": "Cubicon PLA @Cubicon xCeler-I",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Cubicon/Cubicon xCeler-Mini",
+  "vendor": "Cubicon",
+  "model": "Cubicon xCeler-Mini",
+  "buildVolume": "150x150x150",
+  "material": "Cubicon PLA @Cubicon xCeler-Mini",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Cubicon/Cubicon xCeler-Plus",
+  "vendor": "Cubicon",
+  "model": "Cubicon xCeler-Plus",
+  "buildVolume": "310x310x310",
+  "material": "Cubicon PLA @Cubicon xCeler-Plus",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Custom Printer/Generic Klipper Printer",
+  "vendor": "Custom Printer",
+  "model": "Generic Klipper Printer",
+  "buildVolume": "250x250x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Custom Printer/Generic Marlin Printer",
+  "vendor": "Custom Printer",
+  "model": "Generic Marlin Printer",
+  "buildVolume": "250x250x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Custom Printer/Generic RRF Printer",
+  "vendor": "Custom Printer",
+  "model": "Generic RRF Printer",
+  "buildVolume": "250x250x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Custom Printer/Generic Repetier Printer",
+  "vendor": "Custom Printer",
+  "model": "Generic Repetier Printer",
+  "buildVolume": "250x250x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Custom Printer/Generic ToolChanger Printer",
+  "vendor": "Custom Printer",
+  "model": "Generic ToolChanger Printer",
+  "buildVolume": "350x350x300",
+  "material": "Generic PLA @MyToolChanger",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "DeltaMaker/DeltaMaker 2",
+  "vendor": "DeltaMaker",
+  "model": "DeltaMaker 2",
+  "buildVolume": "276x240x260",
+  "material": "DeltaMaker Brand PLA",
+  "nozzles": [
+   0.35
+  ]
+ },
+ {
+  "catalogId": "DeltaMaker/DeltaMaker 2T",
+  "vendor": "DeltaMaker",
+  "model": "DeltaMaker 2T",
+  "buildVolume": "276x240x460",
+  "material": "DeltaMaker Brand PLA",
+  "nozzles": [
+   0.5
+  ]
+ },
+ {
+  "catalogId": "DeltaMaker/DeltaMaker 2XT",
+  "vendor": "DeltaMaker",
+  "model": "DeltaMaker 2XT",
+  "buildVolume": "276x240x565",
+  "material": "DeltaMaker Brand PLA",
+  "nozzles": [
+   0.5
+  ]
+ },
+ {
+  "catalogId": "Dremel/Dremel 3D20",
+  "vendor": "Dremel",
+  "model": "Dremel 3D20",
+  "buildVolume": "230x150x140",
+  "material": "Dremel Generic PLA @3D20 all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Dremel/Dremel 3D40",
+  "vendor": "Dremel",
+  "model": "Dremel 3D40",
+  "buildVolume": "225x155x170",
+  "material": "Dremel Generic PLA @3D40 all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Dremel/Dremel 3D45",
+  "vendor": "Dremel",
+  "model": "Dremel 3D45",
+  "buildVolume": "225x155x170",
+  "material": "Dremel Generic PLA @3D45 all",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Centauri",
+  "vendor": "Elegoo",
+  "model": "Elegoo Centauri",
+  "buildVolume": "256x256x256",
+  "material": "Elegoo ASA @EC",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Centauri 2",
+  "vendor": "Elegoo",
+  "model": "Elegoo Centauri 2",
+  "buildVolume": "256x256x256",
+  "material": "Elegoo ASA @EC2",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Centauri Carbon",
+  "vendor": "Elegoo",
+  "model": "Elegoo Centauri Carbon",
+  "buildVolume": "256x256x256",
+  "material": "Elegoo ASA @ECC",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Centauri Carbon 2",
+  "vendor": "Elegoo",
+  "model": "Elegoo Centauri Carbon 2",
+  "buildVolume": "256x256x256",
+  "material": "Elegoo ASA @ECC2",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune",
+  "buildVolume": "210x210x200",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 2",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 2",
+  "buildVolume": "235x235x250",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 2D",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 2D",
+  "buildVolume": "235x235x250",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 2S",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 2S",
+  "buildVolume": "235x235x250",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 3",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 3",
+  "buildVolume": "235x235x280",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 3 Max",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 3 Max",
+  "buildVolume": "425x425x500",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 3 Plus",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 3 Plus",
+  "buildVolume": "325x325x400",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 3 Pro",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 3 Pro",
+  "buildVolume": "230x230x280",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 4",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 4",
+  "buildVolume": "230x230x265",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 4 Max",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 4 Max",
+  "buildVolume": "426x426x480",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 4 Plus",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 4 Plus",
+  "buildVolume": "325x325x385",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune 4 Pro",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune 4 Pro",
+  "buildVolume": "230x230x265",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo Neptune X",
+  "vendor": "Elegoo",
+  "model": "Elegoo Neptune X",
+  "buildVolume": "235x235x300",
+  "material": "Elegoo ASA @0.2 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Elegoo/Elegoo OrangeStorm Giga",
+  "vendor": "Elegoo",
+  "model": "Elegoo OrangeStorm Giga",
+  "buildVolume": "810x805x1010",
+  "material": "Elegoo PLA @Elegoo Giga",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Eryone/Eryone ER20",
+  "vendor": "Eryone",
+  "model": "Eryone ER20",
+  "buildVolume": "243x220x200",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Eryone/Eryone ER20 Klipper",
+  "vendor": "Eryone",
+  "model": "Eryone ER20 Klipper",
+  "buildVolume": "243x220x190",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Eryone/Thinker X400",
+  "vendor": "Eryone",
+  "model": "Thinker X400",
+  "buildVolume": "400x400x400",
+  "material": "Eryone PLA",
+  "nozzles": [
+   0.2,
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FLSun/FLSun Q5",
+  "vendor": "FLSun",
+  "model": "FLSun Q5",
+  "buildVolume": "200x200x200",
+  "material": "FLSun Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FLSun/FLSun QQ-S Pro",
+  "vendor": "FLSun",
+  "model": "FLSun QQ-S Pro",
+  "buildVolume": "260x260x360",
+  "material": "FLSun Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FLSun/FLSun S1",
+  "vendor": "FLSun",
+  "model": "FLSun S1",
+  "buildVolume": "320x320x430",
+  "material": "FLSun S1 PLA High Speed",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FLSun/FLSun Super Racer (SR)",
+  "vendor": "FLSun",
+  "model": "FLSun Super Racer (SR)",
+  "buildVolume": "270x270x330",
+  "material": "FLSun Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FLSun/FLSun T1",
+  "vendor": "FLSun",
+  "model": "FLSun T1",
+  "buildVolume": "260x260x330",
+  "material": "FLSun T1 PLA High Speed",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FLSun/FLSun V400",
+  "vendor": "FLSun",
+  "model": "FLSun V400",
+  "buildVolume": "300x300x410",
+  "material": "FLSun Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge AD5X",
+  "vendor": "Flashforge",
+  "model": "Flashforge AD5X",
+  "buildVolume": "220x220x220",
+  "material": "Flashforge Generic ABS",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Adventurer 3 Series",
+  "vendor": "Flashforge",
+  "model": "Flashforge Adventurer 3 Series",
+  "buildVolume": "150x150x150",
+  "material": "Flashforge ABS",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Adventurer 4 Series",
+  "vendor": "Flashforge",
+  "model": "Flashforge Adventurer 4 Series",
+  "buildVolume": "220x200x250",
+  "material": "",
+  "nozzles": [
+   0.3,
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Adventurer 5M",
+  "vendor": "Flashforge",
+  "model": "Flashforge Adventurer 5M",
+  "buildVolume": "220x220x220",
+  "material": "Flashforge Generic ABS",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Adventurer 5M Pro",
+  "vendor": "Flashforge",
+  "model": "Flashforge Adventurer 5M Pro",
+  "buildVolume": "220x220x220",
+  "material": "Flashforge Generic ABS",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Artemis",
+  "vendor": "Flashforge",
+  "model": "Flashforge Artemis",
+  "buildVolume": "190x195x200",
+  "material": "",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Creator 5",
+  "vendor": "Flashforge",
+  "model": "Flashforge Creator 5",
+  "buildVolume": "256x256x256",
+  "material": "",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Creator 5 Pro",
+  "vendor": "Flashforge",
+  "model": "Flashforge Creator 5 Pro",
+  "buildVolume": "256x256x256",
+  "material": "",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Guider 2s",
+  "vendor": "Flashforge",
+  "model": "Flashforge Guider 2s",
+  "buildVolume": "280x250x300",
+  "material": "Flashforge Generic PVA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Guider 3 Ultra",
+  "vendor": "Flashforge",
+  "model": "Flashforge Guider 3 Ultra",
+  "buildVolume": "300x330x600",
+  "material": "Flashforge Generic PVA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Guider4",
+  "vendor": "Flashforge",
+  "model": "Flashforge Guider4",
+  "buildVolume": "300x300x300",
+  "material": "Flashforge Generic PVA",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Flashforge/Flashforge Guider4 Pro",
+  "vendor": "Flashforge",
+  "model": "Flashforge Guider4 Pro",
+  "buildVolume": "300x300x300",
+  "material": "Flashforge Generic PVA",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "FlyingBear/FlyingBear Ghost 6",
+  "vendor": "FlyingBear",
+  "model": "FlyingBear Ghost 6",
+  "buildVolume": "255x210x210",
+  "material": "FlyingBear Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FlyingBear/FlyingBear Ghost7",
+  "vendor": "FlyingBear",
+  "model": "FlyingBear Ghost7",
+  "buildVolume": "250x250x205",
+  "material": "FlyingBear Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FlyingBear/FlyingBear Reborn3",
+  "vendor": "FlyingBear",
+  "model": "FlyingBear Reborn3",
+  "buildVolume": "300x300x350",
+  "material": "FlyingBear Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "FlyingBear/FlyingBear S1",
+  "vendor": "FlyingBear",
+  "model": "FlyingBear S1",
+  "buildVolume": "220x220x250",
+  "material": "FlyingBear Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Folgertech/Folgertech FT-5",
+  "vendor": "Folgertech",
+  "model": "Folgertech FT-5",
+  "buildVolume": "300x300x400",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Folgertech/Folgertech FT-6",
+  "vendor": "Folgertech",
+  "model": "Folgertech FT-6",
+  "buildVolume": "700x350x400",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Folgertech/Folgertech i3",
+  "vendor": "Folgertech",
+  "model": "Folgertech i3",
+  "buildVolume": "200x200x175",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A10 M",
+  "vendor": "Geeetech",
+  "model": "Geeetech A10 M",
+  "buildVolume": "220x220x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A10 Pro",
+  "vendor": "Geeetech",
+  "model": "Geeetech A10 Pro",
+  "buildVolume": "220x220x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A10 T",
+  "vendor": "Geeetech",
+  "model": "Geeetech A10 T",
+  "buildVolume": "220x220x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A20",
+  "vendor": "Geeetech",
+  "model": "Geeetech A20",
+  "buildVolume": "250x250x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A20 M",
+  "vendor": "Geeetech",
+  "model": "Geeetech A20 M",
+  "buildVolume": "250x250x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A20 T",
+  "vendor": "Geeetech",
+  "model": "Geeetech A20 T",
+  "buildVolume": "250x250x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A30 M",
+  "vendor": "Geeetech",
+  "model": "Geeetech A30 M",
+  "buildVolume": "320x320x420",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A30 Pro",
+  "vendor": "Geeetech",
+  "model": "Geeetech A30 Pro",
+  "buildVolume": "320x320x420",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech A30 T",
+  "vendor": "Geeetech",
+  "model": "Geeetech A30 T",
+  "buildVolume": "320x320x420",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech M1",
+  "vendor": "Geeetech",
+  "model": "Geeetech M1",
+  "buildVolume": "105x105x95",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech Mizar",
+  "vendor": "Geeetech",
+  "model": "Geeetech Mizar",
+  "buildVolume": "220x220x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech Mizar M",
+  "vendor": "Geeetech",
+  "model": "Geeetech Mizar M",
+  "buildVolume": "255x255x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech Mizar Max",
+  "vendor": "Geeetech",
+  "model": "Geeetech Mizar Max",
+  "buildVolume": "320x320x400",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech Mizar Pro",
+  "vendor": "Geeetech",
+  "model": "Geeetech Mizar Pro",
+  "buildVolume": "220x220x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech Mizar S",
+  "vendor": "Geeetech",
+  "model": "Geeetech Mizar S",
+  "buildVolume": "255x255x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Geeetech/Geeetech Thunder",
+  "vendor": "Geeetech",
+  "model": "Geeetech Thunder",
+  "buildVolume": "250x250x260",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Ginger Additive/Ginger G1",
+  "vendor": "Ginger Additive",
+  "model": "Ginger G1",
+  "buildVolume": "1000x1000x1000",
+  "material": "Ginger Generic PETG",
+  "nozzles": [
+   1.0,
+   1.2,
+   3.0,
+   5.0,
+   8.0
+  ]
+ },
+ {
+  "catalogId": "InfiMech/InfiMech EX",
+  "vendor": "InfiMech",
+  "model": "InfiMech EX",
+  "buildVolume": "250x250x205",
+  "material": "InfiMech ABS @EX",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "InfiMech/InfiMech EX+APS",
+  "vendor": "InfiMech",
+  "model": "InfiMech EX+APS",
+  "buildVolume": "250x250x167",
+  "material": "InfiMech ABS @EX+APS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "InfiMech/InfiMech TX",
+  "vendor": "InfiMech",
+  "model": "InfiMech TX",
+  "buildVolume": "220x220x250",
+  "material": "InfiMech Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "InfiMech/InfiMech TX Hardened Steel Nozzle",
+  "vendor": "InfiMech",
+  "model": "InfiMech TX Hardened Steel Nozzle",
+  "buildVolume": "220x220x250",
+  "material": "InfiMech Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Kingroon/Kingroon KLP1",
+  "vendor": "Kingroon",
+  "model": "Kingroon KLP1",
+  "buildVolume": "230x230x210",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Kingroon/Kingroon KP3S 3.0",
+  "vendor": "Kingroon",
+  "model": "Kingroon KP3S 3.0",
+  "buildVolume": "180x180x180",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Kingroon/Kingroon KP3S PRO S1",
+  "vendor": "Kingroon",
+  "model": "Kingroon KP3S PRO S1",
+  "buildVolume": "200x200x200",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Kingroon/Kingroon KP3S PRO V2",
+  "vendor": "Kingroon",
+  "model": "Kingroon KP3S PRO V2",
+  "buildVolume": "205x205x200",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Kingroon/Kingroon KP3S V1",
+  "vendor": "Kingroon",
+  "model": "Kingroon KP3S V1",
+  "buildVolume": "180x180x180",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "LH/LH Stinger",
+  "vendor": "LH",
+  "model": "LH Stinger",
+  "buildVolume": "200x200x180",
+  "material": "LHS PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "LH/LH Stinger MMU",
+  "vendor": "LH",
+  "model": "LH Stinger MMU",
+  "buildVolume": "200x200x180",
+  "material": "LHS PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "LONGER/LONGER LK10",
+  "vendor": "LONGER",
+  "model": "LONGER LK10",
+  "buildVolume": "225x225x265",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "LONGER/LONGER LK10 Plus",
+  "vendor": "LONGER",
+  "model": "LONGER LK10 Plus",
+  "buildVolume": "320x320x400",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Lulzbot/Lulzbot Taz 4 or 5",
+  "vendor": "Lulzbot",
+  "model": "Lulzbot Taz 4 or 5",
+  "buildVolume": "280x280x250",
+  "material": "Lulzbot 2.85mm ABS",
+  "nozzles": [
+   0.5
+  ]
+ },
+ {
+  "catalogId": "Lulzbot/Lulzbot Taz 6",
+  "vendor": "Lulzbot",
+  "model": "Lulzbot Taz 6",
+  "buildVolume": "280x280x250",
+  "material": "Lulzbot 2.85mm ABS",
+  "nozzles": [
+   0.5
+  ]
+ },
+ {
+  "catalogId": "Lulzbot/Lulzbot Taz Pro Dual",
+  "vendor": "Lulzbot",
+  "model": "Lulzbot Taz Pro Dual",
+  "buildVolume": "280x280x280",
+  "material": "Lulzbot 2.85mm ABS",
+  "nozzles": [
+   0.5
+  ]
+ },
+ {
+  "catalogId": "Lulzbot/Lulzbot Taz Pro S",
+  "vendor": "Lulzbot",
+  "model": "Lulzbot Taz Pro S",
+  "buildVolume": "280x280x280",
+  "material": "Generic PLA @System, Generic PETG @System, Generic ABS @System",
+  "nozzles": [
+   0.5
+  ]
+ },
+ {
+  "catalogId": "M3D/M3D Enabler D8500 MM Model",
+  "vendor": "M3D",
+  "model": "M3D Enabler D8500 MM Model",
+  "buildVolume": "",
+  "material": "Generic PLA @system",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "MagicMaker/MM BoneKing",
+  "vendor": "MagicMaker",
+  "model": "MM BoneKing",
+  "buildVolume": "310x306x300",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "MagicMaker/MM hj SK",
+  "vendor": "MagicMaker",
+  "model": "MM hj SK",
+  "buildVolume": "220x210x300",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "MagicMaker/MM hqs SF",
+  "vendor": "MagicMaker",
+  "model": "MM hqs SF",
+  "buildVolume": "220x210x300",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "MagicMaker/MM hqs hj",
+  "vendor": "MagicMaker",
+  "model": "MM hqs hj",
+  "buildVolume": "220x210x300",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "MagicMaker/MM slb",
+  "vendor": "MagicMaker",
+  "model": "MM slb",
+  "buildVolume": "125x125x160",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Mellow/M1",
+  "vendor": "Mellow",
+  "model": "M1",
+  "buildVolume": "106x106x100",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "OpenEYE/OpenEYE Peacock V2",
+  "vendor": "OpenEYE",
+  "model": "OpenEYE Peacock V2",
+  "buildVolume": "233.5x228x200",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Orca Arena Printer/Orca Arena X1 Carbon",
+  "vendor": "Orca Arena Printer",
+  "model": "Orca Arena X1 Carbon",
+  "buildVolume": "256x256x250",
+  "material": "OrcaArena Generic PLA Silk",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Peopoly/Peopoly Magneto X",
+  "vendor": "Peopoly",
+  "model": "Peopoly Magneto X",
+  "buildVolume": "300x400x300",
+  "material": "Peopoly Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Phrozen/Phrozen Arco",
+  "vendor": "Phrozen",
+  "model": "Phrozen Arco",
+  "buildVolume": "300x300x300",
+  "material": "Phrozen PLA @Phrozen Arco 0.4 nozzle",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Positron 3D/The Positron",
+  "vendor": "Positron 3D",
+  "model": "The Positron",
+  "buildVolume": "180x180x165",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa CORE One",
+  "vendor": "Prusa",
+  "model": "Prusa CORE One",
+  "buildVolume": "250x220x270",
+  "material": "Prusa Generic ABS @CORE One",
+  "nozzles": [
+   0.25,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa CORE One HF",
+  "vendor": "Prusa",
+  "model": "Prusa CORE One HF",
+  "buildVolume": "250x220x270",
+  "material": "Prusa Generic ABS @CORE One",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa CORE One L",
+  "vendor": "Prusa",
+  "model": "Prusa CORE One L",
+  "buildVolume": "300x300x331",
+  "material": "Prusa Generic ABS @CORE One",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa CORE One L HF",
+  "vendor": "Prusa",
+  "model": "Prusa CORE One L HF",
+  "buildVolume": "300x300x331",
+  "material": "Prusa Generic PLA @CORE One",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MINI",
+  "vendor": "Prusa",
+  "model": "Prusa MINI",
+  "buildVolume": "180x180x180",
+  "material": "Prusa Generic ABS",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MINI IS",
+  "vendor": "Prusa",
+  "model": "Prusa MINI IS",
+  "buildVolume": "180x180x180",
+  "material": "Prusa Generic PLA-CF @MINIIS",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MK3.5",
+  "vendor": "Prusa",
+  "model": "Prusa MK3.5",
+  "buildVolume": "250x210x210",
+  "material": "Prusa Generic PLA-CF @MK3.5",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MK3S",
+  "vendor": "Prusa",
+  "model": "Prusa MK3S",
+  "buildVolume": "250x210x210",
+  "material": "Prusa Generic ABS",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MK4",
+  "vendor": "Prusa",
+  "model": "Prusa MK4",
+  "buildVolume": "250x210x220",
+  "material": "Prusa Generic PLA-CF",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MK4S",
+  "vendor": "Prusa",
+  "model": "Prusa MK4S",
+  "buildVolume": "250x210x220",
+  "material": "Prusa Generic ABS @MK4S",
+  "nozzles": [
+   0.25,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa MK4S HF",
+  "vendor": "Prusa",
+  "model": "Prusa MK4S HF",
+  "buildVolume": "250x210x220",
+  "material": "Prusa Generic ABS @MK4S",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa XL",
+  "vendor": "Prusa",
+  "model": "Prusa XL",
+  "buildVolume": "360x360x360",
+  "material": "Prusa Generic PLA @XL",
+  "nozzles": [
+   0.25,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Prusa/Prusa XL 5T",
+  "vendor": "Prusa",
+  "model": "Prusa XL 5T",
+  "buildVolume": "360x360x360",
+  "material": "Prusa Generic PLA @XL 5T",
+  "nozzles": [
+   0.25,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi Q1 Pro",
+  "vendor": "Qidi",
+  "model": "Qidi Q1 Pro",
+  "buildVolume": "245x245x240",
+  "material": "QIDI PLA Rapido @Qidi Q1 Pro 0.4 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi Q2",
+  "vendor": "Qidi",
+  "model": "Qidi Q2",
+  "buildVolume": "270x270x256",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi Q2C",
+  "vendor": "Qidi",
+  "model": "Qidi Q2C",
+  "buildVolume": "270x270x256",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-CF Pro",
+  "vendor": "Qidi",
+  "model": "Qidi X-CF Pro",
+  "buildVolume": "300x250x300",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Max",
+  "vendor": "Qidi",
+  "model": "Qidi X-Max",
+  "buildVolume": "300x250x300",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Max 3",
+  "vendor": "Qidi",
+  "model": "Qidi X-Max 3",
+  "buildVolume": "325x325x315",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Max 4",
+  "vendor": "Qidi",
+  "model": "Qidi X-Max 4",
+  "buildVolume": "390x390x340",
+  "material": "Generic ABS @Qidi X-Max 4 0.4 nozzle",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Plus",
+  "vendor": "Qidi",
+  "model": "Qidi X-Plus",
+  "buildVolume": "270x200x200",
+  "material": "Qidi Generic ASA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Plus 3",
+  "vendor": "Qidi",
+  "model": "Qidi X-Plus 3",
+  "buildVolume": "280x280x270",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Plus 4",
+  "vendor": "Qidi",
+  "model": "Qidi X-Plus 4",
+  "buildVolume": "305x305x280",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Qidi/Qidi X-Smart 3",
+  "vendor": "Qidi",
+  "model": "Qidi X-Smart 3",
+  "buildVolume": "175x180x170",
+  "material": "QIDI PLA Rapido",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RH3D/E3NG v1.2S",
+  "vendor": "RH3D",
+  "model": "E3NG v1.2S",
+  "buildVolume": "232x232x245",
+  "material": "Generic ABS @E3NG v1.2S",
+  "nozzles": [
+   0.0,
+   0.2,
+   0.3,
+   0.4,
+   0.5,
+   0.6,
+   4.0
+  ]
+ },
+ {
+  "catalogId": "Raise3D/Raise3D Pro3",
+  "vendor": "Raise3D",
+  "model": "Raise3D Pro3",
+  "buildVolume": "340x300x300",
+  "material": "Generic ASA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Raise3D/Raise3D Pro3 Plus",
+  "vendor": "Raise3D",
+  "model": "Raise3D Pro3 Plus",
+  "buildVolume": "340x300x605",
+  "material": "Generic ASA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Cast",
+  "vendor": "RatRig",
+  "model": "RatRig V-Cast",
+  "buildVolume": "300x300x250",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 3 200",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 3 200",
+  "buildVolume": "200x200x200",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 3 300",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 3 300",
+  "buildVolume": "300x300x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 3 400",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 3 400",
+  "buildVolume": "400x400x400",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 3 500",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 3 500",
+  "buildVolume": "500x500x500",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 300",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 300",
+  "buildVolume": "300x300x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 400",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 400",
+  "buildVolume": "400x400x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 500",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 500",
+  "buildVolume": "500x500x500",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 HYBRID 300",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 HYBRID 300",
+  "buildVolume": "300x300x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 HYBRID 400",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 HYBRID 400",
+  "buildVolume": "400x400x400",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 HYBRID 500",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 HYBRID 500",
+  "buildVolume": "500x500x500",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 300",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 300",
+  "buildVolume": "300x300x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 300 COPY MODE",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 300 COPY MODE",
+  "buildVolume": "150x300x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 300 MIRROR MODE",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 300 MIRROR MODE",
+  "buildVolume": "120x300x300",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 400",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 400",
+  "buildVolume": "400x400x400",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 400 COPY MODE",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 400 COPY MODE",
+  "buildVolume": "200x400x400",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 400 MIRROR MODE",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 400 MIRROR MODE",
+  "buildVolume": "170x400x400",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 500",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 500",
+  "buildVolume": "500x500x500",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 500 COPY MODE",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 500 COPY MODE",
+  "buildVolume": "250x500x500",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Core 4 IDEX 500 MIRROR MODE",
+  "vendor": "RatRig",
+  "model": "RatRig V-Core 4 IDEX 500 MIRROR MODE",
+  "buildVolume": "220x500x500",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "RatRig/RatRig V-Minion",
+  "vendor": "RatRig",
+  "model": "RatRig V-Minion",
+  "buildVolume": "180x180x180",
+  "material": "RatRig Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RolohaunDesign/Rolohaun Delta Flyer Refit",
+  "vendor": "RolohaunDesign",
+  "model": "Rolohaun Delta Flyer Refit",
+  "buildVolume": "110x110x115",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "RolohaunDesign/Rook MK1 LDO",
+  "vendor": "RolohaunDesign",
+  "model": "Rook MK1 LDO",
+  "buildVolume": "110x110x111",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "SecKit/SecKit SK-Tank",
+  "vendor": "SecKit",
+  "model": "SecKit SK-Tank",
+  "buildVolume": "350x350x400",
+  "material": "SecKit Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "SecKit/Seckit Go3",
+  "vendor": "SecKit",
+  "model": "Seckit Go3",
+  "buildVolume": "300x300x275",
+  "material": "SecKit Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC Artemis 300",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC Artemis 300",
+  "buildVolume": "290x290x500",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC BOSSdelta 300",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC BOSSdelta 300",
+  "buildVolume": "300x300x495",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC BOSSdelta 500 0505",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC BOSSdelta 500 0505",
+  "buildVolume": "500x500x500",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC BOSSdelta 500 0510",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC BOSSdelta 500 0510",
+  "buildVolume": "500x500x1000",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC BOSSdelta 500 0521",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC BOSSdelta 500 0521",
+  "buildVolume": "500x500x2100",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC RostockMAX v3.2",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC RostockMAX v3.2",
+  "buildVolume": "270x270x385",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "SeeMeCNC/SeeMeCNC RostockMAX v4",
+  "vendor": "SeeMeCNC",
+  "model": "SeeMeCNC RostockMAX v4",
+  "buildVolume": "280x280x385",
+  "material": "SeeMeCNC PLA",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.7,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250",
+  "buildVolume": "230x250x230",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 BKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 BKit",
+  "buildVolume": "230x250x224",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 Dual",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 Dual",
+  "buildVolume": "230x250x190",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 Dual BKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 Dual BKit",
+  "buildVolume": "230x250x184",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 Dual QS+B Kit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 Dual QS+B Kit",
+  "buildVolume": "230x250x169",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 Dual QSKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 Dual QSKit",
+  "buildVolume": "230x250x175",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 QS+B Kit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 QS+B Kit",
+  "buildVolume": "230x250x209",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A250 QSKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A250 QSKit",
+  "buildVolume": "230x250x215",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350",
+  "buildVolume": "320x350x325",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 BKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 BKit",
+  "buildVolume": "320x350x319",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 Dual",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 Dual",
+  "buildVolume": "320x350x285",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 Dual BKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 Dual BKit",
+  "buildVolume": "320x350x279",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 Dual QS+B Kit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 Dual QS+B Kit",
+  "buildVolume": "320x350x264",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 Dual QSKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 Dual QSKit",
+  "buildVolume": "320x350x270",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 QS+B Kit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 QS+B Kit",
+  "buildVolume": "320x350x304",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker A350 QSKit",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker A350 QSKit",
+  "buildVolume": "320x350x310",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker Artisan",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker Artisan",
+  "buildVolume": "400x400x400",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker J1",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker J1",
+  "buildVolume": "324x200x200",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Snapmaker/Snapmaker U1",
+  "vendor": "Snapmaker",
+  "model": "Snapmaker U1",
+  "buildVolume": "270x270x270.1",
+  "material": "",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV01",
+  "vendor": "Sovol",
+  "model": "Sovol SV01",
+  "buildVolume": "280x240x300",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV01 Pro",
+  "vendor": "Sovol",
+  "model": "Sovol SV01 Pro",
+  "buildVolume": "280x240x300",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV02",
+  "vendor": "Sovol",
+  "model": "Sovol SV02",
+  "buildVolume": "280x240x300",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV05",
+  "vendor": "Sovol",
+  "model": "Sovol SV05",
+  "buildVolume": "220x220x300",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV06",
+  "vendor": "Sovol",
+  "model": "Sovol SV06",
+  "buildVolume": "220x220x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV06 ACE",
+  "vendor": "Sovol",
+  "model": "Sovol SV06 ACE",
+  "buildVolume": "220x220x250",
+  "material": "Sovol SV06 ACE PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV06 Plus",
+  "vendor": "Sovol",
+  "model": "Sovol SV06 Plus",
+  "buildVolume": "300x300x340",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV06 Plus ACE",
+  "vendor": "Sovol",
+  "model": "Sovol SV06 Plus ACE",
+  "buildVolume": "300x300x350",
+  "material": "Sovol SV06 Plus ACE PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV07",
+  "vendor": "Sovol",
+  "model": "Sovol SV07",
+  "buildVolume": "220x220x250",
+  "material": "Sovol SV07 PLA",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV07 Plus",
+  "vendor": "Sovol",
+  "model": "Sovol SV07 Plus",
+  "buildVolume": "300x300x350",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV08",
+  "vendor": "Sovol",
+  "model": "Sovol SV08",
+  "buildVolume": "350x350x345",
+  "material": "Sovol SV08 PLA",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol SV08 MAX",
+  "vendor": "Sovol",
+  "model": "Sovol SV08 MAX",
+  "buildVolume": "500x500x500",
+  "material": "Generic PLA",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Sovol/Sovol Zero",
+  "vendor": "Sovol",
+  "model": "Sovol Zero",
+  "buildVolume": "152.4x152.4x152.4",
+  "material": "Sovol Zero PLA Basic",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Tiertime/Tiertime UP300 HS",
+  "vendor": "Tiertime",
+  "model": "Tiertime UP300 HS",
+  "buildVolume": "207x255x230",
+  "material": "Tiertime ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Tiertime/Tiertime UP310 Pro",
+  "vendor": "Tiertime",
+  "model": "Tiertime UP310 Pro",
+  "buildVolume": "300x300x300",
+  "material": "Tiertime ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Tiertime/Tiertime UP400 Pro",
+  "vendor": "Tiertime",
+  "model": "Tiertime UP400 Pro",
+  "buildVolume": "400x350x380",
+  "material": "Tiertime ABS",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Tiertime/Tiertime UP600 HS",
+  "vendor": "Tiertime",
+  "model": "Tiertime UP600 HS",
+  "buildVolume": "500x400x600",
+  "material": "Tiertime ABS",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Tronxy/Tronxy X5SA 400 Marlin Firmware",
+  "vendor": "Tronxy",
+  "model": "Tronxy X5SA 400 Marlin Firmware",
+  "buildVolume": "400x400x400",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "TwoTrees/TwoTrees SK1",
+  "vendor": "TwoTrees",
+  "model": "TwoTrees SK1",
+  "buildVolume": "256x256x256",
+  "material": "TwoTrees Generic 95A TPU @SK1",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "TwoTrees/TwoTrees SP-5 Klipper",
+  "vendor": "TwoTrees",
+  "model": "TwoTrees SP-5 Klipper",
+  "buildVolume": "310x310x350",
+  "material": "TwoTrees Generic ABS",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "UltiMaker/UltiMaker 2",
+  "vendor": "UltiMaker",
+  "model": "UltiMaker 2",
+  "buildVolume": "224x225x212",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Vivedino/Troodon 2.0 - Klipper",
+  "vendor": "Vivedino",
+  "model": "Troodon 2.0 - Klipper",
+  "buildVolume": "350x350x330",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Vivedino/Troodon 2.0 - RRF",
+  "vendor": "Vivedino",
+  "model": "Troodon 2.0 - RRF",
+  "buildVolume": "350x350x330",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO42",
+  "vendor": "Volumic",
+  "model": "EXO42",
+  "buildVolume": "420x420x420",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO42 IDRE",
+  "vendor": "Volumic",
+  "model": "EXO42 IDRE",
+  "buildVolume": "372x420x400",
+  "material": "Volumic PLA Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO42 Performance",
+  "vendor": "Volumic",
+  "model": "EXO42 Performance",
+  "buildVolume": "420x420x420",
+  "material": "Volumic PLA Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO42 Stage 2",
+  "vendor": "Volumic",
+  "model": "EXO42 Stage 2",
+  "buildVolume": "420x420x420",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO65",
+  "vendor": "Volumic",
+  "model": "EXO65",
+  "buildVolume": "650x650x650",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO65 IDRE",
+  "vendor": "Volumic",
+  "model": "EXO65 IDRE",
+  "buildVolume": "602x650x630",
+  "material": "Volumic PLA Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO65 Performance",
+  "vendor": "Volumic",
+  "model": "EXO65 Performance",
+  "buildVolume": "650x650x650",
+  "material": "Volumic PLA Ultra",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Volumic/EXO65 Stage 2",
+  "vendor": "Volumic",
+  "model": "EXO65 Stage 2",
+  "buildVolume": "650x650x650",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Volumic/SH65",
+  "vendor": "Volumic",
+  "model": "SH65",
+  "buildVolume": "650x300x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/SH65 IDRE",
+  "vendor": "Volumic",
+  "model": "SH65 IDRE",
+  "buildVolume": "602x300x280",
+  "material": "Volumic PLA Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/SH65 Performance",
+  "vendor": "Volumic",
+  "model": "SH65 Performance",
+  "buildVolume": "650x300x300",
+  "material": "Volumic PLA Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/SH65 Stage 2",
+  "vendor": "Volumic",
+  "model": "SH65 Stage 2",
+  "buildVolume": "650x300x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS20MK2",
+  "vendor": "Volumic",
+  "model": "VS20MK2",
+  "buildVolume": "200x200x220",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30MK2",
+  "vendor": "Volumic",
+  "model": "VS30MK2",
+  "buildVolume": "300x200x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30MK3",
+  "vendor": "Volumic",
+  "model": "VS30MK3",
+  "buildVolume": "300x200x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30MK3 Stage 2",
+  "vendor": "Volumic",
+  "model": "VS30MK3 Stage 2",
+  "buildVolume": "300x200x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30SC",
+  "vendor": "Volumic",
+  "model": "VS30SC",
+  "buildVolume": "300x200x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30SC2",
+  "vendor": "Volumic",
+  "model": "VS30SC2",
+  "buildVolume": "300x200x310",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30SC2 Performance",
+  "vendor": "Volumic",
+  "model": "VS30SC2 Performance",
+  "buildVolume": "300x200x310",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30SC2 Stage 2",
+  "vendor": "Volumic",
+  "model": "VS30SC2 Stage 2",
+  "buildVolume": "300x200x310",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Volumic/VS30ULTRA",
+  "vendor": "Volumic",
+  "model": "VS30ULTRA",
+  "buildVolume": "290x200x300",
+  "material": "Volumic UNIVERSAL Ultra",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron 0.1",
+  "vendor": "Voron",
+  "model": "Voron 0.1",
+  "buildVolume": "120x120x120",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron 2.4 250",
+  "vendor": "Voron",
+  "model": "Voron 2.4 250",
+  "buildVolume": "250x250x225",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron 2.4 300",
+  "vendor": "Voron",
+  "model": "Voron 2.4 300",
+  "buildVolume": "300x300x275",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron 2.4 350",
+  "vendor": "Voron",
+  "model": "Voron 2.4 350",
+  "buildVolume": "350x350x325",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron Switchwire 250",
+  "vendor": "Voron",
+  "model": "Voron Switchwire 250",
+  "buildVolume": "250x210x240",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron Trident 250",
+  "vendor": "Voron",
+  "model": "Voron Trident 250",
+  "buildVolume": "250x250x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron Trident 300",
+  "vendor": "Voron",
+  "model": "Voron Trident 300",
+  "buildVolume": "300x300x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voron/Voron Trident 350",
+  "vendor": "Voron",
+  "model": "Voron Trident 350",
+  "buildVolume": "350x350x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.15,
+   0.2,
+   0.25,
+   0.4,
+   0.5,
+   0.6,
+   0.8,
+   1.0
+  ]
+ },
+ {
+  "catalogId": "Voxelab/Voxelab Aquila X2",
+  "vendor": "Voxelab",
+  "model": "Voxelab Aquila X2",
+  "buildVolume": "220x220x250",
+  "material": "Generic ABS @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Vzbot/Vzbot 235 AWD",
+  "vendor": "Vzbot",
+  "model": "Vzbot 235 AWD",
+  "buildVolume": "235x235x200",
+  "material": "Vzbot Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Vzbot/Vzbot 330 AWD",
+  "vendor": "Vzbot",
+  "model": "Vzbot 330 AWD",
+  "buildVolume": "330x330x400",
+  "material": "Vzbot Generic ABS",
+  "nozzles": [
+   0.4,
+   0.5,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "WEMAKE3D/WEMAKE3D PhoenixProV1",
+  "vendor": "WEMAKE3D",
+  "model": "WEMAKE3D PhoenixProV1",
+  "buildVolume": "300x300x400",
+  "material": "Generic PETG @System",
+  "nozzles": [
+   0.2,
+   0.3,
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "WEMAKE3D/WEMAKE3D TinyBotV1",
+  "vendor": "WEMAKE3D",
+  "model": "WEMAKE3D TinyBotV1",
+  "buildVolume": "210x210x400",
+  "material": "Generic PETG @System",
+  "nozzles": [
+   0.2,
+   0.3,
+   0.4,
+   0.6
+  ]
+ },
+ {
+  "catalogId": "Wanhao/Wanhao D12-300",
+  "vendor": "Wanhao",
+  "model": "Wanhao D12-300",
+  "buildVolume": "300x300x400",
+  "material": "Generic PLA @System",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 230 PRO M2 DIRECT",
+  "vendor": "Wanhao France",
+  "model": "D12 230 PRO M2 DIRECT",
+  "buildVolume": "230x230x240",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 230 PRO M2 MONO DUAL",
+  "vendor": "Wanhao France",
+  "model": "D12 230 PRO M2 MONO DUAL",
+  "buildVolume": "230x230x240",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 230 PRO M2 MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model": "D12 230 PRO M2 MONO DUAL PoopTool",
+  "buildVolume": "230x230x240",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 230 PRO SMARTPAD DIRECT",
+  "vendor": "Wanhao France",
+  "model": "D12 230 PRO SMARTPAD DIRECT",
+  "buildVolume": "230x230x240",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 230 PRO SMARTPAD MONO DUAL",
+  "vendor": "Wanhao France",
+  "model": "D12 230 PRO SMARTPAD MONO DUAL",
+  "buildVolume": "230x230x240",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 230 PRO SMARTPAD MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model": "D12 230 PRO SMARTPAD MONO DUAL PoopTool",
+  "buildVolume": "230x230x240",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 300 PRO M2 DIRECT",
+  "vendor": "Wanhao France",
+  "model": "D12 300 PRO M2 DIRECT",
+  "buildVolume": "300x300x400",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 300 PRO M2 MONO DUAL",
+  "vendor": "Wanhao France",
+  "model": "D12 300 PRO M2 MONO DUAL",
+  "buildVolume": "300x300x400",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 300 PRO M2 MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model": "D12 300 PRO M2 MONO DUAL PoopTool",
+  "buildVolume": "310x310x400",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 300 PRO SMARTPAD DIRECT",
+  "vendor": "Wanhao France",
+  "model": "D12 300 PRO SMARTPAD DIRECT",
+  "buildVolume": "300x300x400",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 300 PRO SMARTPAD MONO DUAL",
+  "vendor": "Wanhao France",
+  "model": "D12 300 PRO SMARTPAD MONO DUAL",
+  "buildVolume": "300x300x400",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 300 PRO SMARTPAD MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model": "D12 300 PRO SMARTPAD MONO DUAL PoopTool",
+  "buildVolume": "310x310x400",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 500 PRO M2 MONO DUAL",
+  "vendor": "Wanhao France",
+  "model": "D12 500 PRO M2 MONO DUAL",
+  "buildVolume": "500x500x500",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 500 PRO M2 MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model": "D12 500 PRO M2 MONO DUAL PoopTool",
+  "buildVolume": "510x510x500",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 500 PRO SMARTPAD DIRECT",
+  "vendor": "Wanhao France",
+  "model": "D12 500 PRO SMARTPAD DIRECT",
+  "buildVolume": "500x500x500",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 500 PRO SMARTPAD MONO DUAL",
+  "vendor": "Wanhao France",
+  "model": "D12 500 PRO SMARTPAD MONO DUAL",
+  "buildVolume": "500x500x500",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "Wanhao France/D12 500 PRO SMARTPAD MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model": "D12 500 PRO SMARTPAD MONO DUAL PoopTool",
+  "buildVolume": "510x510x500",
+  "material": "YUMI PLA Bowden",
+  "nozzles": [
+   0.4
+  ]
+ },
+ {
+  "catalogId": "WonderMaker/WonderMaker ZR",
+  "vendor": "WonderMaker",
+  "model": "WonderMaker ZR",
+  "buildVolume": "300x300x300",
+  "material": "WonderMaker PLA Basic",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "WonderMaker/WonderMaker ZR Ultra",
+  "vendor": "WonderMaker",
+  "model": "WonderMaker ZR Ultra",
+  "buildVolume": "300x270x290",
+  "material": "WonderMaker PLA Basic",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "WonderMaker/WonderMaker ZR Ultra S",
+  "vendor": "WonderMaker",
+  "model": "WonderMaker ZR Ultra S",
+  "buildVolume": "300x270x290",
+  "material": "WonderMaker PLA Basic",
+  "nozzles": [
+   0.2,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S1000",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S1000",
+  "buildVolume": "1000x1000x1000",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S1000 Dual",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S1000 Dual",
+  "buildVolume": "1000x1000x1000",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S300",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S300",
+  "buildVolume": "300x300x350",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S300 Dual",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S300 Dual",
+  "buildVolume": "300x300x350",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S400",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S400",
+  "buildVolume": "400x400x700",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S400 Dual",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S400 Dual",
+  "buildVolume": "400x400x700",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S600",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S600",
+  "buildVolume": "600x600x900",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S600 Dual",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S600 Dual",
+  "buildVolume": "600x600x900",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "Z-Bolt/Z-Bolt S800 Dual",
+  "vendor": "Z-Bolt",
+  "model": "Z-Bolt S800 Dual",
+  "buildVolume": "802x802x802",
+  "material": "Generic PLA @Z-Bolt 0.4 nozzle",
+  "nozzles": [
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "innovatiQ/TiQ2",
+  "vendor": "innovatiQ",
+  "model": "TiQ2",
+  "buildVolume": "330x330x300",
+  "material": "Fiberthree PACF Pro P1 @iQ TiQ2 0.4 Nozzle",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "innovatiQ/TiQ8",
+  "vendor": "innovatiQ",
+  "model": "TiQ8",
+  "buildVolume": "500x400x450",
+  "material": "Material4Print ABS Natur P1 @iQ TiQ8 0.4 Nozzle",
+  "nozzles": [
+   0.25,
+   0.4,
+   0.6,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "re3D/re3D Gigabot 4",
+  "vendor": "re3D",
+  "model": "re3D Gigabot 4",
+  "buildVolume": "590x600x600",
+  "material": "re3D PLA",
+  "nozzles": [
+   0.4,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "re3D/re3D Gigabot 4 XLT",
+  "vendor": "re3D",
+  "model": "re3D Gigabot 4 XLT",
+  "buildVolume": "590x760x900",
+  "material": "re3D PLA",
+  "nozzles": [
+   0.4,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "re3D/re3D GigabotX 2",
+  "vendor": "re3D",
+  "model": "re3D GigabotX 2",
+  "buildVolume": "552x593x470",
+  "material": "re3D Greengate rPETG",
+  "nozzles": [
+   0.8,
+   1.75
+  ]
+ },
+ {
+  "catalogId": "re3D/re3D GigabotX 2 XLT",
+  "vendor": "re3D",
+  "model": "re3D GigabotX 2 XLT",
+  "buildVolume": "552x740x470",
+  "material": "re3D Greengate rPETG",
+  "nozzles": [
+   0.8,
+   1.75
+  ]
+ },
+ {
+  "catalogId": "re3D/re3D Terabot 4",
+  "vendor": "re3D",
+  "model": "re3D Terabot 4",
+  "buildVolume": "915x915x1000",
+  "material": "re3D PLA",
+  "nozzles": [
+   0.4,
+   0.8
+  ]
+ },
+ {
+  "catalogId": "re3D/re3D TerabotX 2",
+  "vendor": "re3D",
+  "model": "re3D TerabotX 2",
+  "buildVolume": "892x908x870",
+  "material": "re3D Greengate rPETG",
+  "nozzles": [
+   0.8,
+   1.75
+  ]
+ }
+]

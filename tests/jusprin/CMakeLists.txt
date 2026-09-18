@@ -9,6 +9,7 @@ add_executable(jusprin_tests
     test_home_host.cpp
     test_printer_names.cpp
     test_installed_models.cpp
+    test_printer_catalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
