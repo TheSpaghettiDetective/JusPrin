@@ -25,7 +25,10 @@ CatalogPrinter mini()
     printer.vendor_id        = "BBL";
     printer.vendor_name      = "Bambu Lab";
     printer.model_id         = "Bambu Lab A1 mini";
-    printer.model_name       = "A1 mini";
+    // Like the real catalog, model_name is already the vendor-prefixed
+    // display name -- see PrinterCatalog.cpp, which reads it straight from
+    // the machine profile's own "name" field.
+    printer.model_name       = "Bambu Lab A1 mini";
     printer.device_model_id  = "N1";
     printer.build_volume     = "180 × 180 × 180 mm";
     printer.default_plate    = "Textured PEI Plate";
@@ -41,7 +44,7 @@ CatalogPrinter v2()
     printer.vendor_id   = "Creality";
     printer.vendor_name = "Creality";
     printer.model_id    = "Ender-3 V2";
-    printer.model_name  = "Ender-3 V2";
+    printer.model_name  = "Creality Ender-3 V2";
     return printer;
 }
 
@@ -87,17 +90,23 @@ public:
 class RecordingPanel final : public IConversationHost
 {
 public:
-    std::vector<std::string> notes;
-    std::vector<std::string> prompts;
-    int                      states{0};
-    int                      closes{0};
-    int                      refreshes{0};
+    std::vector<std::string>          notes;
+    std::vector<std::string>          prompts;
+    int                                states{0};
+    int                                closes{0};
+    int                                refreshes{0};
+    std::vector<AddedPrinterReceipt>  added_printers;
 
     void post_note(const std::string& text) override { notes.push_back(text); }
     void ask_agent(const std::string& prompt) override { prompts.push_back(prompt); }
     void session_changed() override { ++states; }
     void close_panel() override { ++closes; }
-    void printers_changed() override { ++refreshes; }
+    void printers_changed(const AddedPrinterReceipt& added) override
+    {
+        ++refreshes;
+        if (!added.name.empty())
+            added_printers.push_back(added);
+    }
 };
 
 // One tool call, as the coordinator would hand it over.
@@ -225,7 +234,7 @@ TEST_CASE("a proposal fills the pinned card and draws the printer", "[printer-co
     CHECK(card.at("afterMessageId") == "m-7");
     CHECK(card.at("live") == true);
     CHECK(card.at("printers")[0].at("vendor") == "Bambu Lab");
-    CHECK(card.at("printers")[0].at("model") == "A1 mini");
+    CHECK(card.at("printers")[0].at("model") == "Bambu Lab A1 mini");
     CHECK(card.at("printers")[0].at("subline") == "180 × 180 × 180 mm");
     CHECK(card.at("printers")[0].at("action") == "add");
 
@@ -497,11 +506,23 @@ TEST_CASE("Add this printer saves it and hands Home back", "[printer-conversatio
     REQUIRE(backend.added.size() == 1);
     CHECK(backend.added.front().vendor_id == "BBL");
     CHECK(backend.added.front().model_id == "Bambu Lab A1 mini");
+    // F11: the saved name is the catalog's own display name, not vendor_name
+    // prefixed onto it a second time ("Bambulab Bambu Lab A1 mini").
+    CHECK(backend.added.front().name == "Bambu Lab A1 mini");
     // The nozzle the person stated is the profile variant it is saved on.
     CHECK(backend.added.front().variant == "0.6");
     CHECK(backend.added.front().access_code == "12345678");
     CHECK(panel.refreshes == 1);
     CHECK(panel.closes == 1);
+
+    // WP6: Home hears the receipt its strip draws -- the same facts the
+    // pinned card stated, for the printer that was just saved.
+    REQUIRE(panel.added_printers.size() == 1);
+    CHECK(panel.added_printers.front().name == "Bambu Lab A1 mini");
+    CHECK(panel.added_printers.front().nozzle == "0.6 mm");
+    CHECK(panel.added_printers.front().plate == "Textured PEI Plate");
+    CHECK(panel.added_printers.front().filament == "PLA");
+    CHECK(panel.added_printers.front().assumed);
 }
 
 TEST_CASE("a printer that could not be saved says why and stays open", "[printer-conversation]")
@@ -646,7 +667,7 @@ TEST_CASE("browse opens at the brands level, one row per vendor with its count",
     CatalogPrinter combo = mini();
     combo.id             = "BBL/Bambu Lab A1 Combo";
     combo.model_id       = "Bambu Lab A1 Combo";
-    combo.model_name     = "A1 Combo";
+    combo.model_name     = "Bambu Lab A1 Combo";
     backend.catalogue.push_back(combo);
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
@@ -677,7 +698,7 @@ TEST_CASE("browsing into a vendor lists its models with pictures and build volum
     CHECK(browse.at("level") == "models");
     CHECK(browse.at("vendorName") == "Bambu Lab");
     REQUIRE(browse.at("models").size() == 1);
-    CHECK(browse.at("models")[0].at("model") == "A1 mini");
+    CHECK(browse.at("models")[0].at("model") == "Bambu Lab A1 mini");
     CHECK(browse.at("models")[0].at("subline") == "180 × 180 × 180 mm");
 }
 

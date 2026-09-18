@@ -249,7 +249,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     m_home->show_side_panel(false);
                     m_home->refresh();
                 },
-                [this] { refresh_home(); },
+                [this](const PrinterSetup::AddedPrinterReceipt& added) { refresh_home(added); },
                 [this] { mark_agent_config_possibly_changed(); }});
         m_home->attach_side_panel(m_printer_panel, m_theme->metrics().printer_card.column_width);
         m_home->backend().set_conversation_opener(
@@ -516,10 +516,19 @@ void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
     event.Skip();
 }
 
-void ShellController::refresh_home()
+void ShellController::refresh_home(const PrinterSetup::AddedPrinterReceipt& added)
 {
-    if (m_home != nullptr)
-        m_home->refresh();
+    if (m_home == nullptr)
+        return;
+    // Told for exactly the one snapshot this refresh sends: a later refresh,
+    // for any other reason, must not keep re-highlighting the same card or
+    // redrawing a strip about a printer added screens ago.
+    if (!added.name.empty())
+        m_home->backend().set_just_added_printer(
+            Home::PrinterReceipt{added.name, added.nozzle, added.plate, added.filament, added.assumed});
+    m_home->refresh();
+    if (!added.name.empty())
+        m_home->backend().clear_just_added_printer();
 }
 
 void ShellController::open_printer_conversation(const std::string& printer_name)

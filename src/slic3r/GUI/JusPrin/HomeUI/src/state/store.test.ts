@@ -23,6 +23,7 @@ const printer: PrinterInfo = {
   state: 'printing',
   spools: [],
   canLaunchMonitor: true,
+  justAdded: false,
 };
 
 describe('the Home reducer', () => {
@@ -103,5 +104,39 @@ describe('the Home reducer', () => {
     });
     expect(refreshed.printerError).toEqual({ id: 'named:Garage', message: 'That name is reserved.' });
     expect(reduce(refreshed, { kind: 'printer_action' }).printerError).toBeUndefined();
+  });
+
+  // WP6: the strip stays up through every state the host sends after the
+  // one that carried it, until the person dismisses it themselves.
+  it('keeps a printer receipt through later states until dismissed', () => {
+    const receipt = { name: 'Bambu Lab A1 mini', nozzle: '0.4 mm', plate: 'Textured PEI Plate', filament: 'PLA', assumed: true };
+    const added = reduce(initialState, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [printer], printerReceipt: receipt }),
+    });
+    expect(added.printerReceipt).toEqual(receipt);
+
+    const refreshed = reduce(added, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [printer] }),
+    });
+    expect(refreshed.printerReceipt).toEqual(receipt);
+    expect(reduce(refreshed, { kind: 'dismiss_printer_receipt' }).printerReceipt).toBeUndefined();
+  });
+
+  // Adding a second printer while the first's strip is still up replaces it
+  // rather than stacking a second one.
+  it('replaces an undismissed receipt with a later one', () => {
+    const first = { name: 'Bambu Lab A1 mini', nozzle: '0.4 mm', plate: 'Textured PEI Plate', filament: 'PLA', assumed: true };
+    const second = { name: 'Ender-3 V2', nozzle: '0.4 mm', plate: 'Cool Plate', filament: 'PLA', assumed: true };
+    const added = reduce(initialState, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [], printerReceipt: first }),
+    });
+    const addedAgain = reduce(added, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [], printerReceipt: second }),
+    });
+    expect(addedAgain.printerReceipt).toEqual(second);
   });
 });

@@ -98,6 +98,21 @@ export interface PrinterInfo {
   materialLabel?: string;
   spools: SpoolInfo[];
   canLaunchMonitor: boolean;
+  // True for exactly the one state after this printer was added: its card
+  // leads the column and highlights once.
+  justAdded: boolean;
+}
+
+// What the dismissible strip above the list says, right after "Add this
+// printer": "<name> added · <nozzle>, <plate>, <filament> -- assumed ·
+// Not connected yet · Change". Present only for the one state that follows
+// the add; the page keeps showing it until the person dismisses it.
+export interface PrinterReceiptInfo {
+  name: string;
+  nozzle: string;
+  plate: string;
+  filament: string;
+  assumed: boolean;
 }
 
 // A printer action the host understood but could not carry out, such as a
@@ -115,6 +130,8 @@ export interface StatePayload {
   // leaves that place to it. Absent on hosts without the printer_panel
   // capability.
   printerPanelOpen?: boolean;
+  // Present only on the one state right after "Add this printer".
+  printerReceipt?: PrinterReceiptInfo;
 }
 
 export interface Envelope<T = unknown> {

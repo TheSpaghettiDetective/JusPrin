@@ -8,6 +8,7 @@ import type {
   Envelope,
   PrinterErrorPayload,
   PrinterInfo,
+  PrinterReceiptInfo,
   ProjectInfo,
   StatePayload,
 } from '../bridge/protocol';
@@ -27,6 +28,10 @@ export interface HomeState {
   // The last printer action the host refused. The host follows a refusal with
   // a fresh state, so only the person's next printer action clears it.
   printerError?: PrinterErrorPayload;
+  // The strip above the list. The host sends it for one state only, right
+  // after an add; the page keeps it until the person dismisses it, and a
+  // later add replaces it rather than stacking a second strip.
+  printerReceipt?: PrinterReceiptInfo;
 }
 
 export const initialState: HomeState = {
@@ -41,7 +46,8 @@ export const initialState: HomeState = {
 export type HomeAction =
   | { kind: 'connection'; state: ConnectionState; detail?: string }
   | { kind: 'envelope'; envelope: Envelope }
-  | { kind: 'printer_action' };
+  | { kind: 'printer_action' }
+  | { kind: 'dismiss_printer_receipt' };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
@@ -49,6 +55,9 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
   }
   if (action.kind === 'printer_action') {
     return { ...state, printerError: undefined };
+  }
+  if (action.kind === 'dismiss_printer_receipt') {
+    return { ...state, printerReceipt: undefined };
   }
   const { type, payload } = action.envelope;
   switch (type) {
@@ -61,6 +70,9 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         projects: next.projects ?? [],
         printers: next.printers ?? [],
         printerPanelOpen: next.printerPanelOpen ?? false,
+        // A fresh receipt replaces whatever was showing; every other state
+        // push carries none and leaves an undismissed one in place.
+        printerReceipt: next.printerReceipt ?? state.printerReceipt,
         error: undefined,
       };
     }

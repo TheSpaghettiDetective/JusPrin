@@ -164,10 +164,10 @@ void PrinterPanel::session_changed()
 
 void PrinterPanel::close_panel() { close(); }
 
-void PrinterPanel::printers_changed()
+void PrinterPanel::printers_changed(const AddedPrinterReceipt& added)
 {
     if (m_callbacks.printers_changed)
-        m_callbacks.printers_changed();
+        m_callbacks.printers_changed(added);
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

@@ -73,6 +73,7 @@ json printer_json(const PrinterEntry& printer)
         {"canOpenSettings", printer.can_open_settings},
         {"canRename", printer.can_rename},
         {"canRemove", printer.can_remove},
+        {"justAdded", printer.just_added},
     };
     set_if_present(out, "statusText", printer.status_text);
     set_if_present(out, "connectionText", printer.connection_text);
@@ -83,6 +84,17 @@ json printer_json(const PrinterEntry& printer)
     if (printer.state == PrinterState::Printing && printer.progress_percent >= 0)
         out["progressPercent"] = printer.progress_percent;
     return out;
+}
+
+json receipt_json(const PrinterReceipt& receipt)
+{
+    return json{
+        {"name", receipt.name},
+        {"nozzle", receipt.nozzle},
+        {"plate", receipt.plate},
+        {"filament", receipt.filament},
+        {"assumed", receipt.assumed},
+    };
 }
 
 } // namespace
@@ -97,12 +109,15 @@ json state_payload(const Snapshot& snapshot)
     for (const PrinterEntry& printer : snapshot.printers)
         printers.push_back(printer_json(printer));
 
-    return json{
+    json out{
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
         {"printers", std::move(printers)},
         {"printerPanelOpen", snapshot.printer_panel_open},
     };
+    if (snapshot.printer_receipt)
+        out["printerReceipt"] = receipt_json(*snapshot.printer_receipt);
+    return out;
 }
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

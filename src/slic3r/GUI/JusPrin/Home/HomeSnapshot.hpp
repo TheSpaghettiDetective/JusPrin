@@ -12,6 +12,7 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -73,6 +74,21 @@ struct PrinterEntry
     std::string             material_label;
     std::vector<SpoolEntry> spools;
     bool                    can_launch_monitor{false};
+    // Set for one refresh, on the printer an Add flow just saved: the card
+    // draws at the top of the column and highlights once.
+    bool                    just_added{false};
+};
+
+// What Home's dismissible receipt strip says, for the one refresh right
+// after "Add this printer": "<name> added · <nozzle>, <plate>, <filament>
+// -- assumed · Not connected yet · Change".
+struct PrinterReceipt
+{
+    std::string name;
+    std::string nozzle;
+    std::string plate;
+    std::string filament;
+    bool        assumed{false};
 };
 
 struct Snapshot
@@ -83,6 +99,8 @@ struct Snapshot
     // The printer conversation has the printers column, so the page leaves
     // that place to it.
     bool                      printer_panel_open{false};
+    // Present only for the one refresh right after a printer was added.
+    std::optional<PrinterReceipt> printer_receipt;
 };
 
 // The `state` payload: { appearance, projects, printers, printerPanelOpen }.

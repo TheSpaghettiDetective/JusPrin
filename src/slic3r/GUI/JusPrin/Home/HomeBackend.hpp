@@ -11,6 +11,7 @@
 
 #include "HomeSnapshot.hpp"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,9 +23,12 @@ public:
     virtual ~IHomeBackend() = default;
 
     // Reads. Called whenever Home is shown or asks for state.
-    virtual bool                      dark() const              = 0;
-    virtual std::vector<ProjectEntry> recent_projects() const   = 0;
-    virtual std::vector<PrinterEntry> printers() const          = 0;
+    virtual bool                          dark() const            = 0;
+    virtual std::vector<ProjectEntry>     recent_projects() const = 0;
+    virtual std::vector<PrinterEntry>     printers() const        = 0;
+    // Present only for the one read right after a printer was added; see
+    // set_just_added_printer.
+    virtual std::optional<PrinterReceipt> printer_receipt() const = 0;
 
     // Actions. Each is the whole product gesture, not a step of one, so the
     // adapter can use whichever upstream entry point already performs it.

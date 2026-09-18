@@ -32,8 +32,9 @@ public:
     {
         // "‹ Printers", and everything else that ends the session.
         std::function<void()> closed;
-        // A printer was saved or changed; Home's list is out of date.
-        std::function<void()> printers_changed;
+        // A printer was saved or changed; Home's list is out of date. Carries
+        // the receipt when a printer was just added, empty otherwise.
+        std::function<void(const AddedPrinterReceipt&)> printers_changed;
         // The person set the agent up in here, so the rest of the shell has
         // to look again at how it is configured.
         std::function<void()> agent_configured;
@@ -66,7 +67,7 @@ private:
     void ask_agent(const std::string& prompt) override;
     void session_changed() override;
     void close_panel() override;
-    void printers_changed() override;
+    void printers_changed(const AddedPrinterReceipt& added) override;
 
     void build_runtime();
     void tear_down_runtime();

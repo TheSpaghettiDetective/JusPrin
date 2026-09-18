@@ -462,10 +462,15 @@ json PrinterConversation::identify(const json& arguments, const std::string& mes
     const std::string device_id = m_pending_device_id;
     m_pending_device_id.clear();
 
+    // printer.model_name is already the vendor-prefixed display name (it
+    // comes straight from the machine profile's own "name" field, e.g.
+    // "Bambu Lab X1 Carbon"); prefixing vendor_name again doubled it, both
+    // in the saved printer's name and the pinned card ("Bambulab Bambu Lab
+    // X1 Carbon").
     m_proposal = PrinterProposal{true,
                                  printer.vendor_id,
                                  printer.model_id,
-                                 printer.vendor_name + " " + printer.model_name,
+                                 printer.model_name,
                                  variant_text(nozzle),
                                  printer.default_material,
                                  device_id,
@@ -534,7 +539,7 @@ json PrinterConversation::change(const json& arguments, std::optional<ToolError>
         m_nozzle.provenance = "changed";
     if (request.spools)
         m_filament.provenance = "changed";
-    m_host.printers_changed();
+    m_host.printers_changed({});
 
     return json{{"printer", changed.name}, {"nozzle", changed.nozzle}, {"connected", changed.connected}};
 }
@@ -555,7 +560,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             // The wizard takes over from here; whatever it installed is on
             // the printer list the panel returns to.
             m_backend.run_manual_setup();
-            m_host.printers_changed();
+            m_host.printers_changed({});
             m_host.close_panel();
         } else {
             // OrcaSlicer's own printer settings, as "Printer settings…" did
@@ -563,7 +568,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             // which restates the printer as it now is.
             m_backend.open_printer_settings(m_printer_name);
             read_saved_printer();
-            m_host.printers_changed();
+            m_host.printers_changed({});
             m_host.session_changed();
         }
     } else if (action == "add")
@@ -611,7 +616,8 @@ void PrinterConversation::add_proposed_printer(const std::string& access_code)
         m_host.session_changed();
         return;
     }
-    m_host.printers_changed();
+    m_host.printers_changed(AddedPrinterReceipt{added.name, m_nozzle.value, m_plate.value, m_filament.value,
+                                                m_nozzle.provenance == "assumed"});
     m_host.close_panel();
 }
 
@@ -651,7 +657,7 @@ void PrinterConversation::choose_candidate(const std::string& catalog_id)
     const CatalogPrinter* chosen = catalog_entry(catalog_id);
     if (chosen == nullptr)
         return;
-    m_host.ask_agent("The person tapped \"This one\" on " + chosen->vendor_name + " " + chosen->model_name + " (" + chosen->id +
+    m_host.ask_agent("The person tapped \"This one\" on " + chosen->model_name + " (" + chosen->id +
                      "). Call printer_identify to propose that printer alone and say in one sentence what you assumed.");
 }
 

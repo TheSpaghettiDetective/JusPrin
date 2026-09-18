@@ -189,3 +189,31 @@ TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]
     CHECK(printers.at(1).at("canRename") == false);
     CHECK(printers.at(1).at("canRemove") == false);
 }
+
+// WP6 (F16): the card an Add flow just saved carries its own flag, so the
+// page can draw it first and highlight it without guessing from order.
+TEST_CASE("a printer says whether it was just added", "[home]")
+{
+    Snapshot snapshot;
+    snapshot.printers = {a_printer()};
+    CHECK(state_payload(snapshot).at("printers").at(0).at("justAdded") == false);
+
+    snapshot.printers[0].just_added = true;
+    CHECK(state_payload(snapshot).at("printers").at(0).at("justAdded") == true);
+}
+
+// WP6: the receipt strip's own fields, and the same "absent means nothing to
+// say" rule the rest of this payload follows.
+TEST_CASE("the receipt strip carries the printer and its three assumed facts", "[home]")
+{
+    Snapshot snapshot;
+    CHECK_FALSE(state_payload(snapshot).contains("printerReceipt"));
+
+    snapshot.printer_receipt = PrinterReceipt{"Bambu Lab A1 mini", "0.4 mm", "Textured PEI Plate", "PLA", true};
+    const json receipt = state_payload(snapshot).at("printerReceipt");
+    CHECK(receipt.at("name") == "Bambu Lab A1 mini");
+    CHECK(receipt.at("nozzle") == "0.4 mm");
+    CHECK(receipt.at("plate") == "Textured PEI Plate");
+    CHECK(receipt.at("filament") == "PLA");
+    CHECK(receipt.at("assumed") == true);
+}

@@ -30,6 +30,7 @@ class HomeWebView;
 
 namespace PrinterSetup {
 class PrinterPanel;
+struct AddedPrinterReceipt;
 }
 
 // Installs the JusPrin production presentation inside the existing MainFrame
@@ -90,7 +91,10 @@ public:
     // decoupled from the add-printer request that opened it, so nothing else
     // tells Home about the printer it names. The caller asks for this refresh
     // once the wizard flow (and any naming it does) has actually finished.
-    void refresh_home();
+    // A non-empty `added` highlights that card once, puts it at the top of
+    // Home's column, and draws the receipt strip, for exactly this refresh.
+    // Every caller that only wants a plain refresh passes an empty one.
+    void refresh_home(const PrinterSetup::AddedPrinterReceipt& added);
 
     // Opens the printer conversation in place of Home's printers column: an
     // empty name adds a printer, a name changes that one. From the Prepare

@@ -245,6 +245,22 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         describe_device(*machine, printer);
         printers.push_back(std::move(printer));
     }
+
+    // The printer an Add flow just saved leads the column, highlighted once
+    // (F16): named_printers() has no notion of recency, so this is the one
+    // place that knows which card that was.
+    if (m_just_added_printer) {
+        const std::string& name  = m_just_added_printer->name;
+        const auto          found = std::find_if(printers.begin(), printers.end(), [&name](const PrinterEntry& printer) {
+            return printer.kind == PrinterKind::Named && printer.name == name;
+        });
+        if (found != printers.end()) {
+            PrinterEntry promoted = std::move(*found);
+            promoted.just_added   = true;
+            printers.erase(found);
+            printers.insert(printers.begin(), std::move(promoted));
+        }
+    }
     return printers;
 }
 

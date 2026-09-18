@@ -42,6 +42,7 @@ Snapshot HomeHost::collect() const
     snapshot.projects = m_backend.recent_projects();
     snapshot.printers = m_backend.printers();
     snapshot.printer_panel_open = m_printer_panel_open;
+    snapshot.printer_receipt    = m_backend.printer_receipt();
     return snapshot;
 }
 

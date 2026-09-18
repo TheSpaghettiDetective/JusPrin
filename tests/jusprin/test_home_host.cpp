@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,9 +23,10 @@ namespace {
 class FakeBackend final : public IHomeBackend
 {
 public:
-    bool                      is_dark{false};
-    std::vector<ProjectEntry> projects;
-    std::vector<PrinterEntry> machines;
+    bool                           is_dark{false};
+    std::vector<ProjectEntry>      projects;
+    std::vector<PrinterEntry>      machines;
+    std::optional<PrinterReceipt>  receipt;
 
     std::vector<std::string> opened;
     std::vector<std::string> monitored;
@@ -32,9 +34,10 @@ public:
     int                      imports{0};
     int                      wizards{0};
 
-    bool                      dark() const override { return is_dark; }
-    std::vector<ProjectEntry> recent_projects() const override { return projects; }
-    std::vector<PrinterEntry> printers() const override { return machines; }
+    bool                          dark() const override { return is_dark; }
+    std::vector<ProjectEntry>     recent_projects() const override { return projects; }
+    std::vector<PrinterEntry>     printers() const override { return machines; }
+    std::optional<PrinterReceipt> printer_receipt() const override { return receipt; }
 
     void open_project(const std::string& id) override { opened.push_back(id); }
     void new_project() override { ++new_projects; }
@@ -127,6 +130,39 @@ TEST_CASE("the handshake is answered with an ack and the whole screen", "[home]"
     CHECK(state.at("projects").size() == 1);
     CHECK(state.at("projects").at(0).at("name") == "Garage bracket");
     CHECK(host.connected());
+}
+
+// WP6: the strip above the list only draws for the one screen right after a
+// printer was added; any other screen carries no printerReceipt key at all
+// (the page tells "nothing to say" from "empty" by whether the key is there).
+TEST_CASE("the screen carries a receipt only right after a printer was added", "[home]")
+{
+    FakeBackend backend;
+    backend.receipt = PrinterReceipt{"Bambu Lab A1 mini", "0.4 mm", "Textured PEI Plate", "PLA", true};
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+
+    host.on_page_message(hello());
+
+    const json state = wire.of_type("state").front().at("payload");
+    REQUIRE(state.contains("printerReceipt"));
+    CHECK(state.at("printerReceipt").at("name") == "Bambu Lab A1 mini");
+    CHECK(state.at("printerReceipt").at("nozzle") == "0.4 mm");
+    CHECK(state.at("printerReceipt").at("plate") == "Textured PEI Plate");
+    CHECK(state.at("printerReceipt").at("filament") == "PLA");
+    CHECK(state.at("printerReceipt").at("assumed") == true);
+}
+
+TEST_CASE("no receipt at all is nothing to say, not an empty one", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+
+    host.on_page_message(hello());
+
+    const json state = wire.of_type("state").front().at("payload");
+    CHECK_FALSE(state.contains("printerReceipt"));
 }
 
 // A page speaking a version this build does not must be told so, not left

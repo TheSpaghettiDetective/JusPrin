@@ -54,6 +54,22 @@ struct PrinterProposal
     std::string         subline;
 };
 
+// What Home's dismissible receipt strip says after "Add this printer": the
+// model, and the three facts the way the pinned card stated them. An empty
+// `name` means no printer was just added -- printers_changed asks only for
+// a plain refresh, with nothing to draw or highlight.
+struct AddedPrinterReceipt
+{
+    std::string name;
+    std::string nozzle;
+    std::string plate;
+    std::string filament;
+    // True when nozzle, plate and filament were the agent's guess rather
+    // than something settled -- the strip says so, the way the pinned card
+    // did.
+    bool        assumed{false};
+};
+
 // Everything the panel needs from its owner. The panel is the only
 // implementation; the tests use a recording fake.
 class IConversationHost
@@ -70,8 +86,10 @@ public:
     virtual void session_changed() = 0;
     // The panel is done: back to the printer list.
     virtual void close_panel() = 0;
-    // A printer was saved; Home's list is out of date.
-    virtual void printers_changed() = 0;
+    // A printer was saved or changed; Home's list is out of date. A newly
+    // added printer's receipt highlights its card once, puts it at the top
+    // of Home's column, and draws the dismissible strip above the list.
+    virtual void printers_changed(const AddedPrinterReceipt& added) = 0;
 };
 
 class PrinterConversation

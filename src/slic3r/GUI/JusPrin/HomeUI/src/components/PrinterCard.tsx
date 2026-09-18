@@ -33,16 +33,19 @@ export function PrinterCard({
       {hasActions && <PrinterMenu printer={printer} otherNames={otherNames} actions={actions} />}
     </span>
   );
+  // Highlighted for exactly the one screen after "Add this printer" (F16);
+  // the card's own animation ends this on its own, with no timer to manage.
+  const cardClass = `printer-card${printer.justAdded ? ' just-added' : ''}`;
   if (!printing) {
     return (
-      <div className="printer-card collapsed">
+      <div className={`${cardClass} collapsed`}>
         {name}
         {end}
       </div>
     );
   }
   return (
-    <div className="printer-card">
+    <div className={cardClass}>
       <div className="printer-head">
         {name}
         {end}

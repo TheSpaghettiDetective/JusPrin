@@ -60,6 +60,7 @@ function printer(overrides: Partial<PrinterInfo> = {}): PrinterInfo {
     materialLabel: 'PLA',
     spools: [{ colour: '#9A9A9A' }, { colour: '#C8202D' }, { colour: '#FFFFFF' }, { colour: '#000000' }],
     canLaunchMonitor: true,
+    justAdded: false,
     ...overrides,
   };
 }
@@ -278,6 +279,46 @@ describe('Home', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Printer settings…' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the receipt strip after an add, and highlights that card', () => {
+    const host = start();
+    host.deliver(
+      'state',
+      state({
+        printers: [printer({ justAdded: true })],
+        printerReceipt: { name: 'X1 Carbon', nozzle: '0.4 mm', plate: 'Textured PEI Plate', filament: 'PLA', assumed: true },
+      }),
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('X1 Carbon added');
+    expect(screen.getByRole('status')).toHaveTextContent('0.4 mm, Textured PEI Plate, PLA — assumed');
+    expect(screen.getByRole('status')).toHaveTextContent('Not connected yet');
+    expect(document.querySelector('.printer-name')!.closest('.printer-card')!.className).toContain('just-added');
+  });
+
+  it('opens the added printer in Change mode from the receipt strip', async () => {
+    const host = start();
+    host.deliver(
+      'state',
+      state({
+        printers: [printer({ justAdded: true })],
+        printerReceipt: { name: 'X1 Carbon', nozzle: '0.4 mm', plate: 'Textured PEI Plate', filament: 'PLA', assumed: true },
+      }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(host.lastOfType('open_printer_settings')!.payload).toEqual({ id: 'x1' });
+  });
+
+  it('dismisses the receipt strip, and keeps it through an unrelated refresh until then', async () => {
+    const host = start();
+    const receipt = { name: 'X1 Carbon', nozzle: '0.4 mm', plate: 'Textured PEI Plate', filament: 'PLA', assumed: true };
+    host.deliver('state', state({ printers: [printer({ justAdded: true })], printerReceipt: receipt }));
+    // The card's own highlight is one refresh only, but the strip stays.
+    host.deliver('state', state());
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(document.querySelector('.printer-name')!.closest('.printer-card')!.className).not.toContain('just-added');
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('follows the host into dark mode', () => {

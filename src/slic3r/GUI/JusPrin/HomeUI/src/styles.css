@@ -249,6 +249,21 @@ body {
   justify-content: space-between;
 }
 
+/* F16: a ring that fades to nothing over one breath, so the card just added
+   draws the eye without leaving a permanent mark once it has been seen. */
+@keyframes printer-card-just-added {
+  from {
+    box-shadow: 0 0 0 2px var(--action-primary), var(--elevation-subtle);
+  }
+  to {
+    box-shadow: var(--elevation-subtle);
+  }
+}
+
+.printer-card.just-added {
+  animation: printer-card-just-added 2.4s ease-out;
+}
+
 .printer-head {
   display: flex;
   align-items: center;
@@ -518,6 +533,51 @@ body {
   background: var(--surface-raised);
   border: 1px solid var(--status-danger);
   border-radius: var(--radius-standard);
+}
+
+/* WP6: what "Add this printer" just did, above the list until dismissed. */
+.printer-receipt {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+}
+
+.printer-receipt-text {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.printer-receipt-name {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.printer-receipt-change {
+  font: var(--font-body-small-bold);
+  color: var(--action-primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.printer-receipt-dismiss {
+  display: flex;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.printer-receipt-dismiss:hover {
+  color: var(--text-primary);
 }
 
 /* Rename and remove are the add-printer dialog's kind: the same width,

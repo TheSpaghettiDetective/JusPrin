@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
+import { PrinterReceipt } from './components/PrinterReceipt';
 import type { PrinterActions } from './components/PrinterMenu';
 import { PlusGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
@@ -46,6 +47,12 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // The strip outlives the one state that set `justAdded`, so "Change" finds
+  // its printer by the name the receipt named, not by that transient flag.
+  const addedPrinterId = state.printerReceipt
+    ? state.printers.find((printer) => printer.name === state.printerReceipt!.name)?.id
+    : undefined;
 
   if (state.connection !== 'connected' && !state.loaded) {
     return (
@@ -101,6 +108,13 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           <p className="printer-error" role="alert">
             {state.printerError.message}
           </p>
+        )}
+        {state.printerReceipt && addedPrinterId && (
+          <PrinterReceipt
+            receipt={state.printerReceipt}
+            onChange={() => printerActions.onOpenSettings(addedPrinterId)}
+            onDismiss={() => dispatch({ kind: 'dismiss_printer_receipt' })}
+          />
         )}
         {state.printers.map((printer) => (
           <PrinterCard

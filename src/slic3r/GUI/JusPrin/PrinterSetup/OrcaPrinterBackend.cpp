@@ -10,6 +10,7 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
@@ -157,6 +158,14 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
 
 std::string OrcaPrinterBackend::add_printer(const AddPrinterRequest& request, SavedPrinter& added)
 {
+    // Adding a printer from Home is catalog management, not an edit to the
+    // open project: install_and_select_printer and add_named_printer both
+    // select a printer preset, which Orca's own dirty tracking otherwise
+    // counts as a project change (F17 -- the title gained an unsaved-changes
+    // asterisk on an Untitled project nobody had touched). Whatever was
+    // dirty before this call stays dirty; a clean project stays clean.
+    const bool was_dirty = m_plater.is_project_dirty();
+
     std::string error;
     if (!SetupCommands::install_and_select_printer(m_plater, request.vendor_id, request.model_id, request.variant,
                                                   request.material, error))
@@ -164,6 +173,11 @@ std::string OrcaPrinterBackend::add_printer(const AddPrinterRequest& request, Sa
 
     const std::string name =
         Printers::add_named_printer(m_plater, request.name.empty() ? request.model_id : request.name, request.device_id);
+
+    if (!was_dirty) {
+        m_plater.reset_project_dirty_initial_presets();
+        m_plater.update_project_dirty_from_presets();
+    }
 
     if (!request.access_code.empty() && !request.device_id.empty()) {
         wxString connect_error;
