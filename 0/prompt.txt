@@ -1,0 +1,42 @@
+Corrections to the handoff, and one decision from Kenneth. Re-read agent-docs/jusprin/printer-panel-fixes-handoff.md before continuing; it has been updated.
+
+1. "Community profile" does not exist. The previous agent invented the label: nothing in resources/profiles/OrcaArena.json marks Orca Arena as community or tuned, and its purpose is undocumented. Do not build a COMMUNITY PROFILE label, and do not use turn 20's 20b ASK example (Bambu Lab X1 Carbon vs "COMMUNITY PROFILE · ORCA ARENA") as a reference. The design agent is being asked to replace it.
+
+2. "Hide" was not Kenneth's decision when you acted on it; it was the previous agent's recommendation. Kenneth has now decided, and his decision is narrower in scope and wider in content than what you planned:
+   - Hide the WHOLE Orca Arena bundle: the machine model "Orca Arena X1 Carbon", every "@Arena X1C" / "@base" Arena filament, and its process files.
+   - Hide it from the ADD-PRINTER FLOW ONLY: the printer list in the agent's instructions (WP1), the in-panel "Browse the full list" (WP3), and any filament or plate the flow proposes.
+   - Do NOT hide it anywhere else. "Set it up myself" (the ConfigWizard) and OrcaSlicer's own preset lists keep showing it.
+   - Do NOT edit or delete files under resources/profiles/ (OrcaSlicer-owned; see fork-stewardship.md). Filter in fork-owned code by vendor id, as one named constant with a comment saying why, with a test that proves the bundle is absent from the agent's list and the browse list, and still present in the wizard's vendor set.
+
+3. Expected behaviour after this:
+   - "x1c" and "x1 carbon" → PROPOSE Bambu Lab X1 Carbon.
+   - "bambu x1" → ASK among Bambu Lab X1 Carbon, X1 and X1E (the prefix-ambiguity rule).
+   - Build and test the ASK state with a genuine ambiguity such as "voron 2.4" (three sizes: 250, 300, 350), not with the X1 Carbon example.
+
+4. How to read the handoff from now on: treat only lines marked "Kenneth decided" as decisions. Everything else is a proposal. If a wireframe, this handoff or the code disagree on something not marked as decided, stop and ask rather than choosing.
+
+Also note: Kenneth decided WP10 — confirm before discarding a conversation that has content. It is in the handoff.
+
+---
+
+<task-notification>
+<task-id>byinln9qf</task-id>
+<tool-use-id>toolu_01XGmGrbUsbVC1QvnCbX8L3u</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/byinln9qf.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -200" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bg4bb5q99</task-id>
+<tool-use-id>toolu_01B3seJ6iQs6Z7PeZAsCNjye</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/bg4bb5q99.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -60" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Continue with WP1's remaining Done-when table checks in the live app
