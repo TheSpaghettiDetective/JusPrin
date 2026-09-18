@@ -116,6 +116,68 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
   });
 
+  // WP10, F10: Kenneth decided -- confirm before discarding a conversation
+  // that holds anything the person typed or sent. The opening line alone
+  // (every fixture above closes with no prompt) is not "anything".
+  const withContent = () =>
+    state({
+      conversation: [
+        { id: 'm-1', role: 'assistant', state: 'complete', text: 'What printer do you have?', seq: 1 },
+        { id: 'm-2', role: 'user', state: 'complete', text: 'bambu a1 mini', attempt: 1 },
+      ] as StatePayload['conversation'],
+    });
+
+  it('asks before leaving a conversation that holds something, and stays on Stay', async () => {
+    const host = open(withContent());
+    await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+    expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
+    expect(screen.getByText('What you’ve told me about this printer will be lost.')).toBeInTheDocument();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+  });
+
+  it('leaves for real once the person taps Leave', async () => {
+    const host = open(withContent());
+    await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('asks before Add mode’s "Set it up myself" leaves for the wizard, with content', async () => {
+    const host = open(
+      state({
+        conversation: withContent().conversation,
+        session: session({
+          browse: { level: 'models', vendorId: 'BBL', vendorName: 'Bambu Lab', models: [] },
+        }),
+      }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Set it up myself/ }));
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+    expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
+  });
+
+  it('never asks for a Change session’s own "Set it up myself", which stays in this session', async () => {
+    const host = open({ ...withContent(), session: session({ mode: 'change', caption: 'PRINTER' }) });
+    await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('never asks to browse, which stays in this session', async () => {
+    const host = open(withContent());
+    await userEvent.click(screen.getByRole('button', { name: 'Browse the full list' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'browse' });
+  });
+
   it('pins the printer’s four facts above the thread', () => {
     open();
     expect(screen.getByText('NEW PRINTER')).toBeInTheDocument();

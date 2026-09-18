@@ -114,6 +114,10 @@ export function App({
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
   const [connected, setConnected] = useState<{ provider: string; warning?: string } | null>(null);
+  // WP10, F10: the printer panel's own "leave with unsent content?" prompt.
+  // Holds the gated action to actually send once the person taps Leave; null
+  // when the dialog is closed.
+  const [confirmLeave, setConfirmLeave] = useState<(() => void) | null>(null);
 
   const client = useMemo(() => {
     const created: BridgeClient = new BridgeClient({
@@ -372,6 +376,23 @@ export function App({
   if (printerPanel) {
     const session = state.session;
     const printerAction = (action: string, id = '') => client.send('printer_action', { action, id });
+    // The panel always seeds an opening line before anything else can
+    // happen, so one message alone is an untouched session; anything past
+    // it is a message, a photo, or a picked card the person would lose.
+    const hasUnsentContent = state.messages.length > 1;
+    // Closing the conversation (the header's ‹, and Add mode's "Set it up
+    // myself", which leaves for the wizard) asks first when there is
+    // something to lose (WP10, F10); everything else -- browsing, a Change
+    // session's own "Set it up myself" door, which stays in this session --
+    // passes straight through.
+    const printerActionGated = (action: string, id = '') => {
+      const leaves = action === 'close' || (action === 'manual_setup' && session?.mode !== 'change');
+      if (leaves && hasUnsentContent) {
+        setConfirmLeave(() => () => printerAction(action, id));
+        return;
+      }
+      printerAction(action, id);
+    };
     return (
       // The whole panel takes a photo, not only the composer: a picture of
       // the printer is dropped where the person is looking.
@@ -386,21 +407,52 @@ export function App({
         }}
       >
         {errorNotice}
+        {confirmLeave && (
+          <div className="chat-dialog-shade">
+            <div
+              className="chat-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="leave-dialog-title"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.stopPropagation();
+                  setConfirmLeave(null);
+                }
+              }}
+            >
+              <h2 id="leave-dialog-title">Leave this conversation?</h2>
+              <p>What you’ve told me about this printer will be lost.</p>
+              <div className="chat-dialog-buttons">
+                <button onClick={() => setConfirmLeave(null)}>Stay</button>
+                <button
+                  className="primary"
+                  onClick={() => {
+                    confirmLeave();
+                    setConfirmLeave(null);
+                  }}
+                >
+                  Leave
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="chat-content">
           {/* The label names where ‹ leads, not the printer this is about. */}
           <header className="chat-header printer-header">
-            <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => printerAction('close')}>
+            <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => printerActionGated('close')}>
               ‹
             </button>
             <h1>Printers</h1>
             {/* Change mode keeps its own door (WP7); Add's is the in-panel
                 browse list, the same label everywhere it appears. */}
             {session?.mode === 'change' ? (
-              <button type="button" className="printer-manual-link" onClick={() => printerAction('manual_setup')}>
+              <button type="button" className="printer-manual-link" onClick={() => printerActionGated('manual_setup')}>
                 Set it up myself
               </button>
             ) : (
-              <button type="button" className="printer-manual-link" onClick={() => printerAction('browse')}>
+              <button type="button" className="printer-manual-link" onClick={() => printerActionGated('browse')}>
                 Browse the full list
               </button>
             )}
@@ -416,7 +468,7 @@ export function App({
               onBack={() => printerAction('browse_back')}
               onOpenVendor={(vendorId) => printerAction('browse_vendor', vendorId)}
               onPick={(catalogId) => printerAction('browse_pick', catalogId)}
-              onManualSetup={() => printerAction('manual_setup')}
+              onManualSetup={() => printerActionGated('manual_setup')}
             />
           ) : (
             <>
@@ -429,7 +481,7 @@ export function App({
                   {session?.blocks
                     .filter((block) => block.kind === 'network')
                     .map((block) => (
-                      <PrinterBlockView key={block.id} block={block} onAction={(action, id) => printerAction(action, id)} />
+                      <PrinterBlockView key={block.id} block={block} onAction={(action, id) => printerActionGated(action, id)} />
                     ))}
                   {body()}
                 </>
@@ -449,7 +501,7 @@ export function App({
                   physicalPrints={[]}
                   changes={[]}
                   printerBlocks={session?.blocks}
-                  onPrinterAction={(action, id) => printerAction(action, id)}
+                  onPrinterAction={(action, id) => printerActionGated(action, id)}
                   answeredState={false}
                   onRetry={(messageId) => client.send('retry_message', { messageId })}
                   onToolDecision={sendToolDecision}
