@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2TQ7KZBG52S1XFFTFPS5WYA",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-conversation-panel-af11cb",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 300,
+    "cache_creation_tokens": 270097,
+    "cache_read_tokens": 108659407,
+    "output_tokens": 64923,
+    "api_call_count": 150
+  }
+}
