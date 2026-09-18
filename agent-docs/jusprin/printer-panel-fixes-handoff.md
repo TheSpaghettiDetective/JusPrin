@@ -220,4 +220,4 @@ As of 2026-09-17, before the design agent acted on the follow-ups listed in sect
 
 ## 6. Open questions for Kenneth
 
-1. WP7: does a nozzle change need confirming at all? Turn 20 records this as open. This document keeps the confirmation because it checks the agent's reading of loose words before a change that affects every project.
+1. **Answered 2026-09-18.** WP7: does a nozzle change need confirming at all? Turn 20 records this as open; this document kept the confirmation because it checks the agent's reading of loose words before a change that affects every project. Kenneth's answer: "If a change is initiated by user clicking a chip, it acts as approval. Otherwise, we ask for approval." Built as the chip-tap `preApproved` mechanism (see WP7).
