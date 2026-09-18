@@ -1,0 +1,289 @@
+Corrections to the handoff, and one decision from Kenneth. Re-read agent-docs/jusprin/printer-panel-fixes-handoff.md before continuing; it has been updated.
+
+1. "Community profile" does not exist. The previous agent invented the label: nothing in resources/profiles/OrcaArena.json marks Orca Arena as community or tuned, and its purpose is undocumented. Do not build a COMMUNITY PROFILE label, and do not use turn 20's 20b ASK example (Bambu Lab X1 Carbon vs "COMMUNITY PROFILE · ORCA ARENA") as a reference. The design agent is being asked to replace it.
+
+2. "Hide" was not Kenneth's decision when you acted on it; it was the previous agent's recommendation. Kenneth has now decided, and his decision is narrower in scope and wider in content than what you planned:
+   - Hide the WHOLE Orca Arena bundle: the machine model "Orca Arena X1 Carbon", every "@Arena X1C" / "@base" Arena filament, and its process files.
+   - Hide it from the ADD-PRINTER FLOW ONLY: the printer list in the agent's instructions (WP1), the in-panel "Browse the full list" (WP3), and any filament or plate the flow proposes.
+   - Do NOT hide it anywhere else. "Set it up myself" (the ConfigWizard) and OrcaSlicer's own preset lists keep showing it.
+   - Do NOT edit or delete files under resources/profiles/ (OrcaSlicer-owned; see fork-stewardship.md). Filter in fork-owned code by vendor id, as one named constant with a comment saying why, with a test that proves the bundle is absent from the agent's list and the browse list, and still present in the wizard's vendor set.
+
+3. Expected behaviour after this:
+   - "x1c" and "x1 carbon" → PROPOSE Bambu Lab X1 Carbon.
+   - "bambu x1" → ASK among Bambu Lab X1 Carbon, X1 and X1E (the prefix-ambiguity rule).
+   - Build and test the ASK state with a genuine ambiguity such as "voron 2.4" (three sizes: 250, 300, 350), not with the X1 Carbon example.
+
+4. How to read the handoff from now on: treat only lines marked "Kenneth decided" as decisions. Everything else is a proposal. If a wireframe, this handoff or the code disagree on something not marked as decided, stop and ask rather than choosing.
+
+Also note: Kenneth decided WP10 — confirm before discarding a conversation that has content. It is in the handoff.
+
+---
+
+<task-notification>
+<task-id>byinln9qf</task-id>
+<tool-use-id>toolu_01XGmGrbUsbVC1QvnCbX8L3u</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/byinln9qf.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -200" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bg4bb5q99</task-id>
+<tool-use-id>toolu_01B3seJ6iQs6Z7PeZAsCNjye</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/bg4bb5q99.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -60" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Continue with WP1's remaining Done-when table checks in the live app
+
+---
+
+<task-notification>
+<task-id>b40nt95t2</task-id>
+<tool-use-id>toolu_01FDbxdVXoivt2XyycMnE592</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/b40nt95t2.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -100" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bl010bp2v</task-id>
+<tool-use-id>toolu_018kk8aDb3GZ2CyLEA98kzoN</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/bl010bp2v.output</output-file>
+<status>completed</status>
+<summary>Background command "HOME=/tmp/jusprin-wp1-verify/home /Users/kenneth/Projects/JusPrin/.claude/worktrees/printer-conversation-panel-af11cb/build/arm64/src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/OrcaSlicer --datadir /tmp/jusprin-wp1-verify/datadir &gt; /tmp/jusprin-wp1-verify/app8.log 2&gt;&amp;1 &amp;
+disown
+sleep 4
+NEWPID=$(ps aux | grep "OrcaSlicer.app/Contents/MacOS/OrcaSlicer " | grep -v grep | awk '{print $2}')
+echo "pid=$NEWPID"
+osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $NEWPID) to true"" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bmt0p2y3i</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/bmt0p2y3i.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -80" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5tvubq7r</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/b5tvubq7r.output</output-file>
+<status>completed</status>
+<summary>Background command "HOME=/tmp/jusprin-wp1-verify/home /Users/kenneth/Projects/JusPrin/.claude/worktrees/printer-conversation-panel-af11cb/build/arm64/src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/OrcaSlicer --datadir /tmp/jusprin-wp1-verify/datadir &gt; /tmp/jusprin-wp1-verify/app9.log 2&gt;&amp;1 &amp;
+disown
+sleep 4
+NEWPID=$(ps aux | grep "OrcaSlicer.app/Contents/MacOS/OrcaSlicer " | grep -v grep | awk '{print $2}')
+echo "pid=$NEWPID"
+osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $NEWPID) to true"" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b1jwpg1kk</task-id>
+<tool-use-id>toolu_013P4su7k163YdehDi42Mt8i</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/b1jwpg1kk.output</output-file>
+<status>completed</status>
+<summary>Background command "cmake --build . --config RelWithDebInfo --target OrcaSlicer -- -j8 2&gt;&amp;1 | tail -80" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bz20ptczx</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/bz20ptczx.output</output-file>
+<status>completed</status>
+<summary>Background command "HOME=/tmp/jusprin-wp1-verify/home /Users/kenneth/Projects/JusPrin/.claude/worktrees/printer-conversation-panel-af11cb/build/arm64/src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/OrcaSlicer --datadir /tmp/jusprin-wp1-verify/datadir &gt; /tmp/jusprin-wp1-verify/app10.log 2&gt;&amp;1 &amp;
+disown
+sleep 4
+NEWPID=$(ps aux | grep "OrcaSlicer.app/Contents/MacOS/OrcaSlicer " | grep -v grep | awk '{print $2}')
+echo "pid=$NEWPID"
+osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $NEWPID) to true"" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a593298993540ef54</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/a593298993540ef54.output</output-file>
+<status>completed</status>
+<summary>Agent "Locate WP6 code sites" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Confirmed: `OrcaHomeBackend::printers()` (src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp:194-248) iterates `Printers::named_printers()` directly with no sort, feeding the order straight through to the React store and `App.tsx`'s `state.printers.map`. This gives me everything needed for the report.
+
+## Report: WP6 investigation (read-only, no edits made)
+
+### 1. Saved name bug (F11)
+
+Root cause is in **`src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp:465-474`**, inside `propose_printer` (the function that builds `m_proposal` after a candidate is picked):
+
+```cpp
+m_proposal = PrinterProposal{true,
+                             printer.vendor_id,
+                             printer.model_id,
+                             printer.vendor_name + " " + printer.model_name,   // &lt;-- line 468
+                             variant_text(nozzle),
+                             printer.default_material,
+                             device_id,
+                             printer.picture,
+                             printer.build_volume};
+m_printer_fact = {m_proposal.model_name, "settled", {}};
+```
+
+`PrinterProposal::model_name` (declared `PrinterConversation.hpp:49`) is misleadingly named — it's assigned `vendor_name + " " + model_name` (e.g. "Bambulab Bambu Lab A1 mini"), not the model alone. That polluted value then flows unchanged into the Add action:
+
+```cpp
+// PrinterConversation.cpp:597-602
+AddPrinterRequest request;
+request.vendor_id   = m_proposal.vendor_id;
+request.model_id    = m_proposal.model_id;
+request.variant     = m_proposal.variant;
+request.material    = m_proposal.material;
+request.name        = m_proposal.model_name;   // &lt;-- vendor+model string
+```
+
+...and finally into `Printers::add_named_printer` at **`OrcaPrinterBackend.cpp:166`**:
+```cpp
+const std::string name =
+    Printers::add_named_printer(m_plater, request.name.empty() ? request.model_id : request.name, request.device_id);
+```
+`add_named_printer` itself (`NamedPrinters.cpp:183`) is fine and already de-dupes with a numeric suffix — the bug is purely that `m_proposal.model_name` carries the vendor prefix. The bare model name is available (`printer.model_name`, `CatalogPrinter::model_name`, `PrinterBackend.hpp:53`); the fix point is line 468 (and everywhere else `m_proposal.model_name` is used as a *display* string, e.g. lines 474, 654, 662, would need the vendor+model combo kept separately).
+
+### 2. Order (F16) / highlight-once
+
+- `Printers::named_printers()` — **`src/slic3r/GUI/JusPrin/Printers/NamedPrinters.cpp:160-181`** — returns printers in `PresetCollection` iteration order (`for (const Preset&amp; preset : printers)`, line 168), with no timestamp/recency field on `NamedPrinter`.
+- That order is passed straight through by `OrcaHomeBackend::printers()` (**`Home/OrcaHomeBackend.cpp:194-248`**, loop at line 209) into the bridge snapshot, then by the HomeUI store (`HomeUI/src/state/store.ts:69-70`, no sort) into React state, and rendered unsorted at **`HomeUI/src/App.tsx:105-113`**:
+```tsx
+{state.printers.map((printer) =&gt; (
+  &lt;PrinterCard key={printer.id} printer={printer} ... /&gt;
+))}
+```
+- No "highlight newest once" precedent exists anywhere in the codebase — I searched for `isNew`/`justAdded`/`recentlyAdded`/`newest` patterns in `src/slic3r/GUI/JusPrin` and found nothing applicable (only unrelated comments/log lines). This would be new UI state, likely added to `PrinterInfo`/the bridge snapshot plus a CSS animation class in `PrinterCard.tsx`.
+
+### 3. Receipt strip
+
+Insertion point is the same `&lt;aside className="printer-column"&gt;` block, **`App.tsx:97-118`**, above the `state.printers.map`. A reusable dismissible-banner pattern already exists: `ConnectedBanner` in **`src/slic3r/GUI/JusPrin/AgentUI/src/components/Setup.tsx:212-232`** — a `div.setup-banner` with a text span and an `×` icon button (`aria-label="Dismiss"`, `onDismiss` prop), styled at `AgentUI/src/styles.css:1586-1601`. It's in AgentUI, not HomeUI, so it isn't directly importable, but its structure/props/CSS class shape is the precedent to mirror in HomeUI. No such pattern currently exists inside HomeUI itself.
+
+### 4. F17 — dirty flag after Add
+
+`SetupCommands::install_and_select_printer` — **`src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp:264-334`**. The relevant calls (lines 300-309):
+```cpp
+plater.update_objects_position_when_select_preset([&amp;] {
+    applied = presets-&gt;apply_vendor_config(vendors, filaments, config, false, model_id, variant, default_filament);
+    if (!applied) return;
+    const Preset* preset = presets-&gt;printers.find_system_preset_by_model_and_variant(model_id, variant);
+    Tab* tab = wxGetApp().get_tab(Preset::TYPE_PRINTER);
+    if (!preset || !tab) return;
+    tab-&gt;select_preset(preset-&gt;name);                          // line 307
+    plater.on_config_change(presets-&gt;full_config());            // line 308
+    selected = true;
+});
+```
+Traced call chain, confirming this is reproducible by reasoning (not just suspected):
+- `Tab::select_preset` (`Tab.cpp:5970`), in its non-canceled/success path, calls `load_current_preset()` (`Tab.cpp:~6230`).
+- `Tab::load_current_preset` (`Tab.cpp:5714`) calls `on_presets_changed()` (`Tab.cpp:5854`/`5863`).
+- `Tab::on_presets_changed` (`Tab.cpp:2107-2154`) ends with `wxGetApp().plater()-&gt;update_project_dirty_from_presets();` (line 2154), which calls `dirty_state.update_from_presets()` (`Plater.cpp:4447-4453`). This compares the newly-selected printer preset name against `ProjectDirtyStateManager::m_initial_presets[TYPE_PRINTER]` (`ProjectDirtyStateManager.hpp:30`) — captured at last save/load — and sets `m_presets_dirty = true` since they now differ.
+- Back in `on_config_change` (`Plater.cpp:16831`, tail at ~line 16929-16932): `update_title_dirty_status()` reads `dirty_state.is_dirty()` (`m_plater_dirty || m_project_config_dirty || m_presets_dirty`, `ProjectDirtyStateManager.hpp:18`) → true → title gets the `*` prefix (`Plater.cpp:10847-10863`).
+
+So yes: `install_and_select_printer` **definitely** calls a preset-selection path that marks the project dirty — this is a traceable code chain, not a guess, and satisfies the house "must be reproducible" bar.
+
+**Existing "select without dirtying" precedent**: app startup, **`GUI_App.cpp:3131-3135`**:
+```cpp
+if (plater_ != nullptr) {
+    plater_-&gt;reset_project_dirty_initial_presets();
+    plater_-&gt;update_project_dirty_from_presets();
+    plater_-&gt;get_partplate_list().set_filament_count(preset_bundle-&gt;filament_presets.size());
+}
+```
+After the default printer preset is established at boot, this resets `m_initial_presets` to the just-selected set (`Plater.cpp:4474`, `ProjectDirtyStateManager::reset_initial_presets`) before recomputing dirty state, so the freshly-selected preset counts as the baseline rather than a change. This is the mechanism WP6's fix would plausibly call after `install_and_select_printer` finishes selecting the new printer — but that's a design decision for the actual fix, not something I've applied here.</result>
+<usage><subagent_tokens>100465</subagent_tokens><tool_uses>48</tool_uses><duration_ms>196465</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad4a5d8410aa974d6</task-id>
+<tool-use-id>toolu_01SggZnCHohTMhK1i5oDrCrU</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c3c4b872-8c32-47cd-a441-89748a83e6c9/tasks/ad4a5d8410aa974d6.output</output-file>
+<status>completed</status>
+<summary>Agent "Trace Home printers-column data flow" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Findings
+
+**1. Who implements `IConversationHost` and what it does on `printers_changed()`**
+
+`PrinterPanel` (src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp:28) is the only concrete `: private IConversationHost`. Its override is a pure forward:
+
+```cpp
+// PrinterPanel.cpp:167
+void PrinterPanel::printers_changed()
+{
+    if (m_callbacks.printers_changed)
+        m_callbacks.printers_changed();
+}
+```
+
+It does **not** touch `OrcaHomeBackend` or send anything to `HomeUI` itself — it just invokes whatever `std::function` its owner passed in via `PrinterPanel::Callbacks`.
+
+**2. End-to-end refresh chain (file:line)**
+
+1. `PrinterConversation::add_proposed_printer` calls `m_host.printers_changed()` — PrinterConversation.cpp:542/563/571/619 (host = the `PrinterPanel`).
+2. `PrinterPanel::printers_changed()` forwards to `m_callbacks.printers_changed()` — PrinterPanel.cpp:167-170.
+3. That callback is wired in `ShellController::create(...)` when the panel is constructed:
+   ```cpp
+   // ShellController.cpp:245-252
+   m_printer_panel = new PrinterSetup::PrinterPanel(
+       m_home, ...,
+       PrinterSetup::PrinterPanel::Callbacks{
+           [this] { m_home-&gt;show_side_panel(false); m_home-&gt;refresh(); },
+           [this] { refresh_home(); },          // &lt;-- printers_changed
+           [this] { mark_agent_config_possibly_changed(); }});
+   ```
+4. `ShellController::refresh_home()` (ShellController.cpp:519-522) calls `m_home-&gt;refresh()`.
+5. `HomeWebView::refresh()` (HomeWebView.cpp:109) calls `m_host-&gt;push_state()`.
+6. `HomeHost::push_state()` → `collect()` → `snapshot.printers = m_backend.printers()` (HomeHost.cpp:43,48-52), i.e. `OrcaHomeBackend::printers()` (OrcaHomeBackend.cpp:194-248, unsorted, `Printers::named_printers()` order).
+7. `state_payload(snapshot)` (HomeSnapshot.cpp:90-104, `printer_json` at :60) serializes to the `PrinterInfo[]` JSON and `HomeHost::send("state", ...)` (HomeHost.cpp:23-35) posts the `jusprin-home-bridge` envelope to the wxWebView.
+8. HomeUI's `BridgeClient` → `reduce()` in `src/slic3r/GUI/JusPrin/HomeUI/src/state/store.ts:62/69-70` sets `state.printers` from the envelope payload, unsorted.
+9. `App.tsx:105` renders `state.printers.map(printer =&gt; &lt;PrinterCard .../&gt;)` inside `&lt;aside className="printer-column"&gt;` (App.tsx:98) — straight pass-through, no client-side ordering either.
+
+**3. Are `OrcaHomeBackend` and the `IConversationHost` implementer the same object/owner?**
+
+No — genuinely separate objects. `HomeWebView` owns `std::unique_ptr&lt;OrcaHomeBackend&gt; m_backend` and `std::unique_ptr&lt;HomeHost&gt; m_host` (HomeWebView.hpp:63-64). `PrinterPanel` is a raw, wx-parented sibling window (`m_printer_panel`, ShellController.hpp:128) created with `m_home` as its wx parent but is not owned by or a member of `HomeWebView`/`OrcaHomeBackend` — `ShellController` is the only object holding both (`m_home` and `m_printer_panel`, ShellController.hpp:125,128) and it wires them together purely through the `Callbacks` closures at construction time (ShellController.cpp:245-252). There is no shared long-lived singleton the two classes both reach into. So: adding fork-owned in-memory state directly shared between `PrinterPanel`/`PrinterConversation` and `OrcaHomeBackend` is *not* natural — either (a) put a small piece of state on `ShellController` itself (the one object that already brokers between them via callbacks) and pass it through `refresh_home()`/`push_state()`, or (b) thread it through the bridge protocol/snapshot (an `isNew`/`justAddedName` argument on `printers_changed()` flowing into `Snapshot`/`state_payload`/`PrinterInfo`). Given `ShellController` already mediates every hop, a `std::string m_last_added_printer_name` (or similar) on `ShellController`, set in the `printers_changed` lambda from data returned by `PrinterConversation`/`IPrinterBackend::add_printer`'s `SavedPrinter&amp; result`, and read by `HomeHost::collect()` (passed in or reached via a small getter) is the natural seam — cleaner than reaching across from `OrcaHomeBackend`.
+
+**4. HomeUI printers-column component and banner precedent**
+
+- Component: `App.tsx` (src/slic3r/GUI/JusPrin/HomeUI/src/App.tsx), the `&lt;aside className="printer-column"&gt;` block at lines 98-116, mapping `state.printers` (typed `PrinterInfo[]`, state/store.ts:23) 1:1 to `&lt;PrinterCard key={printer.id} printer={printer} .../&gt;` (src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterCard.tsx). No sorting/highlighting logic exists anywhere in this path — order and "new" status would both need to be added here or upstream in the payload.
+- HomeUI has **no existing dismissible-banner component** of its own — grep for `Banner`/`dismiss` in `src/slic3r/GUI/JusPrin/HomeUI/src` only turns up an unrelated `dismiss` pointerdown handler inside `PrinterMenu.tsx` (a dropdown-close listener, not a banner).
+- `ConnectedBanner` (src/slic3r/GUI/JusPrin/AgentUI/src/components/Setup.tsx:213-233, used at AgentUI/src/App.tsx:20,523) is real but lives in a **separate npm/vite bundle** — confirmed via `package.json`: HomeUI is `jusprin-home-ui`, AgentUI is `jusprin-agent-ui`, each with its own `node_modules`/deps and no cross-imports between the two `src` trees. So it can only be **mirrored** (same dismiss-button/`onDismiss` pattern, `data-testid` convention, CSS class naming like `setup-banner`/`setup-banner-text`/`icon` button), not imported.
+
+**5. Bridge protocol type for printers**
+
+`PrinterInfo` — src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts:82-100:
+```ts
+export interface PrinterInfo {
+  id: string; name: string; kind: PrinterKind;
+  canOpenSettings: boolean; canRename: boolean; canRemove: boolean;
+  state: PrinterState; statusText?: string; progressPercent?: number;
+  connectionText?: string; nozzleText?: string; materialLabel?: string;
+  spools: SpoolInfo[]; canLaunchMonitor: boolean;
+}
+```
+No `isNew`/`justAdded` field and no order/rank field exists today — confirmed both in this TS interface and in the C++ mirror `PrinterEntry` (HomeSnapshot.hpp:59-75) and its serializer `printer_json` (HomeSnapshot.cpp:60-84). `StatePayload.printers: PrinterInfo[]` (protocol.ts:113) is the only place printers travel; adding "just added" info would mean extending `PrinterEntry`/`printer_json`/`PrinterInfo` together, plus deciding sort order server-side (`OrcaHomeBackend::printers()`, OrcaHomeBackend.cpp:194) or client-side in `App.tsx`.</result>
+<usage><subagent_tokens>69372</subagent_tokens><tool_uses>31</tool_uses><duration_ms>91009</duration_ms></usage>
+</task-notification>
