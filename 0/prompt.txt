@@ -1,0 +1,1 @@
+keep the card for typed changes, update the doc direclty in jusprin-newui repo, commit there, and push
