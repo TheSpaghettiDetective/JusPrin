@@ -66,11 +66,13 @@ describe('the cards the agent draws', () => {
     seq: 1,
     afterMessageId: 'm1',
     kind: 'printers',
+    live: true,
     printers: [
       {
         catalogId: 'BBL/Bambu Lab A1 mini',
         deviceId: '',
-        name: 'Bambu Lab A1 mini',
+        vendor: 'Bambu Lab',
+        model: 'A1 mini',
         subline: '180 × 180 × 180 mm',
         picture: '',
         action: 'add',
@@ -78,24 +80,34 @@ describe('the cards the agent draws', () => {
     ],
   };
 
-  it('gives one printer the full card and no button of its own', () => {
+  it('gives one printer the full card, brand and model on their own lines', () => {
     render(<PrinterBlockView block={printers} onAction={vi.fn()} />);
 
-    expect(screen.getByText('Bambu Lab A1 mini')).toBeInTheDocument();
+    expect(screen.getByText('Bambu Lab')).toBeInTheDocument();
+    expect(screen.getByText('A1 mini')).toBeInTheDocument();
     expect(screen.getByText('180 × 180 × 180 mm')).toBeInTheDocument();
-    // Adding is the chip under the thread, not a second button on the card.
-    expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('asks which of two printers it is, on the cards themselves', async () => {
+  it('owns "Add this printer" on the card and offers "Not this one" beside it', async () => {
+    const onAction = vi.fn();
+    render(<PrinterBlockView block={printers} onAction={onAction} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
+    expect(onAction).toHaveBeenCalledWith('add', 'BBL/Bambu Lab A1 mini');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
+    expect(onAction).toHaveBeenCalledWith('reject', 'BBL/Bambu Lab A1 mini');
+  });
+
+  it('asks which of two printers it is, on the cards themselves, with no Add anywhere', async () => {
     const onAction = vi.fn();
     render(
       <PrinterBlockView
         block={{
           ...printers,
           printers: [
-            { catalogId: 'Creality/Ender-3 V2', deviceId: '', name: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
-            { catalogId: 'Creality/Ender-3 S1', deviceId: '', name: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
+            { catalogId: 'Creality/Ender-3 V2', deviceId: '', vendor: 'Creality', model: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
+            { catalogId: 'Creality/Ender-3 S1', deviceId: '', vendor: 'Creality', model: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
           ],
         }}
         onAction={onAction}
@@ -104,8 +116,16 @@ describe('the cards the agent draws', () => {
 
     const buttons = screen.getAllByRole('button', { name: 'This one' });
     expect(buttons).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
     await userEvent.click(buttons[1]);
     expect(onAction).toHaveBeenCalledWith('candidate_pick', 'Creality/Ender-3 S1');
+  });
+
+  it('collapses a superseded or rejected card to one grey line, no button', () => {
+    render(<PrinterBlockView block={{ ...printers, live: false }} onAction={vi.fn()} />);
+
+    expect(screen.getByText('Not this one · A1 mini')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('lists what is on the network, with its serial and a way to use it', async () => {
@@ -133,41 +153,40 @@ describe('the cards the agent draws', () => {
     render(<PrinterBlockView block={{ id: 'b3', seq: 3, afterMessageId: 'm1', kind: 'tip' }} onAction={vi.fn()} />);
     expect(screen.getByText(/a photo is the fastest way/)).toBeInTheDocument();
   });
+
+  it('draws its own way out when the printer is not on the list', async () => {
+    const onAction = vi.fn();
+    render(
+      <PrinterBlockView
+        block={{ id: 'b4', seq: 4, afterMessageId: 'm1', kind: 'unsupported', reason: 'not_listed' }}
+        onAction={onAction}
+      />,
+    );
+
+    expect(screen.getByText('Browse the full list')).toBeInTheDocument();
+    expect(screen.getByText('Set it up myself')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Browse the full list'));
+    expect(onAction).toHaveBeenCalledWith('browse', '');
+    await userEvent.click(screen.getByText('Set it up myself'));
+    expect(onAction).toHaveBeenCalledWith('manual_setup', '');
+  });
 });
 
 describe('the chips', () => {
-  const chips: PrinterChip[] = [
-    { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-    { id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers' },
-  ];
+  const chips: PrinterChip[] = [{ id: 's1', label: 'Use 0.3 mm layers', style: 'suggested', say: 'Use 0.3 mm layers' }];
 
-  it('adds the printer natively and sends everything else as the person', async () => {
-    const onAdd = vi.fn();
+  it('sends a chip as the person\'s own words', async () => {
     const onSay = vi.fn();
-    render(<PrinterChipRow chips={chips} hint="or just type" disabled={false} onAdd={onAdd} onSay={onSay} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
-    expect(onAdd).toHaveBeenCalledTimes(1);
-    expect(onSay).not.toHaveBeenCalled();
+    render(<PrinterChipRow chips={chips} hint="or just type" disabled={false} onSay={onSay} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Use 0.3 mm layers' }));
     expect(onSay).toHaveBeenCalledWith('Use 0.3 mm layers');
     expect(screen.getByText('or just type')).toBeInTheDocument();
   });
 
-  it('is the chip shape either way, and differs only by fill', () => {
-    render(<PrinterChipRow chips={chips} hint="" disabled={false} onAdd={vi.fn()} onSay={vi.fn()} />);
-    const primary = screen.getByRole('button', { name: 'Add this printer' });
-    const plain = screen.getByRole('button', { name: 'Use 0.3 mm layers' });
-    expect(primary).toHaveClass('printer-chip');
-    expect(plain).toHaveClass('printer-chip');
-    expect(primary).toHaveClass('printer-chip-primary');
-    expect(plain).toHaveClass('printer-chip-suggested');
-  });
-
   it('offers nothing while the agent is working', async () => {
     const onSay = vi.fn();
-    render(<PrinterChipRow chips={chips} hint="" disabled onAdd={vi.fn()} onSay={onSay} />);
+    render(<PrinterChipRow chips={chips} hint="" disabled onSay={onSay} />);
     await userEvent.click(screen.getByRole('button', { name: 'Use 0.3 mm layers' }));
     expect(onSay).not.toHaveBeenCalled();
   });

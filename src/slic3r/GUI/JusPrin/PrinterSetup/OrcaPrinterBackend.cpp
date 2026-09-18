@@ -92,6 +92,20 @@ const CatalogPrinter* OrcaPrinterBackend::model_of(const std::string& printer_na
     return found == m_models.end() ? nullptr : &*found;
 }
 
+std::string OrcaPrinterBackend::material_word(const std::string& filament_preset) const
+{
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr || filament_preset.empty())
+        return filament_preset;
+    const Preset* preset = presets->filaments.find_preset(filament_preset, false);
+    // A preset the store still names but this app no longer has is reported
+    // as it was recorded, not dropped: the person can still tell it apart.
+    if (preset == nullptr)
+        return filament_preset;
+    const std::string type = preset->config.opt_string("filament_type", 0u);
+    return type.empty() ? filament_preset : type;
+}
+
 std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
 {
     const std::vector<DiscoveredPrinter> network = discover_printers(/*include_unreachable=*/true);
@@ -134,7 +148,7 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
         } else if (m_spools != nullptr) {
             // Not connected, or never was: what this app remembers is loaded.
             for (const Workspace::Spool& spool : m_spools->spools_for(named.name))
-                saved.spools.push_back(PrinterSpool{spool.name, spool.filament_preset, spool.colour});
+                saved.spools.push_back(PrinterSpool{spool.name, material_word(spool.filament_preset), spool.colour});
         }
         printers.push_back(std::move(saved));
     }

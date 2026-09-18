@@ -110,15 +110,19 @@ public:
     static std::vector<std::string> session_tools();
 
 private:
-    nlohmann::json identify(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
+    nlohmann::json identify(const nlohmann::json& arguments, const std::string& message_id, std::optional<Agent::ToolError>& error);
     nlohmann::json suggest(const nlohmann::json& arguments);
     nlohmann::json change(const nlohmann::json& arguments, std::optional<Agent::ToolError>& error);
 
     void add_proposed_printer(const std::string& access_code);
     void use_network_printer(const std::string& device_id);
     void choose_candidate(const std::string& catalog_id);
+    void reject_proposal();
     void read_saved_printer();
     void refresh_network();
+    // Every earlier "printers" block stops offering a tap: superseded by a
+    // newer answer, or by the person themselves rejecting the live one.
+    void collapse_live_printer_blocks();
 
     const CatalogPrinter* catalog_entry(const std::string& id) const;
 

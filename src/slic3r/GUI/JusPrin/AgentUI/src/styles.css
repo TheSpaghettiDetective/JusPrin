@@ -1924,6 +1924,15 @@ button.wide {
   color: var(--action-primary);
 }
 
+/* Stands in for the empty bubble a tool call would otherwise draw before
+   its reply's text arrives. */
+.printer-activity {
+  padding: 4px 0;
+  font: var(--font-label);
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
 .printer-found {
   display: flex;
   flex-direction: column;
@@ -1978,6 +1987,17 @@ button.wide {
   color: var(--text-secondary);
 }
 
+/* Its own line, so a name never reads "Bambulab Bambu Lab A1 mini". */
+.printer-card-vendor {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: var(--font-metadata);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
 /* Quiet outline button on a card: "Use this", "This one". */
 .printer-quiet-button {
   flex: none;
@@ -2028,6 +2048,110 @@ button.wide {
 .printer-cards-compact .printer-card-picture {
   width: 44px;
   height: 34px;
+}
+
+/* One clear match: the card owns its own "Add this printer", bottom right,
+   stacked under the picture and name rather than beside them. */
+.printer-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.printer-card-propose {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.printer-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.printer-card-add {
+  align-self: flex-end;
+  padding: var(--button-secondary-padding);
+  border: 1px solid var(--action-primary);
+  border-radius: var(--radius-standard);
+  background: var(--action-primary);
+  cursor: pointer;
+  font: var(--font-label-bold);
+  color: var(--action-primary-text);
+}
+
+.printer-card-add:hover {
+  background: var(--action-primary-hover);
+  border-color: var(--action-primary-hover);
+}
+
+/* A quiet line under the card, not a docked chip: rejecting is never the
+   same weight as adding. */
+.printer-reject-line {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-reject-line:hover {
+  color: var(--text-primary);
+}
+
+/* Superseded or rejected: one grey line, no button, no picture. */
+.printer-cards-collapsed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.printer-card-collapsed {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+/* Not a printer this app ships a profile for: the panel's own way out,
+   never only the agent's wording. */
+.printer-exit {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.printer-exit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.printer-exit-row:last-child {
+  border-bottom: none;
+}
+
+.printer-exit-row:hover {
+  background: var(--surface-subtle);
+}
+
+.printer-exit-row small {
+  display: block;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
 }
 
 .printer-chips {

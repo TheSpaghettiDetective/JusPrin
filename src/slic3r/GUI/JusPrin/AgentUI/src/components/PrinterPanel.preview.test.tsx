@@ -14,7 +14,7 @@ import { MessageList } from './MessageList';
 import { PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
 import { applyStaticTokens } from '../tokens';
 import { Message } from '../state/store';
-import type { AttachmentInfo, PrinterBlock, PrinterChip, PrinterSessionPayload } from '../bridge/protocol';
+import type { AttachmentInfo, PrinterBlock, PrinterSessionPayload } from '../bridge/protocol';
 import tokens from '../../../../../../../resources/jusprin/ui/design-tokens.json';
 
 const noop = () => {};
@@ -49,12 +49,13 @@ const network: PrinterBlock = {
   printers: [{ deviceId: '01P00A3B', name: 'Bambu Lab A1 mini', serial: '01P00A3B', online: true }],
 };
 
-const card = (name: string, subline: string, action: 'add' | 'choose' = 'add'): PrinterBlock => ({
-  id: `card-${name}`,
+const card = (vendor: string, model: string, subline: string, action: 'add' | 'choose' = 'add'): PrinterBlock => ({
+  id: `card-${vendor}-${model}`,
   seq: 3,
   afterMessageId: 'm2',
   kind: 'printers',
-  printers: [{ catalogId: name, deviceId: '', name, subline, picture: '', action }],
+  live: true,
+  printers: [{ catalogId: `${vendor}/${model}`, deviceId: '', vendor, model, subline, picture: '', action }],
 });
 
 const candidates: PrinterBlock = {
@@ -62,16 +63,12 @@ const candidates: PrinterBlock = {
   seq: 3,
   afterMessageId: 'm2',
   kind: 'printers',
+  live: true,
   printers: [
-    { catalogId: 'v2', deviceId: '', name: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
-    { catalogId: 's1', deviceId: '', name: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
+    { catalogId: 'v2', deviceId: '', vendor: 'Creality', model: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
+    { catalogId: 's1', deviceId: '', vendor: 'Creality', model: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
   ],
 };
-
-const addChips: PrinterChip[] = [
-  { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-  { id: 'no', label: 'Not this one', style: 'plain', say: 'Not this one' },
-];
 
 const photo: AttachmentInfo = {
   id: 'a-1',
@@ -113,7 +110,7 @@ function panel(state: PrinterSessionPayload, messages: Message[], attachments: A
           onToolDecision={noop}
           onToolCancel={noop}
         />
-        <PrinterChipRow chips={state.chips} hint={state.chipHint} disabled={false} onAdd={noop} onSay={noop} />
+        <PrinterChipRow chips={state.chips} hint={state.chipHint} disabled={false} onSay={noop} />
         <Composer
           disabled={false}
           placeholder={state.placeholder}
@@ -141,7 +138,7 @@ const cases = () => [
   },
   {
     name: 'B · recognised from words',
-    note: 'the card, the assumptions line, Add as the primary chip',
+    note: 'the card, the assumptions line, Add this printer on the card itself',
     body: panel(
       session({
         facts: {
@@ -150,8 +147,7 @@ const cases = () => [
           plate: assumed('Textured PEI'),
           filament: assumed('PLA'),
         },
-        blocks: [card('Bambu Lab A1 mini', '180 × 180 × 180 mm')],
-        chips: addChips,
+        blocks: [card('Bambu Lab', 'A1 mini', '180 × 180 × 180 mm')],
         placeholder: 'e.g. "I put a 0.6 nozzle on it"',
       }),
       [
@@ -189,8 +185,7 @@ const cases = () => [
           plate: settled('Textured PEI'),
           filament: settled('AMS lite · PLA Matte + 3', '#5f7d4f'),
         },
-        blocks: [card('Bambu Lab A1 mini', 'read from the printer just now')],
-        chips: addChips,
+        blocks: [card('Bambu Lab', 'A1 mini', 'read from the printer just now')],
         placeholder: 'access code, optional',
       }),
       [
@@ -216,8 +211,7 @@ const cases = () => [
           plate: assumed('Textured PEI'),
           filament: settled('AMS lite · 4 slots'),
         },
-        blocks: [card('Bambu Lab A1 Combo', 'the A1 with the AMS lite beside it')],
-        chips: addChips,
+        blocks: [card('Bambu Lab', 'A1 Combo', 'the A1 with the AMS lite beside it')],
         placeholder: 'e.g. "I put a 0.6 nozzle on it"',
       }),
       [
@@ -226,6 +220,39 @@ const cases = () => [
           'From the photo: an A1 with the four-spool AMS lite next to it, so the Combo. I’ll assume a **0.4 mm nozzle** and the **textured PEI plate**; spools we’ll sort out in your first project.'),
       ],
       [{ ...photo, state: 'sent' } as AttachmentInfo],
+    ),
+  },
+  {
+    name: 'G · not on the list',
+    note: 'the panel draws the way out itself, never only the agent\'s wording',
+    body: panel(
+      session({
+        blocks: [
+          {
+            id: 'unsupported',
+            seq: 3,
+            afterMessageId: 'm2',
+            kind: 'unsupported',
+            reason: 'not_listed',
+          },
+        ],
+        placeholder: 'e.g. "it\'s a voron 2.4, 350"',
+      }),
+      [
+        message('m2', 'user', 'i built it myself, a voron with a btt octopus board'),
+        message('m3', 'assistant', "I can't match that to a printer I ship a profile for."),
+      ],
+    ),
+  },
+  {
+    name: 'H · not a filament printer',
+    note: 'one sentence, no exit block: there is nothing to set up',
+    body: panel(
+      session({ placeholder: 'e.g. "I also have an ender 3"' }),
+      [
+        message('m2', 'user', 'my elegoo mars'),
+        message('m3', 'assistant', "JusPrin slices for filament printers; resin printers like the Mars aren't something it can set up."),
+      ],
     ),
   },
   {

@@ -68,7 +68,27 @@ export function CameraGlyph({ className }: { className: string }) {
 
 export interface PrinterBlockProps {
   block: PrinterBlock;
-  onAction: (action: 'network_pick' | 'candidate_pick' | 'add', id: string) => void;
+  onAction: (action: 'network_pick' | 'candidate_pick' | 'add' | 'reject' | 'browse' | 'manual_setup', id: string) => void;
+}
+
+// Brand on its own small line, model bold beneath it: never one joined
+// string, which is how "Bambulab Bambu Lab A1 mini" happened.
+function CardName({ printer }: { printer: PrinterCardInfo }) {
+  return (
+    <span className="printer-card-name">
+      <span className="printer-card-vendor">{printer.vendor}</span>
+      <b>{printer.model}</b>
+      {printer.subline && <small>{printer.subline}</small>}
+    </span>
+  );
+}
+
+function CardPicture({ printer }: { printer: PrinterCardInfo }) {
+  return printer.picture ? (
+    <img className="printer-card-picture" src={printer.picture} alt="" />
+  ) : (
+    <span className="printer-card-picture printer-card-picture-empty" aria-hidden="true" />
+  );
 }
 
 // One card the agent drew, in the thread, under the message that drew it.
@@ -105,28 +125,80 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
     );
   }
 
+  // Not a printer this app ships a profile for: the panel itself draws the
+  // way out, so it is never lost in how the agent happened to phrase it.
+  if (block.kind === 'unsupported')
+    return (
+      <div className="printer-exit">
+        <button type="button" className="printer-exit-row" onClick={() => onAction('browse', '')}>
+          <span>Browse the full list</span>
+          <span aria-hidden="true">›</span>
+        </button>
+        <button type="button" className="printer-exit-row" onClick={() => onAction('manual_setup', '')}>
+          <span>
+            Set it up myself
+            <small>for a printer you built, or one that isn't listed</small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>
+    );
+
   const printers = (block.printers ?? []) as PrinterCardInfo[];
-  // One printer is an answer and gets the full card; two or three are a
-  // question, and each carries the button that answers it.
-  const compact = printers.length > 1;
+
+  // Superseded by a newer answer, or the person's own "Not this one": no
+  // button, no picture, one quiet line each. Only one live card at a time.
+  if (block.live === false)
+    return (
+      <div className="printer-cards-collapsed">
+        {printers.map((printer) => (
+          <div className="printer-card-collapsed" key={printer.catalogId}>
+            {/* The model name already carries the vendor's ("Bambu Lab X1
+                Carbon"), so this stays one clean line instead of repeating
+                it from the vendor field too. */}
+            Not this one · {printer.model}
+          </div>
+        ))}
+      </div>
+    );
+
+  // One printer, confidently: the card owns "Add this printer", bottom
+  // right, with "Not this one" a quiet line beneath -- never a docked Add
+  // at the panel's foot. Two or three: each carries its own "This one" and
+  // nothing here is red, because nothing is settled yet.
+  const single = printers.length === 1 && printers[0].action === 'add';
+
+  if (single) {
+    const printer = printers[0];
+    return (
+      <div className="printer-cards-wrap">
+        <div className="printer-card printer-card-propose">
+          <div className="printer-card-top">
+            <CardPicture printer={printer} />
+            <CardName printer={printer} />
+          </div>
+          <button type="button" className="printer-card-add" onClick={() => onAction('add', printer.catalogId)}>
+            Add this printer
+          </button>
+        </div>
+        <button type="button" className="printer-reject-line" onClick={() => onAction('reject', printer.catalogId)}>
+          Not this one
+        </button>
+      </div>
+    );
+  }
+
+  // Two or three, still a question: each keeps its own row and button, and
+  // nothing here is red, because nothing is settled yet.
   return (
-    <div className={compact ? 'printer-cards printer-cards-compact' : 'printer-cards'}>
+    <div className="printer-cards printer-cards-compact">
       {printers.map((printer) => (
         <div className="printer-card" key={printer.catalogId}>
-          {printer.picture ? (
-            <img className="printer-card-picture" src={printer.picture} alt="" />
-          ) : (
-            <span className="printer-card-picture printer-card-picture-empty" aria-hidden="true" />
-          )}
-          <span className="printer-card-name">
-            {printer.name}
-            {printer.subline && <small>{printer.subline}</small>}
-          </span>
-          {compact && (
-            <button type="button" className="printer-quiet-button" onClick={() => onAction('candidate_pick', printer.catalogId)}>
-              This one
-            </button>
-          )}
+          <CardPicture printer={printer} />
+          <CardName printer={printer} />
+          <button type="button" className="printer-quiet-button" onClick={() => onAction('candidate_pick', printer.catalogId)}>
+            This one
+          </button>
         </div>
       ))}
     </div>
@@ -137,12 +209,11 @@ export interface ChipRowProps {
   chips: PrinterChip[];
   hint: string;
   disabled: boolean;
-  onAdd: () => void;
   onSay: (text: string) => void;
 }
 
 // Specific actions, never a bare Yes or No, with the composer always beneath.
-export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabled, onAdd, onSay }: ChipRowProps) {
+export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabled, onSay }: ChipRowProps) {
   if (chips.length === 0) return null;
   return (
     <div className="printer-chips">
@@ -152,7 +223,7 @@ export const PrinterChipRow = memo(function PrinterChipRow({ chips, hint, disabl
           type="button"
           className={`printer-chip printer-chip-${chip.style}`}
           disabled={disabled}
-          onClick={() => (chip.action === 'add' ? onAdd() : onSay(chip.say ?? chip.label))}
+          onClick={() => onSay(chip.say)}
         >
           {chip.label}
         </button>

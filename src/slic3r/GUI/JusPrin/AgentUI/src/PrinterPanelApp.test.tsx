@@ -56,7 +56,7 @@ function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSession
       filament: { value: 'PLA', provenance: 'assumed' },
     },
     blocks: [],
-    chips: [{ id: 'add', label: 'Add this printer', style: 'primary', action: 'add' }],
+    chips: [],
     chipHint: '',
     placeholder: 'e.g. "I put a 0.6 nozzle on it"',
     ...overrides,
@@ -129,13 +129,29 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Add a photo' })).toBeInTheDocument();
   });
 
-  it('adds the printer natively and says an ordinary chip as the person', async () => {
+  it('adds the printer from its own card, and rejects it as a typed action, not a chat message', async () => {
     const host = open(
       state({
         session: session({
-          chips: [
-            { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-            { id: 'no', label: 'Not this one', style: 'plain', say: 'Not this one' },
+          blocks: [
+            {
+              id: 'b1',
+              seq: 1,
+              afterMessageId: 'm-1',
+              kind: 'printers',
+              live: true,
+              printers: [
+                {
+                  catalogId: 'BBL/Bambu Lab A1 mini',
+                  deviceId: '',
+                  vendor: 'Bambu Lab',
+                  model: 'A1 mini',
+                  subline: '180 × 180 × 180 mm',
+                  picture: '',
+                  action: 'add',
+                },
+              ],
+            },
           ],
         }),
       }),
@@ -145,7 +161,7 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'add' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
-    expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Not this one' });
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'reject', id: 'BBL/Bambu Lab A1 mini' });
   });
 
   it('draws the cards the agent drew, under the message that drew them', () => {
@@ -158,11 +174,13 @@ describe('the printer panel page', () => {
               seq: 1,
               afterMessageId: 'm-1',
               kind: 'printers',
+              live: true,
               printers: [
                 {
                   catalogId: 'BBL/Bambu Lab A1 mini',
                   deviceId: '',
-                  name: 'Bambu Lab A1 mini',
+                  vendor: 'Bambu Lab',
+                  model: 'A1 mini',
                   subline: '180 × 180 × 180 mm',
                   picture: '',
                   action: 'add',
@@ -175,6 +193,21 @@ describe('the printer panel page', () => {
     );
 
     expect(screen.getByText('180 × 180 × 180 mm')).toBeInTheDocument();
+  });
+
+  it('names the work instead of an empty bubble while a tool runs', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'x1c', attempt: 1 },
+          { id: 'm-2', role: 'assistant', state: 'streaming', text: '', attempt: 1 },
+        ],
+        streamingMessageId: 'm-2',
+      }),
+    );
+
+    expect(screen.getByText('Looking through the printer list…')).toBeInTheDocument();
+    expect(document.querySelector('.agent-avatar')).toBeNull();
   });
 
   it('follows the session the host sends after the state', () => {

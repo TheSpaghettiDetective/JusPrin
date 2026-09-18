@@ -33,6 +33,9 @@ public:
 
 private:
     const CatalogPrinter* model_of(const std::string& printer_name) const;
+    // "PLA", not the preset name "Bambu PLA Matte @BBL A1M": the pinned card
+    // states what is loaded, not which profile backs it.
+    std::string            material_word(const std::string& filament_preset) const;
 
     Plater&                     m_plater;
     PrinterCatalog              m_catalog;

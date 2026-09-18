@@ -387,8 +387,9 @@ export interface PrinterFact {
 export interface PrinterCardInfo {
   catalogId: string;
   deviceId: string;
-  name: string;
-  subline: string;
+  vendor: string; // its own small uppercase line
+  model: string; // bold, beneath the vendor
+  subline: string; // build volume
   picture: string; // data URL, empty when the profile ships no picture
   action: 'add' | 'choose';
 }
@@ -406,16 +407,23 @@ export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
-  kind: 'tip' | 'network' | 'printers';
+  kind: 'tip' | 'network' | 'printers' | 'unsupported';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
+  // 'printers' only: false once a newer answer, or the person's own "Not
+  // this one", has superseded it -- it then draws as one grey line per card.
+  live?: boolean;
+  // 'unsupported' only: reason the agent gave. Always "not_listed" -- the
+  // panel draws nothing for "not_fdm" beyond the agent's own sentence.
+  reason?: 'not_listed';
 }
 
+// printer_suggest's own offers only now: adding and rejecting a proposal
+// live on its card (see PrinterCardInfo, PrinterBlock.live).
 export interface PrinterChip {
   id: string;
   label: string;
-  style: 'primary' | 'suggested' | 'plain';
-  action?: 'add'; // acts at once; the tap is the approval
-  say?: string; // sends this as the person's own message
+  style: 'suggested' | 'plain';
+  say: string; // sends this as the person's own message
 }
 
 export interface PrinterSessionPayload {

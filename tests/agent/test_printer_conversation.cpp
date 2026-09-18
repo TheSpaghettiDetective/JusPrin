@@ -201,14 +201,57 @@ TEST_CASE("a proposal fills the pinned card and draws the printer", "[printer-co
     const json& card = state.at("blocks").back();
     CHECK(card.at("kind") == "printers");
     CHECK(card.at("afterMessageId") == "m-7");
+    CHECK(card.at("live") == true);
+    CHECK(card.at("printers")[0].at("vendor") == "Bambu Lab");
+    CHECK(card.at("printers")[0].at("model") == "A1 mini");
     CHECK(card.at("printers")[0].at("subline") == "180 × 180 × 180 mm");
+    CHECK(card.at("printers")[0].at("action") == "add");
 
-    // Adding is offered as the primary chip, and refusing beside it.
-    const json& chips = state.at("chips");
-    REQUIRE(chips.size() == 2);
-    CHECK(chips[0].at("action") == "add");
-    CHECK(chips[0].at("style") == "primary");
-    CHECK(chips[1].at("label") == "Not this one");
+    // Adding and rejecting live on the card, not the chip row.
+    CHECK(state.at("chips").empty());
+}
+
+TEST_CASE("rejecting a proposal collapses its card and clears the pinned one", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    propose_one(conversation, "BBL/Bambu Lab A1 mini");
+    REQUIRE(conversation.state_json().at("facts").at("printer").at("value") == "Bambu Lab A1 mini");
+
+    REQUIRE(conversation.handle_page_message("printer_action", json{{"action", "reject"}, {"id", "BBL/Bambu Lab A1 mini"}}));
+
+    const json state = conversation.state_json();
+    CHECK(state.at("facts").at("printer").at("value") == "");
+    const json& blocks = state.at("blocks");
+    const json& card    = blocks.back();
+    CHECK(card.at("kind") == "printers");
+    CHECK(card.at("live") == false);
+    REQUIRE(panel.prompts.size() == 1);
+    CHECK(panel.prompts.front().find("Not this one") != std::string::npos);
+}
+
+TEST_CASE("a newer answer collapses the printer it superseded", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    const auto first = propose_one(conversation, "BBL/Bambu Lab A1 mini");
+    REQUIRE_FALSE(first.error.has_value());
+    const auto second = propose_one(conversation, "Creality/Ender-3 V2");
+    REQUIRE_FALSE(second.error.has_value());
+
+    const json blocks = conversation.state_json().at("blocks");
+    const json& earlier = blocks[blocks.size() - 2];
+    const json& latest  = blocks.back();
+    CHECK(earlier.at("kind") == "printers");
+    CHECK(earlier.at("live") == false);
+    CHECK(latest.at("live") == true);
+    // Only the newest is still settled.
+    CHECK(conversation.state_json().at("facts").at("printer").at("value") == "Creality Ender-3 V2");
 }
 
 TEST_CASE("two candidates settle nothing and ask on their own cards", "[printer-conversation]")
@@ -274,6 +317,33 @@ TEST_CASE("unsupported clears whatever was proposed before it", "[printer-conver
     CHECK(state.at("facts").at("printer").at("value") == "");
     // The proposal's own chips are gone with it.
     CHECK(state.at("chips").empty());
+
+    const json& blocks = state.at("blocks");
+    const json& earlier = blocks[blocks.size() - 2];
+    const json& latest  = blocks.back();
+    CHECK(earlier.at("kind") == "printers");
+    CHECK(earlier.at("live") == false);
+    CHECK(latest.at("kind") == "unsupported");
+    CHECK(latest.at("reason") == "not_listed");
+}
+
+TEST_CASE("unsupported for a non-FDM printer draws nothing, only says so", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    const std::size_t opening_blocks = conversation.state_json().at("blocks").size();
+
+    const auto unsupported = conversation.execute_tool(
+        Agent::ToolHandler::PrinterIdentify,
+        call(Agent::ToolHandler::PrinterIdentify,
+             json{{"action", "unsupported"}, {"catalogIds", json::array()}, {"reason", "not_fdm"}, {"say", "That's a resin printer."}}));
+    REQUIRE_FALSE(unsupported.error.has_value());
+
+    // No exit block: there is nothing to browse or set up by hand for a
+    // printer this app cannot slice for at all.
+    CHECK(conversation.state_json().at("blocks").size() == opening_blocks);
 }
 
 TEST_CASE("a catalogId that is not on the list this session was given is refused", "[printer-conversation]")

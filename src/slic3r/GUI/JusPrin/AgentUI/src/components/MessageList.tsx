@@ -43,7 +43,10 @@ interface Props {
   // The printer panel's own cards, each anchored after the message that drew
   // it, the way history entries are. Absent everywhere else.
   printerBlocks?: PrinterBlock[];
-  onPrinterAction?: (action: 'network_pick' | 'candidate_pick' | 'add', id: string) => void;
+  onPrinterAction?: (
+    action: 'network_pick' | 'candidate_pick' | 'add' | 'reject' | 'browse' | 'manual_setup',
+    id: string,
+  ) => void;
   // "Answered · nothing changed" is about the open project, which the printer
   // panel is not having a conversation about.
   answeredState?: boolean;
@@ -182,7 +185,18 @@ export function MessageList({
               </div>
             </div>
           );
-        const bubble = (
+        // Mid-turn, before any reply text has arrived, an assistant message
+        // has nothing to show yet: a bubble with only the avatar disc reads
+        // as an empty flash before each reply. The printer panel names the
+        // work instead, in one grey line that is gone the moment real text
+        // lands; elsewhere the bubble still renders (its attachments, error
+        // or "Stopped" state may not be empty even when its text is).
+        const workingOnCard = Boolean(onPrinterAction) && message.role === 'assistant' && !message.text && message.id === streamingMessageId;
+        const bubble = workingOnCard ? (
+          <div className="printer-activity" role="status">
+            Looking through the printer list…
+          </div>
+        ) : (
           <div className={`message ${message.role}`}>
             {/* The agent does not speak in a bubble: a 20px action/primary
                 disc stands beside plain text, as the Figma "Chat Bubble"

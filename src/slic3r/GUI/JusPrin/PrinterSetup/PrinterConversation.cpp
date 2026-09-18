@@ -194,7 +194,8 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
                "printer, its nameplate or its box, and answer every turn with printer_identify -- the one tool for this.\n"
                "\n"
                "One clear match: action \"propose\", that printer's catalogId alone. Assume a 0.4 mm nozzle, the plate the model ships "
-               "with and PLA unless the person or a photo says otherwise, then say in one sentence what you assumed.\n"
+               "with and PLA unless the person or a photo says otherwise, then say in one sentence what you assumed. The FIRST time you "
+               "do this in a session, add: \"Assumed\" means I guessed; change it here or in your first project.\n"
                "Two or three that are genuinely hard to tell apart: action \"propose\", all of them (never more than three), and a "
                "question that would separate them.\n"
                "Not enough to go on: action \"ask\" and the single question that would settle it. You may still include up to three "
@@ -265,14 +266,9 @@ std::string PrinterConversation::opening_message() const
 
 json PrinterConversation::state_json() const
 {
-    json chips = m_chips;
-    // The person can always add the printer the agent has drawn; the chip is
-    // the approval for it, so it leads the row whatever else is offered.
-    if (m_proposal.valid) {
-        json add{{"id", "add"}, {"label", "Add this printer"}, {"style", "primary"}, {"action", "add"}};
-        chips.insert(chips.begin(), add);
-        chips.push_back(json{{"id", "reject"}, {"label", "Not this one"}, {"style", "plain"}, {"say", "Not this one"}});
-    }
+    // Adding and rejecting live on the card itself now (its "action" field,
+    // and the reject affordance the page draws beside it), not in this row:
+    // printer_suggest's own chips are the only thing here.
     return json{{"mode", m_mode == ConversationMode::Add ? "add" : "change"},
                 {"caption", m_mode == ConversationMode::Add ? "NEW PRINTER" : "PRINTER"},
                 {"facts", json{{"printer", fact_json(m_printer_fact)},
@@ -280,7 +276,7 @@ json PrinterConversation::state_json() const
                                {"plate", fact_json(m_plate)},
                                {"filament", fact_json(m_filament)}}},
                 {"blocks", m_blocks},
-                {"chips", std::move(chips)},
+                {"chips", m_chips},
                 {"chipHint", m_chip_hint},
                 {"placeholder", m_placeholder}};
 }
@@ -311,7 +307,7 @@ ToolExecutionCoordinator::ExtensionResult PrinterConversation::execute_tool(Tool
     std::optional<ToolError> error;
     json output;
     switch (handler) {
-    case ToolHandler::PrinterIdentify: output = identify(arguments, error); break;
+    case ToolHandler::PrinterIdentify: output = identify(arguments, activity.correlation_id, error); break;
     case ToolHandler::PrinterSuggest: output = suggest(arguments); break;
     default: output = change(arguments, error); break;
     }
@@ -319,19 +315,30 @@ ToolExecutionCoordinator::ExtensionResult PrinterConversation::execute_tool(Tool
         result.error = std::move(error);
         return result;
     }
-    // Everything the tools draw lands in the same place: the panel's own
-    // state, pushed once per call.
-    if (handler == ToolHandler::PrinterIdentify && !m_blocks.empty())
-        m_blocks.back()["afterMessageId"] = activity.correlation_id;
     m_host.session_changed();
     result.result_json = output.dump();
     return result;
 }
 
-json PrinterConversation::identify(const json& arguments, std::optional<ToolError>& error)
+void PrinterConversation::collapse_live_printer_blocks()
 {
-    const std::string action = arguments.at("action").get<std::string>();
-    const json&       ids    = arguments.at("catalogIds");
+    for (json& block : m_blocks)
+        if (block.value("kind", std::string()) == "printers")
+            block["live"] = false;
+}
+
+json PrinterConversation::identify(const json& arguments, const std::string& message_id, std::optional<ToolError>& error)
+{
+    const std::string action           = arguments.at("action").get<std::string>();
+    const json&       ids              = arguments.at("catalogIds");
+    const bool         confident_single = action == "propose" && ids.size() == 1;
+    // A nozzle of zero is "nothing was said about it", which for a printer
+    // nobody has changed is the 0.4 mm it ships with.
+    const double      stated  = arguments.value("nozzle", 0.);
+    const double      nozzle  = stated > 0. ? stated : 0.4;
+    const std::string plate   = arguments.value("plate", std::string());
+    const std::string filament = arguments.value("filament", std::string());
+    const std::string state    = arguments.value("provenance", std::string("assumed"));
 
     json cards = json::array();
     std::vector<const CatalogPrinter*> shown;
@@ -346,52 +353,60 @@ json PrinterConversation::identify(const json& arguments, std::optional<ToolErro
         shown.push_back(known);
         cards.push_back(json{{"catalogId", known->id},
                              {"deviceId", ""},
-                             {"name", known->vendor_name + " " + known->model_name},
+                             {"vendor", known->vendor_name},
+                             {"model", known->model_name},
                              {"subline", known->build_volume},
                              {"picture", picture_data_url(known->picture)},
-                             {"action", action == "propose" && shown.size() == 1 && ids.size() == 1 ? "add" : "choose"}});
+                             {"action", confident_single ? "add" : "choose"}});
     }
+
+    // A nozzle this model has no profile for cannot be saved, and the person
+    // should hear that now rather than when they tap Add.
+    if (confident_single) {
+        const CatalogPrinter& printer = *shown.front();
+        if (!printer.nozzles.empty() &&
+            std::find(printer.nozzles.begin(), printer.nozzles.end(), nozzle) == printer.nozzles.end()) {
+            std::string sizes;
+            for (double size : printer.nozzles)
+                sizes += (sizes.empty() ? "" : ", ") + nozzle_text(size);
+            error = ToolError{"unknown_nozzle",
+                              "The " + printer.model_name + " ships " + sizes + " nozzles, not " + nozzle_text(nozzle) + "."};
+            return {};
+        }
+    }
+
+    // Whatever was live before this answer stops offering a tap: superseded
+    // either way, whether this turn settles something or not.
+    collapse_live_printer_blocks();
 
     // Only a single confident "propose" settles anything; a question -- asked
     // outright, or a propose that is still two or three cards -- leaves the
     // pinned card as it was, and unsupported clears it.
-    if (action != "propose" || shown.size() != 1) {
+    if (!confident_single) {
         m_proposal     = {};
         m_printer_fact = m_nozzle = m_plate = m_filament = {};
-        if (!cards.empty())
+        if (action == "unsupported" && arguments.value("reason", std::string()) == "not_listed")
             m_blocks.push_back(json{{"id", "b" + std::to_string(m_next_block++)},
                                     {"seq", m_blocks.size() + 1},
-                                    {"afterMessageId", ""},
+                                    {"afterMessageId", message_id},
+                                    {"kind", "unsupported"},
+                                    {"reason", "not_listed"}});
+        else if (!cards.empty())
+            m_blocks.push_back(json{{"id", "b" + std::to_string(m_next_block++)},
+                                    {"seq", m_blocks.size() + 1},
+                                    {"afterMessageId", message_id},
                                     {"kind", "printers"},
+                                    {"live", true},
                                     {"printers", std::move(cards)}});
         return json{{"action", action}, {"shown", shown.size()}};
     }
 
     const CatalogPrinter& printer = *shown.front();
-    // A nozzle of zero is "nothing was said about it", which for a printer
-    // nobody has changed is the 0.4 mm it ships with.
-    const double      stated   = arguments.value("nozzle", 0.);
-    const double      nozzle   = stated > 0. ? stated : 0.4;
-    const std::string plate    = arguments.value("plate", std::string());
-    const std::string filament = arguments.value("filament", std::string());
-    const std::string state    = arguments.value("provenance", std::string("assumed"));
-
-    // A nozzle this model has no profile for cannot be saved, and the person
-    // should hear that now rather than when they tap Add.
-    if (!printer.nozzles.empty() &&
-        std::find(printer.nozzles.begin(), printer.nozzles.end(), nozzle) == printer.nozzles.end()) {
-        std::string sizes;
-        for (double size : printer.nozzles)
-            sizes += (sizes.empty() ? "" : ", ") + nozzle_text(size);
-        error = ToolError{"unknown_nozzle",
-                          "The " + printer.model_name + " ships " + sizes + " nozzles, not " + nozzle_text(nozzle) + "."};
-        return {};
-    }
-
     m_blocks.push_back(json{{"id", "b" + std::to_string(m_next_block++)},
                             {"seq", m_blocks.size() + 1},
-                            {"afterMessageId", ""},
+                            {"afterMessageId", message_id},
                             {"kind", "printers"},
+                            {"live", true},
                             {"printers", std::move(cards)}});
 
     // The device id is never asked of the model: when this proposal answers
@@ -508,6 +523,8 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         use_network_printer(id);
     else if (action == "candidate_pick")
         choose_candidate(id);
+    else if (action == "reject")
+        reject_proposal();
     return true;
 }
 
@@ -575,6 +592,19 @@ void PrinterConversation::choose_candidate(const std::string& catalog_id)
         return;
     m_host.ask_agent("The person tapped \"This one\" on " + chosen->vendor_name + " " + chosen->model_name + " (" + chosen->id +
                      "). Call printer_identify to propose that printer alone and say in one sentence what you assumed.");
+}
+
+void PrinterConversation::reject_proposal()
+{
+    if (!m_proposal.valid)
+        return;
+    const std::string rejected = m_proposal.model_name;
+    collapse_live_printer_blocks();
+    m_proposal     = {};
+    m_printer_fact = m_nozzle = m_plate = m_filament = {};
+    m_host.session_changed();
+    m_host.ask_agent("The person tapped \"Not this one\" on " + rejected +
+                     ". Ask what tells the printer apart, or ask for a photo of it.");
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup
