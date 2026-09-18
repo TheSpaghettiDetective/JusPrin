@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2VENRB0EPDM6HS4MAAHA3G2",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-panel-exit-crash",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 150,
+    "cache_creation_tokens": 336755,
+    "cache_read_tokens": 10552732,
+    "output_tokens": 52291,
+    "api_call_count": 76
+  }
+}
