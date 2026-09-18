@@ -123,10 +123,15 @@ public:
 
     // Creates a Pending record stamped with the current workspace session and
     // revision. Read-only actions are approved immediately by policy; every
-    // other class waits for a user decision. Returns the new record.
+    // other class waits for a user decision -- unless `pre_approved` is set,
+    // which the owner does only for a call proposed in reply to a message the
+    // person's own tap (a chip, never free typing) already approved. A
+    // Destructive action always waits regardless: this is a shortcut around
+    // one card for an action the person already asked for, not a way to skip
+    // approval for something they did not. Returns the new record.
     const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
                                 ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
-                                const std::string& plan_scope = {});
+                                const std::string& plan_scope = {}, bool pre_approved = false);
 
     // User decisions. Each returns true only when it changed the record's
     // state, so a resent decision (reconnect, reload) can never run an action

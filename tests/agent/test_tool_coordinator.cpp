@@ -80,6 +80,17 @@ struct Harness
         return request;
     }
 
+    // The canonical Destructive call these tests drive.
+    ToolRequest delete_cube_request() const
+    {
+        ToolRequest request;
+        request.tool           = "project_delete_items";
+        request.arguments_json = json{{"sessionId", std::to_string(workspace.snapshot().session.value())},
+                                      {"items", json::array({json{{"objectId", std::to_string(cube_id().value())}}})}}
+                                     .dump();
+        return request;
+    }
+
     void pump_to_completion(const std::string& action_id, int limit = 1000)
     {
         while (!tool_state_terminal(coordinator.find(action_id)->state) && limit-- > 0)
@@ -221,6 +232,32 @@ TEST_CASE("coordinator policy comes from the registry", "[tools][policy][registr
     const ToolActivity& inspect = harness.coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "read-caller");
     CHECK(inspect.action_class == ActionClass::ReadOnly);
     CHECK_FALSE(inspect.requires_approval);
+}
+
+// WP7: a chip's tap is the person's approval already. The owner (AgentHost)
+// signals that with pre_approved on the one call it names, never as a
+// registry-wide policy change.
+TEST_CASE("a pre-approved mutation skips its card and runs on its own", "[tools][policy][pre-approved]")
+{
+    Harness harness;
+    const ToolActivity& proposed =
+        harness.coordinator.propose(harness.duplicate_cube_request(), "chip-caller", {}, ToolSource::Agent, {}, true);
+    CHECK(proposed.action_class == ActionClass::Mutation);
+    CHECK_FALSE(proposed.requires_approval);
+    harness.pump_to_completion(proposed.action_id);
+    CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Succeeded);
+    CHECK(harness.object_count() == 2);
+}
+
+// The shortcut is for a call the person already asked for by name, not a
+// blanket bypass: a Destructive action still asks, pre-approved or not.
+TEST_CASE("pre-approved never waives a Destructive action's own card", "[tools][policy][pre-approved]")
+{
+    Harness harness;
+    const ToolActivity& proposed =
+        harness.coordinator.propose(harness.delete_cube_request(), "chip-caller", {}, ToolSource::Agent, {}, true);
+    CHECK(proposed.action_class == ActionClass::Destructive);
+    CHECK(proposed.requires_approval);
 }
 
 TEST_CASE("coordinator rejects hostile call metadata before proposal execution", "[tools][policy][registry]")

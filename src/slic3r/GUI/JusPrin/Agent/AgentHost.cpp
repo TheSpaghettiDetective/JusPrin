@@ -888,8 +888,10 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
         return;
     }
     const json payload = json::parse(payload_json);
-    const std::string client_id = payload.at("clientMessageId").get<std::string>();
-    const std::string text      = payload.at("text").get<std::string>();
+    const std::string client_id     = payload.at("clientMessageId").get<std::string>();
+    const std::string text          = payload.at("text").get<std::string>();
+    // Set only by a chip's tap, never by free typing: see m_pre_approved_messages.
+    const bool         pre_approved = payload.value("preApproved", false);
 
     std::vector<std::string> requested_attachments;
     if (payload.contains("attachmentIds") && payload["attachmentIds"].is_array())
@@ -931,6 +933,8 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     message.text              = text;
     message.client_message_id = client_id;
     message.attachment_ids    = sent_attachments;
+    if (pre_approved)
+        m_pre_approved_messages.insert(message.id);
     document.append_message(conversation_id, message, m_persistence.timestamp());
     // The page's own staged list only drops an attachment once it hears this
     // back; with no update here it stayed "staged" forever and rode along
@@ -1706,9 +1710,13 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     m_persistence.flush();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
+    // A chip's tap is the person's approval already; every call this turn
+    // makes to fulfil it skips the card, the same turn a later, unrelated
+    // tool call from typed text would still show one for.
+    const bool pre_approved = m_pre_approved_messages.count(stream.message.in_reply_to) > 0;
     const ToolActivity& proposed =
         m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks}, ToolSource::Agent,
-                        stream.conversation_id);
+                        stream.conversation_id, pre_approved);
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);

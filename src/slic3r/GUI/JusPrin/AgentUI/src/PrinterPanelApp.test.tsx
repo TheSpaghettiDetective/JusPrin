@@ -136,6 +136,25 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Add a photo' })).toBeInTheDocument();
   });
 
+  // WP7: a chip is the person's own tap, which stands in for the approval
+  // card the same change would otherwise need. Free typing carries no such
+  // claim, so the host must be able to tell the two apart on the wire.
+  it('marks a chip\'s message preApproved, and a typed one not', async () => {
+    const host = open(
+      state({
+        session: session({
+          chips: [{ id: 's1', label: 'Use 0.6 mm nozzle', style: 'suggested', say: 'Use 0.6 mm nozzle', opensPhotoPicker: false }],
+        }),
+      }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use 0.6 mm nozzle' }));
+    expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Use 0.6 mm nozzle', preApproved: true });
+
+    await userEvent.type(screen.getByPlaceholderText('e.g. "I put a 0.6 nozzle on it"'), 'never mind, keep 0.4{enter}');
+    expect(host.lastOfType('user_message')!.payload).toMatchObject({ preApproved: false });
+  });
+
   it('adds the printer from its own card, and rejects it as a typed action, not a chat message', async () => {
     const host = open(
       state({

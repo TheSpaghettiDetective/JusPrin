@@ -361,6 +361,11 @@ private:
     bool                            m_mcp_busy{false};
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
+    // User messages the page marked preApproved: what a chip tap sends, never
+    // what free typing sends. A tool call proposed in reply to one of these
+    // skips the approval card (never for a Destructive action, which always
+    // asks). Kept for the conversation's life, the same as its own history.
+    std::set<std::string>       m_pre_approved_messages;
     // Every process setting the agent has applied, mapped to the value it
     // applied. A key stays the agent's only while that value is still in
     // force: hand-edit the setting and it becomes yours again, because the

@@ -162,12 +162,17 @@ export function App({
     (attachment) => attachment.state === 'staged' || attachment.state === 'error',
   );
 
-  const sendMessage = (text: string) => {
+  // preApproved is true only for a printer chip's tap (see onSay below): the
+  // tap is the person's approval already, so the call it leads to skips the
+  // card. Free typing -- the composer's onSend -- never sets it.
+  const sendMessage = (text: string, preApproved = false) => {
     // From the ref, not this render: the test hook keeps the first render's
     // sendMessage, which would otherwise never see a later attachment.
     const attachmentIds = stateRef.current.attachments.filter((a) => a.state === 'staged').map((a) => a.id);
-    client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds });
+    client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds, preApproved });
   };
+
+  const sayFromChip = (text: string) => sendMessage(text, true);
 
   const attachFiles = (files: File[], source: AttachmentSource) => {
     for (const file of files) {
@@ -441,7 +446,7 @@ export function App({
                   chips={session.chips}
                   hint={session.chipHint}
                   disabled={busy}
-                  onSay={sendMessage}
+                  onSay={sayFromChip}
                   onAttachFiles={attachFiles}
                 />
               )}

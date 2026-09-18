@@ -168,9 +168,9 @@ struct Harness
             host.pump_stream();
     }
 
-    std::string send_user_message(const std::string& text, const std::string& client_id)
+    std::string send_user_message(const std::string& text, const std::string& client_id, bool pre_approved = false)
     {
-        deliver("user_message", json{{"clientMessageId", client_id}, {"text", text}});
+        deliver("user_message", json{{"clientMessageId", client_id}, {"text", text}, {"preApproved", pre_approved}});
         const json* added = last_of_type("message_added");
         REQUIRE(added != nullptr);
         return (*added)["payload"]["message"]["id"].get<std::string>();
@@ -875,6 +875,16 @@ json propose_duplicate(Harness& harness, const std::string& client_id)
     return (*activity_event)["payload"]["activity"];
 }
 
+json propose_preapproved_duplicate(Harness& harness, const std::string& client_id)
+{
+    harness.send_user_message("please duplicate the selected object", client_id, /*pre_approved=*/true);
+    harness.pump_all();
+    REQUIRE(harness.last_of_type("assistant_completed") != nullptr);
+    const json* activity_event = harness.last_of_type("tool_activity");
+    REQUIRE(activity_event != nullptr);
+    return (*activity_event)["payload"]["activity"];
+}
+
 void pump_tools_to_completion(Harness& harness, int limit = 1000)
 {
     while (harness.host.tools().any_running() && limit-- > 0)
@@ -933,6 +943,26 @@ TEST_CASE("a proposed duplicate waits for approval and executes authoritatively"
         harness.deliver("tool_decision", json{{"actionId", "t-999"}, {"decision", "approve"}});
         CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_action");
     }
+}
+
+// WP7: a chip's tap is the person's approval already. The page marks the
+// message preApproved (never for free-typed text); the mutation the agent
+// calls in reply runs straight through, with no card and no tool_decision.
+TEST_CASE("a message the page marked preApproved runs its mutation with no card", "[agent][tools][policy]")
+{
+    Harness harness;
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const std::size_t objects_before = workspace_object_count(harness.workspace);
+
+    const json proposed = propose_preapproved_duplicate(harness, "c-t1");
+    CHECK(proposed["requiresApproval"] == false);
+    CHECK(proposed["actionClass"] == "mutation");
+    pump_tools_to_completion(harness);
+
+    const json done = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
+    CHECK(done["state"] == "succeeded");
+    CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
 }
 
 TEST_CASE("cancellation and deterministic failure surface over the bridge", "[agent][tools]")

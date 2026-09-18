@@ -332,7 +332,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 
 const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
                                                       ToolExecutionPacing pacing, ToolSource source,
-                                                      const std::string& plan_scope)
+                                                      const std::string& plan_scope, bool pre_approved)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -349,9 +349,14 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     activity.progress_total    = pacing.ticks > 0 ? pacing.ticks : 1;
 
     if (definition != nullptr) {
-        activity.title             = definition->title;
-        activity.action_class      = definition->action_class;
-        activity.requires_approval = m_registry.requires_approval(*definition, request.arguments_json);
+        activity.title        = definition->title;
+        activity.action_class = definition->action_class;
+        // Never for Destructive: pre-approval stands in for one card the
+        // person's own chip tap already granted, not for the stronger
+        // guarantee a Destructive action's own card gives.
+        activity.requires_approval = pre_approved && definition->action_class != ActionClass::Destructive
+                                          ? false
+                                          : m_registry.requires_approval(*definition, request.arguments_json);
     } else {
         activity.title = "Unknown tool request";
     }
