@@ -1,0 +1,3 @@
+"the ender with the touchscreen"	From its own knowledge: the V3 SE and V3 KE both have one	ask V3 SE, V3 KE	Draws two cards; the model writes the question in its reply
+
+give me the verbatime of the output from  printer_identify
