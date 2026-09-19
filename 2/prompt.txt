@@ -3,3 +3,7 @@ What did you put into the handoff as the fix this for the first two.
 ---
 
 yes, tighten it and copy to the vm
+
+---
+
+agent-docs/jusprin/printer-agent-tools.md shouldn't be in git. remove it from git. ideally you can keep in on the file system, but it's ok if you can't
