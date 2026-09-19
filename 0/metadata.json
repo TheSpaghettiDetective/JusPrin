@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2XCT6628SW9CQXT43PSJDFN",
+  "session_id": "8672a8e2-c0ac-4345-a7e0-19eef8151bbf",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-19T17:53:20.109263Z",
+  "branch": "these-commits-are-probably-wrong",
+  "checkpoints_count": 11,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "9d2d503bdf49",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1458,
+    "cache_creation_tokens": 936984,
+    "cache_read_tokens": 367482825,
+    "output_tokens": 337072,
+    "api_call_count": 730
+  },
+  "session_metrics": {
+    "turn_count": 19
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1076,
+      "user_lines_removed": 3,
+      "agent_lines_added": 270,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/jusprin/printer-conversation-panel-handoff.md": 254,
+        "agent-docs/jusprin/printer-panel-review-fixes-handoff.md": 307,
+        "agent-docs/jusprin/viewport-selection-toolbar-handoff.md": 214,
+        "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp": 8
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp": 3
+      }
+    }
+  ]
+}
