@@ -1,0 +1,21 @@
+the commadn to compuare claude/printer-conversation-panel-before-stupid-fixes and printer-conversation-panel-with-stupid-wp1-wpx in remote
+
+---
+
+Compare these two remote branches for me.
+
+---
+
+so printer-conversation-panel-with-stupid-wp1-wpx rmeote branch has all the commits?
+
+---
+
+the command to deleate claude/printer-conversation-panel-before-stupid-fixes from remote
+
+---
+
+delete claude/printer-conversation-panel-before-stupid-fixes from local repo too
+
+---
+
+List the commits you have made in plaine eng. what the issue it fixed; how did you solve it. less than 50 words for each commit
