@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2XC0XQ9MP25X46J9XE45P4E",
+  "strategy": "manual-commit",
+  "branch": "these-commits-are-probably-wrong",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1260,
+    "cache_creation_tokens": 850966,
+    "cache_read_tokens": 286201088,
+    "output_tokens": 288220,
+    "api_call_count": 631
+  }
+}

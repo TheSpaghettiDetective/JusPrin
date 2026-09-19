@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2XC0XQ9MP25X46J9XE45P4E",
+  "session_id": "8672a8e2-c0ac-4345-a7e0-19eef8151bbf",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-19T17:39:34.825207Z",
+  "branch": "these-commits-are-probably-wrong",
+  "checkpoints_count": 11,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "3819136ce385",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1260,
+    "cache_creation_tokens": 850966,
+    "cache_read_tokens": 286201088,
+    "output_tokens": 288220,
+    "api_call_count": 631
+  },
+  "session_metrics": {
+    "turn_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-19T17:39:33.596637Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 118,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 118,
+    "total_lines_changed": 143,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1166,
+      "user_lines_removed": 8,
+      "agent_lines_added": 270,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/jusprin/printer-conversation-panel-handoff.md": 254,
+        "agent-docs/jusprin/printer-panel-review-fixes-handoff.md": 307,
+        "agent-docs/jusprin/viewport-selection-toolbar-handoff.md": 214,
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp": 3,
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp": 10,
+        "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp": 3,
+        "src/slic3r/GUI/JusPrin/Agent/ImageThumbnail.cpp": 31,
+        "src/slic3r/GUI/JusPrin/Agent/ImageThumbnail.hpp": 19,
+        "src/slic3r/GUI/JusPrin/sources.cmake": 2,
+        "tests/agent/test_agent_bridge.cpp": 30
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp": 5,
+        "tests/agent/test_agent_bridge.cpp": 3
+      }
+    }
+  ]
+}
