@@ -184,6 +184,9 @@ export function MessageList({
               <div className="message note" role="status">
                 {message.text}
               </div>
+              {/* A tap the app answers itself draws its card under the
+                  note that records it, as "Use this" does. */}
+              {printerBlockViews(message.id)}
             </div>
           );
         const bubble = (

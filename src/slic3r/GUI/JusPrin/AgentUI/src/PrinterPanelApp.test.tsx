@@ -309,6 +309,40 @@ describe('the printer panel page', () => {
     expect(screen.getByText('180 × 180 × 180 mm')).toBeInTheDocument();
   });
 
+  it('draws the card a network printer brings under the note that records it', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'assistant', state: 'complete', text: 'What printer do you have?', attempt: 1 },
+          { id: 'n-2', role: 'note', state: 'complete', text: 'The person chose the network printer 01P00A3B.', attempt: 1 },
+        ],
+        session: session({
+          blocks: [
+            {
+              id: 'b3',
+              seq: 3,
+              afterMessageId: 'n-2',
+              kind: 'printers',
+              printers: [
+                {
+                  catalogId: 'BBL/Bambu Lab A1 mini',
+                  deviceId: '01P00A3B',
+                  name: 'Bambu Lab A1 mini',
+                  buildVolume: '180 × 180 × 180 mm',
+                  picture: '',
+                  action: 'add',
+                  assumed: { nozzle: 0.4, plate: 'Textured PEI Plate', filament: 'Bambu PLA Basic @BBL A1M' },
+                  device: { nozzle: 0.4, ams: '', spools: [], reported: true },
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+    expect(screen.getByText('0.4 mm nozzle · read from the printer just now')).toBeInTheDocument();
+  });
+
   it('follows the session the host sends after the state', () => {
     const host = open();
     host.deliver('printer_session', session({ mode: 'change', canAdd: false }));
