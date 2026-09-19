@@ -1,0 +1,13 @@
+What did you put into the handoff as the fix this for the first two.
+
+---
+
+yes, tighten it and copy to the vm
+
+---
+
+agent-docs/jusprin/printer-agent-tools.md shouldn't be in git. remove it from git. ideally you can keep in on the file system, but it's ok if you can't
+
+---
+
+Don't put temp docs like this in gitignore.  They are temporary and having them  showing up in the git status  Those uncracked files reminds me that they're not done yet.  remove remove it from git ignore and also check if git ignore include other similar files if so remove those as well.  How can I make you and future AI agents to remember this lesson?
