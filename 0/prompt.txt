@@ -11,3 +11,7 @@ agent-docs/jusprin/printer-agent-tools.md shouldn't be in git. remove it from gi
 ---
 
 Don't put temp docs like this in gitignore.  They are temporary and having them  showing up in the git status  Those uncracked files reminds me that they're not done yet.  remove remove it from git ignore and also check if git ignore include other similar files if so remove those as well.  How can I make you and future AI agents to remember this lesson?
+
+---
+
+add it to AGENTS.md in the repo and commit
