@@ -287,4 +287,27 @@ describe('Home', () => {
     host.deliver('appearance', { appearance: 'light' });
     expect(document.documentElement.dataset.appearance).toBe('light');
   });
+
+  // The printer conversation opens in this column; the page hands the place
+  // over rather than drawing a second list beside it.
+  it("gives the printers column to the conversation panel while it is open", () => {
+    const host = start();
+    host.deliver("state", state({ printers: [printer()] }));
+    expect(screen.getByText("+ Add printer")).toBeInTheDocument();
+
+    host.deliver("printer_panel", { open: true });
+    expect(screen.queryByText("+ Add printer")).not.toBeInTheDocument();
+    expect(screen.queryByText("X1 Carbon")).not.toBeInTheDocument();
+    // The projects stay in view beside it.
+    expect(screen.getByText("Projects")).toBeInTheDocument();
+
+    host.deliver("printer_panel", { open: false });
+    expect(screen.getByText("+ Add printer")).toBeInTheDocument();
+  });
+
+  it("leaves the column to the panel across a reload", () => {
+    const host = start();
+    host.deliver("state", state({ printers: [printer()], printerPanelOpen: true }));
+    expect(screen.queryByText("+ Add printer")).not.toBeInTheDocument();
+  });
 });

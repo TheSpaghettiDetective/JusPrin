@@ -28,6 +28,10 @@ namespace Home {
 class HomeWebView;
 }
 
+namespace PrinterSetup {
+class PrinterPanel;
+}
+
 // Installs the JusPrin production presentation inside the existing MainFrame
 // layout and can restore the stock presentation exactly. The stock widget
 // hierarchy stays constructed and functional: the Notebook keeps its pages and
@@ -49,6 +53,8 @@ public:
     bool is_installed() const { return m_installed; }
 
     StatusRow* status_row() const { return m_status_row; }
+    Home::HomeWebView* home_view() const { return m_home; }
+    PrinterSetup::PrinterPanel* printer_panel() const { return m_printer_panel; }
     AgentPane* agent_pane() const { return m_agent_pane; }
     Workspace::IWorkspace* workspace() const { return m_workspace.get(); }
     Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
@@ -86,6 +92,12 @@ public:
     // once the wizard flow (and any naming it does) has actually finished.
     void refresh_home();
 
+    // Opens the printer conversation in place of Home's printers column: an
+    // empty name adds a printer, a name changes that one. From the Prepare
+    // header's printer menu it goes to Home first, since that is where the
+    // panel lives. Every opening is a new session.
+    void open_printer_conversation(const std::string& printer_name = {});
+
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
     // Applies what the Notebook's current page implies for the shell: Home
@@ -111,6 +123,9 @@ private:
     AgentPane* m_agent_pane{nullptr};
     // Shown in the Notebook's slot while the Notebook's selection is tpHome.
     Home::HomeWebView* m_home{nullptr};
+    // The printer conversation, beside Home's page in the column its printers
+    // list otherwise holds. Built with the shell, shown on demand.
+    PrinterSetup::PrinterPanel* m_printer_panel{nullptr};
     wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
     // Home and the Notebook share this slot: exactly one is shown.

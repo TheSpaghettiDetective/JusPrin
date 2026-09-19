@@ -2268,9 +2268,13 @@ TEST_CASE("a slice ending leaves waiting cards and approved plans alone", "[tool
 TEST_CASE("a plan id is checked before any tool sees it", "[tools][plan][registry]")
 {
     const auto& registry = ToolRegistry::instance();
+    // Every change to the project, but not plan_set, which records the
+    // agent's own words, and not the printer panel's tools, whose session has
+    // no plans.
     for (const ToolDefinition& definition : registry.definitions())
         CHECK(definition.input_schema["properties"].contains("planId") ==
-              (definition.action_class != ActionClass::ReadOnly && definition.name != "plan_set"));
+              (definition.action_class != ActionClass::ReadOnly && definition.name != "plan_set" &&
+               !has_exposure(definition.exposure, ToolExposure::Printer)));
     const auto refused = registry.validate_call(*registry.find("workspace_inspect"), R"({"planId":"p"})");
     REQUIRE_FALSE(refused.valid());
     CHECK(refused.error->message == "workspace_inspect does not join a plan; only changes to the project take a planId.");

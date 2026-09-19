@@ -13,6 +13,7 @@
 import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { AttachmentInfo, AttachmentSource } from '../bridge/protocol';
 import { AttachmentChip } from './AttachmentChip';
+import { CameraGlyph } from './PrinterPanel';
 
 interface Props {
   disabled: boolean;
@@ -29,6 +30,12 @@ interface Props {
   // Fired on the keystroke itself, not on the debounced draft save. Anything
   // covering the thread uses this to get out of the way immediately.
   onTyping?: () => void;
+  // A likely answer to what was just asked, rather than the standing
+  // invitation. The printer panel writes one per turn.
+  placeholder?: string;
+  // Labelled "Photo" instead of a bare paperclip: in the printer panel a
+  // picture is a primary way to say which printer this is, not an extra.
+  photoButton?: boolean;
 }
 
 // The upward arrow the Figma Composer puts on the send control. It is drawn
@@ -62,6 +69,8 @@ export function Composer({
   onDraftChange,
   draftDebounceMs = 300,
   onTyping,
+  placeholder,
+  photoButton,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
   const [dragging, setDragging] = useState(false);
@@ -146,17 +155,20 @@ export function Composer({
           {attachments.map((attachment) => (
             <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
           ))}
+          {/* A staged photo waits for the person; it never sends itself. */}
+          {photoButton && <span className="composer-staged-hint">add a note, or just send</span>}
         </div>
       )}
       <div className="composer-row">
         <button
           type="button"
-          className="attach-button"
-          aria-label="Attach a file"
+          className={photoButton ? 'attach-button attach-button-photo' : 'attach-button'}
+          aria-label={photoButton ? 'Add a photo' : 'Attach a file'}
           disabled={disabled}
           onClick={() => fileInput.current?.click()}
         >
-          <span className="attach-glyph" aria-hidden="true" />
+          {photoButton ? <CameraGlyph className="photo-glyph" /> : <span className="attach-glyph" aria-hidden="true" />}
+          {photoButton && 'Photo'}
         </button>
         <input
           ref={fileInput}
@@ -171,7 +183,9 @@ export function Composer({
         <textarea
           aria-label="Message the Agent"
           placeholder={
-            disabled ? disabledReason ?? 'The Agent is not available' : 'Ask about this print or request a change…'
+            disabled
+              ? disabledReason ?? 'The Agent is not available'
+              : placeholder ?? 'Ask about this print or request a change…'
           }
           value={text}
           disabled={disabled}

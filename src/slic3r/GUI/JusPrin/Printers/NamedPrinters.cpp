@@ -17,6 +17,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <map>
+#include <set>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Printers {
@@ -295,6 +296,93 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name)
         return gone();
     if (select(plater, name))
         SetupCommands::open_settings_tab(Preset::TYPE_PRINTER);
+    return {};
+}
+
+void name_installed_printers(Plater& plater, const VendorMap& before)
+{
+    PresetBundle&     presets  = bundle();
+    const std::string selected = presets.printers.get_selected_preset_name();
+    const Preset&     current  = presets.printers.get_selected_preset();
+    const auto        models   = newly_installed_models(before, wxGetApp().app_config->vendors(),
+                                                        current.config.opt_string("printer_model"),
+                                                        current.config.opt_string("printer_variant"));
+    std::string keep;
+    for (const InstalledModel& model : models) {
+        const Preset* profile = presets.printers.find_system_preset_by_model_and_variant(model.model, model.variant);
+        if (profile == nullptr)
+            throw std::runtime_error("The wizard enabled " + model.model + " " + model.variant +
+                                     " but no system profile for it is loaded");
+        const std::string profile_name = profile->name;
+        if (!SetupCommands::select_printer_preset(plater, profile_name) ||
+            presets.printers.get_selected_preset_name() != profile_name)
+            return; // the person kept unsaved printer changes; nothing more is named
+        const std::string name = add_named_printer(plater, model.model, {});
+        if (profile_name == selected)
+            keep = name;
+    }
+    // Naming selects each printer in turn; the wizard's own choice is the one
+    // left selected, under its name when it was one of them.
+    if (!models.empty())
+        SetupCommands::select_printer_preset(plater, keep.empty() ? selected : keep);
+}
+
+wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset)
+{
+    PresetCollection& printers = bundle().printers;
+    Preset*           saved    = saved_preset(name);
+    if (saved == nullptr || !is_named_printer(*saved))
+        return gone();
+
+    const Preset* old_parent = printers.get_preset_parent(*saved);
+    // Not const: Preset::save takes its parent's config by pointer.
+    Preset*       new_parent = printers.find_preset(system_preset, false, true);
+    if (old_parent == nullptr || new_parent == nullptr || !new_parent->is_system)
+        return _L("This printer does not come with that nozzle size.");
+    if (old_parent == new_parent)
+        return {};
+
+    // The open project keeps the printer it has selected, and nothing asks
+    // the person anything: Orca's save and its unsaved-changes prompt both go
+    // through the selection, so the profile is written here directly. When
+    // the project uses this printer its copy follows the saved profile,
+    // which would throw away edits nobody has saved yet; those are the
+    // person's to settle first.
+    const bool in_use = is_selected(name);
+    if (in_use && printers.current_is_dirty())
+        return _L("The open project has unsaved changes to this printer. Save or discard them in Printer settings, then try "
+                  "again.");
+
+    // The new nozzle's profile, plus every setting the person changed on this
+    // printer -- except the ones the two nozzle profiles themselves disagree
+    // on, which belong to the nozzle.
+    DynamicPrintConfig          config  = new_parent->config;
+    const auto                  changed = PresetCollection::dirty_options(saved, old_parent);
+    const auto                  nozzle  = PresetCollection::dirty_options(new_parent, old_parent);
+    const std::set<std::string> nozzle_keys(nozzle.begin(), nozzle.end());
+    for (const std::string& key : changed)
+        if (nozzle_keys.count(key) == 0)
+            config.set_key_value(key, saved->config.option(key)->clone());
+    Preset::inherits(config)                                         = new_parent->name;
+    config.option<ConfigOptionString>("printer_settings_id", true)->value = name;
+    Preset::normalize_inherits(config, new_parent);
+
+    // What PresetCollection::save_current_preset and Tab::save_preset do for
+    // the selected profile: store the difference from the parent, and queue
+    // the update for the cloud.
+    saved->config  = std::move(config);
+    saved->base_id = new_parent->setting_id;
+    saved->save(&new_parent->config);
+    saved->sync_info = "update";
+    saved->save_info();
+
+    if (in_use) {
+        // The same printer, under the same name: only its settings moved.
+        printers.get_edited_preset().config = saved->config;
+        plater.update_objects_position_when_select_preset([&] { plater.on_config_change(bundle().full_config()); });
+        printer_tab().reload_config();
+        printer_tab().update_tab_ui();
+    }
     return {};
 }
 

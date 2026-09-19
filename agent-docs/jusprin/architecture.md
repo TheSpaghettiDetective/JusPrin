@@ -55,7 +55,7 @@ The boundary is deliberately conservative:
 | Undo and redo | Orca undo stack | Expose availability and outcomes without a shadow stack |
 | Slicing and Preview | Orca slicing actions and Preview canvas | Present Slice and Check print states |
 | Project serialization | Orca 3MF and model serializers | Preserve compatibility; add migration only for new data |
-| Agent conversation | React/TypeScript WebView | Render messages and submit typed commands |
+| Agent conversation | React/TypeScript WebView | Render messages, write the words people and the model read, and submit typed commands (see [Where logic goes](#where-logic-goes-the-page-first)) |
 | Agent print plan | C++/agent application boundary | Explain intent, decisions, uncertainty, and consequences |
 
 ## Production integration boundaries
@@ -120,6 +120,21 @@ The production Agent interface is a standalone local React/TypeScript package em
 - explicit keyboard, focus, shortcut, clipboard, selection, and IME rules;
 - reload, startup, bridge-error, and unavailable-agent states;
 - no direct ownership of Orca project state.
+
+#### Where logic goes: the page first
+
+When the same logic could live either in C++ or in a React page, put it in the page unless there is a strong reason for C++. The page is quicker to change (Vite hot reload instead of relinking a multi-gigabyte GUI library), its tests run in milliseconds under Vitest, and it is already where the words people read are written. The words the model reads belong there too.
+
+Strong reasons for C++:
+
+- **It reads or changes OrcaSlicer state:** presets, the model, plates, slicing, the device list. The page never owns project state (see the constraints below).
+- **It is a limit or a boundary the app must guarantee:** what a tool accepts and refuses, which tools a session may call, what needs the person's approval, and what reaches the model provider (API keys, access codes, project data). Page code can state a limit; only the app can enforce it.
+- **It has to work without a page:** the MCP server, background work, tests that run without a browser.
+- **It depends on a thread or a lifetime the page does not have.**
+
+The printer panel is the example. The app sends the page facts only: sizes, spools, which printer is on a card, what a change changed. The page writes every word from them. It writes the model's instructions (`AgentUI/src/printerInstructions.ts`) and hands them over with `printer_instructions`. It writes the panel's own words, the opening line and the note that goes with each tap (`AgentUI/src/printerWords.ts`). The opening goes over with `printer_opening`, and a tap's note travels in the tap's payload.
+
+The app decides which one tool each mode offers, checks every call, and refuses a turn that has no instructions rather than falling back to the project assistant's prompt. It posts the opening once per session, and a tap's note only when the tap goes through, bounded to 2 KB. It still writes the notes for what only it can find out when the tap arrives: the network printer has gone, its model id is not on the list, or a save or undo failed.
 
 Windows uses WebView2, macOS uses WKWebView, and Linux uses WebKitGTK. Local resource packaging must work on all three. The demonstrated prototype used a single-file local bundle to avoid WKWebView `file:` subresource failures; production keeps that approach, and CMake now produces the bundle from the TypeScript/React sources.
 

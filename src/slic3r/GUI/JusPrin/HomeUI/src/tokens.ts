@@ -34,7 +34,7 @@ interface CardTokens {
     button: { icon: Record<string, number> };
     menuRow: Record<string, number>;
     popover: Record<string, number>;
-    printerSetup: { dialogWidth: number; radius: number; scrimAlpha: number };
+    printerDialog: { width: number; radius: number; scrimAlpha: number };
   };
 }
 
@@ -59,9 +59,9 @@ function pixelSection(section: Record<string, number>): Record<string, number> {
 // The native scrim takes an alpha out of 255; CSS mixes the scrim colour by a
 // percentage.
 function printerDialog(): Record<string, string> {
-  const setup = component.printerSetup;
+  const setup = component.printerDialog;
   return {
-    width: `${setup.dialogWidth}px`,
+    width: `${setup.width}px`,
     radius: `${setup.radius}px`,
     scrim: `${Math.round((setup.scrimAlpha / 255) * 100)}%`,
   };

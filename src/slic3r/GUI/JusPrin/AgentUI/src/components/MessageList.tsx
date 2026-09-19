@@ -6,8 +6,16 @@
 // the manufacturing history render after the conversation item they follow,
 // in the order they happened.
 
-import { Fragment, useLayoutEffect, useRef, useState } from 'react';
-import { AttachmentInfo, BuildInfo, ChangeInfo, ExportedCopyInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
+import { Fragment, ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import {
+  AttachmentInfo,
+  BuildInfo,
+  ChangeInfo,
+  ExportedCopyInfo,
+  PhysicalPrintInfo,
+  PrinterBlock,
+  ToolActivityInfo,
+} from '../bridge/protocol';
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
 import { ChangeRows } from './ChangeRows';
@@ -15,6 +23,7 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
+import { PrinterBlockAction, PrinterBlockView, PrinterTap } from './PrinterPanel';
 
 interface Props {
   messages: Message[];
@@ -31,6 +40,16 @@ interface Props {
   // The setup card's expansion is a layer over this thread; the thread dims
   // rather than being covered, so the conversation stays legibly there.
   dimmed?: boolean;
+  // The printer panel's own cards, each anchored after the message that drew
+  // it, the way history entries are. Absent everywhere else.
+  printerBlocks?: PrinterBlock[];
+  onPrinterAction?: (action: PrinterBlockAction, id: string, tap: PrinterTap) => void;
+  // A surface's own card for one of its tool calls, in place of the generic
+  // one; undefined keeps the generic card.
+  renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
+  // "Answered · nothing changed" is about the open project, which the printer
+  // panel is not having a conversation about.
+  answeredState?: boolean;
 }
 
 // What follows one conversation item: history cards and runs of changes, in
@@ -83,6 +102,10 @@ export function MessageList({
   onToolDecision,
   onToolCancel,
   dimmed,
+  printerBlocks = [],
+  onPrinterAction,
+  renderActivity,
+  answeredState = true,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
   const listRef = useRef<HTMLDivElement>(null);
@@ -98,7 +121,7 @@ export function MessageList({
   useLayoutEffect(() => {
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, builds, exportedCopies, physicalPrints, changes, followBottom]);
+  }, [messages, toolActivities, builds, exportedCopies, physicalPrints, changes, printerBlocks, followBottom]);
 
   const history: ManufacturingHistoryEntry[] = [
     ...builds.map((record) => ({ kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
@@ -118,6 +141,14 @@ export function MessageList({
   const changesAfter = (messageId: string) => changes.filter((change) => messageOfItem.get(change.afterId) === messageId);
   const leadingChanges = changes.filter((change) => !messageOfItem.has(change.afterId));
   const historyAfter = (messageId: string) => history.filter((entry) => entry.afterMessageId === messageId);
+  const printerBlocksAfter = (messageId: string) =>
+    printerBlocks.filter((block) => block.afterMessageId === messageId).sort((a, b) => a.seq - b.seq);
+  const printerBlockViews = (messageId: string) =>
+    onPrinterAction
+      ? printerBlocksAfter(messageId).map((block) => (
+          <PrinterBlockView key={block.id} block={block} onAction={onPrinterAction} />
+        ))
+      : null;
   const leadingHistory = history.filter(
     (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
   );
@@ -126,6 +157,7 @@ export function MessageList({
   // response"). Only the Agent's own changes count against it; the person
   // editing by hand while it answered is not the Agent changing something.
   const answeredWithoutChange = (message: Message) =>
+    answeredState &&
     message.role === 'assistant' &&
     message.state === 'complete' &&
     message.id !== streamingMessageId &&
@@ -152,6 +184,9 @@ export function MessageList({
               <div className="message note" role="status">
                 {message.text}
               </div>
+              {/* A tap the app answers itself draws its card under the
+                  note that records it, as "Use this" does. */}
+              {printerBlockViews(message.id)}
             </div>
           );
         const bubble = (
@@ -212,6 +247,8 @@ export function MessageList({
                 // the agent can no longer add to it.
                 const members = found && (found.length > 1 || streamingMessageId !== null) ? found : undefined;
                 if (members && members[0].actionId !== activity.actionId) return null;
+                const own = members ? undefined : renderActivity?.(activity);
+                if (own !== undefined) return <Fragment key={activity.actionId}>{own}</Fragment>;
                 return members ? (
                   <PlanActivityCard
                     key={activity.actionId}
@@ -231,6 +268,7 @@ export function MessageList({
                 );
               })}
             </div>
+            {printerBlockViews(message.id)}
             <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} />
           </Fragment>
         );

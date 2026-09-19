@@ -1,6 +1,6 @@
 #include "PrinterMenu.hpp"
 #include "SetupCommands.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
+#include "ShellController.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -102,16 +102,23 @@ void PrinterMenu::show_root(const Ptr& self)
     rows.push_back(std::move(plate));
     rows.push_back(separator());
 
+    // Both of these open the printer conversation, which lives on Home, so
+    // the shell goes there first. The nickname is the saved printer's own
+    // name when there is one; without it the conversation starts on adding a
+    // printer, which is what there is to do.
     HeaderMenuItem settings;
     settings.label  = _L("Printer settings…");
-    settings.invoke = [] { SetupCommands::open_settings_tab(Preset::TYPE_PRINTER); };
+    settings.invoke = [nickname = printer.nickname.ToStdString()] {
+        if (ShellController* shell = installed_shell())
+            shell->open_printer_conversation(nickname);
+    };
     rows.push_back(std::move(settings));
 
     HeaderMenuItem add;
-    add.label = _L("Add a printer…");
-    add.invoke = [self] {
-        if (wxWindow* owner = self->m_owner.get())
-            PrinterSetup::show_printer_setup(owner, self->m_theme, self->m_dark, self->m_plater);
+    add.label  = _L("Add a printer…");
+    add.invoke = [] {
+        if (ShellController* shell = installed_shell())
+            shell->open_printer_conversation();
     };
     rows.push_back(std::move(add));
 

@@ -92,6 +92,9 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           </div>
         )}
       </main>
+      {/* The conversation panel takes this column while it is open; the
+          shell draws it beside the page, in the same place. */}
+      {!state.printerPanelOpen && (
       <aside className="printer-column">
         <span className="section-label">Printers</span>
         {state.printerError && (
@@ -112,6 +115,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           + Add printer
         </button>
       </aside>
+      )}
     </div>
   );
 }

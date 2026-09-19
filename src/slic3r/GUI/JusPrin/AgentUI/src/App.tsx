@@ -9,6 +9,9 @@ import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
+import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { printerInstructions } from './printerInstructions';
+import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -72,6 +75,9 @@ export interface AppProps {
   // dialog rather than the docked panel): show only the setup sub-component,
   // never the conversation header, chat list, or composer around it.
   embedded?: boolean;
+  // The printer panel on Home: the same thread and composer, with the printer
+  // session's own header, pinned card and chips instead of the project's.
+  printerPanel?: boolean;
 }
 
 const errorTitles: Partial<Record<ConnectionState, string>> = {
@@ -80,7 +86,15 @@ const errorTitles: Partial<Record<ConnectionState, string>> = {
   incompatible: 'This Agent panel does not match this JusPrin build',
 };
 
-export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transportRetryLimit, draftDebounceMs, embedded }: AppProps) {
+export function App({
+  getTransport,
+  handshakeTimeoutMs,
+  transportRetryMs,
+  transportRetryLimit,
+  draftDebounceMs,
+  embedded,
+  printerPanel,
+}: AppProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const stateRef = useRef<AgentUiState>(state);
   stateRef.current = state;
@@ -98,6 +112,9 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   // whenever the host resent state and re-closed the card mid-click.
   const collapseSetup = () => setSetupExpanded(false);
   const [commandError, setCommandError] = useState<string | null>(null);
+  // The printer panel's access-code field. Held here, not in host state: the
+  // code goes to the app with Add and nowhere else.
+  const [accessCode, setAccessCode] = useState('');
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
@@ -133,6 +150,29 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // The printer panel's first line, which the model is shown as having said:
+  // written here, posted by the app, once per session. Before the
+  // instructions, so the thread opens with it whatever is sent next.
+  const sentOpening = useRef(false);
+  useEffect(() => {
+    if (!printerPanel || !state.session || state.connection !== 'connected') return;
+    if (sentOpening.current || state.messages.length > 0) return;
+    sentOpening.current = true;
+    client.send('printer_opening', { text: opening(state.session) });
+  }, [printerPanel, state.session, state.connection, state.messages.length, client]);
+
+  // The printer panel writes the model's instructions from the facts the app
+  // sends; the app holds them for the session's requests. Sent again only
+  // when the words change, such as after a change to the printer.
+  const sentInstructions = useRef<string | null>(null);
+  useEffect(() => {
+    if (!printerPanel || !state.session || state.connection !== 'connected') return;
+    const text = printerInstructions(state.session);
+    if (text === sentInstructions.current) return;
+    sentInstructions.current = text;
+    client.send('printer_instructions', { text });
+  }, [printerPanel, state.session, state.connection, client]);
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
 
@@ -347,6 +387,109 @@ export function App({ getTransport, handshakeTimeoutMs, transportRetryMs, transp
       );
     return <AgentNotConfiguredPane onSetUp={openSetup} />;
   };
+
+  if (printerPanel) {
+    const session = state.session;
+    const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
+      client.send('printer_action', { action, id, ...extra });
+    return (
+      // The whole panel takes a photo, not only the composer: a picture of
+      // the printer is dropped where the person is looking.
+      <div
+        className="app app--printer"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          const files = Array.from(event.dataTransfer.files ?? []);
+          if (files.length === 0) return;
+          event.preventDefault();
+          attachFiles(files, 'drop');
+        }}
+      >
+        {errorNotice}
+        <div className="chat-content">
+          {/* The label names where ‹ leads, not the printer this is about. */}
+          <header className="chat-header printer-header">
+            <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => printerAction('close')}>
+              ‹
+            </button>
+            <h1>Printers</h1>
+            <button type="button" className="printer-manual-link" onClick={() => printerAction('manual_setup')}>
+              Set it up myself
+            </button>
+          </header>
+          {session && !notConfigured && (
+            <div className="pinned-setup">
+              <PrinterPinnedCard session={session} />
+            </div>
+          )}
+          {notConfigured ? (
+            body()
+          ) : (
+            <MessageList
+              messages={state.messages}
+              attachments={state.attachments}
+              streamingMessageId={state.streamingMessageId}
+              // In this panel a tool's result is the card it draws, so only a
+              // change to confirm, or one that failed, is worth a card of its
+              // own. A printer the model named wrongly is its to explain.
+              toolActivities={state.toolActivities.filter(
+                (activity) => activity.tool === 'printer_change' && (activity.requiresApproval || activity.state === 'failed'),
+              )}
+              renderActivity={(activity) =>
+                activity.tool === 'printer_change' ? (
+                  <PrinterChangeCard activity={activity} onDecision={sendToolDecision} />
+                ) : undefined
+              }
+              builds={[]}
+              exportedCopies={[]}
+              physicalPrints={[]}
+              changes={[]}
+              printerBlocks={session?.blocks}
+              onPrinterAction={(action, id, tap) => {
+                const extra: Record<string, string> = {};
+                if (tap.blockId) extra.blockId = tap.blockId;
+                if (tap.note) extra.note = tap.note;
+                printerAction(action, id, extra);
+              }}
+              answeredState={false}
+              onRetry={(messageId) => client.send('retry_message', { messageId })}
+              onToolDecision={sendToolDecision}
+              onToolCancel={sendToolCancel}
+            />
+          )}
+          {!notConfigured && session && (
+            <>
+              {session.accessCode && <PrinterAccessCode value={accessCode} onChange={setAccessCode} />}
+              <PrinterChipRow
+                canAdd={session.canAdd}
+                disabled={busy}
+                onAdd={() =>
+                  printerAction('add', '', session.accessCode && accessCode ? { accessCode, note: ACCESS_CODE_NOTE } : {})
+                }
+                onReject={() => printerAction('reject', '', { note: rejectedNote(session.facts.printer.name) })}
+              />
+            </>
+          )}
+          {!notConfigured && (
+            <Composer
+              disabled={unavailable}
+              disabledReason={unavailable ? 'The Agent is not available' : undefined}
+              placeholder={session ? placeholder(session) : undefined}
+              photoButton
+              streaming={streaming}
+              attachments={stagedAttachments}
+              onSend={sendMessage}
+              onStop={() => {
+                if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
+              }}
+              onAttachFiles={attachFiles}
+              onRemoveAttachment={removeAttachment}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (embedded) {
     // No conversation header, chat list, composer, or external-tool banner --

@@ -6,7 +6,8 @@
     "printers",
     "appearance",
     "project_actions",
-    "printer_actions"
+    "printer_actions",
+    "printer_panel"
   ],
   "pageMessageTypes": [
     "hello",
@@ -28,6 +29,7 @@
     "printers",
     "appearance",
     "printer_error",
-    "bridge_error"
+    "bridge_error",
+    "printer_panel"
   ]
 }

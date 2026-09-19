@@ -16,7 +16,8 @@
     "mcp_setup",
     "system_notes",
     "reveal_path",
-    "change_log"
+    "change_log",
+    "printer_panel"
   ],
   "pageMessageTypes": [
     "hello",
@@ -38,7 +39,10 @@
     "mcp_catalog",
     "mcp_preview",
     "mcp_connect",
-    "reveal_path"
+    "reveal_path",
+    "printer_action",
+    "printer_instructions",
+    "printer_opening"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -62,6 +66,7 @@
     "mcp_preview",
     "mcp_status",
     "change_added",
-    "open_setup"
+    "open_setup",
+    "printer_session"
   ]
 }

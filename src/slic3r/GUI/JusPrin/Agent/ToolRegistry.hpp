@@ -21,7 +21,10 @@ enum class ToolExposure : std::uint8_t {
     None     = 0,
     InApp    = 1u << 0,
     Mcp      = 1u << 1,
-    Internal = 1u << 2
+    Internal = 1u << 2,
+    // The printer panel's own session. Deliberately outside InApp: the
+    // project conversation has no printer panel to draw a card in.
+    Printer  = 1u << 3
 };
 
 // How a print request goes, for both adapters' instructions: the tools'
@@ -83,7 +86,9 @@ enum class ToolHandler : std::uint8_t {
     SliceReportRead,
     RecordBuild,
     RecordExportCopy,
-    RecordPhysicalPrint
+    RecordPhysicalPrint,
+    PrinterIdentify,
+    PrinterChange
 };
 
 struct ToolDefinition
@@ -105,10 +110,12 @@ struct ToolDefinition
 };
 
 // Whether a call to this tool may carry a planId: every change to the
-// project, not plan_set, which records the agent's own words.
+// project, not plan_set, which records the agent's own words, and not the
+// printer panel's tools, whose session has no plans to group.
 inline bool joins_plans(const ToolDefinition& definition)
 {
-    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet;
+    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet &&
+           !has_exposure(definition.exposure, ToolExposure::Printer);
 }
 
 struct ToolValidationResult

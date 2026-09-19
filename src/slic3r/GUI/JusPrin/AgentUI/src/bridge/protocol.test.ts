@@ -16,6 +16,7 @@ describe('protocol constants', () => {
     expect(PAGE_CAPABILITIES).toContain('conversations');
     expect(PAGE_CAPABILITIES).toContain('agent_setup');
     expect(PAGE_CAPABILITIES).toContain('mcp_setup');
+    expect(PAGE_CAPABILITIES).toContain('printer_panel');
   });
 
   it('page and host message type unions cover the shared lists', () => {
@@ -40,6 +41,9 @@ describe('protocol constants', () => {
       'mcp_preview',
       'mcp_connect',
       'reveal_path',
+      'printer_action',
+      'printer_instructions',
+      'printer_opening',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

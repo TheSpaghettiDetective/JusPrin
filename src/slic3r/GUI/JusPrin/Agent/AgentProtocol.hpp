@@ -28,7 +28,8 @@ inline const std::vector<std::string>& capabilities()
                                                  "context",     "appearance",  "tools",
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
-                                                 "mcp_setup", "system_notes", "reveal_path", "change_log"};
+                                                 "mcp_setup", "system_notes", "reveal_path", "change_log",
+                                                 "printer_panel"};
     return values;
 }
 
@@ -81,6 +82,14 @@ inline constexpr const char* kChangeAdded        = "change_added";
 // Asks the page to open its own setup flow, as its "Set up the agent" button
 // does; sent when another JusPrin surface sends the person there.
 inline constexpr const char* kOpenSetup          = "open_setup";
+// The printer panel's own: what its surface shows above and inside the
+// thread, a tap on one of the cards it draws there, and the model's
+// instructions, which the page writes.
+inline constexpr const char* kPrinterSession      = "printer_session";
+inline constexpr const char* kPrinterAction       = "printer_action";
+inline constexpr const char* kPrinterInstructions = "printer_instructions";
+// Its opening line, which the page writes and the app posts.
+inline constexpr const char* kPrinterOpening      = "printer_opening";
 
 } // namespace Protocol
 

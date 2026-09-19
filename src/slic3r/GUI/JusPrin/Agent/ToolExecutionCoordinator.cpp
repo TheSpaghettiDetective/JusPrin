@@ -757,6 +757,16 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         stored.arguments_json = arguments.dump();
     }
 
+    // A surface's own tool is checked by that surface before any card: what
+    // is valid there depends on what the surface is about, which the registry
+    // cannot know.
+    if (m_extension_preflight) {
+        if (std::optional<ToolError> problem = m_extension_preflight(definition->handler, stored)) {
+            fail(stored, problem->code, problem->message);
+            return stored;
+        }
+    }
+
     notify(stored);
     if (!stored.requires_approval)
         start_running(stored);
@@ -2010,8 +2020,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
+    // Records the host keeps, and the printer panel's own tools: both are
+    // owned by the surface that asked for them, and both still run here,
+    // inside this approval and state machine.
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
-        definition->handler == ToolHandler::RecordPhysicalPrint) {
+        definition->handler == ToolHandler::RecordPhysicalPrint || definition->handler == ToolHandler::PrinterIdentify ||
+        definition->handler == ToolHandler::PrinterChange) {
         if (!m_extension_executor) {
             fail(activity, "execution_failed", "The registered tool executor is unavailable.");
             return;

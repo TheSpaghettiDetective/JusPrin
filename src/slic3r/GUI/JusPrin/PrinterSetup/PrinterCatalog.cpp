@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -112,6 +113,20 @@ PrinterCatalog PrinterCatalog::load(const std::string& resources_directory)
             if (!name.empty() && !sub_path.empty()) machines.emplace(name, read_json(vendor_dir / sub_path));
         }
 
+        // Which machine profile is a model's profile for a nozzle size, by
+        // what each profile declares rather than by its name: vendors name
+        // them "K1 (0.4 nozzle)", "MINIIS 0.4 nozzle" and more.
+        std::map<std::pair<std::string, std::string>, std::string> profile_of;
+        for (const auto& [name, raw] : machines) {
+            std::set<std::string> visiting;
+            const json resolved = resolve_machine(name, machines, visiting);
+            if (resolved.value("instantiation", "true") == "false") continue;
+            const std::string printer_model = first_string(resolved.value("printer_model", json()));
+            const std::string printer_variant = first_string(resolved.value("printer_variant", json()));
+            if (!printer_model.empty() && !printer_variant.empty())
+                profile_of.emplace(std::make_pair(printer_model, printer_variant), name);
+        }
+
         for (const auto& entry : index["machine_model_list"]) {
             const std::string sub_path = entry.value("sub_path", "");
             if (sub_path.empty()) continue;
@@ -120,13 +135,14 @@ PrinterCatalog PrinterCatalog::load(const std::string& resources_directory)
             const std::string model_id = model_name;
             const std::string device_model = model.value("model_id", "");
             const auto variants = split(first_string(model.value("nozzle_diameter", json())), ';');
-            const auto materials = split(first_string(model.value("default_materials", json())), ';');
             const std::string plate = first_string(model.value("default_bed_type", json()));
             fs::path artwork = vendor_dir / (model_name + "_cover.png");
             if (!fs::exists(artwork)) artwork.clear();
 
             for (const std::string& variant : variants) {
-                const std::string preset_name = model_name + " " + variant + " nozzle";
+                const auto        declared    = profile_of.find(std::make_pair(model_name, variant));
+                const std::string preset_name = declared != profile_of.end() ? declared->second :
+                                                                              model_name + " " + variant + " nozzle";
                 std::set<std::string> visiting;
                 const json machine = resolve_machine(preset_name, machines, visiting);
                 if (machine.empty()) continue; // not an installable variant
@@ -140,8 +156,10 @@ PrinterCatalog PrinterCatalog::load(const std::string& resources_directory)
                 candidate.variant = variant;
                 candidate.preset_name = preset_name;
                 candidate.build_volume = build_volume(machine);
-                candidate.default_material = !materials.empty() ? materials.front()
-                    : first_string(machine.value("default_filament_profile", json()));
+                // OrcaSlicer's own default for this machine profile. Not the
+                // model's default_materials: that is the wizard's list of
+                // filaments to tick, and its first entry is often not PLA.
+                candidate.default_material = first_string(machine.value("default_filament_profile", json()));
                 candidate.default_plate = plate;
                 candidate.artwork_path = artwork.string();
                 candidates.push_back(std::move(candidate));
@@ -170,6 +188,106 @@ const PrinterCandidate* PrinterCatalog::find_device_model(const std::string& dev
         return !device_model_id.empty() && item.device_model_id == device_model_id;
     });
     return any == m_candidates.end() ? nullptr : &*any;
+}
+
+namespace {
+
+// Hidden from the printer panel only, decided 2026-09-17: the bundle stays
+// in OrcaSlicer's own wizard.
+constexpr const char* kPanelHiddenVendor = "OrcaArena";
+
+std::string letters_and_digits(const std::string& text)
+{
+    std::string kept;
+    for (unsigned char letter : text)
+        if (std::isalnum(letter))
+            kept.push_back(static_cast<char>(std::tolower(letter)));
+    return kept;
+}
+
+double nozzle_of(const std::string& variant)
+{
+    try {
+        return std::stod(variant);
+    } catch (const std::exception&) {
+        return 0.;
+    }
+}
+
+// Most profiles repeat the brand at the start of the model's name, often
+// spelled better than the vendor file does ("Bambu Lab A1 mini" under
+// "Bambulab"). Then the brand is that spelling and the model is the rest;
+// otherwise the brand is the vendor file's own name.
+void name_printer(CatalogPrinter& printer, const std::string& vendor_name, const std::string& profile_name)
+{
+    printer.vendor_name     = vendor_name;
+    printer.model_name      = profile_name;
+    const std::string brand = letters_and_digits(vendor_name);
+    // At each word boundary, "Bambu" then "Bambu Lab": the brand may be more
+    // than one word.
+    for (std::size_t end = profile_name.find(' '); end != std::string::npos && !brand.empty();
+         end = profile_name.find(' ', end + 1)) {
+        const std::string prefix = letters_and_digits(profile_name.substr(0, end));
+        if (prefix.size() > brand.size())
+            break;
+        if (prefix == brand) {
+            printer.vendor_name = profile_name.substr(0, end);
+            printer.model_name  = profile_name.substr(end + 1);
+            break;
+        }
+    }
+}
+
+} // namespace
+
+std::vector<CatalogPrinter> PrinterCatalog::panel_printers() const
+{
+    // The catalogue carries one candidate per model and nozzle; a person has
+    // one printer with one nozzle, so the variants fold into the model and
+    // the sizes it ships become a fact about it.
+    std::vector<CatalogPrinter> printers;
+    for (const PrinterCandidate& candidate : m_candidates) {
+        if (candidate.vendor_id == kPanelHiddenVendor)
+            continue;
+        const std::string id    = candidate.vendor_id + "/" + candidate.model_id;
+        const auto  known = std::find_if(printers.begin(), printers.end(),
+                                         [&id](const CatalogPrinter& printer) { return printer.id == id; });
+        std::size_t index = static_cast<std::size_t>(known - printers.begin());
+        if (known == printers.end()) {
+            CatalogPrinter printer;
+            printer.id              = id;
+            printer.vendor_id       = candidate.vendor_id;
+            printer.model_id        = candidate.model_id;
+            printer.device_model_id = candidate.device_model_id;
+            printer.build_volume    = candidate.build_volume;
+            printer.picture         = candidate.artwork_path;
+            printer.default_plate   = candidate.default_plate;
+            name_printer(printer, candidate.vendor_name, candidate.model_name);
+            printers.push_back(std::move(printer));
+        }
+        CatalogPrinter& printer = printers[index];
+        const double    nozzle  = nozzle_of(candidate.variant);
+        if (nozzle > 0. && std::find(printer.nozzles.begin(), printer.nozzles.end(), nozzle) == printer.nozzles.end()) {
+            printer.nozzles.push_back(nozzle);
+            printer.filaments.push_back(candidate.default_material);
+        }
+    }
+    for (CatalogPrinter& printer : printers) {
+        std::vector<std::size_t> order(printer.nozzles.size());
+        for (std::size_t i = 0; i < order.size(); ++i)
+            order[i] = i;
+        std::sort(order.begin(), order.end(),
+                  [&printer](std::size_t lhs, std::size_t rhs) { return printer.nozzles[lhs] < printer.nozzles[rhs]; });
+        std::vector<double>      nozzles;
+        std::vector<std::string> filaments;
+        for (std::size_t i : order) {
+            nozzles.push_back(printer.nozzles[i]);
+            filaments.push_back(printer.filaments[i]);
+        }
+        printer.nozzles   = std::move(nozzles);
+        printer.filaments = std::move(filaments);
+    }
+    return printers;
 }
 
 std::vector<const PrinterCandidate*> PrinterCatalog::models() const

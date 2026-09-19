@@ -1,4 +1,5 @@
 #include "AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
@@ -313,26 +314,6 @@ bool base64_decode(const std::string& in, std::string& out)
     return true;
 }
 
-std::string base64_encode(const std::string& in)
-{
-    static const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string out;
-    int         val = 0, valb = -6;
-    for (unsigned char c : in) {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0) {
-            out.push_back(chars[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
-    }
-    if (valb > -6)
-        out.push_back(chars[((val << 8) >> (valb + 8)) & 0x3F]);
-    while (out.size() % 4)
-        out.push_back('=');
-    return out;
-}
-
 bool is_valid_utf8(const std::string& s)
 {
     std::size_t i = 0;
@@ -534,6 +515,13 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             .string();
     });
     m_tools.set_extension_executor([this](ToolHandler handler, const ToolActivity& activity) {
+        // A session with a subject of its own answers for its own tools; the
+        // host keeps the manufacturing records either way.
+        if (m_session_tool_executor) {
+            ToolExecutionCoordinator::ExtensionResult result = m_session_tool_executor(handler, activity);
+            if (result.handled)
+                return result;
+        }
         return execute_manufacturing_tool(handler, activity);
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
@@ -732,6 +720,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"changes", std::move(changes)},
                  {"context", context_json(snapshot, agent_authored_keys(snapshot),
                                           m_persistence.document().setup_intent(active))}};
+    if (m_session_state_provider)
+        payload["session"] = m_session_state_provider();
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
 
@@ -845,7 +835,7 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_mcp_connect(envelope_id, payload);
     else if (type == Protocol::kRevealPath)
         handle_reveal_path(envelope_id, payload);
-    else
+    else if (!(m_page_message_handler && m_page_message_handler(type, json::parse(payload, nullptr, false))))
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
 
@@ -1086,6 +1076,26 @@ void AgentHost::handle_remove_attachment(const std::string& envelope_id, const s
     m_persistence.commit();
     m_persistence.flush();
     send_state(envelope_id);
+}
+
+std::string AgentHost::post_assistant_message(const std::string& text)
+{
+    if (text.empty())
+        return {};
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string conversation_id = document.active_conversation_id();
+
+    ConversationMessage message;
+    message.id    = document.allocate_message_id();
+    message.role  = MessageRole::Assistant;
+    message.state = MessageState::Complete;
+    message.text  = text;
+    document.append_message(conversation_id, message, m_persistence.timestamp());
+    m_persistence.flush();
+    // Like a note, this starts nothing: it is a line the panel always says,
+    // and the model reads it as history on the person's first turn.
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump());
+    return message.id;
 }
 
 std::string AgentHost::post_note(const std::string& text)
@@ -1509,6 +1519,29 @@ std::optional<ConversationMessage> AgentHost::find_stored_message(const std::str
     return std::nullopt;
 }
 
+void AgentHost::start_turn()
+{
+    // As a sent message does: the title is optional, the turn is not. An
+    // empty id is a turn with no user message of its own; the queue keeps it
+    // in order behind whatever the person already sent.
+    cancel_conversation_title();
+    if (agent_busy()) {
+        m_queued_user_message_ids.push_back({});
+        return;
+    }
+    begin_reply({});
+}
+
+void AgentHost::set_session_tool_preflight(ToolExecutionCoordinator::ExtensionPreflight preflight)
+{
+    m_tools.set_extension_preflight(std::move(preflight));
+}
+
+void AgentHost::send_page_envelope(const std::string& type, const json& payload)
+{
+    send_envelope(type.c_str(), payload.dump());
+}
+
 void AgentHost::begin_reply(const std::string& user_message_id)
 {
     ProjectStateDocument& document = m_persistence.document();
@@ -1516,13 +1549,19 @@ void AgentHost::begin_reply(const std::string& user_message_id)
     if (conversation_id.empty())
         conversation_id = document.active_conversation_id();
 
-    if (m_availability != AgentAvailability::Ready) {
+    // A session with tools of its own brings its own instructions, from its
+    // page; without them the model would be told it is the project's
+    // assistant while holding the session's tools.
+    const bool instructions_missing = !m_session_profile.tool_names.empty() && m_session_profile.instructions.empty();
+    if (m_availability != AgentAvailability::Ready || instructions_missing) {
         ConversationMessage failed;
         failed.id          = document.allocate_message_id();
         failed.role        = MessageRole::Assistant;
         failed.state       = MessageState::Failed;
         failed.in_reply_to = user_message_id;
-        failed.error       = AgentError{"agent_unavailable", "The Agent service is not available.", true};
+        failed.error       = instructions_missing ?
+                                 AgentError{"instructions_missing", "The panel is still loading. Try again in a moment.", true} :
+                                 AgentError{"agent_unavailable", "The Agent service is not available.", true};
         document.append_message(conversation_id, failed, m_persistence.timestamp());
         m_persistence.flush();
         send_envelope(Protocol::kAssistantStarted, json{{"messageId", failed.id}, {"inReplyTo", user_message_id}, {"attempt", 1}}.dump());
@@ -1570,9 +1609,12 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     request.request_id = document.project_id() + "-" + conversation_id + "-" + assistant.id + "-attempt-" +
                          std::to_string(assistant.attempt);
     request.attempt    = assistant.attempt;
+    request.session    = m_session_profile;
     request.workspace  = m_workspace.snapshot();
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
+    // A turn the app started has no user message: the model answers the
+    // conversation as it stands, whose last lines are the app's own notes.
     if (user)
         request.user_text = user->text;
 
@@ -1582,14 +1624,16 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     for (const ConversationMessage& message : document.messages(conversation_id)) {
         if (message.id == assistant.id || message.id == assistant.in_reply_to || message.text.empty())
             continue;
-        // Notes stay out of the model's context. They restate a setup change
-        // the workspace snapshot already carries authoritatively, so sending
-        // them would duplicate that state in prose and let a stale line
-        // contradict the snapshot.
-        if (message.role == MessageRole::Note)
+        // In the project's conversation notes stay out of the model's
+        // context. They restate a setup change the workspace snapshot already
+        // carries authoritatively, so sending them would duplicate that state
+        // in prose and let a stale line contradict the snapshot. A session
+        // with no workspace has no such snapshot, and its notes are the app's
+        // record of what the person did: they go in, as the app's own words.
+        if (message.role == MessageRole::Note && !m_session_profile.notes_in_context)
             continue;
         AgentConversationContext entry;
-        entry.role = role_name(message.role);
+        entry.role = message.role == MessageRole::Note ? "developer" : role_name(message.role);
         entry.text = message.text;
         request.conversation.emplace_back(std::move(entry));
     }
@@ -1780,17 +1824,24 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     PendingToolContinuation continuation = found->second;
     m_tool_continuations.erase(found);
 
-    const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
     const bool queued = activity.state == ToolState::Pending;
-    json output{{"state", queued ? "queued" : tool_state_name(activity.state)},
-                {"actionId", activity.action_id},
-                {"workspaceRevision", current_workspace.revision},
-                {"workspace", context_json(current_workspace, agent_authored_keys(current_workspace))}};
+    json output{{"state", queued ? "queued" : tool_state_name(activity.state)}};
+    // A session about something other than the project is never told about
+    // the project, in its tool results any more than in its turns.
+    if (m_session_profile.include_workspace) {
+        const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
+        output["actionId"]          = activity.action_id;
+        output["workspaceRevision"] = current_workspace.revision;
+        output["workspace"]         = context_json(current_workspace, agent_authored_keys(current_workspace));
+    }
     if (!activity.result_json.empty())
         output["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
         output["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
                                 {"details", json::parse(activity.error->details_json)}};
+    if (m_session_tool_output)
+        if (std::optional<json> own = m_session_tool_output(activity))
+            output = std::move(*own);
     if (queued) {
         output["planId"]  = activity.plan_id;
         output["message"] = "Queued in plan " + activity.plan_id +
@@ -1865,6 +1916,9 @@ void AgentHost::start_conversation_title(const std::string& conversation_id)
 {
     const auto& document = m_persistence.document();
     if (agent_busy() || !m_agent || !document.needs_conversation_title(conversation_id)) return;
+    // A session about something other than the project has no chat list to
+    // title, and is gone when its panel closes.
+    if (!m_session_profile.include_workspace) return;
     AgentRequest request;
     request.purpose = AgentRequest::Purpose::ConversationTitle;
     request.request_id = document.project_id() + "-" + conversation_id + "-title-" + std::to_string(document.doc_revision());

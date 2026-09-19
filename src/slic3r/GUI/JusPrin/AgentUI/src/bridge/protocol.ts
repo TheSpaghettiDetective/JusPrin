@@ -29,7 +29,10 @@ export type PageMessageType =
   | 'mcp_catalog'
   | 'mcp_preview'
   | 'mcp_connect'
-  | 'reveal_path';
+  | 'reveal_path'
+  | 'printer_action'
+  | 'printer_instructions'
+  | 'printer_opening';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -53,7 +56,8 @@ export type HostMessageType =
   | 'mcp_preview'
   | 'mcp_status'
   | 'change_added'
-  | 'open_setup';
+  | 'open_setup'
+  | 'printer_session';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -368,6 +372,109 @@ export interface PhysicalPrintInfo {
   statistics: SliceStatisticsInfo;
 }
 
+// -- The printer panel ------------------------------------------------------
+// One session of the printer panel on Home: the facts it pins above the
+// thread, the cards drawn inside the thread, and what can be tapped. The app
+// sends facts only; every word the panel shows is made on the page
+// (printerWords.ts). Absent on hosts without the printer_panel capability,
+// and on every host that is showing the project's own conversation.
+
+export type FactProvenance = 'settled' | 'assumed' | 'changed';
+
+export interface PrinterSpoolInfo {
+  name: string;
+  material: string;
+  colour?: string; // "#RRGGBB"
+}
+
+// The four facts a printer is. An empty name or a size of 0 is a fact nobody
+// has stated yet.
+export interface PrinterFacts {
+  printer: { name: string; provenance: FactProvenance };
+  nozzle: { size: number; provenance: FactProvenance };
+  plate: { name: string; provenance: FactProvenance };
+  // What is loaded, when the printer reported it or the app remembers it;
+  // otherwise the filament profile the card assumes.
+  filament: { preset: string; ams: string; spools: PrinterSpoolInfo[]; provenance: FactProvenance };
+}
+
+export interface PrinterCardInfo {
+  catalogId: string;
+  deviceId: string;
+  name: string; // brand and model
+  buildVolume: string; // "180 × 180 × 180 mm"
+  picture: string; // data URL, empty when the profile ships no picture
+  action: 'add' | 'choose';
+  // What this printer's card sets up if added; empty where its profile names
+  // none.
+  assumed: { nozzle: number; plate: string; filament: string };
+  // A printer found on the network: what it reported.
+  device?: { nozzle: number; ams: string; spools: PrinterSpoolInfo[]; reported: boolean };
+}
+
+export interface NetworkPrinterInfo {
+  deviceId: string;
+  name: string;
+  serial: string;
+  online: boolean;
+  // The model in the list the printer reports being, when there is one.
+  match?: { name: string; nozzle: number; reported: boolean };
+}
+
+// A card in the thread, anchored after the message it belongs to, in the same
+// way tool activity and history entries are.
+export interface PrinterBlock {
+  id: string;
+  seq: number;
+  afterMessageId: string;
+  // undo: the last change to this printer, with the button that reverses it
+  kind: 'tip' | 'network' | 'printers' | 'undo';
+  printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
+  collapsed?: boolean; // a newer answer, or "Not this one", replaced it
+  // undo: what the change was
+  changed?: {
+    nozzle?: { before: number; after: number };
+    spools?: { before: PrinterSpoolInfo[]; after: PrinterSpoolInfo[] };
+  };
+}
+
+// What a printer_change card states, added to the call's arguments by the
+// host before the card is shown: the printer, and what it has now.
+export interface PrinterChangeConfirm {
+  printer: string;
+  before: { nozzle?: number; spools?: PrinterSpoolInfo[] };
+}
+
+export interface PrinterSessionPayload {
+  mode: 'add' | 'change';
+  facts: PrinterFacts;
+  blocks: PrinterBlock[];
+  // A printer is on its card, ready to add or to refuse.
+  canAdd: boolean;
+  // The printer on the card was found on the network and can be kept
+  // connected: the panel offers its own access-code field, whose value goes
+  // with Add to the app and never into the chat.
+  accessCode?: boolean;
+  // The facts the model's instructions state (printerInstructions.ts).
+  context?: PrinterContext;
+}
+
+export interface PrinterContext {
+  // Add: every printer the panel can set up, as [catalogId, brand and model,
+  // build volume], and what is on the network now.
+  printers?: [string, string, string][];
+  network?: { name: string; serial: string }[];
+  // Change: the printer as it is now.
+  printer?: {
+    name: string;
+    model: string;
+    nozzle: number;
+    nozzles: number[];
+    spools: PrinterSpoolInfo[];
+    connected: boolean;
+  };
+}
+
 export interface StatePayload {
   conversationBusy?: boolean;
   agent: { status: AgentStatus };
@@ -384,6 +491,7 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
+  session?: PrinterSessionPayload; // only in the printer panel
 }
 
 export function isEnvelope(value: unknown): value is Envelope {

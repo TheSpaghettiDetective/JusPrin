@@ -58,6 +58,14 @@
 //              setting by hand, asserts the thread's change rows and the
 //              "Answered · nothing changed" marker, and writes
 //              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
+//   --printer-live
+//              needs OPENAI_API_KEY: the printer-agent-tools handoff's worked
+//              examples through the real printer panel and the live model --
+//              words and taps sent as the page sends them, every exchange
+//              printed as HARNESS LIVE lines, and the mechanical outcomes
+//              checked (cards drawn or not, the change card, the saved
+//              nozzle, Undo). The key is written to this run's throwaway
+//              app config, where the panel reads it.
 //   --printer-setup
 //              drives the Add a printer modal from the printer menu with the
 //              deterministic recognizer: dismissal and scrim lifetime, the
@@ -89,12 +97,15 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
-#include "fake_printer_recognition.hpp"
 #include "libslic3r/Utils.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupController.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
+
+#include <deque>
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
@@ -193,7 +204,8 @@ struct HarnessState
         LiveAgentUnavailable,
         RecomputingCapture,
         TimelineCapture,
-        PrinterSetup
+        PrinterSetup,
+        PrinterLive
     };
 
     std::atomic<int>  result{-1};
@@ -286,6 +298,10 @@ public:
         try {
             if (m_state->mode == HarnessState::Mode::PrinterSetup) {
                 verify_printer_setup();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PrinterLive) {
+                begin_printer_live();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::McpSetup) {
@@ -444,11 +460,14 @@ private:
         check(recovered.success, "mcp_setup_succeeds_after_timeouts");
     }
 
-    // --- Add a printer (--printer-setup) ---------------------------------
+    // --- The printer conversation (--printer-setup) -----------------------
     //
-    // The modal runs its own event loop, so every step below executes from
-    // this harness's poll timer inside that loop, the way a person's clicks
-    // would. Controls are found by the accessible names the dialog gives them.
+    // The panel replaces Home's printers column in place, so the checks below
+    // drive the shell the way Home's own bridge does and read the session the
+    // panel would draw. The conversation itself needs a live agent, which
+    // this harness has no key for; what is checked here is the panel around
+    // it: that it opens on both paths, states the right printer, and gives
+    // the column back when it closes.
 
     static constexpr const char* kSetupFixturePrinter = "Bambu Lab X1 Carbon 0.4 nozzle";
     // Adding the Neo saves its system profile as a printer named after the
@@ -456,382 +475,480 @@ private:
     static constexpr const char* kAddedPrinter        = "Creality Ender-3 V2 Neo";
     static constexpr const char* kAddedPrinterProfile = "Creality Ender-3 V2 Neo 0.4 nozzle";
 
-    static PrinterSetup::PrinterSetupDialog* printer_setup_dialog()
-    {
-        for (auto* window : wxTopLevelWindows)
-            if (auto* dialog = dynamic_cast<PrinterSetup::PrinterSetupDialog*>(window); dialog && dialog->IsShown())
-                return dialog;
-        return nullptr;
-    }
+    static std::string selected_printer() { return wxGetApp().preset_bundle->printers.get_selected_preset_name(); }
 
-    static GuideFrame* printer_wizard()
-    {
-        for (auto* window : wxTopLevelWindows)
-            if (auto* wizard = dynamic_cast<GuideFrame*>(window); wizard && wizard->IsShown()) return wizard;
-        return nullptr;
-    }
-
-    static wxWindow* setup_control(const char* name)
-    {
-        auto* dialog = printer_setup_dialog();
-        return dialog ? wxWindow::FindWindowByName(ui_name(name), dialog) : nullptr;
-    }
-
-    static std::size_t setup_control_count(const char* name)
-    {
-        std::size_t count = 0;
-        std::function<void(wxWindow*)> walk = [&](wxWindow* window) {
-            if (window->GetName() == ui_name(name)) ++count;
-            for (wxWindow* child : window->GetChildren()) walk(child);
-        };
-        if (auto* dialog = printer_setup_dialog()) walk(dialog);
-        return count;
-    }
-
-    static wxString setup_labels()
-    {
-        auto* dialog = printer_setup_dialog();
-        return dialog ? status_row_labels(dialog) : wxString();
-    }
-
-    // What a half of the header chip reads on screen: "Printer" or "Spool".
+    // One half of the header's printer chip, by the name that half carries.
     static wxString chip_label(wxWindow* row, const char* half)
     {
         wxWindow* control = wxWindow::FindWindowByName(half, row);
         return control ? control->GetLabel() : wxString();
     }
 
-    static wxTextCtrl* setup_description() { return dynamic_cast<wxTextCtrl*>(setup_control("What printer do you have?")); }
-
-    static void press(wxWindow* control)
-    {
-        if (control == nullptr) return;
-        if (auto* link = dynamic_cast<wxHyperlinkCtrl*>(control)) {
-            wxHyperlinkEvent event(link, link->GetId(), link->GetURL());
-            link->GetEventHandler()->ProcessEvent(event);
-            return;
-        }
-        wxCommandEvent event(wxEVT_BUTTON, control->GetId());
-        event.SetEventObject(control);
-        control->GetEventHandler()->ProcessEvent(event);
-    }
-
-    // The description shows its prompt as text until it takes focus.
-    static void type_description(const char* text)
-    {
-        auto* field = setup_description();
-        if (field == nullptr) return;
-        wxFocusEvent focus(wxEVT_SET_FOCUS, field->GetId());
-        focus.SetEventObject(field);
-        field->GetEventHandler()->ProcessEvent(focus);
-        field->SetValue(ui_name(text));
-    }
-
-    static std::string selected_printer() { return wxGetApp().preset_bundle->printers.get_selected_preset_name(); }
-
-    void open_printer_setup_from_menu(const std::string& label, std::function<void()> then)
-    {
-        installed_shell()->status_row()->open_printer_menu();
-        HeaderMenu* menu = visible_header_menu();
-        wxWindow* row = menu ? wxWindow::FindWindowByName(ui_name("Add a printer…"), menu) : nullptr;
-        check(row != nullptr, label + "_printer_menu_has_add_printer");
-        if (row == nullptr) {
-            fail("the printer menu has no Add a printer row");
-            return;
-        }
-        click_row(menu, row);
-        wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_printer_menu_opens_setup",
-                   [self = shared_from_this(), then = std::move(then)] {
-                       self->m_setup_scrim = printer_setup_dialog()->GetParent();
-                       self->m_setup_has_scrim = true;
-                       then();
-                   });
-    }
-
-    // Recognition, a network printer, and a missing agent cannot come from
-    // this machine, so these flows build the modal here with the fake
-    // recognizer and the inputs the test supplies. The app's own path from
-    // the menu to the modal is covered by the Escape, close, and manual flows.
-    void open_printer_setup_with(const std::string& label, std::vector<PrinterSetup::DiscoveredPrinter> discovered,
-                                 bool agent_connected, bool start_on_first_printer, std::function<void()> then)
-    {
-        m_frame->CallAfter([discovered = std::move(discovered), agent_connected, start_on_first_printer]() mutable {
-            Plater& plater = *wxGetApp().plater();
-            PrinterSetup::PrinterSetupController* flow = nullptr;
-            auto apply = [&plater, &flow](const PrinterSetup::PrinterCandidate& candidate, std::string& error) {
-                return PrinterSetup::add_printer(plater, candidate, flow->evidence().discovered_device, error);
-            };
-            auto controller = std::make_unique<PrinterSetup::PrinterSetupController>(
-                PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
-                std::make_unique<PrinterSetup::FakePrinterRecognition>(), std::move(apply));
-            flow = controller.get();
-            if (start_on_first_printer) controller->use_discovered(discovered.front());
-            const ShellTheme theme = ShellTheme::load_from_resources();
-            // Mirrors PrinterSetupLauncher.cpp's make_setup_webview: a second,
-            // throwaway AgentWebView with its own AgentService/AgentSetupService,
-            // never the docked pane's, and no start_mcp() call.
-            auto make_setup_webview = [&theme](wxWindow* parent) {
-                ShellController* shell = installed_shell();
-                Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
-                auto webview = std::make_unique<AgentWebView>(
-                    parent, theme, *shell->workspace(), *shell->persistence(), runtime.availability,
-                    std::move(runtime.service), runtime.setup, /*embedded=*/true);
-                webview->apply_appearance(wxGetApp().dark_mode());
-                webview->SetName(_L("Agent setup"));
-                return webview;
-            };
-            PrinterSetup::PrinterSetupDialog dialog(
-                wxGetApp().mainframe, theme, wxGetApp().dark_mode(), std::move(controller), std::move(discovered),
-                agent_connected, make_setup_webview,
-                [](const PrinterSetup::DiscoveredPrinter& printer, const std::string& code, wxString& error) {
-                    return SetupCommands::set_printer_access_code(printer.stable_id, code, error);
-                });
-            dialog.ShowModal();
-        });
-        wait_until([] { return printer_setup_dialog() != nullptr; }, label + "_opens_setup",
-                   [self = shared_from_this(), then = std::move(then)] {
-                       self->m_setup_has_scrim = false;
-                       then();
-                   });
-    }
-
-    static PrinterSetup::DiscoveredPrinter fake_network_printer()
-    {
-        PrinterSetup::DiscoveredPrinter printer{"01P00A3B", "Bambu Lab A1 mini", "192.0.2.2", "N1", "LAN", true};
-        printer.nozzle_diameter = 0.4;
-        printer.ams_name = "AMS lite";
-        printer.spools = {{"Bambu PLA Matte", "#2E6FD9"}, {"Bambu PLA Basic", "#F5F5F0"},
-                          {"Bambu PETG HF", "#1A1A1A"}, {"Bambu PLA Silk", "#C0392B"}};
-        return printer;
-    }
-
-    // Waits for the modal to go, then for the loop to go idle so a deferred
-    // Destroy() of the scrim has run before it is checked.
-    void after_setup_closes(const std::string& label, const std::string& expected_printer, std::function<void()> then)
-    {
-        wait_until([] { return printer_setup_dialog() == nullptr; }, label + "_closes_setup",
-                   [self = shared_from_this(), label, expected_printer, then = std::move(then)] {
-            self->wait_until_settled(label + "_settled", [self, label, expected_printer, then] {
-                if (self->m_setup_has_scrim)
-                    self->check(!self->m_setup_scrim, label + "_scrim_destroyed");
-                self->check(self->m_frame->IsShown() && self->m_frame->IsEnabled(), label + "_main_frame_usable");
-                self->check(selected_printer() == expected_printer, label + "_printer_is_expected");
-                then();
-            });
-        });
-    }
-
     void verify_printer_setup()
     {
         check(selected_printer() == kSetupFixturePrinter, "setup_fixture_printer_selected");
-        open_printer_setup_from_menu("setup_escape", [self = shared_from_this()] {
-            auto* dialog = printer_setup_dialog();
-            wxWindow* scrim = dialog->GetParent();
-            self->check(dynamic_cast<wxFrame*>(scrim) != nullptr && scrim != self->m_frame && scrim->IsShown(),
-                        "setup_modal_is_parented_to_scrim");
-            self->check(dialog->IsModal() && self->m_frame->IsShown(), "setup_modal_over_shown_main_frame");
-            auto* next = setup_control("Next");
-            self->check(next != nullptr && !next->IsEnabled(), "setup_next_disabled_without_evidence");
-            self->check(setup_control("Close Add a printer") && setup_control("Set it up myself") &&
-                        setup_control("Choose a printer photo") && setup_description(),
-                        "setup_initial_controls_have_accessible_names");
-            wxKeyEvent escape(wxEVT_CHAR_HOOK);
-            escape.m_keyCode = WXK_ESCAPE;
-            escape.SetEventObject(dialog);
-            dialog->GetEventHandler()->ProcessEvent(escape);
-            self->after_setup_closes("setup_escape", kSetupFixturePrinter, [self] {
-                self->open_printer_setup_from_menu("setup_close_button", [self] {
-                    press(setup_control("Close Add a printer"));
-                    self->after_setup_closes("setup_close_button", kSetupFixturePrinter,
-                                             [self] { self->verify_setup_choices(); });
-                });
-            });
+
+        ShellController*            shell = installed_shell();
+        Home::HomeWebView*          home  = shell == nullptr ? nullptr : shell->home_view();
+        PrinterSetup::PrinterPanel* panel = shell == nullptr ? nullptr : shell->printer_panel();
+        if (home == nullptr || panel == nullptr) {
+            fail("the shell has no Home view or printer panel");
+            return;
+        }
+        check(!panel->IsShown(), "panel_closed_before_it_is_asked_for");
+
+        // "+ Add printer" on Home, as the page sends it.
+        home->backend().add_printer();
+        check(panel->IsShown(), "panel_opens_from_add_printer");
+        check(home->IsShown(), "panel_opens_on_home");
+        const nlohmann::json add = panel->session_json();
+        check(add.value("mode", "") == "add" && !add.value("canAdd", true), "panel_adds_with_an_empty_new_printer_card");
+        check(add["facts"]["printer"].value("name", "x").empty() && add["facts"]["nozzle"].value("size", -1.) == 0.,
+              "panel_states_nothing_before_the_printer_is_named");
+        // The page writes every word; the app sends none.
+        check(!add.contains("caption") && !add.contains("placeholder") && !add.contains("chips"),
+              "panel_sends_facts_not_words");
+        const bool tip = std::any_of(add["blocks"].begin(), add["blocks"].end(),
+                                     [](const nlohmann::json& block) { return block.value("kind", "") == "tip"; });
+        check(tip, "panel_offers_the_photo_path_in_words");
+
+        // A printer to change: the fixture's own profile saved under a name.
+        const std::string named = Printers::add_named_printer(*m_plater, "Lab Printer", {});
+        home->backend().open_printer_settings("named:" + named);
+        check(panel->IsShown(), "panel_opens_from_printer_settings");
+        const nlohmann::json change = panel->session_json();
+        check(change.value("mode", "") == "change", "panel_changes_the_printer_it_was_opened_for");
+        check(change["facts"]["printer"].value("name", "") == named, "panel_states_the_printer_by_name");
+        check(change["facts"]["nozzle"].value("size", 0.) == 0.4, "panel_states_the_nozzle_it_is_set_up_with");
+        verify_nozzle_change_leaves_the_project(named);
+
+        // "‹ Printers" gives the column back.
+        panel->close();
+        wxYield();
+        check(!panel->IsShown(), "panel_closes_back_to_the_printer_list");
+        check(Printers::remove_named_printer(*m_plater, nullptr, named).empty(), "panel_cleanup_removes_the_printer");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        verify_setup_install_commands();
+    }
+
+    // A nozzle changed from Home is a change to that printer, not to the
+    // project that happens to be open: the project keeps the printer it has
+    // selected and its modified state, and nothing asks the person anything
+    // (a dialog would stop this harness where it stands).
+    void verify_nozzle_change_leaves_the_project(const std::string& named)
+    {
+        PresetCollection&              printers = wxGetApp().preset_bundle->printers;
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
+                                                 nullptr);
+        const auto change = [&](double nozzle) {
+            PrinterSetup::ChangePrinterRequest request;
+            request.name   = named;
+            request.nozzle = nozzle;
+            PrinterSetup::SavedPrinter changed;
+            return backend.change_printer(request, changed);
+        };
+        const auto parent = [&] {
+            const Preset* profile = printer_profile(named);
+            return profile == nullptr ? std::string() : profile->inherits();
+        };
+        const auto edited_nozzle = [&] {
+            const auto* nozzle = printers.get_edited_preset().config.option<ConfigOptionFloats>("nozzle_diameter");
+            return nozzle == nullptr || nozzle->values.empty() ? 0. : nozzle->values.front();
+        };
+
+        // Another printer is the project's.
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const bool dirty = m_plater->is_project_dirty();
+        check(change(0.6).empty() && parent() == "Bambu Lab X1 Carbon 0.6 nozzle", "nozzle_change_moves_the_printer_to_its_size");
+        check(selected_printer() == kSetupFixturePrinter, "nozzle_change_keeps_the_projects_printer");
+        check(m_plater->is_project_dirty() == dirty, "nozzle_change_keeps_the_projects_modified_state");
+        check(edited_nozzle() == 0.4, "nozzle_change_leaves_the_projects_printer_settings");
+        // Undo is the same operation back.
+        check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_undo_moves_it_back");
+
+        // The printer is the project's, with nothing unsaved: the project's
+        // copy follows, still selected, still clean.
+        SetupCommands::select_printer_preset(*m_plater, named);
+        const bool dirty_on_it = m_plater->is_project_dirty();
+        check(change(0.6).empty() && selected_printer() == named, "nozzle_change_of_the_projects_printer_keeps_it_selected");
+        check(edited_nozzle() == 0.6 && !printers.current_is_dirty(), "nozzle_change_of_the_projects_printer_reaches_it");
+        check(m_plater->is_project_dirty() == dirty_on_it, "nozzle_change_of_the_projects_printer_keeps_its_modified_state");
+
+        // Unsaved edits to it are the person's: refused in words, with no
+        // prompt, and nothing moved.
+        printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
+        check(printers.current_is_dirty(), "nozzle_fixture_has_unsaved_printer_edits");
+        check(!change(0.4).empty() && parent() == "Bambu Lab X1 Carbon 0.6 nozzle",
+              "nozzle_change_refuses_over_unsaved_edits_without_a_prompt");
+        printers.discard_current_changes();
+        check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_cleanup_moves_it_back");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+    }
+
+    // --- The worked examples, live (--printer-live) ------------------------
+    //
+    // The handoff's worked examples through the real panel: its own session,
+    // the live model, the Orca backend. Words and taps go in as the page would
+    // send them; each exchange is printed for reading, and what can be checked
+    // mechanically is.
+
+    struct LiveStep
+    {
+        std::string            label;
+        std::function<void()>  act;   // opens a session, or sends words or a tap
+        std::function<bool()>  ready; // when the exchange has settled
+        std::function<void()>  check; // then
+    };
+    std::deque<LiveStep> m_live_steps;
+    std::size_t          m_live_printed{0};
+    std::size_t          m_live_messages_before{0};
+    std::string          m_live_printer;
+
+    PrinterSetup::PrinterPanel* live_panel() const
+    {
+        ShellController* shell = installed_shell();
+        return shell == nullptr ? nullptr : shell->printer_panel();
+    }
+
+    void live_send(const std::string& type, const nlohmann::json& payload)
+    {
+        static int next = 0;
+        live_panel()->host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                             {"version", Agent::Protocol::kVersion},
+                                                             {"id", "live-" + std::to_string(++next)},
+                                                             {"type", type},
+                                                             {"payload", payload}}
+                                                  .dump());
+    }
+
+    // Clicks the button on the panel's own page that carries these words, as
+    // the person would, so what the page sends with the tap is what the app
+    // receives.
+    void live_tap(const std::string& words)
+    {
+        WebView::RunScript(live_panel()->web_view()->webview(),
+                           "(function(){var button = Array.prototype.find.call(document.querySelectorAll('button'),"
+                           "  function (b) { return b.textContent === '" + words + "'; });"
+                           " if (button) button.click();})()");
+    }
+
+    bool live_note(const std::string& text) const
+    {
+        const auto messages = live_messages();
+        return std::any_of(messages.begin(), messages.end(), [&text](const Agent::ConversationMessage& message) {
+            return message.role == Agent::MessageRole::Note && message.text == text;
         });
     }
 
-    void verify_setup_choices()
+    // The page's opening is the thread's first line, as the agent's.
+    void check_live_opening(const std::string& start, const std::string& name)
     {
-        open_printer_setup_with("setup_choices", {}, true, false, [self = shared_from_this()] {
-            type_description("the ender with the touchscreen");
-            auto* next = setup_control("Next");
-            self->check(next && next->IsEnabled(), "setup_next_enabled_by_description");
-            // A dropped photo joins what was typed; it must not wipe it.
-            auto* photo = setup_control("Choose a printer photo");
-            wxArrayString files;
-            files.Add(ui_name(std::string(JUSPRIN_SOURCE_DIR) + "/resources/images/OrcaSlicer.png"));
-            auto* target = photo ? dynamic_cast<wxFileDropTarget*>(photo->GetDropTarget()) : nullptr;
-            self->check(target && target->OnDropFiles(0, 0, files), "setup_photo_drop_accepted");
-            self->wait_until([] { return setup_labels().Contains("Photo: OrcaSlicer.png"); }, "setup_photo_drop_staged", [self] {
-                auto* field = setup_description();
-                self->check(field && field->GetValue() == "the ender with the touchscreen",
-                            "setup_photo_drop_keeps_typed_description");
-                type_description("the ender with the touchscreen");
-                press(setup_control("Next"));
-                self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_offers_two_models", [self] {
-                    self->check(!setup_labels().Contains("Which one is yours?") && setup_control("Say more") &&
-                                setup_control("Neither · it's not in the list"),
-                                "setup_ambiguous_matches_design");
-                    self->check(selected_printer() == kSetupFixturePrinter, "setup_ambiguous_changes_nothing");
-                    press(setup_control("This one"));
-                    self->wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_choice_reaches_recognized", [self] {
-                        const wxString labels = setup_labels();
-                        self->check(labels.Contains("Ender-3 V2") && labels.Contains(ui_name("220 × 220 × 250 mm")),
-                                    "setup_recognized_reads_profile_details");
-                        self->check(selected_printer() == kSetupFixturePrinter, "setup_choice_changes_nothing");
-                        // Ender-3 V2 ships only a 0.4 variant. A correction on a
-                        // model picked from an ambiguous description must keep
-                        // that pick and report the nozzle as not applied.
-                        dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("I put a 0.6 nozzle on it");
-                        press(setup_control("Add this printer"));
-                        self->wait_until([] { return setup_labels().Contains("Not applied:") || setup_control_count("This one") > 0; },
-                                         "setup_correction_after_choice_resolves", [self] {
-                        self->check(setup_control_count("This one") == 0 && setup_labels().Contains("Creality Ender-3 V2") &&
-                                    !setup_labels().Contains("V2 Neo") && setup_labels().Contains("Not applied:"),
-                                    "setup_correction_after_choice_keeps_the_chosen_model");
-                        press(setup_control("Not this one"));
-                        self->wait_until([] { return setup_description() != nullptr; }, "setup_not_this_one_returns_to_initial", [self] {
-                            self->check(setup_description()->GetValue() == "the ender with the touchscreen" &&
-                                        setup_labels().Contains("Photo: OrcaSlicer.png"),
-                                        "setup_not_this_one_keeps_evidence_for_editing");
-                            press(setup_control("Next"));
-                            self->wait_until([] { return setup_control_count("This one") == 2; }, "setup_ambiguous_again", [self] {
-                                auto* more = dynamic_cast<wxTextCtrl*>(setup_control("Say more"));
-                                more->SetValue("it has a knob");
-                                wxCommandEvent enter(wxEVT_TEXT_ENTER, more->GetId());
-                                enter.SetEventObject(more);
-                                more->GetEventHandler()->ProcessEvent(enter);
-                                self->wait_until([] { return setup_control_count("This one") == 2 && setup_labels().Contains("it has a knob"); },
-                                                 "setup_say_more_re_recognizes", [self] {
-                                press(setup_control("Neither · it's not in the list"));
-                                self->wait_until([] { return setup_description() != nullptr; }, "setup_start_over_returns_to_initial", [self] {
-                                    self->check(setup_description()->GetValue().StartsWith("Say it any way"),
-                                                "setup_start_over_clears_description");
-                                    self->check(!setup_labels().Contains("Photo:"), "setup_start_over_clears_photo");
-                                    self->check(!setup_control("Next")->IsEnabled(), "setup_start_over_disables_next");
-                                    self->verify_setup_correction_and_add();
-                                });
-                                });
-                            });
-                        });
-                        });
-                    });
-                });
-            });
-        });
+        const auto messages = live_messages();
+        check(!messages.empty() && messages.front().role == Agent::MessageRole::Assistant &&
+                  messages.front().text.rfind(start, 0) == 0,
+              name);
     }
 
-    void verify_setup_correction_and_add()
+    void say(const std::string& text)
     {
-        // The longer model name must win over the shorter one it contains.
-        type_description("Creality Ender-3 V2 Neo");
-        press(setup_control("Next"));
-        wait_until([] { return setup_control("Add this printer") != nullptr; }, "setup_named_model_recognized",
-                   [self = shared_from_this()] {
-            self->check(setup_labels().Contains("Ender-3 V2 Neo"), "setup_named_model_is_the_longest_match");
-            dynamic_cast<wxTextCtrl*>(setup_control("Correction"))->SetValue("it's the Combo with the AMS");
-            press(setup_control("Add this printer"));
-            self->wait_until([] { return setup_labels().Contains("Not applied:"); }, "setup_unrepresentable_correction_stays_visible", [self] {
-                self->check(setup_labels().Contains("Ender-3 V2 Neo"), "setup_unrepresentable_correction_keeps_model");
-                self->check(selected_printer() == kSetupFixturePrinter, "setup_correction_changes_nothing");
-                self->check(!wxGetApp().app_config->vendors().count("Creality"), "setup_neo_not_enabled_before_confirmation");
-                press(setup_control("Add this printer"));
-                self->after_setup_closes("setup_add", kAddedPrinter, [self] {
-                    const auto vendors = wxGetApp().app_config->vendors();
-                    const auto creality = vendors.find("Creality");
-                    self->check(creality != vendors.end() && creality->second.count("Creality Ender-3 V2 Neo") &&
-                                creality->second.at("Creality Ender-3 V2 Neo").count("0.4"),
-                                "setup_add_enables_the_shipped_model_variant");
-                    const auto bbl = vendors.find("BBL");
-                    self->check(bbl != vendors.end() && bbl->second.count("Bambu Lab X1 Carbon"),
-                                "setup_add_keeps_previously_enabled_printers");
-                    self->verify_setup_network();
-                });
-            });
-        });
+        static int next = 0;
+        live_send("user_message", {{"clientMessageId", "live-c-" + std::to_string(++next)}, {"text", text}});
     }
 
-    void verify_setup_network()
+    std::vector<Agent::ConversationMessage> live_messages() const
     {
-        open_printer_setup_with("setup_network", {fake_network_printer()}, true, true, [self = shared_from_this()] {
-            const wxString labels = setup_labels();
-            self->check(labels.Contains(ui_name("Found on your network · 01P00A3B")) && labels.Contains("A1 mini"),
-                        "setup_network_state_shows_connection_and_model");
-            self->check(labels.Contains("0.4 mm nozzle") && labels.Contains("AMS lite") &&
-                        labels.Contains("Bambu PLA Matte") && labels.Contains("+ 3 more") &&
-                        labels.Contains("read from the printer just now") && !setup_control("Correction"),
-                        "setup_network_reads_the_printer_instead_of_assuming");
-            press(setup_control("Not this one"));
-            self->wait_until([] { return setup_description() != nullptr; }, "setup_network_not_this_one_returns_to_initial", [self] {
-                self->check(setup_labels().Contains("01P00A3B"), "setup_network_row_shows_device_id");
-                press(setup_control("Use this"));
-                self->wait_until([] { return setup_control("Access code") != nullptr; }, "setup_network_use_this_reaches_confirmation", [self] {
-                    dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->SetValue("not valid!");
-                    press(setup_control("Add this printer"));
-                    self->wait_until([] { return setup_labels().Contains("Invalid input."); },
-                                     "setup_network_access_code_is_validated", [self] {
-                        self->check(dynamic_cast<wxTextCtrl*>(setup_control("Access code"))->GetValue() == "not valid!",
-                                    "setup_rejected_access_code_stays_for_editing");
-                        self->check(selected_printer() == kAddedPrinter,
-                                    "setup_rejected_access_code_changes_nothing");
-                        press(setup_control("Close Add a printer"));
-                        self->after_setup_closes("setup_network", kAddedPrinter,
-                                                 [self] { self->verify_setup_no_agent(); });
-                    });
-                });
-            });
-        });
+        const Agent::ProjectPersistence* persistence = live_panel()->persistence();
+        if (persistence == nullptr)
+            return {};
+        return persistence->document().messages(persistence->document().active_conversation_id());
     }
 
-    void verify_setup_no_agent()
+    const std::vector<Agent::ToolActivity>& live_activities() const { return live_panel()->host()->tools().activities(); }
+
+    std::vector<const Agent::ToolActivity*> live_calls(const std::string& tool) const
     {
-        open_printer_setup_with("setup_no_agent", {fake_network_printer()}, false, false, [self = shared_from_this()] {
-            self->check(setup_labels().Contains("No agent connected") && setup_control("Set up the agent") &&
-                        setup_control("set it up myself") && setup_control("Use this") && !setup_description(),
-                        "setup_no_agent_offers_agent_setup_and_network");
-            press(setup_control("Set up the agent"));
-            // "Set up the agent" embeds the same setup flow in this dialog
-            // rather than closing it and redirecting to the docked panel.
-            self->wait_until([] { return setup_control("Agent setup") != nullptr; }, "setup_no_agent_embeds_setup_flow", [self] {
-                self->check(printer_setup_dialog() != nullptr, "setup_no_agent_dialog_stays_open");
-                self->check(!setup_labels().Contains("No agent connected"), "setup_no_agent_card_replaced_by_embedded_flow");
-                press(setup_control("Close Add a printer"));
-                self->after_setup_closes("setup_no_agent", kAddedPrinter,
-                                         [self] { self->verify_setup_manual(); });
-            });
-        });
+        std::vector<const Agent::ToolActivity*> calls;
+        for (const Agent::ToolActivity& activity : live_activities())
+            if (activity.tool == tool)
+                calls.push_back(&activity);
+        return calls;
     }
 
-    void verify_setup_manual()
+    // Settled: nothing streaming, no tool mid-run, and either a card waits
+    // for the person or the model has had its last word.
+    bool live_settled() const
     {
-        open_printer_setup_from_menu("setup_manual", [self = shared_from_this()] {
-            press(setup_control("Set it up myself"));
-            // The wizard adds its web view's script handler from a CallAfter and
-            // that call waits on the page. Cancelling before the page has loaded
-            // leaves it waiting on a hidden view forever, so wait for the load.
-            self->wait_until([] {
-                GuideFrame* wizard = printer_wizard();
-                if (wizard == nullptr || wxGetApp().is_adding_script_handler()) return false;
-                std::function<wxWebView*(wxWindow*)> find = [&](wxWindow* window) -> wxWebView* {
-                    if (auto* view = dynamic_cast<wxWebView*>(window)) return view;
-                    for (wxWindow* child : window->GetChildren())
-                        if (wxWebView* view = find(child)) return view;
-                    return nullptr;
-                };
-                wxWebView* view = find(wizard);
-                return view != nullptr && !view->IsBusy() && !view->GetCurrentURL().empty();
-            }, "setup_manual_opens_orca_printer_wizard", [self] {
-                self->check(printer_setup_dialog() == nullptr, "setup_manual_closes_add_printer_first");
-                printer_wizard()->EndModal(wxID_CANCEL);
-                self->wait_until([] { return printer_wizard() == nullptr; }, "setup_manual_wizard_cancelled", [self] {
-                    self->wait_until_settled("setup_manual_settled", [self] {
-                        self->check(!self->m_setup_scrim, "setup_manual_scrim_destroyed");
-                        self->check(selected_printer() == kAddedPrinter,
-                                    "setup_manual_cancel_keeps_printer");
-                        self->verify_setup_install_commands();
-                    });
-                });
+        Agent::AgentHost* host = live_panel()->host();
+        if (host == nullptr || host->stream_active())
+            return false;
+        const auto& activities = live_activities();
+        if (!activities.empty()) {
+            const Agent::ToolState state = activities.back().state;
+            if (state == Agent::ToolState::Approved || state == Agent::ToolState::Running)
+                return false;
+            if (state == Agent::ToolState::Pending)
+                return true;
+        }
+        const auto messages = live_messages();
+        return !messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
+               messages.back().state == Agent::MessageState::Complete && !messages.back().text.empty();
+    }
+
+    static const char* tool_state_label(Agent::ToolState state)
+    {
+        switch (state) {
+        case Agent::ToolState::Pending: return "pending";
+        case Agent::ToolState::Approved: return "approved";
+        case Agent::ToolState::Running: return "running";
+        case Agent::ToolState::Succeeded: return "succeeded";
+        case Agent::ToolState::Failed: return "failed";
+        case Agent::ToolState::Cancelled: return "cancelled";
+        case Agent::ToolState::Rejected: return "rejected";
+        }
+        return "?";
+    }
+
+    void live_print_new()
+    {
+        const auto messages = live_messages();
+        for (std::size_t i = m_live_printed; i < messages.size(); ++i) {
+            const auto& message = messages[i];
+            const char* who = message.role == Agent::MessageRole::User ? "person" :
+                              message.role == Agent::MessageRole::Note ? "app" :
+                                                                         "model";
+            if (!message.text.empty())
+                std::cerr << "HARNESS LIVE   " << who << ": " << message.text << '\n';
+        }
+        m_live_printed = messages.size();
+    }
+
+    void run_live_steps()
+    {
+        if (m_live_steps.empty()) {
+            finish_printer_live();
+            return;
+        }
+        LiveStep step = std::move(m_live_steps.front());
+        m_live_steps.pop_front();
+        std::cerr << "HARNESS LIVE -- " << step.label << '\n';
+        step.act();
+        auto ready = step.ready ? step.ready : [this] { return live_settled(); };
+        wait_until(
+            ready, "live_" + step.label,
+            [self = shared_from_this(), check = step.check] {
+                self->live_print_new();
+                if (check)
+                    check();
+                self->run_live_steps();
+            },
+            [this, ticks = std::make_shared<int>(0)] {
+                if (++*ticks % 300 != 0 || live_panel()->host() == nullptr)
+                    return;
+                const auto messages = live_messages();
+                std::cerr << "HARNESS LIVE   waiting: stream=" << live_panel()->host()->stream_active()
+                          << " messages=" << messages.size() << " tools=" << live_activities().size();
+                if (!messages.empty())
+                    std::cerr << " last role=" << static_cast<int>(messages.back().role)
+                              << " state=" << static_cast<int>(messages.back().state) << " text=" << messages.back().text.size()
+                              << (messages.back().error ? " error=" + messages.back().error->code + " " + messages.back().error->message : "");
+                std::cerr << '\n';
             });
+    }
+
+    void live_open(PrinterSetup::ConversationMode mode, const std::string& printer = {})
+    {
+        m_live_steps.push_back({mode == PrinterSetup::ConversationMode::Add ? "open: add" : "open: change " + printer,
+                                [this, mode, printer] {
+                                    live_panel()->open(mode, printer);
+                                    m_live_printed = 0;
+                                },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                {}});
+    }
+
+    void live_say(const std::string& words, std::function<void()> check)
+    {
+        m_live_steps.push_back({"say: " + words, [this, words] { say(words); }, {}, std::move(check)});
+    }
+
+    bool live_identified(const std::string& id) const
+    {
+        for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+            if (call->state == Agent::ToolState::Succeeded && call->arguments_json.find("\"" + id + "\"") != std::string::npos)
+                return true;
+        return false;
+    }
+
+    bool live_drew_a_card() const
+    {
+        for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+            if (call->state == Agent::ToolState::Succeeded)
+                return true;
+        return false;
+    }
+
+    void live_print_calls()
+    {
+        for (const Agent::ToolActivity& activity : live_activities())
+            std::cerr << "HARNESS LIVE   tool " << activity.tool << ' ' << activity.arguments_json << " -> "
+                      << (activity.error ? activity.error->code : std::string(tool_state_label(activity.state))) << '\n';
+    }
+
+    void begin_printer_live()
+    {
+        if (live_panel() == nullptr || std::getenv("OPENAI_API_KEY") == nullptr) {
+            fail("the printer panel or the OpenAI key is missing");
+            return;
+        }
+        // The panel builds its own Agent from the app configuration, as the
+        // shipped app does, so the key goes there: this run's throwaway data
+        // directory, never the person's.
+        // As a std::string: a char* would pick AppConfig::set's bool overload.
+        wxGetApp().app_config->set("jusprin_agent", "openai_api_key", std::string(std::getenv("OPENAI_API_KEY")));
+        using Mode = PrinterSetup::ConversationMode;
+
+        live_open(Mode::Add);
+        live_say("the small bambu one", [this] {
+            check_live_opening("What printer do you have?", "live_add_opens_with_the_pages_line");
+            live_print_calls();
+            check(live_identified("BBL/Bambu Lab A1 mini"), "live_small_bambu_is_the_a1_mini");
+            check(live_panel()->session_json()["facts"]["printer"].value("name", "") == "Bambu Lab A1 mini",
+                  "live_small_bambu_pins_the_card");
         });
+        m_live_steps.push_back({"tap: Not this one",
+                                [this] {
+                                    m_live_messages_before = live_messages().size();
+                                    live_tap("Not this one");
+                                },
+                                // The note, then the model's answer to it.
+                                [this] { return live_messages().size() > m_live_messages_before + 1 && live_settled(); },
+                                [this] {
+                                    check(live_note("The person said Bambu Lab A1 mini is not their printer."),
+                                          "live_not_this_one_is_recorded_in_the_pages_words");
+                                    check(live_panel()->session_json()["facts"]["printer"].value("name", "x").empty(),
+                                          "live_not_this_one_clears_the_pin");
+                                }});
+
+        live_open(Mode::Add);
+        live_say("voron 2.4 350mm", [this] {
+            live_print_calls();
+            check(live_identified("Voron/Voron 2.4 350"), "live_voron_350_is_found");
+        });
+
+        live_open(Mode::Add);
+        live_say("ender 3", [this] {
+            live_print_calls();
+            // Kenneth, 2026-09-18: asking which one and showing the original
+            // Ender-3 are both right; only a printer that is no Ender-3 is not.
+            bool only_enders = true;
+            for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+                if (call->state == Agent::ToolState::Succeeded)
+                    for (const auto& id : nlohmann::json::parse(call->arguments_json).value("catalogIds", nlohmann::json::array()))
+                        only_enders = only_enders && id.get<std::string>().rfind("Creality/Creality Ender-3", 0) == 0;
+            check(only_enders, "live_ender_3_shows_only_ender_3s_or_asks");
+        });
+
+        live_open(Mode::Add);
+        live_say("prusa mk3s", [this] { live_print_calls(); });
+        live_say("the 0.3 nozzle", [this] {
+            live_print_calls();
+            bool refused = false;
+            for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+                refused = refused || (call->error && call->error->code == "unknown_nozzle");
+            check(refused, "live_prusa_0_3_is_refused_with_the_sizes");
+        });
+
+        live_open(Mode::Add);
+        live_say("the prusa, the 0.3 nozzle", [this] { live_print_calls(); });
+
+        live_open(Mode::Add);
+        live_say("my elegoo mars", [this] {
+            live_print_calls();
+            check(!live_drew_a_card(), "live_elegoo_mars_draws_no_card");
+        });
+
+        // A printer to change: the fixture's own profile under a name, while
+        // the project keeps the fixture selected.
+        m_live_steps.push_back({"make: Lab Printer",
+                                [this] {
+                                    m_live_printer = Printers::add_named_printer(*m_plater, "Lab Printer", {});
+                                    SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+                                },
+                                [] { return true; },
+                                {}});
+        m_live_steps.push_back({"open: change",
+                                [this] {
+                                    live_panel()->open(Mode::Change, m_live_printer);
+                                    m_live_printed = 0;
+                                },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                {}});
+        live_say("i put a 0.6 nozzle on it", [this] {
+            check_live_opening("This is the " + m_live_printer + ". ", "live_change_opens_naming_the_printer");
+            live_print_calls();
+            const auto calls = live_calls("printer_change");
+            check(!calls.empty() && calls.back()->state == Agent::ToolState::Pending && calls.back()->title == "Change nozzle",
+                  "live_nozzle_change_waits_on_its_card");
+            const Preset* profile = printer_profile(m_live_printer);
+            check(profile != nullptr && profile->inherits() == kSetupFixturePrinter, "live_nothing_saved_before_the_card");
+        });
+        m_live_steps.push_back({"tap: Set 0.6 mm",
+                                [this] {
+                                    live_send("tool_decision", {{"actionId", live_activities().back().action_id}, {"decision", "approve"}});
+                                },
+                                {},
+                                [this] {
+                                    const Preset* profile = printer_profile(m_live_printer);
+                                    check(profile != nullptr && profile->inherits() == "Bambu Lab X1 Carbon 0.6 nozzle",
+                                          "live_nozzle_change_saved");
+                                    check(selected_printer() == kSetupFixturePrinter, "live_nozzle_change_keeps_the_projects_printer");
+                                }});
+        m_live_steps.push_back({"tap: Undo",
+                                [this] {
+                                    // Held: a range-for over a temporary's member dangles.
+                                    const nlohmann::json session = live_panel()->session_json();
+                                    bool row = false;
+                                    for (const auto& block : session["blocks"])
+                                        row = row || block.value("kind", "") == "undo";
+                                    std::cerr << "HARNESS LIVE   undo row: " << (row ? "shown" : "(none)") << '\n';
+                                    m_live_messages_before = live_messages().size();
+                                    live_tap("Undo");
+                                },
+                                [this] { return live_messages().size() > m_live_messages_before; },
+                                [this] {
+                                    const Preset* profile = printer_profile(m_live_printer);
+                                    check(profile != nullptr && profile->inherits() == kSetupFixturePrinter,
+                                          "live_undo_restores_the_nozzle");
+                                    const auto messages = live_messages();
+                                    check(messages.size() == m_live_messages_before + 1 &&
+                                              messages.back().role == Agent::MessageRole::Note && !live_panel()->host()->stream_active(),
+                                          "live_undo_is_recorded_without_a_model_turn");
+                                    check(!messages.empty() && messages.back().text == "The person undid the change: the nozzle is 0.4 mm again.",
+                                          "live_undo_is_recorded_in_the_pages_words");
+                                }});
+        live_say("swapped to a hardened steel 0.4", [this] {
+            check(live_calls("printer_change").size() == 1, "live_hardened_steel_changes_nothing");
+        });
+        live_say("the plate is smooth PEI now", [this] {
+            check(live_calls("printer_change").size() == 1, "live_plate_is_the_projects");
+        });
+        live_say("i put a 0.3 on it", [this] {
+            live_print_calls();
+            const auto calls = live_calls("printer_change");
+            check(calls.size() >= 2 && calls.back()->error && calls.back()->error->code == "unknown_nozzle",
+                  "live_0_3_is_refused_before_any_card");
+        });
+        run_live_steps();
+    }
+
+    void finish_printer_live()
+    {
+        live_panel()->close();
+        wxYield();
+        if (!m_live_printer.empty())
+            Printers::remove_named_printer(*m_plater, nullptr, m_live_printer);
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        finish();
     }
 
     void verify_setup_install_commands()
@@ -862,10 +979,6 @@ private:
     // printer, Home lists each, and renaming or removing one leaves the rest.
     void verify_named_printers()
     {
-        const Preset* first = printer_profile(kAddedPrinter);
-        check(first != nullptr && first->is_user() && first->inherits() == kAddedPrinterProfile,
-              "named_add_saved_a_user_profile_on_the_system_one");
-
         const auto catalog = PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir());
         const auto neo = std::find_if(catalog.candidates().begin(), catalog.candidates().end(), [](const auto& candidate) {
             return candidate.model_id == "Creality Ender-3 V2 Neo" && candidate.variant == "0.4";
@@ -875,8 +988,26 @@ private:
             fail("the catalogue has no Ender-3 V2 Neo 0.4");
             return;
         }
-        std::string error;
-        const bool added = PrinterSetup::add_printer(*m_plater, *neo, std::nullopt, error);
+
+        // What "Add this printer" does, through the one route the panel uses.
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
+                                                 nullptr);
+        PrinterSetup::AddPrinterRequest request;
+        request.vendor_id = neo->vendor_id;
+        request.model_id  = neo->model_id;
+        request.variant   = neo->variant;
+        request.material  = neo->default_material;
+        request.name      = neo->model_name;
+        PrinterSetup::SavedPrinter saved;
+        std::string error = backend.add_printer(request, saved);
+
+        const Preset* first = printer_profile(kAddedPrinter);
+        check(error.empty() && first != nullptr && first->is_user() && first->inherits() == kAddedPrinterProfile,
+              "named_add_saved_a_user_profile_on_the_system_one");
+
+        // A second printer of the same model is a second printer.
+        error = backend.add_printer(request, saved);
+        const bool added = error.empty();
         const std::string second = std::string(kAddedPrinter) + " (2)";
         check(added && error.empty() && selected_printer() == second, "named_second_of_a_model_is_a_second_printer");
         check(printer_profile(kAddedPrinter) != nullptr, "named_second_add_keeps_the_first");
@@ -940,12 +1071,12 @@ private:
         std::string error;
         check(SetupCommands::install_and_select_printer(*m_plater, "Custom", "Generic Klipper Printer", "0.4", {}, error),
               "named_wizard_enables_klipper");
-        PrinterSetup::name_installed_printers(*m_plater, before);
+        Printers::name_installed_printers(*m_plater, before);
         const Preset* klipper = printer_profile("Generic Klipper Printer");
         check(selected_printer() == "Generic Klipper Printer" && klipper != nullptr && klipper->is_user() &&
                   klipper->inherits() == "MyKlipper 0.4 nozzle",
               "named_wizard_install_becomes_a_printer");
-        PrinterSetup::name_installed_printers(*m_plater, wxGetApp().app_config->vendors());
+        Printers::name_installed_printers(*m_plater, wxGetApp().app_config->vendors());
         check(printer_profile("Generic Klipper Printer (2)") == nullptr, "named_wizard_names_only_new_models");
         check(Printers::remove_named_printer(*m_plater, nullptr, "Generic Klipper Printer").empty(),
               "named_wizard_cleanup_removes_the_printer");
@@ -1382,9 +1513,17 @@ private:
         // The printer half opens the printer menu; the spool half's row menu
         // is where Filament settings… now lives, one step in from the list.
         if (type == Preset::TYPE_PRINTER) {
+            // Printer settings… talks about the selected printer in the
+            // printer conversation on Home. Only a printer saved under a name
+            // can be changed there, so one is saved from the fixture's own
+            // profile and selected for the length of the check.
+            m_header_setup_restore_printer = wxGetApp().preset_bundle->printers.get_selected_preset_name();
+            m_header_setup_printer         = Printers::add_named_printer(*m_plater, "Header Printer", {});
+            check(SetupCommands::current_printer().nickname.ToStdString() == m_header_setup_printer,
+                  "header_setup_named_printer_selected");
             installed_shell()->status_row()->open_printer_menu();
             choose_header_item(ui_name("Printer settings…"),
-                [self=shared_from_this(),type] { self->verify_header_setup_open(type); });
+                [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
             return;
         }
         installed_shell()->status_row()->open_spool_menu();
@@ -1675,16 +1814,51 @@ private:
         check(chip_label(row, "Spool") == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
     }
 
+    // Since 0e55c4f9be the header's Printer settings… opens the printer
+    // conversation in Home's printers column, not Orca's settings window.
+    void verify_header_printer_settings_open()
+    {
+        wait_until([this] {
+                PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+                return panel != nullptr && panel->IsShown() && m_notebook->GetSelection() == MainFrame::tpHome;
+            }, "header_printer_settings_opens_printer_conversation_on_home",
+            [self=shared_from_this()] {
+                PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+                const nlohmann::json session = panel->session_json();
+                self->check(session.value("mode", "") == "change" &&
+                                session["facts"]["printer"].value("name", "") == self->m_header_setup_printer,
+                            "header_printer_settings_is_about_the_selected_printer");
+                self->check(!wxGetApp().params_dialog()->IsShown(), "header_printer_settings_leaves_settings_window_closed");
+                panel->close();
+                self->wait_until([panel] { return !panel->IsShown(); }, "header_printer_conversation_closes",
+                    [self] {
+                        installed_shell()->status_row()->request_prepare();
+                        self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor &&
+                                                         !self->m_plater->is_preview_shown(); },
+                            "header_printer_settings_returns_to_prepare", [self] {
+                                self->check(Printers::remove_named_printer(*self->m_plater, nullptr,
+                                                                          self->m_header_setup_printer).empty(),
+                                            "header_setup_named_printer_removed");
+                                SetupCommands::select_printer_preset(*self->m_plater, self->m_header_setup_restore_printer);
+                                self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() ==
+                                                self->m_header_setup_restore_printer,
+                                            "header_setup_fixture_printer_restored");
+                                self->verify_header_setup(Preset::TYPE_FILAMENT);
+                            });
+                    });
+            });
+    }
+
+    // Filament settings… still opens Orca's settings window on its tab.
     void verify_header_setup_open(Preset::Type type)
     {
-        const std::string kind = type == Preset::TYPE_PRINTER ? "printer" : "filament";
+        const std::string kind = "filament";
         wait_until([] { return wxGetApp().params_dialog()->IsShown(); },"header_setup_opens_" + kind + "_editor",
             [self=shared_from_this(),type,kind] {
                 self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
                             "header_setup_selects_" + kind + "_tab");
                 wxGetApp().params_dialog()->Close();
-                if (type == Preset::TYPE_PRINTER) self->verify_header_setup(Preset::TYPE_FILAMENT);
-                else self->verify_header_overflow();
+                self->verify_header_overflow();
             });
     }
 
@@ -4352,10 +4526,8 @@ private:
     std::unique_ptr<JusPrinTest::NativeMcpClient> m_mcp_client;
     std::size_t                   m_saved_project_bytes{0};
     double                        m_save_ms{0.0};
-    wxWeakRef<wxWindow>           m_setup_scrim;
-    // Only the app's own entry point dims the window; a modal the harness
-    // builds itself has no scrim to check.
-    bool                          m_setup_has_scrim{false};
+    std::string                   m_header_setup_printer;
+    std::string                   m_header_setup_restore_printer;
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
@@ -4551,6 +4723,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
         else if (argument == "--printer-setup")
             state->mode = HarnessState::Mode::PrinterSetup;
+        else if (argument == "--printer-live")
+            state->mode = HarnessState::Mode::PrinterLive;
         else if (argument == "--recomputing-capture") {
             if (++index == argc) {
                 std::cerr << "--recomputing-capture requires an output directory\n";
@@ -4601,13 +4775,14 @@ int main(int argc, char** argv)
         }
 #endif
         if (state->mode == HarnessState::Mode::LiveAgent ||
-            state->mode == HarnessState::Mode::ManualLiveAgent ||
+            state->mode == HarnessState::Mode::ManualLiveAgent || state->mode == HarnessState::Mode::PrinterLive ||
             state->mode == HarnessState::Mode::LiveAgentUnavailable) {
             // The base config has the Agent off: no provider, no key, no
             // consent, exactly what a fresh install looks like.
             const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
-                                      state->mode == HarnessState::Mode::ManualLiveAgent;
+                                      state->mode == HarnessState::Mode::ManualLiveAgent ||
+                                      state->mode == HarnessState::Mode::PrinterLive;
             const std::string consent = live_enabled ? "true" : "false";
             const std::string to = "\"jusprin_agent\": {\n    \"cloud_consent\": " + consent +
                                    ",\n    \"enabled\": true,\n    \"model\": \"gpt-5.4-mini\",\n    \"provider\": \"openai\"\n  }";

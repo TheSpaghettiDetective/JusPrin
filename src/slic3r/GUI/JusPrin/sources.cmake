@@ -28,21 +28,19 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Agent/ToolResults.cpp
     GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Support/Base64.hpp
     GUI/JusPrin/PrinterSetup/PrinterSetupTypes.hpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp
     GUI/JusPrin/PrinterSetup/PrinterDiscovery.cpp
     GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp
-    GUI/JusPrin/PrinterSetup/PrinterPhoto.cpp
-    GUI/JusPrin/PrinterSetup/PrinterPhoto.hpp
-    GUI/JusPrin/PrinterSetup/PrinterRecognition.cpp
-    GUI/JusPrin/PrinterSetup/PrinterRecognition.hpp
-    GUI/JusPrin/PrinterSetup/PrinterSetupController.cpp
-    GUI/JusPrin/PrinterSetup/PrinterSetupController.hpp
-    GUI/JusPrin/PrinterSetup/PrinterSetupDialog.cpp
-    GUI/JusPrin/PrinterSetup/PrinterSetupDialog.hpp
-    GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.cpp
-    GUI/JusPrin/PrinterSetup/PrinterSetupLauncher.hpp
+    GUI/JusPrin/PrinterSetup/PrinterBackend.hpp
+    GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp
+    GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp
+    GUI/JusPrin/PrinterSetup/PrinterConversation.cpp
+    GUI/JusPrin/PrinterSetup/PrinterConversation.hpp
+    GUI/JusPrin/PrinterSetup/PrinterPanel.cpp
+    GUI/JusPrin/PrinterSetup/PrinterPanel.hpp
     GUI/JusPrin/Printers/InstalledModels.cpp
     GUI/JusPrin/Printers/InstalledModels.hpp
     GUI/JusPrin/Printers/NamedPrinters.cpp

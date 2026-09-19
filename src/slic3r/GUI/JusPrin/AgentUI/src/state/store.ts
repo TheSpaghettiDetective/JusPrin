@@ -22,6 +22,7 @@ import {
   McpCatalogPayload,
   McpPreviewPayload,
   McpStatusPayload,
+  PrinterSessionPayload,
 } from '../bridge/protocol';
 import { ConnectionState } from '../bridge/client';
 
@@ -48,6 +49,9 @@ export interface AgentUiState {
   // Staged (composer) and sent (history) attachments, keyed by id in the UI.
   attachments: AttachmentInfo[];
   context: WorkspaceContext | null;
+  // What the printer panel shows above and inside its thread; null in the
+  // project's own conversation.
+  session: PrinterSessionPayload | null;
   // Progress of a credential check. The host owns it; the page only mirrors
   // it, so a reload cannot leave a check looking live when it is not.
   setup: SetupStatusPayload;
@@ -83,6 +87,7 @@ export const initialState: AgentUiState = {
   mcpCatalog: null,
   mcpPreview: null,
   mcpStatus: { phase: 'idle' },
+  session: null,
   setupRequests: 0,
   needsResync: false,
   diagnostics: [],
@@ -153,6 +158,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         draft: full.draft ?? '',
         attachments: full.attachments ?? [],
         context: full.context,
+        session: full.session ?? null,
         // A full state answers a fresh handshake; any check that was in
         // flight before belonged to the previous page.
         setup: { phase: 'idle' },
@@ -162,6 +168,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
     }
     case 'context':
       return { ...state, context: payload.context as WorkspaceContext };
+    case 'printer_session':
+      return { ...state, session: envelope.payload as PrinterSessionPayload };
     case 'conversations_updated':
       return { ...state, conversations: payload.conversations as ConversationInfo[], conversationBusy: payload.busy as boolean };
     case 'appearance':

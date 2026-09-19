@@ -80,9 +80,12 @@ struct Snapshot
     bool                      dark{false};
     std::vector<ProjectEntry> projects;
     std::vector<PrinterEntry> printers;
+    // The printer conversation has the printers column, so the page leaves
+    // that place to it.
+    bool                      printer_panel_open{false};
 };
 
-// The `state` payload: { appearance, projects, printers }.
+// The `state` payload: { appearance, projects, printers, printerPanelOpen }.
 nlohmann::json state_payload(const Snapshot& snapshot);
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

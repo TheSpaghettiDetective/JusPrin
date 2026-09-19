@@ -92,6 +92,12 @@ public:
 
     ToolActivitySubscription subscribe(ActivityCallback listener);
     void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
+    // Checks a call to a surface's own tool after the registry has and
+    // before it waits for a card or runs. It may restate the call for its
+    // card -- the title, or facts added to the arguments -- and returns the
+    // error that stops it.
+    using ExtensionPreflight = std::function<std::optional<ToolError>(ToolHandler, ToolActivity&)>;
+    void set_extension_preflight(ExtensionPreflight preflight) { m_extension_preflight = std::move(preflight); }
 
     // The store behind the intent and plan tools. The owner holds project
     // storage, so it supplies this; without it those tools report the
@@ -179,6 +185,7 @@ private:
     bool                             m_slice_ended{false};
     std::string                      m_executing;
     ExtensionExecutor                m_extension_executor;
+    ExtensionPreflight               m_extension_preflight;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;
     std::vector<ToolActivity>        m_activities;

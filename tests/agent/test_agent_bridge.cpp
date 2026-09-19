@@ -298,7 +298,9 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
-                                              Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath});
+                                              Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
+                                              Protocol::kPrinterAction, Protocol::kPrinterInstructions,
+                                              Protocol::kPrinterOpening});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -308,7 +310,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
                                               Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kOpenSetup,
-                                              Protocol::kBridgeError, Protocol::kAttachmentUpdated});
+                                              Protocol::kBridgeError, Protocol::kAttachmentUpdated,
+                                              Protocol::kPrinterSession});
 }
 
 TEST_CASE("handshake negotiates version and reports capabilities, agent status, and state", "[agent][bridge]")

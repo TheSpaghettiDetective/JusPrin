@@ -82,6 +82,14 @@ ProjectPersistence::ProjectPersistence(Workspace::IWorkspace& workspace, Config 
         m_config.clock = default_clock;
     if (!m_config.uuid)
         m_config.uuid = default_uuid;
+    if (m_config.in_memory) {
+        // No project to follow and nowhere to mirror to: this session is its
+        // own boundary, and it needs an identity now because ids are minted
+        // from it.
+        m_config.recovery_root.clear();
+        m_document.initialize_identity("p-" + m_config.uuid(), "l-" + m_config.uuid(), m_config.clock());
+        return;
+    }
     m_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
         on_workspace_changed(change);
     });
@@ -108,6 +116,10 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
 
 void ProjectPersistence::attach()
 {
+    // An in-memory session adopts no project: it holds its own document and
+    // must not follow the open project into its auxiliary directory.
+    if (m_config.in_memory)
+        return;
     m_boundary_pending = false;
     adopt_current_project(/*in_place_reset=*/false);
 }
@@ -248,6 +260,10 @@ void ProjectPersistence::start_fresh_identity()
 
 void ProjectPersistence::flush()
 {
+    if (m_config.in_memory) {
+        m_dirty = false;
+        return;
+    }
     // Never write a stale document across an unresolved project boundary.
     resolve_pending_boundary();
     if (!m_attached)
@@ -311,6 +327,10 @@ std::string ProjectPersistence::attachments_dir() const
 
 bool ProjectPersistence::write_attachment_blob(const std::string& relative_path, const std::string& bytes)
 {
+    if (m_config.in_memory) {
+        m_blobs[relative_path] = bytes;
+        return true;
+    }
     if (!m_attached)
         return false;
     return write_file(fs::path(jusprin_data_dir()) / fs::path(relative_path), bytes);
@@ -318,14 +338,27 @@ bool ProjectPersistence::write_attachment_blob(const std::string& relative_path,
 
 std::string ProjectPersistence::read_attachment_blob(const std::string& relative_path) const
 {
-    if (!m_attached || relative_path.empty())
+    if (relative_path.empty())
+        return {};
+    if (m_config.in_memory) {
+        const auto blob = m_blobs.find(relative_path);
+        return blob == m_blobs.end() ? std::string{} : blob->second;
+    }
+    if (!m_attached)
         return {};
     return read_file(fs::path(jusprin_data_dir()) / fs::path(relative_path));
 }
 
 void ProjectPersistence::remove_attachment_dir(const std::string& relative_dir)
 {
-    if (!m_attached || relative_dir.empty())
+    if (relative_dir.empty())
+        return;
+    if (m_config.in_memory) {
+        for (auto blob = m_blobs.begin(); blob != m_blobs.end();)
+            blob = blob->first.rfind(relative_dir, 0) == 0 ? m_blobs.erase(blob) : std::next(blob);
+        return;
+    }
+    if (!m_attached)
         return;
     std::error_code ec;
     fs::remove_all(fs::path(jusprin_data_dir()) / fs::path(relative_dir), ec);
