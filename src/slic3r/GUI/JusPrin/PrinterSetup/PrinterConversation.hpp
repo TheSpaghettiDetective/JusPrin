@@ -76,6 +76,8 @@ public:
     // The pinned card, the chips and the thread's own cards have changed, and
     // so may have what the model is told.
     virtual void session_changed() = 0;
+    // The page sent new instructions for the model.
+    virtual void profile_changed() = 0;
     // The panel is done: back to the printer list.
     virtual void close_panel() = 0;
     // A printer was saved; Home's list is out of date.
@@ -122,9 +124,6 @@ public:
 
     // The one tool each mode offers.
     static std::vector<std::string> session_tools(ConversationMode mode);
-    // The printer list the Add instructions carry, one line per model:
-    // "<catalogId> | <brand> <model> | <build volume>".
-    std::string printer_list() const;
 
 private:
     nlohmann::json identify(const nlohmann::json& arguments, const std::string& message_id,
@@ -136,6 +135,9 @@ private:
     nlohmann::json identified_json(const CatalogPrinter& printer, double nozzle) const;
     // The printer a Change session is about, as the model is told it.
     nlohmann::json printer_json() const;
+    // The facts the page's instructions for the model state: every printer
+    // and what is on the network when adding, the printer when changing.
+    nlohmann::json context_json() const;
     double         assumed_nozzle(const CatalogPrinter& printer) const;
     // Draws one printer's card with Add, fills the pinned card, and makes it
     // the printer "Add this printer" saves.
@@ -188,6 +190,8 @@ private:
     std::optional<UndoRecord> m_undo;
 
     std::vector<DiscoveredPrinter> m_network;
+    // The model's instructions, as the page wrote them for this session.
+    std::string m_instructions;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

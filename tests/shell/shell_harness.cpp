@@ -736,7 +736,7 @@ private:
                                     live_panel()->open(mode, printer);
                                     m_live_printed = 0;
                                 },
-                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete(); },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 {}});
     }
 
@@ -809,7 +809,14 @@ private:
         live_open(Mode::Add);
         live_say("ender 3", [this] {
             live_print_calls();
-            check(!live_drew_a_card(), "live_ender_3_draws_no_card");
+            // Kenneth, 2026-09-18: asking which one and showing the original
+            // Ender-3 are both right; only a printer that is no Ender-3 is not.
+            bool only_enders = true;
+            for (const Agent::ToolActivity* call : live_calls("printer_identify"))
+                if (call->state == Agent::ToolState::Succeeded)
+                    for (const auto& id : nlohmann::json::parse(call->arguments_json).value("catalogIds", nlohmann::json::array()))
+                        only_enders = only_enders && id.get<std::string>().rfind("Creality/Creality Ender-3", 0) == 0;
+            check(only_enders, "live_ender_3_shows_only_ender_3s_or_asks");
         });
 
         live_open(Mode::Add);
@@ -845,7 +852,7 @@ private:
                                     live_panel()->open(Mode::Change, m_live_printer);
                                     m_live_printed = 0;
                                 },
-                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete(); },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 {}});
         live_say("i put a 0.6 nozzle on it", [this] {
             live_print_calls();

@@ -212,6 +212,12 @@ void PrinterPanel::session_changed()
     m_web_view->host().send_page_envelope(Agent::Protocol::kPrinterSession, m_conversation->state_json());
 }
 
+void PrinterPanel::profile_changed()
+{
+    if (m_web_view)
+        m_web_view->host().set_session_profile(m_conversation->profile());
+}
+
 void PrinterPanel::close_panel() { close(); }
 
 void PrinterPanel::printers_changed()

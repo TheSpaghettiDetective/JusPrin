@@ -95,6 +95,31 @@ describe('the printer panel page', () => {
     document.body.innerHTML = '';
   });
 
+  it('writes the model its instructions, and again only when the words change', () => {
+    const host = open(state({ session: session({ context: { printers: [['BBL/Bambu Lab A1 mini', 'Bambu Lab A1 mini', '180 × 180 × 180 mm']], network: [] } }) }));
+    const sent = () => host.received.filter((envelope) => envelope.type === 'printer_instructions');
+    expect(sent()).toHaveLength(1);
+    expect((sent()[0].payload as { text: string }).text).toContain('BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm');
+
+    // A new card changes nothing the model is told.
+    host.deliver('printer_session', session({ chips: [], context: { printers: [['BBL/Bambu Lab A1 mini', 'Bambu Lab A1 mini', '180 × 180 × 180 mm']], network: [] } }));
+    expect(sent()).toHaveLength(1);
+
+    // A changed printer does.
+    host.deliver(
+      'printer_session',
+      session({
+        mode: 'change',
+        chips: [],
+        context: {
+          printer: { name: 'Lab Printer', model: '', nozzle: 0.6, nozzles: [0.4, 0.6], spools: [], connected: false },
+        },
+      }),
+    );
+    expect(sent()).toHaveLength(2);
+    expect((sent()[1].payload as { text: string }).text).toContain('Nozzle: 0.6 mm');
+  });
+
   it('names where back leads, not the printer it is about', async () => {
     const host = open();
     expect(screen.getByRole('heading', { name: 'Printers' })).toBeInTheDocument();

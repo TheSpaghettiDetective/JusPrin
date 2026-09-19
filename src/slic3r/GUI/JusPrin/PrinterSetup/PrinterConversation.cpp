@@ -20,6 +20,10 @@ namespace {
 // At most three candidates: more is a list to read rather than an answer.
 constexpr std::size_t kMaximumCandidates = 3;
 
+// The Add instructions carry every printer, about 28 KB; well above that is
+// not a prompt the page meant to send.
+constexpr std::size_t kInstructionsLimit = 256 * 1024;
+
 std::string number_text(double value)
 {
     std::ostringstream out;
@@ -170,6 +174,8 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_next_block   = 1;
     m_stated_nozzle.clear();
     m_undo.reset();
+    // A new session's page writes its instructions again.
+    m_instructions.clear();
     m_network.clear();
 
     m_printer_fact = m_nozzle = m_plate = m_filament = {};
@@ -238,89 +244,43 @@ void PrinterConversation::read_saved_printer()
 
 void PrinterConversation::refresh_network() { m_network = m_backend.network_printers(); }
 
-std::string PrinterConversation::printer_list() const
+json PrinterConversation::context_json() const
 {
-    std::ostringstream list;
-    for (const CatalogPrinter& printer : m_backend.catalog())
-        list << printer.id << " | " << printer.display_name() << " | "
-             << (printer.build_volume.empty() ? std::string("?") : printer.build_volume) << "\n";
-    return list.str();
+    json context = json::object();
+    if (m_mode == ConversationMode::Add) {
+        json printers = json::array();
+        for (const CatalogPrinter& printer : m_backend.catalog())
+            printers.push_back(json::array({printer.id, printer.display_name(), printer.build_volume}));
+        json network = json::array();
+        for (const DiscoveredPrinter& found : m_network)
+            network.push_back(json{{"name", found.name}, {"serial", found.stable_id}});
+        context["printers"] = std::move(printers);
+        context["network"]  = std::move(network);
+    } else {
+        json nozzles = json::array();
+        for (double size : m_printer.nozzles)
+            nozzles.push_back(size);
+        context["printer"] = json{{"name", m_printer.name},
+                                  {"model", m_printer.model},
+                                  {"nozzle", m_printer.nozzle},
+                                  {"nozzles", std::move(nozzles)},
+                                  {"spools", spools_json(m_printer.spools)},
+                                  {"connected", m_printer.connected}};
+    }
+    return context;
 }
 
 Agent::AgentSessionProfile PrinterConversation::profile() const
 {
     Agent::AgentSessionProfile profile;
-    profile.tool_names = session_tools(m_mode);
+    // The tools are the app's to decide, one per mode; the words are the
+    // page's (printerInstructions.ts), sent with printer_instructions.
+    profile.tool_names   = session_tools(m_mode);
+    profile.instructions = m_instructions;
     // This conversation is about a machine, not about the open project, and
     // what the person taps on its cards reaches the model as the app's notes.
     profile.include_workspace = false;
     profile.notes_in_context  = true;
-
-    std::ostringstream instructions;
-    instructions << "You are JusPrin's printer assistant, in the printer panel on the Home screen. Keep every reply to one or two "
-                    "short sentences of plain language: no lists, no headings, and never read the pinned card back. "
-                    "Messages from the app (developer role) state what the person did on the panel, such as tapping a card; "
-                    "they are facts, not requests.\n";
-
-    if (m_mode == ConversationMode::Add) {
-        instructions
-            << "The person is adding a printer to this app. You decide which printer they have, from their words or a photo, "
-               "using the printer list below. printer_identify shows the printers you name as cards; the person adds one by "
-               "tapping \"Add this printer\" on its card, so never say a printer has been added.\n"
-               "Rules:\n"
-               "- One printer fits: call printer_identify with it.\n"
-               "- Two or three genuinely fit: call it with all of them, and ask in your reply what tells them apart.\n"
-               "- More than three fit: do not call it. Ask one question that narrows it down and say where to look, or point "
-               "to \"Set it up myself\" at the top of the panel, which lists every printer. Never show three of many.\n"
-               "- A query that is the start of more than one model name is not a clear match, even when it exactly equals one "
-               "of them. Before calling with one id, look for other names in the list that begin with what the person typed: "
-               "\"prusa mk4\" begins Prusa MK4, MK4S and MK4S HF, so it is three printers, not one.\n"
-               "- Nothing fits, or it isn't a filament printer: say so in one sentence; do not call it.\n"
-               "- A photo: name a model only from a readable name or a printed size. Going by shape alone, ask for a photo of "
-               "the label (a sticker on the back, a plate under the frame, the About page on the screen). Never quote a label "
-               "as read unless asking the person to confirm it. Never judge size from how big it looks. A clone uses the "
-               "profile of the model it copies.\n"
-               "- Pass a nozzle only when the person or a photo said its size.\n"
-               "- When the tool returns an error, fix the call or ask. After unknown_nozzle, ask which of the sizes it lists "
-               "is on the printer.\n"
-               "- Write every reply from the facts the tool returns, never from memory. A fact that is null has nothing to "
-               "say about it.\n";
-        if (!m_network.empty()) {
-            instructions << "These printers are on the network right now, and the panel already lists them with their own "
-                            "\"Use this\" buttons: ";
-            for (const DiscoveredPrinter& found : m_network)
-                instructions << found.name << " (" << found.stable_id << ") ";
-            instructions << "\n";
-        }
-        instructions << "\nPrinter list (catalogId | brand and model | build volume):\n" << printer_list();
-    } else {
-        instructions
-            << "The person already has this printer set up and tells you what changed on it, or asks about it.\n"
-               "Rules:\n"
-               "- Work out what physically changed from what the person says, and change only that with printer_change. It "
-               "asks the person to confirm on a card before anything is saved.\n"
-               "- The plate belongs to each project, not the printer: say it is chosen in the project's printer menu; do not "
-               "call the tool.\n"
-               "- Nozzle material, such as hardened steel, isn't tracked: say so; do not call the tool.\n"
-               "- Connecting a printer isn't possible from this panel: say so in one sentence.\n"
-               "- Report only what the tool's result says changed.\n"
-               "\nThe printer as it is now:\n"
-               "Name: "
-            << m_printer.name << "\n";
-        if (!m_printer.model.empty())
-            instructions << "Brand and model: " << m_printer.model << "\n";
-        instructions << "Nozzle: " << (m_printer.nozzle > 0. ? nozzle_text(m_printer.nozzle) : std::string("unknown"));
-        if (!m_printer.nozzles.empty())
-            instructions << " (this model ships " << sizes_text(m_printer.nozzles) << ")";
-        instructions << "\nSpools loaded:";
-        if (m_printer.spools.empty())
-            instructions << " none recorded";
-        for (const PrinterSpool& spool : m_printer.spools)
-            instructions << "\n- " << (spool.name.empty() ? spool.material : spool.name) << " (" << spool.material
-                         << (spool.colour.empty() ? std::string() : ", " + spool.colour) << ")";
-        instructions << "\nConnected to this app: " << (m_printer.connected ? "yes" : "no") << "\n";
-    }
-    profile.instructions = instructions.str();
     return profile;
 }
 
@@ -357,7 +317,9 @@ json PrinterConversation::state_json() const
                 // A printer found on the network can be kept connected; its
                 // code goes from this field to the app, never into the chat.
                 {"accessCode", m_proposal.valid && !m_proposal.device_id.empty()},
-                {"placeholder", m_placeholder}};
+                {"placeholder", m_placeholder},
+                // The facts the page's instructions for the model state.
+                {"context", context_json()}};
 }
 
 const CatalogPrinter* PrinterConversation::catalog_entry(const std::string& id) const
@@ -683,9 +645,18 @@ json PrinterConversation::change(const json& arguments, const std::string& messa
 
 bool PrinterConversation::handle_page_message(const std::string& type, const json& payload)
 {
-    if (type != "printer_action")
+    if (type != "printer_action" && type != "printer_instructions")
         return false;
 
+    if (type == "printer_instructions") {
+        // Bounded: the page's words become every request's system prompt.
+        const std::string text = payload.value("text", std::string());
+        if (text.size() <= kInstructionsLimit && text != m_instructions) {
+            m_instructions = text;
+            m_host.profile_changed();
+        }
+        return true;
+    }
     const std::string action = payload.value("action", std::string());
     const std::string id     = payload.value("id", std::string());
     if (action == "close")

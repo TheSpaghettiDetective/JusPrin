@@ -1549,13 +1549,19 @@ void AgentHost::begin_reply(const std::string& user_message_id)
     if (conversation_id.empty())
         conversation_id = document.active_conversation_id();
 
-    if (m_availability != AgentAvailability::Ready) {
+    // A session with tools of its own brings its own instructions, from its
+    // page; without them the model would be told it is the project's
+    // assistant while holding the session's tools.
+    const bool instructions_missing = !m_session_profile.tool_names.empty() && m_session_profile.instructions.empty();
+    if (m_availability != AgentAvailability::Ready || instructions_missing) {
         ConversationMessage failed;
         failed.id          = document.allocate_message_id();
         failed.role        = MessageRole::Assistant;
         failed.state       = MessageState::Failed;
         failed.in_reply_to = user_message_id;
-        failed.error       = AgentError{"agent_unavailable", "The Agent service is not available.", true};
+        failed.error       = instructions_missing ?
+                                 AgentError{"instructions_missing", "The panel is still loading. Try again in a moment.", true} :
+                                 AgentError{"agent_unavailable", "The Agent service is not available.", true};
         document.append_message(conversation_id, failed, m_persistence.timestamp());
         m_persistence.flush();
         send_envelope(Protocol::kAssistantStarted, json{{"messageId", failed.id}, {"inReplyTo", user_message_id}, {"attempt", 1}}.dump());

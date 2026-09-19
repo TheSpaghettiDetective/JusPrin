@@ -40,7 +40,8 @@
     "mcp_preview",
     "mcp_connect",
     "reveal_path",
-    "printer_action"
+    "printer_action",
+    "printer_instructions"
   ],
   "hostMessageTypes": [
     "hello_ack",

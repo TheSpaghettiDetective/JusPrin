@@ -42,6 +42,7 @@ describe('protocol constants', () => {
       'mcp_connect',
       'reveal_path',
       'printer_action',
+      'printer_instructions',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

@@ -299,7 +299,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
-                                              Protocol::kPrinterAction});
+                                              Protocol::kPrinterAction, Protocol::kPrinterInstructions});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,

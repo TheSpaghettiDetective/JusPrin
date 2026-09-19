@@ -10,6 +10,7 @@ import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
 import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { printerInstructions } from './printerInstructions';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -148,6 +149,18 @@ export function App({
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // The printer panel writes the model's instructions from the facts the app
+  // sends; the app holds them for the session's requests. Sent again only
+  // when the words change, such as after a change to the printer.
+  const sentInstructions = useRef<string | null>(null);
+  useEffect(() => {
+    if (!printerPanel || !state.session || state.connection !== 'connected') return;
+    const text = printerInstructions(state.session);
+    if (text === sentInstructions.current) return;
+    sentInstructions.current = text;
+    client.send('printer_instructions', { text });
+  }, [printerPanel, state.session, state.connection, client]);
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
 

@@ -63,12 +63,15 @@ public:
     // For the shell harness: the open session's host, and the thread it keeps.
     Agent::AgentHost*                host();
     const Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
+    // Whether the page has written the model's instructions for this session.
+    bool instructions_ready() const { return !m_conversation->profile().instructions.empty(); }
 
 private:
     // IConversationHost
     std::string post_note(const std::string& text) override;
     void        start_turn() override;
     void session_changed() override;
+    void profile_changed() override;
     void close_panel() override;
     void printers_changed() override;
 

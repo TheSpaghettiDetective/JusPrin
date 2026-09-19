@@ -21,6 +21,7 @@ Printer UI without hardware (Bambu in-process fake; control file; isolated app):
 - OrcaSlicer's C++ model, slicing pipeline, viewport, geometry operations, project serialization, and undo stack remain authoritative.
 - The production application stays native C++/wxWidgets/OpenGL. The Agent conversation uses a local React/TypeScript application inside `wxWebView`.
 - JavaScript renders state and submits typed commands; it never owns editable Orca project state.
+- When logic could live in either C++ or a React page, it goes in the page unless there is a strong reason for C++: it touches Orca state, enforces a limit or boundary the app must guarantee, has to work without a page, or needs a thread or lifetime the page lacks. See [Where logic goes](architecture.md#where-logic-goes-the-page-first).
 - Product policy lives in fork-owned files. OrcaSlicer-owned files receive only small, product-neutral, additive seams — every line changed there is a line this fork re-resolves at every rebase.
 - The user owns physical facts, object meaning, desired outcomes, privacy and legal decisions, and authorization of consequential physical actions.
 - The production branch must not import experimental POC behavior merely because it demonstrated feasibility. Use the POC as evidence and reimplement through stable production boundaries.

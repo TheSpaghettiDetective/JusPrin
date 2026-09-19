@@ -30,7 +30,8 @@ export type PageMessageType =
   | 'mcp_preview'
   | 'mcp_connect'
   | 'reveal_path'
-  | 'printer_action';
+  | 'printer_action'
+  | 'printer_instructions';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -446,6 +447,24 @@ export interface PrinterSessionPayload {
   // with Add to the app and never into the chat.
   accessCode?: boolean;
   placeholder: string; // a likely answer to what the agent just said
+  // The facts the model's instructions state (printerInstructions.ts).
+  context?: PrinterContext;
+}
+
+export interface PrinterContext {
+  // Add: every printer the panel can set up, as [catalogId, brand and model,
+  // build volume], and what is on the network now.
+  printers?: [string, string, string][];
+  network?: { name: string; serial: string }[];
+  // Change: the printer as it is now.
+  printer?: {
+    name: string;
+    model: string;
+    nozzle: number;
+    nozzles: number[];
+    spools: PrinterSpoolInfo[];
+    connected: boolean;
+  };
 }
 
 export interface StatePayload {

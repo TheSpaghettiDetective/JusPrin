@@ -128,6 +128,7 @@ public:
     std::vector<std::string> notes;
     int                      turns{0};
     int                      states{0};
+    int                      profiles{0};
     int                      closes{0};
     int                      refreshes{0};
 
@@ -138,6 +139,7 @@ public:
     }
     void start_turn() override { ++turns; }
     void session_changed() override { ++states; }
+    void profile_changed() override { ++profiles; }
     void close_panel() override { ++closes; }
     void printers_changed() override { ++refreshes; }
 };
@@ -229,29 +231,23 @@ TEST_CASE("each mode offers exactly its own tool and nothing of the project", "[
     CHECK(change.notes_in_context);
 }
 
-TEST_CASE("the Add instructions carry the rules and the whole printer list", "[printer-conversation]")
+TEST_CASE("an Add session sends the page every printer and what is on the network", "[printer-conversation]")
 {
-    FakeBackend         backend;
-    RecordingPanel      panel;
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.network = {found_a1()};
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    const std::string instructions = conversation.profile().instructions;
-    // One line per model: id, the name people use, the size.
-    CHECK_THAT(instructions, ContainsSubstring("BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm\n"));
-    CHECK_THAT(instructions, ContainsSubstring("Prusa/Prusa MK3S | Prusa MK3S | 250 × 210 × 210 mm\n"));
-    CHECK(conversation.printer_list().size() > 0);
-    for (const CatalogPrinter& printer : backend.catalogue)
-        CHECK_THAT(instructions, ContainsSubstring(printer.id + " | "));
-    CHECK_THAT(instructions, ContainsSubstring("More than three fit: do not call it"));
-    CHECK_THAT(instructions, ContainsSubstring("Set it up myself"));
-    CHECK_THAT(instructions, ContainsSubstring("never say a printer has been added"));
-    // No scripted words for the model to say or buttons for it to label.
-    CHECK_THAT(instructions, !ContainsSubstring("printer_suggest"));
-    CHECK_THAT(instructions, !ContainsSubstring("printer_propose"));
+    // The page writes the model's instructions from these facts.
+    const json context = conversation.state_json().at("context");
+    REQUIRE(context.at("printers").size() == backend.catalogue.size());
+    CHECK(context["printers"][0] == json::array({"BBL/Bambu Lab A1 mini", "Bambu Lab A1 mini", "180 × 180 × 180 mm"}));
+    CHECK(context.at("network") == json::array({json{{"name", "Bambu Lab A1 mini"}, {"serial", "01P00A3B"}}}));
+    CHECK_FALSE(context.contains("printer"));
 }
 
-TEST_CASE("the Change instructions state the printer as it is now", "[printer-conversation]")
+TEST_CASE("a Change session sends the page the printer as it is now", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -259,16 +255,37 @@ TEST_CASE("the Change instructions state the printer as it is now", "[printer-co
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Change, "Lab Printer");
 
-    const std::string instructions = conversation.profile().instructions;
-    CHECK_THAT(instructions, ContainsSubstring("Name: Lab Printer"));
-    CHECK_THAT(instructions, ContainsSubstring("Brand and model: Bambu Lab A1 mini"));
-    CHECK_THAT(instructions, ContainsSubstring("Nozzle: 0.4 mm (this model ships 0.2, 0.4, 0.6 and 0.8 mm)"));
-    CHECK_THAT(instructions, ContainsSubstring("- PLA Matte (PLA, #5f7d4f)"));
-    CHECK_THAT(instructions, ContainsSubstring("Connected to this app: no"));
-    CHECK_THAT(instructions, ContainsSubstring("The plate belongs to each project"));
-    CHECK_THAT(instructions, ContainsSubstring("Nozzle material"));
-    // No printer list: this session changes one printer, it does not find one.
-    CHECK_THAT(instructions, !ContainsSubstring("Prusa/Prusa MK3S"));
+    const json context = conversation.state_json().at("context");
+    CHECK_FALSE(context.contains("printers"));
+    const json& printer = context.at("printer");
+    CHECK(printer.at("name") == "Lab Printer");
+    CHECK(printer.at("model") == "Bambu Lab A1 mini");
+    CHECK(printer.at("nozzle") == 0.4);
+    CHECK(printer.at("nozzles") == json::array({0.2, 0.4, 0.6, 0.8}));
+    CHECK(printer.at("spools")[0] == json{{"name", "PLA Matte"}, {"material", "PLA"}, {"colour", "#5f7d4f"}});
+    CHECK(printer.at("connected") == false);
+}
+
+TEST_CASE("the model's instructions are the page's words, and a new session waits for new ones", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    CHECK(conversation.profile().instructions.empty());
+
+    REQUIRE(conversation.handle_page_message("printer_instructions", json{{"text", "You add printers."}}));
+    CHECK(conversation.profile().instructions == "You add printers.");
+    CHECK(panel.profiles == 1);
+    // The same words again change nothing.
+    conversation.handle_page_message("printer_instructions", json{{"text", "You add printers."}});
+    CHECK(panel.profiles == 1);
+    // Nothing the size of no prompt the page means to send.
+    conversation.handle_page_message("printer_instructions", json{{"text", std::string(300 * 1024, 'x')}});
+    CHECK(conversation.profile().instructions == "You add printers.");
+
+    conversation.start(ConversationMode::Add);
+    CHECK(conversation.profile().instructions.empty());
 }
 
 TEST_CASE("an Add session opens with nothing stated and the ways in", "[printer-conversation]")
@@ -644,7 +661,7 @@ TEST_CASE("an access code goes from its field to the app and only its existence 
     CHECK(std::find(panel.notes.begin(), panel.notes.end(), "An access code was entered.") != panel.notes.end());
     for (const std::string& note : panel.notes)
         CHECK_THAT(note, !ContainsSubstring("12345678"));
-    CHECK_THAT(conversation.profile().instructions, !ContainsSubstring("12345678"));
+    CHECK_THAT(conversation.state_json().dump(), !ContainsSubstring("12345678"));
 }
 
 TEST_CASE("a code with no network printer to go to is not sent", "[printer-conversation]")
@@ -753,7 +770,7 @@ TEST_CASE("an applied change returns what changed and the printer as it now is",
     CHECK(undo.at("afterMessageId") == "m-3");
     CHECK(panel.refreshes == 1);
     // What the model is told next is the printer as it now is.
-    CHECK_THAT(conversation.profile().instructions, ContainsSubstring("Nozzle: 0.6 mm"));
+    CHECK(conversation.state_json().at("context").at("printer").at("nozzle") == 0.6);
 }
 
 TEST_CASE("Undo reverses the last change directly, with no card and no model turn", "[printer-conversation]")
@@ -976,7 +993,8 @@ public:
 
     std::string post_note(const std::string& text) override { return host->post_note(text); }
     void        start_turn() override { host->start_turn(); }
-    void        session_changed() override
+    void        session_changed() override { profile_changed(); }
+    void        profile_changed() override
     {
         if (host != nullptr && conversation != nullptr)
             host->set_session_profile(conversation->profile());
@@ -1026,7 +1044,8 @@ struct PrinterHost
             });
             host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return conversation.tool_output(activity); });
             conversation.start(mode, "Lab Printer");
-            host.set_session_profile(conversation.profile());
+            // What the page does once it has the session's facts.
+            conversation.handle_page_message("printer_instructions", json{{"text", "You are the printer assistant."}});
         }
         host.on_page_message(json{{"protocol", Agent::Protocol::kName},
                                   {"version", Agent::Protocol::kVersion},
@@ -1073,6 +1092,15 @@ struct PrinterHost
     }
 
     std::vector<Agent::ToolActivity> activities() const { return host.tools().activities(); }
+
+    std::vector<json> of_type(const std::string& type) const
+    {
+        std::vector<json> found;
+        for (const json& envelope : sent)
+            if (envelope.value("type", "") == type)
+                found.push_back(envelope);
+        return found;
+    }
 };
 
 } // namespace
@@ -1143,6 +1171,28 @@ TEST_CASE("an app-started turn in a project conversation cancels a pending title
             replies.push_back(&request);
     REQUIRE(replies.size() == 2);
     CHECK(replies.back()->user_text.empty());
+}
+
+TEST_CASE("a printer session never answers with the project assistant's instructions", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Add);
+    // As if the page had not written its instructions yet.
+    harness.conversation.start(ConversationMode::Add);
+    harness.host.set_session_profile(harness.conversation.profile());
+    harness.say("the small bambu one");
+    harness.pump();
+
+    CHECK(harness.agent->requests.empty());
+    const auto failed = harness.of_type("assistant_failed");
+    REQUIRE(failed.size() == 1);
+    CHECK(failed.front()["payload"]["error"]["code"] == "instructions_missing");
+
+    // Once the page has written them, the next turn goes.
+    harness.conversation.handle_page_message("printer_instructions", json{{"text", "You add printers."}});
+    harness.say("the small bambu one");
+    harness.pump();
+    REQUIRE(harness.agent->requests.size() == 1);
+    CHECK(harness.agent->requests.front().session.instructions == "You add printers.");
 }
 
 TEST_CASE("a printer tool's result reaches the model as the tool's own facts, with no project", "[printer-conversation][host]")
@@ -1347,6 +1397,7 @@ TEST_CASE("the model is offered one tool per mode and no project", "[printer-con
 
     PrinterConversation adding(backend, panel);
     adding.start(ConversationMode::Add);
+    adding.handle_page_message("printer_instructions", json{{"text", "You add printers."}});
     json body = request_body(adding.profile(), "the small bambu one");
     REQUIRE(body.at("tools").size() == 1);
     CHECK(body["tools"][0].at("name") == "printer_identify");
@@ -1358,7 +1409,9 @@ TEST_CASE("the model is offered one tool per mode and no project", "[printer-con
 
     PrinterConversation changing(backend, panel);
     changing.start(ConversationMode::Change, "Lab Printer");
+    changing.handle_page_message("printer_instructions", json{{"text", "You change printers."}});
     body = request_body(changing.profile(), "i put a 0.6 nozzle on it");
+    CHECK(body.at("instructions") == "You change printers.");
     REQUIRE(body.at("tools").size() == 1);
     CHECK(body["tools"][0].at("name") == "printer_change");
     CHECK_FALSE(body["tools"][0].at("parameters").at("properties").contains("accessCode"));
@@ -1393,14 +1446,19 @@ TEST_CASE("write the printer session requests for the evaluation", "[.printer-ev
     backend.saved = {lab_printer()};
     RecordingPanel panel;
 
+    // The page writes the instructions (printerInstructions.ts); its
+    // eval writer fills them in from these sessions' state.
     PrinterConversation adding(backend, panel);
     adding.start(ConversationMode::Add);
+    adding.handle_page_message("printer_instructions", json{{"text", "__INSTRUCTIONS__"}});
     std::ofstream(std::string(out) + "/add_request.json") << request_body(adding.profile(), "__USER__").dump(2);
-    std::ofstream(std::string(out) + "/printer_list.txt") << adding.printer_list();
+    std::ofstream(std::string(out) + "/add_session.json") << adding.state_json().dump(2);
 
     PrinterConversation changing(backend, panel);
     changing.start(ConversationMode::Change, "Lab Printer");
+    changing.handle_page_message("printer_instructions", json{{"text", "__INSTRUCTIONS__"}});
     std::ofstream(std::string(out) + "/change_request.json") << request_body(changing.profile(), "__USER__").dump(2);
+    std::ofstream(std::string(out) + "/change_session.json") << changing.state_json().dump(2);
 
     // Every printer the model may name, as printer_identify returns it with
     // nothing said about the nozzle.
