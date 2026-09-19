@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2XCJESWRTEV9EXPG3TR1K82",
+  "session_id": "8672a8e2-c0ac-4345-a7e0-19eef8151bbf",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-19T17:49:06.879364Z",
+  "branch": "these-commits-are-probably-wrong",
+  "checkpoints_count": 11,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "d350b357f54d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1386,
+    "cache_creation_tokens": 909328,
+    "cache_read_tokens": 336943705,
+    "output_tokens": 322720,
+    "api_call_count": 694
+  },
+  "session_metrics": {
+    "turn_count": 19
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1210,
+      "user_lines_removed": 29,
+      "agent_lines_added": 270,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/jusprin/printer-conversation-panel-handoff.md": 254,
+        "agent-docs/jusprin/printer-panel-review-fixes-handoff.md": 307,
+        "agent-docs/jusprin/viewport-selection-toolbar-handoff.md": 214,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx": 17,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx": 82,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css": 5,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts": 15,
+        "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp": 23
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx": 6,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx": 13,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts": 4,
+        "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp": 6
+      }
+    }
+  ]
+}
