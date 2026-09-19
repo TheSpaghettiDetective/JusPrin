@@ -489,7 +489,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         const double nozzle = arguments["nozzle"].get<double>();
         if (!now->nozzles.empty() && !ships(now->nozzles, nozzle))
             return ToolError{"unknown_nozzle", "The " + model + " ships " + sizes_text(now->nozzles) + " nozzles, not " +
-                                                   nozzle_text(nozzle) + "."};
+                                                   nozzle_text(nozzle) + ". Ask which of these is on the printer."};
     }
     const bool nozzle_moves = has_nozzle && arguments["nozzle"].get<double>() != now->nozzle;
     const bool spools_move  = has_spools && !same_spools(spools_of(arguments["spools"]), now->spools);
@@ -584,7 +584,8 @@ json PrinterConversation::identify(const json& arguments, const std::string& mes
         for (const CatalogPrinter* printer : printers)
             if (!ships(printer->nozzles, wanted)) {
                 error = ToolError{"unknown_nozzle", "The " + printer->display_name() + " ships " + sizes_text(printer->nozzles) +
-                                                        " nozzles, not " + nozzle_text(wanted) + "."};
+                                                        " nozzles, not " + nozzle_text(wanted) +
+                                                        ". Ask which of these is on the printer."};
                 return {};
             }
 

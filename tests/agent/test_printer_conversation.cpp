@@ -461,7 +461,7 @@ TEST_CASE("a nozzle the model does not ship lists the sizes it does", "[printer-
     const auto result = identify(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(result.error.has_value());
     CHECK(result.error->code == "unknown_nozzle");
-    CHECK(result.error->message == "The Prusa MK3S ships 0.25, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm.");
+    CHECK(result.error->message == "The Prusa MK3S ships 0.25, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm. Ask which of these is on the printer.");
     CHECK(conversation.state_json().at("chips").empty());
 }
 
@@ -687,7 +687,7 @@ TEST_CASE("a change is checked before its card, and the card states it", "[print
         const auto [error, activity] = preflight(json{{"nozzle", 0.3}});
         REQUIRE(error.has_value());
         CHECK(error->code == "unknown_nozzle");
-        CHECK(error->message == "The Bambu Lab A1 mini ships 0.2, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm.");
+        CHECK(error->message == "The Bambu Lab A1 mini ships 0.2, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm. Ask which of these is on the printer.");
     }
     SECTION("what it already is") {
         const auto [error, activity] = preflight(json{{"nozzle", 0.4}});
@@ -1336,7 +1336,7 @@ TEST_CASE("the worked examples' facts come from the shipped profiles", "[printer
     // "the prusa, the 0.3 nozzle"
     const auto refused = identify(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(refused.error.has_value());
-    CHECK(refused.error->message == "The Prusa MK3S ships 0.25, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm.");
+    CHECK(refused.error->message == "The Prusa MK3S ships 0.25, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm. Ask which of these is on the printer.");
 }
 
 TEST_CASE("the model is offered one tool per mode and no project", "[printer-conversation][openai]")
