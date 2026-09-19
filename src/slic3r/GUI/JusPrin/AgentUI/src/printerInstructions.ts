@@ -8,22 +8,7 @@
 // one per mode, whatever this text says.
 
 import type { PrinterContext, PrinterSessionPayload } from './bridge/protocol';
-
-// "0.4", "0.25", "1.0": two decimals, trailing zeros dropped down to one.
-function numberText(value: number): string {
-  let text = value.toFixed(2);
-  while (text.length > 3 && text.endsWith('0')) text = text.slice(0, -1);
-  return text;
-}
-
-function listed(items: string[]): string {
-  return items.map((item, index) => (index === 0 ? '' : index + 1 === items.length ? ' and ' : ', ') + item).join('');
-}
-
-// "0.2, 0.4, 0.6 and 0.8 mm"
-function sizesText(nozzles: number[]): string {
-  return `${listed(nozzles.map(numberText))} mm`;
-}
+import { numberText, sizesText } from './printerWords';
 
 const COMMON =
   "You are JusPrin's printer assistant, in the printer panel on the Home screen. Keep every reply to one or two " +

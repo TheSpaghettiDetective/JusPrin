@@ -24,6 +24,20 @@ constexpr std::size_t kMaximumCandidates = 3;
 // not a prompt the page meant to send.
 constexpr std::size_t kInstructionsLimit = 256 * 1024;
 
+// A note or the opening is a sentence or two; a page that sends more has a
+// bug, and none of it reaches the thread.
+constexpr std::size_t kNoteLimit = 2 * 1024;
+
+// The note the page wrote for a tap, or empty when it sent none it may.
+std::string page_note(const json& payload)
+{
+    const auto note = payload.find("note");
+    if (note == payload.end() || !note->is_string())
+        return {};
+    const std::string text = note->get<std::string>();
+    return text.size() <= kNoteLimit ? text : std::string();
+}
+
 std::string number_text(double value)
 {
     std::ostringstream out;
@@ -85,14 +99,6 @@ std::string picture_data_url(const std::string& path)
     return "data:image/png;base64," + base64_encode(data);
 }
 
-json fact_json(const PinnedFact& fact)
-{
-    json value{{"value", fact.value}, {"provenance", fact.provenance}};
-    if (!fact.swatch.empty())
-        value["swatch"] = fact.swatch;
-    return value;
-}
-
 json nullable(const std::string& text) { return text.empty() ? json(nullptr) : json(text); }
 
 json spools_json(const std::vector<PrinterSpool>& spools)
@@ -132,23 +138,18 @@ std::string spools_text(const std::vector<PrinterSpool>& spools)
     return names.empty() ? std::string("none") : listed(names);
 }
 
-// What a printer says it has loaded, as one line: "AMS lite · PLA Matte + 3".
-std::string spool_summary(const std::string& ams, const std::vector<PrinterSpool>& spools)
-{
-    if (spools.empty())
-        return ams.empty() ? std::string() : ams;
-    std::string summary = spools.front().name.empty() ? spools.front().material : spools.front().name;
-    if (spools.size() > 1)
-        summary += " + " + std::to_string(spools.size() - 1);
-    return ams.empty() ? summary : ams + " · " + summary;
-}
-
 std::vector<PrinterSpool> reported_spools(const DiscoveredPrinter& device)
 {
     std::vector<PrinterSpool> spools;
     for (const DiscoveredPrinter::Spool& spool : device.spools)
         spools.push_back(PrinterSpool{spool.name, spool.material, spool.colour});
     return spools;
+}
+
+// A nozzle the printer reported is settled only when its model ships it.
+bool reports_nozzle(const DiscoveredPrinter& device, const CatalogPrinter& printer)
+{
+    return device.nozzle_diameter > 0. && ships(printer.nozzles, device.nozzle_diameter);
 }
 
 } // namespace
@@ -177,8 +178,9 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     // A new session's page writes its instructions again.
     m_instructions.clear();
     m_network.clear();
+    m_opened = false;
 
-    m_printer_fact = m_nozzle = m_plate = m_filament = {};
+    m_facts = {};
     // A printer this app has not saved cannot be changed, and the header's
     // menu can name one: a system profile is selected until the person adds
     // a printer of their own. Adding one is what there is to do.
@@ -191,23 +193,31 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
         }
     }
 
-    if (m_mode == ConversationMode::Change) {
+    if (m_mode == ConversationMode::Change)
         read_saved_printer();
-        m_placeholder = "e.g. \"I put a 0.6 nozzle on it\" or \"loaded black PETG\"";
-    } else {
+    else {
         refresh_network();
-        m_placeholder = "e.g. \"bambu a1 mini\" or \"not sure, the small one\"";
         // A photo is the fastest way in, and the printers already on the
         // network are the fastest of all. Both belong under the opening,
         // where the person is deciding what to say.
         m_blocks.push_back(json{{"id", next_block_id()}, {"seq", m_blocks.size() + 1}, {"afterMessageId", ""}, {"kind", "tip"}});
         if (!m_network.empty()) {
             json found = json::array();
-            for (const DiscoveredPrinter& printer : m_network)
-                found.push_back(json{{"deviceId", printer.stable_id},
-                                     {"name", printer.name},
-                                     {"serial", printer.stable_id},
-                                     {"online", printer.connected}});
+            for (const DiscoveredPrinter& printer : m_network) {
+                json entry{{"deviceId", printer.stable_id},
+                           {"name", printer.name},
+                           {"serial", printer.stable_id},
+                           {"online", printer.connected}};
+                // What "Use this" would put on the card, so the page can say
+                // so to the model when it is tapped.
+                if (const CatalogPrinter* model = model_of(printer)) {
+                    const bool reported = reports_nozzle(printer, *model);
+                    entry["match"] = json{{"name", model->display_name()},
+                                          {"nozzle", reported ? printer.nozzle_diameter : assumed_nozzle(*model)},
+                                          {"reported", reported}};
+                }
+                found.push_back(std::move(entry));
+            }
             m_blocks.push_back(json{{"id", next_block_id()},
                                     {"seq", m_blocks.size() + 1},
                                     {"afterMessageId", ""},
@@ -218,8 +228,14 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_host.session_changed();
 }
 
-void PrinterConversation::anchor_opening(const std::string& message_id)
+void PrinterConversation::post_opening(const std::string& text)
 {
+    // The first line is the page's to write and the app's to post, once: a
+    // reloaded page asks again, and the thread already has it.
+    if (m_opened || text.empty() || text.size() > kNoteLimit)
+        return;
+    m_opened                     = true;
+    const std::string message_id = m_host.post_opening(text);
     for (json& entry : m_blocks)
         if (entry.value("afterMessageId", std::string()).empty())
             entry["afterMessageId"] = message_id;
@@ -232,14 +248,16 @@ void PrinterConversation::read_saved_printer()
         if (saved.name == m_printer_name)
             m_printer = saved;
 
-    m_printer_fact = {m_printer.name.empty() ? m_printer_name : m_printer.name, "settled", {}};
-    m_nozzle       = {nozzle_text(m_printer.nozzle), "settled", {}};
+    m_facts         = {};
+    m_facts.printer = m_printer.name.empty() ? m_printer_name : m_printer.name;
+    m_facts.nozzle  = m_printer.nozzle;
     // The plate a printer is set up with is a starting point rather than a
     // reading: it is the plate its profile ships with until a project says
     // otherwise.
-    m_plate        = {m_printer.plate, "assumed", {}};
-    m_filament     = {spool_summary(m_printer.ams, m_printer.spools), "settled",
-                      m_printer.spools.empty() ? std::string() : m_printer.spools.front().colour};
+    m_facts.plate            = m_printer.plate;
+    m_facts.plate_provenance = "assumed";
+    m_facts.ams              = m_printer.ams;
+    m_facts.spools           = m_printer.spools;
 }
 
 void PrinterConversation::refresh_network() { m_network = m_backend.network_printers(); }
@@ -284,40 +302,23 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     return profile;
 }
 
-std::string PrinterConversation::opening_message() const
-{
-    // The opening is the panel's own copy rather than a generated turn: it is
-    // the same promise every time the panel opens, and a session that begins
-    // with a network round trip would open on an empty thread.
-    if (m_mode == ConversationMode::Change) {
-        const std::string name = m_printer_fact.value.empty() ? std::string("this printer") : m_printer_fact.value;
-        return "This is the " + name +
-               ". Tell me what changed on it, or ask anything about it: nozzle, plate, spools, connection. A photo of the part works too.";
-    }
-    return "What printer do you have? Say it any way: \"bambu a1 mini\", \"the ender with the touchscreen\", \"not sure, the small one\".";
-}
-
 json PrinterConversation::state_json() const
 {
-    json chips = json::array();
-    // The person can always add the printer on the card; the chip is the
-    // approval for it, so it leads the row.
-    if (m_proposal.valid) {
-        chips.push_back(json{{"id", "add"}, {"label", "Add this printer"}, {"style", "primary"}, {"action", "add"}});
-        chips.push_back(json{{"id", "reject"}, {"label", "Not this one"}, {"style", "plain"}, {"action", "reject"}});
-    }
+    const json facts{{"printer", json{{"name", m_facts.printer}, {"provenance", m_facts.printer_provenance}}},
+                     {"nozzle", json{{"size", m_facts.nozzle}, {"provenance", m_facts.nozzle_provenance}}},
+                     {"plate", json{{"name", m_facts.plate}, {"provenance", m_facts.plate_provenance}}},
+                     {"filament", json{{"preset", m_facts.filament_preset},
+                                       {"ams", m_facts.ams},
+                                       {"spools", spools_json(m_facts.spools)},
+                                       {"provenance", m_facts.filament_provenance}}}};
     return json{{"mode", m_mode == ConversationMode::Add ? "add" : "change"},
-                {"caption", m_mode == ConversationMode::Add ? "NEW PRINTER" : "PRINTER"},
-                {"facts", json{{"printer", fact_json(m_printer_fact)},
-                               {"nozzle", fact_json(m_nozzle)},
-                               {"plate", fact_json(m_plate)},
-                               {"filament", fact_json(m_filament)}}},
+                {"facts", facts},
                 {"blocks", m_blocks},
-                {"chips", std::move(chips)},
+                // A printer is on its card: Add saves it, and it can be refused.
+                {"canAdd", m_proposal.valid},
                 // A printer found on the network can be kept connected; its
                 // code goes from this field to the app, never into the chat.
                 {"accessCode", m_proposal.valid && !m_proposal.device_id.empty()},
-                {"placeholder", m_placeholder},
                 // The facts the page's instructions for the model state.
                 {"context", context_json()}};
 }
@@ -395,8 +396,26 @@ void PrinterConversation::collapse_cards()
 
 void PrinterConversation::clear_proposal()
 {
-    m_proposal     = {};
-    m_printer_fact = m_nozzle = m_plate = m_filament = {};
+    m_proposal = {};
+    m_facts    = {};
+}
+
+json PrinterConversation::card_json(const CatalogPrinter& printer, double nozzle, const std::string& action,
+                                    const DiscoveredPrinter* device) const
+{
+    json card{{"catalogId", printer.id},
+              {"deviceId", device != nullptr ? device->stable_id : std::string()},
+              {"name", printer.display_name()},
+              {"buildVolume", printer.build_volume},
+              {"picture", picture_data_url(printer.picture)},
+              {"action", action},
+              {"assumed", json{{"nozzle", nozzle}, {"plate", printer.default_plate}, {"filament", printer.filament_for(nozzle)}}}};
+    if (device != nullptr)
+        card["device"] = json{{"nozzle", nozzle},
+                              {"ams", device->ams_name},
+                              {"spools", spools_json(reported_spools(*device))},
+                              {"reported", reports_nozzle(*device, printer)}};
+    return card;
 }
 
 void PrinterConversation::show_proposal(const CatalogPrinter& printer, double nozzle, bool nozzle_stated,
@@ -412,14 +431,21 @@ void PrinterConversation::show_proposal(const CatalogPrinter& printer, double no
                                  filament,
                                  device != nullptr ? device->stable_id : std::string()};
 
-    m_printer_fact = {printer.display_name(), "settled", {}};
-    m_nozzle       = {nozzle_text(nozzle), nozzle_stated ? "settled" : "assumed", {}};
-    m_plate        = {printer.default_plate, "assumed", {}};
+    m_facts                   = {};
+    m_facts.printer           = printer.display_name();
+    m_facts.nozzle            = nozzle;
+    m_facts.nozzle_provenance = nozzle_stated ? "settled" : "assumed";
+    m_facts.plate             = printer.default_plate;
+    m_facts.plate_provenance  = "assumed";
+    // What the printer reported it has loaded is settled; otherwise the card
+    // assumes the profile's filament.
     const std::vector<PrinterSpool> loaded = device != nullptr ? reported_spools(*device) : std::vector<PrinterSpool>();
-    if (!loaded.empty())
-        m_filament = {spool_summary(device->ams_name, loaded), "settled", loaded.front().colour};
-    else
-        m_filament = {filament, "assumed", {}};
+    m_facts.filament_preset = filament;
+    if (!loaded.empty()) {
+        m_facts.ams    = device->ams_name;
+        m_facts.spools = loaded;
+    } else
+        m_facts.filament_provenance = "assumed";
 }
 
 // -- The session's tools ----------------------------------------------------
@@ -558,12 +584,7 @@ json PrinterConversation::identify(const json& arguments, const std::string& mes
     json              found = json::array();
     for (const CatalogPrinter* printer : printers) {
         const double nozzle = stated ? wanted : assumed_nozzle(*printer);
-        cards.push_back(json{{"catalogId", printer->id},
-                             {"deviceId", ""},
-                             {"name", printer->display_name()},
-                             {"subline", printer->build_volume},
-                             {"picture", picture_data_url(printer->picture)},
-                             {"action", printers.size() == 1 ? "add" : "choose"}});
+        cards.push_back(card_json(*printer, nozzle, printers.size() == 1 ? "add" : "choose", nullptr));
         found.push_back(identified_json(*printer, nozzle));
     }
     m_blocks.push_back(json{{"id", id}, {"seq", m_blocks.size() + 1}, {"afterMessageId", message_id}, {"kind", "printers"},
@@ -608,20 +629,20 @@ json PrinterConversation::change(const json& arguments, const std::string& messa
     }
 
     read_saved_printer();
-    json         what = json::array();
-    std::string  said;
-    UndoRecord   undo;
+    json       what          = json::array();
+    json       changed_facts = json::object();
+    UndoRecord undo;
     if (request.nozzle && before.nozzle != m_printer.nozzle) {
         what.push_back(json{{"field", "nozzle"}, {"before", before.nozzle}, {"after", m_printer.nozzle}});
-        m_nozzle.provenance = "changed";
-        undo.nozzle         = before.nozzle;
-        said                = "Nozzle set to " + nozzle_text(m_printer.nozzle);
+        changed_facts["nozzle"]   = json{{"before", before.nozzle}, {"after", m_printer.nozzle}};
+        m_facts.nozzle_provenance = "changed";
+        undo.nozzle               = before.nozzle;
     }
     if (request.spools && !same_spools(before.spools, m_printer.spools)) {
         what.push_back(json{{"field", "spools"}, {"before", spools_json(before.spools)}, {"after", spools_json(m_printer.spools)}});
-        m_filament.provenance = "changed";
-        undo.spools           = before.spools;
-        said                  = said.empty() ? std::string("Spools updated") : said + ", spools updated";
+        changed_facts["spools"] = json{{"before", spools_json(before.spools)}, {"after", spools_json(m_printer.spools)}};
+        m_facts.filament_provenance = "changed";
+        undo.spools                 = before.spools;
     }
 
     // Undo names the exact change, so it applies directly: the latest change
@@ -634,7 +655,7 @@ json PrinterConversation::change(const json& arguments, const std::string& messa
     if (!what.empty()) {
         undo.block_id = next_block_id();
         m_blocks.push_back(json{{"id", undo.block_id}, {"seq", m_blocks.size() + 1}, {"afterMessageId", message_id},
-                                {"kind", "undo"}, {"text", said}});
+                                {"kind", "undo"}, {"changed", std::move(changed_facts)}});
         m_undo = std::move(undo);
     }
     m_host.printers_changed();
@@ -645,7 +666,7 @@ json PrinterConversation::change(const json& arguments, const std::string& messa
 
 bool PrinterConversation::handle_page_message(const std::string& type, const json& payload)
 {
-    if (type != "printer_action" && type != "printer_instructions")
+    if (type != "printer_action" && type != "printer_instructions" && type != "printer_opening")
         return false;
 
     if (type == "printer_instructions") {
@@ -657,8 +678,13 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         }
         return true;
     }
+    if (type == "printer_opening") {
+        post_opening(payload.value("text", std::string()));
+        return true;
+    }
     const std::string action = payload.value("action", std::string());
     const std::string id     = payload.value("id", std::string());
+    const std::string note   = page_note(payload);
     if (action == "close")
         m_host.close_panel();
     else if (action == "manual_setup") {
@@ -678,19 +704,19 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             m_host.session_changed();
         }
     } else if (action == "add")
-        add_proposed_printer(payload.value("accessCode", std::string()));
+        add_proposed_printer(payload.value("accessCode", std::string()), note);
     else if (action == "reject")
-        reject_proposal();
+        reject_proposal(note);
     else if (action == "network_pick")
-        use_network_printer(id);
+        use_network_printer(id, note);
     else if (action == "candidate_pick")
-        choose_candidate(id, payload.value("blockId", std::string()));
+        choose_candidate(id, payload.value("blockId", std::string()), note);
     else if (action == "undo")
-        undo_change(id);
+        undo_change(id, note);
     return true;
 }
 
-void PrinterConversation::add_proposed_printer(const std::string& access_code)
+void PrinterConversation::add_proposed_printer(const std::string& access_code, const std::string& note)
 {
     if (!m_proposal.valid)
         return;
@@ -703,10 +729,11 @@ void PrinterConversation::add_proposed_printer(const std::string& access_code)
     request.name      = m_proposal.model_name;
     request.device_id = m_proposal.device_id;
     // The code goes from the panel's own field to the app and nowhere else;
-    // the thread records only that there was one.
+    // the thread records only that there was one, in the page's words.
     if (!access_code.empty() && !m_proposal.device_id.empty()) {
         request.access_code = access_code;
-        m_host.post_note("An access code was entered.");
+        if (!note.empty())
+            m_host.post_note(note);
     }
 
     SavedPrinter      added;
@@ -721,11 +748,13 @@ void PrinterConversation::add_proposed_printer(const std::string& access_code)
     m_host.close_panel();
 }
 
-void PrinterConversation::use_network_printer(const std::string& device_id)
+void PrinterConversation::use_network_printer(const std::string& device_id, const std::string& note)
 {
     refresh_network();
     const auto found = std::find_if(m_network.begin(), m_network.end(),
                                     [&device_id](const DiscoveredPrinter& printer) { return printer.stable_id == device_id; });
+    // The page wrote its note from the printer as the list showed it; these
+    // two are what the app finds out only now.
     if (found == m_network.end()) {
         m_host.post_note("The person chose the network printer " + device_id + ", but it is no longer on the network.");
         m_host.session_changed();
@@ -745,36 +774,22 @@ void PrinterConversation::use_network_printer(const std::string& device_id)
 
     // What the printer reported is settled; only what it did not say is
     // assumed.
-    const bool   reported = found->nozzle_diameter > 0. && ships(printer->nozzles, found->nozzle_diameter);
-    const double nozzle   = reported ? found->nozzle_diameter : assumed_nozzle(*printer);
-    std::string  event    = "The person chose the network printer " + found->stable_id + ", a " + printer->display_name();
-    event += reported ? " that reports a " + nozzle_text(nozzle) + " nozzle." :
-                        "; it did not report its nozzle, so its card assumes " + nozzle_text(nozzle) + ".";
-    const std::string note = m_host.post_note(event);
-
-    std::string subline = nozzle_text(nozzle) + " nozzle";
-    const std::vector<PrinterSpool> loaded = reported_spools(*found);
-    if (!loaded.empty())
-        subline += " · " + spool_summary(found->ams_name, loaded);
-    subline += reported ? " · read from the printer just now" : "";
+    const bool        reported = reports_nozzle(*found, *printer);
+    const double      nozzle   = reported ? found->nozzle_diameter : assumed_nozzle(*printer);
+    const std::string anchor   = note.empty() ? std::string() : m_host.post_note(note);
 
     collapse_cards();
     const std::string id = next_block_id();
     m_blocks.push_back(json{{"id", id},
                             {"seq", m_blocks.size() + 1},
-                            {"afterMessageId", note},
+                            {"afterMessageId", anchor},
                             {"kind", "printers"},
-                            {"printers", json::array({json{{"catalogId", printer->id},
-                                                           {"deviceId", found->stable_id},
-                                                           {"name", printer->display_name()},
-                                                           {"subline", subline},
-                                                           {"picture", picture_data_url(printer->picture)},
-                                                           {"action", "add"}}})}});
+                            {"printers", json::array({card_json(*printer, nozzle, "add", &*found)})}});
     show_proposal(*printer, nozzle, reported, id, &*found);
     m_host.session_changed();
 }
 
-void PrinterConversation::choose_candidate(const std::string& catalog_id, const std::string& block_id)
+void PrinterConversation::choose_candidate(const std::string& catalog_id, const std::string& block_id, const std::string& note)
 {
     const CatalogPrinter* chosen = catalog_entry(catalog_id);
     if (chosen == nullptr)
@@ -803,36 +818,28 @@ void PrinterConversation::choose_candidate(const std::string& catalog_id, const 
             break;
         }
     show_proposal(*chosen, nozzle, stated != m_stated_nozzle.end(), card_id, nullptr);
-
-    std::vector<std::string> assumed{"a " + nozzle_text(nozzle) + " nozzle"};
-    if (!chosen->default_plate.empty())
-        assumed.push_back("the " + chosen->default_plate);
-    if (!m_proposal.material.empty())
-        assumed.push_back(m_proposal.material);
-    std::string event = "The person chose " + chosen->display_name() + ". Its card offers Add, assuming " + listed(assumed);
-    if (chosen->default_plate.empty())
-        event += "; the profile names no plate";
-    if (m_proposal.material.empty())
-        event += "; the profile names no filament";
-    m_host.post_note(event + ".");
+    // The page wrote it from what this card assumes, which is what Add now
+    // saves.
+    if (!note.empty())
+        m_host.post_note(note);
     m_host.session_changed();
 }
 
-void PrinterConversation::reject_proposal()
+void PrinterConversation::reject_proposal(const std::string& note)
 {
     if (!m_proposal.valid)
         return;
-    const std::string name = m_proposal.model_name;
     if (json* card = block(m_proposal.block_id))
         (*card)["collapsed"] = true;
     clear_proposal();
-    m_host.post_note("The person said " + name + " is not their printer.");
+    if (!note.empty())
+        m_host.post_note(note);
     m_host.session_changed();
     // Only the model can decide what to ask next.
     m_host.start_turn();
 }
 
-void PrinterConversation::undo_change(const std::string& block_id)
+void PrinterConversation::undo_change(const std::string& block_id, const std::string& note)
 {
     if (!m_undo || m_undo->block_id != block_id || m_mode != ConversationMode::Change)
         return;
@@ -855,13 +862,10 @@ void PrinterConversation::undo_change(const std::string& block_id)
                    m_blocks.end());
     m_undo.reset();
     read_saved_printer();
-
-    std::vector<std::string> back;
-    if (request.nozzle)
-        back.push_back("the nozzle is " + nozzle_text(m_printer.nozzle) + " again");
-    if (request.spools)
-        back.push_back("the spools are " + spools_text(m_printer.spools) + " again");
-    m_host.post_note("The person undid the change: " + listed(back) + ".");
+    // The page wrote it from the undo row, which states exactly what is put
+    // back.
+    if (!note.empty())
+        m_host.post_note(note);
     m_host.printers_changed();
     m_host.session_changed();
 }

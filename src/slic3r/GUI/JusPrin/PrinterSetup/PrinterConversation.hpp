@@ -11,6 +11,12 @@
 // -- a plain statement of what happened, never an instruction -- which the
 // model reads on its next turn.
 //
+// The app sends the page facts, never words: the page (printerWords.ts)
+// writes everything the panel shows, the opening line, and the note that
+// goes with each tap. The app posts that note only when the tap goes through
+// as the page described it, and writes its own only for what the page cannot
+// know: a network printer gone, a model id the list lacks, a save that failed.
+//
 // A session is opened for one printer question -- add a printer, or change
 // this one -- and is discarded when the panel closes. Nothing here is written
 // to the project: AgentHost keeps the thread in an in-memory document, and
@@ -36,15 +42,24 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 // What the panel asks the person about.
 enum class ConversationMode { Add, Change };
 
-// One row of the pinned card. An empty value is the em dash the panel draws
-// for a fact nobody has stated yet.
-struct PinnedFact
+// The four facts the pinned card states. An empty name or a size of 0 is a
+// fact nobody has stated yet. Each provenance is settled: known, from the
+// printer or the person; assumed: the profile's default, stated as such; or
+// changed: altered in this session.
+struct PinnedFacts
 {
-    std::string value;
-    // settled: known, from the printer or the person. assumed: the profile's
-    // default, stated as such. changed: altered in this session.
-    std::string provenance{"settled"};
-    std::string swatch; // "#RRGGBB" of the first loaded spool, when there is one
+    std::string printer;
+    std::string printer_provenance{"settled"};
+    double      nozzle{0.};
+    std::string nozzle_provenance{"settled"};
+    std::string plate;
+    std::string plate_provenance{"settled"};
+    // What is loaded, when the printer reported it or the app remembers it;
+    // otherwise the filament profile the card assumes.
+    std::string               filament_preset;
+    std::string               ams;
+    std::vector<PrinterSpool> spools;
+    std::string               filament_provenance{"settled"};
 };
 
 // What "Add this printer" would save. Filled when one printer's card is
@@ -71,6 +86,8 @@ public:
     // A line in the thread stating what happened, which the model reads as
     // the app's own words. Returns its message id.
     virtual std::string post_note(const std::string& text) = 0;
+    // The panel's first line, shown as the agent's. Returns its message id.
+    virtual std::string post_opening(const std::string& text) = 0;
     // The model answers next, from the conversation as it stands.
     virtual void start_turn() = 0;
     // The pinned card, the chips and the thread's own cards have changed, and
@@ -98,13 +115,9 @@ public:
 
     // What the model is told and may call this session.
     Agent::AgentSessionProfile profile() const;
-    // The panel's own opening line, which the agent is shown as having said.
-    std::string opening_message() const;
-    // Ties the cards drawn under the opening to it, once it has an id.
-    void anchor_opening(const std::string& message_id);
 
-    // The pinned card, the chips, the composer's placeholder and the cards
-    // that sit in the thread, as the page reads them.
+    // The facts the page draws the panel from: the pinned card, the cards in
+    // the thread, and whether there is a printer to add.
     nlohmann::json state_json() const;
 
     // A message from the panel's own page. Returns false for anything that is
@@ -148,12 +161,19 @@ private:
     // refusal, has replaced it.
     void collapse_cards();
     std::string next_block_id() { return "b" + std::to_string(m_next_block++); }
+    // One printer's card in the thread: what it is, and what adding it sets up.
+    nlohmann::json card_json(const CatalogPrinter& printer, double nozzle, const std::string& action,
+                             const DiscoveredPrinter* device) const;
+    // Posts the page's opening once, and ties the cards drawn under it to it.
+    void post_opening(const std::string& text);
 
-    void add_proposed_printer(const std::string& access_code);
-    void use_network_printer(const std::string& device_id);
-    void choose_candidate(const std::string& catalog_id, const std::string& block_id);
-    void reject_proposal();
-    void undo_change(const std::string& block_id);
+    // Each takes the note the page wrote for the tap, posted only when the
+    // tap goes through.
+    void add_proposed_printer(const std::string& access_code, const std::string& note);
+    void use_network_printer(const std::string& device_id, const std::string& note);
+    void choose_candidate(const std::string& catalog_id, const std::string& block_id, const std::string& note);
+    void reject_proposal(const std::string& note);
+    void undo_change(const std::string& block_id, const std::string& note);
     void read_saved_printer();
     void refresh_network();
 
@@ -168,14 +188,13 @@ private:
     std::string      m_printer_name;
     SavedPrinter     m_printer; // the Change session's subject
 
-    // Pinned facts, in the order the panel draws them.
-    PinnedFact m_printer_fact, m_nozzle, m_plate, m_filament;
+    PinnedFacts m_facts;
 
     PrinterProposal m_proposal;
     // The cards in the thread, oldest first.
     nlohmann::json  m_blocks = nlohmann::json::array();
-    std::string     m_placeholder;
     unsigned        m_next_block{1};
+    bool            m_opened{false};
     // The nozzle the model named for the candidates on a card, by card id,
     // so "This one" keeps it.
     std::map<std::string, double> m_stated_nozzle;

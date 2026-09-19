@@ -132,7 +132,9 @@ Strong reasons for C++:
 - **It has to work without a page:** the MCP server, background work, tests that run without a browser.
 - **It depends on a thread or a lifetime the page does not have.**
 
-The printer panel is the example. The page writes the model's instructions (`AgentUI/src/printerInstructions.ts`) from facts the app sends in the session's `context`, and hands them over with `printer_instructions`. The app decides which one tool each mode offers, checks every call, and refuses a turn that has no instructions rather than falling back to the project assistant's prompt.
+The printer panel is the example. The app sends the page facts only: sizes, spools, which printer is on a card, what a change changed. The page writes every word from them. It writes the model's instructions (`AgentUI/src/printerInstructions.ts`) and hands them over with `printer_instructions`. It writes the panel's own words, the opening line and the note that goes with each tap (`AgentUI/src/printerWords.ts`). The opening goes over with `printer_opening`, and a tap's note travels in the tap's payload.
+
+The app decides which one tool each mode offers, checks every call, and refuses a turn that has no instructions rather than falling back to the project assistant's prompt. It posts the opening once per session, and a tap's note only when the tap goes through, bounded to 2 KB. It still writes the notes for what only it can find out when the tap arrives: the network printer has gone, its model id is not on the list, or a save or undo failed.
 
 Windows uses WebView2, macOS uses WKWebView, and Linux uses WebKitGTK. Local resource packaging must work on all three. The demonstrated prototype used a single-file local bundle to avoid WKWebView `file:` subresource failures; production keeps that approach, and CMake now produces the bundle from the TypeScript/React sources.
 

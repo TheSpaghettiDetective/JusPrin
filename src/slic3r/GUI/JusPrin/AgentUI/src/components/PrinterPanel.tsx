@@ -2,9 +2,11 @@
 // drawn inside it, the row of things to tap, and the card that confirms a
 // change to a printer.
 //
-// Everything here renders host state. A tap sends a typed printer action or a
-// tool decision, which C++ carries out -- never a change made on this side,
-// and never words sent as the person's.
+// Everything here renders host state, in words made on this page
+// (printerWords.ts). A tap sends a typed printer action or a tool decision,
+// which C++ carries out -- never a change made on this side, and never words
+// sent as the person's. A tap the model should know about carries its note,
+// which the app records if the tap goes through.
 
 import { memo } from 'react';
 import type {
@@ -12,28 +14,40 @@ import type {
   PrinterBlock,
   PrinterCardInfo,
   PrinterChangeConfirm,
-  PrinterChip,
-  PrinterFact,
   PrinterSessionPayload,
   PrinterSpoolInfo,
   ToolActivityInfo,
 } from '../bridge/protocol';
+import {
+  ADD_LABEL,
+  REJECT_LABEL,
+  caption,
+  cardSubline,
+  changeTitle,
+  chosenNote,
+  factTexts,
+  mm,
+  networkNote,
+  undoText,
+  undoneNote,
+  type FactText,
+} from '../printerWords';
 
 const EM_DASH = '—';
 
-function factClass(fact: PrinterFact): string {
+function factClass(fact: FactText): string {
   if (!fact.value) return 'printer-fact-value printer-fact-empty';
   return `printer-fact-value printer-fact-${fact.provenance}`;
 }
 
-function factSuffix(fact: PrinterFact): string {
+function factSuffix(fact: FactText): string {
   if (!fact.value) return '';
   if (fact.provenance === 'assumed') return ' · assumed';
   if (fact.provenance === 'changed') return ' · changed';
   return '';
 }
 
-function FactRow({ label, fact }: { label: string; fact: PrinterFact }) {
+function FactRow({ label, fact }: { label: string; fact: FactText }) {
   return (
     <div className="printer-fact">
       <span className="printer-fact-label">{label}</span>
@@ -48,13 +62,14 @@ function FactRow({ label, fact }: { label: string; fact: PrinterFact }) {
 
 // The four facts a printer is, in the order the panel always states them.
 export const PrinterPinnedCard = memo(function PrinterPinnedCard({ session }: { session: PrinterSessionPayload }) {
+  const facts = factTexts(session.facts);
   return (
-    <section className="printer-pinned" aria-label={session.caption}>
-      <p className="printer-pinned-caption">{session.caption}</p>
-      <FactRow label="Printer" fact={session.facts.printer} />
-      <FactRow label="Nozzle" fact={session.facts.nozzle} />
-      <FactRow label="Plate" fact={session.facts.plate} />
-      <FactRow label="Filament" fact={session.facts.filament} />
+    <section className="printer-pinned" aria-label={caption(session)}>
+      <p className="printer-pinned-caption">{caption(session)}</p>
+      <FactRow label="Printer" fact={facts.printer} />
+      <FactRow label="Nozzle" fact={facts.nozzle} />
+      <FactRow label="Plate" fact={facts.plate} />
+      <FactRow label="Filament" fact={facts.filament} />
     </section>
   );
 });
@@ -72,9 +87,16 @@ export function CameraGlyph({ className }: { className: string }) {
 
 export type PrinterBlockAction = 'network_pick' | 'candidate_pick' | 'undo';
 
+// A tap on a card: the card's id, and the note the model is told if it goes
+// through.
+export interface PrinterTap {
+  blockId?: string;
+  note?: string;
+}
+
 export interface PrinterBlockProps {
   block: PrinterBlock;
-  onAction: (action: PrinterBlockAction, id: string, blockId?: string) => void;
+  onAction: (action: PrinterBlockAction, id: string, tap: PrinterTap) => void;
 }
 
 // One card in the thread, under the message it belongs to.
@@ -102,7 +124,11 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
               {printer.name}
               <small>{printer.serial}</small>
             </span>
-            <button type="button" className="printer-quiet-button" onClick={() => onAction('network_pick', printer.deviceId)}>
+            <button
+              type="button"
+              className="printer-quiet-button"
+              onClick={() => onAction('network_pick', printer.deviceId, { note: networkNote(printer) })}
+            >
               Use this
             </button>
           </div>
@@ -114,9 +140,9 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
   if (block.kind === 'undo')
     return (
       <div className="printer-undo">
-        <span>{block.text}</span>
+        <span>{undoText(block)}</span>
         <span aria-hidden="true"> · </span>
-        <button type="button" className="printer-link-button" onClick={() => onAction('undo', block.id)}>
+        <button type="button" className="printer-link-button" onClick={() => onAction('undo', block.id, { note: undoneNote(block) })}>
           Undo
         </button>
       </div>
@@ -142,13 +168,13 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
           )}
           <span className="printer-card-name">
             {printer.name}
-            {printer.subline && <small>{printer.subline}</small>}
+            {cardSubline(printer) && <small>{cardSubline(printer)}</small>}
           </span>
           {compact && (
             <button
               type="button"
               className="printer-quiet-button"
-              onClick={() => onAction('candidate_pick', printer.catalogId, block.id)}
+              onClick={() => onAction('candidate_pick', printer.catalogId, { blockId: block.id, note: chosenNote(printer) })}
             >
               This one
             </button>
@@ -178,35 +204,27 @@ export function PrinterAccessCode({ value, onChange }: { value: string; onChange
 }
 
 export interface ChipRowProps {
-  chips: PrinterChip[];
+  canAdd: boolean;
   disabled: boolean;
   onAdd: () => void;
   onReject: () => void;
 }
 
-// What the person can do with the printer on the card. Both act natively.
-export const PrinterChipRow = memo(function PrinterChipRow({ chips, disabled, onAdd, onReject }: ChipRowProps) {
-  if (chips.length === 0) return null;
+// What the person can do with the printer on the card. Both act natively;
+// adding leads, because the tap is the approval.
+export const PrinterChipRow = memo(function PrinterChipRow({ canAdd, disabled, onAdd, onReject }: ChipRowProps) {
+  if (!canAdd) return null;
   return (
     <div className="printer-chips">
-      {chips.map((chip) => (
-        <button
-          key={chip.id}
-          type="button"
-          className={`printer-chip printer-chip-${chip.style}`}
-          disabled={disabled}
-          onClick={() => (chip.action === 'add' ? onAdd() : onReject())}
-        >
-          {chip.label}
-        </button>
-      ))}
+      <button type="button" className="printer-chip printer-chip-primary" disabled={disabled} onClick={onAdd}>
+        {ADD_LABEL}
+      </button>
+      <button type="button" className="printer-chip printer-chip-plain" disabled={disabled} onClick={onReject}>
+        {REJECT_LABEL}
+      </button>
     </div>
   );
 });
-
-function mm(value: number): string {
-  return `${value} mm`;
-}
 
 function SpoolList({ spools }: { spools: PrinterSpoolInfo[] }) {
   if (spools.length === 0) return <span className="printer-change-none">none</span>;
@@ -242,7 +260,7 @@ export function PrinterChangeCard({
 
   return (
     <div className={`printer-change state-${activity.state}`} data-testid={`tool-${activity.actionId}`}>
-      <div className="printer-change-title">{activity.title}</div>
+      <div className="printer-change-title">{changeTitle(nozzle, spools)}</div>
       {nozzle && (
         <>
           <div className="printer-change-line">

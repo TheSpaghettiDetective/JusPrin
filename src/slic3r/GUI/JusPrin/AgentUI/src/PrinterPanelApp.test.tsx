@@ -49,16 +49,14 @@ class MockHost {
 function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSessionPayload {
   return {
     mode: 'add',
-    caption: 'NEW PRINTER',
     facts: {
-      printer: { value: 'Bambu Lab A1 mini', provenance: 'settled' },
-      nozzle: { value: '0.4 mm', provenance: 'assumed' },
-      plate: { value: 'Textured PEI Plate', provenance: 'assumed' },
-      filament: { value: 'PLA', provenance: 'assumed' },
+      printer: { name: 'Bambu Lab A1 mini', provenance: 'settled' },
+      nozzle: { size: 0.4, provenance: 'assumed' },
+      plate: { name: 'Textured PEI Plate', provenance: 'assumed' },
+      filament: { preset: 'Bambu PLA Basic @BBL A1M', ams: '', spools: [], provenance: 'assumed' },
     },
     blocks: [],
-    chips: [{ id: 'add', label: 'Add this printer', style: 'primary', action: 'add' }],
-    placeholder: 'e.g. "I put a 0.6 nozzle on it"',
+    canAdd: true,
     ...overrides,
   };
 }
@@ -102,7 +100,7 @@ describe('the printer panel page', () => {
     expect((sent()[0].payload as { text: string }).text).toContain('BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm');
 
     // A new card changes nothing the model is told.
-    host.deliver('printer_session', session({ chips: [], context: { printers: [['BBL/Bambu Lab A1 mini', 'Bambu Lab A1 mini', '180 × 180 × 180 mm']], network: [] } }));
+    host.deliver('printer_session', session({ canAdd: false, context: { printers: [['BBL/Bambu Lab A1 mini', 'Bambu Lab A1 mini', '180 × 180 × 180 mm']], network: [] } }));
     expect(sent()).toHaveLength(1);
 
     // A changed printer does.
@@ -110,7 +108,7 @@ describe('the printer panel page', () => {
       'printer_session',
       session({
         mode: 'change',
-        chips: [],
+        canAdd: false,
         context: {
           printer: { name: 'Lab Printer', model: '', nozzle: 0.6, nozzles: [0.4, 0.6], spools: [], connected: false },
         },
@@ -148,29 +146,56 @@ describe('the printer panel page', () => {
     expect(screen.getByText('What printer do you have?')).toBeInTheDocument();
   });
 
+  it('writes the opening line for an empty thread, once, before the instructions', () => {
+    const host = open(state({ conversation: [], session: session({ context: { printers: [], network: [] } }) }));
+    const openings = host.received.filter((envelope) => envelope.type === 'printer_opening');
+    expect(openings).toHaveLength(1);
+    expect((openings[0].payload as { text: string }).text).toMatch(/^What printer do you have\? Say it any way/);
+    const types = host.received.map((envelope) => envelope.type);
+    expect(types.indexOf('printer_opening')).toBeLessThan(types.indexOf('printer_instructions'));
+
+    // A later session state does not ask again.
+    host.deliver('printer_session', session({ canAdd: false }));
+    expect(host.received.filter((envelope) => envelope.type === 'printer_opening')).toHaveLength(1);
+  });
+
+  it('names the printer in a Change session’s opening', () => {
+    const host = open(
+      state({
+        conversation: [],
+        session: session({
+          mode: 'change',
+          context: { printer: { name: 'Lab Printer', model: '', nozzle: 0.4, nozzles: [0.4], spools: [], connected: false } },
+        }),
+      }),
+    );
+    expect((host.lastOfType('printer_opening')!.payload as { text: string }).text).toMatch(/^This is the Lab Printer\. /);
+  });
+
+  it('asks nothing of a thread that already opened', () => {
+    const host = open();
+    expect(host.lastOfType('printer_opening')).toBeUndefined();
+  });
+
   it('asks a likely answer, and leads the composer with Photo', () => {
-    open();
-    expect(screen.getByPlaceholderText('e.g. "I put a 0.6 nozzle on it"')).toBeInTheDocument();
+    open(state({ session: session({ mode: 'change', canAdd: false }) }));
+    expect(screen.getByPlaceholderText('e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a photo' })).toBeInTheDocument();
   });
 
   it('adds the printer and refuses it natively, never as the person speaking', async () => {
-    const host = open(
-      state({
-        session: session({
-          chips: [
-            { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-            { id: 'reject', label: 'Not this one', style: 'plain', action: 'reject' },
-          ],
-        }),
-      }),
-    );
+    const host = open();
 
     await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
-    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'add' });
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'add', id: '' });
 
+    // The note the model reads is written here, from the printer on the card.
     await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
-    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'reject' });
+    expect(host.lastOfType('printer_action')!.payload).toEqual({
+      action: 'reject',
+      id: '',
+      note: 'The person said Bambu Lab A1 mini is not their printer.',
+    });
     expect(host.lastOfType('user_message')).toBeUndefined();
   });
 
@@ -179,7 +204,12 @@ describe('the printer panel page', () => {
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Access code' }), '12345678');
     await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
-    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'add', id: '', accessCode: '12345678' });
+    expect(host.lastOfType('printer_action')!.payload).toEqual({
+      action: 'add',
+      id: '',
+      accessCode: '12345678',
+      note: 'An access code was entered.',
+    });
     expect(host.received.some((envelope) => envelope.type === 'user_message')).toBe(false);
     expect(JSON.stringify(host.received.filter((envelope) => envelope.type !== 'printer_action'))).not.toContain('12345678');
   });
@@ -207,7 +237,7 @@ describe('the printer panel page', () => {
     });
     const host = open(
       state({
-        session: session({ mode: 'change', caption: 'PRINTER', chips: [] }),
+        session: session({ mode: 'change', canAdd: false }),
         toolActivities: [
           activity('printer_change', {
             arguments: { nozzle: 0.6, confirm: { printer: 'Bambu Lab A1 mini', before: { nozzle: 0.4 } } },
@@ -227,13 +257,26 @@ describe('the printer panel page', () => {
       state({
         session: session({
           mode: 'change',
-          chips: [],
-          blocks: [{ id: 'b2', seq: 1, afterMessageId: 'm-1', kind: 'undo', text: 'Nozzle set to 0.6 mm' }],
+          canAdd: false,
+          blocks: [
+            {
+              id: 'b2',
+              seq: 1,
+              afterMessageId: 'm-1',
+              kind: 'undo',
+              changed: { spools: { before: [{ name: 'PETG', material: 'PETG' }], after: [] } },
+            },
+          ],
         }),
       }),
     );
+    expect(screen.getByText('Spools updated')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'undo', id: 'b2' });
+    expect(host.lastOfType('printer_action')!.payload).toEqual({
+      action: 'undo',
+      id: 'b2',
+      note: 'The person undid the change: the spools are PETG again.',
+    });
   });
 
   it('draws the cards the agent drew, under the message that drew them', () => {
@@ -251,9 +294,10 @@ describe('the printer panel page', () => {
                   catalogId: 'BBL/Bambu Lab A1 mini',
                   deviceId: '',
                   name: 'Bambu Lab A1 mini',
-                  subline: '180 × 180 × 180 mm',
+                  buildVolume: '180 × 180 × 180 mm',
                   picture: '',
                   action: 'add',
+                  assumed: { nozzle: 0.4, plate: 'Textured PEI Plate', filament: 'Bambu PLA Basic @BBL A1M' },
                 },
               ],
             },
@@ -267,7 +311,7 @@ describe('the printer panel page', () => {
 
   it('follows the session the host sends after the state', () => {
     const host = open();
-    host.deliver('printer_session', session({ caption: 'PRINTER', mode: 'change', chips: [] }));
+    host.deliver('printer_session', session({ mode: 'change', canAdd: false }));
     expect(screen.getByText('PRINTER')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
   });

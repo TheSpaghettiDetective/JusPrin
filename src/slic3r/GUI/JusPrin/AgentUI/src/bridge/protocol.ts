@@ -31,7 +31,8 @@ export type PageMessageType =
   | 'mcp_connect'
   | 'reveal_path'
   | 'printer_action'
-  | 'printer_instructions';
+  | 'printer_instructions'
+  | 'printer_opening';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -373,25 +374,42 @@ export interface PhysicalPrintInfo {
 
 // -- The printer panel ------------------------------------------------------
 // One session of the printer panel on Home: the facts it pins above the
-// thread, the cards its agent has drawn inside the thread, and what it offers
-// to tap. Absent on hosts without the printer_panel capability, and on every
-// host that is showing the project's own conversation.
+// thread, the cards drawn inside the thread, and what can be tapped. The app
+// sends facts only; every word the panel shows is made on the page
+// (printerWords.ts). Absent on hosts without the printer_panel capability,
+// and on every host that is showing the project's own conversation.
 
 export type FactProvenance = 'settled' | 'assumed' | 'changed';
 
-export interface PrinterFact {
-  value: string; // empty: nobody has said yet
-  provenance: FactProvenance;
-  swatch?: string; // "#RRGGBB" of the first loaded spool
+export interface PrinterSpoolInfo {
+  name: string;
+  material: string;
+  colour?: string; // "#RRGGBB"
+}
+
+// The four facts a printer is. An empty name or a size of 0 is a fact nobody
+// has stated yet.
+export interface PrinterFacts {
+  printer: { name: string; provenance: FactProvenance };
+  nozzle: { size: number; provenance: FactProvenance };
+  plate: { name: string; provenance: FactProvenance };
+  // What is loaded, when the printer reported it or the app remembers it;
+  // otherwise the filament profile the card assumes.
+  filament: { preset: string; ams: string; spools: PrinterSpoolInfo[]; provenance: FactProvenance };
 }
 
 export interface PrinterCardInfo {
   catalogId: string;
   deviceId: string;
-  name: string;
-  subline: string;
+  name: string; // brand and model
+  buildVolume: string; // "180 × 180 × 180 mm"
   picture: string; // data URL, empty when the profile ships no picture
   action: 'add' | 'choose';
+  // What this printer's card sets up if added; empty where its profile names
+  // none.
+  assumed: { nozzle: number; plate: string; filament: string };
+  // A printer found on the network: what it reported.
+  device?: { nozzle: number; ams: string; spools: PrinterSpoolInfo[]; reported: boolean };
 }
 
 export interface NetworkPrinterInfo {
@@ -399,10 +417,12 @@ export interface NetworkPrinterInfo {
   name: string;
   serial: string;
   online: boolean;
+  // The model in the list the printer reports being, when there is one.
+  match?: { name: string; nozzle: number; reported: boolean };
 }
 
-// A card the agent drew in the thread, anchored after the message that drew
-// it, in the same way tool activity and history entries are.
+// A card in the thread, anchored after the message it belongs to, in the same
+// way tool activity and history entries are.
 export interface PrinterBlock {
   id: string;
   seq: number;
@@ -411,16 +431,11 @@ export interface PrinterBlock {
   kind: 'tip' | 'network' | 'printers' | 'undo';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
   collapsed?: boolean; // a newer answer, or "Not this one", replaced it
-  text?: string; // the undo row's own words: "Nozzle set to 0.6 mm"
-}
-
-export interface PrinterChip {
-  id: string;
-  label: string;
-  style: 'primary' | 'plain';
-  // Both act at once, natively: add saves the printer on the card, reject
-  // folds it away. Neither is sent as the person's words.
-  action: 'add' | 'reject';
+  // undo: what the change was
+  changed?: {
+    nozzle?: { before: number; after: number };
+    spools?: { before: PrinterSpoolInfo[]; after: PrinterSpoolInfo[] };
+  };
 }
 
 // What a printer_change card states, added to the call's arguments by the
@@ -430,23 +445,16 @@ export interface PrinterChangeConfirm {
   before: { nozzle?: number; spools?: PrinterSpoolInfo[] };
 }
 
-export interface PrinterSpoolInfo {
-  name: string;
-  material: string;
-  colour?: string;
-}
-
 export interface PrinterSessionPayload {
   mode: 'add' | 'change';
-  caption: string; // NEW PRINTER / PRINTER
-  facts: { printer: PrinterFact; nozzle: PrinterFact; plate: PrinterFact; filament: PrinterFact };
+  facts: PrinterFacts;
   blocks: PrinterBlock[];
-  chips: PrinterChip[];
+  // A printer is on its card, ready to add or to refuse.
+  canAdd: boolean;
   // The printer on the card was found on the network and can be kept
   // connected: the panel offers its own access-code field, whose value goes
   // with Add to the app and never into the chat.
   accessCode?: boolean;
-  placeholder: string; // a likely answer to what the agent just said
   // The facts the model's instructions state (printerInstructions.ts).
   context?: PrinterContext;
 }

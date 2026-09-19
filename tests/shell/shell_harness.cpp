@@ -502,13 +502,12 @@ private:
         check(panel->IsShown(), "panel_opens_from_add_printer");
         check(home->IsShown(), "panel_opens_on_home");
         const nlohmann::json add = panel->session_json();
-        check(add.value("mode", "") == "add" && add.value("caption", "") == "NEW PRINTER",
-              "panel_adds_with_an_empty_new_printer_card");
-        check(add["facts"]["printer"].value("value", "x").empty() &&
-                  add["facts"]["nozzle"].value("value", "x").empty(),
+        check(add.value("mode", "") == "add" && !add.value("canAdd", true), "panel_adds_with_an_empty_new_printer_card");
+        check(add["facts"]["printer"].value("name", "x").empty() && add["facts"]["nozzle"].value("size", -1.) == 0.,
               "panel_states_nothing_before_the_printer_is_named");
-        check(add.value("placeholder", "").find("bambu a1 mini") != std::string::npos,
-              "panel_suggests_an_answer_rather_than_type_a_message");
+        // The page writes every word; the app sends none.
+        check(!add.contains("caption") && !add.contains("placeholder") && !add.contains("chips"),
+              "panel_sends_facts_not_words");
         const bool tip = std::any_of(add["blocks"].begin(), add["blocks"].end(),
                                      [](const nlohmann::json& block) { return block.value("kind", "") == "tip"; });
         check(tip, "panel_offers_the_photo_path_in_words");
@@ -518,10 +517,9 @@ private:
         home->backend().open_printer_settings("named:" + named);
         check(panel->IsShown(), "panel_opens_from_printer_settings");
         const nlohmann::json change = panel->session_json();
-        check(change.value("mode", "") == "change" && change.value("caption", "") == "PRINTER",
-              "panel_changes_the_printer_it_was_opened_for");
-        check(change["facts"]["printer"].value("value", "") == named, "panel_states_the_printer_by_name");
-        check(change["facts"]["nozzle"].value("value", "") == "0.4 mm", "panel_states_the_nozzle_it_is_set_up_with");
+        check(change.value("mode", "") == "change", "panel_changes_the_printer_it_was_opened_for");
+        check(change["facts"]["printer"].value("name", "") == named, "panel_states_the_printer_by_name");
+        check(change["facts"]["nozzle"].value("size", 0.) == 0.4, "panel_states_the_nozzle_it_is_set_up_with");
         verify_nozzle_change_leaves_the_project(named);
 
         // "‹ Printers" gives the column back.
@@ -621,6 +619,34 @@ private:
                                                              {"type", type},
                                                              {"payload", payload}}
                                                   .dump());
+    }
+
+    // Clicks the button on the panel's own page that carries these words, as
+    // the person would, so what the page sends with the tap is what the app
+    // receives.
+    void live_tap(const std::string& words)
+    {
+        WebView::RunScript(live_panel()->web_view()->webview(),
+                           "(function(){var button = Array.prototype.find.call(document.querySelectorAll('button'),"
+                           "  function (b) { return b.textContent === '" + words + "'; });"
+                           " if (button) button.click();})()");
+    }
+
+    bool live_note(const std::string& text) const
+    {
+        const auto messages = live_messages();
+        return std::any_of(messages.begin(), messages.end(), [&text](const Agent::ConversationMessage& message) {
+            return message.role == Agent::MessageRole::Note && message.text == text;
+        });
+    }
+
+    // The page's opening is the thread's first line, as the agent's.
+    void check_live_opening(const std::string& start, const std::string& name)
+    {
+        const auto messages = live_messages();
+        check(!messages.empty() && messages.front().role == Agent::MessageRole::Assistant &&
+                  messages.front().text.rfind(start, 0) == 0,
+              name);
     }
 
     void say(const std::string& text)
@@ -783,20 +809,23 @@ private:
 
         live_open(Mode::Add);
         live_say("the small bambu one", [this] {
+            check_live_opening("What printer do you have?", "live_add_opens_with_the_pages_line");
             live_print_calls();
             check(live_identified("BBL/Bambu Lab A1 mini"), "live_small_bambu_is_the_a1_mini");
-            check(live_panel()->session_json()["facts"]["printer"].value("value", "") == "Bambu Lab A1 mini",
+            check(live_panel()->session_json()["facts"]["printer"].value("name", "") == "Bambu Lab A1 mini",
                   "live_small_bambu_pins_the_card");
         });
-        m_live_steps.push_back({"tap: Not this one", [this] { live_send("printer_action", {{"action", "reject"}}); }, {}, [this] {
-                                    const auto messages = live_messages();
-                                    check(std::any_of(messages.begin(), messages.end(),
-                                                      [](const Agent::ConversationMessage& message) {
-                                                          return message.role == Agent::MessageRole::Note &&
-                                                                 message.text.find("is not their printer") != std::string::npos;
-                                                      }),
-                                          "live_not_this_one_is_recorded");
-                                    check(live_panel()->session_json()["facts"]["printer"].value("value", "x").empty(),
+        m_live_steps.push_back({"tap: Not this one",
+                                [this] {
+                                    m_live_messages_before = live_messages().size();
+                                    live_tap("Not this one");
+                                },
+                                // The note, then the model's answer to it.
+                                [this] { return live_messages().size() > m_live_messages_before + 1 && live_settled(); },
+                                [this] {
+                                    check(live_note("The person said Bambu Lab A1 mini is not their printer."),
+                                          "live_not_this_one_is_recorded_in_the_pages_words");
+                                    check(live_panel()->session_json()["facts"]["printer"].value("name", "x").empty(),
                                           "live_not_this_one_clears_the_pin");
                                 }});
 
@@ -855,6 +884,7 @@ private:
                                 [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 {}});
         live_say("i put a 0.6 nozzle on it", [this] {
+            check_live_opening("This is the " + m_live_printer + ". ", "live_change_opens_naming_the_printer");
             live_print_calls();
             const auto calls = live_calls("printer_change");
             check(!calls.empty() && calls.back()->state == Agent::ToolState::Pending && calls.back()->title == "Change nozzle",
@@ -875,15 +905,14 @@ private:
                                 }});
         m_live_steps.push_back({"tap: Undo",
                                 [this] {
-                                    std::string undo;
                                     // Held: a range-for over a temporary's member dangles.
                                     const nlohmann::json session = live_panel()->session_json();
+                                    bool row = false;
                                     for (const auto& block : session["blocks"])
-                                        if (block.value("kind", "") == "undo")
-                                            undo = block.value("id", "");
-                                    std::cerr << "HARNESS LIVE   undo row: " << (undo.empty() ? "(none)" : undo) << '\n';
+                                        row = row || block.value("kind", "") == "undo";
+                                    std::cerr << "HARNESS LIVE   undo row: " << (row ? "shown" : "(none)") << '\n';
                                     m_live_messages_before = live_messages().size();
-                                    live_send("printer_action", {{"action", "undo"}, {"id", undo}});
+                                    live_tap("Undo");
                                 },
                                 [this] { return live_messages().size() > m_live_messages_before; },
                                 [this] {
@@ -894,6 +923,8 @@ private:
                                     check(messages.size() == m_live_messages_before + 1 &&
                                               messages.back().role == Agent::MessageRole::Note && !live_panel()->host()->stream_active(),
                                           "live_undo_is_recorded_without_a_model_turn");
+                                    check(!messages.empty() && messages.back().text == "The person undid the change: the nozzle is 0.4 mm again.",
+                                          "live_undo_is_recorded_in_the_pages_words");
                                 }});
         live_say("swapped to a hardened steel 0.4", [this] {
             check(live_calls("printer_change").size() == 1, "live_hardened_steel_changes_nothing");
@@ -1795,7 +1826,7 @@ private:
                 PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
                 const nlohmann::json session = panel->session_json();
                 self->check(session.value("mode", "") == "change" &&
-                                session["facts"]["printer"].value("value", "") == self->m_header_setup_printer,
+                                session["facts"]["printer"].value("name", "") == self->m_header_setup_printer,
                             "header_printer_settings_is_about_the_selected_printer");
                 self->check(!wxGetApp().params_dialog()->IsShown(), "header_printer_settings_leaves_settings_window_closed");
                 panel->close();

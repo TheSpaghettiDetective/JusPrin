@@ -13,8 +13,17 @@ import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
 import { applyStaticTokens } from '../tokens';
+import { opening, placeholder } from '../printerWords';
 import { Message } from '../state/store';
-import type { AttachmentInfo, PrinterBlock, PrinterChip, PrinterSessionPayload, ToolActivityInfo } from '../bridge/protocol';
+import type {
+  AttachmentInfo,
+  PrinterBlock,
+  PrinterCardInfo,
+  PrinterFacts,
+  PrinterSessionPayload,
+  PrinterSpoolInfo,
+  ToolActivityInfo,
+} from '../bridge/protocol';
 import tokens from '../../../../../../../resources/jusprin/ui/design-tokens.json';
 
 const noop = () => {};
@@ -22,18 +31,42 @@ const noop = () => {};
 const message = (id: string, role: Message['role'], text: string, attachments?: string[]): Message =>
   ({ id, role, state: 'complete', text, attempt: 1, lastSeq: 0, attachments } as Message);
 
-const empty = { value: '', provenance: 'settled' as const };
-const assumed = (value: string) => ({ value, provenance: 'assumed' as const });
-const settled = (value: string, swatch?: string) => ({ value, provenance: 'settled' as const, swatch });
+const nothing: PrinterFacts = {
+  printer: { name: '', provenance: 'settled' },
+  nozzle: { size: 0, provenance: 'settled' },
+  plate: { name: '', provenance: 'settled' },
+  filament: { preset: '', ams: '', spools: [], provenance: 'settled' },
+};
+
+const loaded: PrinterSpoolInfo[] = [
+  { name: 'PLA Matte', material: 'PLA', colour: '#5f7d4f' },
+  { name: 'PETG HF', material: 'PETG', colour: '#204080' },
+  { name: 'PLA Basic', material: 'PLA', colour: '#e0e0e0' },
+  { name: 'TPU', material: 'TPU', colour: '#202020' },
+];
+
+// A printer on its card: what the words the person said settled, and what
+// the profile assumes.
+function facts(
+  printer: string,
+  nozzle: [number, 'settled' | 'assumed' | 'changed'],
+  plate: string,
+  filament: Partial<PrinterFacts['filament']>,
+): PrinterFacts {
+  return {
+    printer: { name: printer, provenance: 'settled' },
+    nozzle: { size: nozzle[0], provenance: nozzle[1] },
+    plate: { name: plate, provenance: 'assumed' },
+    filament: { preset: '', ams: '', spools: [], provenance: 'settled', ...filament },
+  };
+}
 
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
   return {
     mode: 'add',
-    caption: 'NEW PRINTER',
-    facts: { printer: empty, nozzle: empty, plate: empty, filament: empty },
+    facts: nothing,
     blocks: [],
-    chips: [],
-    placeholder: 'e.g. "bambu a1 mini" or "not sure, the small one"',
+    canAdd: false,
     ...overrides,
   };
 }
@@ -45,32 +78,44 @@ const network: PrinterBlock = {
   seq: 2,
   afterMessageId: 'm1',
   kind: 'network',
-  printers: [{ deviceId: '01P00A3B', name: 'Bambu Lab A1 mini', serial: '01P00A3B', online: true }],
+  printers: [
+    {
+      deviceId: '01P00A3B',
+      name: 'Bambu Lab A1 mini',
+      serial: '01P00A3B',
+      online: true,
+      match: { name: 'Bambu Lab A1 mini', nozzle: 0.4, reported: true },
+    },
+  ],
 };
 
-const card = (name: string, subline: string, action: 'add' | 'choose' = 'add'): PrinterBlock => ({
+const printerCard = (name: string, overrides: Partial<PrinterCardInfo> = {}): PrinterCardInfo => ({
+  catalogId: name,
+  deviceId: '',
+  name,
+  buildVolume: '180 × 180 × 180 mm',
+  picture: '',
+  action: 'add',
+  assumed: { nozzle: 0.4, plate: 'Textured PEI Plate', filament: 'Bambu PLA Basic @BBL A1M' },
+  ...overrides,
+});
+
+const card = (name: string, overrides: Partial<PrinterCardInfo> = {}): PrinterBlock => ({
   id: `card-${name}`,
   seq: 3,
   afterMessageId: 'm2',
   kind: 'printers',
-  printers: [{ catalogId: name, deviceId: '', name, subline, picture: '', action }],
+  printers: [printerCard(name, overrides)],
 });
 
+const ender = { buildVolume: '220 × 220 × 250 mm', action: 'choose' as const };
 const candidates: PrinterBlock = {
   id: 'candidates',
   seq: 3,
   afterMessageId: 'm2',
   kind: 'printers',
-  printers: [
-    { catalogId: 'v2', deviceId: '', name: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
-    { catalogId: 's1', deviceId: '', name: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
-  ],
+  printers: [printerCard('Ender-3 V2', ender), printerCard('Ender-3 S1', ender)],
 };
-
-const addChips: PrinterChip[] = [
-  { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-  { id: 'reject', label: 'Not this one', style: 'plain', action: 'reject' },
-];
 
 const photo: AttachmentInfo = {
   id: 'a-1',
@@ -119,10 +164,10 @@ function panel(
           onToolCancel={noop}
         />
         {state.accessCode && <PrinterAccessCode value="" onChange={noop} />}
-        <PrinterChipRow chips={state.chips} disabled={false} onAdd={noop} onReject={noop} />
+        <PrinterChipRow canAdd={state.canAdd} disabled={false} onAdd={noop} onReject={noop} />
         <Composer
           disabled={false}
-          placeholder={state.placeholder}
+          placeholder={placeholder(state)}
           photoButton
           streaming={false}
           attachments={attachments}
@@ -153,8 +198,7 @@ function changeActivity(state: ToolActivityInfo['state']): ToolActivityInfo {
   };
 }
 
-const opener = message('m1', 'assistant',
-  'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".');
+const opener = message('m1', 'assistant', opening(session({})));
 
 const cases = () => [
   {
@@ -167,15 +211,12 @@ const cases = () => [
     note: 'the card, the assumptions line, Add as the primary chip',
     body: panel(
       session({
-        facts: {
-          printer: settled('Bambu Lab A1 mini'),
-          nozzle: assumed('0.4 mm'),
-          plate: assumed('Textured PEI'),
-          filament: assumed('PLA'),
-        },
-        blocks: [card('Bambu Lab A1 mini', '180 × 180 × 180 mm')],
-        chips: addChips,
-        placeholder: 'e.g. "I put a 0.6 nozzle on it"',
+        facts: facts('Bambu Lab A1 mini', [0.4, 'assumed'], 'Textured PEI Plate', {
+          preset: 'Bambu PLA Basic @BBL A1M',
+          provenance: 'assumed',
+        }),
+        blocks: [card('Bambu Lab A1 mini')],
+        canAdd: true,
       }),
       [
         message('m2', 'user', 'the small bambu one'),
@@ -203,14 +244,17 @@ const cases = () => [
     note: 'nothing assumed, the access code optional',
     body: panel(
       session({
-        facts: {
-          printer: settled('Bambu Lab A1 mini'),
-          nozzle: settled('0.4 mm'),
-          plate: settled('Textured PEI'),
-          filament: settled('AMS lite · PLA Matte + 3', '#5f7d4f'),
-        },
-        blocks: [{ ...card('Bambu Lab A1 mini', '0.4 mm nozzle · AMS lite · PLA Matte + 3 · read from the printer just now'), afterMessageId: 'm2' }],
-        chips: addChips,
+        facts: facts('Bambu Lab A1 mini', [0.4, 'settled'], 'Textured PEI Plate', { ams: 'AMS lite', spools: loaded }),
+        blocks: [
+          {
+            ...card('Bambu Lab A1 mini', {
+              deviceId: '01P00A3B',
+              device: { nozzle: 0.4, ams: 'AMS lite', spools: loaded, reported: true },
+            }),
+            afterMessageId: 'm2',
+          },
+        ],
+        canAdd: true,
         accessCode: true,
       }),
       [message('m2', 'note', 'The person chose the network printer 01P00A3B, a Bambu Lab A1 mini that reports a 0.4 mm nozzle.')],
@@ -226,15 +270,9 @@ const cases = () => [
     note: 'the sent photo is the person’s turn; the card answers it',
     body: panel(
       session({
-        facts: {
-          printer: settled('Bambu Lab A1 Combo'),
-          nozzle: assumed('0.4 mm'),
-          plate: assumed('Textured PEI'),
-          filament: settled('AMS lite · 4 slots'),
-        },
-        blocks: [card('Bambu Lab A1 Combo', 'the A1 with the AMS lite beside it')],
-        chips: addChips,
-        placeholder: 'e.g. "I put a 0.6 nozzle on it"',
+        facts: facts('Bambu Lab A1 Combo', [0.4, 'assumed'], 'Textured PEI Plate', { ams: 'AMS lite' }),
+        blocks: [card('Bambu Lab A1 Combo', { buildVolume: '256 × 256 × 256 mm' })],
+        canAdd: true,
       }),
       [
         message('m2', 'user', "it's this one", ['a-1']),
@@ -248,7 +286,7 @@ const cases = () => [
     name: 'G · "Not this one"',
     note: 'the refused card folds to a line; the agent asks what next',
     body: panel(
-      session({ blocks: [{ ...card('Bambu Lab A1 mini', '180 × 180 × 180 mm'), collapsed: true }] }),
+      session({ blocks: [{ ...card('Bambu Lab A1 mini'), collapsed: true }] }),
       [
         message('m2', 'user', 'the small bambu one'),
         message('m3', 'assistant', "That's the Bambu Lab A1 mini. I'll assume the 0.4 mm nozzle, the Textured PEI plate and Bambu PLA Basic."),
@@ -263,14 +301,7 @@ const cases = () => [
     body: panel(
       session({
         mode: 'change',
-        caption: 'PRINTER',
-        facts: {
-          printer: settled('Bambu Lab A1 mini'),
-          nozzle: settled('0.4 mm'),
-          plate: assumed('Textured PEI Plate'),
-          filament: settled('AMS lite · PLA Matte + 1', '#5f7d4f'),
-        },
-        placeholder: 'e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"',
+        facts: facts('Bambu Lab A1 mini', [0.4, 'settled'], 'Textured PEI Plate', { ams: 'AMS lite', spools: loaded.slice(0, 2) }),
       }),
       [
         message('m1', 'assistant',
@@ -288,15 +319,10 @@ const cases = () => [
     body: panel(
       session({
         mode: 'change',
-        caption: 'PRINTER',
-        facts: {
-          printer: settled('Bambu Lab A1 mini'),
-          nozzle: { value: '0.6 mm', provenance: 'changed' },
-          plate: assumed('Textured PEI Plate'),
-          filament: settled('AMS lite · PLA Matte + 1', '#5f7d4f'),
-        },
-        blocks: [{ id: 'undo', seq: 1, afterMessageId: 'm3', kind: 'undo', text: 'Nozzle set to 0.6 mm' }],
-        placeholder: 'e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"',
+        facts: facts('Bambu Lab A1 mini', [0.6, 'changed'], 'Textured PEI Plate', { ams: 'AMS lite', spools: loaded.slice(0, 2) }),
+        blocks: [
+          { id: 'undo', seq: 1, afterMessageId: 'm3', kind: 'undo', changed: { nozzle: { before: 0.4, after: 0.6 } } },
+        ],
       }),
       [
         message('m1', 'assistant',

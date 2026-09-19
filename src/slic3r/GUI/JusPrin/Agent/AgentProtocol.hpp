@@ -88,6 +88,8 @@ inline constexpr const char* kOpenSetup          = "open_setup";
 inline constexpr const char* kPrinterSession      = "printer_session";
 inline constexpr const char* kPrinterAction       = "printer_action";
 inline constexpr const char* kPrinterInstructions = "printer_instructions";
+// Its opening line, which the page writes and the app posts.
+inline constexpr const char* kPrinterOpening      = "printer_opening";
 
 } // namespace Protocol
 

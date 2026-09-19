@@ -150,10 +150,9 @@ void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
     // that held the last one goes first.
     tear_down_runtime();
     m_conversation->start(mode, printer_name);
+    // The page writes the opening line and asks for it to be posted once it
+    // has loaded (printer_opening).
     build_runtime();
-
-    const std::string opening = m_web_view->host().post_assistant_message(m_conversation->opening_message());
-    m_conversation->anchor_opening(opening);
     Show();
 }
 
@@ -194,6 +193,11 @@ void PrinterPanel::on_pump(wxTimerEvent&)
 std::string PrinterPanel::post_note(const std::string& text)
 {
     return m_web_view ? m_web_view->host().post_note(text) : std::string();
+}
+
+std::string PrinterPanel::post_opening(const std::string& text)
+{
+    return m_web_view ? m_web_view->host().post_assistant_message(text) : std::string();
 }
 
 void PrinterPanel::start_turn()

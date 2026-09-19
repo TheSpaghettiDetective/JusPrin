@@ -5,22 +5,20 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { PrinterBlock, PrinterChip, PrinterSessionPayload, ToolActivityInfo } from '../bridge/protocol';
+import type { PrinterBlock, PrinterCardInfo, PrinterSessionPayload, ToolActivityInfo } from '../bridge/protocol';
 import { PrinterAccessCode, PrinterBlockView, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
 
 function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSessionPayload {
   return {
     mode: 'add',
-    caption: 'NEW PRINTER',
     facts: {
-      printer: { value: '', provenance: 'settled' },
-      nozzle: { value: '', provenance: 'settled' },
-      plate: { value: '', provenance: 'settled' },
-      filament: { value: '', provenance: 'settled' },
+      printer: { name: '', provenance: 'settled' },
+      nozzle: { size: 0, provenance: 'settled' },
+      plate: { name: '', provenance: 'settled' },
+      filament: { preset: '', ams: '', spools: [], provenance: 'settled' },
     },
     blocks: [],
-    chips: [],
-    placeholder: 'e.g. "bambu a1 mini" or "not sure, the small one"',
+    canAdd: false,
     ...overrides,
   };
 }
@@ -39,18 +37,27 @@ describe('the pinned card', () => {
     render(
       <PrinterPinnedCard
         session={session({
-          caption: 'PRINTER',
           mode: 'change',
           facts: {
-            printer: { value: 'Bambu Lab A1 Combo', provenance: 'settled' },
-            nozzle: { value: '0.6 mm', provenance: 'changed' },
-            plate: { value: 'Textured PEI', provenance: 'assumed' },
-            filament: { value: 'AMS · 4 slots', provenance: 'settled', swatch: '#5f7d4f' },
+            printer: { name: 'Bambu Lab A1 Combo', provenance: 'settled' },
+            nozzle: { size: 0.6, provenance: 'changed' },
+            plate: { name: 'Textured PEI', provenance: 'assumed' },
+            filament: {
+              preset: '',
+              ams: 'AMS',
+              spools: [
+                { name: 'PLA Matte', material: 'PLA', colour: '#5f7d4f' },
+                { name: 'PETG', material: 'PETG' },
+              ],
+              provenance: 'settled',
+            },
           },
         })}
       />,
     );
 
+    expect(screen.getByText('PRINTER')).toBeInTheDocument();
+    expect(screen.getByText(/AMS · PLA Matte \+ 1/)).toBeInTheDocument();
     expect(screen.getByText(/Textured PEI · assumed/)).toBeInTheDocument();
     const changed = screen.getByText(/0\.6 mm · changed/);
     expect(changed).toHaveClass('printer-fact-changed');
@@ -59,22 +66,26 @@ describe('the pinned card', () => {
   });
 });
 
+function card(overrides: Partial<PrinterCardInfo> = {}): PrinterCardInfo {
+  return {
+    catalogId: 'BBL/Bambu Lab A1 mini',
+    deviceId: '',
+    name: 'Bambu Lab A1 mini',
+    buildVolume: '180 × 180 × 180 mm',
+    picture: '',
+    action: 'add',
+    assumed: { nozzle: 0.4, plate: 'Textured PEI Plate', filament: 'Bambu PLA Basic @BBL A1M' },
+    ...overrides,
+  };
+}
+
 describe('the cards the agent draws', () => {
   const printers: PrinterBlock = {
     id: 'b1',
     seq: 1,
     afterMessageId: 'm1',
     kind: 'printers',
-    printers: [
-      {
-        catalogId: 'BBL/Bambu Lab A1 mini',
-        deviceId: '',
-        name: 'Bambu Lab A1 mini',
-        subline: '180 × 180 × 180 mm',
-        picture: '',
-        action: 'add',
-      },
-    ],
+    printers: [card()],
   };
 
   it('gives one printer the full card and no button of its own', () => {
@@ -88,13 +99,14 @@ describe('the cards the agent draws', () => {
 
   it('asks which of two printers it is, on the cards themselves', async () => {
     const onAction = vi.fn();
+    const ender = { action: 'choose' as const, assumed: { nozzle: 0.6, plate: '', filament: 'Creality Generic PLA' } };
     render(
       <PrinterBlockView
         block={{
           ...printers,
           printers: [
-            { catalogId: 'Creality/Ender-3 V2', deviceId: '', name: 'Ender-3 V2', subline: '', picture: '', action: 'choose' },
-            { catalogId: 'Creality/Ender-3 S1', deviceId: '', name: 'Ender-3 S1', subline: '', picture: '', action: 'choose' },
+            card({ ...ender, catalogId: 'Creality/Ender-3 V2', name: 'Ender-3 V2' }),
+            card({ ...ender, catalogId: 'Creality/Ender-3 S1', name: 'Ender-3 S1' }),
           ],
         }}
         onAction={onAction}
@@ -104,8 +116,30 @@ describe('the cards the agent draws', () => {
     const buttons = screen.getAllByRole('button', { name: 'This one' });
     expect(buttons).toHaveLength(2);
     await userEvent.click(buttons[1]);
-    // The card is named too, so the app keeps the nozzle the model gave it.
-    expect(onAction).toHaveBeenCalledWith('candidate_pick', 'Creality/Ender-3 S1', 'b1');
+    // The card is named too, so the app keeps the nozzle the model gave it,
+    // and the note says what that card assumes.
+    expect(onAction).toHaveBeenCalledWith('candidate_pick', 'Creality/Ender-3 S1', {
+      blockId: 'b1',
+      note: 'The person chose Ender-3 S1. Its card offers Add, assuming a 0.6 mm nozzle and Creality Generic PLA; the profile names no plate.',
+    });
+  });
+
+  it('states what a network printer reported under its name', () => {
+    render(
+      <PrinterBlockView
+        block={{
+          ...printers,
+          printers: [
+            card({
+              deviceId: '01P00A3B',
+              device: { nozzle: 0.4, ams: 'AMS lite', spools: [{ name: 'PLA Matte', material: 'PLA' }], reported: true },
+            }),
+          ],
+        }}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('0.4 mm nozzle · AMS lite · PLA Matte · read from the printer just now')).toBeInTheDocument();
   });
 
   it('folds a replaced card to one line with nothing left to tap', () => {
@@ -119,13 +153,13 @@ describe('the cards the agent draws', () => {
     const onAction = vi.fn();
     render(
       <PrinterBlockView
-        block={{ id: 'b4', seq: 4, afterMessageId: 'm2', kind: 'undo', text: 'Nozzle set to 0.6 mm' }}
+        block={{ id: 'b4', seq: 4, afterMessageId: 'm2', kind: 'undo', changed: { nozzle: { before: 0.4, after: 0.6 } } }}
         onAction={onAction}
       />,
     );
     expect(screen.getByText('Nozzle set to 0.6 mm')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(onAction).toHaveBeenCalledWith('undo', 'b4');
+    expect(onAction).toHaveBeenCalledWith('undo', 'b4', { note: 'The person undid the change: the nozzle is 0.4 mm again.' });
   });
 
   it('lists what is on the network, with its serial and a way to use it', async () => {
@@ -137,7 +171,15 @@ describe('the cards the agent draws', () => {
           seq: 2,
           afterMessageId: 'm1',
           kind: 'network',
-          printers: [{ deviceId: '01P00A3B', name: 'Bambu Lab A1 mini', serial: '01P00A3B', online: true }],
+          printers: [
+            {
+              deviceId: '01P00A3B',
+              name: 'Bambu Lab A1 mini',
+              serial: '01P00A3B',
+              online: true,
+              match: { name: 'Bambu Lab A1 mini', nozzle: 0.4, reported: true },
+            },
+          ],
         }}
         onAction={onAction}
       />,
@@ -146,7 +188,9 @@ describe('the cards the agent draws', () => {
     expect(screen.getByText('FOUND ON YOUR NETWORK')).toBeInTheDocument();
     expect(screen.getByText('01P00A3B')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Use this' }));
-    expect(onAction).toHaveBeenCalledWith('network_pick', '01P00A3B');
+    expect(onAction).toHaveBeenCalledWith('network_pick', '01P00A3B', {
+      note: 'The person chose the network printer 01P00A3B, a Bambu Lab A1 mini that reports a 0.4 mm nozzle.',
+    });
   });
 
   it('says how a photo gets in, in words', () => {
@@ -156,15 +200,15 @@ describe('the cards the agent draws', () => {
 });
 
 describe('the chips', () => {
-  const chips: PrinterChip[] = [
-    { id: 'add', label: 'Add this printer', style: 'primary', action: 'add' },
-    { id: 'reject', label: 'Not this one', style: 'plain', action: 'reject' },
-  ];
+  it('are there only while a printer is on its card', () => {
+    render(<PrinterChipRow canAdd={false} disabled={false} onAdd={vi.fn()} onReject={vi.fn()} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
 
   it('adds the printer or refuses it natively, never as the person speaking', async () => {
     const onAdd = vi.fn();
     const onReject = vi.fn();
-    render(<PrinterChipRow chips={chips} disabled={false} onAdd={onAdd} onReject={onReject} />);
+    render(<PrinterChipRow canAdd disabled={false} onAdd={onAdd} onReject={onReject} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
     expect(onAdd).toHaveBeenCalledTimes(1);
@@ -175,7 +219,7 @@ describe('the chips', () => {
   });
 
   it('is the chip shape either way, and differs only by fill', () => {
-    render(<PrinterChipRow chips={chips} disabled={false} onAdd={vi.fn()} onReject={vi.fn()} />);
+    render(<PrinterChipRow canAdd disabled={false} onAdd={vi.fn()} onReject={vi.fn()} />);
     const primary = screen.getByRole('button', { name: 'Add this printer' });
     const plain = screen.getByRole('button', { name: 'Not this one' });
     expect(primary).toHaveClass('printer-chip');
@@ -186,7 +230,7 @@ describe('the chips', () => {
 
   it('offers nothing while the agent is working', async () => {
     const onReject = vi.fn();
-    render(<PrinterChipRow chips={chips} disabled onAdd={vi.fn()} onReject={onReject} />);
+    render(<PrinterChipRow canAdd disabled onAdd={vi.fn()} onReject={onReject} />);
     await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
     expect(onReject).not.toHaveBeenCalled();
   });

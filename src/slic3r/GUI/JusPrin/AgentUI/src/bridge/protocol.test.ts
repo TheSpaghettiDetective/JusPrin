@@ -43,6 +43,7 @@ describe('protocol constants', () => {
       'reveal_path',
       'printer_action',
       'printer_instructions',
+      'printer_opening',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

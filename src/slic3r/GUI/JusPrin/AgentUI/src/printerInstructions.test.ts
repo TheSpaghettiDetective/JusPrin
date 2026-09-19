@@ -7,16 +7,17 @@ import { join } from 'node:path';
 import type { PrinterSessionPayload } from './bridge/protocol';
 import { printerInstructions } from './printerInstructions';
 
-const empty = { value: '', provenance: 'settled' as const };
-
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
   return {
     mode: 'add',
-    caption: 'NEW PRINTER',
-    facts: { printer: empty, nozzle: empty, plate: empty, filament: empty },
+    facts: {
+      printer: { name: '', provenance: 'settled' },
+      nozzle: { size: 0, provenance: 'settled' },
+      plate: { name: '', provenance: 'settled' },
+      filament: { preset: '', ams: '', spools: [], provenance: 'settled' },
+    },
     blocks: [],
-    chips: [],
-    placeholder: '',
+    canAdd: false,
     ...overrides,
   };
 }
@@ -34,7 +35,6 @@ const add = session({
 
 const change = session({
   mode: 'change',
-  caption: 'PRINTER',
   context: {
     printer: {
       name: 'Lab Printer',

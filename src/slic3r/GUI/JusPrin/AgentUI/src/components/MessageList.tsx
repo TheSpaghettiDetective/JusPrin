@@ -23,7 +23,7 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
-import { PrinterBlockAction, PrinterBlockView } from './PrinterPanel';
+import { PrinterBlockAction, PrinterBlockView, PrinterTap } from './PrinterPanel';
 
 interface Props {
   messages: Message[];
@@ -43,7 +43,7 @@ interface Props {
   // The printer panel's own cards, each anchored after the message that drew
   // it, the way history entries are. Absent everywhere else.
   printerBlocks?: PrinterBlock[];
-  onPrinterAction?: (action: PrinterBlockAction, id: string, blockId?: string) => void;
+  onPrinterAction?: (action: PrinterBlockAction, id: string, tap: PrinterTap) => void;
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;

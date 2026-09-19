@@ -11,6 +11,7 @@ import { PlanActivityCard, planHeadline, planKey, planMembers } from './componen
 import { Composer } from './components/Composer';
 import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
+import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -149,6 +150,17 @@ export function App({
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // The printer panel's first line, which the model is shown as having said:
+  // written here, posted by the app, once per session. Before the
+  // instructions, so the thread opens with it whatever is sent next.
+  const sentOpening = useRef(false);
+  useEffect(() => {
+    if (!printerPanel || !state.session || state.connection !== 'connected') return;
+    if (sentOpening.current || state.messages.length > 0) return;
+    sentOpening.current = true;
+    client.send('printer_opening', { text: opening(state.session) });
+  }, [printerPanel, state.session, state.connection, state.messages.length, client]);
 
   // The printer panel writes the model's instructions from the facts the app
   // sends; the app holds them for the session's requests. Sent again only
@@ -433,7 +445,12 @@ export function App({
               physicalPrints={[]}
               changes={[]}
               printerBlocks={session?.blocks}
-              onPrinterAction={(action, id, blockId) => printerAction(action, id, blockId ? { blockId } : {})}
+              onPrinterAction={(action, id, tap) => {
+                const extra: Record<string, string> = {};
+                if (tap.blockId) extra.blockId = tap.blockId;
+                if (tap.note) extra.note = tap.note;
+                printerAction(action, id, extra);
+              }}
               answeredState={false}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolDecision={sendToolDecision}
@@ -444,10 +461,12 @@ export function App({
             <>
               {session.accessCode && <PrinterAccessCode value={accessCode} onChange={setAccessCode} />}
               <PrinterChipRow
-                chips={session.chips}
+                canAdd={session.canAdd}
                 disabled={busy}
-                onAdd={() => printerAction('add', '', session.accessCode && accessCode ? { accessCode } : {})}
-                onReject={() => printerAction('reject')}
+                onAdd={() =>
+                  printerAction('add', '', session.accessCode && accessCode ? { accessCode, note: ACCESS_CODE_NOTE } : {})
+                }
+                onReject={() => printerAction('reject', '', { note: rejectedNote(session.facts.printer.name) })}
               />
             </>
           )}
@@ -455,7 +474,7 @@ export function App({
             <Composer
               disabled={unavailable}
               disabledReason={unavailable ? 'The Agent is not available' : undefined}
-              placeholder={session?.placeholder}
+              placeholder={session ? placeholder(session) : undefined}
               photoButton
               streaming={streaming}
               attachments={stagedAttachments}
