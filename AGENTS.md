@@ -61,6 +61,7 @@ Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu i
 - Experimental plans, probes, screenshots, logs, and temporary UI code remain on `jusprin-v2-poc`. Use `agent-docs/jusprin/poc-reference.md` for exact commit and path pointers; do not cherry-pick the POC wholesale.
 - Curated brand and semantic UI assets live under `resources/jusprin/`.
 - Before writing or changing any UI code, native or Agent page, follow "Writing UI code" in `agent-docs/jusprin/design-system.md`: every color, radius, font, and control size comes from the token file through `ShellTheme`, the shell recipes, or the CSS variables. A value with no token gets a token and a guard first, never a literal.
+- Temporary working docs (handoffs, findings, plans written for another agent) stay untracked: never commit them, and never add them to `.gitignore` or `.git/info/exclude`. Untracked files in `git status` are how Kenneth tracks work that isn't finished.
 
 ## Critical Constraints
 
