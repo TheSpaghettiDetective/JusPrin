@@ -1,0 +1,46 @@
+continue
+
+---
+
+do it!!!!
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<summary>Monitor event: "Wait for app launch and settle"</summary>
+<event>PID_FOUND=34880
+check 1 cpu=94.0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<summary>Monitor event: "Wait for app launch and settle"</summary>
+<event>check 2 cpu=77.6</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<summary>Monitor event: "Wait for app launch and settle"</summary>
+<event>check 3 cpu=94.8</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/95aaeb82-a094-41b8-8373-baad2f413081/tasks/bva6r2d4p.output</output-file>
+<status>completed</status>
+<summary>Monitor "Wait for app launch and settle" stream ended</summary>
+<event>check 4 cpu=5.3
+SETTLED</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>

@@ -3,7 +3,7 @@
   "checkpoint_id": "01M2YAQ91X11F5ZQ61ZD5N5KG3",
   "strategy": "manual-commit",
   "branch": "these-commits-are-probably-wrong",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp",
     "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp",
@@ -24,13 +24,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3114,
-    "cache_creation_tokens": 7102275,
-    "cache_read_tokens": 731896969,
-    "output_tokens": 829018,
-    "api_call_count": 1557
+    "input_tokens": 3958,
+    "cache_creation_tokens": 8547128,
+    "cache_read_tokens": 903519904,
+    "output_tokens": 1035562,
+    "api_call_count": 1980
   }
 }

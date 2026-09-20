@@ -1,0 +1,80 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M2YAQ91X11F5ZQ61ZD5N5KG3",
+  "session_id": "95aaeb82-a094-41b8-8373-baad2f413081",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-20T02:36:16.871732Z",
+  "branch": "these-commits-are-probably-wrong",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp",
+    "src/slic3r/GUI/JusPrin/Testing/README.md",
+    "tests/jusprin/test_fake_bambu_agent.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5",
+  "turn_id": "448b1436acec",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 844,
+    "cache_creation_tokens": 1444853,
+    "cache_read_tokens": 171622935,
+    "output_tokens": 206544,
+    "api_call_count": 423
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-20T02:36:16.131448Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 7,
+    "total_committed": 0,
+    "total_lines_changed": 7,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 5830,
+      "user_lines_removed": 7,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "agent-docs/README.md": 5,
+        "agent-docs/jusprin/README.md": 31,
+        "agent-docs/jusprin/architecture.md": 182,
+        "agent-docs/jusprin/design-system.md": 285,
+        "agent-docs/jusprin/engineering-method.md": 183,
+        "agent-docs/jusprin/fork-stewardship.md": 184,
+        "agent-docs/jusprin/mcp-tool-extension-guide.md": 929,
+        "agent-docs/jusprin/orca-feature-discovery.md": 843,
+        "agent-docs/jusprin/orca-integration-guide.md": 616,
+        "agent-docs/jusprin/poc-reference.md": 121,
+        "agent-docs/jusprin/printer-agent-tools.md": 270,
+        "agent-docs/jusprin/printer-conversation-panel-handoff.md": 254,
+        "agent-docs/jusprin/printer-panel-review-fixes-handoff.md": 307,
+        "agent-docs/jusprin/product-definition.md": 845,
+        "agent-docs/jusprin/viewport-selection-toolbar-handoff.md": 214,
+        "agent-docs/macos-build-troubleshooting.md": 132,
+        "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp": 57,
+        "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp": 13,
+        "src/slic3r/GUI/JusPrin/Testing/README.md": 14,
+        "tests/jusprin/test_fake_bambu_agent.cpp": 52
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp": 7
+      }
+    }
+  ]
+}
