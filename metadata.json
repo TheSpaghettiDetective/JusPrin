@@ -3,9 +3,52 @@
   "checkpoint_id": "01M2ZHNSX82XGVDY07N9D1SGCZ",
   "strategy": "manual-commit",
   "branch": "these-commits-are-probably-wrong",
-  "checkpoints_count": 4,
+  "checkpoints_count": 10,
   "files_touched": [
-    "src/slic3r/GUI/JusPrin/Agent/ImageThumbnail.cpp"
+    "resources/jusprin/home/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ImageThumbnail.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ImageThumbnail.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AttachmentChip.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerWords.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerWords.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts",
+    "src/slic3r/GUI/JusPrin/Home/HomeHost.cpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeHost.hpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeWebView.cpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeWebView.hpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterCard.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/state/store.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/state/store.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/jusprin/test_home_host.cpp",
+    "tests/jusprin/test_home_snapshot.cpp",
+    "tests/shell/shell_harness.cpp"
   ],
   "sessions": [
     {
@@ -14,13 +57,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 28,
+    "cache_creation_tokens": 676320,
+    "cache_read_tokens": 9322053,
+    "output_tokens": 11280,
+    "api_call_count": 14
   }
 }
