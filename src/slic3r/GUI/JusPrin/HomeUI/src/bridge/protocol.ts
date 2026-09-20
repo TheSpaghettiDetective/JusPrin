@@ -34,6 +34,7 @@ export type HostMessageType =
   | 'printers'
   | 'appearance'
   | 'printer_error'
+  | 'printer_added'
   | 'bridge_error'
   | 'printer_panel';
 
@@ -105,6 +106,20 @@ export interface PrinterInfo {
 export interface PrinterErrorPayload {
   id: string;
   message: string;
+}
+
+// Sent once, right after `state`, only for a successful Add: leads the
+// column with this printer (the host already reordered `printers`) and says
+// what it assumed. A field's own `*Assumed` is false when it was read from
+// the printer or stated by the person, not the profile's default.
+export interface AddedPrinterInfo {
+  name: string;
+  nozzleText: string;
+  nozzleAssumed: boolean;
+  plateText: string;
+  plateAssumed: boolean;
+  filamentText: string;
+  filamentAssumed: boolean;
 }
 
 export interface StatePayload {

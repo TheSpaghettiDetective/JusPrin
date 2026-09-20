@@ -44,6 +44,10 @@ interface Props {
   // it, the way history entries are. Absent everywhere else.
   printerBlocks?: PrinterBlock[];
   onPrinterAction?: (action: PrinterBlockAction, id: string, tap: PrinterTap) => void;
+  // What a tool-only printer-panel turn says while it still has no words.
+  // The caller computes this from its own session mode (printerWords.ts's
+  // workingText) rather than this component naming a tool or a mode itself.
+  printerActivityText?: string;
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
@@ -104,6 +108,7 @@ export function MessageList({
   dimmed,
   printerBlocks = [],
   onPrinterAction,
+  printerActivityText,
   renderActivity,
   answeredState = true,
 }: Props) {
@@ -189,7 +194,33 @@ export function MessageList({
               {printerBlockViews(message.id)}
             </div>
           );
-        const bubble = (
+        // In the printer panel a photo is how the person says which printer
+        // it is, or shows what changed: it draws inline, above any words as
+        // their caption, rather than as a named file chip below them.
+        const attached = (message.attachments ?? []).map((id) => attachmentsById.get(id)).filter((a): a is AttachmentInfo => !!a);
+        const photos = onPrinterAction ? attached.filter((a) => a.kind === 'image' && a.previewDataUrl) : [];
+        const otherAttachments = attached.filter((a) => !photos.includes(a));
+        // The model sometimes calls printer_identify with no words yet: its
+        // actual reply lands in a later, separate message once it sees the
+        // tool's result. A bare, empty bubble either mid-stream or once it
+        // settles reads as a rendering bug, not a pause -- name the work
+        // while streaming, and draw nothing once it settles still empty. A
+        // failed or stopped turn always still renders, so its error and
+        // Retry stay reachable.
+        const emptyPrinterTurn =
+          Boolean(onPrinterAction) &&
+          message.role === 'assistant' &&
+          !message.text &&
+          photos.length === 0 &&
+          otherAttachments.length === 0 &&
+          message.state !== 'stopped' &&
+          !(message.state === 'failed' && message.error);
+        const workingOnCard = emptyPrinterTurn && message.id === streamingMessageId;
+        const bubble = workingOnCard ? (
+          <div className="printer-activity" role="status">
+            {printerActivityText ?? 'Working on it…'}
+          </div>
+        ) : emptyPrinterTurn ? null : (
           <div className={`message ${message.role}`}>
             {/* The agent does not speak in a bubble: a 20px action/primary
                 disc stands beside plain text, as the Figma "Chat Bubble"
@@ -198,18 +229,29 @@ export function MessageList({
                 bubble the user's turn keeps. */}
             {message.role === 'assistant' && <span className="agent-avatar" aria-hidden="true" />}
             <div className="message-content">
+              {photos.length > 0 && (
+                <div className="message-photos">
+                  {photos.map((attachment) => (
+                    <img
+                      key={attachment.id}
+                      className="message-photo"
+                      src={attachment.previewDataUrl}
+                      alt={attachment.name || 'Photo'}
+                    />
+                  ))}
+                </div>
+              )}
               {message.text &&
                 (message.role === 'assistant' ? (
                   <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
                 ) : (
                   <span>{message.text}</span>
                 ))}
-              {message.attachments && message.attachments.length > 0 && (
+              {otherAttachments.length > 0 && (
                 <div className="message-attachments">
-                  {message.attachments.map((id) => {
-                    const attachment = attachmentsById.get(id);
-                    return attachment ? <AttachmentChip key={id} attachment={attachment} /> : null;
-                  })}
+                  {otherAttachments.map((attachment) => (
+                    <AttachmentChip key={attachment.id} attachment={attachment} />
+                  ))}
                 </div>
               )}
               {message.state === 'failed' && message.error && (

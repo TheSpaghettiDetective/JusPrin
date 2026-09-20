@@ -29,6 +29,9 @@ const ADD_RULES =
   'of them. Before calling with one id, look for other names in the list that begin with what the person typed: ' +
   '"prusa mk4" begins Prusa MK4, MK4S and MK4S HF, so it is three printers, not one.\n' +
   "- Nothing fits, or it isn't a filament printer: say so in one sentence; do not call it.\n" +
+  '- A printer found on the network connects by entering its access code with Add, when it has one; a printer ' +
+  "named from words or a photo has no such field, so connecting it isn't possible here. If asked, say whichever " +
+  'is true in one sentence.\n' +
   '- A photo: name a model only from a readable name or a printed size. Going by shape alone, ask for a photo of ' +
   'the label (a sticker on the back, a plate under the frame, the About page on the screen). Never quote a label ' +
   'as read unless asking the person to confirm it. Never judge size from how big it looks. A clone uses the ' +

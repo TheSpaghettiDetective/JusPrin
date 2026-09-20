@@ -16,6 +16,7 @@ import {
   spoolSummary,
   undoneNote,
   undoText,
+  workingText,
 } from './printerWords';
 
 const facts: PrinterFacts = {
@@ -95,10 +96,14 @@ describe('the pinned card', () => {
 });
 
 describe('the opening', () => {
-  it('asks what printer it is when adding', () => {
+  // F1 review fix: a network-found printer connects *now*, with Add, not
+  // "later" -- so the opener makes no promise about when, for either path.
+  it('asks what printer it is when adding, after saying what adding does, promising nothing about connecting', () => {
     expect(opening(session({}))).toBe(
-      'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".',
+      "I'll add your printer so your projects slice for it. " +
+        'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".',
     );
+    expect(opening(session({}))).not.toContain('connect');
   });
 
   it('names the printer when changing one', () => {
@@ -108,6 +113,17 @@ describe('the opening', () => {
     });
     expect(opening(change)).toMatch(/^This is the Lab Printer\. Tell me what changed on it/);
     expect(opening(session({ mode: 'change' }))).toMatch(/^This is the this printer\./);
+  });
+});
+
+// F8 review fix: this used to be hard-coded in MessageList.tsx to Add's own
+// tool (printer_identify looks through a list); Change's only tool
+// (printer_change) does not, so it needs its own words.
+describe('the tool-only turn', () => {
+  it('names Add\'s own tool, and Change\'s own, differently', () => {
+    expect(workingText('add')).toBe('Looking through the printer list…');
+    expect(workingText('change')).not.toBe(workingText('add'));
+    expect(workingText('change')).not.toContain('printer list');
   });
 });
 

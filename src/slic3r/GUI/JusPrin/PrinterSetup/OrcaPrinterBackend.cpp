@@ -10,6 +10,7 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
@@ -105,10 +106,29 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
 
 std::string OrcaPrinterBackend::add_printer(const AddPrinterRequest& request, SavedPrinter& added)
 {
+    // Installing and selecting the printer preset marks the open project
+    // dirty the same way any preset switch does (Tab::select_preset ->
+    // on_presets_changed -> update_project_dirty_from_presets), even though
+    // nothing about the project itself changed. Only re-baseline a project
+    // that was clean before this call, the same way Plater's own new-project
+    // and load-project paths already do -- a real pending edit must stay
+    // visible. And only a project with nothing saved to disk yet: for one
+    // loaded from a file, this switch is now that project's own printer,
+    // and re-baselining it would mean closing the project never prompts to
+    // save that -- a real edit, made to look like nothing happened. F9 on
+    // printer-panel-review-fixes-handoff.md.
+    const bool was_clean       = !m_plater.is_project_dirty();
+    const bool no_project_file = m_plater.get_project_filename().IsEmpty();
+
     std::string error;
     if (!SetupCommands::install_and_select_printer(m_plater, request.vendor_id, request.model_id, request.variant,
                                                   request.material, error))
         return error.empty() ? std::string("This printer could not be installed.") : error;
+
+    if (was_clean && no_project_file) {
+        m_plater.reset_project_dirty_initial_presets();
+        m_plater.update_project_dirty_from_presets();
+    }
 
     const std::string name =
         Printers::add_named_printer(m_plater, request.name.empty() ? request.model_id : request.name, request.device_id);

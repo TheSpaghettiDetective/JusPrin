@@ -106,7 +106,7 @@ void HomeWebView::apply_appearance(bool dark)
     Refresh();
 }
 
-void HomeWebView::refresh() { m_host->push_state(); }
+void HomeWebView::refresh(const AddedPrinterEntry* added) { m_host->push_state(added); }
 
 void HomeWebView::attach_side_panel(wxWindow* panel, int width_dip)
 {

@@ -146,8 +146,20 @@ public:
     void start_turn() override { ++turns; }
     void session_changed() override { ++states; }
     void profile_changed() override { ++profiles; }
-    void close_panel() override { ++closes; }
-    void printers_changed() override { ++refreshes; }
+    // The receipt a close_panel() call carried, or unset for a plain close.
+    std::optional<PinnedFacts> last_closed_with;
+    void close_panel(const PinnedFacts* added) override
+    {
+        ++closes;
+        last_closed_with = added != nullptr ? std::optional<PinnedFacts>(*added) : std::nullopt;
+    }
+    // The last receipt an Add passed, or unset for a refresh with none.
+    std::optional<PinnedFacts> last_added_printer;
+    void printers_changed(const PinnedFacts* added) override
+    {
+        ++refreshes;
+        last_added_printer = added != nullptr ? std::optional<PinnedFacts>(*added) : std::nullopt;
+    }
 };
 
 Agent::ToolActivity call(const char* tool, const json& arguments, const std::string& message = "m-1")
@@ -732,8 +744,16 @@ TEST_CASE("Add this printer saves it and hands Home back", "[printer-conversatio
     CHECK(backend.added.front().variant == "0.25");
     CHECK(backend.added.front().material == "Prusa Generic PLA");
     CHECK(backend.added.front().access_code.empty());
-    CHECK(panel.refreshes == 1);
     CHECK(panel.closes == 1);
+    // The receipt travels with the one close_panel() call, not a separate
+    // printers_changed() ahead of a bare close: the panel's own deferred
+    // teardown closes with no facts of its own, and a standalone refresh
+    // here would race it and lose, wiping the receipt the moment Home got
+    // it. See IConversationHost::close_panel.
+    CHECK(panel.refreshes == 0);
+    REQUIRE(panel.last_closed_with.has_value());
+    CHECK(panel.last_closed_with->printer == "Prusa MK3S");
+    CHECK(panel.last_closed_with->nozzle == 0.25);
 }
 
 TEST_CASE("an access code goes from its field to the app and only its existence is recorded", "[printer-conversation]")
@@ -866,6 +886,9 @@ TEST_CASE("an applied change returns what changed and the printer as it now is",
     CHECK(undo.at("changed") == json{{"nozzle", json{{"before", 0.4}, {"after", 0.6}}}});
     CHECK(undo.at("afterMessageId") == "m-3");
     CHECK(panel.refreshes == 1);
+    // A change is not an Add: nothing here leads Home's column or claims an
+    // assumption, so the refresh carries no receipt.
+    CHECK_FALSE(panel.last_added_printer.has_value());
     // What the model is told next is the printer as it now is.
     CHECK(conversation.state_json().at("context").at("printer").at("nozzle") == 0.6);
 }
@@ -1116,8 +1139,8 @@ public:
         if (host != nullptr && conversation != nullptr)
             host->set_session_profile(conversation->profile());
     }
-    void close_panel() override {}
-    void printers_changed() override {}
+    void close_panel(const PinnedFacts*) override {}
+    void printers_changed(const PinnedFacts*) override {}
 };
 
 Agent::ProjectPersistence::Config in_memory()

@@ -12,6 +12,8 @@
 
 #include <wx/sizer.h>
 
+#include <optional>
+
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 namespace {
@@ -156,16 +158,20 @@ void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
     Show();
 }
 
-void PrinterPanel::close()
+void PrinterPanel::close(const PinnedFacts* added)
 {
     Hide();
+    // Copied now: tear_down_runtime destroys the conversation that owns the
+    // facts `added` points at, and that runs before the deferred callback
+    // below reads them.
+    const std::optional<PinnedFacts> pending = added != nullptr ? std::optional<PinnedFacts>(*added) : std::nullopt;
     // The runtime is destroyed from the page's own message handler, so it
     // cannot be torn down inside a call its own host is still on the stack
     // for -- the trap the add-printer dialog documented.
-    CallAfter([this] {
+    CallAfter([this, pending] {
         tear_down_runtime();
         if (m_callbacks.closed)
-            m_callbacks.closed();
+            m_callbacks.closed(pending ? &*pending : nullptr);
     });
 }
 
@@ -222,12 +228,12 @@ void PrinterPanel::profile_changed()
         m_web_view->host().set_session_profile(m_conversation->profile());
 }
 
-void PrinterPanel::close_panel() { close(); }
+void PrinterPanel::close_panel(const PinnedFacts* added) { close(added); }
 
-void PrinterPanel::printers_changed()
+void PrinterPanel::printers_changed(const PinnedFacts* added)
 {
     if (m_callbacks.printers_changed)
-        m_callbacks.printers_changed();
+        m_callbacks.printers_changed(added);
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

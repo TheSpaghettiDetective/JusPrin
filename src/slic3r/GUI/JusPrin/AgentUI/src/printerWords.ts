@@ -68,14 +68,25 @@ export function placeholder(session: PrinterSessionPayload): string {
 export const ADD_LABEL = 'Add this printer';
 export const REJECT_LABEL = 'Not this one';
 
+// What stands in for a tool-only turn while it still has no words: which
+// tool the mode's own instructions let the model call. Add's only tool
+// looks through the printer list; Change's only tool works out and applies
+// a change, so it does not name a list that mode never shows.
+export function workingText(mode: PrinterSessionPayload['mode']): string {
+  return mode === 'add' ? 'Looking through the printer list…' : 'Working on it…';
+}
+
 // The panel's own first line, which the model is shown as having said: the
 // same promise every time the panel opens.
 export function opening(session: PrinterSessionPayload): string {
   if (session.mode === 'change') {
     const name = session.context?.printer?.name || session.facts.printer.name || 'this printer';
-    return `This is the ${name}. Tell me what changed on it, or ask anything about it: nozzle, plate, spools, connection. A photo of the part works too.`;
+    return `This is the ${name}. Tell me what changed on it, or ask anything about it: nozzle, plate, spools. A photo of the part works too.`;
   }
-  return 'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".';
+  return (
+    "I'll add your printer so your projects slice for it. " +
+    'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".'
+  );
 }
 
 // -- The pinned card ----------------------------------------------------------

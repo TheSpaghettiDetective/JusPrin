@@ -15,14 +15,25 @@ export { applyAppearance } from '@shared/tokens';
 // writes, so a test can check that the stylesheet only asks for variables
 // that exist.
 export function staticVariableNames(): string[] {
-  return [...sharedStaticVariableNames(), '--thread-row-line-gap'];
+  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-dialog-scrim'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
-//   --thread-row-line-gap the space between a thread row's title and its
-//                         metadata line, an internal size of the row
+//   --thread-row-line-gap  the space between a thread row's title and its
+//                          metadata line, an internal size of the row
+//   --printer-dialog-scrim the printer panel's own dialog shade, a
+//                          percentage for color-mix() -- the same
+//                          component.printerDialog token Home's rename and
+//                          remove dialogs use, so every printer-feature
+//                          dialog reads the same weight over the page.
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
-  const { component } = tokens as unknown as { component: { threadRow: { lineGap: number } } };
+  const { component } = tokens as unknown as {
+    component: { threadRow: { lineGap: number }; printerDialog: { scrimAlpha: number } };
+  };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
+  document.documentElement.style.setProperty(
+    '--printer-dialog-scrim',
+    `${Math.round((component.printerDialog.scrimAlpha / 255) * 100)}%`,
+  );
 }

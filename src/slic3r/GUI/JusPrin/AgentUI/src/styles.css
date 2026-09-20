@@ -446,6 +446,11 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .configure-agent strong { display: block; }
 .configure-agent small { display: block; font: var(--font-metadata); color: var(--text-secondary); }
 .chat-dialog-shade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; background: var(--surface-subtle); overflow-y: auto; }
+/* F7 review fix: the chat list's own rename/delete dialogs are meant to be
+   opaque, but "leave this conversation?" asks about the thread behind it --
+   it stays legible through a translucent scrim instead, the same weight
+   Home's printer-feature dialogs already use. */
+.printer-leave-shade { background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); }
 .chat-dialog { width: 100%; padding: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-container); background: var(--surface-raised); }
 .chat-dialog h2 { margin: 0 0 12px; font: var(--font-section); }
 .chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font: var(--font-body); }
@@ -508,6 +513,14 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   height: 20px;
   border-radius: var(--radius-pill);
   background: var(--action-primary);
+}
+
+/* What stands in for a tool-only turn while it still has no words: the model
+   is working, not silent. Gone the moment real text arrives. */
+.printer-activity {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font: var(--font-label);
 }
 
 /* A host note is a statement of fact about the project, not a turn in the
@@ -1245,6 +1258,31 @@ input[type='radio']:checked {
   border-color: var(--status-danger);
 }
 
+/* The printer panel's staged photo: the picture is the point, so this drops
+   the padding, border and kind label the general chip carries. The file
+   name stays, per the wireframe (3.1 item 4, 3.3 state E). */
+.attachment-chip-compact {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.attachment-thumb-compact {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-standard);
+}
+
+.attachment-name-compact {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
 .attachment-thumb {
   width: 28px;
   height: 28px;
@@ -1310,6 +1348,22 @@ input[type='radio']:checked {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* A sent photo in the printer panel: the picture itself, with any typed
+   words drawing as its caption underneath (the message text, unchanged). */
+.message-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.message-photo {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: var(--radius-container);
 }
 
 /* The container owns the border and the padding; the field is transparent. */

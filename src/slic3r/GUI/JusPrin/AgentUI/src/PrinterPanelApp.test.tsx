@@ -119,7 +119,9 @@ describe('the printer panel page', () => {
   });
 
   it('names where back leads, not the printer it is about', async () => {
-    const host = open();
+    // canAdd: false -- this test is about which action the tap sends, not
+    // about F7's leave-confirmation, so it uses the nothing-to-lose case.
+    const host = open(state({ session: session({ canAdd: false }) }));
     expect(screen.getByRole('heading', { name: 'Printers' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
@@ -127,9 +129,141 @@ describe('the printer panel page', () => {
   });
 
   it('keeps the way out to OrcaSlicer’s own screens', async () => {
-    const host = open();
+    const host = open(state({ session: session({ canAdd: false }) }));
     await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
+  });
+
+  // WP10 (F10), corrected by F7 on printer-panel-review-fixes-handoff.md:
+  // message count alone caught a saved, applied Change too -- the panel
+  // stays open after a printer_change succeeds, and nothing said there was
+  // actually going to be lost. Gate on unsaved work instead: an Add
+  // proposal still on its card, a Change still waiting on its own approval
+  // card, a staged photo, or a draft.
+  describe('leaving a conversation that holds unsaved work', () => {
+    const withProposal = () =>
+      open(
+        state({
+          conversation: [
+            { id: 'm-1', role: 'assistant', state: 'complete', text: 'What printer do you have?', attempt: 1 },
+            { id: 'm-2', role: 'user', state: 'complete', text: 'bambu a1 mini', attempt: 1 },
+          ],
+          session: session({ canAdd: true }),
+        }),
+      );
+
+    it('asks before "‹ Printers" discards an Add proposal, and does nothing until answered', async () => {
+      const host = withProposal();
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
+      expect(host.received.some((envelope) => envelope.type === 'printer_action')).toBe(false);
+    });
+
+    it('leaves on confirmation, and does nothing on cancel', async () => {
+      const host = withProposal();
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(host.received.some((envelope) => envelope.type === 'printer_action')).toBe(false);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+      expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
+    });
+
+    it('asks before "Set it up myself" discards an Add proposal too', async () => {
+      const host = withProposal();
+      await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
+      expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+      expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
+    });
+
+    it('asks before discarding a Change still waiting on its own approval card', async () => {
+      const host = open(
+        state({
+          session: session({ mode: 'change', canAdd: false }),
+          toolActivities: [
+            {
+              actionId: 't-1',
+              correlationId: 'm-2',
+              server: 'jusprin-native',
+              tool: 'printer_change',
+              title: 'Change nozzle',
+              arguments: { nozzle: 0.6 },
+              actionClass: 'mutation',
+              requiresApproval: true,
+              sessionId: '1',
+              expectedRevision: 1,
+              state: 'pending',
+              progress: { current: 0, total: 1 },
+            },
+          ],
+        }),
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+      expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
+    });
+
+    it('closes at once after a Change already applied -- there is nothing left to lose', async () => {
+      const host = open(
+        state({
+          conversation: [
+            { id: 'm-1', role: 'assistant', state: 'complete', text: 'This is the Bambu Lab A1 mini.', attempt: 1 },
+            { id: 'm-2', role: 'user', state: 'complete', text: 'I put a 0.6 nozzle on it', attempt: 1 },
+            { id: 'm-3', role: 'note', state: 'complete', text: 'Nozzle set to 0.6 mm', attempt: 1 },
+          ],
+          session: session({ mode: 'change', canAdd: false }),
+          toolActivities: [
+            {
+              actionId: 't-1',
+              correlationId: 'm-2',
+              server: 'jusprin-native',
+              tool: 'printer_change',
+              title: 'Change nozzle',
+              arguments: { nozzle: 0.6 },
+              actionClass: 'mutation',
+              requiresApproval: true,
+              sessionId: '1',
+              expectedRevision: 1,
+              state: 'succeeded',
+              progress: { current: 1, total: 1 },
+            },
+          ],
+        }),
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
+    });
+
+    // F7 follow-up: state.draft is the main chat's own recovery draft --
+    // the backend only ever sets it from a draft_update that panel sends,
+    // and the printer panel's composer never did, so state.draft could
+    // never answer this check for the printer panel. Past the composer's
+    // own debounce, an untouched but typed-into field must still gate.
+    it('asks before "‹ Printers" discards an unsent draft, never mind state.draft', async () => {
+      const host = open(state({ session: session({ canAdd: false }) }));
+      await userEvent.type(screen.getByPlaceholderText(/bambu a1 mini/), 'I put a 0.6 nozzle on it');
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
+      expect(host.received.some((envelope) => envelope.type === 'printer_action')).toBe(false);
+    });
+
+    it('asks nothing of a thread that only holds the opening', async () => {
+      // The default session() fixture carries canAdd: true (many other
+      // tests in this file need a proposed card); this one wants the
+      // genuinely-empty case, so it says so explicitly.
+      const host = open(state({ session: session({ canAdd: false }) }));
+      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
+    });
   });
 
   it('pins the printer’s four facts above the thread', () => {
@@ -150,7 +284,9 @@ describe('the printer panel page', () => {
     const host = open(state({ conversation: [], session: session({ context: { printers: [], network: [] } }) }));
     const openings = host.received.filter((envelope) => envelope.type === 'printer_opening');
     expect(openings).toHaveLength(1);
-    expect((openings[0].payload as { text: string }).text).toMatch(/^What printer do you have\? Say it any way/);
+    expect((openings[0].payload as { text: string }).text).toMatch(
+      /^I'll add your printer so your projects slice for it\. What printer do you have\? Say it any way/,
+    );
     const types = host.received.map((envelope) => envelope.type);
     expect(types.indexOf('printer_opening')).toBeLessThan(types.indexOf('printer_instructions'));
 
@@ -348,5 +484,122 @@ describe('the printer panel page', () => {
     host.deliver('printer_session', session({ mode: 'change', canAdd: false }));
     expect(screen.getByText('PRINTER')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
+  });
+});
+
+describe('a photo in the printer panel', () => {
+  const stagedPhoto = {
+    id: 'a-1',
+    name: 'nameplate.jpg',
+    kind: 'image' as const,
+    mime: 'image/jpeg',
+    sizeBytes: 900,
+    source: 'picker' as const,
+    state: 'staged' as const,
+    previewDataUrl: 'data:image/jpeg;base64,AAA',
+  };
+
+  // F3 review fix: the general chat's kind label ("Image") is dropped, but
+  // the wireframe (3.1 item 4, 3.3 state E) keeps the file name beside the
+  // thumbnail -- an earlier pass over-simplified this to a bare thumbnail.
+  it('stages a photo as the picture with its name, not the general chip with a kind label', () => {
+    const host = open();
+    host.deliver('attachment_updated', { attachment: stagedPhoto });
+    expect(screen.queryByText('Image')).toBeNull();
+    expect(screen.getByText('nameplate.jpg')).toBeInTheDocument();
+    expect(screen.getByAltText('nameplate.jpg')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove nameplate.jpg' })).toBeInTheDocument();
+  });
+
+  it('draws a sent photo inline above its caption, not as a chip below the text', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'is this the right one', attempt: 1, attachments: ['a-1'] },
+        ],
+        attachments: [{ ...stagedPhoto, state: 'sent' }],
+      }),
+    );
+    expect(screen.queryByText('nameplate.jpg')).toBeNull();
+    const photo = screen.getByAltText('nameplate.jpg') as HTMLImageElement;
+    expect(photo.tagName).toBe('IMG');
+    expect(photo.className).toContain('message-photo');
+    const caption = screen.getByText('is this the right one');
+    // The image is the DOM sibling before the caption, so it draws above it.
+    expect(photo.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('a tool-only turn in the printer panel', () => {
+  // The model sometimes calls printer_identify with no words yet -- its
+  // actual reply lands in a later, separate message once it sees the tool's
+  // result. A bare, empty message bubble either mid-stream or once it
+  // settles reads as a rendering bug, not a pause.
+  it('names the work while an empty turn still streams', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'bambu a1 mini', attempt: 1 },
+          { id: 'm-2', role: 'assistant', state: 'complete', text: '', attempt: 1 },
+        ],
+        streamingMessageId: 'm-2',
+      }),
+    );
+    expect(screen.getByText('Looking through the printer list…')).toBeInTheDocument();
+    expect(document.querySelector('.agent-avatar')).toBeNull();
+  });
+
+  // F8 review fix: the words used to be hard-coded to Add's own tool
+  // (printer_identify looks through a list); Change's only tool
+  // (printer_change) does not, so it says something else.
+  it('names the work in Change mode with Change mode\'s own words', () => {
+    open(
+      state({
+        session: session({ mode: 'change', canAdd: false }),
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'I put a 0.6 nozzle on it', attempt: 1 },
+          { id: 'm-2', role: 'assistant', state: 'complete', text: '', attempt: 1 },
+        ],
+        streamingMessageId: 'm-2',
+      }),
+    );
+    expect(screen.getByText('Working on it…')).toBeInTheDocument();
+    expect(screen.queryByText('Looking through the printer list…')).not.toBeInTheDocument();
+  });
+
+  it('draws nothing for a tool-only turn once its stream ends, still empty', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'bambu a1 mini', attempt: 1 },
+          { id: 'm-2', role: 'assistant', state: 'complete', text: '', attempt: 1 },
+        ],
+        streamingMessageId: null,
+      }),
+    );
+    expect(screen.queryByText('Looking through the printer list…')).not.toBeInTheDocument();
+    expect(document.querySelector('.agent-avatar')).toBeNull();
+  });
+
+  it('still shows a failed empty turn, with its Retry', async () => {
+    const host = open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'bambu a1 mini', attempt: 1 },
+          {
+            id: 'm-2',
+            role: 'assistant',
+            state: 'failed',
+            text: '',
+            attempt: 1,
+            error: { code: 'agent_unavailable', message: 'The Agent service could not start this request.', retryable: true },
+          },
+        ],
+        streamingMessageId: null,
+      }),
+    );
+    expect(screen.getByText('The Agent service could not start this request.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(host.lastOfType('retry_message')!.payload).toEqual({ messageId: 'm-2' });
   });
 });

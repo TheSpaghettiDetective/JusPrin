@@ -45,11 +45,22 @@ Snapshot HomeHost::collect() const
     return snapshot;
 }
 
-void HomeHost::push_state()
+void HomeHost::push_state(const AddedPrinterEntry* added)
 {
     if (!m_connected)
         return;
-    send("state", state_payload(collect()));
+    Snapshot snapshot = collect();
+    if (added != nullptr) {
+        // Lead the column with it rather than wherever the backend's own
+        // (alphabetical, not chronological) order puts it.
+        const auto match = std::find_if(snapshot.printers.begin(), snapshot.printers.end(),
+                                        [added](const PrinterEntry& printer) { return printer.name == added->name; });
+        if (match != snapshot.printers.end())
+            std::rotate(snapshot.printers.begin(), match, match + 1);
+    }
+    send("state", state_payload(snapshot));
+    if (added != nullptr)
+        send("printer_added", added_printer_payload(*added));
 }
 
 void HomeHost::set_printer_panel_open(bool open)

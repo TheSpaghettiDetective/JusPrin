@@ -29,6 +29,7 @@
     "printers",
     "appearance",
     "printer_error",
+    "printer_added",
     "bridge_error",
     "printer_panel"
   ]

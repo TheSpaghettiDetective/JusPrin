@@ -30,6 +30,7 @@ class HomeWebView;
 
 namespace PrinterSetup {
 class PrinterPanel;
+struct PinnedFacts;
 }
 
 // Installs the JusPrin production presentation inside the existing MainFrame
@@ -90,7 +91,10 @@ public:
     // decoupled from the add-printer request that opened it, so nothing else
     // tells Home about the printer it names. The caller asks for this refresh
     // once the wizard flow (and any naming it does) has actually finished.
-    void refresh_home();
+    // `added` is a successful Add's saved facts, forwarded so Home can lead
+    // its column with that printer and say what it assumed; every other
+    // caller passes none.
+    void refresh_home(const PrinterSetup::PinnedFacts* added = nullptr);
 
     // Opens the printer conversation in place of Home's printers column: an
     // empty name adds a printer, a name changes that one. From the Prepare

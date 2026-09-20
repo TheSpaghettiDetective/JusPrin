@@ -1,11 +1,27 @@
 import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
+import type { AddedPrinterInfo } from './bridge/protocol';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
 import type { PrinterActions } from './components/PrinterMenu';
 import { PlusGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
+
+// "0.4 mm, Textured PEI Plate · assumed, Bambu PLA Basic · assumed": each
+// fact the card assumed says so, in the order the pinned card itself states
+// them.
+function addedPrinterFacts(added: AddedPrinterInfo): string {
+  const facts: [string, boolean][] = [
+    [added.nozzleText, added.nozzleAssumed],
+    [added.plateText, added.plateAssumed],
+    [added.filamentText, added.filamentAssumed],
+  ];
+  return facts
+    .filter(([text]) => text)
+    .map(([text, assumed]) => (assumed ? `${text} · assumed` : text))
+    .join(', ');
+}
 
 // Home is the screen before a project: the gallery takes the width that is
 // left, the printer column is a fixed rail. The page draws no top bar -- the
@@ -102,6 +118,31 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             {state.printerError.message}
           </p>
         )}
+        {state.addedPrinter && (
+          <div className="printer-added-strip">
+            <span>
+              <b>{state.addedPrinter.name}</b> added · {addedPrinterFacts(state.addedPrinter)}
+            </span>
+            <button
+              type="button"
+              className="printer-added-change"
+              onClick={() => {
+                const id = state.printers.find((printer) => printer.name === state.addedPrinter?.name)?.id;
+                if (id) printerActions.onOpenSettings(id);
+              }}
+            >
+              Change
+            </button>
+            <button
+              type="button"
+              className="printer-added-dismiss"
+              aria-label="Dismiss"
+              onClick={() => dispatch({ kind: 'dismiss_added_printer' })}
+            >
+              ×
+            </button>
+          </div>
+        )}
         {state.printers.map((printer) => (
           <PrinterCard
             key={printer.id}
@@ -109,6 +150,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
             actions={printerActions}
             onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
+            highlighted={state.addedPrinter?.name === printer.name}
           />
         ))}
         <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>

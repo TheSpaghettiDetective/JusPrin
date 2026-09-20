@@ -40,8 +40,9 @@ public:
     void apply_appearance(bool dark);
     // Re-reads the recent-project list and the device state. The shell calls
     // this when Home becomes visible: the gallery is a view of state that
-    // changes while another screen is in front.
-    void refresh();
+    // changes while another screen is in front. `added` leads the column
+    // with a successful Add and sends its receipt, for this one refresh.
+    void refresh(const AddedPrinterEntry* added = nullptr);
 
     HomeHost&        host() { return *m_host; }
     OrcaHomeBackend& backend() { return *m_backend; }

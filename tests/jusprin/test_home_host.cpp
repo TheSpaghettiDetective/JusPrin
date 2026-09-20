@@ -194,6 +194,68 @@ TEST_CASE("adding a printer refreshes the screen", "[home]")
     CHECK(wire.of_type("state").size() == states_after_hello + 1);
 }
 
+// The receipt is what tells the page an Add just happened, so it can lead
+// its column with that printer and say what it assumed -- an ordinary
+// refresh (no receipt) must not reorder or draw a strip for anything.
+TEST_CASE("a successful Add leads the column with itself and sends a receipt", "[home]")
+{
+    FakeBackend backend;
+    PrinterEntry existing;
+    existing.id   = "named:Existing";
+    existing.name = "Existing Printer";
+    PrinterEntry added;
+    added.id   = "named:New";
+    added.name = "New Printer";
+    backend.machines = {existing, added};
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states_before = wire.of_type("state").size();
+
+    AddedPrinterEntry receipt;
+    receipt.name             = "New Printer";
+    receipt.nozzle_text      = "0.4 mm";
+    receipt.plate_text       = "Textured PEI Plate";
+    receipt.plate_assumed    = true;
+    receipt.filament_text    = "Bambu PLA Basic";
+    receipt.filament_assumed = true;
+    host.push_state(&receipt);
+
+    REQUIRE(wire.of_type("state").size() == states_before + 1);
+    const json printers = wire.of_type("state").back().at("payload").at("printers");
+    REQUIRE(printers.size() == 2);
+    CHECK(printers.at(0).at("name") == "New Printer");
+    CHECK(printers.at(1).at("name") == "Existing Printer");
+
+    const std::vector<json> added_messages = wire.of_type("printer_added");
+    REQUIRE(added_messages.size() == 1);
+    const json receipt_payload = added_messages.back().at("payload");
+    CHECK(receipt_payload.at("name") == "New Printer");
+    CHECK(receipt_payload.at("plateAssumed") == true);
+}
+
+TEST_CASE("an ordinary refresh reorders nothing and sends no receipt", "[home]")
+{
+    FakeBackend backend;
+    PrinterEntry first;
+    first.id   = "named:A";
+    first.name = "A Printer";
+    PrinterEntry second;
+    second.id   = "named:B";
+    second.name = "B Printer";
+    backend.machines = {first, second};
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.push_state();
+
+    const json printers = wire.of_type("state").back().at("payload").at("printers");
+    CHECK(printers.at(0).at("name") == "A Printer");
+    CHECK(printers.at(1).at("name") == "B Printer");
+    CHECK(wire.of_type("printer_added").empty());
+}
+
 TEST_CASE("state_request sends the screen again", "[home]")
 {
     FakeBackend backend;

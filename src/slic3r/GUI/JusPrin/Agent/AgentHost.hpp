@@ -76,6 +76,15 @@ public:
     {
         m_session_state_provider = std::move(provider);
     }
+    // Decodes an image attachment's raw bytes into a small thumbnail data
+    // URL, for the composer/thread preview only -- the model still gets the
+    // untouched original, read separately for its own context. Empty (the
+    // default, and what every GUI-free test leaves it) means no preview:
+    // decoding an arbitrary image needs wx, which this host's own build
+    // does not link, so the real app wires this after construction and the
+    // tests wire a fake.
+    using ImageThumbnailFn = std::function<std::string(const std::string& bytes)>;
+    void set_image_thumbnail_maker(ImageThumbnailFn maker) { m_image_thumbnail_maker = std::move(maker); }
     // Sends one envelope of a type this protocol declares. The subject uses
     // it to push its own state between snapshots.
     void send_page_envelope(const std::string& type, const nlohmann::json& payload);
@@ -348,6 +357,7 @@ private:
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;
     std::function<nlohmann::json()> m_session_state_provider;
+    ImageThumbnailFn                m_image_thumbnail_maker;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};

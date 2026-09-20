@@ -11,6 +11,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/AgentSetup.hpp
     GUI/JusPrin/Agent/AgentWebView.cpp
     GUI/JusPrin/Agent/AgentWebView.hpp
+    GUI/JusPrin/Agent/ImageThumbnail.cpp
+    GUI/JusPrin/Agent/ImageThumbnail.hpp
     GUI/JusPrin/Agent/ManufacturingHistory.cpp
     GUI/JusPrin/Agent/ManufacturingHistory.hpp
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp

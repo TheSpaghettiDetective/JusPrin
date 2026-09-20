@@ -49,6 +49,58 @@ TEST_CASE("FakeBambuAgent control JSON maps named states and progress", "[FakeBa
     CHECK_FALSE(Slic3r::FakeBambuAgent::apply_control_json(R"({"state":"not-a-state"})", step, offline));
 }
 
+// F5 on printer-panel-review-fixes-handoff.md needs a network-matched
+// printer that reports spools, which the fake agent could not do before this
+// -- push_status always reported an empty AMS regardless of state.
+TEST_CASE("FakeBambuAgent control JSON loads and keeps spools until replaced", "[FakeBambuAgent]")
+{
+    Slic3r::FakeBambuStatusStep step;
+    bool                        offline = false;
+
+    REQUIRE(Slic3r::FakeBambuAgent::apply_control_json(
+        R"({"state":"idle","spools":[{"subBrands":"PLA Matte","trayType":"PLA","colour":"5F7D4FFF"}]})", step, offline));
+    REQUIRE(step.spools.size() == 1);
+    CHECK(step.spools[0].sub_brands == "PLA Matte");
+    CHECK(step.spools[0].tray_type == "PLA");
+    CHECK(step.spools[0].colour == "5F7D4FFF");
+
+    // A later poll that only touches state must not silently drop the AMS.
+    REQUIRE(Slic3r::FakeBambuAgent::apply_control_json(R"({"state":"printing","progress":0.1})", step, offline));
+    REQUIRE(step.spools.size() == 1);
+    CHECK(step.spools[0].sub_brands == "PLA Matte");
+
+    REQUIRE(Slic3r::FakeBambuAgent::apply_control_json(R"({"state":"idle","spools":[]})", step, offline));
+    CHECK(step.spools.empty());
+}
+
+TEST_CASE("FakeBambuAgent push_status reports loaded spools as a real AMS and tray", "[FakeBambuAgent]")
+{
+    Slic3r::FakeBambuAgent agent("");
+    std::string            last_payload;
+    agent.set_on_local_message_fn([&last_payload](std::string, std::string payload) { last_payload = payload; });
+
+    Slic3r::FakeBambuStatusStep step;
+    step.gcode_state = "IDLE";
+    step.spools      = {{"PLA Matte", "PLA", "5F7D4FFF"}, {"PETG", "", ""}};
+    agent.push_status(step);
+
+    REQUIRE_FALSE(last_payload.empty());
+    const json ams = json::parse(last_payload)["print"]["ams"];
+    CHECK(ams["ams_exist_bits"] == "1");
+    CHECK(ams["tray_exist_bits"] == "3"); // trays 0 and 1 both exist: bits 0b11
+    REQUIRE(ams["ams"].size() == 1);
+    const json trays = ams["ams"][0]["tray"];
+    REQUIRE(trays.size() == 2);
+    CHECK(trays[0]["id"] == "0");
+    CHECK(trays[0]["tray_sub_brands"] == "PLA Matte");
+    CHECK(trays[0]["tray_type"] == "PLA");
+    CHECK(trays[0]["tray_color"] == "5F7D4FFF");
+    CHECK(trays[1]["id"] == "1");
+    CHECK(trays[1]["tray_sub_brands"] == "PETG");
+    CHECK_FALSE(trays[1].contains("tray_type"));
+    CHECK_FALSE(trays[1].contains("tray_color"));
+}
+
 TEST_CASE("FakeBambuAgent replays default scenario end-to-end", "[FakeBambuAgent]")
 {
     Slic3r::FakeBambuAgent agent("");

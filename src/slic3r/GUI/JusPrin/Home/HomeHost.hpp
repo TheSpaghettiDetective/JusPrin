@@ -33,7 +33,10 @@ public:
 
     void on_page_message(const std::string& text);
 
-    void push_state();
+    // `added` leads the printers list with that entry (matched by name) and
+    // sends its own `printer_added` message right after `state`, for exactly
+    // this one push. Omit it for any other reason the list changed.
+    void push_state(const AddedPrinterEntry* added = nullptr);
     void push_appearance(bool dark);
     // The printer conversation opened or closed over the printers column.
     void set_printer_panel_open(bool open);

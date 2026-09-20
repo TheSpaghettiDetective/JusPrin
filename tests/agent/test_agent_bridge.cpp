@@ -1281,21 +1281,48 @@ TEST_CASE("a text attachment is staged, decoded, and previewed", "[agent][attach
         std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt"));
 }
 
-TEST_CASE("an image attachment gets an inline preview data URL", "[agent][attachments]")
+// F3 on printer-panel-review-fixes-handoff.md: decoding an arbitrary image
+// needs wx, which this GUI-free target does not link (ImageThumbnail.cpp is
+// not on agent_bridge_tests' source list). AgentHost::attachment_preview_data_url
+// only ever calls whatever AgentHost::ImageThumbnailFn is wired in; these two
+// cases cover the seam itself, not the real decoding (that has no GUI-free
+// seam either -- ImageThumbnail.cpp has no test target of its own).
+TEST_CASE("an image attachment gets no preview without a thumbnail maker wired", "[agent][attachments]")
 {
     Harness h;
     h.handshake();
     const json a = attach(h, "ca-img", "pic.png", std::string("\x89PNG\r\n", 6), "image/png");
     CHECK(a["kind"] == "image");
     CHECK(a["state"] == "staged");
-    REQUIRE(a.contains("previewDataUrl"));
-    CHECK(a["previewDataUrl"].get<std::string>().rfind("data:image/png;base64,", 0) == 0);
+    CHECK_FALSE(a.contains("previewDataUrl"));
     // The large data URL is not persisted in state.json; it is rebuilt on demand.
     std::ifstream     in(h.persistence.state_file_path());
     std::stringstream ss;
     ss << in.rdbuf();
     const json on_disk = json::parse(ss.str());
     CHECK_FALSE(on_disk["attachments"][0].contains("previewDataUrl"));
+}
+
+TEST_CASE("an image attachment's preview comes from the wired thumbnail maker, any original size",
+          "[agent][attachments]")
+{
+    // The old code refused a preview outright above a 256 KiB cap on the
+    // *original* file -- most real phone photos. There is no such cap here
+    // any more: a 300 KiB attachment (comfortably over that old threshold)
+    // still reaches the maker with its full, untouched bytes.
+    Harness           h;
+    const std::string original(300 * 1024, 'x');
+    std::string       seen;
+    h.host.set_image_thumbnail_maker([&seen](const std::string& bytes) {
+        seen = bytes;
+        return std::string("data:image/jpeg;base64,Zm9v");
+    });
+    h.handshake();
+    const json a = attach(h, "ca-img", "pic.jpg", original, "image/jpeg");
+    CHECK(a["kind"] == "image");
+    REQUIRE(a.contains("previewDataUrl"));
+    CHECK(a["previewDataUrl"] == "data:image/jpeg;base64,Zm9v");
+    CHECK(seen == original);
 }
 
 TEST_CASE("an unsupported binary attachment is rejected visibly", "[agent][attachments]")
@@ -1346,6 +1373,12 @@ TEST_CASE("a message carries staged attachments and the mock acknowledges them",
     // The attachment is now durable history, not staged working state.
     REQUIRE(h.persistence.document().find_attachment("a-1").has_value());
     CHECK(h.persistence.document().find_attachment("a-1")->state == "sent");
+    // The page's own staged list only drops an attachment once it hears this
+    // back; the document alone changing state is not enough.
+    const json* sent_update = h.last_of_type("attachment_updated");
+    REQUIRE(sent_update != nullptr);
+    CHECK((*sent_update)["payload"]["attachment"]["id"] == "a-1");
+    CHECK((*sent_update)["payload"]["attachment"]["state"] == "sent");
 
     h.pump_all();
     const json* completed = h.last_of_type("assistant_completed");

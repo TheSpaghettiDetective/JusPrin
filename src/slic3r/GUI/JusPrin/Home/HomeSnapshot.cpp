@@ -105,4 +105,17 @@ json state_payload(const Snapshot& snapshot)
     };
 }
 
+json added_printer_payload(const AddedPrinterEntry& entry)
+{
+    return json{
+        {"name", entry.name},
+        {"nozzleText", entry.nozzle_text},
+        {"nozzleAssumed", entry.nozzle_assumed},
+        {"plateText", entry.plate_text},
+        {"plateAssumed", entry.plate_assumed},
+        {"filamentText", entry.filament_text},
+        {"filamentAssumed", entry.filament_assumed},
+    };
+}
+
 }}}} // namespace Slic3r::GUI::JusPrin::Home

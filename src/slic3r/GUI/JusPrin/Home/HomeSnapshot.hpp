@@ -88,4 +88,23 @@ struct Snapshot
 // The `state` payload: { appearance, projects, printers, printerPanelOpen }.
 nlohmann::json state_payload(const Snapshot& snapshot);
 
+// What a successful Add just saved: sent once, as its own `printer_added`
+// message, so the page can lead its column with this printer and say what
+// it assumed -- the ordinary `state` push says nothing about why the list
+// changed. A field is assumed when the card that added it was, not read
+// from the printer or stated by the person; the text is already formatted.
+struct AddedPrinterEntry
+{
+    std::string name;
+    std::string nozzle_text;
+    bool        nozzle_assumed{false};
+    std::string plate_text;
+    bool        plate_assumed{false};
+    std::string filament_text;
+    bool        filament_assumed{false};
+};
+
+// The `printer_added` payload.
+nlohmann::json added_printer_payload(const AddedPrinterEntry& entry);
+
 }}}} // namespace Slic3r::GUI::JusPrin::Home

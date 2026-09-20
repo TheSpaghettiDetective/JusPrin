@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <sstream>
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin {
@@ -139,6 +140,49 @@ std::unique_ptr<ShellController>& shell_slot()
     return shell;
 }
 
+// "0.4", "0.25", "1.0": the profile's own spelling, trimmed to two decimals.
+std::string number_text(double value)
+{
+    std::ostringstream out;
+    out.precision(2);
+    out << std::fixed << value;
+    std::string text = out.str();
+    while (text.size() > 3 && text.back() == '0')
+        text.pop_back();
+    return text;
+}
+
+// What the receipt strip needs from a successful Add's saved facts.
+// "AMS lite · PLA Matte + 3", matching AgentUI's printerWords.ts spoolSummary
+// exactly: the panel's own pinned card and this strip state the same
+// printer moments apart and must agree on what its filament is called.
+std::string spool_summary(const std::string& ams, const std::vector<PrinterSetup::PrinterSpool>& spools)
+{
+    if (spools.empty())
+        return ams;
+    std::string name = spools.front().name.empty() ? spools.front().material : spools.front().name;
+    if (spools.size() > 1)
+        name += " + " + std::to_string(spools.size() - 1);
+    return ams.empty() ? name : ams + " · " + name;
+}
+
+Home::AddedPrinterEntry added_printer_entry(const PrinterSetup::PinnedFacts& facts)
+{
+    Home::AddedPrinterEntry entry;
+    entry.name           = facts.printer;
+    entry.nozzle_text    = facts.nozzle > 0. ? number_text(facts.nozzle) + " mm" : std::string();
+    entry.nozzle_assumed = facts.nozzle_provenance == "assumed";
+    entry.plate_text     = facts.plate;
+    entry.plate_assumed  = facts.plate_provenance == "assumed";
+    // What the printer reported it has loaded is settled; otherwise the
+    // filament preset the card assumed -- the same rule printerWords.ts's
+    // factTexts applies to the panel's own pinned card.
+    entry.filament_text    = !facts.spools.empty() || !facts.ams.empty() ? spool_summary(facts.ams, facts.spools)
+                                                                          : facts.filament_preset;
+    entry.filament_assumed = facts.filament_provenance == "assumed";
+    return entry;
+}
+
 } // namespace
 
 ShellController::ShellController()
@@ -245,11 +289,15 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_printer_panel = new PrinterSetup::PrinterPanel(
             m_home, *m_theme, GUI_App::dark_mode(), *m_workspace, *plater, m_status_row->spool_store(),
             PrinterSetup::PrinterPanel::Callbacks{
-                [this] {
+                // `added` is carried through from a successful Add's own
+                // close_panel() call, so this refresh -- not a bare one a
+                // moment later -- is the one that hands Home the receipt.
+                // See IConversationHost::close_panel.
+                [this](const PrinterSetup::PinnedFacts* added) {
                     m_home->show_side_panel(false);
-                    m_home->refresh();
+                    refresh_home(added);
                 },
-                [this] { refresh_home(); },
+                [this](const PrinterSetup::PinnedFacts* added) { refresh_home(added); },
                 [this] { mark_agent_config_possibly_changed(); }});
         m_home->attach_side_panel(m_printer_panel, m_theme->metrics().printer_card.column_width);
         m_home->backend().set_conversation_opener(
@@ -516,10 +564,16 @@ void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
     event.Skip();
 }
 
-void ShellController::refresh_home()
+void ShellController::refresh_home(const PrinterSetup::PinnedFacts* added)
 {
-    if (m_home != nullptr)
+    if (m_home == nullptr)
+        return;
+    if (added == nullptr) {
         m_home->refresh();
+        return;
+    }
+    const Home::AddedPrinterEntry entry = added_printer_entry(*added);
+    m_home->refresh(&entry);
 }
 
 void ShellController::open_printer_conversation(const std::string& printer_name)

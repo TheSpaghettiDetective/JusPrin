@@ -269,6 +269,72 @@ describe('Home', () => {
     expect(screen.queryByRole('button', { name: 'Actions for Bench A1 mini' })).not.toBeInTheDocument();
   });
 
+  it('shows what an added printer assumed, highlights its card, and can be dismissed', async () => {
+    const host = start();
+    host.deliver('state', state());
+    host.deliver('printer_added', {
+      name: 'X1 Carbon',
+      nozzleText: '0.4 mm',
+      nozzleAssumed: false,
+      plateText: 'Textured PEI Plate',
+      plateAssumed: true,
+      filamentText: 'Bambu PLA Basic',
+      filamentAssumed: true,
+    });
+
+    expect(screen.getByText('X1 Carbon', { selector: 'b' })).toBeInTheDocument();
+    expect(screen.getByText(/0\.4 mm, Textured PEI Plate · assumed, Bambu PLA Basic · assumed/)).toBeInTheDocument();
+    // The strip is its own receipt, drawn above the printer's own card.
+    const cards = document.querySelectorAll('.printer-card');
+    expect(cards[0]).toHaveClass('printer-card-added');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByText(/0\.4 mm, Textured PEI Plate/)).not.toBeInTheDocument();
+  });
+
+  // F4 review fix: a later state used to leave the receipt showing stale
+  // facts (and the card highlighted) after whatever it described had
+  // already changed underneath it -- e.g. a nozzle changed through the
+  // receipt's own Change link.
+  it('ends the receipt and the highlight on the very next state, for any reason', async () => {
+    const host = start();
+    host.deliver('state', state());
+    host.deliver('printer_added', {
+      name: 'X1 Carbon',
+      nozzleText: '0.4 mm',
+      nozzleAssumed: false,
+      plateText: 'Textured PEI Plate',
+      plateAssumed: true,
+      filamentText: 'Bambu PLA Basic',
+      filamentAssumed: true,
+    });
+    expect(screen.getByText('X1 Carbon', { selector: 'b' })).toBeInTheDocument();
+    expect(document.querySelectorAll('.printer-card')[0]).toHaveClass('printer-card-added');
+
+    // Any later state, whatever prompted it (here: nothing but a refresh).
+    host.deliver('state', state());
+
+    expect(screen.queryByText('X1 Carbon', { selector: 'b' })).not.toBeInTheDocument();
+    expect(document.querySelector('.printer-card-added')).toBeNull();
+  });
+
+  it('sends the added printer\'s id when Change is tapped on its receipt', async () => {
+    const host = start();
+    host.deliver('state', state());
+    host.deliver('printer_added', {
+      name: 'X1 Carbon',
+      nozzleText: '0.4 mm',
+      nozzleAssumed: false,
+      plateText: '',
+      plateAssumed: false,
+      filamentText: '',
+      filamentAssumed: false,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(host.lastOfType('open_printer_settings')!.payload).toEqual({ id: 'x1' });
+  });
+
   it('shows a refused printer action until the next one', async () => {
     const host = start();
     host.deliver('state', state());

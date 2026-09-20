@@ -70,6 +70,20 @@ fake rereads it about once a second.
 | `progress` | 0–1, mapped to `mc_percent` |
 | `nozzle`, `bed` | °C |
 | `offline` | `true` stops `push_status`; after ~30 s the menu first row is Offline |
+| `spools` | loaded AMS spools; see below. Absent leaves whatever was last set |
+
+No `spools` (or an empty array) reports no AMS at all, same as before this
+field existed. A non-empty array reports one AMS unit (id `"0"`) with one
+tray per spool, up to 4:
+
+```json
+{"spools": [{"subBrands": "PLA Matte", "trayType": "PLA", "colour": "5F7D4FFF"}]}
+```
+
+`subBrands` is what `PrinterDiscovery.cpp` reads back as the spool's name
+when set (ahead of `trayType`), so it is the field worth setting for a
+saved/network-printer card or receipt to show something. `trayType` and
+`colour` are optional and cosmetic for that same read.
 
 Delete the file, or set `"offline": false` and `"state":"idle"`, to return to Idle.
 

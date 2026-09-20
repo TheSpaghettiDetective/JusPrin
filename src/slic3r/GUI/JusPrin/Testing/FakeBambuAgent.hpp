@@ -25,6 +25,16 @@ void        register_fake_bambu_agent();
 bool        fake_bambu_mode_enabled(const AppConfig* config);
 std::string fake_bambu_printer_agent_id(const AppConfig* config);
 
+// One loaded spool, in the same shape the real AMS status JSON reports it and
+// PrinterDiscovery.cpp reads it back out: a sub-brand name (e.g. "PLA
+// Matte"), the filament type, and an 8-hex-digit RRGGBBAA colour.
+struct FakeBambuSpool
+{
+    std::string sub_brands;
+    std::string tray_type;
+    std::string colour;
+};
+
 struct FakeBambuStatusStep
 {
     int         delay_ms             = 0;
@@ -35,6 +45,9 @@ struct FakeBambuStatusStep
     double      nozzle_target_temper = 0.0;
     double      bed_temper           = 25.0;
     double      bed_target_temper    = 0.0;
+    // Empty means no AMS reported at all, matching every step before this
+    // field existed -- the default scenario and presets stay AMS-free.
+    std::vector<FakeBambuSpool> spools;
 };
 
 // In-process stand-in for BBLPrinterAgent. A real Bambu preset stays selected;

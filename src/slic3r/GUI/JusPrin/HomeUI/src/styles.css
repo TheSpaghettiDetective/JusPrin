@@ -520,6 +520,57 @@ body {
   border-radius: var(--radius-standard);
 }
 
+/* The receipt a successful Add leaves above the column: what it assumed,
+   a way to fix it, and a way to stop being told. */
+.printer-added-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--action-primary);
+  border-radius: var(--radius-standard);
+}
+
+.printer-added-strip span {
+  flex: 1;
+  min-width: 0;
+}
+
+.printer-added-change {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--action-primary);
+  font: var(--font-body-small);
+  cursor: pointer;
+}
+
+.printer-added-dismiss {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* Draws attention to the card the receipt is about, once, then leaves it as
+   any other card -- no timer either side has to manage. */
+@keyframes printer-card-added-glow {
+  from { border-color: var(--action-primary); }
+  to { border-color: var(--border-subtle); }
+}
+
+.printer-card-added {
+  animation: printer-card-added-glow 2s ease-out;
+}
+
 /* Rename and remove are the add-printer dialog's kind: the same width,
    radius, and scrim over the whole window. */
 .printer-dialog-shade {

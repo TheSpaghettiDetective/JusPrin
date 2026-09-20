@@ -60,6 +60,10 @@ describe('the Add instructions', () => {
     expect(text).toContain('More than three fit: do not call it');
     expect(text).toContain('Set it up myself');
     expect(text).toContain('never say a printer has been added');
+    // F1 review fix: the network-found path does connect, with Add's access
+    // code field, so the rule may not deny connecting outright.
+    expect(text).toContain('A printer found on the network connects');
+    expect(text).toContain("named from words or a photo has no such field, so connecting it isn't possible here");
     expect(text).not.toContain('printer_suggest');
     expect(text).not.toContain('The printer as it is now');
   });

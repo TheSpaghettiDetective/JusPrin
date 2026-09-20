@@ -104,4 +104,74 @@ describe('the Home reducer', () => {
     expect(refreshed.printerError).toEqual({ id: 'named:Garage', message: 'That name is reserved.' });
     expect(reduce(refreshed, { kind: 'printer_action' }).printerError).toBeUndefined();
   });
+
+  // F4 review fix on printer-panel-review-fixes-handoff.md: the receipt
+  // used to survive every later `state`, so a nozzle changed through its
+  // own Change link kept reading the printer's old, now-wrong facts. The
+  // host sends `state` (leading the column with the added printer, for
+  // that one push) then `printer_added` right after, so the receipt
+  // arrives one envelope behind the reorder it describes -- and lives no
+  // longer than that reorder does.
+  it('shows the receipt after its state and printer_added arrive, in order', () => {
+    let s = reduce(initialState, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [printer] }),
+    });
+    s = reduce(s, {
+      kind: 'envelope',
+      envelope: envelope('printer_added', {
+        name: 'Bambu Lab A1 mini',
+        nozzleText: '0.4 mm',
+        nozzleAssumed: false,
+        plateText: 'Textured PEI Plate',
+        plateAssumed: true,
+        filamentText: 'Bambu PLA Basic',
+        filamentAssumed: true,
+      }),
+    });
+    expect(s.addedPrinter?.name).toBe('Bambu Lab A1 mini');
+  });
+
+  it('clears the receipt on the state push after the one it rode in on', () => {
+    let s = reduce(initialState, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [printer] }),
+    });
+    s = reduce(s, {
+      kind: 'envelope',
+      envelope: envelope('printer_added', {
+        name: 'Bambu Lab A1 mini',
+        nozzleText: '0.4 mm',
+        nozzleAssumed: false,
+        plateText: 'Textured PEI Plate',
+        plateAssumed: true,
+        filamentText: 'Bambu PLA Basic',
+        filamentAssumed: true,
+      }),
+    });
+    // Any reason at all -- a rename, a refusal, a plain state_request -- the
+    // reorder is gone by this same push, so the receipt cannot outlive it.
+    s = reduce(s, {
+      kind: 'envelope',
+      envelope: envelope('state', { appearance: 'light', projects: [], printers: [printer] }),
+    });
+    expect(s.addedPrinter).toBeUndefined();
+  });
+
+  it('lets the person dismiss the receipt early, before any refresh', () => {
+    const withReceipt = reduce(initialState, {
+      kind: 'envelope',
+      envelope: envelope('printer_added', {
+        name: 'X1 Carbon',
+        nozzleText: '',
+        nozzleAssumed: false,
+        plateText: '',
+        plateAssumed: false,
+        filamentText: '',
+        filamentAssumed: false,
+      }),
+    });
+    expect(withReceipt.addedPrinter).toBeDefined();
+    expect(reduce(withReceipt, { kind: 'dismiss_added_printer' }).addedPrinter).toBeUndefined();
+  });
 });

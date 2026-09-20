@@ -207,11 +207,9 @@ json physical_print_json(const PhysicalPrintRecord& record)
 
 // --- Attachments ---------------------------------------------------------
 
-// Byte caps: reject anything larger than the total cap; only inline an image
-// preview data URL when the blob is within the preview cap; truncate text
+// Byte caps: reject anything larger than the total cap; truncate text
 // previews to keep state.json small.
 constexpr std::size_t kMaxAttachmentBytes    = 32u * 1024u * 1024u;
-constexpr std::size_t kInlineImagePreviewCap = 256u * 1024u;
 constexpr std::size_t kTextPreviewChars      = 4000u;
 constexpr std::size_t kAgentTextContextCap   = 256u * 1024u;
 constexpr std::size_t kAgentBinaryContextCap = 10u * 1024u * 1024u;
@@ -932,7 +930,12 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     message.client_message_id = client_id;
     message.attachment_ids    = sent_attachments;
     document.append_message(conversation_id, message, m_persistence.timestamp());
-    document.mark_attachments_sent(sent_attachments);
+    // The page's staged-attachment list only drops an entry once it hears
+    // this back; every other place that changes an attachment's state sends
+    // it too.
+    for (const std::string& id : document.mark_attachments_sent(sent_attachments))
+        if (const std::optional<AttachmentRecord> record = document.find_attachment(id))
+            send_attachment_updated(*record, envelope_id);
     // The outgoing message is durable before any reply work starts.
     m_persistence.flush();
     // Sending cleared the composer; the draft it held is no longer working
@@ -953,12 +956,12 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
 
 std::string AgentHost::attachment_preview_data_url(const AttachmentRecord& record) const
 {
-    if (record.kind != "image" || record.stored_name.empty() || record.size_bytes > kInlineImagePreviewCap)
+    if (record.kind != "image" || record.stored_name.empty() || !m_image_thumbnail_maker)
         return {};
     const std::string bytes = m_persistence.read_attachment_blob(record.relative_path());
     if (bytes.empty())
         return {};
-    return "data:" + record.mime + ";base64," + base64_encode(bytes);
+    return m_image_thumbnail_maker(bytes);
 }
 
 void AgentHost::send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id)

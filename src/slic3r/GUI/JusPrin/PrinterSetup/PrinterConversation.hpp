@@ -95,10 +95,19 @@ public:
     virtual void session_changed() = 0;
     // The page sent new instructions for the model.
     virtual void profile_changed() = 0;
-    // The panel is done: back to the printer list.
-    virtual void close_panel() = 0;
-    // A printer was saved; Home's list is out of date.
-    virtual void printers_changed() = 0;
+    // The panel is done: back to the printer list. `added` is a successful
+    // Add's saved facts, carried through so the close itself can hand Home
+    // the receipt -- a separate printers_changed() call ahead of a bare
+    // close_panel() would race the panel's own deferred teardown, which
+    // refreshes Home again with no facts and would wipe the receipt the
+    // moment it landed.
+    virtual void close_panel(const PinnedFacts* added = nullptr) = 0;
+    // A printer was saved; Home's list is out of date. `added` is the four
+    // facts a successful Add just saved -- name and what it assumed -- so
+    // Home can lead its column with that printer and say what it assumed;
+    // every other reason the list changed (undo, the manual-setup wizard)
+    // passes none.
+    virtual void printers_changed(const PinnedFacts* added = nullptr) = 0;
 };
 
 class PrinterConversation

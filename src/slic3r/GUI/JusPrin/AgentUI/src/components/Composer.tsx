@@ -153,7 +153,7 @@ export function Composer({
       {attachments.length > 0 && (
         <div className="composer-attachments" aria-label="Staged attachments">
           {attachments.map((attachment) => (
-            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
+            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} compact={photoButton} />
           ))}
           {/* A staged photo waits for the person; it never sends itself. */}
           {photoButton && <span className="composer-staged-hint">add a note, or just send</span>}

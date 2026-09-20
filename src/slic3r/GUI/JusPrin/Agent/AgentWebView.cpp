@@ -1,5 +1,6 @@
 #include "AgentWebView.hpp"
 
+#include "ImageThumbnail.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -81,6 +82,8 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     m_host->set_reveal_path_handler([this](const std::string& path) {
         CallAfter([path] { desktop_open_any_folder(path); });
     });
+    m_host->set_image_thumbnail_maker(
+        [](const std::string& bytes) { return Agent::image_thumbnail_data_url(bytes); });
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);
 

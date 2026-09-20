@@ -744,8 +744,10 @@ void PrinterConversation::add_proposed_printer(const std::string& access_code, c
         m_host.session_changed();
         return;
     }
-    m_host.printers_changed();
-    m_host.close_panel();
+    // Carried through close_panel rather than sent separately first: see
+    // IConversationHost::close_panel for why a standalone printers_changed
+    // here would race the panel's own deferred close.
+    m_host.close_panel(&m_facts);
 }
 
 void PrinterConversation::use_network_printer(const std::string& device_id, const std::string& note)

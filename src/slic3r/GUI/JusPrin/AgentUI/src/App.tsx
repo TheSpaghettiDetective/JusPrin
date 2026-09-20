@@ -11,7 +11,7 @@ import { PlanActivityCard, planHeadline, planKey, planMembers } from './componen
 import { Composer } from './components/Composer';
 import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
-import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote } from './printerWords';
+import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote, workingText } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -112,6 +112,21 @@ export function App({
   // whenever the host resent state and re-closed the card mid-click.
   const collapseSetup = () => setSetupExpanded(false);
   const [commandError, setCommandError] = useState<string | null>(null);
+  // "‹ Printers" or "Set it up myself" mid-conversation: which one is
+  // pending confirmation, since leaving would discard what was said. Null
+  // means no dialog is showing.
+  const [confirmLeavePrinter, setConfirmLeavePrinter] = useState<'close' | 'manual_setup' | null>(null);
+  // What the printer panel's own composer holds right now, so the leave
+  // check can see it. The printer panel's composer sends no draft_update --
+  // unlike the main chat's, it is never saved -- so state.draft, which only
+  // the backend ever sets, stays empty through an entire typing session and
+  // cannot answer "is there unsent text" for this panel. Reset whenever the
+  // conversation itself changes, so text left over from a printer session
+  // that already ended cannot gate the next one's leave check.
+  const [printerDraftText, setPrinterDraftText] = useState('');
+  useEffect(() => {
+    setPrinterDraftText('');
+  }, [state.activeConversationId]);
   // The printer panel's access-code field. Held here, not in host state: the
   // code goes to the app with Add and nowhere else.
   const [accessCode, setAccessCode] = useState('');
@@ -392,6 +407,25 @@ export function App({
     const session = state.session;
     const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
       client.send('printer_action', { action, id, ...extra });
+    // F7 review fix: message count alone caught a saved, applied change too
+    // (Change mode stays open after a printer_change succeeds), warning
+    // about words that were not actually going to be lost. Gate on unsaved
+    // work instead: a draft still in the composer, a photo staged but not
+    // sent, an Add proposal sitting on its card waiting for a tap, or a
+    // Change still waiting on its own approval card.
+    const hasUnsavedPrinterWork = () => {
+      if (printerDraftText.trim().length > 0) return true;
+      if (state.attachments.some((attachment) => attachment.state === 'staged')) return true;
+      if (!session) return false;
+      if (session.mode === 'add') return session.canAdd;
+      return state.toolActivities.some(
+        (activity) => activity.tool === 'printer_change' && activity.requiresApproval && activity.state === 'pending',
+      );
+    };
+    const gatedPrinterAction = (action: 'close' | 'manual_setup') => {
+      if (hasUnsavedPrinterWork()) setConfirmLeavePrinter(action);
+      else printerAction(action);
+    };
     return (
       // The whole panel takes a photo, not only the composer: a picture of
       // the printer is dropped where the person is looking.
@@ -409,14 +443,38 @@ export function App({
         <div className="chat-content">
           {/* The label names where ‹ leads, not the printer this is about. */}
           <header className="chat-header printer-header">
-            <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => printerAction('close')}>
+            <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => gatedPrinterAction('close')}>
               ‹
             </button>
             <h1>Printers</h1>
-            <button type="button" className="printer-manual-link" onClick={() => printerAction('manual_setup')}>
+            <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
               Set it up myself
             </button>
           </header>
+          {confirmLeavePrinter && (
+            <div className="chat-dialog-shade printer-leave-shade">
+              <div className="chat-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-leave-title">
+                <h2 id="printer-leave-title">Leave this conversation?</h2>
+                <p>What you said here will be lost.</p>
+                <div className="chat-dialog-buttons">
+                  <button type="button" onClick={() => setConfirmLeavePrinter(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => {
+                      const action = confirmLeavePrinter;
+                      setConfirmLeavePrinter(null);
+                      printerAction(action);
+                    }}
+                  >
+                    Leave
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {session && !notConfigured && (
             <div className="pinned-setup">
               <PrinterPinnedCard session={session} />
@@ -445,6 +503,7 @@ export function App({
               physicalPrints={[]}
               changes={[]}
               printerBlocks={session?.blocks}
+              printerActivityText={session ? workingText(session.mode) : undefined}
               onPrinterAction={(action, id, tap) => {
                 const extra: Record<string, string> = {};
                 if (tap.blockId) extra.blockId = tap.blockId;
@@ -478,12 +537,16 @@ export function App({
               photoButton
               streaming={streaming}
               attachments={stagedAttachments}
-              onSend={sendMessage}
+              onSend={(text) => {
+                setPrinterDraftText('');
+                sendMessage(text);
+              }}
               onStop={() => {
                 if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
               }}
               onAttachFiles={attachFiles}
               onRemoveAttachment={removeAttachment}
+              onDraftChange={setPrinterDraftText}
             />
           )}
         </div>

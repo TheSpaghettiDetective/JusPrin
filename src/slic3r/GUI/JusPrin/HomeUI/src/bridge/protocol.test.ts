@@ -36,6 +36,7 @@ describe('protocol constants come from the shared file', () => {
       'printers',
       'appearance',
       'printer_error',
+      'printer_added',
       'bridge_error',
       'printer_panel',
     ];

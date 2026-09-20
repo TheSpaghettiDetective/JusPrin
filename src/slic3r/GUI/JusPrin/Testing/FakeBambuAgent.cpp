@@ -189,6 +189,25 @@ bool FakeBambuAgent::apply_control_json(const std::string& json_text, FakeBambuS
                                      0.0 :
                                      step.bed_temper;
     }
+    // Present and an array replaces the loaded spools wholesale, same as
+    // every other field here; absent leaves whatever the step already had
+    // rather than clearing it, so a later poll that only touches state or
+    // progress does not silently drop what an earlier one loaded.
+    if (j.contains("spools") && j["spools"].is_array()) {
+        step.spools.clear();
+        for (const json& entry : j["spools"]) {
+            if (!entry.is_object())
+                continue;
+            FakeBambuSpool spool;
+            if (entry.contains("subBrands") && entry["subBrands"].is_string())
+                spool.sub_brands = entry["subBrands"].get<std::string>();
+            if (entry.contains("trayType") && entry["trayType"].is_string())
+                spool.tray_type = entry["trayType"].get<std::string>();
+            if (entry.contains("colour") && entry["colour"].is_string())
+                spool.colour = entry["colour"].get<std::string>();
+            step.spools.push_back(std::move(spool));
+        }
+    }
     return true;
 }
 
@@ -223,13 +242,44 @@ std::string FakeBambuAgent::build_push_status_json(const FakeBambuStatusStep& st
     print["support_mqtt_alive"]    = true;
     print["plate_idx"]             = 1;
     print["upgrade_state"]         = json{{"status", "IDLE"}, {"progress", "0"}, {"new_version_state", 0}};
-    print["ams"] = json{{"ams", json::array()},
-                        {"ams_exist_bits", "0"},
-                        {"tray_exist_bits", "0"},
-                        {"tray_is_bbl_bits", "0"},
-                        {"tray_now", "255"},
-                        {"tray_tar", "255"},
-                        {"version", 2}};
+    if (step.spools.empty()) {
+        print["ams"] = json{{"ams", json::array()},
+                            {"ams_exist_bits", "0"},
+                            {"tray_exist_bits", "0"},
+                            {"tray_is_bbl_bits", "0"},
+                            {"tray_now", "255"},
+                            {"tray_tar", "255"},
+                            {"version", 2}};
+    } else {
+        // One AMS unit (id "0"), one tray per spool, DevFilaSystem's own
+        // field names (DevFilaSystem.cpp's push_status parsing). tray_sub_brands
+        // is what PrinterDiscovery.cpp reads back as the spool's material
+        // when set, ahead of tray_type -- real hardware leaves it blank for
+        // a generic filament, but every fake spool has a name to show, so it
+        // is always set here.
+        json  trays{};
+        unsigned tray_bits = 0;
+        for (std::size_t i = 0; i < step.spools.size() && i < 4; ++i) {
+            const FakeBambuSpool& spool = step.spools[i];
+            json tray{{"id", std::to_string(i)}, {"tray_sub_brands", spool.sub_brands}, {"remain", 80}};
+            if (!spool.tray_type.empty())
+                tray["tray_type"] = spool.tray_type;
+            if (!spool.colour.empty())
+                tray["tray_color"] = spool.colour;
+            trays.push_back(std::move(tray));
+            tray_bits |= (1u << i);
+        }
+        std::ostringstream tray_bits_hex;
+        tray_bits_hex << std::hex << tray_bits;
+        print["ams"] = json{
+            {"ams", json::array({json{{"id", "0"}, {"humidity", "0"}, {"humidity_raw", "0"}, {"temp", "0"}, {"tray", trays}}})},
+            {"ams_exist_bits", "1"},
+            {"tray_exist_bits", tray_bits_hex.str()},
+            {"tray_is_bbl_bits", "0"},
+            {"tray_now", "0"},
+            {"tray_tar", "0"},
+            {"version", 2}};
+    }
 
     const auto now_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());

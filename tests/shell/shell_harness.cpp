@@ -809,7 +809,7 @@ private:
 
         live_open(Mode::Add);
         live_say("the small bambu one", [this] {
-            check_live_opening("What printer do you have?", "live_add_opens_with_the_pages_line");
+            check_live_opening("I'll add your printer so your projects slice for it.", "live_add_opens_with_the_pages_line");
             live_print_calls();
             check(live_identified("BBL/Bambu Lab A1 mini"), "live_small_bambu_is_the_a1_mini");
             check(live_panel()->session_json()["facts"]["printer"].value("name", "") == "Bambu Lab A1 mini",

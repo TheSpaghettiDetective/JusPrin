@@ -11,11 +11,15 @@ export function PrinterCard({
   otherNames,
   actions,
   onLaunchMonitor,
+  highlighted,
 }: {
   printer: PrinterInfo;
   otherNames: string[];
   actions: PrinterActions;
   onLaunchMonitor: (id: string) => void;
+  // The printer a receipt just named: the card's own CSS animation draws
+  // attention to it once and ends on its own -- no timer either side manages.
+  highlighted?: boolean;
 }) {
   const printing = printer.state === 'printing';
   const name = (
@@ -33,16 +37,17 @@ export function PrinterCard({
       {hasActions && <PrinterMenu printer={printer} otherNames={otherNames} actions={actions} />}
     </span>
   );
+  const cardClass = (base: string) => (highlighted ? `${base} printer-card-added` : base);
   if (!printing) {
     return (
-      <div className="printer-card collapsed">
+      <div className={cardClass('printer-card collapsed')}>
         {name}
         {end}
       </div>
     );
   }
   return (
-    <div className="printer-card">
+    <div className={cardClass('printer-card')}>
       <div className="printer-head">
         {name}
         {end}
