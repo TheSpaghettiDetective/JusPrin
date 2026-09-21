@@ -1,0 +1,21 @@
+Check @agen-docs  to see what this project is all about.
+
+---
+
+&#x20;Now, a common need from the users for a tool like this is the users often ask the AI agents how they can use this tool  to achieve a certain thing.  For example, user will ask, how can I clone 3D models in this tool?  in the user expect the AI model AI agent to give a accurate answer because they would think that hey you are the tool yourself of course you know how to use the tool but we understand that this is not how LLM works how can what do people usually do to make sure that LLM has the most up-to-date and accurate information about how to use the tool so that it can always give a correct answer.
+
+---
+
+&#x20;Check the code base and the complexities to see if it actually makes sense to put everything in the context.
+
+---
+
+&#x20;What's your rationale that you put JustPrint everyday workflows into the context? Is that because you think that user will ask about the workflow everyday?
+
+---
+
+&#x20;What do you mean by loading extended docs on demand? Describe how exactly that will happen.
+
+---
+
+&#x20;Answer in plain English under 200 words.
