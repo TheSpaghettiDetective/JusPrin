@@ -154,6 +154,7 @@ private:
     bool m_installed{false};
     bool m_saved_collapse_toolbar_enabled{false};
     bool m_saved_auto_preview_after_slice{true};
+    bool m_saved_show_config_wizard_on_startup{true};
     CanvasPresentationController m_prepare_canvas_presentation;
 };
 

@@ -232,6 +232,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     // real prior state, not a default.
     m_saved_collapse_toolbar_enabled = plater->get_collapse_toolbar().is_enabled();
     m_saved_auto_preview_after_slice = plater->auto_preview_after_slice();
+    m_saved_show_config_wizard_on_startup = wxGetApp().show_config_wizard_on_startup;
 
     try {
         m_workspace = std::make_unique<Workspace::OrcaWorkspaceAdapter>(*plater);
@@ -347,6 +348,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_status_row->refresh();
         frame.Layout();
         apply_agent_pane_width();
+        // Home owns first-run printer setup; keep Orca's wizard available on demand.
+        wxGetApp().show_config_wizard_on_startup = false;
     } catch (...) {
         m_installed = true; // let uninstall() undo whatever was applied
         uninstall();
@@ -359,6 +362,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
     if (event.GetWindow() == m_frame) {
         m_runtime_timer.Stop();
         m_installed = false;
+        wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
         m_prepare_canvas_presentation.abandon();
         // This controller lives in a static slot and outlives every window,
         // so whatever it owns that unbinds from the Plater has to go now,
@@ -483,6 +487,7 @@ void ShellController::uninstall()
     m_plater->get_collapse_toolbar().set_enabled(m_saved_collapse_toolbar_enabled);
     m_plater->set_sidebar_available(true);
     m_plater->set_auto_preview_after_slice(m_saved_auto_preview_after_slice);
+    wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
     m_tabpanel->GetBtnsListCtrl()->Show();
 
     if (m_center_sizer != nullptr) {
