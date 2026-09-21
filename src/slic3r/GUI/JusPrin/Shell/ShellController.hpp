@@ -57,6 +57,9 @@ public:
     Home::HomeWebView* home_view() const { return m_home; }
     PrinterSetup::PrinterPanel* printer_panel() const { return m_printer_panel; }
     AgentPane* agent_pane() const { return m_agent_pane; }
+    // The Prepare canvas's presentation, for the integration harness to drive
+    // the tool strip and the value card the way a pointer does.
+    const CanvasPresentationController& prepare_canvas_presentation() const { return m_prepare_canvas_presentation; }
     Workspace::IWorkspace* workspace() const { return m_workspace.get(); }
     Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
 

@@ -6,6 +6,7 @@
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
+#include <cmath>
 #include <fstream>
 #include <stdexcept>
 
@@ -51,6 +52,9 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     palette.status_success_on_action = parse_color(mode_tokens, "status", "successOnAction");
     palette.status_danger           = parse_color(mode_tokens, "status", "danger");
     palette.overlay_scrim            = parse_color(mode_tokens, "overlay", "scrim");
+    palette.axis_x                   = parse_color(mode_tokens, "axis", "x");
+    palette.axis_y                   = parse_color(mode_tokens, "axis", "y");
+    palette.axis_z                   = parse_color(mode_tokens, "axis", "z");
     return palette;
 }
 
@@ -64,9 +68,35 @@ int parse_int(const nlohmann::json& group, const std::string& path, const char* 
     return value.get<int>();
 }
 
-TextRole parse_text_role(const nlohmann::json& recipe, const std::string& path)
+// An elevation tier's colour for one mode: its color with that mode's opacity as alpha.
+wxColour parse_shadow_color(const nlohmann::json& tokens, const char* tier, const char* mode)
 {
-    const std::string name = recipe.at("textRole").get<std::string>();
+    const std::string path = std::string("elevation.") + tier;
+    const nlohmann::json& elevation = tokens.at("elevation").at(tier);
+    wxColour color(wxString::FromUTF8(elevation.at("color").get<std::string>()));
+    if (!color.IsOk())
+        throw std::runtime_error("design token " + path + ".color is not a valid color");
+    const nlohmann::json& opacity = elevation.at("opacity").at(mode);
+    if (!opacity.is_number() || opacity.get<double>() < 0.0 || opacity.get<double>() > 1.0)
+        throw std::runtime_error("design token " + path + ".opacity." + mode + " is not between 0 and 1");
+    return wxColour(color.Red(), color.Green(), color.Blue(), wxColour::ChannelType(std::lround(opacity.get<double>() * 255.0)));
+}
+
+ElevationMetrics parse_elevation(const nlohmann::json& tokens, const char* tier)
+{
+    const std::string path = std::string("elevation.") + tier;
+    const nlohmann::json& elevation = tokens.at("elevation").at(tier);
+    ElevationMetrics e;
+    e.offset_x = parse_int(elevation, path, "offsetX");
+    e.offset_y = parse_int(elevation, path, "offsetY");
+    e.blur     = parse_int(elevation, path, "blur");
+    e.spread   = parse_int(elevation, path, "spread");
+    return e;
+}
+
+TextRole parse_text_role(const nlohmann::json& recipe, const std::string& path, const char* key = "textRole")
+{
+    const std::string name = recipe.at(key).get<std::string>();
     if (name == "pageTitle")     return TextRole::PageTitle;
     if (name == "section")       return TextRole::Section;
     if (name == "body")          return TextRole::Body;
@@ -77,7 +107,7 @@ TextRole parse_text_role(const nlohmann::json& recipe, const std::string& path)
     if (name == "labelBold")     return TextRole::LabelBold;
     if (name == "metadata")      return TextRole::Metadata;
     if (name == "metadataBold")  return TextRole::MetadataBold;
-    throw std::runtime_error("design token " + path + ".textRole names an unknown role: " + name);
+    throw std::runtime_error("design token " + path + "." + key + " names an unknown role: " + name);
 }
 
 TypeStyle parse_type_style(const nlohmann::json& roles, const char* name)
@@ -172,8 +202,45 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.space_10 = parse_int(space, "dimension.space", "10");
     m.space_12 = parse_int(space, "dimension.space", "12");
 
+    m.elevation_medium = parse_elevation(tokens, "medium");
+
     const nlohmann::json& component = tokens.at("component");
     m.button = parse_buttons(component.at("button"));
+
+    const nlohmann::json& field = component.at("field");
+    m.field.height         = parse_int(field, "component.field", "height");
+    m.field.radius         = parse_int(field, "component.field", "radius");
+    m.field.padding_x      = parse_int(field, "component.field", "paddingX");
+    m.field.min_width      = parse_int(field, "component.field", "minWidth");
+    m.field.text_role      = parse_text_role(field, "component.field");
+    m.field.unit_text_role = parse_text_role(field, "component.field", "unitTextRole");
+
+    const nlohmann::json& select = component.at("select");
+    m.select.height       = parse_int(select, "component.select", "height");
+    m.select.radius       = parse_int(select, "component.select", "radius");
+    m.select.padding_x    = parse_int(select, "component.select", "paddingX");
+    m.select.chevron_size = parse_int(select, "component.select", "chevronSize");
+    m.select.text_role    = parse_text_role(select, "component.select");
+
+    const nlohmann::json& checkbox = component.at("checkbox");
+    m.checkbox.size       = parse_int(checkbox, "component.checkbox", "size");
+    m.checkbox.radius     = parse_int(checkbox, "component.checkbox", "radius");
+    m.checkbox.glyph_size = parse_int(checkbox, "component.checkbox", "glyphSize");
+    m.checkbox.label_gap  = parse_int(checkbox, "component.checkbox", "labelGap");
+    m.checkbox.text_role  = parse_text_role(checkbox, "component.checkbox");
+
+    const nlohmann::json& form_row = component.at("formRow");
+    m.form_row.height      = parse_int(form_row, "component.formRow", "height");
+    m.form_row.gap         = parse_int(form_row, "component.formRow", "gap");
+    m.form_row.label_width = parse_int(form_row, "component.formRow", "labelWidth");
+    m.form_row.text_role   = parse_text_role(form_row, "component.formRow");
+
+    const nlohmann::json& tool_panel = component.at("toolPanel");
+    m.tool_panel.padding         = parse_int(tool_panel, "component.toolPanel", "padding");
+    m.tool_panel.row_gap         = parse_int(tool_panel, "component.toolPanel", "rowGap");
+    m.tool_panel.radius          = parse_int(tool_panel, "component.toolPanel", "radius");
+    m.tool_panel.min_width       = parse_int(tool_panel, "component.toolPanel", "minWidth");
+    m.tool_panel.title_text_role = parse_text_role(tool_panel, "component.toolPanel", "titleTextRole");
 
     const nlohmann::json& chip = component.at("chip");
     m.chip.height = parse_int(chip, "component.chip", "height");
@@ -221,6 +288,8 @@ ShellTheme ShellTheme::load_from_resources()
         ShellTheme theme;
         theme.m_light   = parse_palette(tokens.at("semantic").at("light"));
         theme.m_dark    = parse_palette(tokens.at("semantic").at("dark"));
+        theme.m_light.elevation_medium = parse_shadow_color(tokens, "medium", "light");
+        theme.m_dark.elevation_medium  = parse_shadow_color(tokens, "medium", "dark");
         theme.m_metrics = parse_metrics(tokens);
 
         const nlohmann::json& roles = tokens.at("typography").at("roles");

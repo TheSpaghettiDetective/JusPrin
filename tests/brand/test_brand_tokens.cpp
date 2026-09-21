@@ -149,7 +149,8 @@ TEST_CASE("dark mode is a remapping, not a copy of light mode", "[brand]")
 // Each one names the offending key so a wrong edit is a one-line fix.
 
 template <typename T>
-void require_exact_table(const json& actual, const std::map<std::string, T>& expected, const std::string& path)
+void require_exact_table(const json& actual, const std::map<std::string, T>& expected, const std::string& path,
+                         const std::set<std::string>& also_allowed = {})
 {
     for (const auto& [key, value] : expected) {
         INFO(path << "." << key << " expected " << value);
@@ -158,7 +159,7 @@ void require_exact_table(const json& actual, const std::map<std::string, T>& exp
     }
     for (const auto& [key, value] : actual.items()) {
         INFO(path << "." << key << " is not part of the scale");
-        CHECK(expected.count(key) == 1);
+        CHECK((expected.count(key) == 1 || also_allowed.count(key) == 1));
     }
 }
 
@@ -338,6 +339,55 @@ TEST_CASE("the menu geometry is explicit", "[brand]")
     require_exact_table<int>(component.at("popover"), {{"paddingY", 4}, {"rowGap", 0}, {"radius", 8}},
         "component.popover");
 }
+
+
+// Home sizes its inline glyphs -- the printer beside a name, the monitor on
+// its button -- from the smallest step of this scale, so it must stay the
+// smallest and stay 16.
+// The numeric tool panel beside the canvas tool strip. Its parts are drawn by
+// the fork, so every size it uses has to be here rather than in the code.
+TEST_CASE("the tool panel geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& component = tokens.at("component");
+    require_exact_table<int>(component.at("checkbox"), {{"size", 16}, {"radius", 4}, {"glyphSize", 12}, {"labelGap", 8}},
+                             "component.checkbox", {"textRole"});
+    require_exact_table<int>(component.at("formRow"), {{"height", 26}, {"gap", 8}, {"labelWidth", 96}},
+                             "component.formRow", {"textRole"});
+    require_exact_table<int>(component.at("toolPanel"), {{"padding", 12}, {"rowGap", 8}, {"radius", 8}, {"minWidth", 220}},
+                             "component.toolPanel", {"titleTextRole"});
+    require_exact_table<int>(component.at("field"), {{"height", 26}, {"radius", 4}, {"paddingX", 8}, {"minWidth", 72}},
+                             "component.field", {"textRole", "unitTextRole"});
+    require_exact_table<int>(component.at("select"), {{"height", 26}, {"radius", 4}, {"paddingX", 8}, {"chevronSize", 16}},
+                             "component.select", {"textRole"});
+    // A field and the select share the icon button's height so a form row lines up.
+    CHECK(component.at("field").at("height") == component.at("button").at("icon").at("height"));
+    CHECK(component.at("select").at("height") == component.at("field").at("height"));
+    CHECK(component.at("formRow").at("height") == component.at("field").at("height"));
+}
+
+// The axis colours name OrcaSlicer's own 3D handles, so they are the one
+// semantic group that must not change between the modes.
+TEST_CASE("the axis colors match the 3D handles in both modes", "[brand]")
+{
+    const json tokens = load_tokens();
+    const std::map<std::string, std::string> expected = {{"x", "#FF3C5B"}, {"y", "#64C818"}, {"z", "#2F88E9"}};
+    for (const char* mode : {"light", "dark"}) {
+        INFO("semantic." << mode << ".axis");
+        const json& axis = tokens.at("semantic").at(mode).at("axis");
+        for (const auto& [name, value] : expected) {
+            INFO("semantic." << mode << ".axis." << name);
+            REQUIRE(axis.contains(name));
+            CHECK(axis.at(name).get<std::string>() == value);
+        }
+        CHECK(axis.size() == expected.size());
+    }
+}
+
+
+// Home sizes its inline glyphs -- the printer beside a name, the monitor on
+// its button -- from the smallest step of this scale, so it must stay the
+// smallest and stay 16.
 
 TEST_CASE("the icon scale is exactly the documented one", "[brand]")
 {

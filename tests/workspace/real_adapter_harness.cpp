@@ -537,7 +537,7 @@ private:
 
         if (m_state->mode == HarnessState::Mode::ManualJusPrin) {
             m_manual_controller = std::make_unique<CanvasPresentationController>(*m_plater->canvas3D());
-            m_manual_controller->activate_move();
+            m_manual_controller->toggle_tool(GLGizmosManager::Move);
         }
         if (m_app.mainframe != nullptr) {
             m_app.mainframe->Bind(wxEVT_CLOSE_WINDOW, [weak = weak_from_this()](wxCloseEvent& event) {
@@ -585,8 +585,19 @@ private:
                   "policy_hides_gizmo_picker_input");
             check(canvas.get_gizmos_manager().is_active_gizmo_input_enabled(),
                   "policy_keeps_active_gizmo_input");
-            check(controller.activate_move(), "controller_activates_move");
-            check(controller.activate_rotate(), "controller_activates_rotate");
+            // The tool strip's buttons toggle: a click opens the tool, a
+            // click on another switches to it, and a second click closes it.
+            const auto open_tool = [&canvas]() { return canvas.get_gizmos_manager().get_current_type(); };
+            check(controller.toggle_tool(GLGizmosManager::Move), "controller_opens_move");
+            check(open_tool() == GLGizmosManager::Move, "move_is_open");
+            check(controller.toggle_tool(GLGizmosManager::Rotate), "controller_switches_to_rotate");
+            check(open_tool() == GLGizmosManager::Rotate, "rotate_replaces_move");
+            check(controller.toggle_tool(GLGizmosManager::Rotate), "controller_closes_rotate");
+            check(open_tool() == GLGizmosManager::Undefined, "second_click_closes_rotate");
+            check(controller.toggle_tool(GLGizmosManager::Scale), "controller_opens_scale");
+            check(open_tool() == GLGizmosManager::Scale, "scale_is_open");
+            check(controller.toggle_tool(GLGizmosManager::Scale), "controller_closes_scale");
+            check(open_tool() == GLGizmosManager::Undefined, "second_click_closes_scale");
             controller.detach();
             check(canvas.legacy_overlays_hidden() == stock_hidden, "controller_restores_stock_overlays");
 

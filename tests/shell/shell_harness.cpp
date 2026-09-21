@@ -66,6 +66,15 @@
 //              checked (cards drawn or not, the change card, the saved
 //              nozzle, Undo). The key is written to this run's throwaway
 //              app config, where the panel reads it.
+//   --manual-tool-strip
+//              leaves the shell open on the two-plate fixture with an object
+//              selected, for hands-on testing of the canvas tool strip
+//   --tool-strip-capture <output-directory>
+//              clicks the Prepare canvas's tool strip with real pointer
+//              events: toggles Move and Scale, follows the Rotate shortcut,
+//              duplicates and undoes, opens More (Windows), orbits and
+//              narrows the window; asserts the open tool, selection and
+//              instance count at each step, and writes tool-strip-*.png
 //   --printer-setup
 //              drives the Add a printer modal from the printer menu with the
 //              deterministic recognizer: dismissal and scrim lifetime, the
@@ -76,6 +85,7 @@
 //              nozzle change that keeps the printer's own settings
 
 #include "libslic3r/Format/bbs_3mf.hpp"
+#include "libslic3r/Geometry.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -86,6 +96,12 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
+#include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
+#include "slic3r/GUI/ImGuiWrapper.hpp"
+// FindWindowByName and ImGuiWindow: the tool panel is an ImGui window, and its
+// rectangle is what the anchor checks read.
+#include <imgui/imgui_internal.h>
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
@@ -204,6 +220,8 @@ struct HarnessState
         LiveAgentUnavailable,
         RecomputingCapture,
         TimelineCapture,
+        ToolStripCapture,
+        ManualToolStrip,
         PrinterSetup,
         PrinterLive
     };
@@ -365,6 +383,18 @@ public:
             if (m_state->mode == HarnessState::Mode::TimelineCapture) {
                 verify_canvas_interaction();
                 wait_for_agent_page("timeline", [self = shared_from_this()] { self->begin_timeline_capture(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ManualToolStrip) {
+                verify_canvas_interaction();
+                wait_until_settled("manual_tool_strip_ready", [self = shared_from_this()] {
+                    std::cerr << "HARNESS MANUAL READY tool-strip failures=" << self->m_failures << '\n';
+                });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ToolStripCapture) {
+                verify_canvas_interaction();
+                wait_until_settled("tool_strip_selection_settled", [self = shared_from_this()] { self->tool_strip_idle(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::SliceAllCold) {
@@ -2277,6 +2307,374 @@ private:
     // WebView2 content, which no snapshot() can paint offscreen. Needs the
     // frame on a visible desktop; at 100% scaling GetScreenRect() and the
     // screen DC share pixels (see handoff item 4 before trusting 150%/200%).
+    // The Prepare canvas's tool strip. Pointer events go to the canvas at a
+    // button's centre and pass through GLCanvas3D::on_mouse and ImGui's hit
+    // test as a user's click does; every result is read back from the gizmo
+    // manager, the selection and the model, never from the strip.
+    GLCanvas3D& prepare_canvas() { return *m_plater->canvas3D(); }
+
+    GLGizmosManager::EType open_tool() { return prepare_canvas().get_gizmos_manager().get_current_type(); }
+
+    StripLayout tool_strip_layout()
+    {
+        const Size size = prepare_canvas().get_canvas_size();
+        return layout_tool_strip(tool_strip_geometry(brand_theme()->metrics()), wxGetApp().imgui()->get_style_scaling(),
+                                 float(size.get_width()), float(size.get_height()));
+    }
+
+    void send_canvas_mouse(wxEventType type, const wxPoint& at, bool left_down)
+    {
+        wxGLCanvas* target = prepare_canvas().get_wxglcanvas();
+        wxMouseEvent event(type);
+        event.SetEventObject(target);
+        event.SetPosition(at);
+        event.m_leftDown = left_down;
+        target->GetEventHandler()->ProcessEvent(event);
+    }
+
+    // A click the way a pointer makes one on a strip already on screen: a
+    // frame shows the strip (ImGui hit-tests against the previous frame's
+    // windows), the pointer arrives and a frame is drawn so ImGui knows what
+    // is under it, then the button goes down and up.
+    void press_tool_strip(StripTool tool)
+    {
+        prepare_canvas().render();
+        const StripRect& button = tool_strip_layout().buttons[size_t(tool)];
+        const double scale = prepare_canvas().get_scale();
+        const wxPoint at(int((button.x + button.w / 2) / scale), int((button.y + button.h / 2) / scale));
+        send_canvas_mouse(wxEVT_MOTION, at, false);
+        prepare_canvas().render();
+        send_canvas_mouse(wxEVT_LEFT_DOWN, at, true);
+        send_canvas_mouse(wxEVT_LEFT_UP, at, false);
+    }
+
+    // The strip runs its action after the frame, so callers wait for the loop.
+    void click_tool_strip(StripTool tool, const std::string& settled, std::function<void()> then)
+    {
+        press_tool_strip(tool);
+        wait_until_settled(settled, std::move(then));
+    }
+
+    // The whole window, not the canvas: the canvas's own screen rectangle
+    // comes back window-relative here, which photographs the wrong part of
+    // the screen, while the frame's is right. The window also shows the strip
+    // against the rest of the shell, which is what these pictures are for.
+    void capture_tool_strip(const std::string& name)
+    {
+        prepare_canvas().render();
+        const bool dark = m_state->dark_appearance.value_or(false);
+        write_screen_capture(m_frame->GetScreenRect(), "tool-strip-" + name + (dark ? "-dark" : "-light"));
+    }
+
+    size_t first_object_instances() { return m_plater->model().objects.front()->instances.size(); }
+
+    // The open tool's value card is an ImGui window of ours, so its rectangle
+    // is the anchor contract: it hangs a panel padding below the strip with
+    // its left edge under the button that opened it.
+    void check_tool_panel_anchored(StripTool tool, const std::string& name)
+    {
+        prepare_canvas().render();
+        const ImGuiWindow* window = ImGui::FindWindowByName("##jusprin_tool_values");
+        check(window != nullptr && window->Active, name + "_panel_is_open");
+        if (window == nullptr || !window->Active)
+            return;
+        const StripLayout layout = tool_strip_layout();
+        const StripRect& button = layout.buttons[size_t(tool)];
+        const float padding = std::round(brand_theme()->metrics().tool_panel.padding *
+                                         wxGetApp().imgui()->get_style_scaling());
+        check(std::abs(window->Pos.x - button.x) <= 1.f, name + "_panel_left_edge_under_the_button");
+        check(std::abs(window->Pos.y - (layout.strip.y + layout.strip.h + padding)) <= 1.f,
+              name + "_panel_hangs_below_the_strip");
+        check(window->Size.x > 0.f && window->Size.y > 0.f, name + "_panel_has_content");
+    }
+
+    void tool_strip_idle()
+    {
+        check(open_tool() == GLGizmosManager::Undefined, "tool_strip_starts_with_no_tool_open");
+        m_tool_strip_selection = prepare_canvas().get_selection().get_volume_idxs();
+        capture_tool_strip("selected");
+        click_tool_strip(StripTool::Move, "tool_strip_move_click_settled", [self = shared_from_this()] {
+            self->check(self->open_tool() == GLGizmosManager::Move, "tool_strip_opens_move");
+            self->check(self->prepare_canvas().get_selection().get_volume_idxs() == self->m_tool_strip_selection,
+                        "tool_strip_click_keeps_the_selection");
+            self->check_tool_panel_anchored(StripTool::Move, "move");
+            self->capture_tool_strip("move");
+            self->click_tool_strip(StripTool::Move, "tool_strip_second_move_click_settled", [self] {
+                self->check(self->open_tool() == GLGizmosManager::Undefined, "tool_strip_second_click_closes_move");
+                self->tool_strip_shortcut();
+            });
+        });
+    }
+
+    // A tool opened from the keyboard must light its button: the strip reads
+    // the open tool every frame instead of remembering its own clicks.
+    void tool_strip_shortcut()
+    {
+        wxGLCanvas* target = prepare_canvas().get_wxglcanvas();
+        wxKeyEvent key(wxEVT_CHAR);
+        key.SetEventObject(target);
+        key.m_keyCode = 'r';
+        target->GetEventHandler()->ProcessEvent(key);
+        wait_until_settled("tool_strip_shortcut_settled", [self = shared_from_this()] {
+            self->check(self->open_tool() == GLGizmosManager::Rotate, "r_key_opens_rotate");
+            self->check_tool_panel_anchored(StripTool::Rotate, "rotate");
+            self->capture_tool_strip("rotate-shortcut");
+            self->tool_strip_typed_rotation();
+        });
+    }
+
+    // Typing into a field, the way a person does it: click the field, type
+    // the digits, press Enter. The result is read from the model, not from
+    // the card, so a value that displays but never applies still fails.
+    void type_into_field(const char* field, const std::string& digits)
+    {
+        prepare_canvas().render();
+        const ViewportToolStrip* strip = installed_shell()->prepare_canvas_presentation().tool_strip();
+        check(strip != nullptr, "tool_strip_is_installed");
+        if (strip == nullptr)
+            return;
+        const auto& rects = strip->values().field_rects();
+        const auto found = rects.find(field);
+        check(found != rects.end(), std::string("field_") + field + "_was_drawn");
+        if (found == rects.end())
+            return;
+        const double scale = prepare_canvas().get_scale();
+        const wxPoint at(int((found->second.x + found->second.w / 2) / scale),
+                         int((found->second.y + found->second.h / 2) / scale));
+        send_canvas_mouse(wxEVT_MOTION, at, false);
+        prepare_canvas().render();
+        send_canvas_mouse(wxEVT_LEFT_DOWN, at, true);
+        send_canvas_mouse(wxEVT_LEFT_UP, at, false);
+        prepare_canvas().render();
+
+        wxGLCanvas* target = prepare_canvas().get_wxglcanvas();
+        const auto send_char = [target](int code) {
+            wxKeyEvent event(wxEVT_CHAR);
+            event.SetEventObject(target);
+            event.m_keyCode = code;
+            event.m_uniChar = code;
+            target->GetEventHandler()->ProcessEvent(event);
+        };
+        // A key, not a character: ImGui reads Enter from the key state, which
+        // only wxEVT_KEY_DOWN and KEY_UP carry, so a char alone leaves the
+        // field open and the value uncommitted.
+        const auto send_key = [target](int code) {
+            for (const wxEventType type : {wxEVT_KEY_DOWN, wxEVT_KEY_UP}) {
+                wxKeyEvent event(type);
+                event.SetEventObject(target);
+                event.m_keyCode = code;
+                target->GetEventHandler()->ProcessEvent(event);
+            }
+        };
+        for (const char digit : digits)
+            send_char(digit);
+        prepare_canvas().render();
+        // While the caret is in the field: the focus ring and the axis hint.
+        if (m_capture_typing) {
+            capture_tool_strip("typing");
+            m_capture_typing = false;
+        }
+        send_key(WXK_RETURN);
+        prepare_canvas().render();
+        prepare_canvas().render();
+    }
+
+    double first_instance_rotation_z() const
+    {
+        return m_plater->model().objects.front()->instances.front()->get_rotation().z();
+    }
+
+    void report_rotation(const char* what)
+    {
+        const GizmoObjectManipulation& manip = prepare_canvas().get_gizmos_manager().get_object_manipulation();
+        const Vec3d model = m_plater->model().objects.front()->instances.front()->get_rotation();
+        std::cerr << "HARNESS ANGLES " << what << " model=(" << Geometry::rad2deg(model.x()) << ", "
+                  << Geometry::rad2deg(model.y()) << ", " << Geometry::rad2deg(model.z()) << ")"
+                  << " relative=(" << manip.m_new_rotation.x() << ", " << manip.m_new_rotation.y() << ", "
+                  << manip.m_new_rotation.z() << ")"
+                  << " absolute=(" << manip.m_new_absolute_rotation.x() << ", " << manip.m_new_absolute_rotation.y()
+                  << ", " << manip.m_new_absolute_rotation.z() << ")\n";
+    }
+
+    // A quarter turn about Y reads back as (180, 90, 180) rather than
+    // (0, 90, 0): at ninety degrees on the middle axis, pulling Euler angles
+    // back out of a transform is degenerate, and OrcaSlicer's extraction picks
+    // that equivalent form. It is upstream's arithmetic -- driving the same
+    // change straight through GizmoObjectManipulation gives the same triple --
+    // and the fork matches it deliberately. What must stay true is the
+    // orientation itself, which is what this checks; the numbers beside it are
+    // only a different spelling of the same turn.
+    void tool_strip_ninety_orientation()
+    {
+        type_into_field("##rotation_y", "90");
+        wait_until_settled("ninety_typed_settled", [self = shared_from_this()] {
+            self->report_rotation("after typing relative Y=90");
+            const Transform3d actual =
+                self->m_plater->model().objects.front()->instances.front()->get_transformation().get_rotation_matrix();
+            const Transform3d expected = Transform3d(Eigen::AngleAxisd(M_PI / 2, Vec3d::UnitY()));
+            const double difference = (actual.matrix() - expected.matrix()).cwiseAbs().maxCoeff();
+            self->check(difference < 1e-9, "ninety_leaves_the_object_in_the_right_orientation");
+            self->m_plater->undo();
+            self->wait_until_settled("ninety_undo_settled", [self] { self->tool_strip_scale_step(); });
+        });
+    }
+
+    // A typed rotation has to reach the model, and it has to reach it once:
+    // the relative field says "turn it by this much", so 45 typed into Z is
+    // 45 degrees, not 90, and the field goes back to zero afterwards.
+    void tool_strip_typed_rotation()
+    {
+        const double before = first_instance_rotation_z();
+        type_into_field("##rotation_z", "45");
+        wait_until_settled("typed_rotation_settled", [self = shared_from_this(), before] {
+            const double after = self->first_instance_rotation_z();
+            const double turned = Geometry::rad2deg(after - before);
+            std::cerr << "HARNESS ROTATION before=" << Geometry::rad2deg(before) << " after=" << Geometry::rad2deg(after)
+                      << " turned=" << turned << '\n';
+            self->check(std::abs(turned - 45.0) < 0.5, "typed_relative_rotation_turns_by_what_was_typed");
+            self->capture_tool_strip("rotated");
+            self->check(self->open_tool() == GLGizmosManager::Rotate, "typing_keeps_the_rotate_tool_open");
+            self->tool_strip_absolute_rotation();
+        });
+    }
+
+    // The absolute row says "put it at this angle", so 10 typed into Z with
+    // the object already at 45 leaves it at 10, not 55. Then the reset beside
+    // the relative row puts it back where the tool found it.
+    void tool_strip_absolute_rotation()
+    {
+        type_into_field("##absolute_rotation_z", "10");
+        wait_until_settled("typed_absolute_rotation_settled", [self = shared_from_this()] {
+            const double absolute = Geometry::rad2deg(self->first_instance_rotation_z());
+            std::cerr << "HARNESS ROTATION absolute=" << absolute << '\n';
+            self->check(std::abs(absolute - 10.0) < 0.5, "typed_absolute_rotation_sets_the_angle");
+            self->tool_strip_rotation_reset();
+        });
+    }
+
+    void tool_strip_rotation_reset()
+    {
+        prepare_canvas().render();
+        const ViewportToolStrip* strip = installed_shell()->prepare_canvas_presentation().tool_strip();
+        const auto& rects = strip->values().field_rects();
+        const bool has_reset = rects.count("##reset_rotate-ccw") == 1;
+        check(has_reset, "rotation_reset_button_is_shown_once_rotated");
+        if (!has_reset) {
+            tool_strip_scale_step();
+            return;
+        }
+        const StripRect& button = rects.at("##reset_rotate-ccw");
+        const double scale = prepare_canvas().get_scale();
+        const wxPoint at(int((button.x + button.w / 2) / scale), int((button.y + button.h / 2) / scale));
+        send_canvas_mouse(wxEVT_MOTION, at, false);
+        prepare_canvas().render();
+        send_canvas_mouse(wxEVT_LEFT_DOWN, at, true);
+        send_canvas_mouse(wxEVT_LEFT_UP, at, false);
+        wait_until_settled("rotation_reset_settled", [self = shared_from_this()] {
+            const double after = Geometry::rad2deg(self->first_instance_rotation_z());
+            std::cerr << "HARNESS ROTATION after reset=" << after << '\n';
+            self->check(std::abs(after) < 0.5, "reset_returns_the_rotation_to_where_the_tool_opened");
+            self->tool_strip_ninety_orientation();
+        });
+    }
+
+    void tool_strip_scale_step()
+    {
+        click_tool_strip(StripTool::Scale, "tool_strip_scale_click_settled", [self = shared_from_this()] {
+            self->check(self->open_tool() == GLGizmosManager::Scale, "tool_strip_switches_rotate_to_scale");
+            self->check_tool_panel_anchored(StripTool::Scale, "scale");
+            self->capture_tool_strip("scale");
+            self->click_tool_strip(StripTool::Scale, "tool_strip_second_scale_click_settled", [self] {
+                self->check(self->open_tool() == GLGizmosManager::Undefined, "tool_strip_second_click_closes_scale");
+                self->tool_strip_duplicate();
+            });
+        });
+    }
+
+    void tool_strip_duplicate()
+    {
+        const size_t before = first_object_instances();
+        click_tool_strip(StripTool::Duplicate, "tool_strip_duplicate_click_settled", [self = shared_from_this(), before] {
+            self->check(self->first_object_instances() == before + 1, "duplicate_adds_exactly_one_instance");
+            self->capture_tool_strip("duplicated");
+            self->m_plater->undo();
+            self->wait_until_settled("tool_strip_duplicate_undo_settled", [self, before] {
+                self->check(self->first_object_instances() == before, "one_undo_removes_the_duplicate");
+                self->check(self->m_plater->select_object(0), "tool_strip_reselects_after_undo");
+                self->tool_strip_more();
+            });
+        });
+    }
+
+    // More opens the canvas's own object menu. PopupMenu runs a modal loop,
+    // so the check, the capture and the dismissal happen from a timer inside
+    // it. Dismissing a native popup from inside needs EndMenu, so the step
+    // runs on Windows only.
+    void tool_strip_more()
+    {
+#ifdef _WIN32
+        // Plater::PopupMenu shows its menus through the main frame, and a menu
+        // names the window that popped it up for exactly as long as it is shown.
+        // Taken once: MenuFactory::object_menu() appends items on every call.
+        wxMenu* object_menu = m_plater->object_menu();
+        auto dismissed      = std::make_shared<bool>(false);
+        auto ticks          = std::make_shared<int>(0);
+        auto shown_ticks    = std::make_shared<int>(0);
+        auto* timer         = new wxTimer();
+        timer->Bind(wxEVT_TIMER, [self = shared_from_this(), object_menu, timer, dismissed, ticks, shown_ticks](wxTimerEvent&) {
+            const bool shown = object_menu->GetInvokingWindow() == self->m_frame;
+            // Not up yet, or up but not yet painted: the timer runs every
+            // 100 ms for up to five seconds, and waits three ticks once the
+            // menu is up.
+            if (shown ? ++*shown_ticks < 3 : ++*ticks < 50)
+                return;
+            self->check(shown, "more_opens_the_object_menu");
+            if (shown) {
+                const bool dark = self->m_state->dark_appearance.value_or(false);
+                self->blit_screen(self->m_frame->GetScreenRect(), std::string("tool-strip-more-") + (dark ? "dark" : "light"));
+                ::EndMenu();
+            }
+            *dismissed = true;
+            timer->Stop();
+            wxTheApp->CallAfter([timer] { delete timer; });
+        });
+        timer->Start(100);
+        press_tool_strip(StripTool::More);
+        wait_until([dismissed] { return *dismissed; }, "tool_strip_more_menu_dismissed",
+                   [self = shared_from_this()] { self->tool_strip_orbit(); });
+#else
+        tool_strip_orbit();
+#endif
+    }
+
+    void tool_strip_orbit()
+    {
+        prepare_canvas().select_view("left");
+        wait_until_settled("tool_strip_orbit_settled", [self = shared_from_this()] {
+            self->capture_tool_strip("orbited");
+            self->tool_strip_narrow();
+        });
+    }
+
+    void tool_strip_narrow()
+    {
+        m_frame->Maximize(false);
+        m_frame->SetSize(m_frame->FromDIP(wxSize(1000, 700)));
+        wait_until_settled("tool_strip_narrow_settled", [self = shared_from_this()] {
+            const wxRect canvas = self->prepare_canvas().get_wxglcanvas()->GetScreenRect();
+            self->check(canvas.GetRight() < installed_shell()->agent_pane()->GetScreenRect().GetLeft(),
+                        "narrow_canvas_ends_before_the_agent_pane");
+            const StripLayout narrow = self->tool_strip_layout();
+            self->check(narrow.strip.x >= 0.f &&
+                            narrow.strip.x + narrow.strip.w <= float(self->prepare_canvas().get_canvas_size().get_width()),
+                        "strip_row_fits_the_narrow_canvas");
+            self->prepare_canvas().render();
+            const bool dark = self->m_state->dark_appearance.value_or(false);
+            self->write_screen_capture(self->m_frame->GetScreenRect(), std::string("tool-strip-narrow-") + (dark ? "dark" : "light"));
+            self->finish();
+        });
+    }
+
     void write_screen_capture(const wxRect& rect, const std::string& name)
     {
         fs::create_directories(m_state->capture_dir);
@@ -2293,6 +2691,38 @@ private:
         }
         struct RestoreStyle { wxFrame* frame; long style; ~RestoreStyle() { frame->SetWindowStyleFlag(style); } }
             restore{m_frame, style};
+        blit_screen(rect, name);
+    }
+
+    // The capture itself, with no yield: safe inside a popup menu's modal loop.
+    // The desktop scaling this process does not see.
+    //
+    // The application is DPI-unaware, so its own coordinates are the
+    // virtualized desktop's -- 1728x1084 on a 3456x2168 screen at 200%. The
+    // screen DC blits real pixels, so a rectangle has to be scaled up before
+    // it names the same place. The ratio is only discoverable through the
+    // device itself: HORZRES is what this process is told, DESKTOPHORZRES is
+    // what is really there. It is 1 whenever the session runs unscaled, which
+    // is why captures were right until the session reconnected at 200%.
+    double desktop_scale() const
+    {
+#ifdef _WIN32
+        HDC hdc = ::GetDC(nullptr);
+        const int physical = ::GetDeviceCaps(hdc, DESKTOPHORZRES);
+        const int logical  = ::GetDeviceCaps(hdc, HORZRES);
+        ::ReleaseDC(nullptr, hdc);
+        if (logical > 0 && physical > 0)
+            return double(physical) / double(logical);
+#endif
+        return 1.0;
+    }
+
+    void blit_screen(const wxRect& logical, const std::string& name)
+    {
+        fs::create_directories(m_state->capture_dir);
+        const double scale = desktop_scale();
+        const wxRect rect(int(logical.x * scale), int(logical.y * scale), int(logical.width * scale),
+                          int(logical.height * scale));
         wxScreenDC screen;
         wxBitmap   bitmap(rect.GetWidth(), rect.GetHeight());
         {
@@ -4528,6 +4958,8 @@ private:
     double                        m_save_ms{0.0};
     std::string                   m_header_setup_printer;
     std::string                   m_header_setup_restore_printer;
+    Selection::IndicesList        m_tool_strip_selection;
+    bool                          m_capture_typing{true};
 
     wxEvtHandler          m_poll_handler;
     wxTimer               m_poll_timer{&m_poll_handler};
@@ -4698,6 +5130,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::ManualLiveAgent;
         else if (argument == "--manual-unconfigured")
             state->mode = HarnessState::Mode::ManualUnconfigured;
+        else if (argument == "--manual-tool-strip")
+            state->mode = HarnessState::Mode::ManualToolStrip;
         else if (argument == "--slice-all-cold")
             state->mode = HarnessState::Mode::SliceAllCold;
         else if (argument == "--live-agent")
@@ -4739,6 +5173,14 @@ int main(int argc, char** argv)
                 return 2;
             }
             state->mode = HarnessState::Mode::TimelineCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--tool-strip-capture") {
+            if (++index == argc) {
+                std::cerr << "--tool-strip-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::ToolStripCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
         else
@@ -4856,7 +5298,8 @@ int main(int argc, char** argv)
         std::cerr << "HARNESS DATA DIR kept for inspection: " << data_directory.string() << '\n';
     int exit_code = state->result;
     if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
-        state->mode == HarnessState::Mode::ManualUnconfigured || state->mode == HarnessState::Mode::ManualMcp)
+        state->mode == HarnessState::Mode::ManualUnconfigured || state->mode == HarnessState::Mode::ManualMcp ||
+        state->mode == HarnessState::Mode::ManualToolStrip)
         exit_code = gui_result;
     else if (state->result < 0)
         exit_code = gui_result == 0 ? 1 : gui_result;

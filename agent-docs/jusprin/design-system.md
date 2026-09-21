@@ -219,6 +219,12 @@ three small, additive seams plus one attachment point.
      monospace role. The stylesheet may only say `var(--…)` for color, radius,
      and type; `AgentUI/src/styles.test.ts` reads the stylesheet from disk and
      fails on any literal, and on any spacing value off the scale.
+   - Canvas: the Prepare canvas's tool strip (`Canvas/ViewportToolStrip`)
+     paints with ImGui inside the GL frame, from the same `ShellTheme`. Its
+     icons are the `currentColor` SVGs in `resources/jusprin/ui/icons`,
+     rasterized white and tinted with the token colour. ImGui 1.83 has no
+     shadow primitive, so `elevation.medium` is approximated with stacked
+     translucent rounded rectangles.
 2. **Retained OrcaSlicer surfaces** are retinted through the color tables
    OrcaSlicer already routes its colors through, installed once per appearance
    mode by `JusPrin/Brand/BrandPalette.cpp` from the end of
@@ -230,6 +236,13 @@ three small, additive seams plus one attachment point.
    - `BitmapCache::SetColorReplaces` rewrites the teal in the SVG icon set to
      the action color at load time, and the monochrome brand mark to the text
      color.
+   - The canvas selection is OrcaSlicer's own, unretinted: its silhouette
+     outline, which OrcaSlicer ships switched off and the shell switches on
+     while it is installed, plus its white corner brackets. The brackets were
+     briefly given the primary action color; on the dark build plate that
+     measured 1.29:1 in light mode against white's 9:1, and with the outline
+     carrying the selection the override was dropped on 2026-09-21, which
+     left `Selection` untouched by the fork again.
    - The ImGui panels, the canvas selection rectangle, and the About dialog
      are left alone in source: those surfaces are slated to be hidden or
      replaced, so editing them would be divergence with no lasting value.

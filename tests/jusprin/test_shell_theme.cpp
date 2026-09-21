@@ -5,6 +5,7 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
@@ -79,6 +80,14 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.space_1 == 4);
     CHECK(m.space_12 == 48);
 
+    CHECK(m.elevation_medium.offset_x == 0);
+    CHECK(m.elevation_medium.offset_y == 4);
+    CHECK(m.elevation_medium.blur == 12);
+    CHECK(m.elevation_medium.spread == 0);
+    // Black at 0.12 opacity in light mode and 0.32 in dark, as alpha.
+    CHECK(theme.palette(false).elevation_medium == wxColour(0, 0, 0, 31));
+    CHECK(theme.palette(true).elevation_medium == wxColour(0, 0, 0, 82));
+
     CHECK(m.chip.height == 26);
     CHECK(m.chip.radius == 4);
     CHECK(m.menu_row.height == 32);
@@ -93,6 +102,34 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.agent_pane.resize_handle_width == 8);
     CHECK(m.agent_pane.resize_handle_line_width == 2);
     CHECK(m.swatch.size == 24);
+
+    CHECK(m.field.height == 26);
+    CHECK(m.field.radius == 4);
+    CHECK(m.field.padding_x == 8);
+    CHECK(m.field.min_width == 72);
+    CHECK(m.field.text_role == TextRole::Body);
+    CHECK(m.field.unit_text_role == TextRole::Label);
+    CHECK(m.select.height == 26);
+    CHECK(m.select.chevron_size == 16);
+    CHECK(m.checkbox.size == 16);
+    CHECK(m.checkbox.glyph_size == 12);
+    CHECK(m.checkbox.label_gap == 8);
+    CHECK(m.form_row.height == 26);
+    CHECK(m.form_row.gap == 8);
+    CHECK(m.form_row.label_width == 96);
+    CHECK(m.form_row.text_role == TextRole::Label);
+    CHECK(m.tool_panel.padding == 12);
+    CHECK(m.tool_panel.row_gap == 8);
+    CHECK(m.tool_panel.radius == 8);
+    CHECK(m.tool_panel.min_width == 220);
+    CHECK(m.tool_panel.title_text_role == TextRole::Section);
+
+    // The axis colours name the same 3D handles in both modes.
+    CHECK(theme.palette(false).axis_x == wxColour(0xFF, 0x3C, 0x5B));
+    CHECK(theme.palette(false).axis_y == wxColour(0x64, 0xC8, 0x18));
+    CHECK(theme.palette(false).axis_z == wxColour(0x2F, 0x88, 0xE9));
+    CHECK(theme.palette(true).axis_x == theme.palette(false).axis_x);
+    CHECK(theme.palette(true).axis_z == theme.palette(false).axis_z);
 
     CHECK(m.button.icon.width == 26);
     CHECK(m.button.icon.icon_size == 16);
@@ -135,6 +172,29 @@ TEST_CASE("a token file with a fractional DIP value is refused", "[shell][theme]
 {
     const ScratchResources resources(packaged_tokens_with("\"chip\": {\n      \"height\": 26,", "\"chip\": {\n      \"height\": 26.5,"));
     CHECK_THROWS_WITH(ShellTheme::load_from_resources(), Catch::Matchers::ContainsSubstring("component.chip.height"));
+}
+
+TEST_CASE("the viewport tool strip takes every size from the token file", "[shell][theme]")
+{
+    const ShellTheme theme = load_packaged_theme();
+    const ShellMetrics& m = theme.metrics();
+    const StripGeometry geometry = tool_strip_geometry(m);
+
+    // The icon-button recipe, and padding, gaps and inset on the spacing scale.
+    CHECK(geometry.button == m.button.icon.width);
+    CHECK(m.button.icon.width == m.button.icon.height);
+    CHECK(geometry.padding == m.space_1);
+    CHECK(geometry.gap == m.space_1);
+    CHECK(geometry.inset == m.space_3);
+    CHECK(geometry.button == 26);
+    CHECK(geometry.padding == 4);
+    CHECK(geometry.inset == 12);
+}
+
+TEST_CASE("a token file with an elevation opacity above 1 is refused", "[shell][theme]")
+{
+    const ScratchResources resources(packaged_tokens_with("\"light\": 0.12,", "\"light\": 12,"));
+    CHECK_THROWS_WITH(ShellTheme::load_from_resources(), Catch::Matchers::ContainsSubstring("elevation.medium.opacity.light"));
 }
 
 TEST_CASE("fonts carry the role weight and are built once", "[shell][theme][wx]")

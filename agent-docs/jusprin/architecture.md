@@ -144,7 +144,7 @@ MCP and broad agent autonomy are later layers. They must use the same typed boun
 
 Start with Move or Rotate and create one reusable native controller seam around existing behavior:
 
-1. Position a compact action strip beside the selected object.
+1. Show a compact action strip in the Prepare canvas's upper-left corner: a horizontal row, the way OrcaSlicer's own toolbar runs, but justified left rather than centred. It does not follow the selection or the camera: a strip docked to the object jumps whenever the view orbits. `Canvas/ViewportToolStrip` draws it with ImGui inside the canvas's own frame, through `GLCanvas3D::set_overlay_renderer`, and reads the open tool from the gizmo manager every frame. The open tool's values hang below the row in `Canvas/ToolValuePanel`, aligned with the button that opened it.
 2. Activate the existing native gizmo.
 3. Preserve existing pointer manipulation, snapping, and selection.
 4. Route exact numeric entry through `GizmoObjectManipulation`.

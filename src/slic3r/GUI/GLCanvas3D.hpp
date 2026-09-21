@@ -525,6 +525,9 @@ private:
     // corner icons are suppressed so the fork's own UI owns the canvas. The
     // active gizmo is deliberately left rendering and interactive.
     bool m_legacy_overlays_hidden{false};
+    // JusPrin: extra ImGui content drawn every frame, inside the frame's ImGui
+    // pass and whether or not the legacy overlays are hidden. Empty by default.
+    std::function<void()> m_overlay_renderer;
     wxGLCanvas* m_canvas;
     wxGLContext* m_context;
     SceneRaycaster m_scene_raycaster;
@@ -882,6 +885,7 @@ public:
     void enable_main_toolbar(bool enable) { m_main_toolbar.set_enabled(enable); }
     void set_legacy_overlays_hidden(bool hidden);
     bool legacy_overlays_hidden() const { return m_legacy_overlays_hidden; }
+    void set_overlay_renderer(std::function<void()> renderer) { m_overlay_renderer = std::move(renderer); set_as_dirty(); }
     //BBS: GUI refactor: GLToolbar
     void _update_select_plate_toolbar_stats_item(bool force_selected = false);
     void reset_select_plate_toolbar_selection();

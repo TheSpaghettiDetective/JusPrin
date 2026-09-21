@@ -40,6 +40,13 @@ struct ShellPalette
     wxColour status_success_on_action;
     wxColour status_danger;
     wxColour overlay_scrim;
+    // elevation.medium's shadow colour, with this mode's opacity as alpha.
+    wxColour elevation_medium;
+    // The 3D axis colours, the same in both modes because they name the same
+    // handles: a red X, a green Y and a blue Z.
+    wxColour axis_x;
+    wxColour axis_y;
+    wxColour axis_z;
 };
 
 // The text roles the token file defines under typography.roles.
@@ -96,6 +103,22 @@ struct SwatchMetrics    { int size{0}; int radius{0}; };
 // is open, so the two are the same width.
 struct PrinterCardMetrics { int column_width{0}; int radius{0}; };
 
+// A drop shadow's geometry; its colour differs by mode and lives in ShellPalette.
+struct ElevationMetrics { int offset_x{0}; int offset_y{0}; int blur{0}; int spread{0}; };
+
+// The numeric tool panel's parts: a value field with an optional unit, the
+// coordinate-space select, the uniform-scale checkbox, one row of the form,
+// and the panel that holds them.
+struct FieldMetrics     { int height{0}; int radius{0}; int padding_x{0}; int min_width{0};
+                          std::optional<TextRole> text_role; std::optional<TextRole> unit_text_role; };
+struct SelectMetrics    { int height{0}; int radius{0}; int padding_x{0}; int chevron_size{0};
+                          std::optional<TextRole> text_role; };
+struct CheckboxMetrics  { int size{0}; int radius{0}; int glyph_size{0}; int label_gap{0};
+                          std::optional<TextRole> text_role; };
+struct FormRowMetrics   { int height{0}; int gap{0}; int label_width{0}; std::optional<TextRole> text_role; };
+struct ToolPanelMetrics { int padding{0}; int row_gap{0}; int radius{0}; int min_width{0};
+                          std::optional<TextRole> title_text_role; };
+
 // Geometry from the token file's dimension and component sections. Every
 // value is DIP; callers wrap it in FromDIP().
 struct ShellMetrics
@@ -117,7 +140,14 @@ struct ShellMetrics
     int space_10{0};
     int space_12{0};
 
+    ElevationMetrics elevation_medium;
+
     ButtonMetrics    button;
+    FieldMetrics     field;
+    SelectMetrics    select;
+    CheckboxMetrics  checkbox;
+    FormRowMetrics   form_row;
+    ToolPanelMetrics tool_panel;
     ChipMetrics      chip;
     MenuRowMetrics   menu_row;
     PopoverMetrics   popover;

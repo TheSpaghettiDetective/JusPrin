@@ -9,6 +9,7 @@ add_executable(jusprin_tests
     test_home_host.cpp
     test_printer_names.cpp
     test_installed_models.cpp
+    test_viewport_tool_strip.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
@@ -16,6 +17,7 @@ add_executable(jusprin_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/PrinterNames.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/InstalledModels.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Canvas/ViewportToolStripLayout.cpp
 )
 
 target_compile_definitions(jusprin_tests PRIVATE

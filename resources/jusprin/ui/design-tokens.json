@@ -81,6 +81,11 @@
       },
       "overlay": {
         "scrim": "#17131F"
+      },
+      "axis": {
+        "x": "#FF3C5B",
+        "y": "#64C818",
+        "z": "#2F88E9"
       }
     },
     "dark": {
@@ -125,6 +130,11 @@
       },
       "overlay": {
         "scrim": "#000000"
+      },
+      "axis": {
+        "x": "#FF3C5B",
+        "y": "#64C818",
+        "z": "#2F88E9"
       }
     }
   },
@@ -361,6 +371,41 @@
     },
     "statusDot": {
       "size": 8
+    },
+    "field": {
+      "height": 26,
+      "radius": 4,
+      "paddingX": 8,
+      "minWidth": 72,
+      "textRole": "body",
+      "unitTextRole": "label"
+    },
+    "select": {
+      "height": 26,
+      "radius": 4,
+      "paddingX": 8,
+      "chevronSize": 16,
+      "textRole": "body"
+    },
+    "checkbox": {
+      "size": 16,
+      "radius": 4,
+      "glyphSize": 12,
+      "labelGap": 8,
+      "textRole": "body"
+    },
+    "formRow": {
+      "height": 26,
+      "gap": 8,
+      "labelWidth": 96,
+      "textRole": "label"
+    },
+    "toolPanel": {
+      "padding": 12,
+      "rowGap": 8,
+      "radius": 8,
+      "minWidth": 220,
+      "titleTextRole": "section"
     },
     "icon": {
       "sizes": [

@@ -2147,6 +2147,8 @@ void GLCanvas3D::render(bool only_init)
     // draw overlays
     if (!m_legacy_overlays_hidden)
         _render_overlays();
+    if (m_overlay_renderer)
+        m_overlay_renderer();
 
     const int current_fps = m_render_stats.get_fps_and_reset_if_needed();
     if (_is_fps_overlay_enabled())

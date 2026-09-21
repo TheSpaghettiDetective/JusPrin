@@ -70,6 +70,14 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Brand/BrandPalette.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
     GUI/JusPrin/CanvasPresentationController.hpp
+    GUI/JusPrin/Canvas/CanvasIcons.cpp
+    GUI/JusPrin/Canvas/CanvasIcons.hpp
+    GUI/JusPrin/Canvas/ToolValuePanel.cpp
+    GUI/JusPrin/Canvas/ToolValuePanel.hpp
+    GUI/JusPrin/Canvas/ViewportToolStrip.cpp
+    GUI/JusPrin/Canvas/ViewportToolStrip.hpp
+    GUI/JusPrin/Canvas/ViewportToolStripLayout.cpp
+    GUI/JusPrin/Canvas/ViewportToolStripLayout.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
     GUI/JusPrin/Shell/McpSetupCommand.cpp
