@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b6vs8ipfe</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\40425d7f-570d-4e51-a449-01f13859aadc\tasks\b6vs8ipfe.output</output-file>
+<status>completed</status>
+<summary>Background command "Force-rebuild the harness from HEAD" completed (exit code 0)</summary>
+</task-notification>
