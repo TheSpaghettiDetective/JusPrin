@@ -1,0 +1,5 @@
+&#x20;create a hint of documents to another agents to work on this issue:
+
+Neither screen clearly distinguishes adding printer settings from connecting a physical printer.“Will this find my printer on Wi-Fi? Can I print after this?”Explain the outcome and show connection as a separate, optional step.
+
+&#x20;I guess the biggest question here is the feasibility as well as how the pieces are connected behind the scene. As far as I know,  OrcaSlicer's code is very messy here
