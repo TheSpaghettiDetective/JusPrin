@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bxkzp54zn</task-id>
+<tool-use-id>toolu_011bDiTw449R12uScPCKG2eT</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\485a1a11-10af-4f4c-bbf8-b24fc15f1d4b\tasks\bxkzp54zn.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for harness runs" failed with exit code 4</summary>
+</task-notification>
