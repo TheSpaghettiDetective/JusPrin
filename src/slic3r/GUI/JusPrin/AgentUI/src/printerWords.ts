@@ -7,7 +7,6 @@ import type {
   NetworkPrinterInfo,
   PrinterBlock,
   PrinterCardInfo,
-  PrinterFacts,
   PrinterSessionPayload,
   PrinterSpoolInfo,
 } from './bridge/protocol';
@@ -54,10 +53,6 @@ export function spoolSummary(ams: string, spools: PrinterSpoolInfo[]): string {
 
 // -- The panel's fixed words --------------------------------------------------
 
-export function caption(session: PrinterSessionPayload): string {
-  return session.mode === 'add' ? 'NEW PRINTER' : 'PRINTER';
-}
-
 // A likely answer, rather than a standing invitation.
 export function placeholder(session: PrinterSessionPayload): string {
   return session.mode === 'add'
@@ -84,31 +79,9 @@ export function opening(session: PrinterSessionPayload): string {
     return `This is the ${name}. Tell me what changed on it, or ask anything about it: nozzle, plate, spools. A photo of the part works too.`;
   }
   return (
-    "I'll add your printer so your projects slice for it. " +
-    'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".'
+    'Which printer do you have? Tell me the brand and model, or share a photo of its label. ' +
+    "Not sure? Tell me what you know, and I'll help you find it."
   );
-}
-
-// -- The pinned card ----------------------------------------------------------
-
-export interface FactText {
-  value: string; // empty: nobody has said yet
-  provenance: PrinterFacts['printer']['provenance'];
-  swatch?: string;
-}
-
-export function factTexts(facts: PrinterFacts): { printer: FactText; nozzle: FactText; plate: FactText; filament: FactText } {
-  const loaded = facts.filament.spools;
-  return {
-    printer: { value: facts.printer.name, provenance: facts.printer.provenance },
-    nozzle: { value: facts.nozzle.size > 0 ? mm(facts.nozzle.size) : '', provenance: facts.nozzle.provenance },
-    plate: { value: facts.plate.name, provenance: facts.plate.provenance },
-    filament: {
-      value: loaded.length > 0 || facts.filament.ams ? spoolSummary(facts.filament.ams, loaded) : facts.filament.preset,
-      provenance: facts.filament.provenance,
-      swatch: loaded[0]?.colour || undefined,
-    },
-  };
 }
 
 // -- The cards in the thread --------------------------------------------------
@@ -145,23 +118,17 @@ export function rejectedNote(name: string): string {
 }
 
 export function chosenNote(card: PrinterCardInfo): string {
-  const assumed = [`a ${mm(card.assumed.nozzle)} nozzle`];
-  if (card.assumed.plate) assumed.push(`the ${card.assumed.plate}`);
-  if (card.assumed.filament) assumed.push(card.assumed.filament);
-  let text = `The person chose ${card.name}. Its card offers Add, assuming ${listed(assumed)}`;
-  if (!card.assumed.plate) text += '; the profile names no plate';
-  if (!card.assumed.filament) text += '; the profile names no filament';
-  return `${text}.`;
+  return `Selected ${card.name}. Nozzle choice: ${mm(card.assumed.nozzle)}.`;
 }
 
 // For a network printer the app matched to a model in the list.
 export function networkNote(printer: NetworkPrinterInfo): string {
   const match = printer.match;
   if (!match) return '';
-  const start = `The person chose the network printer ${printer.serial}, a ${match.name}`;
+  const start = `Selected ${match.name} (${printer.serial})`;
   return match.reported
-    ? `${start} that reports a ${mm(match.nozzle)} nozzle.`
-    : `${start}; it did not report its nozzle, so its card assumes ${mm(match.nozzle)}.`;
+    ? `${start}, reporting a ${mm(match.nozzle)} nozzle.`
+    : `${start}. No nozzle size reported; using the ${mm(match.nozzle)} model default.`;
 }
 
 export function undoneNote(block: PrinterBlock): string {

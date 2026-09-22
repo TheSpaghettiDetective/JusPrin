@@ -1893,62 +1893,6 @@ button.wide {
   color: var(--action-primary-hover);
 }
 
-.printer-pinned {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border: 2px solid var(--action-primary);
-  border-radius: var(--radius-container);
-  background: var(--surface-subtle);
-}
-
-.printer-pinned-caption {
-  margin: 0;
-  font: var(--font-metadata);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--action-primary);
-}
-
-.printer-fact {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.printer-fact-label {
-  flex: 0 0 64px;
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
-.printer-fact-value {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font: var(--font-label-bold);
-  color: var(--text-primary);
-}
-
-/* Nobody has said yet; the em dash holds the row open. */
-.printer-fact-empty {
-  font: var(--font-label);
-  color: var(--text-tertiary);
-}
-
-/* The agent's stated guess, not a reading. */
-.printer-fact-assumed {
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
-/* Changed in this session: the one thing in the card that is new. */
-.printer-fact-changed {
-  color: var(--status-danger);
-}
-
 .printer-swatch {
   display: inline-block;
   width: 8px;
@@ -2162,6 +2106,21 @@ button.wide {
   font: var(--font-label-bold);
   color: var(--action-primary);
   text-decoration: underline;
+}
+
+.printer-setup-alternative {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.printer-setup-alternative .printer-link-button {
+  font: var(--font-body-bold);
 }
 
 /* A change the model worked out, stated in words before it is saved. */

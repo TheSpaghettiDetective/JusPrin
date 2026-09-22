@@ -7,7 +7,6 @@ import {
   cardSubline,
   changeTitle,
   chosenNote,
-  factTexts,
   networkNote,
   numberText,
   opening,
@@ -69,39 +68,13 @@ describe('numbers', () => {
   });
 });
 
-describe('the pinned card', () => {
-  it('states nothing for a fact nobody has said', () => {
-    const text = factTexts(facts);
-    expect([text.printer.value, text.nozzle.value, text.plate.value, text.filament.value]).toEqual(['', '', '', '']);
-  });
-
-  it('states what is loaded, or else the filament the card assumes', () => {
-    const loaded = factTexts({
-      ...facts,
-      nozzle: { size: 0.6, provenance: 'changed' },
-      filament: {
-        preset: 'Bambu PLA Basic @BBL A1M',
-        ams: 'AMS lite',
-        spools: [{ name: 'PLA Matte', material: 'PLA', colour: '#5f7d4f' }],
-        provenance: 'settled',
-      },
-    });
-    expect(loaded.nozzle).toEqual({ value: '0.6 mm', provenance: 'changed' });
-    expect(loaded.filament).toEqual({ value: 'AMS lite · PLA Matte', provenance: 'settled', swatch: '#5f7d4f' });
-
-    const assumed = factTexts({ ...facts, filament: { ...facts.filament, preset: 'Prusa Generic PLA', provenance: 'assumed' } });
-    expect(assumed.filament.value).toBe('Prusa Generic PLA');
-    expect(assumed.filament.swatch).toBeUndefined();
-  });
-});
-
 describe('the opening', () => {
   // F1 review fix: a network-found printer connects *now*, with Add, not
   // "later" -- so the opener makes no promise about when, for either path.
-  it('asks what printer it is when adding, after saying what adding does, promising nothing about connecting', () => {
+  it('starts with only the model and helps someone who is unsure', () => {
     expect(opening(session({}))).toBe(
-      "I'll add your printer so your projects slice for it. " +
-        'What printer do you have? Say it any way: "bambu a1 mini", "the ender with the touchscreen", "not sure, the small one".',
+      'Which printer do you have? Tell me the brand and model, or share a photo of its label. ' +
+        "Not sure? Tell me what you know, and I'll help you find it.",
     );
     expect(opening(session({}))).not.toContain('connect');
   });
@@ -161,10 +134,10 @@ describe('the notes the model reads after a tap', () => {
     expectStatement(note);
   });
 
-  it('records the printer chosen and what its card assumes, including what the profile leaves out', () => {
+  it('records the selection and nozzle without reciting project defaults', () => {
     const noPlate = chosenNote(card());
     expect(noPlate).toBe(
-      'The person chose Prusa MK3S. Its card offers Add, assuming a 0.4 mm nozzle and Prusa Generic PLA; the profile names no plate.',
+      'Selected Prusa MK3S. Nozzle choice: 0.4 mm.',
     );
     expectStatement(noPlate);
     expect(
@@ -172,20 +145,20 @@ describe('the notes the model reads after a tap', () => {
         card({ name: 'Bambu Lab A1 mini', assumed: { nozzle: 0.6, plate: 'Textured PEI Plate', filament: 'Bambu PLA Basic @BBL A1M' } }),
       ),
     ).toBe(
-      'The person chose Bambu Lab A1 mini. Its card offers Add, assuming a 0.6 mm nozzle, the Textured PEI Plate and Bambu PLA Basic @BBL A1M.',
+      'Selected Bambu Lab A1 mini. Nozzle choice: 0.6 mm.',
     );
     expect(chosenNote(card({ assumed: { nozzle: 0.8, plate: '', filament: '' } }))).toBe(
-      'The person chose Prusa MK3S. Its card offers Add, assuming a 0.8 mm nozzle; the profile names no plate; the profile names no filament.',
+      'Selected Prusa MK3S. Nozzle choice: 0.8 mm.',
     );
   });
 
   it('records a network printer as the app matched it, and nothing when it did not', () => {
     const found: NetworkPrinterInfo = { deviceId: '01P00A3B', name: 'A1', serial: '01P00A3B', online: true };
     const reported = networkNote({ ...found, match: { name: 'Bambu Lab A1 mini', nozzle: 0.4, reported: true } });
-    expect(reported).toBe('The person chose the network printer 01P00A3B, a Bambu Lab A1 mini that reports a 0.4 mm nozzle.');
+    expect(reported).toBe('Selected Bambu Lab A1 mini (01P00A3B), reporting a 0.4 mm nozzle.');
     expectStatement(reported);
     expect(networkNote({ ...found, match: { name: 'Bambu Lab A1 mini', nozzle: 0.4, reported: false } })).toBe(
-      'The person chose the network printer 01P00A3B, a Bambu Lab A1 mini; it did not report its nozzle, so its card assumes 0.4 mm.',
+      'Selected Bambu Lab A1 mini (01P00A3B). No nozzle size reported; using the 0.4 mm model default.',
     );
     expect(networkNote(found)).toBe('');
   });

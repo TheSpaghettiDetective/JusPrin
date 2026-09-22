@@ -9,7 +9,7 @@ import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
-import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow } from './components/PrinterPanel';
 import { PrinterConnection } from './components/PrinterConnection';
 import { printerInstructions } from './printerInstructions';
 import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote, workingText } from './printerWords';
@@ -321,10 +321,9 @@ export function App({
   }
 
   const unavailable = state.agentStatus === 'unavailable';
-  // Nothing has been delegated yet, so the dock's whole surface becomes the
-  // one offer. A conversation carried in from a previously configured session
-  // keeps its history and gets the banner above it instead.
-  const notConfigured = unavailable && state.messages.length === 0;
+  // The printer greeting is added before an Agent is configured, so it must
+  // not hide setup. The project dock keeps saved history visible instead.
+  const notConfigured = unavailable && (printerPanel || state.messages.length === 0);
   const streaming = state.streamingMessageId !== null;
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
@@ -352,7 +351,7 @@ export function App({
   // The dock body is one of three things: the conversation, the offer, or a
   // setup screen. Setup replaces the body rather than covering it, so backing
   // out returns to exactly what was there before.
-  const body = () => {
+  const body = (onManualSetup?: () => void) => {
     // An embedded, setup-only instance never has a conversation to show, so
     // it always renders one of the setup screens below regardless of view.
     if (!embedded && !notConfigured && view !== 'setup')
@@ -401,11 +400,12 @@ export function App({
           }}
         />
       );
-    return <AgentNotConfiguredPane onSetUp={openSetup} />;
+    return <AgentNotConfiguredPane onSetUp={openSetup} onManualSetup={onManualSetup} />;
   };
 
   if (printerPanel) {
     const session = state.session;
+    const offerManualPrinterSetup = notConfigured && session?.mode === 'add' && view === 'chat';
     const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
       client.send('printer_action', { action, id, ...extra });
     if (session && (session.connection || (session.added?.length ?? 0) > 0)) {
@@ -451,9 +451,11 @@ export function App({
               ‹
             </button>
             <h1>{session?.mode === 'add' ? 'Add your printer' : 'Printers'}</h1>
-            <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
-              Set it up myself
-            </button>
+            {!offerManualPrinterSetup && (
+              <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
+                Set it up myself
+              </button>
+            )}
           </header>
           {session?.mode === 'add' && <p className="printer-setup-explanation">Choose your printer so JusPrin can prepare prints for it. You can connect it afterward.</p>}
           {session?.manualApplied && !session.added?.length && <p className="printer-setup-explanation" role="status">No new printers were added. Your existing printers are available from Home.</p>}
@@ -482,13 +484,8 @@ export function App({
               </div>
             </div>
           )}
-          {session && !notConfigured && (
-            <div className="pinned-setup">
-              <PrinterPinnedCard session={session} />
-            </div>
-          )}
           {notConfigured ? (
-            body()
+            body(offerManualPrinterSetup ? () => gatedPrinterAction('manual_setup') : undefined)
           ) : (
             <MessageList
               messages={state.messages}

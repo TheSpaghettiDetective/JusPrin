@@ -1,6 +1,5 @@
-// The printer panel's own parts: the card pinned above the thread, the cards
-// drawn inside it, the row of things to tap, and the card that confirms a
-// change to a printer.
+// The printer panel's choices, actions, and confirmation of a proposed change.
+// Setup guidance lives in the conversation, without a pinned hardware summary.
 //
 // Everything here renders host state, in words made on this page
 // (printerWords.ts). A tap sends a typed printer action or a tool decision,
@@ -14,65 +13,20 @@ import type {
   PrinterBlock,
   PrinterCardInfo,
   PrinterChangeConfirm,
-  PrinterSessionPayload,
   PrinterSpoolInfo,
   ToolActivityInfo,
 } from '../bridge/protocol';
 import {
   ADD_LABEL,
   REJECT_LABEL,
-  caption,
   cardSubline,
   changeTitle,
   chosenNote,
-  factTexts,
   mm,
   networkNote,
   undoText,
   undoneNote,
-  type FactText,
 } from '../printerWords';
-
-const EM_DASH = '—';
-
-function factClass(fact: FactText): string {
-  if (!fact.value) return 'printer-fact-value printer-fact-empty';
-  return `printer-fact-value printer-fact-${fact.provenance}`;
-}
-
-function factSuffix(fact: FactText): string {
-  if (!fact.value) return '';
-  if (fact.provenance === 'assumed') return ' · assumed';
-  if (fact.provenance === 'changed') return ' · changed';
-  return '';
-}
-
-function FactRow({ label, fact }: { label: string; fact: FactText }) {
-  return (
-    <div className="printer-fact">
-      <span className="printer-fact-label">{label}</span>
-      <span className={factClass(fact)}>
-        {fact.swatch && <span className="printer-swatch" style={{ background: fact.swatch }} aria-hidden="true" />}
-        {fact.value || EM_DASH}
-        {factSuffix(fact)}
-      </span>
-    </div>
-  );
-}
-
-// The four facts a printer is, in the order the panel always states them.
-export const PrinterPinnedCard = memo(function PrinterPinnedCard({ session }: { session: PrinterSessionPayload }) {
-  const facts = factTexts(session.facts);
-  return (
-    <section className="printer-pinned" aria-label={caption(session)}>
-      <p className="printer-pinned-caption">{caption(session)}</p>
-      <FactRow label="Printer" fact={facts.printer} />
-      <FactRow label="Nozzle" fact={facts.nozzle} />
-      <FactRow label="Plate" fact={facts.plate} />
-      <FactRow label="Filament" fact={facts.filament} />
-    </section>
-  );
-});
 
 // The camera the panel shows wherever a photo is offered. Inline, like the
 // composer's send arrow, because the icon set carries no camera yet.

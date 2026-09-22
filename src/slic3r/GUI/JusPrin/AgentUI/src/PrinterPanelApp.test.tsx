@@ -144,6 +144,59 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'connect', id: 'Garage' });
   });
 
+  it('keeps setup visible when the host adds the automatic printer greeting', async () => {
+    const host = open(state({ agent: { status: 'unavailable' }, conversation: [], session: session({ canAdd: false }) }));
+    expect(host.lastOfType('printer_opening')).toBeDefined();
+    expect(screen.getByTestId('agent-not-configured')).toBeVisible();
+
+    host.deliver('message_added', { message: state().conversation[0] });
+    expect(screen.getByTestId('agent-not-configured')).toBeVisible();
+    expect(screen.queryByText('What printer do you have?')).not.toBeInTheDocument();
+    expect(screen.queryByText('NEW PRINTER')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+
+    expect(screen.getByText('Not ready to set up the agent?')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Set it up myself' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Add your printer manually' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
+    await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
+  });
+
+  it('navigates agent setup with a greeting already present and resumes the printer chat when ready', async () => {
+    const host = open(state({ agent: { status: 'unavailable' }, session: session({ canAdd: false }) }));
+    await userEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Connect an AI tool you already use' }));
+    expect(screen.getByTestId('setup-local-tools')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close setup' }));
+    expect(screen.getByTestId('agent-not-configured')).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your own API key' }));
+    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'test-key');
+    await userEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'openai', apiKey: 'test-key' });
+    host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 500 });
+    expect(screen.getByTestId('setup-verified')).toBeVisible();
+    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+
+    host.deliver('agent_status', { status: 'ready' });
+    expect(screen.queryByTestId('setup-api-key')).not.toBeInTheDocument();
+    expect(screen.getByText('What printer do you have?')).toBeVisible();
+    expect(document.querySelector('.printer-pinned')).toBeNull();
+    expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Add a photo' })).toBeEnabled();
+    await userEvent.type(screen.getByLabelText('Message the Agent'), 'Bambu A1 mini{Enter}');
+    expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Bambu A1 mini' });
+  });
+
+  it('keeps the add-printer fallback out of an existing printer’s settings', () => {
+    open(state({ agent: { status: 'unavailable' }, session: session({ mode: 'change', canAdd: false }) }));
+    expect(screen.queryByRole('button', { name: 'Add your printer manually' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set it up myself' })).toBeVisible();
+  });
+
   // WP10 (F10), corrected by F7 on printer-panel-review-fixes-handoff.md:
   // message count alone caught a saved, applied Change too -- the panel
   // stays open after a printer_change succeeds, and nothing said there was
@@ -276,11 +329,14 @@ describe('the printer panel page', () => {
     });
   });
 
-  it('pins the printer’s four facts above the thread', () => {
+  it('keeps the conversation and Add action without a pinned hardware summary', () => {
     open();
-    expect(screen.getByText('NEW PRINTER')).toBeInTheDocument();
-    expect(screen.getByText(/Bambu Lab A1 mini/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.4 mm · assumed/)).toBeInTheDocument();
+    expect(document.querySelector('.printer-pinned')).toBeNull();
+    expect(document.querySelector('.pinned-setup')).toBeNull();
+    expect(screen.queryByText('Nozzle')).toBeNull();
+    expect(screen.queryByText('Plate')).toBeNull();
+    expect(screen.queryByText('Filament')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add this printer' })).toBeEnabled();
     // The project's own setup card belongs to the other panel.
     expect(screen.queryByTestId('current-setup')).toBeNull();
   });
@@ -295,7 +351,7 @@ describe('the printer panel page', () => {
     const openings = host.received.filter((envelope) => envelope.type === 'printer_opening');
     expect(openings).toHaveLength(1);
     expect((openings[0].payload as { text: string }).text).toMatch(
-      /^I'll add your printer so your projects slice for it\. What printer do you have\? Say it any way/,
+      /^Which printer do you have\? Tell me the brand and model/,
     );
     const types = host.received.map((envelope) => envelope.type);
     expect(types.indexOf('printer_opening')).toBeLessThan(types.indexOf('printer_instructions'));
@@ -492,7 +548,7 @@ describe('the printer panel page', () => {
   it('follows the session the host sends after the state', () => {
     const host = open();
     host.deliver('printer_session', session({ mode: 'change', canAdd: false }));
-    expect(screen.getByText('PRINTER')).toBeInTheDocument();
+    expect(document.querySelector('.printer-pinned')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
   });
 });

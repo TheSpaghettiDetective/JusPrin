@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
-import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
+import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow } from './PrinterPanel';
 import { PrinterConnection } from './PrinterConnection';
 import { applyStaticTokens } from '../tokens';
 import { opening, placeholder } from '../printerWords';
@@ -144,9 +144,6 @@ function panel(
             Set it up myself
           </button>
         </header>
-        <div className="pinned-setup">
-          <PrinterPinnedCard session={state} />
-        </div>
         <MessageList
           messages={messages}
           attachments={attachments}
@@ -209,7 +206,7 @@ const cases = () => [
   },
   {
     name: 'B · recognised from words',
-    note: 'the card, the assumptions line, Add as the primary chip',
+    note: 'model choice with guidance in the conversation, Add as the primary action',
     body: panel(
       session({
         facts: facts('Bambu Lab A1 mini', [0.4, 'assumed'], 'Textured PEI Plate', {
@@ -222,7 +219,7 @@ const cases = () => [
       [
         message('m2', 'user', 'the small bambu one'),
         message('m3', 'assistant',
-          "This one? I'll assume a **0.4 mm nozzle**, the **textured PEI plate** it ships with, and **PLA**. If anything is different, say so here or in your first project."),
+          'Bambu Lab A1 mini — the model default is a **0.4 mm nozzle**. If you changed it, tell me; otherwise choose **Add this printer**.'),
       ],
     ),
   },

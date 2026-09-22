@@ -5,66 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { PrinterBlock, PrinterCardInfo, PrinterSessionPayload, ToolActivityInfo } from '../bridge/protocol';
-import { PrinterAccessCode, PrinterBlockView, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
-
-function session(overrides: Partial<PrinterSessionPayload> = {}): PrinterSessionPayload {
-  return {
-    mode: 'add',
-    facts: {
-      printer: { name: '', provenance: 'settled' },
-      nozzle: { size: 0, provenance: 'settled' },
-      plate: { name: '', provenance: 'settled' },
-      filament: { preset: '', ams: '', spools: [], provenance: 'settled' },
-    },
-    blocks: [],
-    canAdd: false,
-    ...overrides,
-  };
-}
-
-describe('the pinned card', () => {
-  it('states the four facts in order, with an em dash for what nobody has said', () => {
-    render(<PrinterPinnedCard session={session()} />);
-
-    expect(screen.getByText('NEW PRINTER')).toBeInTheDocument();
-    const labels = screen.getAllByText(/^(Printer|Nozzle|Plate|Filament)$/).map((node) => node.textContent);
-    expect(labels).toEqual(['Printer', 'Nozzle', 'Plate', 'Filament']);
-    expect(screen.getAllByText('—')).toHaveLength(4);
-  });
-
-  it('marks an assumed fact as assumed and a changed one as changed', () => {
-    render(
-      <PrinterPinnedCard
-        session={session({
-          mode: 'change',
-          facts: {
-            printer: { name: 'Bambu Lab A1 Combo', provenance: 'settled' },
-            nozzle: { size: 0.6, provenance: 'changed' },
-            plate: { name: 'Textured PEI', provenance: 'assumed' },
-            filament: {
-              preset: '',
-              ams: 'AMS',
-              spools: [
-                { name: 'PLA Matte', material: 'PLA', colour: '#5f7d4f' },
-                { name: 'PETG', material: 'PETG' },
-              ],
-              provenance: 'settled',
-            },
-          },
-        })}
-      />,
-    );
-
-    expect(screen.getByText('PRINTER')).toBeInTheDocument();
-    expect(screen.getByText(/AMS · PLA Matte \+ 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Textured PEI · assumed/)).toBeInTheDocument();
-    const changed = screen.getByText(/0\.6 mm · changed/);
-    expect(changed).toHaveClass('printer-fact-changed');
-    // A settled fact says nothing about where it came from.
-    expect(screen.getByText(/Bambu Lab A1 Combo/)).not.toHaveTextContent('assumed');
-  });
-});
+import type { PrinterBlock, PrinterCardInfo, ToolActivityInfo } from '../bridge/protocol';
+import { PrinterAccessCode, PrinterBlockView, PrinterChangeCard, PrinterChipRow } from './PrinterPanel';
 
 function card(overrides: Partial<PrinterCardInfo> = {}): PrinterCardInfo {
   return {
@@ -120,7 +62,7 @@ describe('the cards the agent draws', () => {
     // and the note says what that card assumes.
     expect(onAction).toHaveBeenCalledWith('candidate_pick', 'Creality/Ender-3 S1', {
       blockId: 'b1',
-      note: 'The person chose Ender-3 S1. Its card offers Add, assuming a 0.6 mm nozzle and Creality Generic PLA; the profile names no plate.',
+      note: 'Selected Ender-3 S1. Nozzle choice: 0.6 mm.',
     });
   });
 
@@ -189,7 +131,7 @@ describe('the cards the agent draws', () => {
     expect(screen.getByText('01P00A3B')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Use this' }));
     expect(onAction).toHaveBeenCalledWith('network_pick', '01P00A3B', {
-      note: 'The person chose the network printer 01P00A3B, a Bambu Lab A1 mini that reports a 0.4 mm nozzle.',
+      note: 'Selected Bambu Lab A1 mini (01P00A3B), reporting a 0.4 mm nozzle.',
     });
   });
 

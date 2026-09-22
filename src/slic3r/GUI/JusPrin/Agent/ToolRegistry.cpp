@@ -1408,7 +1408,9 @@ std::vector<ToolDefinition> make_definitions()
         {"printer_identify",
          "Show the printers you mean",
          "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them to "
-         "the person, and returns the details to mention. It never picks a printer.",
+         "the person, and returns reference details. With multiple results, ask the person to click This one; Add is unavailable "
+         "and nozzle details are premature. With one result, explain the nozzle choice and Add this printer. "
+         "alreadyYours only means settings for the same model were saved before, not the same physical printer. It never picks a printer.",
          object_schema(json{{"catalogIds", {{"type", "array"}, {"items", string_schema()},
                                             {"description", "1 to 3 ids, copied exactly from the printer list."}}},
                             {"nozzle", {{"type", "number"},

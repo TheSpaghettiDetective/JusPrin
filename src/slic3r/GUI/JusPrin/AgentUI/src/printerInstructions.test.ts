@@ -60,12 +60,23 @@ describe('the Add instructions', () => {
     expect(text).toContain('More than three fit: do not call it');
     expect(text).toContain('Set it up myself');
     expect(text).toContain('never say a printer has been added');
-    // F1 review fix: the network-found path does connect, with Add's access
-    // code field, so the rule may not deny connecting outright.
-    expect(text).toContain('A printer found on the network connects');
-    expect(text).toContain("named from words or a photo has no such field, so connecting it isn't possible here");
+    // Adding saves the printer; connection has its own optional next step.
+    expect(text).toContain('Connection is a separate optional step after adding');
+    expect(text).toContain('Do not request passwords or access codes in chat');
     expect(text).not.toContain('printer_suggest');
     expect(text).not.toContain('The printer as it is now');
+  });
+
+  it('guides the person without a summary card or a hardware questionnaire', () => {
+    const text = printerInstructions(add);
+    expect(text).toContain('There is no pinned hardware summary');
+    expect(text).toContain('Do not ask for nozzle, plate or filament before identifying it');
+    expect(text).toContain('briefly explain the nozzle choice returned by the tool');
+    expect(text).toContain('not prerequisites for adding a printer');
+    expect(text).toContain('call printer_identify again');
+    expect(text).toContain('Only report the updated size after the tool confirms it');
+    expect(text).toContain('NOT available until one is selected');
+    expect(text).toContain('not proof of what is installed or shipped');
   });
 
   it('name what is on the network, which the panel already lists', () => {
