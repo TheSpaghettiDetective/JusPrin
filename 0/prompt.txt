@@ -1,0 +1,3 @@
+The functioning manual route is a small “Set it up myself” link.“Is that an advanced option I should avoid?”Make **Choose printer manually** a prominent primary action when the assistant is unavailable.
+
+I think this should be address by adding something like "not ready to set up agent? Add your printer manually" link below the "set up agent" section, right? If so, come up with a design and wording. implement it and test it. take a screenshot for how it looks, and I'll approve
