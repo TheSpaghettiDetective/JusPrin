@@ -1,0 +1,1 @@
+check the git log to see if the commits that were supposed to replace the dialog-based prinetr flow with chat-based one brought the "setup agent" experience over too. they were supposed to
