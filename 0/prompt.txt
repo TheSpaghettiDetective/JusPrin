@@ -1,0 +1,1 @@
+check if the agent has fixed the stale mcp tool count in shell harness and merged to journey-tools-m0
