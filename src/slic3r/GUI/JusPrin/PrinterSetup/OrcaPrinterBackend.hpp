@@ -2,8 +2,8 @@
 
 // The one route from the printer panel to Orca. Every read comes from an
 // existing owner -- the packaged catalogue, Bambu's device list, the printer
-// preset collection, the spool store -- and every write goes through
-// SetupCommands or Printers::, never through a preset or a device directly.
+// preset collection, the spool store -- and writes reuse the preset, device,
+// networking and print-host owners rather than copying their mechanisms.
 
 #include "PrinterBackend.hpp"
 #include "PrinterCatalog.hpp"

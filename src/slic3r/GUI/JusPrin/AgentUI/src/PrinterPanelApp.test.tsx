@@ -1,9 +1,12 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { applyStaticTokens } from './tokens';
 // The page in printer-panel mode: the same thread and composer as the docked
 // panel, with the printer session's header, pinned card and chips around
 // them. What it sends back is a typed printer action, a tool decision, or
 // what the person typed -- never a tap dressed up as the person's words.
 
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from './App';
@@ -402,21 +405,6 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('user_message')).toBeUndefined();
   });
 
-  it('sends an access code with Add, and never into the chat', async () => {
-    const host = open(state({ session: session({ accessCode: true }) }));
-
-    await userEvent.type(screen.getByRole('textbox', { name: 'Access code' }), '12345678');
-    await userEvent.click(screen.getByRole('button', { name: 'Add this printer' }));
-    expect(host.lastOfType('printer_action')!.payload).toEqual({
-      action: 'add',
-      id: '',
-      accessCode: '12345678',
-      note: 'An access code was entered.',
-    });
-    expect(host.received.some((envelope) => envelope.type === 'user_message')).toBe(false);
-    expect(JSON.stringify(host.received.filter((envelope) => envelope.type !== 'printer_action'))).not.toContain('12345678');
-  });
-
   it('offers no access code for a printer that was not found on the network', () => {
     open();
     expect(screen.queryByRole('textbox', { name: 'Access code' })).toBeNull();
@@ -671,3 +659,42 @@ describe('a tool-only turn in the printer panel', () => {
     expect(host.lastOfType('retry_message')!.payload).toEqual({ messageId: 'm-2' });
   });
 });
+
+ it('keeps help and credentials separate after saving and entering connection', async () => {
+   const host = open();
+   host.deliver('printer_session', session({ canAdd: false, added: [{ name: 'Garage', model: 'A1 mini' }],
+     connection: { name: 'Garage', provider: 'bambu', state: 'not_configured', message: '', deviceId: 'serial',
+       candidates: [{ id: 'serial', name: 'Garage', address: '192.168.1.2', lanMode: true }] } }));
+   expect(screen.getByText('What printer do you have?')).toBeVisible();
+   expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
+   expect(screen.queryByRole('button', { name: 'Add this printer' })).not.toBeInTheDocument();
+   expect(host.lastOfType('printer_instructions')!.payload).toMatchObject({ text: expect.stringContaining('already saved') });
+   await userEvent.type(screen.getByLabelText('LAN access code'), 'secretcode');
+   await userEvent.type(screen.getByLabelText('Message the Agent'), 'Where is LAN mode?{Enter}');
+   expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Where is LAN mode?' });
+   expect(JSON.stringify(host.received)).not.toContain('secretcode');
+   await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
+   expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'connection_start', accessCode: 'secretcode' });
+ });
+ it('opens a connection conversation with help instructions and no add guidance', () => {
+   const host = open(state({ conversation: [], session: session({ mode: 'connect', canAdd: false,
+     connection: { name: 'Garage', provider: 'bambu', state: 'not_configured', message: '', deviceId: '', candidates: [] } }) }));
+   expect(host.lastOfType('printer_opening')!.payload).toMatchObject({ text: expect.stringContaining('help you connect') });
+   expect(host.lastOfType('printer_instructions')!.payload).toMatchObject({ text: expect.stringContaining('There are no tools') });
+ });
+
+ it('exports the real connection conversation for visual review when requested', () => {
+   if (!process.env.PRINTER_REVIEW_PREVIEW) return;
+   applyStaticTokens();
+   const panels: string[] = [];
+   for (const appearance of ['light', 'dark'] as const) {
+     cleanup();
+     open(state({ appearance, session: session({ canAdd: false, added: [{ name: 'Garage A1 mini', model: 'A1 mini' }],
+       connection: { name: 'Garage A1 mini', provider: 'bambu', state: 'not_configured', message: '', deviceId: 'serial',
+         candidates: [{ id: 'serial', name: 'Garage A1 mini', address: '192.168.1.2', lanMode: true }] } }),
+       conversation: [{ id: 'm-help', attempt: 1, role: 'assistant', state: 'complete', text: 'I can help you find the LAN access code in your printer’s network settings. Enter it in the connection form above.' }] }));
+     panels.push('<div style="width:320px;height:720px;font:var(--font-body);color:var(--text-primary);background:var(--surface-canvas);' + document.documentElement.style.cssText + '">' + document.querySelector('.app')!.outerHTML + '</div>');
+   }
+   const css = readFileSync(resolve(__dirname, 'styles.css'), 'utf8');
+   writeFileSync(process.env.PRINTER_REVIEW_PREVIEW, '<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head><body style="display:flex;gap:24px;padding:24px;height:auto;overflow:auto">' + panels.join('') + '</body></html>');
+ });

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { PrinterBlock, PrinterCardInfo, ToolActivityInfo } from '../bridge/protocol';
-import { PrinterAccessCode, PrinterBlockView, PrinterChangeCard, PrinterChipRow } from './PrinterPanel';
+import { PrinterBlockView, PrinterChangeCard, PrinterChipRow } from './PrinterPanel';
 
 function card(overrides: Partial<PrinterCardInfo> = {}): PrinterCardInfo {
   return {
@@ -175,15 +175,6 @@ describe('the chips', () => {
     render(<PrinterChipRow canAdd disabled onAdd={vi.fn()} onReject={onReject} />);
     await userEvent.click(screen.getByRole('button', { name: 'Not this one' }));
     expect(onReject).not.toHaveBeenCalled();
-  });
-});
-
-describe('the access code', () => {
-  it('is a field of its own that reports what is typed and sends nothing', async () => {
-    const onChange = vi.fn();
-    render(<PrinterAccessCode value="" onChange={onChange} />);
-    await userEvent.type(screen.getByRole('textbox', { name: 'Access code' }), '1');
-    expect(onChange).toHaveBeenCalledWith('1');
   });
 });
 

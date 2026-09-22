@@ -3586,6 +3586,12 @@ void GUI_App::switch_printer_agent()
         }
     }
 
+    // Resolve an explicit connection through the same switch/refresh/selection path.
+    if (!printer_agent_override.first.empty()) {
+        effective_agent_id = printer_agent_override.first;
+        cloud_agent_id = printer_agent_override.second;
+    }
+
     // Check if agent is registered
     if (!NetworkAgentFactory::is_printer_agent_registered(effective_agent_id)) {
         BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ": unregistered agent ID '" << effective_agent_id

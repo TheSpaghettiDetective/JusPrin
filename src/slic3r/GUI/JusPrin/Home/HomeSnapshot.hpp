@@ -69,6 +69,7 @@ struct PrinterEntry
     // sends a bar.
     int                     progress_percent{-1};
     std::string             connection_text;
+    std::string             connection_action{"connect"};
     std::string             nozzle_text;
     std::string             material_label;
     std::vector<SpoolEntry> spools;

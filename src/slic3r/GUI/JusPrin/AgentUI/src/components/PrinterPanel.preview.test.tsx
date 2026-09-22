@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
-import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow } from './PrinterPanel';
+import { PrinterChangeCard, PrinterChipRow } from './PrinterPanel';
 import { PrinterConnection } from './PrinterConnection';
 import { applyStaticTokens } from '../tokens';
 import { opening, placeholder } from '../printerWords';
@@ -161,7 +161,6 @@ function panel(
           onToolDecision={noop}
           onToolCancel={noop}
         />
-        {state.accessCode && <PrinterAccessCode value="" onChange={noop} />}
         <PrinterChipRow canAdd={state.canAdd} disabled={false} onAdd={noop} onReject={noop} />
         <Composer
           disabled={false}
@@ -253,7 +252,6 @@ const cases = () => [
           },
         ],
         canAdd: true,
-        accessCode: true,
       }),
       [message('m2', 'note', 'The person chose the network printer 01P00A3B, a Bambu Lab A1 mini that reports a 0.4 mm nozzle.')],
     ),

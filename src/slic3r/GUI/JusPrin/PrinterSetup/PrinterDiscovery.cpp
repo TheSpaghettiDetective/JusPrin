@@ -1,4 +1,5 @@
 #include "PrinterDiscovery.hpp"
+#include "libslic3r/AppConfig.hpp"
 
 #include "slic3r/GUI/DeviceCore/DevBed.h"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
@@ -54,6 +55,11 @@ void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
 }
 
 } // namespace
+
+bool has_verified_printer_connection(const std::string& device_id)
+{
+    return !device_id.empty() && wxGetApp().app_config->get("jusprin_verified_connections", device_id) == "true";
+}
 
 bool has_recent_printer_data(MachineObject& machine)
 {

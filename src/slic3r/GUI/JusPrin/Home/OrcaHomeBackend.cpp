@@ -112,10 +112,10 @@ void describe_device(MachineObject& machine, PrinterEntry& printer)
             status += middle_dot() + remaining;
         printer.status_text = std::string(status.ToUTF8());
     }
-    if (connected)
-        printer.connection_text = std::string(_L("Connected").ToUTF8());
-    else
-        printer.connection_text = std::string(_L("Status unavailable").ToUTF8());
+    const bool configured = PrinterSetup::has_verified_printer_connection(machine.get_dev_id());
+    printer.connection_text = std::string((connected ? _L("Connected") :
+        !configured ? _L("Not connected") : _L("Status unknown")).ToUTF8());
+    printer.connection_action = connected ? "settings" : configured ? "reconnect" : "connect";
     if (const DevExtderSystem* extruders = machine.GetExtderSystem()) {
         const float diameter = extruders->GetNozzleDiameter(0);
         if (diameter > 0.f)
@@ -217,14 +217,20 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_open_settings = true;
         printer.can_rename        = true;
         printer.can_remove        = true;
-        printer.connection_text = utf8(named.device_id.empty() ? _L("Not connected") : _L("Connection saved · status unavailable"));
+        const bool verified_before = PrinterSetup::has_verified_printer_connection(named.device_id);
+        printer.connection_text = utf8(verified_before ? _L("Status unknown") : _L("Not connected"));
+        printer.connection_action = verified_before ? "reconnect" : "connect";
         if (const auto* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false, true))
-            if (!preset->config.opt_string("print_host").empty())
-                printer.connection_text = utf8(_L("File sending configured · live status unavailable"));
+            if (!preset->config.opt_string("print_host").empty()) {
+                printer.connection_text = utf8(_L("File sending configured"));
+                printer.connection_action = "settings";
+            }
         if (named.nozzle > 0.)
             printer.nozzle_text = nozzle_text(named.nozzle);
         if (const auto found = machines.find(named.device_id); !named.device_id.empty() && found != machines.end()) {
             describe_device(*found->second, printer);
+            if (printer.can_launch_monitor)
+                wxGetApp().app_config->set("jusprin_verified_connections", named.device_id, "true");
             represented.insert(named.device_id);
         }
         // Spools are remembered per printer; the material the project has

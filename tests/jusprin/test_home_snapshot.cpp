@@ -212,3 +212,14 @@ TEST_CASE("the added-printer receipt carries the name and what each fact was", "
     CHECK(payload.at("filamentText") == "Bambu PLA Basic");
     CHECK(payload.at("filamentAssumed") == true);
 }
+
+TEST_CASE("Home connection actions do not depend on translated status text", "[home]")
+{
+    Snapshot snapshot;
+    snapshot.printers = {a_printer()};
+    for (const auto* action : {"connect", "reconnect", "settings"}) {
+        snapshot.printers[0].connection_action = action;
+        snapshot.printers[0].connection_text = "Localized status";
+        CHECK(state_payload(snapshot)["printers"][0]["connectionAction"] == action);
+    }
+}

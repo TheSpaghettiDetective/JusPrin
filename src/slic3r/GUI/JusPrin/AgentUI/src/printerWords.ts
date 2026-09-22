@@ -55,6 +55,7 @@ export function spoolSummary(ams: string, spools: PrinterSpoolInfo[]): string {
 
 // A likely answer, rather than a standing invitation.
 export function placeholder(session: PrinterSessionPayload): string {
+  if (session.connection || session.added?.length || session.mode === 'connect') return 'Ask for help connecting your printer';
   return session.mode === 'add'
     ? 'e.g. "bambu a1 mini" or "not sure, the small one"'
     : 'e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"';
@@ -74,6 +75,7 @@ export function workingText(mode: PrinterSessionPayload['mode']): string {
 // The panel's own first line, which the model is shown as having said: the
 // same promise every time the panel opens.
 export function opening(session: PrinterSessionPayload): string {
+  if (session.mode === 'connect') return 'I can help you connect your printer. Ask about the address, LAN mode, or where to find the access code. Enter credentials only in the connection form.';
   if (session.mode === 'change') {
     const name = session.context?.printer?.name || session.facts.printer.name || 'this printer';
     return `This is the ${name}. Tell me what changed on it, or ask anything about it: nozzle, plate, spools. A photo of the part works too.`;
@@ -137,5 +139,3 @@ export function undoneNote(block: PrinterBlock): string {
   if (block.changed?.spools) back.push(`the spools are ${spoolsText(block.changed.spools.before)} again`);
   return `The person undid the change: ${listed(back)}.`;
 }
-
-export const ACCESS_CODE_NOTE = 'An access code was entered.';

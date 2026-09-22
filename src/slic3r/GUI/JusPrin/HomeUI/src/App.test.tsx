@@ -188,7 +188,7 @@ describe('Home', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
     const menu = screen.getByRole('menu');
       expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
-        'Connect printer…',
+        'Connection settings…',
       'Printer settings…',
       'Rename',
       'Remove printer…',
@@ -386,3 +386,16 @@ describe('Home', () => {
     expect(screen.queryByText("+ Add printer")).not.toBeInTheDocument();
   });
 });
+
+ it.each([['settings', 'Connection settings'], ['reconnect', 'Reconnect'], ['connect', 'Connect printer']] as const)(
+   'offers the appropriate %s action for a saved printer', async (connectionAction, label) => {
+     const host = new MockHost();
+     render(<App getTransport={() => host.transport} />);
+     host.deliver('hello_ack', {});
+     host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false, connectionAction,
+       connectionText: connectionAction === 'settings' ? 'File sending configured' : 'Status unknown' })] }));
+     const button = screen.getByRole('button', { name: label, exact: true });
+     expect(button).toHaveClass('launch-monitor');
+     await userEvent.click(button);
+     expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
+   });

@@ -329,9 +329,6 @@ json PrinterConversation::state_json() const
                 {"blocks", m_blocks},
                 // A printer is on its card: Add saves it, and it can be refused.
                 {"canAdd", m_proposal.valid},
-                // A printer found on the network can be kept connected; its
-                // code goes from this field to the app, never into the chat.
-                {"accessCode", false},
                 {"added", std::move(added)},
                 {"manualApplied", m_manual_applied},
                 {"connection", m_connection_view},
@@ -716,6 +713,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         if (!allowed)
             return true;
         m_connection_name = id;
+        m_host.profile_changed();
         m_backend.prepare_connection(id);
         refresh_connection();
         m_host.session_changed();
@@ -753,6 +751,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             // the printer list the panel returns to.
             const auto result = m_backend.run_manual_setup();
             m_added = result.added;
+            m_host.profile_changed();
             m_manual_applied = result.applied;
             if (m_added.size() == 1) {
                 m_facts = {};
@@ -812,6 +811,7 @@ void PrinterConversation::add_proposed_printer()
     if (added.name.empty())
         throw std::logic_error("A successful add did not identify its saved printer");
     m_added = {added};
+    m_host.profile_changed();
     m_facts.printer = added.name;
     m_proposal = {};
     m_host.printers_changed();
@@ -825,10 +825,10 @@ void PrinterConversation::refresh_connection()
     const auto info = m_backend.connection(m_connection_name);
     json candidates = json::array();
     for (const auto& candidate : info.candidates)
-        candidates.push_back(json{{"id", candidate.id}, {"name", candidate.name}, {"address", candidate.address}});
+        candidates.push_back(json{{"id", candidate.id}, {"name", candidate.name}, {"address", candidate.address}, {"lanMode", candidate.lan_mode}});
     m_connection_view = json{{"name", m_connection_name}, {"provider", info.provider}, {"state", info.state},
                             {"message", info.message}, {"deviceId", info.device_id}, {"candidates", candidates},
-                            {"address", info.address}, {"hostType", info.host_type}, {"signedIn", info.signed_in}};
+                            {"address", info.address}, {"hostType", info.host_type}, {"signedIn", info.signed_in}, {"nozzleMismatch", info.nozzle_mismatch}};
 }
 
 void PrinterConversation::use_network_printer(const std::string& device_id, const std::string& note)

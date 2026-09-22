@@ -18,8 +18,8 @@
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
-#include "slic3r/Utils/NetworkAgentFactory.hpp"
 #include "slic3r/Utils/PrintHost.hpp"
+#include "slic3r/Utils/NetworkAgentFactory.hpp"
 
 #include <algorithm>
 #include <wx/utils.h>
@@ -215,16 +215,10 @@ void OrcaPrinterBackend::prepare_connection(const std::string& name)
     if (agent == nullptr || (fake.empty() && !NetworkAgent::is_network_module_loaded()))
         return;
     const std::string wanted = fake.empty() ? BBL_PRINTER_AGENT_ID : fake;
-    if (!agent->get_printer_agent() || agent->get_printer_agent()->get_agent_info().id != wanted) {
-        // A connection gesture selects the networking provider, not a slicing
-        // preset. NetworkAgent owns callback transfer and disconnects the old
-        // provider; the open project's settings and unsaved edits stay intact.
-        auto provider = NetworkAgentFactory::create_printer_agent_by_id(
-            wanted, agent->get_cloud_agent(BBL_CLOUD_PROVIDER), Slic3r::data_dir());
-        if (!provider)
-            throw std::runtime_error("The registered Bambu printer agent could not be created");
-        agent->set_printer_agent(std::move(provider));
-    }
+    // Explicit monitoring owns the provider until another explicit connection
+    // or shell teardown replaces it. Profile edits must not disconnect it.
+    wxGetApp().printer_agent_override = {wanted, BBL_CLOUD_PROVIDER};
+    wxGetApp().switch_printer_agent();
     agent->start_discovery(true, false);
 }
 
@@ -294,15 +288,16 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
             return p.name != name && p.device_id == id;
         });
         if (!used_elsewhere && (!machine->is_lan_mode_printer() || machine->is_avaliable()))
-            info.candidates.push_back({id, machine->get_dev_name(), machine->get_dev_ip()});
+            info.candidates.push_back({id, machine->get_dev_name(), machine->get_dev_ip(), machine->is_lan_mode_printer()});
     }
     MachineObject* machine = info.device_id.empty() ? nullptr : devices->get_my_machine(info.device_id);
     // is_connected() alone is optimistic immediately after reset(). Require
     // actual parsed push data, and fresh LAN data for a LAN connection.
     const bool communicating = machine && has_recent_printer_data(*machine);
-    info.state = communicating ? "verified" : info.device_id.empty() ? "not_configured" : "unknown";
+    const bool configured = has_verified_printer_connection(info.device_id);
+    info.state = communicating ? "verified" : configured ? "unknown" : "not_configured";
     if (info.state == "unknown")
-        info.message = "This printer is linked, but it is not communicating with JusPrin. Check that it is online, then connect again.";
+        info.message = "Connection status is unknown. Check that the printer is on, then reconnect.";
     if (m_connection_attempt && m_connection_attempt->name == name) {
         const auto& attempt = *m_connection_attempt;
         if (info.device_id != attempt.device_id)
@@ -310,12 +305,15 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         const bool observed = communicating &&
             (machine->is_lan_mode_printer() ? machine->last_lan_msg_time_ > attempt.observation_start
                                            : machine->last_cloud_msg_time_ > attempt.observation_start);
-        if (observed) {
+        if (devices->get_selected_machine() != machine && machine != nullptr) {
+            info.state = "failed";
+            info.message = "The selected printer changed. Select this printer again to reconnect.";
+        } else if (observed) {
             info.state = "verified";
             m_connection_attempt.reset();
-        } else if (devices->get_selected_machine() != machine || machine == nullptr) {
+        } else if (machine == nullptr) {
             info.state = "failed";
-            info.message = "The connection stopped or another printer was selected. Check the access code and try again.";
+            info.message = "The printer is no longer available. Refresh the printer list and try again.";
         } else if (std::chrono::steady_clock::now() - attempt.started > std::chrono::seconds(30)) {
             info.state = "failed";
             info.message = "The printer did not respond. Check that it is on the network and try again.";
@@ -323,6 +321,13 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
             info.state = "connecting";
             info.message.clear();
         }
+    }
+    if (info.state == "verified")
+        wxGetApp().app_config->set("jusprin_verified_connections", info.device_id, "true");
+    if (communicating) {
+        const auto* extruders = machine->GetExtderSystem();
+        info.nozzle_mismatch = extruders && extruders->GetNozzleDiameter(0) > 0 &&
+            std::abs(extruders->GetNozzleDiameter(0) - printer->nozzle) > 0.001;
     }
     return info;
 }
@@ -344,14 +349,6 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
         machine = devices->get_local_machine(device_id);
     if (!machine)
         return "That printer is no longer available. Refresh the list and try again.";
-    if (has_recent_printer_data(*machine)) {
-        const auto saved = saved_printers();
-        const auto printer = std::find_if(saved.begin(), saved.end(), [&](const SavedPrinter& p) { return p.name == name; });
-        const auto* extruders = machine->GetExtderSystem();
-        if (printer != saved.end() && extruders && extruders->GetNozzleDiameter(0) > 0 &&
-            std::abs(extruders->GetNozzleDiameter(0) - printer->nozzle) > 0.001)
-            return "The printer reports a different nozzle size. Update its nozzle in Printer settings before connecting.";
-    }
     if (machine->is_lan_mode_printer()) {
         if (access_code.empty() && !machine->has_access_right())
             return "Enter the access code shown on your printer.";

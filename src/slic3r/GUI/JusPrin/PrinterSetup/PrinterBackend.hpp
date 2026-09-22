@@ -79,7 +79,6 @@ struct AddPrinterRequest
     std::string material; // default filament preset, may be empty
     std::string name;     // display name; empty uses the model name
     std::string device_id;    // a discovered printer's id, when this is one
-    std::string access_code;  // legacy input; adding ignores credentials
 };
 
 // A correction to a printer that already exists. Every field is optional;
@@ -96,6 +95,7 @@ struct ConnectionCandidate
     std::string id;
     std::string name;
     std::string address;
+    bool lan_mode{false};
 };
 
 struct PrinterConnectionInfo
@@ -108,6 +108,7 @@ struct PrinterConnectionInfo
     std::string address;
     std::string host_type;
     bool signed_in{false};
+    bool nozzle_mismatch{false};
 };
 
 struct ManualPrinterResult

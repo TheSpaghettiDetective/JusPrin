@@ -9,10 +9,10 @@ import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
-import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow } from './components/PrinterPanel';
+import { PrinterChangeCard, PrinterChipRow } from './components/PrinterPanel';
 import { PrinterConnection } from './components/PrinterConnection';
 import { printerInstructions } from './printerInstructions';
-import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote, workingText } from './printerWords';
+import { opening, placeholder, rejectedNote, workingText } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -130,7 +130,6 @@ export function App({
   }, [state.activeConversationId]);
   // The printer panel's access-code field. Held here, not in host state: the
   // code goes to the app with Add and nowhere else.
-  const [accessCode, setAccessCode] = useState('');
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
@@ -172,7 +171,7 @@ export function App({
   // instructions, so the thread opens with it whatever is sent next.
   const sentOpening = useRef(false);
   useEffect(() => {
-    if (!printerPanel || !state.session || state.connection !== 'connected' || state.session.mode === 'connect') return;
+    if (!printerPanel || !state.session || state.connection !== 'connected') return;
     if (sentOpening.current || state.messages.length > 0) return;
     sentOpening.current = true;
     client.send('printer_opening', { text: opening(state.session) });
@@ -183,7 +182,7 @@ export function App({
   // when the words change, such as after a change to the printer.
   const sentInstructions = useRef<string | null>(null);
   useEffect(() => {
-    if (!printerPanel || !state.session || state.connection !== 'connected' || state.session.mode === 'connect') return;
+    if (!printerPanel || !state.session || state.connection !== 'connected') return;
     const text = printerInstructions(state.session);
     if (text === sentInstructions.current) return;
     sentInstructions.current = text;
@@ -406,12 +405,10 @@ export function App({
   if (printerPanel) {
     const session = state.session;
     const printerClass = `app app--printer${session?.mode === 'add' ? ' app--printer-setup' : ''}`;
-    const offerManualPrinterSetup = notConfigured && session?.mode === 'add' && view === 'chat';
+    const offerManualPrinterSetup = notConfigured && session?.mode === 'add' && !session.connection && !session.added?.length && view === 'chat';
     const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
       client.send('printer_action', { action, id, ...extra });
-    if (session && (session.connection || (session.added?.length ?? 0) > 0)) {
-      return <div className={printerClass}>{errorNotice}<PrinterConnection session={session} onAction={printerAction} /></div>;
-    }
+    const connectionPhase = !!session && (!!session.connection || (session.added?.length ?? 0) > 0);
     // F7 review fix: message count alone caught a saved, applied change too
     // (Change mode stays open after a printer_change succeeds), warning
     // about words that were not actually going to be lost. Gate on unsaved
@@ -451,17 +448,17 @@ export function App({
             <button type="button" className={session?.mode === 'add' ? 'printer-manual-link' : 'icon-button'} aria-label={session?.mode === 'add' ? 'Back to Home' : 'Back to printers'} onClick={() => gatedPrinterAction('close')}>
               {session?.mode === 'add' ? '‹ Back to Home' : '‹'}
             </button>
-            {session?.mode !== 'add' && <h1>Printers</h1>}
-            {!offerManualPrinterSetup && (
+            {session?.mode !== 'add' && <h1>{connectionPhase ? 'Your printer' : 'Printers'}</h1>}
+            {!offerManualPrinterSetup && !connectionPhase && (
               <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
                 {session?.mode === 'add' ? 'Choose printer manually' : 'Set it up myself'}
               </button>
             )}
           </header>
-          {session?.mode === 'add' && <h1 className="printer-setup-title">Let’s add your printer</h1>}
-          {session?.mode === 'add' && <p className="printer-setup-explanation">Choose your printer so JusPrin can prepare prints for it. You can connect it afterward.</p>}
+          {!connectionPhase && session?.mode === 'add' && <h1 className="printer-setup-title">Let’s add your printer</h1>}
+          {!connectionPhase && session?.mode === 'add' && <p className="printer-setup-explanation">Choose your printer so JusPrin can prepare prints for it. You can connect it afterward.</p>}
           {session?.manualApplied && !session.added?.length && <p className="printer-setup-explanation" role="status">No new printers were added. Your existing printers are available from Home.</p>}
-          {session?.mode === 'change' && <button type="button" className="printer-manual-link" onClick={() => printerAction('connect', session.context?.printer?.name || session.facts.printer.name)}>Connect printer</button>}
+          {!connectionPhase && session?.mode === 'change' && <button type="button" className="printer-manual-link" onClick={() => printerAction('connect', session.context?.printer?.name || session.facts.printer.name)}>Connection settings</button>}
           {confirmLeavePrinter && (
             <div className="chat-dialog-shade printer-leave-shade">
               <div className="chat-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-leave-title">
@@ -486,7 +483,18 @@ export function App({
               </div>
             </div>
           )}
-          {notConfigured ? (
+          {connectionPhase && session && (
+            <div className="printer-connection-region">
+              <PrinterConnection session={session} onAction={(action, id, extra) =>
+                action === 'close' ? gatedPrinterAction('close') : printerAction(action, id, extra)
+              } />
+            </div>
+          )}
+          {notConfigured && connectionPhase && view !== 'setup' ? (
+            <p className="printer-setup-explanation">
+              Need help? <button type="button" className="printer-link-button" onClick={openSetup}>Set up the agent</button>
+            </p>
+          ) : notConfigured ? (
             body(offerManualPrinterSetup ? () => gatedPrinterAction('manual_setup') : undefined)
           ) : (
             <MessageList
@@ -508,7 +516,7 @@ export function App({
               exportedCopies={[]}
               physicalPrints={[]}
               changes={[]}
-              printerBlocks={session?.blocks}
+              printerBlocks={connectionPhase ? [] : session?.blocks}
               printerActivityText={session ? workingText(session.mode) : undefined}
               onPrinterAction={(action, id, tap) => {
                 const extra: Record<string, string> = {};
@@ -522,15 +530,12 @@ export function App({
               onToolCancel={sendToolCancel}
             />
           )}
-          {!notConfigured && session && (
+          {!notConfigured && !connectionPhase && session && (
             <>
-              {session.accessCode && <PrinterAccessCode value={accessCode} onChange={setAccessCode} />}
               <PrinterChipRow
                 canAdd={session.canAdd}
                 disabled={busy}
-                onAdd={() =>
-                  printerAction('add', '', session.accessCode && accessCode ? { accessCode, note: ACCESS_CODE_NOTE } : {})
-                }
+                onAdd={() => printerAction('add')}
                 onReject={() => printerAction('reject', '', { note: rejectedNote(session.facts.printer.name) })}
               />
             </>

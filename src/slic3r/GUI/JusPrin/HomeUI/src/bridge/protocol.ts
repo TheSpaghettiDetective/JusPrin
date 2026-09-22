@@ -96,6 +96,7 @@ export interface PrinterInfo {
   // 0-100, present only while printing; drives the progress bar's width.
   progressPercent?: number;
   connectionText?: string;
+  connectionAction?: 'connect' | 'reconnect' | 'settings';
   nozzleText?: string;
   materialLabel?: string;
   spools: SpoolInfo[];

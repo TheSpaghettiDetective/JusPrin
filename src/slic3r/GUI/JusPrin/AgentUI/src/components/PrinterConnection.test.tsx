@@ -30,7 +30,7 @@ describe('printer addition and connection', () => {
   it('retains the saved receipt when the connection fails', () => {
     render(<PrinterConnection session={session({ state: 'failed', message: 'Check the access code.' })} onAction={vi.fn()} />);
     expect(screen.getByRole('alert')).toHaveTextContent('Check the access code.');
-    expect(screen.getByRole('heading', { name: 'Your printer has been added' })).toBeInTheDocument();
+    expect(screen.getByText('Your printer is saved. Connecting is optional.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add this printer' })).not.toBeInTheDocument();
   });
   it('polls only during an active connection and stops after unmount', () => {
@@ -52,8 +52,29 @@ describe('printer addition and connection', () => {
   });
   it('opens native Bambu sign-in without sending an agent message', () => {
     const onAction = vi.fn();
-    render(<PrinterConnection session={session({})} onAction={onAction} />);
+    render(<PrinterConnection session={session({ candidates: [] })} onAction={onAction} />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign in to Bambu' }));
     expect(onAction).toHaveBeenCalledWith('connection_sign_in');
   });
 });
+
+ it('names a known LAN printer without asking for another choice or account sign-in', () => {
+   render(<PrinterConnection session={session({ deviceId: 'serial', candidates: [{ id: 'serial', name: 'Garage A1', address: '', lanMode: true }] })} onAction={vi.fn()} />);
+   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+   expect(screen.getByText('Garage A1')).toBeVisible();
+   expect(screen.getByRole('button', { name: 'Sign in to Bambu' })).not.toBeVisible();
+   expect(screen.getByText('Find a printer in my Bambu account instead')).toBeVisible();
+ });
+ it('offers account sign-in without a LAN code for an account printer', () => {
+   render(<PrinterConnection session={session({ candidates: [{ id: 'serial', name: 'Account printer', address: '', lanMode: false }] })} onAction={vi.fn()} />);
+   expect(screen.getByRole('button', { name: 'Sign in to Bambu' })).toBeVisible();
+   expect(screen.queryByLabelText('LAN access code')).not.toBeInTheDocument();
+ });
+ it('keeps a verified connection while offering correction for a reported nozzle mismatch', () => {
+   const onAction = vi.fn();
+   render(<PrinterConnection session={session({ state: 'verified', nozzleMismatch: true })} onAction={onAction} />);
+   expect(screen.getByText(/different nozzle size/)).toBeVisible();
+   fireEvent.click(screen.getByRole('button', { name: 'Printer settings' }));
+   expect(onAction).toHaveBeenCalledWith('manual_setup');
+   expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+ });

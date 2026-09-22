@@ -336,7 +336,7 @@ TEST_CASE("an Add session opens with nothing stated and the ways in", "[printer-
     CHECK(state.at("facts").at("filament").at("preset") == "");
     CHECK(state.at("facts").at("filament").at("spools").empty());
     CHECK(state.at("canAdd") == false);
-    CHECK(state.at("accessCode") == false);
+    CHECK_FALSE(state.contains("accessCode"));
     const json& blocks = state.at("blocks");
     REQUIRE(blocks.size() == 2);
     CHECK(blocks[0].at("kind") == "tip");
@@ -651,7 +651,7 @@ TEST_CASE("Use this matches the reported model id and records what it reported",
     CHECK(card.at("device").at("ams") == "AMS lite");
     CHECK(card.at("device").at("spools").size() == 2);
     CHECK(card.at("device").at("reported") == true);
-    CHECK(state.at("accessCode") == false);
+    CHECK_FALSE(state.contains("accessCode"));
 }
 
 TEST_CASE("a network printer that did not report its nozzle is assumed to have the usual one", "[printer-conversation]")
@@ -757,7 +757,6 @@ TEST_CASE("Add saves once and shows a receipt before returning Home", "[printer-
     // one the card showed.
     CHECK(backend.added.front().variant == "0.25");
     CHECK(backend.added.front().material == "Prusa Generic PLA");
-    CHECK(backend.added.front().access_code.empty());
     CHECK(panel.closes == 0);
     // The receipt travels with the one close_panel() call, not a separate
     // printers_changed() ahead of a bare close: the panel's own deferred
@@ -788,7 +787,6 @@ TEST_CASE("an old Add message cannot submit connection credentials", "[printer-c
     conversation.handle_page_message("printer_action",
                                      json{{"action", "add"}, {"accessCode", "12345678"}, {"note", "An access code was entered."}});
     REQUIRE(backend.added.size() == 1);
-    CHECK(backend.added.front().access_code.empty());
     CHECK(backend.added.front().device_id == "01P00A3B");
     // Refused, so the panel stays, and the thread holds the record and the
     // reason -- never the code.
@@ -810,7 +808,6 @@ TEST_CASE("a code with no network printer to go to is not sent", "[printer-conve
     conversation.handle_page_message("printer_action",
                                      json{{"action", "add"}, {"accessCode", "12345678"}, {"note", "An access code was entered."}});
     REQUIRE(backend.added.size() == 1);
-    CHECK(backend.added.front().access_code.empty());
     CHECK(panel.notes.empty());
 }
 
@@ -1712,4 +1709,22 @@ TEST_CASE("write the printer session requests for the evaluation", "[.printer-ev
     for (const CatalogPrinter& printer : backend.printers)
         identified_all[printer.id] = identified(adding, json{{"catalogIds", {printer.id}}})["printers"][0];
     std::ofstream(std::string(out) + "/identify_results.json") << identified_all.dump(2);
+}
+
+TEST_CASE("connection assistance receives instructions without printer mutation tools", "[printer-conversation]")
+{
+    FakeBackend backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    backend.connection_info.provider = "bambu";
+    backend.connection_info.candidates = {{"serial", "Garage", "192.168.1.2", true}};
+    backend.connection_info.nozzle_mismatch = true;
+    conversation.start(ConversationMode::Connect, "Garage");
+    conversation.handle_page_message("printer_opening", json{{"text", "I can help you connect."}});
+    conversation.handle_page_message("printer_instructions", json{{"text", "Help with connection. Credentials go only in the form."}});
+    CHECK(conversation.profile().tool_names.empty());
+    CHECK(conversation.profile().instructions == "Help with connection. Credentials go only in the form.");
+    CHECK(panel.openings == std::vector<std::string>{"I can help you connect."});
+    CHECK(conversation.state_json()["connection"]["candidates"][0]["lanMode"] == true);
+    CHECK(conversation.state_json()["connection"]["nozzleMismatch"] == true);
 }

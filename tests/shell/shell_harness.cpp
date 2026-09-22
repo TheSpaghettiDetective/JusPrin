@@ -115,6 +115,8 @@
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
+#include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
+#include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 
 #include <deque>
@@ -1157,11 +1159,13 @@ private:
         PrinterSetup::AddPrinterRequest request;
         request.vendor_id = "BBL";
         request.model_id = "Bambu Lab A1 mini";
-        request.variant = "0.4";
+        request.variant = "0.6";
         request.name = "Connection fixture";
         PrinterSetup::SavedPrinter saved;
         check(backend->add_printer(request, saved).empty(), "connect_fixture_saved_without_device");
-        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        SetupCommands::select_printer_preset(*m_plater, kAddedPrinterProfile);
+        check(selected_printer() == kAddedPrinterProfile && !wxGetApp().preset_bundle->is_bbl_vendor(),
+            "connection_test_uses_a_non_bambu_slicing_profile");
         const bool dirty = m_plater->is_project_dirty();
         backend->prepare_connection(saved.name);
         wait_until([backend, name = saved.name] { return !backend->connection(name).candidates.empty(); },
@@ -1169,19 +1173,72 @@ private:
                 const auto info = backend->connection(name);
                 const std::string device = info.candidates.front().id;
                 self->check(info.state == "not_configured", "unlinked_online_device_is_not_a_connected_saved_printer");
+                wxGetApp().getDeviceManager()->get_my_machine(device)->reset(); // Ignore the fake's unsolicited heartbeat.
+                self->check(Printers::link_named_printer(name, device).empty(), "discovered_device_linked_before_authentication");
+                self->check(backend->connection(name).state == "not_configured", "identified_device_has_neutral_first_connection_state");
                 self->check(backend->connect_printer(name, device, "").empty(), "connect_existing_saved_bambu");
                 self->check(backend->connection(name).state == "connecting", "connect_waits_for_fresh_device_data");
                 self->check(backend->connect_printer(name, device, "").empty(), "duplicate_connect_is_idempotent");
+                wxGetApp().getDeviceManager()->set_selected_machine("");
+                const auto interrupted = backend->connection(name);
+                self->check(interrupted.state == "failed" && interrupted.message.find("The selected printer changed") != std::string::npos &&
+                    interrupted.message.find("access code") == std::string::npos, "selection_interruption_does_not_blame_credentials");
+                // Separate gestures by a GUI event turn, allowing upstream disconnect
+                // notifications to finish before the next user-requested connection.
+                wxGetApp().CallAfter([self, backend, name, device, dirty] {
+                self->check(backend->connect_printer(name, device, "").empty(), "interrupted_connection_can_retry");
                 self->wait_until([backend, name] { return backend->connection(name).state == "verified"; },
                     "connect_verified_from_parsed_fake_data", [self, backend, name, device, dirty] {
+                        self->check(backend->connection(name).nozzle_mismatch, "reported_nozzle_mismatch_does_not_block_connection");
+                        self->check(wxGetApp().app_config->get("jusprin_verified_connections", device) == "true",
+                            "verified_connection_history_is_recorded_for_this_device");
                         const auto printers = backend->saved_printers();
                         self->check(std::count_if(printers.begin(), printers.end(), [&](const auto& p) {
                             return p.name == name && p.device_id == device;
                         }) == 1, "connect_keeps_one_saved_identity");
-                        self->check(self->selected_printer() == kSetupFixturePrinter &&
+                        self->check(self->selected_printer() == kAddedPrinterProfile &&
                             self->m_plater->is_project_dirty() == dirty, "connect_preserves_unrelated_project_selection_and_edits");
-                        self->finish();
+                        // Reproduce the former policy: without an explicit provider choice,
+                        // re-evaluating the non-Bambu slicing profile replaces the fake agent.
+                        wxGetApp().printer_agent_override = {};
+                        wxGetApp().switch_printer_agent();
+                        self->check(wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id !=
+                            fake_bambu_printer_agent_id(wxGetApp().app_config), "profile_policy_reproduces_provider_replacement");
+                        backend->prepare_connection(name);
+                        wxGetApp().CallAfter([self, backend, name, device] {
+                        self->check(backend->connect_printer(name, device, "").empty(), "explicit_connection_restores_provider");
+                        SetupCommands::select_printer_preset(*self->m_plater, name);
+                        SetupCommands::select_printer_preset(*self->m_plater, kAddedPrinterProfile);
+                        wxGetApp().switch_printer_agent();
+                        self->check(wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id ==
+                            fake_bambu_printer_agent_id(wxGetApp().app_config), "explicit_provider_survives_profile_reevaluation");
+                        self->wait_until([backend, name] { return backend->connection(name).state == "verified"; },
+                            "connection_receives_fresh_data_after_profile_reevaluation", [self, backend, name, device] {
+                                wxGetApp().getDeviceManager()->set_selected_machine("");
+                                wxGetApp().CallAfter([self, backend, name, device] {
+                                // Simulate a transport that authenticates but never supplies status.
+                                // The isolated fake otherwise pushes even while disconnected.
+                                auto fake = wxGetApp().getAgent()->get_printer_agent();
+                                fake->set_on_local_message_fn({});
+                                fake->set_on_message_fn({});
+                                self->check(backend->connect_printer(name, device, "").empty(), "timeout_fixture_starts_attempt");
+                                self->wait_until([backend, name] { return backend->connection(name).state == "failed"; },
+                                    "connection_times_out_without_messages", [self, backend, name] {
+                                        const auto timeout = backend->connection(name);
+                                        self->check(timeout.message.find("did not respond") != std::string::npos &&
+                                            timeout.message.find("access code") == std::string::npos,
+                                            "timeout_explains_no_response_without_inventing_auth_failure");
+                                        PrinterSetup::OrcaPrinterBackend reopened(*self->m_plater,
+                                            PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), nullptr);
+                                        self->check(reopened.connection(name).state == "unknown",
+                                            "previously_verified_connection_remains_distinct_from_never_connected");
+                                        self->finish();
+                                    });
+                                });
+                            });
+                        });
                     });
+                });
             });
     }
 
@@ -1205,6 +1262,7 @@ private:
     void verify_stock_mode()
     {
         check(installed_shell() == nullptr, "stock_mode_installs_no_shell");
+        check(wxGetApp().printer_agent_override.first.empty(), "stock_mode_keeps_profile_driven_provider_selection");
         check(m_notebook->GetBtnsListCtrl()->IsShown(), "stock_mode_keeps_tab_strip");
         check(m_plater->is_sidebar_available(), "stock_mode_keeps_sidebar_available");
         load_multi_plate_fixture();

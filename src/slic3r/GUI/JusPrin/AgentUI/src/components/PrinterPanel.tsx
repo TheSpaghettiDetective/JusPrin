@@ -139,24 +139,6 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block, onAction
   );
 });
 
-// The code a Bambu printer shows under Settings > Network. It goes with Add
-// to the app, which connects the printer; it is never part of the chat.
-export function PrinterAccessCode({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <input
-      className="printer-access-code"
-      type="text"
-      autoComplete="off"
-      spellCheck={false}
-      maxLength={32}
-      aria-label="Access code"
-      placeholder="access code, optional"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  );
-}
-
 export interface ChipRowProps {
   canAdd: boolean;
   disabled: boolean;

@@ -20,6 +20,9 @@ export function PrinterConnection({ session, onAction }: {
   const added = session.added ?? [];
   const chosen = device || connection?.deviceId || (connection?.candidates.length === 1 ? connection.candidates[0].id : '');
 
+  const selected = connection?.candidates.find((candidate) => candidate.id === chosen);
+  const lan = selected?.lanMode !== false;
+
   useEffect(() => { heading.current?.focus(); }, [connection?.name]);
   useEffect(() => {
     setDevice(''); setCode(''); setAddress(connection?.address ?? ''); setHostType(connection?.hostType || 'moonraker');
@@ -33,9 +36,9 @@ export function PrinterConnection({ session, onAction }: {
   return (
     <section className="printer-connection" aria-label="Printer setup">
       <h1 ref={heading} tabIndex={-1}>
-        {added.length ? (added.length === 1 ? 'Your printer has been added' : 'Your printers have been added') : 'Connect your printer'}
+        {connection ? 'Connect your printer' : added.length === 1 ? 'Your printer has been added' : 'Your printers have been added'}
       </h1>
-      {added.map((printer) => (
+      {!connection && added.map((printer) => (
         <div key={printer.name} className="printer-connection-receipt">
           <p>You can now prepare prints for <strong>{printer.name}</strong>.</p>
           {printer.model && printer.model !== printer.name && <p className="footnote">{printer.model}</p>}
@@ -45,6 +48,8 @@ export function PrinterConnection({ session, onAction }: {
       ))}
       {!connection && <p>Connecting is optional. Where supported, you can send files directly from JusPrin. You can set this up later from your printer’s card.</p>}
       {connection && <>
+        {added.length > 0 && <p>Your printer is saved. Connecting is optional.</p>}
+        {connection.nozzleMismatch && <div role="status"><p>The printer reports a different nozzle size from the saved settings. Check the physical nozzle before preparing a print.</p><button type="button" onClick={() => onAction('manual_setup')}>Printer settings</button></div>}
         <h2>{connection.name}</h2>
         {verified ? <p role="status">{host ? 'Connection test succeeded. File sending is configured; live printer status is not shown here.' : 'Connected. You can send files from JusPrin.'} Starting a print is a separate action.</p> :
           connecting ? <p role="status">Connecting to your printer…</p> : <>
@@ -67,22 +72,22 @@ export function PrinterConnection({ session, onAction }: {
                   <input value={address} autoComplete="off" onChange={(event) => { setAddress(event.target.value); setCode(''); }} />
                 </label>
               </> : <>
-              <p>Choose your printer on the network or your Bambu account. For a new LAN connection, turn on LAN mode on the printer and enter its access code.</p>
-              <label>Printer
+              <p>{lan ? 'Enter the LAN access code from your printer’s network settings.' : 'Connect using your Bambu account. No LAN access code is needed.'}</p>
+              {connection.deviceId ? (selected && selected.name !== connection.name && <p>Device: <strong>{selected.name}</strong></p>) : <label>Printer
                 <select value={chosen} onChange={(event) => { setDevice(event.target.value); setCode(''); }}>
                   <option value="">Choose a printer</option>
                   {connection.candidates.map((printer) => <option key={printer.id} value={printer.id}>
                     {printer.name} · {printer.address || printer.id}
                   </option>)}
                 </select>
-              </label>
+              </label>}
               {connection.candidates.length === 0 && <p>No matching printers found. Check that your printer is on the same network. Account printers need Bambu sign-in.</p>}
-              {!connection.signedIn && <button type="button" onClick={() => onAction('connection_sign_in')}>Sign in to Bambu</button>}
+              {!connection.signedIn && (!selected || !lan ? <button type="button" onClick={() => onAction('connection_sign_in')}>Sign in to Bambu</button> : <details><summary>Find a printer in my Bambu account instead</summary><button type="button" onClick={() => onAction('connection_sign_in')}>Sign in to Bambu</button></details>)}
               </>}
-              <label>{host ? 'API key (if required)' : 'LAN access code'}
+              {(host || lan) && <label>{host ? 'API key (if required)' : 'LAN access code'}
                 <input type="password" autoComplete="off" value={code} onChange={(event) => setCode(event.target.value)} />
-              </label>
-              <p className="footnote">{host ? 'Leave blank to reuse the saved key for the same address, or when no key is required.' : 'Leave blank for an account printer or to reuse a saved code.'} This credential is never sent to the AI assistant.</p>
+              </label>}
+              {(host || lan) && <p className="footnote">{host ? 'Leave blank to reuse the saved key for the same address, or when no key is required.' : 'Leave blank to reuse a saved code.'} This credential is never sent to the AI assistant.</p>}
               <div className="printer-connection-actions">
                 <button type="submit" className="primary" disabled={host ? !address.trim() : !chosen}>{host ? 'Save and test connection' : 'Connect'}</button>
                 {!host && <button type="button" onClick={() => onAction('connection_refresh')}>Refresh printers</button>}

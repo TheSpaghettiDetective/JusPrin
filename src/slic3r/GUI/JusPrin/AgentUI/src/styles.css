@@ -2100,31 +2100,6 @@ button.wide {
   text-decoration: line-through;
 }
 
-/* The access code of a printer found on the network: the panel's own field,
-   whose value goes to the app with Add and never into the chat. */
-.printer-access-code {
-  box-sizing: border-box;
-  width: calc(100% - 24px);
-  margin: 8px 12px 0;
-  padding: var(--button-secondary-padding);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-standard);
-  background: var(--surface-canvas);
-  font: var(--font-label);
-  color: var(--text-primary);
-}
-
-.printer-access-code:focus {
-  border-color: var(--action-primary);
-  outline: none;
-}
-
-/* The last change to this printer, and the app's own way back. */
-.printer-undo {
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
 .printer-link-button {
   padding: 0;
   border: none;
@@ -2255,3 +2230,5 @@ button.wide {
   width: 100%;
 }
 .printer-connection-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.printer-connection-region { flex: 0 1 auto; max-height: 60%; overflow: auto; }

@@ -454,10 +454,6 @@ export interface PrinterSessionPayload {
   added?: { name: string; model: string; connected?: boolean }[];
   manualApplied?: boolean;
   connection?: PrinterConnectionInfo | null;
-  // The printer on the card was found on the network and can be kept
-  // connected: the panel offers its own access-code field, whose value goes
-  // with Add to the app and never into the chat.
-  accessCode?: boolean;
   // The facts the model's instructions state (printerInstructions.ts).
   context?: PrinterContext;
 }
@@ -468,10 +464,11 @@ export interface PrinterConnectionInfo {
   state: 'not_configured' | 'connecting' | 'verified' | 'failed' | 'unavailable' | 'unknown';
   message: string;
   deviceId: string;
-  candidates: { id: string; name: string; address: string }[];
+  candidates: { id: string; name: string; address: string; lanMode?: boolean }[];
   address?: string;
   hostType?: string;
   signedIn?: boolean;
+  nozzleMismatch?: boolean;
 }
 
 export interface PrinterContext {

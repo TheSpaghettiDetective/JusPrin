@@ -76,6 +76,7 @@ json printer_json(const PrinterEntry& printer)
     };
     set_if_present(out, "statusText", printer.status_text);
     set_if_present(out, "connectionText", printer.connection_text);
+    out["connectionAction"] = printer.connection_action;
     set_if_present(out, "nozzleText", printer.nozzle_text);
     set_if_present(out, "materialLabel", printer.material_label);
     // A bar belongs to a running job; a finished or idle printer sends none

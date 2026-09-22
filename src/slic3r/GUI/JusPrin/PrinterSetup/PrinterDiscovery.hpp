@@ -16,5 +16,7 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 // rather than what it can offer, asks for them.
 std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable = false);
 bool has_recent_printer_data(MachineObject& machine);
+// Device identity/credentials alone do not establish a previous successful connection.
+bool has_verified_printer_connection(const std::string& device_id);
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

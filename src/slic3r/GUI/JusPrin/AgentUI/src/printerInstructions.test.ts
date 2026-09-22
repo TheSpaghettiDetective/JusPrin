@@ -131,3 +131,16 @@ describe('printer evaluation writer', () => {
     }
   });
 });
+
+ it('describes optional connection after Add without the obsolete Add code field', () => {
+   const text = printerInstructions(add);
+   expect(text).not.toContain('access code with Add');
+   expect(text).toContain('connect later');
+ });
+ it('supplies current connection failures and credential boundaries to the helper', () => {
+   const text = printerInstructions(session({ mode: 'connect', connection: { name: 'Garage', provider: 'bambu',
+     state: 'failed', message: 'Another printer was selected.', deviceId: 'serial', candidates: [] } }));
+   expect(text).toContain('Another printer was selected.');
+   expect(text).toContain('never request or repeat passwords');
+   expect(text).not.toContain('printer_identify');
+ });
