@@ -1,0 +1,1 @@
+clearly distinguishes adding printer settings from connecting a physical printer -   Is it from the app developers point of view or users point of view?
