@@ -1,0 +1,1 @@
+we shouldn't show this getting started wizard.  Change the code to disable it. Change it in a way so that it will minimize the footprint on the upstream. consult [agent-docs](/C:/src/JusPrin/agent-docs/)  for the fork stewardship guidelines.
