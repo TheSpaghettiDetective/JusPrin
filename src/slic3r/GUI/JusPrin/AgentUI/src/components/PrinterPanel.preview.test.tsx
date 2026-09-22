@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './PrinterPanel';
+import { PrinterConnection } from './PrinterConnection';
 import { applyStaticTokens } from '../tokens';
 import { opening, placeholder } from '../printerWords';
 import { Message } from '../state/store';
@@ -348,12 +349,26 @@ describe('printer panel preview', () => {
     const semantic = (tokens as { semantic: Record<string, Record<string, Record<string, string>>> }).semantic;
     const varsFor = (mode: string) =>
       Object.entries(semantic[mode])
-        .flatMap(([group, values]) => Object.entries(values).map(([name, value]) => `--${group}-${name}: ${value};`))
+        .flatMap(([group, values]) => Object.entries(values).map(([name, value]) =>
+          `--${group}-${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}: ${value};`))
         .join('\n  ');
 
     const width = (tokens as { component: { printerCard: { columnWidth: number } } }).component.printerCard.columnWidth;
     const panels = (mode: string) =>
-      cases()
+      [...cases(), ...[
+        { name: 'Printer added', connection: null },
+        { name: 'Connect later', connection: { name: 'Garage A1 mini', provider: 'bambu', state: 'not_configured' as const,
+          message: '', deviceId: '', candidates: [{ id: 'example', name: 'A1 mini', address: '192.168.1.20' }] } },
+        { name: 'Connection failed', connection: { name: 'Garage A1 mini', provider: 'bambu', state: 'failed' as const,
+          message: 'The printer did not respond. Check that it is on the network and try again.', deviceId: 'example',
+          candidates: [{ id: 'example', name: 'A1 mini', address: '192.168.1.20' }] } },
+        { name: 'Print host', connection: { name: 'Workshop printer', provider: 'host', state: 'not_configured' as const,
+          message: '', deviceId: '', candidates: [], address: '', hostType: 'moonraker' } },
+      ].map(({ name, connection }) => ({ name, note: 'Optional connection, independent of the AI assistant',
+        body: renderToStaticMarkup(<div className="app app--printer"><PrinterConnection
+          session={session({ added: [{ name: connection?.name ?? 'Garage A1 mini', model: 'A1 mini' }], connection })}
+          onAction={noop} /></div>),
+      }))]
         .map((entry) => `<figure>
   <figcaption><b>${entry.name}</b> — ${entry.note}</figcaption>
   <div class="column ${mode}">${entry.body}</div>

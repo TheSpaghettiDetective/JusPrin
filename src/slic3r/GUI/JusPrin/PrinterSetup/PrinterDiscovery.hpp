@@ -4,6 +4,8 @@
 
 #include <vector>
 
+namespace Slic3r { class MachineObject; }
+
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 // Snapshots device fields on the GUI thread. No MachineObject pointer crosses
@@ -13,5 +15,6 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 // offers what can be connected to now. A caller reporting what the app knows,
 // rather than what it can offer, asks for them.
 std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable = false);
+bool has_recent_printer_data(MachineObject& machine);
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

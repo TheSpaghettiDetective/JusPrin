@@ -10,6 +10,7 @@ import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
 import { PrinterAccessCode, PrinterChangeCard, PrinterChipRow, PrinterPinnedCard } from './components/PrinterPanel';
+import { PrinterConnection } from './components/PrinterConnection';
 import { printerInstructions } from './printerInstructions';
 import { ACCESS_CODE_NOTE, opening, placeholder, rejectedNote, workingText } from './printerWords';
 import {
@@ -171,7 +172,7 @@ export function App({
   // instructions, so the thread opens with it whatever is sent next.
   const sentOpening = useRef(false);
   useEffect(() => {
-    if (!printerPanel || !state.session || state.connection !== 'connected') return;
+    if (!printerPanel || !state.session || state.connection !== 'connected' || state.session.mode === 'connect') return;
     if (sentOpening.current || state.messages.length > 0) return;
     sentOpening.current = true;
     client.send('printer_opening', { text: opening(state.session) });
@@ -182,7 +183,7 @@ export function App({
   // when the words change, such as after a change to the printer.
   const sentInstructions = useRef<string | null>(null);
   useEffect(() => {
-    if (!printerPanel || !state.session || state.connection !== 'connected') return;
+    if (!printerPanel || !state.session || state.connection !== 'connected' || state.session.mode === 'connect') return;
     const text = printerInstructions(state.session);
     if (text === sentInstructions.current) return;
     sentInstructions.current = text;
@@ -407,6 +408,9 @@ export function App({
     const session = state.session;
     const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
       client.send('printer_action', { action, id, ...extra });
+    if (session && (session.connection || (session.added?.length ?? 0) > 0)) {
+      return <div className="app app--printer">{errorNotice}<PrinterConnection session={session} onAction={printerAction} /></div>;
+    }
     // F7 review fix: message count alone caught a saved, applied change too
     // (Change mode stays open after a printer_change succeeds), warning
     // about words that were not actually going to be lost. Gate on unsaved
@@ -446,11 +450,14 @@ export function App({
             <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => gatedPrinterAction('close')}>
               ‹
             </button>
-            <h1>Printers</h1>
+            <h1>{session?.mode === 'add' ? 'Add your printer' : 'Printers'}</h1>
             <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
               Set it up myself
             </button>
           </header>
+          {session?.mode === 'add' && <p className="printer-setup-explanation">Choose your printer so JusPrin can prepare prints for it. You can connect it afterward.</p>}
+          {session?.manualApplied && !session.added?.length && <p className="printer-setup-explanation" role="status">No new printers were added. Your existing printers are available from Home.</p>}
+          {session?.mode === 'change' && <button type="button" className="printer-manual-link" onClick={() => printerAction('connect', session.context?.printer?.name || session.facts.printer.name)}>Connect printer</button>}
           {confirmLeavePrinter && (
             <div className="chat-dialog-shade printer-leave-shade">
               <div className="chat-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-leave-title">

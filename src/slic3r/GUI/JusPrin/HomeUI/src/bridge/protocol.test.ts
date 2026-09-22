@@ -24,6 +24,7 @@ describe('protocol constants come from the shared file', () => {
       'import_project',
       'launch_monitor',
       'add_printer',
+      'connect_printer',
       'open_printer_settings',
       'rename_printer',
       'remove_printer',

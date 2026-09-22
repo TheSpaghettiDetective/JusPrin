@@ -160,6 +160,8 @@ PrinterConversation::PrinterConversation(IPrinterBackend& backend, IConversation
 
 std::vector<std::string> PrinterConversation::session_tools(ConversationMode mode)
 {
+    if (mode == ConversationMode::Connect)
+        return {};
     // One tool per mode. A Change session that could identify a printer
     // could also clear the card of the printer it is about.
     return {mode == ConversationMode::Add ? "printer_identify" : "printer_change"};
@@ -179,6 +181,10 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_instructions.clear();
     m_network.clear();
     m_opened = false;
+    m_added.clear();
+    m_manual_applied = false;
+    m_connection_name.clear();
+    m_connection_view = nullptr;
 
     m_facts = {};
     // A printer this app has not saved cannot be changed, and the header's
@@ -193,7 +199,11 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
         }
     }
 
-    if (m_mode == ConversationMode::Change)
+    if (m_mode == ConversationMode::Connect) {
+        m_connection_name = printer_name;
+        m_backend.prepare_connection(printer_name);
+        refresh_connection();
+    } else if (m_mode == ConversationMode::Change)
         read_saved_printer();
     else {
         refresh_network();
@@ -293,7 +303,7 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     Agent::AgentSessionProfile profile;
     // The tools are the app's to decide, one per mode; the words are the
     // page's (printerInstructions.ts), sent with printer_instructions.
-    profile.tool_names   = session_tools(m_mode);
+    profile.tool_names   = m_added.empty() && m_connection_name.empty() ? session_tools(m_mode) : std::vector<std::string>();
     profile.instructions = m_instructions;
     // This conversation is about a machine, not about the open project, and
     // what the person taps on its cards reaches the model as the app's notes.
@@ -304,6 +314,9 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
 
 json PrinterConversation::state_json() const
 {
+    json added = json::array();
+    for (const auto& printer : m_added)
+        added.push_back(json{{"name", printer.name}, {"model", printer.model}, {"connected", printer.connected}});
     const json facts{{"printer", json{{"name", m_facts.printer}, {"provenance", m_facts.printer_provenance}}},
                      {"nozzle", json{{"size", m_facts.nozzle}, {"provenance", m_facts.nozzle_provenance}}},
                      {"plate", json{{"name", m_facts.plate}, {"provenance", m_facts.plate_provenance}}},
@@ -311,14 +324,17 @@ json PrinterConversation::state_json() const
                                        {"ams", m_facts.ams},
                                        {"spools", spools_json(m_facts.spools)},
                                        {"provenance", m_facts.filament_provenance}}}};
-    return json{{"mode", m_mode == ConversationMode::Add ? "add" : "change"},
+    return json{{"mode", m_mode == ConversationMode::Add ? "add" : m_mode == ConversationMode::Connect ? "connect" : "change"},
                 {"facts", facts},
                 {"blocks", m_blocks},
                 // A printer is on its card: Add saves it, and it can be refused.
                 {"canAdd", m_proposal.valid},
                 // A printer found on the network can be kept connected; its
                 // code goes from this field to the app, never into the chat.
-                {"accessCode", m_proposal.valid && !m_proposal.device_id.empty()},
+                {"accessCode", false},
+                {"added", std::move(added)},
+                {"manualApplied", m_manual_applied},
+                {"connection", m_connection_view},
                 // The facts the page's instructions for the model state.
                 {"context", context_json()}};
 }
@@ -476,8 +492,8 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     if (has_nozzle) {
         const double nozzle = arguments["nozzle"].get<double>();
         if (!now->nozzles.empty() && !ships(now->nozzles, nozzle))
-            return ToolError{"unknown_nozzle", "The " + model + " ships " + sizes_text(now->nozzles) + " nozzles, not " +
-                                                   nozzle_text(nozzle) + ". Ask which of these is on the printer."};
+            return ToolError{"unknown_nozzle", "JusPrin supports " + sizes_text(now->nozzles) + " nozzles for " + model + ", but not " +
+                                                   nozzle_text(nozzle) + ". Ask the person to check the nozzle marking or packaging; do not substitute a size."};
     }
     const bool nozzle_moves = has_nozzle && arguments["nozzle"].get<double>() != now->nozzle;
     const bool spools_move  = has_spools && !same_spools(spools_of(arguments["spools"]), now->spools);
@@ -509,6 +525,10 @@ ToolExecutionCoordinator::ExtensionResult PrinterConversation::execute_tool(Tool
         return result;
 
     result.handled = true;
+    if (!m_added.empty() || !m_connection_name.empty()) {
+        result.error = ToolError{"setup_finished", "The printer is saved. Connection is handled by the person's connection controls."};
+        return result;
+    }
     const json arguments = json::parse(activity.arguments_json, nullptr, false);
     if (!arguments.is_object()) {
         result.error = ToolError{"invalid_arguments", "The printer tool arguments are invalid."};
@@ -571,9 +591,9 @@ json PrinterConversation::identify(const json& arguments, const std::string& mes
     if (stated)
         for (const CatalogPrinter* printer : printers)
             if (!ships(printer->nozzles, wanted)) {
-                error = ToolError{"unknown_nozzle", "The " + printer->display_name() + " ships " + sizes_text(printer->nozzles) +
-                                                        " nozzles, not " + nozzle_text(wanted) +
-                                                        ". Ask which of these is on the printer."};
+                error = ToolError{"unknown_nozzle", "JusPrin supports " + sizes_text(printer->nozzles) +
+                                                        " nozzles for " + printer->display_name() + ", but not " + nozzle_text(wanted) +
+                                                        ". Ask the person to check the nozzle marking or packaging; do not substitute a size."};
                 return {};
             }
 
@@ -686,14 +706,63 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
     const std::string id     = payload.value("id", std::string());
     const std::string note   = page_note(payload);
     if (action == "close")
-        m_host.close_panel();
+        m_host.close_panel(m_added.size() == 1 ? &m_facts : nullptr);
+    else if (action == "connection_refresh") {
+        refresh_connection();
+        m_host.session_changed();
+    } else if (action == "connect") {
+        const bool allowed = (m_mode != ConversationMode::Add && id == m_printer_name) ||
+            std::any_of(m_added.begin(), m_added.end(), [&](const SavedPrinter& p) { return p.name == id; });
+        if (!allowed)
+            return true;
+        m_connection_name = id;
+        m_backend.prepare_connection(id);
+        refresh_connection();
+        m_host.session_changed();
+    } else if (action == "connection_sign_in" && !m_connection_name.empty()) {
+        const auto info = m_backend.connection(m_connection_name);
+        if (info.provider == "bambu" && info.state != "unavailable" && !info.signed_in)
+            m_backend.sign_in_to_bambu();
+        refresh_connection();
+        m_host.session_changed();
+    } else if (action == "connection_start" && !m_connection_name.empty()) {
+        const auto problem = m_connection_view.value("provider", std::string()) == "host" ?
+            m_backend.connect_host(m_connection_name, payload.value("hostType", std::string()),
+                                   payload.value("address", std::string()), payload.value("accessCode", std::string())) :
+            m_backend.connect_printer(m_connection_name, payload.value("deviceId", std::string()),
+                                      payload.value("accessCode", std::string()));
+        refresh_connection();
+        if (!problem.empty()) {
+            m_connection_view["state"] = "failed";
+            m_connection_view["message"] = problem;
+        }
+        m_host.printers_changed();
+        m_host.session_changed();
+    }
+    else if ((!m_added.empty() || !m_connection_name.empty()) && action != "manual_setup")
+        return true;
     else if (action == "manual_setup") {
-        if (m_mode == ConversationMode::Add) {
+        if (!m_connection_name.empty()) {
+            m_backend.open_printer_settings(m_connection_name);
+            refresh_connection();
+            m_host.session_changed();
+        } else if (m_mode == ConversationMode::Add) {
+            if (!m_added.empty())
+                return true;
             // The wizard takes over from here; whatever it installed is on
             // the printer list the panel returns to.
-            m_backend.run_manual_setup();
+            const auto result = m_backend.run_manual_setup();
+            m_added = result.added;
+            m_manual_applied = result.applied;
+            if (m_added.size() == 1) {
+                m_facts = {};
+                m_facts.printer = m_added.front().name;
+                m_facts.nozzle = m_added.front().nozzle;
+            }
+            if (!m_added.empty())
+                m_proposal = {};
             m_host.printers_changed();
-            m_host.close_panel();
+            m_host.session_changed();
         } else {
             // OrcaSlicer's own printer settings, as "Printer settings…" did
             // before this panel existed. It closes back into this session,
@@ -704,7 +773,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             m_host.session_changed();
         }
     } else if (action == "add")
-        add_proposed_printer(payload.value("accessCode", std::string()), note);
+        add_proposed_printer();
     else if (action == "reject")
         reject_proposal(note);
     else if (action == "network_pick")
@@ -716,7 +785,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
     return true;
 }
 
-void PrinterConversation::add_proposed_printer(const std::string& access_code, const std::string& note)
+void PrinterConversation::add_proposed_printer()
 {
     if (!m_proposal.valid)
         return;
@@ -728,13 +797,8 @@ void PrinterConversation::add_proposed_printer(const std::string& access_code, c
     request.material  = m_proposal.material;
     request.name      = m_proposal.model_name;
     request.device_id = m_proposal.device_id;
-    // The code goes from the panel's own field to the app and nowhere else;
-    // the thread records only that there was one, in the page's words.
-    if (!access_code.empty() && !m_proposal.device_id.empty()) {
-        request.access_code = access_code;
-        if (!note.empty())
-            m_host.post_note(note);
-    }
+    // Adding never authenticates. Credentials belong only to the subsequent
+    // connection gesture, so a failed connection cannot repeat this save.
 
     SavedPrinter      added;
     const std::string problem = m_backend.add_printer(request, added);
@@ -744,10 +808,27 @@ void PrinterConversation::add_proposed_printer(const std::string& access_code, c
         m_host.session_changed();
         return;
     }
-    // Carried through close_panel rather than sent separately first: see
-    // IConversationHost::close_panel for why a standalone printers_changed
-    // here would race the panel's own deferred close.
-    m_host.close_panel(&m_facts);
+    // Keep the receipt open; optional connection targets this saved identity.
+    if (added.name.empty())
+        throw std::logic_error("A successful add did not identify its saved printer");
+    m_added = {added};
+    m_facts.printer = added.name;
+    m_proposal = {};
+    m_host.printers_changed();
+    m_host.session_changed();
+}
+
+void PrinterConversation::refresh_connection()
+{
+    if (m_connection_name.empty())
+        return;
+    const auto info = m_backend.connection(m_connection_name);
+    json candidates = json::array();
+    for (const auto& candidate : info.candidates)
+        candidates.push_back(json{{"id", candidate.id}, {"name", candidate.name}, {"address", candidate.address}});
+    m_connection_view = json{{"name", m_connection_name}, {"provider", info.provider}, {"state", info.state},
+                            {"message", info.message}, {"deviceId", info.device_id}, {"candidates", candidates},
+                            {"address", info.address}, {"hostType", info.host_type}, {"signedIn", info.signed_in}};
 }
 
 void PrinterConversation::use_network_printer(const std::string& device_id, const std::string& note)
@@ -789,6 +870,8 @@ void PrinterConversation::use_network_printer(const std::string& device_id, cons
                             {"printers", json::array({card_json(*printer, nozzle, "add", &*found)})}});
     show_proposal(*printer, nozzle, reported, id, &*found);
     m_host.session_changed();
+    // Selection needs conversational guidance now that no summary is pinned.
+    m_host.start_turn();
 }
 
 void PrinterConversation::choose_candidate(const std::string& catalog_id, const std::string& block_id, const std::string& note)
@@ -825,6 +908,7 @@ void PrinterConversation::choose_candidate(const std::string& catalog_id, const 
     if (!note.empty())
         m_host.post_note(note);
     m_host.session_changed();
+    m_host.start_turn();
 }
 
 void PrinterConversation::reject_proposal(const std::string& note)

@@ -55,6 +55,13 @@ void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
 
 } // namespace
 
+bool has_recent_printer_data(MachineObject& machine)
+{
+    const auto observed = machine.is_lan_mode_printer() ? machine.last_lan_msg_time_ : machine.last_cloud_msg_time_;
+    return machine.m_push_count > 0 && machine.is_connected() &&
+           std::chrono::system_clock::now() - observed < std::chrono::seconds(30);
+}
+
 std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable)
 {
     std::vector<DiscoveredPrinter> result;
@@ -66,10 +73,10 @@ std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable)
         const bool reachable = machine->is_online() || machine->is_connected();
         if (!reachable && !include_unreachable) continue;
         DiscoveredPrinter printer{id, machine->get_dev_name(), machine->get_dev_ip(), machine->printer_type,
-                                  machine->connection_type(), reachable};
+                                  machine->connection_type(), has_recent_printer_data(*machine)};
         // Upstream's own predicate, never a copy of it: the list of states that
         // count as printing has been got wrong here before.
-        printer.activity = !machine->is_connected()         ? PrinterActivity::Offline :
+        printer.activity = !printer.connected              ? PrinterActivity::Offline :
                            machine->is_in_printing()        ? PrinterActivity::Printing :
                                                               PrinterActivity::Idle;
         if (machine->last_update_time.time_since_epoch().count() != 0)

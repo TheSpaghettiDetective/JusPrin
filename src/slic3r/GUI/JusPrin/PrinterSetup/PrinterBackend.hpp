@@ -79,7 +79,7 @@ struct AddPrinterRequest
     std::string material; // default filament preset, may be empty
     std::string name;     // display name; empty uses the model name
     std::string device_id;    // a discovered printer's id, when this is one
-    std::string access_code;  // optional, saved only when a device was named
+    std::string access_code;  // legacy input; adding ignores credentials
 };
 
 // A correction to a printer that already exists. Every field is optional;
@@ -89,6 +89,31 @@ struct ChangePrinterRequest
     std::string                  name; // the saved printer to change
     std::optional<double>        nozzle;
     std::optional<std::vector<PrinterSpool>> spools;
+};
+
+struct ConnectionCandidate
+{
+    std::string id;
+    std::string name;
+    std::string address;
+};
+
+struct PrinterConnectionInfo
+{
+    std::string provider{"unavailable"};
+    std::string state{"not_configured"};
+    std::string message;
+    std::string device_id;
+    std::vector<ConnectionCandidate> candidates;
+    std::string address;
+    std::string host_type;
+    bool signed_in{false};
+};
+
+struct ManualPrinterResult
+{
+    bool applied{false};
+    std::vector<SavedPrinter> added;
 };
 
 class IPrinterBackend
@@ -109,8 +134,18 @@ public:
 
     // The manual paths behind "Set it up myself": OrcaSlicer's own printer
     // wizard for a new printer, its printer settings for an existing one.
-    virtual void run_manual_setup() = 0;
+    virtual ManualPrinterResult run_manual_setup() = 0;
     virtual void open_printer_settings(const std::string& name) = 0;
+
+    // Connection is a separate operation against an existing saved printer.
+    // Credentials are input-only and never part of a snapshot or conversation.
+    virtual PrinterConnectionInfo connection(const std::string& name) { return {}; }
+    virtual void prepare_connection(const std::string& name) {}
+    virtual void sign_in_to_bambu() {}
+    virtual std::string connect_printer(const std::string& name, const std::string& device_id,
+                                       const std::string& access_code) { return "Connection is unavailable."; }
+    virtual std::string connect_host(const std::string& name, const std::string& host_type,
+                                    const std::string& address, const std::string& api_key) { return "Connection is unavailable."; }
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

@@ -3,6 +3,7 @@ import type { PrinterInfo } from '../bridge/protocol';
 import { MoreGlyph } from './Glyphs';
 
 export interface PrinterActions {
+  onConnect?: (id: string) => void;
   onOpenSettings: (id: string) => void;
   // A device is renamed in Orca's own dialog, so it is sent without a name.
   onRename: (id: string, name?: string) => void;
@@ -136,6 +137,10 @@ export function PrinterMenu({
         </button>
         {open && (
           <div className="printer-menu" role="menu" aria-label={`Actions for ${printer.name}`}>
+            {named && actions.onConnect && <button type="button" role="menuitem" onClick={() => {
+              setOpen(false);
+              actions.onConnect?.(printer.id);
+            }}>Connect printer…</button>}
             <button
               type="button"
               role="menuitem"

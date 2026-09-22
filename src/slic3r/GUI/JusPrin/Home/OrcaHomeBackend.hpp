@@ -33,7 +33,7 @@ public:
     // How Home opens the printer conversation, which replaces its printers
     // column: an empty name adds a printer, a name changes that one. The
     // shell owns the panel; Home only says what the person asked about.
-    using OpenConversation = std::function<void(const std::string& printer_name)>;
+    using OpenConversation = std::function<void(const std::string& printer_name, bool connect)>;
     void set_conversation_opener(OpenConversation open) { m_open_conversation = std::move(open); }
 
     bool                      dark() const override;
@@ -47,6 +47,7 @@ public:
     void add_printer() override;
 
     std::string open_printer_settings(const std::string& printer_id) override;
+    std::string connect_printer(const std::string& printer_id) override;
     std::string rename_printer(const std::string& printer_id, const std::string& new_name) override;
     std::string remove_printer(const std::string& printer_id) override;
 

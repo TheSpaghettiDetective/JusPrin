@@ -122,7 +122,7 @@ describe('the printer panel page', () => {
     // canAdd: false -- this test is about which action the tap sends, not
     // about F7's leave-confirmation, so it uses the nothing-to-lose case.
     const host = open(state({ session: session({ canAdd: false }) }));
-    expect(screen.getByRole('heading', { name: 'Printers' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add your printer' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
@@ -132,6 +132,16 @@ describe('the printer panel page', () => {
     const host = open(state({ session: session({ canAdd: false }) }));
     await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
+  });
+
+  it('shows a saved receipt and connection controls without an AI service', async () => {
+    const host = open(state({ agent: { status: 'unavailable' }, session: session({
+      canAdd: false, added: [{ name: 'Garage', model: 'A1 mini' }],
+    }) }));
+    expect(screen.getByRole('heading', { name: 'Your printer has been added' })).toBeVisible();
+    expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Connect printer' }));
+    expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'connect', id: 'Garage' });
   });
 
   // WP10 (F10), corrected by F7 on printer-panel-review-fixes-handoff.md:

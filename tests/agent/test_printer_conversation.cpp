@@ -118,7 +118,21 @@ public:
             }
         return {};
     }
-    void run_manual_setup() override { ++manual_setups; }
+    ManualPrinterResult manual_result;
+    PrinterConnectionInfo connection_info;
+    std::vector<std::string> connection_names;
+    std::string connection_code;
+    std::string connection_error;
+    int sign_ins{0};
+    void sign_in_to_bambu() override { ++sign_ins; }
+    PrinterConnectionInfo connection(const std::string&) override { return connection_info; }
+    std::string connect_printer(const std::string& name, const std::string&, const std::string& code) override
+    {
+        connection_names.push_back(name);
+        connection_code = code;
+        return connection_error;
+    }
+    ManualPrinterResult run_manual_setup() override { ++manual_setups; return manual_result; }
     void open_printer_settings(const std::string& name) override { settings_opened.push_back(name); }
 };
 
@@ -538,7 +552,7 @@ TEST_CASE("a nozzle the model does not ship lists the sizes it does", "[printer-
     const auto result = identify(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(result.error.has_value());
     CHECK(result.error->code == "unknown_nozzle");
-    CHECK(result.error->message == "The Prusa MK3S ships 0.25, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm. Ask which of these is on the printer.");
+    CHECK(result.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
     CHECK(conversation.state_json().at("canAdd") == false);
 }
 
@@ -563,7 +577,7 @@ TEST_CASE("a newer answer folds the older cards away", "[printer-conversation]")
 
 // -- Taps the app answers itself ---------------------------------------------
 
-TEST_CASE("This one draws that printer's card and records it, with no model turn", "[printer-conversation]")
+TEST_CASE("This one records the selected printer and requests conversational guidance", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -576,7 +590,7 @@ TEST_CASE("This one draws that printer's card and records it, with no model turn
     REQUIRE(conversation.handle_page_message(
         "printer_action",
         json{{"action", "candidate_pick"}, {"id", "Prusa/Prusa MK3S"}, {"blockId", card}, {"note", "The person chose Prusa MK3S."}}));
-    CHECK(panel.turns == 0);
+    CHECK(panel.turns == 1);
     CHECK(panel.notes == std::vector<std::string>{"The person chose Prusa MK3S."});
 
     const json state = conversation.state_json();
@@ -618,7 +632,7 @@ TEST_CASE("Use this matches the reported model id and records what it reported",
 
     REQUIRE(conversation.handle_page_message(
         "printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}, {"note", "The person chose the network printer."}}));
-    CHECK(panel.turns == 0);
+    CHECK(panel.turns == 1);
     CHECK(panel.notes == std::vector<std::string>{"The person chose the network printer."});
 
     const json state = conversation.state_json();
@@ -637,7 +651,7 @@ TEST_CASE("Use this matches the reported model id and records what it reported",
     CHECK(card.at("device").at("ams") == "AMS lite");
     CHECK(card.at("device").at("spools").size() == 2);
     CHECK(card.at("device").at("reported") == true);
-    CHECK(state.at("accessCode") == true);
+    CHECK(state.at("accessCode") == false);
 }
 
 TEST_CASE("a network printer that did not report its nozzle is assumed to have the usual one", "[printer-conversation]")
@@ -727,7 +741,7 @@ TEST_CASE("Not this one folds the card, clears the pin and hands the turn to the
     CHECK(state.at("blocks").back().value("collapsed", false));
 }
 
-TEST_CASE("Add this printer saves it and hands Home back", "[printer-conversation]")
+TEST_CASE("Add saves once and shows a receipt before returning Home", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -744,19 +758,24 @@ TEST_CASE("Add this printer saves it and hands Home back", "[printer-conversatio
     CHECK(backend.added.front().variant == "0.25");
     CHECK(backend.added.front().material == "Prusa Generic PLA");
     CHECK(backend.added.front().access_code.empty());
-    CHECK(panel.closes == 1);
+    CHECK(panel.closes == 0);
     // The receipt travels with the one close_panel() call, not a separate
     // printers_changed() ahead of a bare close: the panel's own deferred
     // teardown closes with no facts of its own, and a standalone refresh
     // here would race it and lose, wiping the receipt the moment Home got
     // it. See IConversationHost::close_panel.
-    CHECK(panel.refreshes == 0);
+    CHECK(panel.refreshes == 1);
+    REQUIRE(conversation.state_json()["added"].size() == 1);
+    CHECK(conversation.state_json()["canAdd"] == false);
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    CHECK(backend.added.size() == 1);
+    conversation.handle_page_message("printer_action", json{{"action", "close"}});
     REQUIRE(panel.last_closed_with.has_value());
     CHECK(panel.last_closed_with->printer == "Prusa MK3S");
     CHECK(panel.last_closed_with->nozzle == 0.25);
 }
 
-TEST_CASE("an access code goes from its field to the app and only its existence is recorded", "[printer-conversation]")
+TEST_CASE("an old Add message cannot submit connection credentials", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -769,12 +788,12 @@ TEST_CASE("an access code goes from its field to the app and only its existence 
     conversation.handle_page_message("printer_action",
                                      json{{"action", "add"}, {"accessCode", "12345678"}, {"note", "An access code was entered."}});
     REQUIRE(backend.added.size() == 1);
-    CHECK(backend.added.front().access_code == "12345678");
+    CHECK(backend.added.front().access_code.empty());
     CHECK(backend.added.front().device_id == "01P00A3B");
     // Refused, so the panel stays, and the thread holds the record and the
     // reason -- never the code.
     CHECK(panel.closes == 0);
-    CHECK(std::find(panel.notes.begin(), panel.notes.end(), "An access code was entered.") != panel.notes.end());
+    CHECK(std::find(panel.notes.begin(), panel.notes.end(), "An access code was entered.") == panel.notes.end());
     for (const std::string& note : panel.notes)
         CHECK_THAT(note, !ContainsSubstring("12345678"));
     CHECK_THAT(conversation.state_json().dump(), !ContainsSubstring("12345678"));
@@ -821,7 +840,7 @@ TEST_CASE("a change is checked before its card, and the card states it", "[print
         const auto [error, activity] = preflight(json{{"nozzle", 0.3}});
         REQUIRE(error.has_value());
         CHECK(error->code == "unknown_nozzle");
-        CHECK(error->message == "The Bambu Lab A1 mini ships 0.2, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm. Ask which of these is on the printer.");
+        CHECK(error->message == "JusPrin supports 0.2, 0.4, 0.6 and 0.8 mm nozzles for Bambu Lab A1 mini, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
     }
     SECTION("what it already is") {
         const auto [error, activity] = preflight(json{{"nozzle", 0.4}});
@@ -989,13 +1008,100 @@ TEST_CASE("Set it up myself leads to Orca's own screens", "[printer-conversation
     adding.start(ConversationMode::Add);
     adding.handle_page_message("printer_action", json{{"action", "manual_setup"}});
     CHECK(backend.manual_setups == 1);
-    CHECK(panel.closes == 1);
+    CHECK(panel.closes == 0);
 
     PrinterConversation changing(backend, panel);
     changing.start(ConversationMode::Change, "Lab Printer");
     changing.handle_page_message("printer_action", json{{"action", "manual_setup"}});
     CHECK(backend.settings_opened == std::vector<std::string>{"Lab Printer"});
-    CHECK(panel.closes == 1);
+    CHECK(panel.closes == 0);
+}
+
+TEST_CASE("connection retry keeps the saved printer and credentials out of the thread", "[printer-conversation]")
+{
+    FakeBackend backend;
+    RecordingPanel panel;
+    backend.connection_info.provider = "bambu";
+    backend.connection_error = "Check the access code.";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    identified(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}});
+    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"id", "Prusa MK3S"}});
+    for (int retry = 0; retry != 2; ++retry)
+        conversation.handle_page_message("printer_action", json{{"action", "connection_start"}, {"deviceId", "serial"}, {"accessCode", "privatecode"}});
+    REQUIRE(backend.added.size() == 1);
+    CHECK(backend.connection_names == std::vector<std::string>{"Prusa MK3S", "Prusa MK3S"});
+    CHECK(backend.connection_code == "privatecode");
+    CHECK(conversation.state_json()["connection"]["state"] == "failed");
+    CHECK(conversation.state_json()["added"][0]["name"] == "Prusa MK3S");
+    CHECK_THAT(conversation.state_json().dump(), !ContainsSubstring("privatecode"));
+    CHECK(panel.notes.empty());
+    CHECK(conversation.profile().tool_names.empty());
+    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"id", "Another printer"}});
+    CHECK(conversation.state_json()["connection"]["name"] == "Prusa MK3S");
+}
+
+TEST_CASE("manual completion reports actual additions and no success on cancellation", "[printer-conversation]")
+{
+    FakeBackend backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    CHECK(conversation.state_json()["added"].empty());
+    CHECK(conversation.state_json()["manualApplied"] == false);
+    CHECK(panel.closes == 0);
+    backend.manual_result.applied = true;
+    auto first = lab_printer();
+    auto second = first;
+    second.name = "Second printer";
+    backend.manual_result.added = {first, second};
+    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    REQUIRE(conversation.state_json()["added"].size() == 2);
+    CHECK(conversation.state_json()["added"][1]["name"] == "Second printer");
+    CHECK_FALSE(conversation.state_json()["canAdd"].get<bool>());
+    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    CHECK(backend.manual_setups == 2);
+    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "stale-device"}});
+    CHECK(panel.turns == 0);
+}
+
+TEST_CASE("connect later opens without agent tools and reflects observed status", "[printer-conversation]")
+{
+    FakeBackend backend;
+    RecordingPanel panel;
+    backend.saved = {lab_printer()};
+    backend.connection_info.provider = "bambu";
+    backend.connection_info.state = "connecting";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    CHECK(conversation.profile().tool_names.empty());
+    CHECK(conversation.state_json()["connection"]["state"] == "connecting");
+    backend.connection_info.state = "verified";
+    conversation.handle_page_message("printer_action", json{{"action", "connection_refresh"}});
+    CHECK(conversation.state_json()["connection"]["state"] == "verified");
+    CHECK(backend.added.empty());
+    CHECK(panel.turns == 0);
+    backend.connection_info.state = "not_configured";
+    conversation.handle_page_message("printer_action", json{{"action", "connection_sign_in"}});
+    CHECK(backend.sign_ins == 1);
+    CHECK(panel.turns == 0);
+    backend.connection_info.state = "unavailable";
+    conversation.handle_page_message("printer_action", json{{"action", "connection_sign_in"}});
+    CHECK(backend.sign_ins == 1);
+}
+
+TEST_CASE("a removed connect target stays a connection outcome instead of starting an add", "[printer-conversation]")
+{
+    FakeBackend backend;
+    RecordingPanel panel;
+    backend.connection_info.state = "unavailable";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Removed printer");
+    CHECK(conversation.state_json()["mode"] == "connect");
+    CHECK(conversation.state_json()["connection"]["state"] == "unavailable");
+    CHECK(conversation.profile().tool_names.empty());
 }
 
 TEST_CASE("the panel answers only its own messages", "[printer-conversation]")
@@ -1035,9 +1141,9 @@ TEST_CASE("the printer tools join no plans", "[printer-conversation]")
     }
     for (const char* gone : {"printer_catalog_search", "printer_propose", "printer_suggest"})
         CHECK(Agent::ToolRegistry::instance().find(gone) == nullptr);
-    CHECK(Agent::ToolRegistry::instance().find("printer_identify")->description ==
-          "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them to "
-          "the person, and returns the details to mention. It never picks a printer.");
+    const std::string description = Agent::ToolRegistry::instance().find("printer_identify")->description;
+    CHECK(description.find("It never picks a printer.") != std::string::npos);
+    CHECK(description.find("Add is unavailable") != std::string::npos);
 }
 
 TEST_CASE("a printer conversation writes nothing into the project", "[printer-conversation]")
@@ -1433,7 +1539,7 @@ public:
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
     std::string add_printer(const AddPrinterRequest&, SavedPrinter&) override { return {}; }
     std::string change_printer(const ChangePrinterRequest&, SavedPrinter&) override { return {}; }
-    void        run_manual_setup() override {}
+    ManualPrinterResult run_manual_setup() override { return {}; }
     void        open_printer_settings(const std::string&) override {}
 
     const CatalogPrinter* find(const std::string& id) const
@@ -1526,7 +1632,7 @@ TEST_CASE("the worked examples' facts come from the shipped profiles", "[printer
     // "the prusa, the 0.3 nozzle"
     const auto refused = identify(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(refused.error.has_value());
-    CHECK(refused.error->message == "The Prusa MK3S ships 0.25, 0.4, 0.6 and 0.8 mm nozzles, not 0.3 mm. Ask which of these is on the printer.");
+    CHECK(refused.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
 }
 
 TEST_CASE("the model is offered one tool per mode and no project", "[printer-conversation][openai]")

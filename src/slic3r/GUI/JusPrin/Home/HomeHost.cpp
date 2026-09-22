@@ -129,10 +129,11 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.add_printer();
         push_state();
     }
-    else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer") {
+    else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer") {
         const std::string id = payload.value("id", std::string());
         const std::string problem =
-            type == "open_printer_settings" ? m_backend.open_printer_settings(id)
+            type == "connect_printer"       ? m_backend.connect_printer(id)
+            : type == "open_printer_settings" ? m_backend.open_printer_settings(id)
             : type == "rename_printer"      ? m_backend.rename_printer(id, payload.value("name", std::string()))
                                             : m_backend.remove_printer(id);
         if (!problem.empty())

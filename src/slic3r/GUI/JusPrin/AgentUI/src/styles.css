@@ -2249,3 +2249,23 @@ button.wide {
   font: var(--font-metadata);
   color: var(--text-secondary);
 }
+
+.printer-setup-explanation { margin: 12px 16px; color: var(--text-secondary); }
+.printer-connection { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+.printer-connection h1 { font: var(--font-section); margin: 0; }
+.printer-connection h2 { font: var(--font-body-bold); margin: 0; }
+.printer-connection p { margin: 0; }
+.printer-connection-receipt { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.printer-connection .footnote { font: var(--font-metadata); color: var(--text-secondary); }
+.printer-connection form, .printer-connection label { display: flex; flex-direction: column; gap: 8px; }
+.printer-connection form { gap: 16px; }
+.printer-connection input, .printer-connection select {
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-standard);
+  padding: var(--button-secondary-padding);
+  width: 100%;
+}
+.printer-connection-actions { display: flex; flex-wrap: wrap; gap: 8px; }

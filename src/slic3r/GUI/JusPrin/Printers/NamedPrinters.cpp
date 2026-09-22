@@ -299,8 +299,9 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name)
     return {};
 }
 
-void name_installed_printers(Plater& plater, const VendorMap& before)
+std::vector<std::string> name_installed_printers(Plater& plater, const VendorMap& before)
 {
+    std::vector<std::string> added;
     PresetBundle&     presets  = bundle();
     const std::string selected = presets.printers.get_selected_preset_name();
     const Preset&     current  = presets.printers.get_selected_preset();
@@ -316,8 +317,9 @@ void name_installed_printers(Plater& plater, const VendorMap& before)
         const std::string profile_name = profile->name;
         if (!SetupCommands::select_printer_preset(plater, profile_name) ||
             presets.printers.get_selected_preset_name() != profile_name)
-            return; // the person kept unsaved printer changes; nothing more is named
+            break; // keep the receipt for any printers already saved
         const std::string name = add_named_printer(plater, model.model, {});
+        added.push_back(name);
         if (profile_name == selected)
             keep = name;
     }
@@ -325,6 +327,52 @@ void name_installed_printers(Plater& plater, const VendorMap& before)
     // left selected, under its name when it was one of them.
     if (!models.empty())
         SetupCommands::select_printer_preset(plater, keep.empty() ? selected : keep);
+    return added;
+}
+
+wxString link_named_printer(const std::string& name, const std::string& device_id)
+{
+    const Preset* preset = saved_preset(name);
+    if (preset == nullptr || !is_named_printer(*preset))
+        return gone();
+    if (device_id.empty())
+        throw std::invalid_argument("A printer link needs a device id");
+    for (const auto& [device, linked_name] : device_links()) {
+        if (device == device_id && linked_name != name && saved_preset(linked_name) != nullptr)
+            return _L("This device is already linked to another printer. Open that printer to connect it.");
+        if (linked_name == name && device != device_id)
+            return _L("This printer is already linked to another device.");
+    }
+    wxGetApp().app_config->set(kDeviceSection, device_id, name);
+    return {};
+}
+
+wxString configure_named_printer_host(const std::string& name, PrintHostType type, const std::string& address,
+                                     const std::string& api_key)
+{
+    auto& printers = bundle().printers;
+    Preset* saved = saved_preset(name);
+    if (!saved || !is_named_printer(*saved))
+        return gone();
+    if (is_selected(name) && printers.current_is_dirty())
+        return _L("The open project has unsaved printer changes. Save or discard them in Printer settings, then connect again.");
+    // Same persistence boundary as changing a named printer's nozzle. Patch
+    // only connection options; never select another project's printer.
+    saved->config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
+    saved->config.set_key_value("print_host", new ConfigOptionString(address));
+    saved->config.set_key_value("printhost_apikey", new ConfigOptionString(api_key));
+    const Preset* parent = printers.get_preset_parent(*saved);
+    DynamicPrintConfig parent_config = parent ? parent->config : DynamicPrintConfig();
+    saved->save(parent ? &parent_config : nullptr);
+    saved->sync_info = "update";
+    saved->save_info();
+    if (is_selected(name)) {
+        for (const char* key : {"host_type", "print_host", "printhost_apikey"})
+            printers.get_edited_preset().config.set_key_value(key, saved->config.option(key)->clone());
+        printer_tab().reload_config();
+        printer_tab().update_tab_ui();
+    }
+    return {};
 }
 
 wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset)

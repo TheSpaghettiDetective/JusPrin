@@ -302,7 +302,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 [this] { mark_agent_config_possibly_changed(); }});
         m_home->attach_side_panel(m_printer_panel, m_theme->metrics().printer_card.column_width);
         m_home->backend().set_conversation_opener(
-            [this](const std::string& printer_name) { open_printer_conversation(printer_name); });
+            [this](const std::string& printer_name, bool connect) { open_printer_conversation(printer_name, connect); });
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -581,7 +581,7 @@ void ShellController::refresh_home(const PrinterSetup::PinnedFacts* added)
     m_home->refresh(&entry);
 }
 
-void ShellController::open_printer_conversation(const std::string& printer_name)
+void ShellController::open_printer_conversation(const std::string& printer_name, bool connect)
 {
     if (m_printer_panel == nullptr || m_home == nullptr || m_tabpanel == nullptr)
         return;
@@ -589,7 +589,7 @@ void ShellController::open_printer_conversation(const std::string& printer_name)
     // first. Selecting the tab refreshes the gallery on its way in.
     if (m_tabpanel->GetSelection() != MainFrame::tpHome)
         m_frame->select_tab(size_t(MainFrame::tpHome));
-    m_printer_panel->open(printer_name.empty() ? PrinterSetup::ConversationMode::Add :
+    m_printer_panel->open(connect ? PrinterSetup::ConversationMode::Connect : printer_name.empty() ? PrinterSetup::ConversationMode::Add :
                                                  PrinterSetup::ConversationMode::Change,
                           printer_name);
     m_home->show_side_panel(true);

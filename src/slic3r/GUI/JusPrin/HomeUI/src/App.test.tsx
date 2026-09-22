@@ -157,7 +157,7 @@ describe('Home', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '43');
     expect(screen.getByText('0.4 mm nozzle')).toBeInTheDocument();
     const idle = screen.getByText('Prusa MK4').closest('.printer-card')!;
-    expect(idle.className).toContain('collapsed');
+    expect(within(idle as HTMLElement).getByRole('button', { name: 'Connect printer' })).toBeInTheDocument();
     expect(within(idle as HTMLElement).queryByText('Launch monitor')).not.toBeInTheDocument();
   });
 
@@ -182,12 +182,13 @@ describe('Home', () => {
     expect(host.lastOfType('add_printer')).toBeDefined();
   });
 
-  it('offers the three printer actions from each card header', async () => {
+  it('offers connection and printer actions from each named card header', async () => {
     const host = start();
     host.deliver('state', state({ printers: [printer(), printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
     await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
     const menu = screen.getByRole('menu');
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+        'Connect printer…',
       'Printer settings…',
       'Rename',
       'Remove printer…',
@@ -195,6 +196,14 @@ describe('Home', () => {
     await userEvent.click(within(menu).getByText('Printer settings…'));
     expect(host.lastOfType('open_printer_settings')!.payload).toEqual({ id: 'mk4' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('connects an existing saved printer without asking to add it again', async () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Connect printer' }));
+    expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
+    expect(host.lastOfType('add_printer')).toBeUndefined();
   });
 
   it('renames a named printer after checking the new name', async () => {

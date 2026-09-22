@@ -40,7 +40,7 @@
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 // What the panel asks the person about.
-enum class ConversationMode { Add, Change };
+enum class ConversationMode { Add, Change, Connect };
 
 // The four facts the pinned card states. An empty name or a size of 0 is a
 // fact nobody has stated yet. Each provenance is settled: known, from the
@@ -178,13 +178,14 @@ private:
 
     // Each takes the note the page wrote for the tap, posted only when the
     // tap goes through.
-    void add_proposed_printer(const std::string& access_code, const std::string& note);
+    void add_proposed_printer();
     void use_network_printer(const std::string& device_id, const std::string& note);
     void choose_candidate(const std::string& catalog_id, const std::string& block_id, const std::string& note);
     void reject_proposal(const std::string& note);
     void undo_change(const std::string& block_id, const std::string& note);
     void read_saved_printer();
     void refresh_network();
+    void refresh_connection();
 
     const CatalogPrinter* catalog_entry(const std::string& id) const;
     const CatalogPrinter* model_of(const DiscoveredPrinter& device) const;
@@ -220,6 +221,10 @@ private:
     std::vector<DiscoveredPrinter> m_network;
     // The model's instructions, as the page wrote them for this session.
     std::string m_instructions;
+    std::vector<SavedPrinter> m_added;
+    bool m_manual_applied{false};
+    std::string m_connection_name;
+    nlohmann::json m_connection_view;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

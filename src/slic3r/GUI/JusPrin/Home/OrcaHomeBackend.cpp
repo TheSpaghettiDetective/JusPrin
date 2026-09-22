@@ -13,6 +13,7 @@
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/SelectMachinePop.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -98,7 +99,7 @@ std::string nozzle_text(double diameter)
 void describe_device(MachineObject& machine, PrinterEntry& printer)
 {
     const bool printing        = machine_is_printing(machine);
-    const bool connected       = machine.is_connected();
+    const bool connected       = PrinterSetup::has_recent_printer_data(machine);
     printer.state              = !connected ? PrinterState::Offline
                                  : printing ? PrinterState::Printing
                                             : PrinterState::Idle;
@@ -113,6 +114,8 @@ void describe_device(MachineObject& machine, PrinterEntry& printer)
     }
     if (connected)
         printer.connection_text = std::string(_L("Connected").ToUTF8());
+    else
+        printer.connection_text = std::string(_L("Status unavailable").ToUTF8());
     if (const DevExtderSystem* extruders = machine.GetExtderSystem()) {
         const float diameter = extruders->GetNozzleDiameter(0);
         if (diameter > 0.f)
@@ -214,6 +217,10 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_open_settings = true;
         printer.can_rename        = true;
         printer.can_remove        = true;
+        printer.connection_text = utf8(named.device_id.empty() ? _L("Not connected") : _L("Connection saved · status unavailable"));
+        if (const auto* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false, true))
+            if (!preset->config.opt_string("print_host").empty())
+                printer.connection_text = utf8(_L("File sending configured · live status unavailable"));
         if (named.nozzle > 0.)
             printer.nozzle_text = nozzle_text(named.nozzle);
         if (const auto found = machines.find(named.device_id); !named.device_id.empty() && found != machines.end()) {
@@ -327,7 +334,7 @@ void OrcaHomeBackend::add_printer()
     // The conversation replaces the printers column in place; the shell draws
     // it and owns the session.
     if (m_open_conversation)
-        m_open_conversation({});
+        m_open_conversation({}, false);
 }
 
 std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id)
@@ -338,7 +345,20 @@ std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id
     // "Printer settings…" opens that printer's own conversation, where "Set
     // it up myself" still leads to OrcaSlicer's settings window.
     if (m_open_conversation)
-        m_open_conversation(*name);
+        m_open_conversation(*name, false);
+    return {};
+}
+
+std::string OrcaHomeBackend::connect_printer(const std::string& printer_id)
+{
+    const auto name = strip(printer_id, kNamedPrefix);
+    if (!name)
+        return gone();
+    const auto saved = Printers::named_printers();
+    if (std::none_of(saved.begin(), saved.end(), [&](const auto& printer) { return printer.name == *name; }))
+        return gone();
+    if (m_open_conversation)
+        m_open_conversation(*name, true);
     return {};
 }
 

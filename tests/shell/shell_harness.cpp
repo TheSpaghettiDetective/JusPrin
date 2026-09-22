@@ -1056,6 +1056,34 @@ private:
                   listed->can_rename && listed->can_remove,
               "named_home_offers_the_printer_menu");
 
+        // Configure an unselected saved printer through the real adapter. A
+        // closed loopback port exercises an actual provider failure without
+        // contacting hardware or sending any file.
+        const bool dirty_before_connection = m_plater->is_project_dirty();
+        error = backend.connect_host(kAddedPrinter, "moonraker", "http://127.0.0.1:1", "");
+        check(error.empty() && backend.connection(kAddedPrinter).state == "failed",
+              "named_host_test_failure_is_a_connection_outcome");
+        check(printer_profile(kAddedPrinter) != nullptr && selected_printer() == second &&
+                  m_plater->is_project_dirty() == dirty_before_connection,
+              "named_connect_preserves_saved_printer_and_unrelated_project");
+        check(printer_profile(kAddedPrinter)->config.opt_string("print_host") == "http://127.0.0.1:1",
+              "named_host_settings_stay_with_the_existing_printer");
+        auto& printer_presets = wxGetApp().preset_bundle->printers;
+        const bool dirty_on_selected = m_plater->is_project_dirty();
+        check(Printers::configure_named_printer_host(second, htOctoPrint, "http://127.0.0.1:1", "").empty() &&
+                  printer_presets.get_edited_preset().config.opt_string("print_host") == "http://127.0.0.1:1" &&
+                  !printer_presets.current_is_dirty() && m_plater->is_project_dirty() == dirty_on_selected,
+              "named_host_settings_update_selected_printer_without_changing_project_edits");
+        printer_presets.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
+        check(!Printers::configure_named_printer_host(second, htMoonraker, "http://127.0.0.1:2", "").empty() &&
+                  printer_presets.get_edited_preset().config.opt_string("printer_notes") == "unsaved" &&
+                  printer_profile(second)->config.opt_string("print_host") == "http://127.0.0.1:1",
+              "named_connect_refuses_to_overwrite_unsaved_printer_edits");
+        printer_presets.discard_current_changes();
+        check(Printers::link_named_printer(kAddedPrinter, "harness-device").empty() &&
+                  !Printers::link_named_printer(second, "harness-device").empty(),
+              "named_device_link_refuses_a_second_owner");
+
         check(!Printers::rename_named_printer(*m_plater, nullptr, second, kAddedPrinter).empty() &&
                   selected_printer() == second,
               "named_rename_refuses_a_taken_name");
@@ -1069,6 +1097,10 @@ private:
               "named_rename_of_another_printer_keeps_the_selection");
         const Preset* garage = printer_profile("Garage Neo");
         check(garage != nullptr && garage->inherits() == kAddedPrinterProfile, "named_rename_keeps_the_parent");
+        const auto renamed_printers = Printers::named_printers();
+        check(std::any_of(renamed_printers.begin(), renamed_printers.end(), [](const auto& printer) {
+                  return printer.name == "Garage Neo" && printer.device_id == "harness-device";
+              }), "named_rename_keeps_the_device_association");
         check(Printers::remove_named_printer(*m_plater, nullptr, "Garage Neo").empty() &&
                   printer_profile("Garage Neo") == nullptr && selected_printer() == "Shed Neo",
               "named_remove_of_another_printer_keeps_the_selection");
@@ -1112,7 +1144,45 @@ private:
               "named_wizard_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         check(selected_printer() == kSetupFixturePrinter, "named_cleanup_restores_the_fixture_printer");
-        finish();
+        verify_saved_bambu_connection();
+    }
+
+    void verify_saved_bambu_connection()
+    {
+        // Exercise the actual adapter and parsed device observations with the
+        // in-process fake. This proves state ownership, not network authentication.
+        wxGetApp().app_config->set("jusprin", "fake_printer", "true");
+        auto backend = std::make_shared<PrinterSetup::OrcaPrinterBackend>(
+            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), nullptr);
+        PrinterSetup::AddPrinterRequest request;
+        request.vendor_id = "BBL";
+        request.model_id = "Bambu Lab A1 mini";
+        request.variant = "0.4";
+        request.name = "Connection fixture";
+        PrinterSetup::SavedPrinter saved;
+        check(backend->add_printer(request, saved).empty(), "connect_fixture_saved_without_device");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const bool dirty = m_plater->is_project_dirty();
+        backend->prepare_connection(saved.name);
+        wait_until([backend, name = saved.name] { return !backend->connection(name).candidates.empty(); },
+            "connect_fake_discovered_by_real_adapter", [self = shared_from_this(), backend, name = saved.name, dirty] {
+                const auto info = backend->connection(name);
+                const std::string device = info.candidates.front().id;
+                self->check(info.state == "not_configured", "unlinked_online_device_is_not_a_connected_saved_printer");
+                self->check(backend->connect_printer(name, device, "").empty(), "connect_existing_saved_bambu");
+                self->check(backend->connection(name).state == "connecting", "connect_waits_for_fresh_device_data");
+                self->check(backend->connect_printer(name, device, "").empty(), "duplicate_connect_is_idempotent");
+                self->wait_until([backend, name] { return backend->connection(name).state == "verified"; },
+                    "connect_verified_from_parsed_fake_data", [self, backend, name, device, dirty] {
+                        const auto printers = backend->saved_printers();
+                        self->check(std::count_if(printers.begin(), printers.end(), [&](const auto& p) {
+                            return p.name == name && p.device_id == device;
+                        }) == 1, "connect_keeps_one_saved_identity");
+                        self->check(self->selected_printer() == kSetupFixturePrinter &&
+                            self->m_plater->is_project_dirty() == dirty, "connect_preserves_unrelated_project_selection_and_edits");
+                        self->finish();
+                    });
+            });
     }
 
     void check(bool condition, const std::string& name)

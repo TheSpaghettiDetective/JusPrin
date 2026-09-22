@@ -43,6 +43,7 @@ public:
     void add_printer() override { ++wizards; }
 
     std::vector<std::string>                         settings_opened;
+    std::vector<std::string>                         connections_opened;
     std::vector<std::pair<std::string, std::string>> renamed;
     std::vector<std::string>                         removed;
     std::string                                      refusal; // what every printer action answers
@@ -55,6 +56,11 @@ public:
     std::string rename_printer(const std::string& id, const std::string& name) override
     {
         renamed.emplace_back(id, name);
+        return refusal;
+    }
+    std::string connect_printer(const std::string& id) override
+    {
+        connections_opened.push_back(id);
         return refusal;
     }
     std::string remove_printer(const std::string& id) override
@@ -345,15 +351,18 @@ TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]
     const size_t states_after_hello = wire.of_type("state").size();
 
     host.on_page_message(page_message("open_printer_settings", json{{"id", "named:Garage X1C"}}));
+    host.on_page_message(page_message("connect_printer", json{{"id", "named:Garage X1C"}}));
     host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Shed X1C"}}));
     host.on_page_message(page_message("remove_printer", json{{"id", "named:Shed X1C"}}));
 
     CHECK(backend.settings_opened == std::vector<std::string>{"named:Garage X1C"});
+    CHECK(backend.connections_opened == std::vector<std::string>{"named:Garage X1C"});
+    CHECK(backend.wizards == 0);
     REQUIRE(backend.renamed.size() == 1);
     CHECK(backend.renamed.front() == std::make_pair(std::string("named:Garage X1C"), std::string("Shed X1C")));
     CHECK(backend.removed == std::vector<std::string>{"named:Shed X1C"});
     CHECK(wire.of_type("printer_error").empty());
-    CHECK(wire.of_type("state").size() == states_after_hello + 3);
+    CHECK(wire.of_type("state").size() == states_after_hello + 4);
 }
 
 // A refusal is the person's to read, and the rail is sent again either way so

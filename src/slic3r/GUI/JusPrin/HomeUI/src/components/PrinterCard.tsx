@@ -2,7 +2,8 @@ import type { PrinterInfo } from '../bridge/protocol';
 import { MonitorGlyph, PrinterGlyph } from './Glyphs';
 import { PrinterActions, PrinterMenu } from './PrinterMenu';
 
-// A printing printer opens into its job; every other printer stays one row.
+// A printing printer opens into its job; other printers show their connection
+// and a next action so an optional connection can be completed later.
 // Giving both states the same green dot made them indistinguishable, so only
 // a printing printer's dot is colored. Either way the header row ends in the
 // printer's actions menu.
@@ -40,9 +41,16 @@ export function PrinterCard({
   const cardClass = (base: string) => (highlighted ? `${base} printer-card-added` : base);
   if (!printing) {
     return (
-      <div className={cardClass('printer-card collapsed')}>
-        {name}
-        {end}
+      <div className={cardClass('printer-card')}>
+        <div className="printer-head">{name}{end}</div>
+        {printer.connectionText && <div className="printer-detail">{printer.connectionText}</div>}
+        {printer.canLaunchMonitor ? (
+          <button type="button" className="button-secondary launch-monitor" onClick={() => onLaunchMonitor(printer.id)}>
+            <MonitorGlyph />Launch monitor
+          </button>
+        ) : printer.kind === 'named' && actions.onConnect && (
+          <button type="button" className="button-secondary" onClick={() => actions.onConnect?.(printer.id)}>Connect printer</button>
+        )}
       </div>
     );
   }

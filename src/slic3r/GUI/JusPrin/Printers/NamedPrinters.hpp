@@ -75,6 +75,12 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
 // After OrcaSlicer's own printer wizard has run: a named printer for each
 // model it newly enabled, given the app config's vendor map from before it
 // ran. The wizard's own selection stays selected, under its new name.
-void name_installed_printers(Plater& plater, const VendorMap& before);
+std::vector<std::string> name_installed_printers(Plater& plater, const VendorMap& before);
+
+// Attach a device to an existing printer, without selecting or saving another
+// profile. Both sides are unique; replacing a different association is explicit.
+wxString link_named_printer(const std::string& name, const std::string& device_id);
+wxString configure_named_printer_host(const std::string& name, PrintHostType type, const std::string& address,
+                                     const std::string& api_key);
 
 } // namespace Slic3r::GUI::JusPrin::Printers
