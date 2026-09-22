@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>byw77pqiv</task-id>
+<tool-use-id>toolu_01Svtt9vjZosi7MiJf7DKRF7</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\ef3565e2-a47f-4380-813d-35413a411453\tasks\byw77pqiv.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the agent_bridge_tests target" completed (exit code 0)</summary>
+</task-notification>
