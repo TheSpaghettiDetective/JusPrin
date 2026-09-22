@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bcnx3y5p0</task-id>
+<tool-use-id>toolu_01UrtaZ7wPbVkZpba4Gc9omu</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\ef3565e2-a47f-4380-813d-35413a411453\tasks\bcnx3y5p0.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild test binary without the probe" completed (exit code 0)</summary>
+</task-notification>
