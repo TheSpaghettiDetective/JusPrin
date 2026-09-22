@@ -1,0 +1,1 @@
+&#x20;You are a very experienced product manager and UX UI designer.  Now launch the JusPrin app and walk through the steps of adding a new printer.   identify the UX UI problems for this process.   Pay special attention to a new user's point of view, that is the user who has never used the app before,  to see how they may be confused.
