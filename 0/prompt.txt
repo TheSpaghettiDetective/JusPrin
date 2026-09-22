@@ -1,0 +1,1 @@
+install node and start on M0. when you need openai key, let me know how I can give you. spin up subagent to speed up process as you see fit
