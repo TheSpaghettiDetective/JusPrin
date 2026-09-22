@@ -1,0 +1,5 @@
+<environment_context>
+  <current_date>2026-09-21</current_date>
+  <timezone>Atlantic/Reykjavik</timezone>
+  <filesystem><workspace_roots><root>C:\src\JusPrin</root></workspace_roots><permission_profile type="managed"><file_system type="restricted"><entry access="read"><special>:root</special></entry><entry access="write"><path>C:\src\JusPrin</path></entry><entry access="write"><special>:slash_tmp</special></entry><entry access="write"><special>:tmpdir</special></entry><entry access="read"><path>C:\src\JusPrin\.git</path></entry><entry access="read"><path>C:\src\JusPrin\.agents</path></entry><entry access="read"><path>C:\src\JusPrin\.codex</path></entry></file_system></permission_profile></filesystem>
+</environment_context>
