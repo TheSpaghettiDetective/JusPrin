@@ -1,0 +1,6 @@
+# Files pasted by the user:
+
+## "For a reviewer this needs exact, checkable facts rather than my summary, so let…": C:\Users\guitest\.codex/attachments/a7c88150-8a6c-414b-9191-8c602b3a489b/Pasted text.txt
+
+## My request:
+check if this is a real issue according to fork stewardship guidelines
