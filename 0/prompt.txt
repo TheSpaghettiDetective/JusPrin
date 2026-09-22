@@ -1,0 +1,3 @@
+another agent should have fixed the 8 python test failures on this branch. check the work. ignore claude for now. just use openai. do you need my permission to click the app?
+for the printer list  - there should be a way to set up a fake moonraker printer. check the code and docs to find ojut how. 
+fix these, and launch the app so that I can test it myself
