@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b76ntx9y8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\ef3565e2-a47f-4380-813d-35413a411453\tasks\b76ntx9y8.output</output-file>
+<status>completed</status>
+<summary>Background command "Clean full build with complete logging" completed (exit code 0)</summary>
+</task-notification>
