@@ -1,0 +1,1 @@
+this branch works on a mac. now you are on windows. check if there are any batch file from upstream to build it on windows
