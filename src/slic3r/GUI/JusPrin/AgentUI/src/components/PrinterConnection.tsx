@@ -91,7 +91,7 @@ export function PrinterConnection({ session, onAction }: {
             {unavailable && host && <button type="button" onClick={() => onAction('manual_setup')}>Printer settings</button>}
           </>}
       </>}
-      <button type="button" onClick={() => onAction('close')}>{verified ? 'Done' : connecting ? 'Back to printers' : 'Not now'}</button>
+      <button type="button" onClick={() => onAction('close')}>{session.mode === 'add' ? 'Go to Home' : verified ? 'Done' : connecting ? 'Back to printers' : 'Not now'}</button>
     </section>
   );
 }

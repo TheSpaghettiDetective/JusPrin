@@ -363,6 +363,33 @@ body {
    scrolling content so both remain reachable in a short or narrow dock. */
 .chat-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .chat-content[hidden] { display: none; }
+
+/* Adding a printer takes Home's workspace; editing keeps the narrow panel. */
+.app--printer-setup {
+  background: var(--surface-canvas);
+  padding: 16px;
+}
+.app--printer-setup > .chat-content,
+.app--printer-setup > .printer-connection {
+  width: 100%;
+  max-width: var(--printer-setup-width);
+  margin-inline: auto;
+}
+.app--printer-setup .printer-header {
+  height: auto;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  border-bottom: none;
+  padding: 8px 16px;
+}
+.printer-setup-title {
+  margin: 16px 16px 8px;
+  font: var(--font-page-title);
+}
+.app--printer-setup .printer-setup-explanation {
+  margin: 0;
+  padding: 0 16px 16px;
+}
 .chat-header, .chat-list-header {
   display: flex;
   flex: 0 0 auto;

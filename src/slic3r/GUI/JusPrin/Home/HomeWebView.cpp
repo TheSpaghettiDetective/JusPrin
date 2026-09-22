@@ -115,6 +115,7 @@ void HomeWebView::attach_side_panel(wxWindow* panel, int width_dip)
     if (m_side_panel != nullptr)
         m_row->Detach(m_side_panel);
     m_side_panel = panel;
+    m_side_panel_width = width_dip;
     if (m_side_panel != nullptr) {
         m_side_panel->SetMinSize(wxSize(FromDIP(width_dip), -1));
         m_row->Add(m_side_panel, 0, wxEXPAND);
@@ -123,11 +124,16 @@ void HomeWebView::attach_side_panel(wxWindow* panel, int width_dip)
     Layout();
 }
 
-void HomeWebView::show_side_panel(bool shown)
+void HomeWebView::show_side_panel(bool shown, bool focused)
 {
     if (m_side_panel == nullptr)
         return;
     m_side_panel->Show(shown);
+    const bool workspace = shown && focused;
+    m_webview->Show(!workspace);
+    m_error->Show(!workspace && !m_error->GetLabel().empty());
+    m_side_panel->SetMinSize(wxSize(workspace ? 0 : FromDIP(m_side_panel_width), -1));
+    m_row->GetItem(m_side_panel)->SetProportion(workspace ? 1 : 0);
     // The page drops its own printers column while the panel has that place,
     // so the two never both claim it.
     m_host->set_printer_panel_open(shown);

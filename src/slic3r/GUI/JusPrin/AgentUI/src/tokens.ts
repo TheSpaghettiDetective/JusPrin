@@ -15,7 +15,7 @@ export { applyAppearance } from '@shared/tokens';
 // writes, so a test can check that the stylesheet only asks for variables
 // that exist.
 export function staticVariableNames(): string[] {
-  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-dialog-scrim'];
+  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-dialog-scrim', '--printer-setup-width'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
@@ -29,9 +29,10 @@ export function staticVariableNames(): string[] {
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
   const { component } = tokens as unknown as {
-    component: { threadRow: { lineGap: number }; printerDialog: { scrimAlpha: number } };
+    component: { threadRow: { lineGap: number }; printerDialog: { scrimAlpha: number }; printerSetup: { contentWidth: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
+  document.documentElement.style.setProperty('--printer-setup-width', `${component.printerSetup.contentWidth}px`);
   document.documentElement.style.setProperty(
     '--printer-dialog-scrim',
     `${Math.round((component.printerDialog.scrimAlpha / 255) * 100)}%`,

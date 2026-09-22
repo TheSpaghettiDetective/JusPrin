@@ -53,7 +53,8 @@ public:
     // panel is shown, so the two never both claim it. The shell owns the
     // panel's lifetime; passing nullptr takes it back out.
     void attach_side_panel(wxWindow* panel, int width_dip);
-    void show_side_panel(bool shown);
+    // Add uses the whole workspace; existing-printer edits stay beside Home.
+    void show_side_panel(bool shown, bool focused = false);
 
 private:
     void on_script_message(wxWebViewEvent& event);
@@ -70,6 +71,7 @@ private:
     // row while no panel is attached.
     wxBoxSizer*               m_row{nullptr};
     wxWindow*                 m_side_panel{nullptr};
+    int                       m_side_panel_width{0};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

@@ -363,6 +363,9 @@
       "radius": 12,
       "scrimAlpha": 88
     },
+    "printerSetup": {
+      "contentWidth": 720
+    },
     "printerCard": {
       "columnWidth": 320,
       "progressHeight": 4,

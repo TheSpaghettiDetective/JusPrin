@@ -405,11 +405,12 @@ export function App({
 
   if (printerPanel) {
     const session = state.session;
+    const printerClass = `app app--printer${session?.mode === 'add' ? ' app--printer-setup' : ''}`;
     const offerManualPrinterSetup = notConfigured && session?.mode === 'add' && view === 'chat';
     const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
       client.send('printer_action', { action, id, ...extra });
     if (session && (session.connection || (session.added?.length ?? 0) > 0)) {
-      return <div className="app app--printer">{errorNotice}<PrinterConnection session={session} onAction={printerAction} /></div>;
+      return <div className={printerClass}>{errorNotice}<PrinterConnection session={session} onAction={printerAction} /></div>;
     }
     // F7 review fix: message count alone caught a saved, applied change too
     // (Change mode stays open after a printer_change succeeds), warning
@@ -434,7 +435,7 @@ export function App({
       // The whole panel takes a photo, not only the composer: a picture of
       // the printer is dropped where the person is looking.
       <div
-        className="app app--printer"
+        className={printerClass}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           const files = Array.from(event.dataTransfer.files ?? []);
@@ -447,16 +448,17 @@ export function App({
         <div className="chat-content">
           {/* The label names where ‹ leads, not the printer this is about. */}
           <header className="chat-header printer-header">
-            <button type="button" className="icon-button" aria-label="Back to printers" onClick={() => gatedPrinterAction('close')}>
-              ‹
+            <button type="button" className={session?.mode === 'add' ? 'printer-manual-link' : 'icon-button'} aria-label={session?.mode === 'add' ? 'Back to Home' : 'Back to printers'} onClick={() => gatedPrinterAction('close')}>
+              {session?.mode === 'add' ? '‹ Back to Home' : '‹'}
             </button>
-            <h1>{session?.mode === 'add' ? 'Add your printer' : 'Printers'}</h1>
+            {session?.mode !== 'add' && <h1>Printers</h1>}
             {!offerManualPrinterSetup && (
               <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
-                Set it up myself
+                {session?.mode === 'add' ? 'Choose printer manually' : 'Set it up myself'}
               </button>
             )}
           </header>
+          {session?.mode === 'add' && <h1 className="printer-setup-title">Let’s add your printer</h1>}
           {session?.mode === 'add' && <p className="printer-setup-explanation">Choose your printer so JusPrin can prepare prints for it. You can connect it afterward.</p>}
           {session?.manualApplied && !session.added?.length && <p className="printer-setup-explanation" role="status">No new printers were added. Your existing printers are available from Home.</p>}
           {session?.mode === 'change' && <button type="button" className="printer-manual-link" onClick={() => printerAction('connect', session.context?.printer?.name || session.facts.printer.name)}>Connect printer</button>}

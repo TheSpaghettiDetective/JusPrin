@@ -317,6 +317,12 @@ TEST_CASE("the printer dialog geometry is explicit", "[brand]")
         "component.printerDialog");
 }
 
+TEST_CASE("printer setup has a readable conversation width", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("printerSetup"),
+        {{"contentWidth", 720}}, "component.printerSetup");
+}
+
 TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();

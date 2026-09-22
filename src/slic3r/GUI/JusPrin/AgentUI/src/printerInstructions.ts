@@ -38,7 +38,7 @@ const ADD_RULES =
   'them to choose "This one" beside their model. "Add this printer" is NOT available until one is selected. ' +
   'Do not discuss nozzle sizes or other hardware until that choice is made.\n' +
   '- More than three fit: do not call it. Ask one question that narrows it down and say where to look, or point ' +
-  'to "Set it up myself" at the top of the panel, which lists every printer. Never show three of many.\n' +
+  'to "Choose printer manually" at the top of the panel, which lists every printer. Never show three of many.\n' +
   '- A query that is the start of more than one model name is not a clear match, even when it exactly equals one ' +
   'of them. Before calling with one id, look for other names in the list that begin with what the person typed: ' +
   '"prusa mk4" begins Prusa MK4, MK4S and MK4S HF, so it is three printers, not one.\n' +

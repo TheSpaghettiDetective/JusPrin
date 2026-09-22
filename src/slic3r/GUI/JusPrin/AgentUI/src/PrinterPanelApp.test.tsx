@@ -122,15 +122,16 @@ describe('the printer panel page', () => {
     // canAdd: false -- this test is about which action the tap sends, not
     // about F7's leave-confirmation, so it uses the nothing-to-lose case.
     const host = open(state({ session: session({ canAdd: false }) }));
-    expect(screen.getByRole('heading', { name: 'Add your printer' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Let’s add your printer' })).toBeInTheDocument();
+    expect(document.querySelector('.app--printer-setup')).not.toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+    await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
   });
 
   it('keeps the way out to OrcaSlicer’s own screens', async () => {
     const host = open(state({ session: session({ canAdd: false }) }));
-    await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
+    await userEvent.click(screen.getByRole('button', { name: /Choose printer manually|Set it up myself/ }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
   });
 
@@ -156,10 +157,10 @@ describe('the printer panel page', () => {
     expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
 
     expect(screen.getByText('Not ready to set up the agent?')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Set it up myself' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Choose printer manually|Set it up myself/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Add your printer manually' }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
-    await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+    await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
     expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
   });
 
@@ -194,7 +195,7 @@ describe('the printer panel page', () => {
   it('keeps the add-printer fallback out of an existing printer’s settings', () => {
     open(state({ agent: { status: 'unavailable' }, session: session({ mode: 'change', canAdd: false }) }));
     expect(screen.queryByRole('button', { name: 'Add your printer manually' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set it up myself' })).toBeVisible();
+    expect(screen.getByRole('button', { name: /Choose printer manually|Set it up myself/ })).toBeVisible();
   });
 
   // WP10 (F10), corrected by F7 on printer-panel-review-fixes-handoff.md:
@@ -217,26 +218,26 @@ describe('the printer panel page', () => {
 
     it('asks before "‹ Printers" discards an Add proposal, and does nothing until answered', async () => {
       const host = withProposal();
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
       expect(host.received.some((envelope) => envelope.type === 'printer_action')).toBe(false);
     });
 
     it('leaves on confirmation, and does nothing on cancel', async () => {
       const host = withProposal();
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(host.received.some((envelope) => envelope.type === 'printer_action')).toBe(false);
 
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
       expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
     });
 
     it('asks before "Set it up myself" discards an Add proposal too', async () => {
       const host = withProposal();
-      await userEvent.click(screen.getByRole('button', { name: 'Set it up myself' }));
+      await userEvent.click(screen.getByRole('button', { name: /Choose printer manually|Set it up myself/ }));
       expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
       expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'manual_setup' });
@@ -264,7 +265,7 @@ describe('the printer panel page', () => {
           ],
         }),
       );
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
       expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
@@ -297,7 +298,7 @@ describe('the printer panel page', () => {
           ],
         }),
       );
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
     });
@@ -313,7 +314,7 @@ describe('the printer panel page', () => {
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 350));
       });
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       expect(screen.getByRole('dialog', { name: 'Leave this conversation?' })).toBeInTheDocument();
       expect(host.received.some((envelope) => envelope.type === 'printer_action')).toBe(false);
     });
@@ -323,7 +324,7 @@ describe('the printer panel page', () => {
       // tests in this file need a proposed card); this one wants the
       // genuinely-empty case, so it says so explicitly.
       const host = open(state({ session: session({ canAdd: false }) }));
-      await userEvent.click(screen.getByRole('button', { name: 'Back to printers' }));
+      await userEvent.click(screen.getByRole('button', { name: /Back to (Home|printers)/ }));
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(host.lastOfType('printer_action')!.payload).toMatchObject({ action: 'close' });
     });
@@ -548,6 +549,7 @@ describe('the printer panel page', () => {
   it('follows the session the host sends after the state', () => {
     const host = open();
     host.deliver('printer_session', session({ mode: 'change', canAdd: false }));
+    expect(document.querySelector('.app--printer-setup')).toBeNull();
     expect(document.querySelector('.printer-pinned')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
   });

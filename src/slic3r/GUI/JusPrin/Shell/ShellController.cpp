@@ -592,7 +592,7 @@ void ShellController::open_printer_conversation(const std::string& printer_name,
     m_printer_panel->open(connect ? PrinterSetup::ConversationMode::Connect : printer_name.empty() ? PrinterSetup::ConversationMode::Add :
                                                  PrinterSetup::ConversationMode::Change,
                           printer_name);
-    m_home->show_side_panel(true);
+    m_home->show_side_panel(true, printer_name.empty() && !connect);
 }
 
 void ShellController::on_page_changed()

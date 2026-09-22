@@ -99,8 +99,8 @@ public:
     // caller passes none.
     void refresh_home(const PrinterSetup::PinnedFacts* added = nullptr);
 
-    // Opens the printer conversation in place of Home's printers column: an
-    // empty name adds a printer, a name changes that one. From the Prepare
+    // Opens Add in Home's workspace; a named printer uses its side panel.
+    // An empty name adds a printer, a name changes that one. From the Prepare
     // header's printer menu it goes to Home first, since that is where the
     // panel lives. Every opening is a new session.
     void open_printer_conversation(const std::string& printer_name = {}, bool connect = false);

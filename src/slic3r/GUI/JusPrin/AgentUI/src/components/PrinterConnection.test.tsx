@@ -13,9 +13,9 @@ const session = (connection?: Partial<PrinterConnectionInfo>): PrinterSessionPay
 describe('printer addition and connection', () => {
   it('confirms the save and makes skipping connection explicit', () => {
     const onAction = vi.fn();
-    render(<PrinterConnection session={session()} onAction={onAction} />);
+    render(<PrinterConnection session={{ ...session(), mode: 'add' }} onAction={onAction} />);
     expect(screen.getByRole('heading', { name: 'Your printer has been added' })).toHaveFocus();
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Home' }));
     expect(onAction).toHaveBeenCalledWith('close');
   });
   it('submits credentials only with a connection and clears the field', () => {

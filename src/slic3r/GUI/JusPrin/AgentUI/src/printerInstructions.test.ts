@@ -58,7 +58,7 @@ describe('the Add instructions', () => {
     // A size nobody measured is a question mark, not a blank.
     expect(text).toContain('Vendor/Unmeasured | Vendor Unmeasured | ?\n');
     expect(text).toContain('More than three fit: do not call it');
-    expect(text).toContain('Set it up myself');
+    expect(text).toContain('Choose printer manually');
     expect(text).toContain('never say a printer has been added');
     // Adding saves the printer; connection has its own optional next step.
     expect(text).toContain('Connection is a separate optional step after adding');
