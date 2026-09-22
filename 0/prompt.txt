@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>baprg5mlk</task-id>
+<tool-use-id>toolu_01NdJJ7JvjqQqwgo23sLKSQD</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\ef3565e2-a47f-4380-813d-35413a411453\tasks\baprg5mlk.output</output-file>
+<status>failed</status>
+<summary>Background command "Final full ctest run" failed with exit code 8</summary>
+</task-notification>
