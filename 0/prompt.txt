@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bt9daxiie</task-id>
+<tool-use-id>toolu_01Mo8ziBUGpiz1TszoKxa3pF</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\40425d7f-570d-4e51-a449-01f13859aadc\tasks\bt9daxiie.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the shell harness from current source" completed (exit code 0)</summary>
+</task-notification>
