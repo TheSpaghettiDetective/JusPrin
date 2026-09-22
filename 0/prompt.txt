@@ -1,0 +1,8 @@
+revert what you did about the moonraker fake printer. instead, use the following fake printer for testing:
+
+For testing without a real printer in JusPrin (branch jusprin-newui), use the
+in-process fake Bambu printer. Follow the operator guide at
+src/slic3r/GUI/JusPrin/Testing/README.md — sections "Turn it on", "Drive state",
+and "Print" cover setup and usage.
+
+finish the rest of your testing using the fake bambu printer. let me know if somehow fake bambu printer doesn't work for you
