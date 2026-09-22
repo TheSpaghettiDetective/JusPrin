@@ -1,0 +1,8 @@
+<environment_context>
+  <current_date>2026-09-22</current_date>
+  <timezone>Atlantic/Reykjavik</timezone>
+  <filesystem><workspace_roots><root>C:\src\JusPrin</root><root>C:\Users\guitest\.codex\visualizations\2026\09\21\01a0c608-511d-7981-8302-f87ac33c2ac5</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/fix_printer_agent_setup" />
+  </subagents>
+</environment_context>
