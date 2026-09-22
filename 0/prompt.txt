@@ -1,0 +1,1 @@
+fix the setenv thing so it works on windows. skip the crash.
