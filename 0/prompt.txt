@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b4krhr9p8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\ef3565e2-a47f-4380-813d-35413a411453\tasks\b4krhr9p8.output</output-file>
+<status>failed</status>
+<summary>Background command "Reconfigure with BUILD_TESTS=ON and build test targets" failed with exit code 1</summary>
+</task-notification>
