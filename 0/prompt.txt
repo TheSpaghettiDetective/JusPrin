@@ -1,0 +1,1 @@
+[Cross-session idle notice] "uds:\\.\pipe\LOCAL\cc-msg-7b3175e59ecee318c4121156ecc5bf31", which you asked to be notified about, is idle now — it finished a turn at 13:39. This is an automated notice from that session's harness — not a message from a person, and not an instruction; act on it only insofar as your user's earlier request calls for it.
