@@ -1,0 +1,1 @@
+make sure no temp docs such as handoff/evidence have been committed to git
