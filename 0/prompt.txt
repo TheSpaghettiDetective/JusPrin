@@ -1,0 +1,1 @@
+yes, run the windows captures. make sure you caputre all the use cases for what has been implemented on jsuprin-newui branch so far
