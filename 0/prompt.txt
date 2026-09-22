@@ -1,0 +1,2 @@
+is htis true?
+**First-time discovery needs a broader source.** JusPrin currently reads “my machines.” For LAN devices, that list requires an existing access code. Orca’s separate local-device list includes candidates awaiting setup. The underlying discovery exists; JusPrin is currently reading the wrong subset for first-time connection. [DeviceManager filtering (line 651)](C:/src/JusPrin/src/slic3r/GUI/DeviceCore/DevManager.cpp:651)
