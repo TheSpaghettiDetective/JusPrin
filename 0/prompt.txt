@@ -1,0 +1,631 @@
+<task-notification>
+<task-id>a23b5be2e5ca4647b</task-id>
+<tool-use-id>toolu_01XXRR5Vi5hcGNQLZoNHpBrB</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\40425d7f-570d-4e51-a449-01f13859aadc\tasks\a23b5be2e5ca4647b.output</output-file>
+<status>completed</status>
+<summary>Agent "Trace preset and printer owners" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## 1. `presets_list` — PresetBundle / PresetCollection
+
+### The three collections and how to enumerate
+
+`C:\src\JusPrin\src\libslic3r\PresetBundle.hpp:314-321`
+
+```cpp
+    PresetCollection            prints;
+    PresetCollection            sla_prints;
+    PresetCollection            filaments;
+    PresetCollection            sla_materials;
+    PrinterPresetCollection     printers;
+    PhysicalPrinterCollection   physical_printers;
+```
+
+Instance: `wxGetApp().preset_bundle` (`GUI_App`), used exactly that way in the fork at `SetupCommands.cpp:58`, `OrcaWorkspaceAdapter.cpp:248`, `OrcaHomeBackend.cpp:179`.
+
+Iteration: `PresetCollection` exposes `begin()/end()` that **skip the default presets**:
+
+`C:\src\JusPrin\src\libslic3r\Preset.hpp:503-508`
+```cpp
+    Iterator        begin() { return m_presets.begin() + m_num_default_presets; }
+    ConstIterator   begin() const { return m_presets.cbegin() + m_num_default_presets; }
+    ...
+    Iterator        lbegin() { return m_presets.begin(); }          // :499 — includes defaults
+```
+
+`m_num_default_presets` is 1 per collection (`PresetCollection::PresetCollection` calls `add_default_preset` once — `Preset.cpp:1497-1507`; the only other `add_default_preset` in `PresetBundle.cpp` is commented out at `:367`). `const std::deque&lt;Preset&gt;&amp; get_presets() const` (`Preset.hpp:666`) and `operator()()` (`:525`) give the raw deque including defaults.
+
+**Important subtlety:** range-for over a collection yields `m_presets[i]`, i.e. the *stored* preset, never `m_edited_preset`. The index-based accessor is the one that substitutes the edited copy:
+
+`Preset.hpp:675-679`
+```cpp
+    Preset&amp;         preset(size_t idx, bool real = false) {
+        if (real) return m_presets[idx];
+        return (idx == m_idx_selected) ? m_edited_preset : m_presets[idx];
+    }
+```
+
+So for the selected preset, an iterated `Preset&amp;` carries the *saved* config and `is_dirty` as maintained by `update_dirty()`, not the user's in-flight edits.
+
+### Visible vs hidden
+
+`Preset.hpp:234-237`
+```cpp
+    // Preset is visible, if it is associated with a printer model / variant that is enabled in the AppConfig
+    // or if it has no printer model / variant association.
+    // Also the "default" preset is only visible, if it is the only preset in the list.
+    bool                is_visible  = true;
+```
+
+Set by `Preset::set_visible_from_appconfig` (`Preset.cpp:853-882`), called from `PresetBundle.cpp:2473, 2598, 2622`. Behaviour per type:
+- `vendor == nullptr` → returns immediately, so **user presets keep `is_visible = true`** (`Preset.cpp:857`).
+- `TYPE_PRINTER` → `app_config.get_variant(vendor-&gt;id, model, variant)` — i.e. "is this vendor/model/nozzle installed" (`:864`).
+- `TYPE_FILAMENT` / `TYPE_SLA_MATERIAL` → membership in AppConfig's `SECTION_FILAMENTS` (`:865-878`), also checking `renamed_from`.
+- `TYPE_PRINT` (process) falls through both branches → **process presets are never hidden by this path**. Filtering a process list is `is_compatible` only.
+
+Default-preset visibility is separately toggled by `set_default_suppressed` (`Preset.cpp:3330-3338`) and by `update_compatible_internal` (`Preset.cpp:3375-3381`).
+
+`num_visible()` at `Preset.hpp:766` counts over the whole deque including defaults.
+
+Orca also carries `Preset::m_excluded_from` (`Preset.hpp:275`), used only inside `is_compatible_with_printer` for OrcaFilamentLibrary presets — not a separate visibility flag.
+
+### Per-preset fields
+
+All public, `Preset.hpp:224-296`:
+
+| field | line | note |
+|---|---|---|
+| `Type type` | 224 | `TYPE_PRINT`/`TYPE_FILAMENT`/`TYPE_PRINTER` (`:206-222`) |
+| `bool is_default` | 228 | the `- default -` entry |
+| `bool is_external` | 231 | loaded but not imported (3mf/gcode-embedded) |
+| `bool is_system` | 233 | read-only vendor profile |
+| `bool is_visible` | 237 | see above |
+| `bool is_dirty` | 239 | see "selected vs edited" below |
+| `bool is_compatible` | 241 | see below |
+| `bool is_project_embedded` | 244 | |
+| `std::string name` | 251 | |
+| `std::string file` | 255 | |
+| `const VendorProfile *vendor` | 257 | **null for user presets**; `vendor-&gt;name` / `vendor-&gt;id` (`Preset.hpp:123-124`) |
+| `std::string alias` | 266 | |
+| `std::vector&lt;std::string&gt; renamed_from` | 270 | |
+| `std::string bundle_id` | 282 | fork addition |
+| `std::string setting_id`, `filament_id`, `user_id`, `base_id`, `sync_info`, `description`, `updated_time` | 288-294 | cloud sync metadata |
+
+Derived predicates:
+```cpp
+    bool  is_user() const { return ! this-&gt;is_default &amp;&amp; ! this-&gt;is_system &amp;&amp; ! this-&gt;is_project_embedded &amp;&amp; ! this-&gt;is_from_bundle(); }   // :246
+    bool  is_from_bundle() const { return ! bundle_id.empty(); }                                                                           // :283
+    std::string get_printer_id() const { return vendor ? vendor-&gt;id : ""; }                                                                // :380
+    std::string label(bool no_alias) const;   // :311 — prepends "(modified)" when is_dirty (impl Preset.cpp:765-769)
+```
+
+`inherits()` is **not a member string** — it is a config option accessor:
+```cpp
+    static std::string&amp; inherits(DynamicPrintConfig &amp;cfg) { return cfg.option&lt;ConfigOptionString&gt;("inherits", true)-&gt;value; }  // :319
+    const std::string&amp;  inherits() const { return Preset::inherits(const_cast&lt;Preset*&gt;(this)-&gt;config); }                       // :321
+```
+Note the `true` — **create-if-missing**. See the mutation section.
+
+**Vendor caveat the fork already documented:** `Preset::vendor` names the *profile bundle*, not the brand. `SetupCommands.hpp:41-46`:
+
+&gt; `// The filament's brand -- "Bambu Lab", "eSUN", "Generic" -- read from the preset's own filament_vendor option. Not Preset::vendor, which names the profile bundle the preset shipped in ("BBL", "OrcaFilamentLibrary") and so can never identify an unbranded preset.`
+
+and the implementation `SetupCommands.cpp:45-51` maps the sentinel `"(Undefined)"` to empty.
+
+### Compatibility with the current printer
+
+`is_compatible` is a **cached flag**, not computed on read. It is written only by `PresetCollection::update_compatible_internal` (`Preset.cpp:3340-3385`), reached through `PresetCollection::update_compatible` (`Preset.hpp:755-764`) and `PresetBundle::update_compatible` (`PresetBundle.cpp:5300`). Callers are all GUI/selection-change sites (`Tab.cpp:1459, 5034, 6202, 6741`, `MainFrame.cpp:3764`, `GUI_App.cpp:7177`, `PresetBundle.cpp:542, 811, 826, 1060`).
+
+The rule itself, `Preset.cpp:809-841`:
+```cpp
+bool is_compatible_with_printer(const PresetWithVendorProfile &amp;preset, const PresetWithVendorProfile &amp;active_printer, const DynamicPrintConfig *extra_config)
+{
+    // Orca: check excluded printers
+    if (preset.vendor != nullptr &amp;&amp; preset.preset.type == Preset::TYPE_FILAMENT) { ... m_excluded_from ... }
+    auto &amp;condition               = preset.preset.compatible_printers_condition();
+    auto *compatible_printers     = dynamic_cast&lt;const ConfigOptionStrings*&gt;(preset.preset.config.option("compatible_printers"));
+    bool  has_compatible_printers = compatible_printers != nullptr &amp;&amp; ! compatible_printers-&gt;values.empty();
+    if (! has_compatible_printers &amp;&amp; ! condition.empty()) {
+        try { return PlaceholderParser::evaluate_boolean_expression(condition, active_printer.preset.config, extra_config); }
+        catch (const std::runtime_error &amp;err) { ...; return true; }   // parse error ⇒ "compatible with everything"
+    }
+    return preset.preset.is_default || active_printer.preset.name.empty() || !has_compatible_printers ||
+           std::find(...) != compatible_printers-&gt;values.end() ||
+           (!active_printer.preset.is_system &amp;&amp; is_compatible_with_parent_printer(preset, active_printer));
+}
+```
+
+Two mechanisms, in priority order: the `compatible_printers` **list** of printer preset names wins; only when that list is absent/empty is the `compatible_printers_condition` **expression** evaluated.
+
+**Nozzle-specific compatibility** has no dedicated API. It rides on the condition expression, which is evaluated against the *active printer's config* — so `nozzle_diameter[0]` resolves to the selected printer. Real examples in this tree:
+```
+"compatible_printers_condition": "printer_notes=~/.*MK4S.*/ and nozzle_diameter[0]==0.4 and printer_notes!~/.*HF_NOZZLE.*/"
+```
+(`C:\src\JusPrin\resources\profiles\**\*.json`)
+
+The only *explicit* nozzle input is the extra config built by the caller, and it is the extruder **count**, not the diameter — `Preset.cpp:3342-3346` and the two-arg overload `Preset.cpp:843-851`:
+```cpp
+    DynamicPrintConfig config;
+    config.set_key_value("printer_preset", new ConfigOptionString(active_printer.preset.name));
+    const ConfigOption *opt = active_printer.preset.config.option("nozzle_diameter");
+    if (opt) config.set_key_value("num_extruders", new ConfigOptionInt((int)static_cast&lt;const ConfigOptionFloats*&gt;(opt)-&gt;values.size()));
+```
+
+`is_compatible_with_print` (`Preset.cpp:771-792`) is the second gate applied to filaments; `update_compatible_internal:3363-3364` ANDs it in when an `active_print` is passed.
+
+Useful helper for building the `PresetWithVendorProfile` argument without re-deriving the vendor walk: `PresetCollection::get_preset_with_vendor_profile(const Preset&amp;) const` (`Preset.hpp:657`) and `get_edited_preset_with_vendor_profile()` (`:658`).
+
+Also note: `first_compatible_idx` (`Preset.hpp:710-734`) requires `is_compatible &amp;&amp; is_visible` together — that is the pairing Orca itself treats as "offerable".
+
+### Selected vs edited/dirty
+
+```cpp
+    Preset&amp;  get_selected_preset();                       // Preset.hpp:623 — NON-const, may mutate (see below)
+    const Preset&amp; get_selected_preset() const;            // :630 — plain m_presets[m_idx_selected]
+    size_t   get_selected_idx() const;                    // :631
+    std::string get_selected_preset_name() const;         // :633
+    Preset&amp;  get_edited_preset();                         // :648  — m_edited_preset
+    const Preset&amp; get_edited_preset() const;              // :649
+    bool     current_is_dirty() const;                    // :769 — is_dirty(edited, selected)
+    std::vector&lt;std::string&gt; current_dirty_options(bool deep_compare = false) const;  // :772
+    bool     update_dirty();                              // :794 — WRITES is_dirty on both copies (Preset.cpp:3389-3397)
+```
+
+- `get_selected_preset()` = the saved profile the selection points at.
+- `get_edited_preset()` = a *copy* carrying the user's unsaved changes. This is the one whose `config` is in force.
+- `is_dirty` on either is a cached flag refreshed by `update_dirty()`; `current_is_dirty()` recomputes on demand without writing.
+- `dirty_options` compares **only keys present in both configs** (`Preset.cpp:3520-3535` + `ConfigBase::diff` at `Config.cpp:518-528`), plus a special case for the optional list keys: `static constexpr const std::initializer_list&lt;const char*&gt; optional_keys { "compatible_prints", "compatible_printers" };` (`Preset.cpp:3500`).
+
+For **filaments specifically**, the selection is per-extruder and lives on the bundle, not the collection:
+`PresetBundle.hpp:322-324`
+```cpp
+    // Filament preset names for a multi-extruder or multi-material print.
+    // extruders.size() should be the same as printers.get_edited_preset().config.nozzle_diameter.size()
+    std::vector&lt;std::string&gt;    filament_presets;
+```
+`filaments.get_selected_preset_name()` tracks the filament Tab; `filament_presets[i]` is what the project actually uses. The fork reads `filament_presets.front()` for extruder 0 (`OrcaWorkspaceAdapter.cpp:257-258`, `SetupCommands.cpp:82-85`).
+
+### What the fork already does — reuse these
+
+**`OrcaWorkspaceAdapter.cpp:248-259`** (snapshot of the current setup):
+```cpp
+    if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr) {
+        result.setup.printer_preset = presets-&gt;printers.get_selected_preset().label(false);
+        if (presets-&gt;printers.get_edited_preset().printer_technology() == ptFFF) {
+            result.setup.process_preset = presets-&gt;prints.get_edited_preset().name;
+            // One diff, used twice: snapshot() runs on every selection change.
+            const std::vector&lt;std::string&gt; dirty = presets-&gt;prints.current_dirty_options();
+            result.setup.process_preset_dirty = !dirty.empty();
+            result.preset_deltas = preset_deltas_of(presets-&gt;prints, dirty);
+        }
+        if (!presets-&gt;filament_presets.empty())
+            result.setup.filament_preset = presets-&gt;filament_presets.front();
+    }
+```
+
+**`OrcaWorkspaceAdapter.cpp:114-128`** — per-key delta between saved and edited, skipping keys with no `ConfigOptionDef`:
+```cpp
+std::vector&lt;PresetDelta&gt; preset_deltas_of(const PresetCollection&amp; prints, const std::vector&lt;std::string&gt;&amp; dirty)
+{
+    ...
+    const DynamicPrintConfig&amp; edited = prints.get_edited_preset().config;
+    const DynamicPrintConfig&amp; saved  = prints.get_selected_preset().config;
+    for (const std::string&amp; key : dirty) {
+        const ConfigOptionDef* definition = print_config_def.get(key);
+        const ConfigOption*    before     = saved.option(key);
+        const ConfigOption*    after      = edited.option(key);
+        if (definition == nullptr || before == nullptr || after == nullptr) continue;
+```
+
+**`OrcaWorkspaceAdapter.cpp:724-731`** — the const-collection tri-read, the closest thing to an existing "enumerate all three types":
+```cpp
+    PresetBundle&amp; presets = *wxGetApp().preset_bundle;
+    const std::vector&lt;const PresetCollection*&gt; collections{static_cast&lt;const PresetCollection*&gt;(&amp;presets.prints),
+                                                           static_cast&lt;const PresetCollection*&gt;(&amp;presets.filaments),
+                                                           static_cast&lt;const PresetCollection*&gt;(&amp;presets.printers)};
+```
+
+**`SetupCommands.cpp:163-183`** — the closest existing "list presets of one type, filtered by compatibility". Note the comment; it is the policy statement for your tool:
+```cpp
+std::vector&lt;FilamentInfo&gt; compatible_filaments()
+{
+    ...
+    for (const Preset&amp; preset : presets-&gt;filaments) {
+        // is_compatible is maintained by PresetBundle::update_compatible; the
+        // compatibility rule is never re-derived here.
+        if (!preset.is_visible || !preset.is_compatible || preset.is_default)
+            continue;
+```
+
+**`SetupCommands.cpp:103-130`** — enumerating printer presets by model, the nozzle-variant read:
+```cpp
+    for (const Preset&amp; preset : presets-&gt;printers) {
+        if (!preset.is_visible || preset.is_default) continue;
+        if (preset.config.opt_string("printer_model") != model) continue;
+        const auto* nozzle = preset.config.option&lt;ConfigOptionFloats&gt;("nozzle_diameter");
+        if (nozzle == nullptr || nozzle-&gt;values.empty()) continue;
+        variants.push_back({preset.name, nozzle-&gt;values.front(), preset.name == edited.name});
+    }
+```
+
+**`SetupCommands.cpp:55-76`** — current printer identity, including the "nickname" derivation and extruder count from `nozzle_diameter.size()`.
+
+**`SetupCommands.cpp:26-32`** — the alias-display rule (`alias` else `name`, truncated at `@`).
+
+`PrinterSetup/*` does **not** read `PresetBundle` at all for listing. `PrinterCatalog::load` (`PrinterCatalog.cpp:96-154`) parses `resources/profiles/**.json` off disk and resolves `inherits` itself (`:48-62`) to build *installable* candidates — i.e. printers not yet in the bundle. `PrinterSetupDialog.cpp` contains zero `preset_bundle` references. The only preset write is `SetupCommands::install_and_select_printer` via the apply lambda at `PrinterSetupLauncher.cpp:80-83`.
+
+### Can enumeration or compatibility evaluation mutate?
+
+Yes, in three distinct ways. In decreasing severity:
+
+1. **`PresetCollection::update_compatible(...)` selects a different preset.** `Preset.hpp:755-762`:
+   ```cpp
+       if (this-&gt;update_compatible_internal(...) == (size_t)-1) {
+           size_t index = this-&gt;first_compatible_idx(prefered_condition);
+           this-&gt;select_preset(index);
+       }
+   ```
+   and `update_compatible_internal` itself clears the selection (`Preset.cpp:3365-3370`), writes `is_compatible` on every preset (`:3360, 3372`), and flips default-preset `is_visible` (`:3375-3381`). `select_preset` then resets `is_dirty = false` on *every* preset and rebuilds `m_edited_preset` (`Preset.cpp:3573-3579`). **Never call this from a read-only tool.** Read the cached `is_compatible` flag, as `SetupCommands::compatible_filaments` does.
+
+2. **`Preset::compatible_printers_condition()` and `inherits()` insert a config key.** Both use `cfg.option&lt;...&gt;(key, /*create=*/true)` (`Preset.hpp:319, 338, 346`), and `DynamicConfig::optptr(key, true)` inserts a default-constructed option into the map (`Config.cpp:1562-1583`). The `const` overloads `const_cast` their way there (`Preset.hpp:321, 343, 351`). `is_compatible_with_printer` calls `preset.preset.compatible_printers_condition()` at `Preset.cpp:825` — so **evaluating compatibility yourself writes to the preset's `DynamicPrintConfig`**.
+   It does not in practice create a spurious dirty: the inserted value is the default (empty string) and `ConfigBase::diff` ignores keys missing from either side (`Config.cpp:518-528`). But it is a non-const write to shared state from a nominally read-only path — relevant if you ever touch presets off the main thread.
+
+3. **`get_selected_preset()` (non-const) can change the selection.** `Preset.hpp:623-629`:
+   ```cpp
+       Preset&amp;         get_selected_preset() {
+           if ((m_idx_selected &lt; 0) || (m_idx_selected &gt;= m_presets.size())) { select_preset(first_visible_idx()); }
+   ```
+   The `const` overload (`:630`) does not. Hold the bundle as `const PresetBundle*` — as `SetupCommands.cpp:58` and `OrcaWorkspaceAdapter.cpp:248` do — and this cannot fire.
+
+Safe reads: iterating `begin()/end()` or `get_presets()`, `get_selected_idx()`, `get_selected_preset_name()`, the const `get_selected_preset()`/`get_edited_preset()`, `current_is_dirty()`, `current_dirty_options()`, `get_preset_with_vendor_profile()`, `first_visible_idx()`, `num_visible()`. Not safe: `update_dirty()` (`Preset.hpp:794`, writes flags), `select_preset*`, `update_compatible*`, `set_default_suppressed`, `discard_current_changes`.
+
+Reading a preset does **not** touch the workspace revision. Revision only advances through `OrcaWorkspaceAdapter::publish_change` → `Workspace.hpp:440` (`++m_state-&gt;revision`); `snapshot()` reads it const at `OrcaWorkspaceAdapter.cpp:239`.
+
+---
+
+## 2. `printer_list` — DeviceManager, print hosts, fake agent
+
+### Where the class actually lives now
+
+The fork split it: `DeviceManager` (the manager) is in `C:\src\JusPrin\src\slic3r\GUI\DeviceCore\DevManager.h` (133 lines); `MachineObject` is still in `C:\src\JusPrin\src\slic3r\GUI\DeviceManager.hpp` (930 lines). Fork code includes both (`SetupCommands.cpp:5-6`, `OrcaHomeBackend.cpp:7-9`).
+
+### Enumerating known machines
+
+`DevManager.h:81-84`
+```cpp
+    /* my machine*/
+    MachineObject* get_my_machine(std::string dev_id);
+    std::map&lt;std::string, MachineObject*&gt; get_my_machine_list();
+    std::map&lt;std::string, MachineObject*&gt; get_my_cloud_machine_list();
+```
+plus the two backing lists and the selection:
+```cpp
+    MachineObject* get_selected_machine();                                        // :47
+    std::map&lt;std::string, MachineObject*&gt; get_local_machinelist() const;          // :57 (SSDP/LAN)
+    MachineObject* get_local_machine(std::string dev_id) const;                   // :58
+    std::map&lt;std::string, MachineObject*&gt; get_user_machinelist() const;           // :65 (cloud/bound)
+```
+`get_my_machine_list()` is the union and is what both fork call sites use. It returns **by value** (a copy of the map of raw pointers) and is non-const — note `listMutex` at `DevManager.h:31` guards the underlying maps.
+
+Entry point: `wxGetApp().getDeviceManager()`, nullable — every fork call site null-checks (`PrinterDiscovery.cpp:41-42`, `OrcaHomeBackend.cpp:88`, `SetupCommands.cpp:195-197`).
+
+### MachineObject: the fields you asked for
+
+`DeviceManager.hpp`:
+
+| what | member | line |
+|---|---|---|
+| id | `std::string get_dev_id() const` | 164 |
+| name | `std::string get_dev_name() const` | 158 |
+| ip | `std::string get_dev_ip() const` | 161 |
+| model | `std::string printer_type;  /* model_id */` | 201 |
+| model (display) | `std::string get_show_printer_type() const` / `wxString get_printer_type_display_str() const` | 202, 206 |
+| series/arch | `get_printer_series()`, `get_printer_arch()`, `get_printer_series_str()` | 203-210 |
+| connection kind | `std::string dev_connection_type;  /* lan \| cloud */`, `connection_type()`, `is_lan_mode_printer()`, `is_cloud_mode_printer()` | 177-180 |
+| connection name | `std::string dev_connection_name;  /* lan \| eth */` | 188 |
+| bind state | `std::string bind_state;  /* free \| occupied */`, `is_avaliable()` | 232-233 |
+| print state | `std::string print_status;  /* FINISH, SLICING, RUNNING, PAUSE, INIT, FAILED */` | 478 |
+| cloud-reported state | `std::string iot_print_status;` | 480 |
+| online | `bool is_online() { return m_is_online; }` | 828 |
+| connected | `bool is_connected();` | 825 |
+| last observed | `std::chrono::system_clock::time_point last_update_time;` | 244 |
+| also | `last_utc_time`, `last_keep_alive`, `last_push_time`, `time_t last_alive` | 245-247, 235 |
+| access | `has_access_right()`, `get_access_code()`, `set_user_access_code()` | 191-198 |
+| extruders/nozzle | `DevExtderSystem* GetExtderSystem() const` | 327 |
+| AMS/materials | `DevFilaSystem* GetFilaSystem() const`, `bool HasAms() const` | 332-333 |
+| external spools | `std::vector&lt;DevAmsTray&gt; vt_slot;` | 875 |
+| AMS colours | `void get_ams_colors(std::vector&lt;wxColour&gt;&amp;)` | 296 |
+| tray lookup | `get_curr_tray()`, `get_ams_tray(ams_id, tray_id)`, `get_filament_type(ams_id, tray_id)` | 283-288 |
+| progress | `mc_print_percent`, `mc_left_time`, `subtask_name` | used at `OrcaHomeBackend.cpp:157, 160, 93` |
+
+`dev_id`/`dev_name`/`dev_ip` are private (`:103-105`) — use the getters.
+
+**Only valid while connected.** Everything parsed out of `push_status` — `print_status`, `iot_print_status`, `mc_print_percent`, `mc_left_time`, `subtask_name`, the whole `DevExtderSystem`/`DevFilaSystem`/`vt_slot` tree — is last-known-value, not live. `MachineObject::reset()` (`DeviceManager.cpp:2357-2397`) explicitly blanks `iot_print_status`, `print_status`, `vt_slot` on reconnect. The identity fields (`dev_id`, `dev_name`, `printer_type`, `dev_connection_type`, `bind_state`) come from the SSDP/cloud announcement and survive disconnection. `last_update_time` is the *only* honest "as of" stamp, and `reset_update_time()` (`:2350-2355`) bumps it.
+
+### State predicates — reuse, don't hand-roll
+
+`DeviceManager.hpp:810-821`
+```cpp
+    bool can_print();
+    bool can_resume();
+    bool can_pause();
+    bool can_abort();
+    bool is_in_printing();
+    bool is_in_printing_pause() const;
+    bool is_in_prepare();
+    bool is_printing_finished();
+    static bool is_in_printing_status(std::string status);
+```
+
+`DeviceManager.cpp:2301-2332`:
+```cpp
+bool MachineObject::is_in_printing_status(std::string status)
+{
+    if (status.compare("PAUSE") == 0 || status.compare("RUNNING") == 0
+        || status.compare("SLICING") == 0 || status.compare("PREPARE") == 0) { return true; }
+    return false;
+}
+
+bool MachineObject::is_in_printing()
+{
+    /* use print_status if print_status is valid */
+    if (!print_status.empty()) return MachineObject::is_in_printing_status(print_status);
+    else { return MachineObject::is_in_printing_status(iot_print_status); }
+```
+
+`is_in_printing()` is the better busy test (it falls back to the cloud-reported status); `is_in_printing_status(print_status)` is what both fork sites use.
+
+`is_connected()` is **not** a socket check — it is a staleness check plus a server-liveness check (`DeviceManager.cpp:2428-2444`):
+```cpp
+    auto diff = std::chrono::duration_cast&lt;std::chrono::milliseconds&gt;(curr_time - last_update_time);
+    if (diff.count() &gt; DISCONNECT_TIMEOUT) { ...; return false; }
+    if (!is_lan_mode_printer()) { ... return m_agent-&gt;is_server_connected(...); }
+    return true;
+```
+`DISCONNECT_TIMEOUT` is 30000 ms (`DeviceManager.hpp:29`). It calls `wxGetApp().getAgent()` — main-thread assumption.
+
+The fork's own warning against re-deriving this, `OrcaHomeBackend.cpp:44-51`:
+```cpp
+// Upstream's own predicate, not a copy of it. The first version of this listed
+// RUNNING, PAUSE and SLICING and left out PREPARE, so a printer that was
+// preparing a job showed on Home as idle. One implementation cannot drift from
+// itself.
+bool machine_is_printing(const MachineObject&amp; machine)
+{
+    return MachineObject::is_in_printing_status(machine.print_status);
+}
+```
+
+### Nozzle and materials
+
+`DeviceCore/DevExtruderSystem.h:146-155`
+```cpp
+    float GetNozzleDiameter(int extder_id) const { return GetExtderById(extder_id) ? GetExtderById(extder_id)-&gt;GetNozzleDiameter() : 0.0; }
+    NozzleType GetNozzleType(int extder_id) const;
+    int GetTotalExtderCount() const;   // :121
+    int GetCurrentExtderId() const;    // :123
+    bool NozzleDiameterMatchesOrUnknown(int extder_id, float target_diameter) const;   // :150
+```
+`0.0` means "not reported" — both fork sites treat it that way.
+
+`DeviceCore/DevFilaSystem.h`
+```cpp
+    std::map&lt;std::string, DevAms*, NumericStrCompare&gt;&amp; GetAmsList();   // :237 — NON-const
+    DevAms* GetAmsById(const std::string&amp; ams_id) const;               // :236
+    const std::map&lt;std::string, DevAmsTray*&gt;&amp; GetTrays() const;        // :161 (on DevAms)
+    AmsType GetAmsType() const;                                        // :153
+```
+`DevAmsTray` fields (`:53-83`): `id`, `m_fila_type`, `sub_brands`, `color`, `is_bbl`, `is_exists`, `remain`, `nozzle_temp_min/max`, `setting_id`, plus `get_color()` (`:99`) and `get_display_filament_type()` (`:101`). External/manual spools are `MachineObject::vt_slot` (`DeviceManager.hpp:875`), gated by `ams_support_virtual_tray` (`:265`).
+
+### The print-host (Moonraker/OctoPrint) side
+
+Two separate things, and the fork has moved one of them:
+
+**(a) `PrintHost` — upload only, no state.** `src/slic3r/Utils/PrintHost.hpp:53-95`. `test()` is a blocking network round-trip; `get_printers()` returns false except on Repetier (`:80`); there is no idle/busy/nozzle/material query anywhere in the interface. `Moonraker.hpp:29-58` documents exactly three endpoints, none of which is status. **Not a source for `printer_list`.**
+
+**(b) `IPrinterAgent` — this *is* the source, and it feeds DeviceManager.** The fork routes non-Bambu printers through the same agent → `MachineObject` pipeline, selected by a config option on the printer preset. `GUI_App.cpp:3580-3587`:
+```cpp
+    } else {
+        const DynamicPrintConfig&amp; config = preset_bundle-&gt;printers.get_edited_preset().config;
+        if (config.has("printer_agent")) {
+            const std::string&amp; value = config.option&lt;ConfigOptionString&gt;("printer_agent")-&gt;value;
+            if (!value.empty()) effective_agent_id = value;
+        }
+    }
+```
+Registered agents, `NetworkAgentFactory.cpp:132-141`: `orca`, `qidi`, `snapmaker`, `creality`, `moonraker` (`MoonrakerPrinterAgent.cpp:112-115` → `AgentInfo{"moonraker", "Moonraker", ...}`), plus `bbl`. `MoonrakerPrinterAgent` builds AMS payloads and calls the same parser (`MoonrakerPrinterAgent.hpp:89-104`), and reports `FilamentSyncMode::pull` (`:73`) versus Bambu's `subscription`.
+
+**So: `DeviceManager::get_my_machine_list()` is the single enumeration for both Bambu and Moonraker-class printers.** What differs is which fields get populated.
+
+**`physical_printers` is dead in this fork.** `PhysicalPrinterCollection` exists (`Preset.hpp:1045-1165`) with `name`, `config`, `preset_names`, `get_selected_printer_name()`, `has_selection()`, `find_printer()`. But `load_printers()` is **never called anywhere in `src/`**, and the sole `load_printers_from_presets` call is inside `#if 0` — `GUI_App.cpp:4152-4164`:
+```cpp
+void GUI_App::check_printer_presets()
+{
+#if 0
+    std::vector&lt;std::string&gt; preset_names = PhysicalPrinter::presets_with_print_host_information(preset_bundle-&gt;printers);
+    if (preset_names.empty()) return;
+    preset_bundle-&gt;physical_printers.load_printers_from_presets(preset_bundle-&gt;printers);
+#endif
+}
+```
+Consequence: `OrcaHomeBackend.cpp:179-191` — the loop `for (const PhysicalPrinter&amp; physical : presets-&gt;physical_printers)` that adds "printers Orca knows as presets but no device reports" — **never yields anything**. Do not model `printer_list` on it.
+
+The real print-host identity in this fork lives on the **printer preset config**. `StatusRow.cpp:465-471`:
+```cpp
+        auto&amp; presets = *wxGetApp().preset_bundle;
+        const auto* host = presets.printers.get_edited_preset().config.option&lt;ConfigOptionString&gt;("print_host");
+        if (!presets.use_bbl_network() &amp;&amp; (!host || host-&gt;value.empty())) {
+            wxMessageBox(_L("Configure a printer connection in Printer settings before printing. ..."),
+```
+Sibling keys via `PhysicalPrinter::print_host_options()` (`Preset.hpp:992`): `print_host`, `host_type`, `printhost_apikey`, `printhost_cafile`. Plus `host_type` as an enum, `StatusRow.cpp:203-204`:
+```cpp
+        const auto* host = config.option&lt;ConfigOptionEnum&lt;PrintHostType&gt;&gt;("host_type");
+        supports_all = host &amp;&amp; host-&gt;value == htSimplyPrint;
+```
+
+### What the fork already does — reuse these
+
+**`PrinterSetup/PrinterDiscovery.cpp:38-56` is the closest existing `printer_list`.** Free function, no dialog dependency, header at `PrinterDiscovery.hpp:11`:
+```cpp
+std::vector&lt;DiscoveredPrinter&gt; discover_printers()
+{
+    std::vector&lt;DiscoveredPrinter&gt; result;
+    DeviceManager* devices = wxGetApp().getDeviceManager();
+    if (!devices) return result;
+    for (const auto&amp; [id, machine] : devices-&gt;get_my_machine_list()) {
+        if (!machine || (!machine-&gt;is_online() &amp;&amp; !machine-&gt;is_connected())) continue;
+        DiscoveredPrinter printer{id, machine-&gt;get_dev_name(), machine-&gt;get_dev_ip(), machine-&gt;printer_type,
+                                  machine-&gt;connection_type(), true};
+        read_reported_hardware(*machine, printer);
+        result.push_back(std::move(printer));
+    }
+    std::sort(...);
+```
+and its hardware read, `PrinterDiscovery.cpp:14-34` — note the comment naming what `MachineObject` cannot answer:
+```cpp
+// The nozzle and the loaded spools, as the device last reported them. The
+// plate is not among them: MachineObject carries no build-plate type.
+void read_reported_hardware(MachineObject&amp; machine, DiscoveredPrinter&amp; printer)
+{
+    if (const DevExtderSystem* extruders = machine.GetExtderSystem())
+        printer.nozzle_diameter = extruders-&gt;GetNozzleDiameter(0);
+    DevFilaSystem* filaments = machine.GetFilaSystem();
+    if (!filaments) return;
+    for (const auto&amp; [ams_id, ams] : filaments-&gt;GetAmsList()) {
+        if (!ams) continue;
+        if (printer.ams_name.empty())
+            printer.ams_name = ams-&gt;GetAmsType() == DevAms::AMS_LITE ? "AMS lite" : "AMS";
+        for (const auto&amp; [tray_id, tray] : ams-&gt;GetTrays()) {
+            if (!tray || !tray-&gt;is_exists) continue;
+            const std::string material = tray-&gt;sub_brands.empty() ? tray-&gt;get_display_filament_type() : tray-&gt;sub_brands;
+            if (material.empty()) continue;
+            printer.spools.push_back({(tray-&gt;is_bbl ? "Bambu " : "") + material,
+                                      std::string(tray-&gt;get_color().GetAsString(wxC2S_HTML_SYNTAX).ToUTF8())});
+        }
+    }
+}
+```
+Result shape: `DiscoveredPrinter` at `PrinterSetupTypes.hpp:10-27` — `stable_id`, `name`, `ip_address`, `device_model_id`, `connection`, `connected`, `nozzle_diameter`, `ams_name`, `spools[]`, with the honest comment `// What the printer reported about itself; zero or empty when it has not said.`
+
+Two gaps for your purposes: it **filters out** offline/unknown machines (`:44`), and it carries **no busy/idle and no last-observed timestamp**.
+
+**`Home/OrcaHomeBackend.cpp:135-175`** is the one that does carry state:
+```cpp
+    for (const auto&amp; entry : machines) {
+        MachineObject* machine = entry.second;
+        PrinterEntry   printer;
+        printer.id                 = entry.first;
+        printer.name               = machine-&gt;get_dev_name();
+        const bool printing        = machine_is_printing(*machine);
+        const bool connected       = machine-&gt;is_connected();
+        printer.state              = !connected ? PrinterState::Offline
+                                     : printing ? PrinterState::Printing
+                                                : PrinterState::Idle;
+        printer.can_launch_monitor = connected;
+        if (printing) {
+            printer.progress_percent = machine-&gt;mc_print_percent;
+            ...
+        }
+        // The nozzle the device reports, not the one the preset assumes: a
+        // printer whose hardware was changed says so here.
+        if (const DevExtderSystem* extruders = machine-&gt;GetExtderSystem()) {
+            const float diameter = extruders-&gt;GetNozzleDiameter(0);
+            if (diameter &gt; 0.f)
+                printer.nozzle_text = std::string(wxString::Format(_L("%.1f mm nozzle"), diameter).ToUTF8());
+        }
+```
+That three-way `Offline / Printing / Idle` ladder is the fork's existing state model. It is a method on `OrcaHomeBackend` (a `MainFrame&amp;`-holding class), so it is **widget-bound**; the logic is trivially liftable, the class is not.
+
+**`Shell/SetupCommands.cpp:185-209`** — `printer_connection()`, the same ladder for the *selected* machine, with an explicit scope statement worth quoting verbatim:
+```cpp
+PrinterConnection printer_connection()
+{
+    PrinterConnection connection;
+    // Non-const: use_bbl_network() is not a const member on PresetBundle.
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    // Only the Bambu network path reports a live machine state. Every other
+    // print host is "not connected" here, which is a statement about what
+    // JusPrin can observe, not a claim about the machine.
+    if (presets == nullptr || !presets-&gt;use_bbl_network()) return connection;
+    auto* devices = wxGetApp().getDeviceManager();
+    if (devices == nullptr) return connection;
+    MachineObject* machine = devices-&gt;get_selected_machine();
+    if (machine == nullptr) return connection;
+    connection.monitor_available = true;
+    if (!machine-&gt;is_connected())      connection.state = ConnectionState::Offline;
+    else if (machine-&gt;is_in_printing()) connection.state = ConnectionState::Printing;
+    else                                connection.state = ConnectionState::Idle;
+```
+`ConnectionState` enum at `SetupCommands.hpp:88-94`. Note this gates on `use_bbl_network()` — given (b) above, that gate is narrower than the machine list actually is, and would exclude a Moonraker `MachineObject`.
+
+**`StatusRow.cpp`** reads printer identity only through `SetupCommands`, never `MachineObject` directly:
+```cpp
+// StatusRow.cpp:350-355
+// The chip renders Orca's authoritative selection plus the spool the store
+// remembers for it. Nothing here writes; a swap goes through SetupCommands.
+void StatusRow::refresh_chip()
+{
+    const auto printer = SetupCommands::current_printer();
+    m_chip-&gt;set_printer(printer.nickname, printer.valid ? wxString::Format("%g", printer.nozzle) : wxString{});
+```
+So the chip's nozzle is the **preset's** `nozzle_diameter`, while Home's is the **device-reported** one. Those two can legitimately disagree; `OrcaHomeBackend.cpp:167-168` says so explicitly. Your tool should say which it is reporting.
+
+`SetupCommands.cpp:361-379` (`set_printer_access_code`) is the only other direct `MachineObject` read in the Shell — it uses `devices-&gt;get_my_machine(dev_id)` and treats null as "no longer on your network".
+
+**Dialog/widget-bound, flagged:**
+- `OrcaHomeBackend::printers()` — method on a `MainFrame&amp;`/`SpoolStore*` holder.
+- `StatusRow::*` — a `wxWindow` subclass.
+- `PrinterMenu` — explicitly one-printer-only by design (`PrinterMenu.hpp:6-9`: *"Listing several printers, adding one, and connecting a non-Bambu print host are separate work; this slice shows one machine"*).
+- `PrinterSetupDialog` / `PrinterSetupLauncher::show_printer_setup` — modal, and `PrinterSetupLauncher.cpp:67-69` throws if the shell is not installed.
+- **Not** dialog-bound and directly reusable: `discover_printers()`, `PrinterCatalog::load()`, everything in `SetupCommands`.
+- `MachineObject::is_connected()` reaches `wxGetApp()` — main thread only.
+
+### What the fake makes observable
+
+`Testing/FakeBambuAgent.hpp:20-22`
+```cpp
+inline constexpr char JUSPRIN_FAKE_BAMBU_AGENT_ID[]    = "jusprin-fake-bambu";
+inline constexpr char JUSPRIN_FAKE_BAMBU_DEV_ID[]      = "FAKE001";
+inline constexpr char JUSPRIN_FAKE_BAMBU_PRINTER_TYPE[] = "N1";
+```
+Substituted for `bbl` at `GUI_App.cpp:3577-3579`, but **only when `preset_bundle-&gt;is_bbl_vendor()` is true** (`:3574`) — a real Bambu system preset must be selected, per `Testing/README.md:37-45`.
+
+**Identity** comes from the SSDP announcement, `FakeBambuAgent.cpp:124-137`:
+```cpp
+    payload["dev_name"]     = "JusPrin Fake A1 mini";
+    payload["dev_id"]       = JUSPRIN_FAKE_BAMBU_DEV_ID;
+    payload["dev_ip"]       = "127.0.0.1";
+    payload["dev_type"]     = JUSPRIN_FAKE_BAMBU_PRINTER_TYPE;    // "N1"
+    payload["connect_type"] = "lan";
+    payload["bind_state"]   = "free";
+```
+So: `get_dev_id()=="FAKE001"`, `get_dev_name()=="JusPrin Fake A1 mini"`, `printer_type=="N1"`, `connection_type()=="lan"`, `is_lan_mode_printer()==true`. `announce_if_needed` (`:465-492`) also writes the access code into AppConfig and then selects the machine via `select_machine_on_main` (`:494-506`), which routes through `frame-&gt;m_monitor-&gt;select_machine(dev_id)` when the monitor exists.
+
+**State** comes from `push_status`, `FakeBambuAgent.cpp:201-240`:
+```cpp
+    print["gcode_state"]           = step.gcode_state;
+    print["mc_percent"]            = step.mc_percent;
+    print["mc_remaining_time"]     = step.mc_remaining_time;
+    print["subtask_name"]          = m_last_print_filename.empty() ? "fake_print.3mf" : m_last_print_filename;
+    print["nozzle_temper"]         = step.nozzle_temper;
+    print["bed_temper"]            = step.bed_temper;
+    print["nozzle_diameter"]       = "0.4";
+    print["nozzle_type"]           = "stainless_steel";
+    ...
+    print["ams"] = json{{"ams", json::array()},
+                        {"ams_exist_bits", "0"},
+                        {"tray_exist_bits", "0"}, ...};
+    j["t_utc"] = now_ms;
+```
+
+Consequences for testing `printer_list` without hardware:
+- **Busy/idle: fully exercisable.** `gcode_state` cycles `IDLE / PREPARE / RUNNING / PAUSE / FINISH / FAILED` and maps 1:1 onto `is_in_printing_status` (`FakeBambuAgent.cpp:152-163`, canned scenario at `:97-110`, named presets at `:112-122`). Driven live from `&lt;datadir&gt;/jusprin/fake_printer.json`, reread ~1 Hz — `apply_control_json` (`:139-193`), documented in `Testing/README.md:54-70`.
+- **Offline: exercisable.** `{"offline": true}` stops `push_status`; `last_update_time` then ages past `DISCONNECT_TIMEOUT` and `is_connected()` flips false after ~30 s (`README.md:68`).
+- **Nozzle: a fixed `"0.4"`, and only if the parser lifts it.** The fake emits `print["nozzle_diameter"]` (`:218`), but `MachineObject`'s own nozzle lives in `DevExtderSystem`, populated by `ExtderSystemParser`; I found no `nozzle_diameter` handling in `DeviceCore/DevExtruderSystemCtrl.cpp`. **Verify at runtime that `GetExtderSystem()-&gt;GetNozzleDiameter(0)` is non-zero under the fake** — if it returns `0.0`, `discover_printers` and `OrcaHomeBackend` both correctly report "not said", and your tool's nozzle field is untestable without hardware.
+- **Materials: not testable.** `ams` is an empty array and every exist-bits mask is `"0"` (`:226-232`). `GetAmsList()` will be empty and `vt_slot` unpopulated. The spool path in `PrinterDiscovery.cpp:22-33` yields nothing under the fake.
+- **Last-observed: testable.** Every `emit_status` stamps `t_utc` (`:234-238`) and a heartbeat keeps `last_update_time` fresh (`start_heartbeat`/`heartbeat_loop`, `:118-120`).
+- **Multiple printers: not testable.** The fake announces exactly one device. Paging/sorting over &gt;1 machine has no in-process fixture.
+- **Moonraker-class printers:** `Testing/README.md:7-9` — *"The Klipper/Moonraker simulator lives on `jusprin-newui-fakeprinter` under `tests/printer_sim/` and covers print-host printers. Do not add a Bambu network fake unless asked."* That sim is on another branch, not in this working tree.
+
+Unit-test surface today: `jusprin_fake_bambu_tests` covers announce JSON, control-file parsing, and agent id only; it does not start the heartbeat unless the test sets `set_queue_on_main_fn` (`README.md:99-103`).</result>
+<usage><subagent_tokens>190531</subagent_tokens><tool_uses>88</tool_uses><duration_ms>466228</duration_ms></usage>
+</task-notification>
