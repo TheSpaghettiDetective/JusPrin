@@ -1,0 +1,1 @@
+check git log for what has been done on jusprin-newui branch. these have been tested on mac. Now come up with a plan to test them on windows to make sure the behaviors are compatible with mac version
