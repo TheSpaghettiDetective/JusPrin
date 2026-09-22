@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bg301y3qc</task-id>
+<tool-use-id>toolu_01CqHJ7xiFNTWq9kWHSFmHhQ</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\40425d7f-570d-4e51-a449-01f13859aadc\tasks\bg301y3qc.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the harness with the usage change" completed (exit code 0)</summary>
+</task-notification>
