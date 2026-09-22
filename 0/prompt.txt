@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bvgu7odp6</task-id>
+<tool-use-id>toolu_018nYZJLa5HKjYLdWttRfjJB</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\ef3565e2-a47f-4380-813d-35413a411453\tasks\bvgu7odp6.output</output-file>
+<status>failed</status>
+<summary>Background command "Retry the full build" failed with exit code 1</summary>
+</task-notification>
