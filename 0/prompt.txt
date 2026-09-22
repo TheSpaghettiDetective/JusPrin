@@ -1,0 +1,1 @@
+check out git@github.com:TheSpaghettiDetective/JusPrin.git . switch to branch jusprin-newui.
