@@ -394,7 +394,7 @@ describe('Home', () => {
      host.deliver('hello_ack', {});
      host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false, connectionAction,
        connectionText: connectionAction === 'settings' ? 'File sending configured' : 'Status unknown' })] }));
-     const button = screen.getByRole('button', { name: label, exact: true });
+     const button = screen.getByRole('button', { name: label });
      expect(button).toHaveClass('launch-monitor');
      await userEvent.click(button);
      expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
