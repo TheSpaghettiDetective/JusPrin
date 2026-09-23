@@ -1,0 +1,27 @@
+Check the recent commits for the work of setting up printers using chat experience.  The experience is still far from ideal. I've identified a few of the UX/UI problems, as in the attached screenshots:
+
+#1:  This card is extremely confusing because it's a duplicate of another card that's just added.  I think this is more a receipt of an added printer, but this receipt should be given by the chatbot itself. It would have been a lot more natural and easier to understand.  
+#2:  The users don't have to understand the difference between preparing print and connecting the printer.  This is exactly the complexity this software wants to abstract away from the users. Now we are putting this right back at user's face.  The optimal user experience is for the chatbot to guide the user through the process and ask the user for the connection info when it needs it.  Again, the entire design is very app developer centric, not user centric. I'm pretty sure if you review the code, you can find the mentality everywhere. Identify those and propose a solution for that. 
+#3:  Again, why do we have UI elements outside the chat window?  Why can this be delivered as part of the chat experience?  As a result, this is a fucking confusing jumbo mess. 
+#4:  Another go to home button that doesn't seem like a button, seem more like a title. This is a fucking stupid.  Identify other fucking stupid things in the implementation and propose a fix. 
+#5.  The same problem, connecting a printer should be guided by the chatbot itself as much as possible. We can have an option for the user to enter the information in the form, but that should be reserved as a last resort.  Maybe we have a chip or something that enables that, but putting this right in front of the user's face and above the chatbot is just the most confusing experience I've ever seen. 
+
+ Again, these are just some of the issues I found.  If you can find other UX issues, bring them up here as well. Afterwards, generate a report for me to review.
+
+---
+
+Repeat your proposal in plain English.  Refrain from using vague words such as mutation tools,rides on the approval decision, writes the receipt.  You need to understand I don't know what you have in your mind. I cannot read your mind.  Be clear and concise. Use plain English.
+
+---
+
+you're in the right direction.  Do you think it'll be a lot more flexible if we let the AI agent decide what buttons to show to the users?  In this case, the agent can decide to show these two buttons  instead of asking the user to respond in text: 1. "keep 0.4mm", 2. "use 0.7mm".  other things that we would otherwise hard code, such as "add this printer", can also be rolled into  this mechanism.
+
+ If you agree with this mechanism, design the layout so that the buttons will flow naturally from the agent question so that these buttons look very nautrally as choices of the possible responses.
+
+ Do you think this will actually make the code a lot simpler?  Also, removing the faces will make the code simpler as well, right?  estimate the cut of number of lines of code  from all these simplified logics. 
+
+ No need to remember earlier conversation.  Full screen for all three entry points. Keep orcaslicer's own wizard for now.
+
+---
+
+write a handoff doc for another agent to implement this.
