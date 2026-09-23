@@ -5,7 +5,6 @@
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 
 #include <memory>
-#include <utility>
 #include <wx/event.h>
 #include <wx/timer.h>
 
@@ -154,7 +153,6 @@ private:
     bool m_saved_collapse_toolbar_enabled{false};
     bool m_saved_auto_preview_after_slice{true};
     bool m_saved_show_config_wizard_on_startup{true};
-    std::pair<std::string, std::string> m_saved_printer_agent_override;
     CanvasPresentationController m_prepare_canvas_presentation;
 };
 

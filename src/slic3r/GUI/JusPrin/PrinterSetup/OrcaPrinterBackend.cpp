@@ -215,10 +215,19 @@ void OrcaPrinterBackend::prepare_connection(const std::string& name)
     if (agent == nullptr || (fake.empty() && !NetworkAgent::is_network_module_loaded()))
         return;
     const std::string wanted = fake.empty() ? BBL_PRINTER_AGENT_ID : fake;
-    // Explicit monitoring owns the provider until another explicit connection
-    // or shell teardown replaces it. Profile edits must not disconnect it.
-    wxGetApp().printer_agent_override = {wanted, BBL_CLOUD_PROVIDER};
-    wxGetApp().switch_printer_agent();
+    if (!agent->get_printer_agent() || agent->get_printer_agent()->get_agent_info().id != wanted) {
+        // A connection gesture selects the networking provider, not a slicing
+        // preset. NetworkAgent owns callback transfer and disconnects the old
+        // provider; the open project's settings and unsaved edits stay intact.
+        // Orca's profile-driven policy takes the provider back the next time
+        // the printer profile changes; connecting again reinstalls it.
+        auto provider = NetworkAgentFactory::create_printer_agent_by_id(
+            wanted, agent->get_cloud_agent(BBL_CLOUD_PROVIDER), Slic3r::data_dir());
+        if (!provider)
+            throw std::runtime_error("The registered Bambu printer agent could not be created");
+        agent->set_printer_agent(std::move(provider));
+        wxGetApp().sidebar().update_all_preset_comboboxes();
+    }
     agent->start_discovery(true, false);
 }
 

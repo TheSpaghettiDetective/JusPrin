@@ -1410,22 +1410,18 @@ private:
                         }) == 1, "connect_keeps_one_saved_identity");
                         self->check(self->selected_printer() == kAddedPrinterProfile &&
                             self->m_plater->is_project_dirty() == dirty, "connect_preserves_unrelated_project_selection_and_edits");
-                        // Reproduce the former policy: without an explicit provider choice,
-                        // re-evaluating the non-Bambu slicing profile replaces the fake agent.
-                        wxGetApp().printer_agent_override = {};
+                        // Stock policy: re-evaluating the non-Bambu slicing profile hands the
+                        // provider back to Orca's profile-driven choice.
                         wxGetApp().switch_printer_agent();
                         self->check(wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id !=
-                            fake_bambu_printer_agent_id(wxGetApp().app_config), "profile_policy_reproduces_provider_replacement");
+                            fake_bambu_printer_agent_id(wxGetApp().app_config), "profile_reevaluation_replaces_connection_provider");
                         backend->prepare_connection(name);
-                        wxGetApp().CallAfter([self, backend, name, device] {
-                        self->check(backend->connect_printer(name, device, "").empty(), "explicit_connection_restores_provider");
-                        SetupCommands::select_printer_preset(*self->m_plater, name);
-                        SetupCommands::select_printer_preset(*self->m_plater, kAddedPrinterProfile);
-                        wxGetApp().switch_printer_agent();
                         self->check(wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id ==
-                            fake_bambu_printer_agent_id(wxGetApp().app_config), "explicit_provider_survives_profile_reevaluation");
+                            fake_bambu_printer_agent_id(wxGetApp().app_config), "connecting_again_reinstalls_provider");
+                        wxGetApp().CallAfter([self, backend, name, device] {
+                        self->check(backend->connect_printer(name, device, "").empty(), "reconnect_after_profile_reevaluation");
                         self->wait_until([backend, name] { return backend->connection(name).state == "verified"; },
-                            "connection_receives_fresh_data_after_profile_reevaluation", [self, backend, name, device] {
+                            "connection_receives_fresh_data_after_reconnect", [self, backend, name, device] {
                                 wxGetApp().getDeviceManager()->set_selected_machine("");
                                 wxGetApp().CallAfter([self, backend, name, device] {
                                 // Simulate a transport that authenticates but never supplies status.
@@ -1474,7 +1470,6 @@ private:
     void verify_stock_mode()
     {
         check(installed_shell() == nullptr, "stock_mode_installs_no_shell");
-        check(wxGetApp().printer_agent_override.first.empty(), "stock_mode_keeps_profile_driven_provider_selection");
         check(m_notebook->GetBtnsListCtrl()->IsShown(), "stock_mode_keeps_tab_strip");
         check(m_plater->is_sidebar_available(), "stock_mode_keeps_sidebar_available");
         load_multi_plate_fixture();
