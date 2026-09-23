@@ -106,37 +106,29 @@ void HomeWebView::apply_appearance(bool dark)
     Refresh();
 }
 
-void HomeWebView::refresh(const AddedPrinterEntry* added) { m_host->push_state(added); }
+void HomeWebView::refresh(const std::string& added) { m_host->push_state(added); }
 
-void HomeWebView::attach_side_panel(wxWindow* panel, int width_dip)
+void HomeWebView::attach_side_panel(wxWindow* panel)
 {
     if (m_row == nullptr)
         return;
     if (m_side_panel != nullptr)
         m_row->Detach(m_side_panel);
     m_side_panel = panel;
-    m_side_panel_width = width_dip;
     if (m_side_panel != nullptr) {
-        m_side_panel->SetMinSize(wxSize(FromDIP(width_dip), -1));
-        m_row->Add(m_side_panel, 0, wxEXPAND);
+        m_row->Add(m_side_panel, 1, wxEXPAND);
         m_side_panel->Hide();
     }
     Layout();
 }
 
-void HomeWebView::show_side_panel(bool shown, bool focused)
+void HomeWebView::show_side_panel(bool shown)
 {
     if (m_side_panel == nullptr)
         return;
     m_side_panel->Show(shown);
-    const bool workspace = shown && focused;
-    m_webview->Show(!workspace);
-    m_error->Show(!workspace && !m_error->GetLabel().empty());
-    m_side_panel->SetMinSize(wxSize(workspace ? 0 : FromDIP(m_side_panel_width), -1));
-    m_row->GetItem(m_side_panel)->SetProportion(workspace ? 1 : 0);
-    // The page drops its own printers column while the panel has that place,
-    // so the two never both claim it.
-    m_host->set_printer_panel_open(shown);
+    m_webview->Show(!shown);
+    m_error->Show(!shown && !m_error->GetLabel().empty());
     Layout();
 }
 

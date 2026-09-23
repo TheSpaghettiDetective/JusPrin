@@ -50,6 +50,11 @@ struct AgentSessionProfile
     // where the workspace is sent: there a note restates project state the
     // snapshot already carries, and a stale one would contradict it.
     bool                     notes_in_context{false};
+    // A message the person sends while a card waits for their decision is
+    // their answer instead: the card is rejected, then the message answered.
+    // For a conversation whose only card collects a credential, where
+    // "where do I find the code?" must not wait behind that card.
+    bool                     reply_cancels_pending_card{false};
 };
 
 struct AgentRequest

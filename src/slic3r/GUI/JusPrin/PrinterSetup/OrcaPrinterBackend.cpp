@@ -305,7 +305,7 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         const bool observed = communicating &&
             (machine->is_lan_mode_printer() ? machine->last_lan_msg_time_ > attempt.observation_start
                                            : machine->last_cloud_msg_time_ > attempt.observation_start);
-        if (devices->get_selected_machine() != machine && machine != nullptr) {
+        if (devices->get_selected_machine() != machine && machine != nullptr && !attempt.reselecting) {
             info.state = "failed";
             info.message = "The selected printer changed. Select this printer again to reconnect.";
         } else if (observed) {
@@ -365,7 +365,22 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
         machine->set_user_access_code(access_code);
     m_connection_attempt = ConnectionAttempt{name, device_id, std::chrono::steady_clock::now(),
                                               std::chrono::system_clock::now()};
-    devices->set_selected_machine(device_id);
+    if (devices->get_selected_machine() != machine) {
+        devices->set_selected_machine(device_id);
+        return {};
+    }
+    // Selecting the selected LAN printer again disconnects and reconnects
+    // it, and GUI_App's local-connect handler hears the disconnect one event
+    // turn later and clears the selection -- after the reconnect. Deselect
+    // now, and select it again once that notice has run.
+    m_connection_attempt->reselecting = true;
+    devices->set_selected_machine("");
+    wxGetApp().CallAfter([alive = std::weak_ptr<bool>(m_alive), this, device_id] {
+        if (alive.expired() || !m_connection_attempt || m_connection_attempt->device_id != device_id)
+            return;
+        m_connection_attempt->reselecting = false;
+        wxGetApp().getDeviceManager()->set_selected_machine(device_id);
+    });
     return {};
 }
 

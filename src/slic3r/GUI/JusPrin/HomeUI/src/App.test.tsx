@@ -156,9 +156,9 @@ describe('Home', () => {
     expect(screen.getByText('Printing · 43% · 2h left')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '43');
     expect(screen.getByText('0.4 mm nozzle')).toBeInTheDocument();
+    // Never connected: nothing to say about it on the card; connecting is in its menu.
     const idle = screen.getByText('Prusa MK4').closest('.printer-card')!;
-    expect(within(idle as HTMLElement).getByRole('button', { name: 'Connect printer' })).toBeInTheDocument();
-    expect(within(idle as HTMLElement).queryByText('Launch monitor')).not.toBeInTheDocument();
+    expect(within(idle as HTMLElement).queryByRole('button', { name: /Connect|Reconnect|Launch monitor/ })).toBeNull();
   });
 
   it('draws one bordered swatch per spool', () => {
@@ -188,7 +188,7 @@ describe('Home', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
     const menu = screen.getByRole('menu');
       expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
-        'Connection settings…',
+        'Connect…',
       'Printer settings…',
       'Rename',
       'Remove printer…',
@@ -201,7 +201,8 @@ describe('Home', () => {
   it('connects an existing saved printer without asking to add it again', async () => {
     const host = start();
     host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false })] }));
-    await userEvent.click(screen.getByRole('button', { name: 'Connect printer' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Connect…' }));
     expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
     expect(host.lastOfType('add_printer')).toBeUndefined();
   });
@@ -278,70 +279,13 @@ describe('Home', () => {
     expect(screen.queryByRole('button', { name: 'Actions for Bench A1 mini' })).not.toBeInTheDocument();
   });
 
-  it('shows what an added printer assumed, highlights its card, and can be dismissed', async () => {
+  it('highlights a printer the conversation just added, for that one state', () => {
     const host = start();
-    host.deliver('state', state());
-    host.deliver('printer_added', {
-      name: 'X1 Carbon',
-      nozzleText: '0.4 mm',
-      nozzleAssumed: false,
-      plateText: 'Textured PEI Plate',
-      plateAssumed: true,
-      filamentText: 'Bambu PLA Basic',
-      filamentAssumed: true,
-    });
-
-    expect(screen.getByText('X1 Carbon', { selector: 'b' })).toBeInTheDocument();
-    expect(screen.getByText(/0\.4 mm, Textured PEI Plate · assumed, Bambu PLA Basic · assumed/)).toBeInTheDocument();
-    // The strip is its own receipt, drawn above the printer's own card.
-    const cards = document.querySelectorAll('.printer-card');
-    expect(cards[0]).toHaveClass('printer-card-added');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-    expect(screen.queryByText(/0\.4 mm, Textured PEI Plate/)).not.toBeInTheDocument();
-  });
-
-  // F4 review fix: a later state used to leave the receipt showing stale
-  // facts (and the card highlighted) after whatever it described had
-  // already changed underneath it -- e.g. a nozzle changed through the
-  // receipt's own Change link.
-  it('ends the receipt and the highlight on the very next state, for any reason', async () => {
-    const host = start();
-    host.deliver('state', state());
-    host.deliver('printer_added', {
-      name: 'X1 Carbon',
-      nozzleText: '0.4 mm',
-      nozzleAssumed: false,
-      plateText: 'Textured PEI Plate',
-      plateAssumed: true,
-      filamentText: 'Bambu PLA Basic',
-      filamentAssumed: true,
-    });
-    expect(screen.getByText('X1 Carbon', { selector: 'b' })).toBeInTheDocument();
+    host.deliver('state', state({ highlightPrinter: 'X1 Carbon' }));
     expect(document.querySelectorAll('.printer-card')[0]).toHaveClass('printer-card-added');
 
-    // Any later state, whatever prompted it (here: nothing but a refresh).
     host.deliver('state', state());
-
-    expect(screen.queryByText('X1 Carbon', { selector: 'b' })).not.toBeInTheDocument();
     expect(document.querySelector('.printer-card-added')).toBeNull();
-  });
-
-  it('sends the added printer\'s id when Change is tapped on its receipt', async () => {
-    const host = start();
-    host.deliver('state', state());
-    host.deliver('printer_added', {
-      name: 'X1 Carbon',
-      nozzleText: '0.4 mm',
-      nozzleAssumed: false,
-      plateText: '',
-      plateAssumed: false,
-      filamentText: '',
-      filamentAssumed: false,
-    });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Change' }));
-    expect(host.lastOfType('open_printer_settings')!.payload).toEqual({ id: 'x1' });
   });
 
   it('shows a refused printer action until the next one', async () => {
@@ -362,40 +306,13 @@ describe('Home', () => {
     host.deliver('appearance', { appearance: 'light' });
     expect(document.documentElement.dataset.appearance).toBe('light');
   });
-
-  // The printer conversation opens in this column; the page hands the place
-  // over rather than drawing a second list beside it.
-  it("gives the printers column to the conversation panel while it is open", () => {
-    const host = start();
-    host.deliver("state", state({ printers: [printer()] }));
-    expect(screen.getByText("+ Add printer")).toBeInTheDocument();
-
-    host.deliver("printer_panel", { open: true });
-    expect(screen.queryByText("+ Add printer")).not.toBeInTheDocument();
-    expect(screen.queryByText("X1 Carbon")).not.toBeInTheDocument();
-    // The projects stay in view beside it.
-    expect(screen.getByText("Projects")).toBeInTheDocument();
-
-    host.deliver("printer_panel", { open: false });
-    expect(screen.getByText("+ Add printer")).toBeInTheDocument();
-  });
-
-  it("leaves the column to the panel across a reload", () => {
-    const host = start();
-    host.deliver("state", state({ printers: [printer()], printerPanelOpen: true }));
-    expect(screen.queryByText("+ Add printer")).not.toBeInTheDocument();
-  });
 });
 
- it.each([['settings', 'Connection settings'], ['reconnect', 'Reconnect'], ['connect', 'Connect printer']] as const)(
-   'offers the appropriate %s action for a saved printer', async (connectionAction, label) => {
-     const host = new MockHost();
-     render(<App getTransport={() => host.transport} />);
-     host.deliver('hello_ack', {});
-     host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false, connectionAction,
-       connectionText: connectionAction === 'settings' ? 'File sending configured' : 'Status unknown' })] }));
-     const button = screen.getByRole('button', { name: label });
-     expect(button).toHaveClass('launch-monitor');
-     await userEvent.click(button);
-     expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
-   });
+  it('offers Reconnect only on a printer that was connected before', async () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false, connectionAction: 'reconnect',
+      connectionText: "Can't reach it" })] }));
+    expect(screen.getByText("Can't reach it")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
+  });

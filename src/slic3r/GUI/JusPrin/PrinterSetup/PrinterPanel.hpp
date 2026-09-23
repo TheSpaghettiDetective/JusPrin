@@ -31,14 +31,11 @@ class PrinterPanel : public wxPanel, private IConversationHost
 public:
     struct Callbacks
     {
-        // "‹ Printers", and everything else that ends the session. `added`
-        // is a successful Add's saved facts, passed through from close(), or
-        // null for any other reason the panel closed.
-        std::function<void(const PinnedFacts* added)> closed;
+        // Back, and everything else that ends the session.
+        std::function<void()> closed;
         // A printer was saved or changed; Home's list is out of date.
-        // `added` is a successful Add's saved facts, or null for any other
-        // reason the list changed.
-        std::function<void(const PinnedFacts* added)> printers_changed;
+        // `added` names a printer this session just added, or is empty.
+        std::function<void(const std::string& added)> printers_changed;
         // The person set the agent up in here, so the rest of the shell has
         // to look again at how it is configured.
         std::function<void()> agent_configured;
@@ -56,10 +53,8 @@ public:
     // Opens a fresh session. Opening it again replaces the session: no
     // history carries over, by design.
     void open(ConversationMode mode, const std::string& printer_name = {});
-    // Ends the session and tells the owner, as "‹ Printers" does. `added`
-    // carries a successful Add's saved facts through to the owner's `closed`
-    // callback.
-    void close(const PinnedFacts* added = nullptr);
+    // Ends the session and tells the owner, as Back does.
+    void close();
 
     void apply_appearance(bool dark);
 
@@ -81,8 +76,9 @@ private:
     void        start_turn() override;
     void session_changed() override;
     void profile_changed() override;
-    void close_panel(const PinnedFacts* added = nullptr) override;
-    void printers_changed(const PinnedFacts* added) override;
+    void close_panel() override;
+    void printers_changed(const std::string& added) override;
+    std::optional<std::string> take_credential(const std::string& action_id) override;
 
     void build_runtime();
     void tear_down_runtime();

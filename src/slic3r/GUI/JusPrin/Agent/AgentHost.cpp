@@ -944,6 +944,16 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump(), envelope_id);
 
     cancel_conversation_title();
+    if (m_session_profile.reply_cancels_pending_card) {
+        std::vector<std::string> waiting;
+        for (const ToolActivity& activity : m_tools.activities())
+            if (activity.state == ToolState::Pending && activity.requires_approval)
+                waiting.push_back(activity.action_id);
+        // Each rejection hands its result to the model and starts that
+        // follow-up, so the message below queues behind it.
+        for (const std::string& action_id : waiting)
+            m_tools.reject(action_id);
+    }
     if (agent_busy()) {
         // The page disables sending while a reply streams; if a message
         // arrives anyway, answer it after the current stream finishes.
@@ -1179,6 +1189,10 @@ void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::
         return;
     }
 
+    // Kept until the action runs, on a later tick, and its executor takes it;
+    // an action that ends without taking it drops it in continue_after_tool.
+    if (decision == "approve" && payload.contains("input") && m_tools.find(action_id)->state == ToolState::Pending)
+        m_decision_inputs[action_id] = payload["input"];
     const bool changed = decision == "approve" ? m_tools.approve(action_id) : m_tools.reject(action_id);
     if (!changed) {
         // A resent decision after a reload or reconnect: acknowledge with the
@@ -1186,6 +1200,16 @@ void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::
         if (const ToolActivity* activity = m_tools.find(action_id))
             send_tool_activity(*activity, envelope_id);
     }
+}
+
+std::optional<json> AgentHost::take_decision_input(const std::string& action_id)
+{
+    const auto found = m_decision_inputs.find(action_id);
+    if (found == m_decision_inputs.end())
+        return std::nullopt;
+    json input = std::move(found->second);
+    m_decision_inputs.erase(found);
+    return input;
 }
 
 void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json)
@@ -1820,6 +1844,7 @@ std::set<std::string> AgentHost::agent_authored_keys(const Workspace::WorkspaceS
 
 void AgentHost::continue_after_tool(const ToolActivity& activity)
 {
+    m_decision_inputs.erase(activity.action_id);
     const auto found = m_tool_continuations.find(activity.action_id);
     if (found == m_tool_continuations.end())
         return;

@@ -11,6 +11,57 @@ function NewChat({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
   </button>;
 }
 
+export interface MenuItem {
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}
+
+// A header's ⋯ menu: opens on click, moves with the arrow keys, closes on
+// Escape, a pick, or a click anywhere else. `buttonRef` lets the owner put
+// focus back on the button once something the menu opened is done.
+export function ActionMenu({ label, items, buttonRef }: {
+  label: string;
+  items: MenuItem[];
+  buttonRef?: React.RefObject<HTMLButtonElement>;
+}) {
+  const [open, setOpen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const ownButton = useRef<HTMLButtonElement>(null);
+  const button = buttonRef ?? ownButton;
+
+  useEffect(() => {
+    if (!open) return;
+    container.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [open]);
+
+  return <div className="chat-actions" ref={container} onKeyDown={(event) => {
+    if (event.key === 'Escape') { setOpen(false); button.current?.focus(); }
+    if (open && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const buttons = Array.from(container.current!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
+      const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 :
+        (index + (event.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length]?.focus();
+    }
+  }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+    <button ref={button} className="chat-icon" aria-label={label} title={label}
+      aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+    </button>
+    {open && <div className="chat-menu" role="menu" aria-label={label}>
+      {items.map((item) => <button key={item.label} role="menuitem" className={item.danger ? 'danger' : undefined}
+        disabled={item.disabled} onClick={() => { setOpen(false); item.onSelect(); }}>{item.label}</button>)}
+    </div>}
+  </div>;
+}
+
 interface HeaderProps {
   title: string;
   busy: boolean;
@@ -21,23 +72,11 @@ interface HeaderProps {
 }
 
 export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete }: HeaderProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState<'rename' | 'delete' | null>(null);
   const [name, setName] = useState(title);
-  const actions = useRef<HTMLDivElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const renameInput = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    actions.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
-    const dismiss = (event: PointerEvent) => {
-      if (!actions.current?.contains(event.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('pointerdown', dismiss);
-    return () => document.removeEventListener('pointerdown', dismiss);
-  }, [menuOpen]);
 
   useEffect(() => {
     if (editing === 'rename') { renameInput.current?.focus(); renameInput.current?.select(); }
@@ -54,26 +93,10 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete }
       </button>
       <h1 title={title}>{title}</h1>
       <NewChat busy={busy} onCreate={onCreate} />
-      <div className="chat-actions" ref={actions} onKeyDown={(event) => {
-        if (event.key === 'Escape') { setMenuOpen(false); menuButton.current?.focus(); }
-        if (menuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-          event.preventDefault();
-          const items = Array.from(actions.current!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
-          const index = items.indexOf(document.activeElement as HTMLButtonElement);
-          items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 :
-            (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus();
-        }
-      }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }}>
-        <button ref={menuButton} className="chat-icon" aria-label="Chat actions" title="Chat actions"
-          aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
-        </button>
-        {menuOpen && <div className="chat-menu" role="menu" aria-label="Chat actions">
-          <button role="menuitem" onClick={() => { setName(title); setEditing('rename'); setMenuOpen(false); }}>Rename</button>
-          <button role="menuitem" className="danger" disabled={busy}
-            onClick={() => { setEditing('delete'); setMenuOpen(false); }}>Delete</button>
-        </div>}
-      </div>
+      <ActionMenu label="Chat actions" buttonRef={menuButton} items={[
+        { label: 'Rename', onSelect: () => { setName(title); setEditing('rename'); } },
+        { label: 'Delete', danger: true, disabled: busy, onSelect: () => setEditing('delete') },
+      ]} />
     </header>
     {editing && <div className="chat-dialog-shade">
       <div ref={dialog} className="chat-dialog" role="dialog" aria-modal="true" aria-labelledby="chat-dialog-title"

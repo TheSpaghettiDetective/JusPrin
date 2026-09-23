@@ -88,7 +88,13 @@ enum class ToolHandler : std::uint8_t {
     RecordExportCopy,
     RecordPhysicalPrint,
     PrinterIdentify,
-    PrinterChange
+    PrinterAdd,
+    PrinterChange,
+    PrinterConnectionStatus,
+    PrinterConnect,
+    PrinterManualSetup,
+    PrinterManualConnection,
+    PrinterSetupFinish
 };
 
 struct ToolDefinition
@@ -107,6 +113,9 @@ struct ToolDefinition
     // registry stays the only place a policy distinction is made. Last in the
     // struct because every definition is a positional brace literal.
     bool              computation_only{false};
+    // Qualifies this mutation for the confirmed-in-conversation exemption in
+    // approval_required(); only a printer panel tool may declare it.
+    bool              confirmed_in_conversation{false};
 };
 
 // Whether a call to this tool may carry a planId: every change to the

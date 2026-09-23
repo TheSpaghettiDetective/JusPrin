@@ -35,9 +35,7 @@ export type HostMessageType =
   | 'printers'
   | 'appearance'
   | 'printer_error'
-  | 'printer_added'
-  | 'bridge_error'
-  | 'printer_panel';
+  | 'bridge_error';
 
 export type Appearance = 'light' | 'dark';
 
@@ -96,7 +94,7 @@ export interface PrinterInfo {
   // 0-100, present only while printing; drives the progress bar's width.
   progressPercent?: number;
   connectionText?: string;
-  connectionAction?: 'connect' | 'reconnect' | 'settings';
+  connectionAction?: 'reconnect';
   nozzleText?: string;
   materialLabel?: string;
   spools: SpoolInfo[];
@@ -110,28 +108,13 @@ export interface PrinterErrorPayload {
   message: string;
 }
 
-// Sent once, right after `state`, only for a successful Add: leads the
-// column with this printer (the host already reordered `printers`) and says
-// what it assumed. A field's own `*Assumed` is false when it was read from
-// the printer or stated by the person, not the profile's default.
-export interface AddedPrinterInfo {
-  name: string;
-  nozzleText: string;
-  nozzleAssumed: boolean;
-  plateText: string;
-  plateAssumed: boolean;
-  filamentText: string;
-  filamentAssumed: boolean;
-}
 
 export interface StatePayload {
   appearance: Appearance;
   projects: ProjectInfo[];
   printers: PrinterInfo[];
-  // The printer conversation has taken the printers column, so the page
-  // leaves that place to it. Absent on hosts without the printer_panel
-  // capability.
-  printerPanelOpen?: boolean;
+  // A printer the conversation just added; empty for any other push.
+  highlightPrinter?: string;
 }
 
 export interface Envelope<T = unknown> {

@@ -6,20 +6,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrinterSessionPayload } from './bridge/protocol';
 import { printerInstructions } from './printerInstructions';
+import { splitChoices } from './replyChoices';
 
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
-  return {
-    mode: 'add',
-    facts: {
-      printer: { name: '', provenance: 'settled' },
-      nozzle: { size: 0, provenance: 'settled' },
-      plate: { name: '', provenance: 'settled' },
-      filament: { preset: '', ams: '', spools: [], provenance: 'settled' },
-    },
-    blocks: [],
-    canAdd: false,
-    ...overrides,
-  };
+  return { mode: 'add', printerName: '', blocks: [], context: {}, ...overrides };
 }
 
 const add = session({
@@ -35,6 +25,7 @@ const add = session({
 
 const change = session({
   mode: 'change',
+  printerName: 'Lab Printer',
   context: {
     printer: {
       name: 'Lab Printer',
@@ -46,73 +37,69 @@ const change = session({
         { name: 'PETG', material: 'PETG' },
       ],
       connected: false,
+      provider: 'bambu',
     },
   },
 });
 
-describe('the Add instructions', () => {
-  it('carry the rules and every printer, one line each', () => {
+describe('the instructions', () => {
+  it('carry every printer when adding, one line each', () => {
     const text = printerInstructions(add);
+    expect(text).toContain('The person is adding a printer.');
     expect(text).toContain('BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm\n');
-    expect(text).toContain('Prusa/Prusa MK3S | Prusa MK3S | 250 × 210 × 210 mm\n');
     // A size nobody measured is a question mark, not a blank.
     expect(text).toContain('Vendor/Unmeasured | Vendor Unmeasured | ?\n');
-    expect(text).toContain('More than three fit: do not call it');
-    expect(text).toContain('Choose printer manually');
-    expect(text).toContain('never say a printer has been added');
-    // Adding saves the printer; connection has its own optional next step.
-    expect(text).toContain('Connection is a separate optional step after adding');
-    expect(text).toContain('Do not request passwords or access codes in chat');
-    expect(text).not.toContain('printer_suggest');
-    expect(text).not.toContain('The printer as it is now');
+    expect(text).not.toContain('The printer this is about');
   });
 
-  it('guides the person without a summary card or a hardware questionnaire', () => {
-    const text = printerInstructions(add);
-    expect(text).toContain('There is no pinned hardware summary');
-    expect(text).toContain('Do not ask for nozzle, plate or filament before identifying it');
-    expect(text).toContain('briefly explain the nozzle choice returned by the tool');
-    expect(text).toContain('not prerequisites for adding a printer');
-    expect(text).toContain('call printer_identify again');
-    expect(text).toContain('Only report the updated size after the tool confirms it');
-    expect(text).toContain('NOT available until one is selected');
-    expect(text).toContain('not proof of what is installed or shipped');
-  });
-
-  it('name what is on the network, which the panel already lists', () => {
-    const text = printerInstructions(
-      session({ context: { printers: [], network: [{ name: 'Bambu Lab A1 mini', serial: '01P00A3B' }] } }),
-    );
-    expect(text).toContain('with their own "Use this" buttons: Bambu Lab A1 mini (01P00A3B) \n');
-  });
-});
-
-describe('the Change instructions', () => {
-  it('state the printer as it is now', () => {
+  it('state the printer the conversation is about, as it is now', () => {
     const text = printerInstructions(change);
     expect(text).toContain('Name: Lab Printer\n');
     expect(text).toContain('Brand and model: Bambu Lab A1 mini\n');
     expect(text).toContain('Nozzle: 0.4 mm (this model ships 0.2, 0.4, 0.6 and 0.8 mm)');
     expect(text).toContain('\n- PLA Matte (PLA, #5f7d4f)\n- PETG (PETG)');
     expect(text).toContain('Connected to this app: no\n');
-    expect(text).toContain('The plate belongs to each project');
-    expect(text).toContain('Nozzle material');
+    expect(text).toContain('Connects through: Bambu Lab LAN mode');
     expect(text).not.toContain('Printer list');
   });
 
-  it('spell sizes as the profiles do, and say when nothing is loaded', () => {
-    const text = printerInstructions(
-      session({
-        mode: 'change',
-        context: {
-          printer: { name: 'Big', model: '', nozzle: 1, nozzles: [0.25, 1], spools: [], connected: true },
-        },
-      }),
-    );
-    expect(text).toContain('Nozzle: 1.0 mm (this model ships 0.25 and 1.0 mm)');
-    expect(text).toContain('Spools loaded: none recorded');
-    expect(text).toContain('Connected to this app: yes');
-    expect(text).not.toContain('Brand and model');
+  it('name what is on the network', () => {
+    const text = printerInstructions(session({ context: { printers: [], network: [{ name: 'Workshop', serial: '01P00A3B' }] } }));
+    expect(text).toContain('On the network now: Workshop (01P00A3B)\n');
+  });
+
+  it('keep the rules that encode real constraints', () => {
+    const text = printerInstructions(add);
+    for (const rule of [
+      'Start with just the printer model',
+      'More than three fit',
+      'is not one model',
+      'never substitute a size',
+      'alreadyYours means',
+      'Never ask for a password, access code or API key in chat',
+      '"connecting" means the app is still waiting',
+      'a timeout means no response, not a wrong code',
+      'nozzle mismatch reported by the printer',
+      'call printer_setup_finish only when the person says they are done',
+      'call the tool without asking again',
+      'ask first and stop: that reply calls no tool',
+    ])
+      expect(text.toLowerCase()).toContain(rule.toLowerCase());
+  });
+
+  it('name no button, screen, form or phase of the panel', () => {
+    for (const text of [printerInstructions(add), printerInstructions(change)])
+      expect(text).not.toMatch(/button|connection form|the form above|phase|Add this printer|This one|Use this|Not this one/);
+  });
+
+  it('offer reply choices whose examples parse as the page parses them', () => {
+    const examples = printerInstructions(add)
+      .split('\n')
+      .filter((line) => line.startsWith('Choices: '));
+    expect(examples.map((line) => splitChoices(`Question?\n${line}`).choices)).toEqual([
+      ['Yes, that is it', 'Different printer'],
+      ['Prusa MK4', 'Prusa MK4S', 'Prusa MK4S HF'],
+    ]);
   });
 });
 
@@ -131,16 +118,3 @@ describe('printer evaluation writer', () => {
     }
   });
 });
-
- it('describes optional connection after Add without the obsolete Add code field', () => {
-   const text = printerInstructions(add);
-   expect(text).not.toContain('access code with Add');
-   expect(text).toContain('connect later');
- });
- it('supplies current connection failures and credential boundaries to the helper', () => {
-   const text = printerInstructions(session({ mode: 'connect', connection: { name: 'Garage', provider: 'bambu',
-     state: 'failed', message: 'Another printer was selected.', deviceId: 'serial', candidates: [] } }));
-   expect(text).toContain('Another printer was selected.');
-   expect(text).toContain('never request or repeat passwords');
-   expect(text).not.toContain('printer_identify');
- });

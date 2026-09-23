@@ -4,15 +4,14 @@ import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard } from './components/SetupCard';
-import { ChatHeader, ChatList } from './components/ChatNavigation';
+import { ActionMenu, ChatHeader, ChatList, MenuItem } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
-import { PrinterChangeCard, PrinterChipRow } from './components/PrinterPanel';
-import { PrinterConnection } from './components/PrinterConnection';
+import { PrinterCredentialCard } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
-import { opening, placeholder, rejectedNote, workingText } from './printerWords';
+import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -77,7 +76,7 @@ export interface AppProps {
   // never the conversation header, chat list, or composer around it.
   embedded?: boolean;
   // The printer panel on Home: the same thread and composer, with the printer
-  // session's own header, pinned card and chips instead of the project's.
+  // session's own header and cards instead of the project's.
   printerPanel?: boolean;
 }
 
@@ -113,23 +112,6 @@ export function App({
   // whenever the host resent state and re-closed the card mid-click.
   const collapseSetup = () => setSetupExpanded(false);
   const [commandError, setCommandError] = useState<string | null>(null);
-  // "‹ Printers" or "Set it up myself" mid-conversation: which one is
-  // pending confirmation, since leaving would discard what was said. Null
-  // means no dialog is showing.
-  const [confirmLeavePrinter, setConfirmLeavePrinter] = useState<'close' | 'manual_setup' | null>(null);
-  // What the printer panel's own composer holds right now, so the leave
-  // check can see it. The printer panel's composer sends no draft_update --
-  // unlike the main chat's, it is never saved -- so state.draft, which only
-  // the backend ever sets, stays empty through an entire typing session and
-  // cannot answer "is there unsent text" for this panel. Reset whenever the
-  // conversation itself changes, so text left over from a printer session
-  // that already ended cannot gate the next one's leave check.
-  const [printerDraftText, setPrinterDraftText] = useState('');
-  useEffect(() => {
-    setPrinterDraftText('');
-  }, [state.activeConversationId]);
-  // The printer panel's access-code field. Held here, not in host state: the
-  // code goes to the app with Add and nowhere else.
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
@@ -235,8 +217,11 @@ export function App({
     client.send('remove_attachment', { attachmentId });
   };
 
-  const sendToolDecision = (actionId: string, decision: 'approve' | 'reject') => {
-    client.send('tool_decision', { actionId, decision });
+  // `input` is what the person typed into the card itself, such as the
+  // printer panel's access code: the app hands it to the action and nowhere
+  // else.
+  const sendToolDecision = (actionId: string, decision: 'approve' | 'reject', input?: { credential: string }) => {
+    client.send('tool_decision', input ? { actionId, decision, input } : { actionId, decision });
   };
 
   const sendToolCancel = (actionId: string) => {
@@ -369,6 +354,7 @@ export function App({
           onRetry={(messageId) => client.send('retry_message', { messageId })}
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
+          onSend={sendMessage}
         />
       );
     if (setupScreen === 'chooser')
@@ -404,35 +390,14 @@ export function App({
 
   if (printerPanel) {
     const session = state.session;
-    const printerClass = `app app--printer${session?.mode === 'add' ? ' app--printer-setup' : ''}`;
-    const offerManualPrinterSetup = notConfigured && session?.mode === 'add' && !session.connection && !session.added?.length && view === 'chat';
-    const printerAction = (action: string, id = '', extra: Record<string, string> = {}) =>
-      client.send('printer_action', { action, id, ...extra });
-    const connectionPhase = !!session && (!!session.connection || (session.added?.length ?? 0) > 0);
-    // F7 review fix: message count alone caught a saved, applied change too
-    // (Change mode stays open after a printer_change succeeds), warning
-    // about words that were not actually going to be lost. Gate on unsaved
-    // work instead: a draft still in the composer, a photo staged but not
-    // sent, an Add proposal sitting on its card waiting for a tap, or a
-    // Change still waiting on its own approval card.
-    const hasUnsavedPrinterWork = () => {
-      if (printerDraftText.trim().length > 0) return true;
-      if (state.attachments.some((attachment) => attachment.state === 'staged')) return true;
-      if (!session) return false;
-      if (session.mode === 'add') return session.canAdd;
-      return state.toolActivities.some(
-        (activity) => activity.tool === 'printer_change' && activity.requiresApproval && activity.state === 'pending',
-      );
-    };
-    const gatedPrinterAction = (action: 'close' | 'manual_setup') => {
-      if (hasUnsavedPrinterWork()) setConfirmLeavePrinter(action);
-      else printerAction(action);
-    };
+    const printerAction = (action: string) => client.send('printer_action', { action });
+    const menu: MenuItem[] = [{ label: 'Browse the full printer list', onSelect: () => printerAction('manual_setup') }];
+    if (session?.printerName) menu.push({ label: 'Open printer settings', onSelect: () => printerAction('open_printer_settings') });
     return (
       // The whole panel takes a photo, not only the composer: a picture of
       // the printer is dropped where the person is looking.
       <div
-        className={printerClass}
+        className="app app--printer app--printer-setup"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           const files = Array.from(event.dataTransfer.files ?? []);
@@ -443,102 +408,34 @@ export function App({
       >
         {errorNotice}
         <div className="chat-content">
-          {/* The label names where ‹ leads, not the printer this is about. */}
           <header className="chat-header printer-header">
-            <button type="button" className={session?.mode === 'add' ? 'printer-manual-link' : 'icon-button'} aria-label={session?.mode === 'add' ? 'Back to Home' : 'Back to printers'} onClick={() => gatedPrinterAction('close')}>
-              {session?.mode === 'add' ? '‹ Back to Home' : '‹'}
+            <button type="button" className="printer-link-button" onClick={() => printerAction('close')}>
+              ‹ Back
             </button>
-            {session?.mode !== 'add' && <h1>{connectionPhase ? 'Your printer' : 'Printers'}</h1>}
-            {!offerManualPrinterSetup && !connectionPhase && (
-              <button type="button" className="printer-manual-link" onClick={() => gatedPrinterAction('manual_setup')}>
-                {session?.mode === 'add' ? 'Choose printer manually' : 'Set it up myself'}
-              </button>
-            )}
+            <ActionMenu label="More" items={menu} />
           </header>
-          {!connectionPhase && session?.mode === 'add' && <h1 className="printer-setup-title">Let’s add your printer</h1>}
-          {!connectionPhase && session?.mode === 'add' && <p className="printer-setup-explanation">Choose your printer so JusPrin can prepare prints for it. You can connect it afterward.</p>}
-          {session?.manualApplied && !session.added?.length && <p className="printer-setup-explanation" role="status">No new printers were added. Your existing printers are available from Home.</p>}
-          {!connectionPhase && session?.mode === 'change' && <button type="button" className="printer-manual-link" onClick={() => printerAction('connect', session.context?.printer?.name || session.facts.printer.name)}>Connection settings</button>}
-          {confirmLeavePrinter && (
-            <div className="chat-dialog-shade printer-leave-shade">
-              <div className="chat-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-leave-title">
-                <h2 id="printer-leave-title">Leave this conversation?</h2>
-                <p>What you said here will be lost.</p>
-                <div className="chat-dialog-buttons">
-                  <button type="button" onClick={() => setConfirmLeavePrinter(null)}>
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => {
-                      const action = confirmLeavePrinter;
-                      setConfirmLeavePrinter(null);
-                      printerAction(action);
-                    }}
-                  >
-                    Leave
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {connectionPhase && session && (
-            <div className="printer-connection-region">
-              <PrinterConnection session={session} onAction={(action, id, extra) =>
-                action === 'close' ? gatedPrinterAction('close') : printerAction(action, id, extra)
-              } />
-            </div>
-          )}
-          {notConfigured && connectionPhase && view !== 'setup' ? (
-            <p className="printer-setup-explanation">
-              Need help? <button type="button" className="printer-link-button" onClick={openSetup}>Set up the agent</button>
-            </p>
-          ) : notConfigured ? (
-            body(offerManualPrinterSetup ? () => gatedPrinterAction('manual_setup') : undefined)
+          {notConfigured ? (
+            body(session?.mode === 'add' && view === 'chat' ? () => printerAction('manual_setup') : undefined)
           ) : (
             <MessageList
               messages={state.messages}
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
-              // In this panel a tool's result is the card it draws, so only a
-              // change to confirm, or one that failed, is worth a card of its
-              // own. A printer the model named wrongly is its to explain.
-              toolActivities={state.toolActivities.filter(
-                (activity) => activity.tool === 'printer_change' && (activity.requiresApproval || activity.state === 'failed'),
-              )}
-              renderActivity={(activity) =>
-                activity.tool === 'printer_change' ? (
-                  <PrinterChangeCard activity={activity} onDecision={sendToolDecision} />
-                ) : undefined
-              }
+              onSend={sendMessage}
+              // The one card the person decides on is the credential's; every
+              // other tool is what the model then says it did.
+              toolActivities={state.toolActivities.filter((activity) => activity.tool === 'printer_connect')}
+              renderActivity={(activity) => <PrinterCredentialCard activity={activity} onDecision={sendToolDecision} />}
               builds={[]}
               exportedCopies={[]}
               physicalPrints={[]}
               changes={[]}
-              printerBlocks={connectionPhase ? [] : session?.blocks}
-              printerActivityText={session ? workingText(session.mode) : undefined}
-              onPrinterAction={(action, id, tap) => {
-                const extra: Record<string, string> = {};
-                if (tap.blockId) extra.blockId = tap.blockId;
-                if (tap.note) extra.note = tap.note;
-                printerAction(action, id, extra);
-              }}
+              printerBlocks={session?.blocks ?? []}
               answeredState={false}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolDecision={sendToolDecision}
               onToolCancel={sendToolCancel}
             />
-          )}
-          {!notConfigured && !connectionPhase && session && (
-            <>
-              <PrinterChipRow
-                canAdd={session.canAdd}
-                disabled={busy}
-                onAdd={() => printerAction('add')}
-                onReject={() => printerAction('reject', '', { note: rejectedNote(session.facts.printer.name) })}
-              />
-            </>
           )}
           {!notConfigured && (
             <Composer
@@ -548,16 +445,12 @@ export function App({
               photoButton
               streaming={streaming}
               attachments={stagedAttachments}
-              onSend={(text) => {
-                setPrinterDraftText('');
-                sendMessage(text);
-              }}
+              onSend={sendMessage}
               onStop={() => {
                 if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
               }}
               onAttachFiles={attachFiles}
               onRemoveAttachment={removeAttachment}
-              onDraftChange={setPrinterDraftText}
             />
           )}
         </div>

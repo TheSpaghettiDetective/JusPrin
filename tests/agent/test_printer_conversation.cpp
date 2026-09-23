@@ -1,8 +1,8 @@
-// The printer panel's session: what the model is told, what its one tool per
-// mode checks and returns, and what the app does itself when the person taps.
-// The first half drives the conversation alone, with a fake backend and a
-// recording panel; the second runs it inside a real AgentHost with a scripted
-// model, to pin what actually reaches the model.
+// The printer panel's session: what the model is told, what each of its tools
+// checks and does, and what the app says on its own. The first half drives
+// the conversation alone, with a fake backend and a recording panel; the
+// second runs it inside a real AgentHost with a scripted model, to pin what
+// actually reaches the model and what never does.
 
 #include <catch2/catch_all.hpp>
 
@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <deque>
 #include <fstream>
+#include <map>
 #include <set>
 
 using namespace Slic3r::GUI::JusPrin;
@@ -94,12 +95,17 @@ public:
     std::vector<DiscoveredPrinter>     network_printers() const override { return network; }
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
 
+    // Saves the printer into `saved`, as the Orca backend does.
     std::string add_printer(const AddPrinterRequest& request, SavedPrinter& result) override
     {
         added.push_back(request);
         if (!refusal.empty())
             return refusal;
-        result.name = request.name;
+        result.name     = request.name;
+        result.model    = request.name;
+        result.model_id = request.model_id;
+        result.nozzle   = std::stod(request.variant);
+        saved.push_back(result);
         return {};
     }
     // Saves the change into `saved`, as the Orca backend does.
@@ -118,18 +124,23 @@ public:
             }
         return {};
     }
-    ManualPrinterResult manual_result;
-    PrinterConnectionInfo connection_info;
-    std::vector<std::string> connection_names;
-    std::string connection_code;
-    std::string connection_error;
-    int sign_ins{0};
-    void sign_in_to_bambu() override { ++sign_ins; }
+    ManualPrinterResult      manual_result;
+    PrinterConnectionInfo    connection_info;
+    std::vector<std::string> prepared;
+    std::string              connection_error;
+    // What each connect was handed, the credential included.
+    std::vector<std::vector<std::string>> connects;
     PrinterConnectionInfo connection(const std::string&) override { return connection_info; }
-    std::string connect_printer(const std::string& name, const std::string&, const std::string& code) override
+    void prepare_connection(const std::string& name) override { prepared.push_back(name); }
+    std::string connect_printer(const std::string& name, const std::string& device, const std::string& code) override
     {
-        connection_names.push_back(name);
-        connection_code = code;
+        connects.push_back({name, device, code});
+        return connection_error;
+    }
+    std::string connect_host(const std::string& name, const std::string& type, const std::string& address,
+                             const std::string& key) override
+    {
+        connects.push_back({name, type, address, key});
         return connection_error;
     }
     ManualPrinterResult run_manual_setup() override { ++manual_setups; return manual_result; }
@@ -160,19 +171,22 @@ public:
     void start_turn() override { ++turns; }
     void session_changed() override { ++states; }
     void profile_changed() override { ++profiles; }
-    // The receipt a close_panel() call carried, or unset for a plain close.
-    std::optional<PinnedFacts> last_closed_with;
-    void close_panel(const PinnedFacts* added) override
-    {
-        ++closes;
-        last_closed_with = added != nullptr ? std::optional<PinnedFacts>(*added) : std::nullopt;
-    }
-    // The last receipt an Add passed, or unset for a refresh with none.
-    std::optional<PinnedFacts> last_added_printer;
-    void printers_changed(const PinnedFacts* added) override
+    void close_panel() override { ++closes; }
+    std::vector<std::string> added_printers; // what each refresh named, empty for none
+    void printers_changed(const std::string& added) override
     {
         ++refreshes;
-        last_added_printer = added != nullptr ? std::optional<PinnedFacts>(*added) : std::nullopt;
+        added_printers.push_back(added);
+    }
+    std::map<std::string, std::string> credentials; // by action id, as the card would hand them over
+    std::optional<std::string> take_credential(const std::string& action_id) override
+    {
+        const auto found = credentials.find(action_id);
+        if (found == credentials.end())
+            return std::nullopt;
+        std::string credential = found->second;
+        credentials.erase(found);
+        return credential;
     }
 };
 
@@ -185,21 +199,36 @@ Agent::ToolActivity call(const char* tool, const json& arguments, const std::str
     return activity;
 }
 
-Agent::ToolExecutionCoordinator::ExtensionResult identify(PrinterConversation& conversation, const json& arguments,
-                                                          const std::string& message = "m-1")
+// Runs one of the session's tools as the coordinator would, after the
+// registry has checked the call.
+Agent::ToolExecutionCoordinator::ExtensionResult run(PrinterConversation& conversation, const char* tool, const json& arguments,
+                                                     const std::string& message = "m-1")
 {
-    return conversation.execute_tool(Agent::ToolHandler::PrinterIdentify, call("printer_identify", arguments, message));
+    const auto& registry = Agent::ToolRegistry::instance();
+    const Agent::ToolDefinition* definition = registry.find(tool);
+    REQUIRE(definition != nullptr);
+    REQUIRE(registry.validate_call(*definition, arguments.dump()).valid());
+    return conversation.execute_tool(definition->handler, call(tool, arguments, message));
 }
 
-json identified(PrinterConversation& conversation, const json& arguments, const std::string& message = "m-1")
+// The same, for a call that succeeds: its output, checked against the
+// registry's promise of what the tool returns.
+json ran(PrinterConversation& conversation, const char* tool, const json& arguments, const std::string& message = "m-1")
 {
-    const auto result = identify(conversation, arguments, message);
+    const auto result = run(conversation, tool, arguments, message);
     REQUIRE(result.handled);
+    INFO((result.error ? result.error->message : std::string()));
     REQUIRE_FALSE(result.error.has_value());
     const json output = json::parse(result.result_json);
-    // Whatever the tool returns is what the registry says it returns.
-    CHECK(Agent::ToolRegistry::instance().validate_output(*Agent::ToolRegistry::instance().find("printer_identify"), output));
+    CHECK(Agent::ToolRegistry::instance().validate_output(*Agent::ToolRegistry::instance().find(tool), output));
     return output;
+}
+
+std::string refused(PrinterConversation& conversation, const char* tool, const json& arguments)
+{
+    const auto result = run(conversation, tool, arguments);
+    REQUIRE(result.error.has_value());
+    return result.error->code;
 }
 
 DiscoveredPrinter found_a1()
@@ -242,28 +271,42 @@ void check_is_a_statement(const std::string& note)
 
 // -- What the model is told --------------------------------------------------
 
-TEST_CASE("each mode offers exactly its own tool and nothing of the project", "[printer-conversation]")
+TEST_CASE("every session offers every printer tool and nothing of the project", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
     backend.saved = {lab_printer()};
+    std::vector<std::string> printer_tools;
+    for (const Agent::ToolDefinition& definition : Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Printer))
+        printer_tools.push_back(definition.name);
 
-    PrinterConversation adding(backend, panel);
-    adding.start(ConversationMode::Add);
-    const Agent::AgentSessionProfile add = adding.profile();
-    CHECK(add.tool_names == std::vector<std::string>{"printer_identify"});
-    CHECK_FALSE(add.include_workspace);
-    CHECK(add.notes_in_context);
-
-    PrinterConversation changing(backend, panel);
-    changing.start(ConversationMode::Change, "Lab Printer");
-    const Agent::AgentSessionProfile change = changing.profile();
-    CHECK(change.tool_names == std::vector<std::string>{"printer_change"});
-    CHECK_FALSE(change.include_workspace);
-    CHECK(change.notes_in_context);
+    for (const ConversationMode mode : {ConversationMode::Add, ConversationMode::Change, ConversationMode::Connect}) {
+        PrinterConversation conversation(backend, panel);
+        conversation.start(mode, "Lab Printer");
+        const Agent::AgentSessionProfile profile = conversation.profile();
+        CHECK(profile.tool_names == printer_tools);
+        CHECK_FALSE(profile.include_workspace);
+        CHECK(profile.notes_in_context);
+        CHECK(profile.reply_cancels_pending_card);
+    }
 }
 
-TEST_CASE("an Add session sends the page every printer and what is on the network", "[printer-conversation]")
+TEST_CASE("only printer_connect asks for a card; the rest run on the person's yes", "[printer-conversation]")
+{
+    const auto& registry = Agent::ToolRegistry::instance();
+    for (const std::string& name : PrinterConversation::session_tools()) {
+        INFO(name);
+        const Agent::ToolDefinition& definition = *registry.find(name);
+        CHECK(registry.requires_approval(definition, "{}") == (name == "printer_connect"));
+        // None joins a plan.
+        CHECK_FALSE(definition.input_schema.at("properties").contains("planId"));
+    }
+    // The exemption is the printer panel's alone.
+    for (const Agent::ToolDefinition& definition : registry.exposed(Agent::ToolExposure::InApp))
+        CHECK_FALSE(definition.confirmed_in_conversation);
+}
+
+TEST_CASE("an Add session sends the page every printer, what is on the network, and the ways in", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -271,12 +314,18 @@ TEST_CASE("an Add session sends the page every printer and what is on the networ
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    // The page writes the model's instructions from these facts.
-    const json context = conversation.state_json().at("context");
+    const json state = conversation.state_json();
+    CHECK(state.at("mode") == "add");
+    CHECK(state.at("printerName") == "");
+    const json& context = state.at("context");
     REQUIRE(context.at("printers").size() == backend.catalogue.size());
     CHECK(context["printers"][0] == json::array({"BBL/Bambu Lab A1 mini", "Bambu Lab A1 mini", "180 × 180 × 180 mm"}));
     CHECK(context.at("network") == json::array({json{{"name", "Bambu Lab A1 mini"}, {"serial", "01P00A3B"}}}));
     CHECK_FALSE(context.contains("printer"));
+    const json& blocks = state.at("blocks");
+    REQUIRE(blocks.size() == 2);
+    CHECK(blocks[0].at("kind") == "tip");
+    CHECK(blocks[1].at("printers")[0] == json{{"name", "Bambu Lab A1 mini"}, {"serial", "01P00A3B"}, {"online", true}});
 }
 
 TEST_CASE("a Change session sends the page the printer as it is now", "[printer-conversation]")
@@ -284,18 +333,31 @@ TEST_CASE("a Change session sends the page the printer as it is now", "[printer-
     FakeBackend    backend;
     RecordingPanel panel;
     backend.saved = {lab_printer()};
+    backend.saved.front().vendor_id = "BBL";
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Change, "Lab Printer");
 
-    const json context = conversation.state_json().at("context");
+    const json state = conversation.state_json();
+    CHECK(state.at("printerName") == "Lab Printer");
+    CHECK(state.at("blocks").empty());
+    const json& context = state.at("context");
     CHECK_FALSE(context.contains("printers"));
     const json& printer = context.at("printer");
     CHECK(printer.at("name") == "Lab Printer");
-    CHECK(printer.at("model") == "Bambu Lab A1 mini");
     CHECK(printer.at("nozzle") == 0.4);
     CHECK(printer.at("nozzles") == json::array({0.2, 0.4, 0.6, 0.8}));
     CHECK(printer.at("spools")[0] == json{{"name", "PLA Matte"}, {"material", "PLA"}, {"colour", "#5f7d4f"}});
-    CHECK(printer.at("connected") == false);
+    CHECK(printer.at("provider") == "bambu");
+}
+
+TEST_CASE("a printer this app has not saved is one to add", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Bambu Lab A1 mini 0.4 nozzle");
+    CHECK(conversation.mode() == ConversationMode::Add);
+    CHECK(conversation.printer_name().empty());
 }
 
 TEST_CASE("the model's instructions are the page's words, and a new session waits for new ones", "[printer-conversation]")
@@ -309,7 +371,6 @@ TEST_CASE("the model's instructions are the page's words, and a new session wait
     REQUIRE(conversation.handle_page_message("printer_instructions", json{{"text", "You add printers."}}));
     CHECK(conversation.profile().instructions == "You add printers.");
     CHECK(panel.profiles == 1);
-    // The same words again change nothing.
     conversation.handle_page_message("printer_instructions", json{{"text", "You add printers."}});
     CHECK(panel.profiles == 1);
     // Nothing the size of no prompt the page means to send.
@@ -320,128 +381,65 @@ TEST_CASE("the model's instructions are the page's words, and a new session wait
     CHECK(conversation.profile().instructions.empty());
 }
 
-TEST_CASE("an Add session opens with nothing stated and the ways in", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.network = {found_a1()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    const json state = conversation.state_json();
-    CHECK(state.at("mode") == "add");
-    CHECK(state.at("facts").at("printer").at("name") == "");
-    CHECK(state.at("facts").at("nozzle").at("size") == 0.);
-    CHECK(state.at("facts").at("plate").at("name") == "");
-    CHECK(state.at("facts").at("filament").at("preset") == "");
-    CHECK(state.at("facts").at("filament").at("spools").empty());
-    CHECK(state.at("canAdd") == false);
-    CHECK_FALSE(state.contains("accessCode"));
-    const json& blocks = state.at("blocks");
-    REQUIRE(blocks.size() == 2);
-    CHECK(blocks[0].at("kind") == "tip");
-    CHECK(blocks[1].at("kind") == "network");
-    const json& found = blocks[1].at("printers")[0];
-    CHECK(found.at("serial") == "01P00A3B");
-    // What "Use this" would put on its card, for the page's note.
-    CHECK(found.at("match") == json{{"name", "Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"reported", true}});
-    // The app writes none of the panel's words.
-    for (const char* words : {"caption", "chips", "placeholder"})
-        CHECK_FALSE(state.contains(words));
-}
-
 TEST_CASE("the page's opening is posted once and the first cards sit under it", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
-    backend.network = {found_a1()};
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    for (const json& block : conversation.state_json().at("blocks"))
-        CHECK(block.at("afterMessageId") == "");
 
-    // Nothing, or nothing the size of a line, is not posted.
     REQUIRE(conversation.handle_page_message("printer_opening", json{{"text", ""}}));
     REQUIRE(conversation.handle_page_message("printer_opening", json{{"text", std::string(3 * 1024, 'x')}}));
     CHECK(panel.openings.empty());
 
-    REQUIRE(conversation.handle_page_message("printer_opening", json{{"text", "What printer do you have?"}}));
-    REQUIRE(panel.openings == std::vector<std::string>{"What printer do you have?"});
-    for (const json& block : conversation.state_json().at("blocks"))
-        CHECK(block.at("afterMessageId") == "opening-1");
-    // A reloaded page asks again; the thread already has it.
     conversation.handle_page_message("printer_opening", json{{"text", "What printer do you have?"}});
-    CHECK(panel.openings.size() == 1);
+    conversation.handle_page_message("printer_opening", json{{"text", "What printer do you have?"}});
+    CHECK(panel.openings == std::vector<std::string>{"What printer do you have?"});
+    CHECK(conversation.state_json().at("blocks")[0].at("afterMessageId") == "opening-1");
+    CHECK(panel.turns == 0);
+}
 
-    // A new session opens again.
+TEST_CASE("the panel answers only its own messages, and Back closes it", "[printer-conversation]")
+{
+    FakeBackend         backend;
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    conversation.handle_page_message("printer_opening", json{{"text", "What printer do you have?"}});
-    CHECK(panel.openings.size() == 2);
-    CHECK(panel.notes.empty());
+    CHECK_FALSE(conversation.handle_page_message("user_message", json::object()));
+    REQUIRE(conversation.handle_page_message("printer_action", json{{"action", "close"}}));
+    CHECK(panel.closes == 1);
+    // The actions the old panel's buttons sent do nothing now.
+    for (const char* old : {"add", "reject", "undo", "connection_start", "network_pick"})
+        conversation.handle_page_message("printer_action", json{{"action", old}});
+    CHECK(backend.added.empty());
+    CHECK(backend.connects.empty());
 }
 
 // -- printer_identify -------------------------------------------------------
 
-TEST_CASE("one printer is checked, drawn, and returned as facts to mention", "[printer-conversation]")
+TEST_CASE("printer_identify draws the printers named and returns what to say about them", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
+    backend.saved = {lab_printer()};
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    const json output = identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}}, "m-7");
-    REQUIRE(output.at("printers").size() == 1);
-    const json& printer = output["printers"][0];
-    CHECK(printer.at("catalogId") == "BBL/Bambu Lab A1 mini");
-    CHECK(printer.at("brand") == "Bambu Lab");
-    CHECK(printer.at("model") == "A1 mini");
-    CHECK(printer.at("buildVolume") == "180 × 180 × 180 mm");
-    CHECK(printer.at("nozzles") == json::array({0.2, 0.4, 0.6, 0.8}));
-    CHECK(printer.at("assumed").at("nozzle") == 0.4);
-    CHECK(printer.at("assumed").at("plate") == "Textured PEI Plate");
-    CHECK(printer.at("assumed").at("filament") == "Bambu PLA Basic @BBL A1M");
-    CHECK(printer.at("alreadyYours") == false);
+    const json output = ran(conversation, "printer_identify", json{{"catalogIds", {"BBL/Bambu Lab A1 mini", "Prusa/Prusa MK3S"}}}, "m-7");
+    const json& mini = output.at("printers")[0];
+    CHECK(mini.at("assumed") == json{{"nozzle", 0.4}, {"plate", "Textured PEI Plate"}, {"filament", "Bambu PLA Basic @BBL A1M"}});
+    CHECK(mini.at("alreadyYours") == true);
+    // A plate the profile does not name is null, never a guess.
+    CHECK(output.at("printers")[1].at("assumed").at("plate").is_null());
 
     const json state = conversation.state_json();
-    CHECK(state.at("facts").at("printer").at("name") == "Bambu Lab A1 mini");
-    CHECK(state.at("facts").at("printer").at("provenance") == "settled");
-    CHECK(state.at("facts").at("nozzle").at("size") == 0.4);
-    CHECK(state.at("facts").at("nozzle").at("provenance") == "assumed");
-    CHECK(state.at("facts").at("filament").at("preset") == "Bambu PLA Basic @BBL A1M");
-    CHECK(state.at("facts").at("filament").at("provenance") == "assumed");
-
     const json& card = state.at("blocks").back();
-    CHECK(card.at("kind") == "printers");
     CHECK(card.at("afterMessageId") == "m-7");
-    const json& drawn = card.at("printers")[0];
-    CHECK(drawn.at("action") == "add");
-    CHECK(drawn.at("buildVolume") == "180 × 180 × 180 mm");
-    CHECK(drawn.at("assumed") ==
-          json{{"nozzle", 0.4}, {"plate", "Textured PEI Plate"}, {"filament", "Bambu PLA Basic @BBL A1M"}});
-    CHECK_FALSE(drawn.contains("device"));
-
-    // Add and "Not this one" are the panel's own, not the model's.
-    CHECK(state.at("canAdd") == true);
-    // Nothing was asked of the model, and nothing recorded.
-    CHECK(panel.turns == 0);
-    CHECK(panel.notes.empty());
-}
-
-TEST_CASE("a plate the profile does not name is null, never a guess", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    const json output = identified(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}});
-    const json& assumed = output["printers"][0]["assumed"];
-    CHECK(assumed.at("plate").is_null());
-    // OrcaSlicer's own default for the profile, not the wizard's first tick.
-    CHECK(assumed.at("filament") == "Prusa Generic PLA");
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("plate").at("name") == "");
-    CHECK(state.at("blocks").back().at("printers")[0].at("assumed").at("plate") == "");
+    CHECK(card.at("printers")[0] == json{{"catalogId", "BBL/Bambu Lab A1 mini"}, {"name", "Bambu Lab A1 mini"},
+                                         {"buildVolume", "180 × 180 × 180 mm"}, {"picture", ""}});
+    // It saves nothing.
+    CHECK(backend.added.empty());
+    CHECK(panel.refreshes == 0);
 }
 
 TEST_CASE("the assumed nozzle is 0.4, else the first size, else what was said", "[printer-conversation]")
@@ -451,696 +449,312 @@ TEST_CASE("the assumed nozzle is 0.4, else the first size, else what was said", 
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    // Ships no 0.4: its first size, and that size's filament, which here is
-    // none, so null.
-    json output = identified(conversation, json{{"catalogIds", {"Creality/Creality Ender-3 V2"}}});
+    json output = ran(conversation, "printer_identify", json{{"catalogIds", {"Creality/Creality Ender-3 V2"}}});
     CHECK(output["printers"][0]["assumed"]["nozzle"] == 0.6);
-    CHECK(output["printers"][0]["assumed"]["filament"] == "Creality Generic PLA");
-
-    output = identified(conversation, json{{"catalogIds", {"Creality/Creality Ender-3 V2"}}, {"nozzle", 0.8}});
+    output = ran(conversation, "printer_identify", json{{"catalogIds", {"Creality/Creality Ender-3 V2"}}, {"nozzle", 0.8}});
     CHECK(output["printers"][0]["assumed"]["nozzle"] == 0.8);
     CHECK(output["printers"][0]["assumed"]["filament"].is_null());
-    // Said, not assumed.
-    CHECK(conversation.state_json().at("facts").at("nozzle").at("provenance") == "settled");
-
     // null and 0 are how the model leaves the nozzle unsaid.
-    const auto& registry = Agent::ToolRegistry::instance();
     for (const json& unsaid : {json(nullptr), json(0)}) {
-        const json arguments{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}, {"nozzle", unsaid}};
-        CHECK(registry.validate_call(*registry.find("printer_identify"), arguments.dump()).valid());
-        output = identified(conversation, arguments);
+        output = ran(conversation, "printer_identify", json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}, {"nozzle", unsaid}});
         CHECK(output["printers"][0]["assumed"]["nozzle"] == 0.4);
-        CHECK(conversation.state_json().at("facts").at("nozzle").at("provenance") == "assumed");
     }
 }
 
-TEST_CASE("a printer the person already has says so", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    const json output = identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}});
-    CHECK(output["printers"][0]["alreadyYours"] == true);
-}
-
-TEST_CASE("two or three candidates are a question on their own cards", "[printer-conversation]")
+TEST_CASE("printer_identify refuses what it cannot show, and says what to do instead", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    const json output =
-        identified(conversation, json{{"catalogIds", {"Creality/Creality Ender-3 V2", "Creality/Creality Ender-3 S1"}}});
-    CHECK(output["printers"].size() == 2);
-
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("printer").at("name") == "");
-    CHECK(state.at("blocks").back().at("printers").size() == 2);
-    CHECK(state.at("blocks").back().at("printers")[0].at("action") == "choose");
-    CHECK(state.at("canAdd") == false);
-}
-
-TEST_CASE("more than three is refused with what to do instead", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    const auto result = identify(conversation, json{{"catalogIds",
-                                                     {"Creality/Creality Ender-3 V2", "Creality/Creality Ender-3 S1",
-                                                      "Creality/Creality Ender-3 Pro", "Creality/Creality Ender-3 Max"}}});
+    CHECK(refused(conversation, "printer_identify", json{{"catalogIds", {"Creality/Creality Ender-3 V2", "Creality/Creality Ender-3 S1",
+                                                                        "Creality/Creality Ender-3 Pro", "Creality/Creality Ender-3 Max"}}}) == "too_many");
+    CHECK(refused(conversation, "printer_identify", json{{"catalogIds", {"BBL/N1"}}}) == "unknown_printer");
+    const auto result = run(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(result.error.has_value());
-    CHECK(result.error->code == "too_many");
-    CHECK(result.error->message == "More than three fit. Ask one question that narrows it down instead.");
-    // A long list, as gpt-5.4-mini sends one for "my bed is 220x220", passes
-    // the registry so that this is the answer it gets back.
-    json many = json::array();
-    for (int i = 0; i < 31; ++i)
-        many.push_back("Vendor/Printer " + std::to_string(i));
-    const auto& registry = Agent::ToolRegistry::instance();
-    CHECK(registry.validate_call(*registry.find("printer_identify"), json{{"catalogIds", many}}.dump()).valid());
-    const json blocks = conversation.state_json().at("blocks");
-    CHECK(std::none_of(blocks.begin(), blocks.end(), [](const json& block) { return block.value("kind", "") == "printers"; }));
-}
-
-TEST_CASE("an id that is not on the list is named and refused", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    const auto result = identify(conversation, json{{"catalogIds", {"BBL/N1"}}});
-    REQUIRE(result.error.has_value());
-    CHECK(result.error->code == "unknown_printer");
-    CHECK_THAT(result.error->message, ContainsSubstring("\"BBL/N1\""));
-    CHECK_THAT(result.error->message, ContainsSubstring("copy it exactly from the printer list"));
-}
-
-TEST_CASE("a nozzle the model does not ship lists the sizes it does", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    const auto result = identify(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
-    REQUIRE(result.error.has_value());
-    CHECK(result.error->code == "unknown_nozzle");
     CHECK(result.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
-    CHECK(conversation.state_json().at("canAdd") == false);
+    // Only the tip: nothing refused was drawn.
+    CHECK(conversation.state_json().at("blocks").size() == 1);
 }
 
-TEST_CASE("a newer answer folds the older cards away", "[printer-conversation]")
+// -- printer_add and printer_change ------------------------------------------
+
+TEST_CASE("printer_add saves once and the session is then about that printer", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}}, "m-2");
-    identified(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}}, "m-4");
-    const json blocks = conversation.state_json().at("blocks");
-    std::vector<json> cards;
-    std::copy_if(blocks.begin(), blocks.end(), std::back_inserter(cards),
-                 [](const json& block) { return block.value("kind", "") == "printers"; });
-    REQUIRE(cards.size() == 2);
-    CHECK(cards[0].value("collapsed", false));
-    CHECK_FALSE(cards[1].value("collapsed", false));
-    CHECK(conversation.state_json().at("facts").at("printer").at("name") == "Prusa MK3S");
-}
-
-// -- Taps the app answers itself ---------------------------------------------
-
-TEST_CASE("This one records the selected printer and requests conversational guidance", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini", "Prusa/Prusa MK3S"}}});
-    const std::string card = conversation.state_json().at("blocks").back().at("id");
-
-    // The page writes the note from the card; the app posts it as written.
-    REQUIRE(conversation.handle_page_message(
-        "printer_action",
-        json{{"action", "candidate_pick"}, {"id", "Prusa/Prusa MK3S"}, {"blockId", card}, {"note", "The person chose Prusa MK3S."}}));
-    CHECK(panel.turns == 1);
-    CHECK(panel.notes == std::vector<std::string>{"The person chose Prusa MK3S."});
-
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("printer").at("name") == "Prusa MK3S");
-    CHECK(state.at("blocks").back().at("printers").size() == 1);
-    CHECK(state.at("blocks").back().at("printers")[0].at("action") == "add");
-    CHECK(state.at("canAdd") == true);
-}
-
-TEST_CASE("This one keeps the nozzle the model named for the card", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini", "Prusa/Prusa MK3S"}}, {"nozzle", 0.6}});
-    const json        drawn = conversation.state_json().at("blocks").back();
-    const std::string card  = drawn.at("id");
-    // What the page's note says the card assumes is what Add saves.
-    CHECK(drawn.at("printers")[0].at("assumed") ==
-          json{{"nozzle", 0.6}, {"plate", "Textured PEI Plate"}, {"filament", "Bambu PLA Basic @BBL A1M"}});
-
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "candidate_pick"}, {"id", "BBL/Bambu Lab A1 mini"}, {"blockId", card}});
-    // A tap with no note records nothing.
-    CHECK(panel.notes.empty());
-    conversation.handle_page_message("printer_action", json{{"action", "add"}});
+    const json output = ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}, {"nozzle", 0.6}});
     REQUIRE(backend.added.size() == 1);
-    CHECK(backend.added.front().variant == "0.6");
-}
-
-TEST_CASE("Use this matches the reported model id and records what it reported", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.network = {found_a1()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    REQUIRE(conversation.handle_page_message(
-        "printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}, {"note", "The person chose the network printer."}}));
-    CHECK(panel.turns == 1);
-    CHECK(panel.notes == std::vector<std::string>{"The person chose the network printer."});
-
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("nozzle").at("size") == 0.4);
-    CHECK(state.at("facts").at("nozzle").at("provenance") == "settled");
-    CHECK(state.at("facts").at("filament").at("ams") == "AMS lite");
-    CHECK(state.at("facts").at("filament").at("spools").size() == 2);
-    CHECK(state.at("facts").at("filament").at("spools")[0].at("colour") == "#5f7d4f");
-    CHECK(state.at("facts").at("filament").at("provenance") == "settled");
-    // The card sits under the note that records it, states what the printer
-    // reported, and offers the code.
-    CHECK(state.at("blocks").back().at("afterMessageId") == "note-1");
-    const json& card = state.at("blocks").back().at("printers")[0];
-    CHECK(card.at("deviceId") == "01P00A3B");
-    CHECK(card.at("device").at("nozzle") == 0.4);
-    CHECK(card.at("device").at("ams") == "AMS lite");
-    CHECK(card.at("device").at("spools").size() == 2);
-    CHECK(card.at("device").at("reported") == true);
-    CHECK_FALSE(state.contains("accessCode"));
-}
-
-TEST_CASE("a network printer that did not report its nozzle is assumed to have the usual one", "[printer-conversation]")
-{
-    FakeBackend       backend;
-    RecordingPanel    panel;
-    DiscoveredPrinter quiet = found_a1();
-    quiet.nozzle_diameter   = 0.;
-    quiet.spools.clear();
-    backend.network = {quiet};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    CHECK(conversation.state_json().at("blocks")[1].at("printers")[0].at("match").at("reported") == false);
-
-    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}});
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("nozzle").at("provenance") == "assumed");
-    // Nothing loaded that it told of: the profile's filament, assumed.
-    CHECK(state.at("facts").at("filament").at("ams") == "");
-    CHECK(state.at("facts").at("filament").at("preset") == "Bambu PLA Basic @BBL A1M");
-    CHECK(state.at("facts").at("filament").at("provenance") == "assumed");
-    CHECK(state.at("blocks").back().at("printers")[0].at("device").at("reported") == false);
-}
-
-TEST_CASE("a note the size of no sentence is not posted", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}});
-
-    conversation.handle_page_message("printer_action", json{{"action", "reject"}, {"note", std::string(3 * 1024, 'x')}});
-    CHECK(panel.notes.empty());
-    // The tap itself still went through.
-    CHECK(conversation.state_json().at("canAdd") == false);
-}
-
-TEST_CASE("a network printer the list cannot match is the model's to ask about", "[printer-conversation]")
-{
-    FakeBackend       backend;
-    RecordingPanel    panel;
-    DiscoveredPrinter odd = found_a1();
-    odd.device_model_id   = "Z9";
-    backend.network       = {odd};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    // No match, so the page has nothing to say; the app says what it found.
-    CHECK_FALSE(conversation.state_json().at("blocks")[1].at("printers")[0].contains("match"));
-    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}, {"note", "unused"}});
-    REQUIRE(panel.notes.size() == 1);
-    CHECK_THAT(panel.notes.front(), ContainsSubstring("\"Z9\""));
-    check_is_a_statement(panel.notes.front());
-    CHECK(panel.turns == 1);
-    CHECK(conversation.state_json().at("canAdd") == false);
-}
-
-TEST_CASE("a printer that has left the network is recorded and the model answers", "[printer-conversation]")
-{
-    FakeBackend         backend;
-    RecordingPanel      panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}, {"note", "unused"}});
-    REQUIRE(panel.notes.size() == 1);
-    CHECK_THAT(panel.notes.front(), ContainsSubstring("no longer on the network"));
-    CHECK(panel.turns == 1);
-}
-
-TEST_CASE("Not this one folds the card, clears the pin and hands the turn to the model", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}});
-
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "reject"}, {"note", "The person said Bambu Lab A1 mini is not their printer."}});
-    CHECK(panel.notes == std::vector<std::string>{"The person said Bambu Lab A1 mini is not their printer."});
-    CHECK(panel.turns == 1);
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("printer").at("name") == "");
-    CHECK(state.at("canAdd") == false);
-    CHECK(state.at("blocks").back().value("collapsed", false));
-}
-
-TEST_CASE("Add saves once and shows a receipt before returning Home", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.25}});
-
-    conversation.handle_page_message("printer_action", json{{"action", "add"}});
-    REQUIRE(backend.added.size() == 1);
-    CHECK(backend.added.front().vendor_id == "Prusa");
-    CHECK(backend.added.front().model_id == "Prusa MK3S");
-    // The profile's own spelling of the size, and the default saved is the
-    // one the card showed.
-    CHECK(backend.added.front().variant == "0.25");
-    CHECK(backend.added.front().material == "Prusa Generic PLA");
-    CHECK(panel.closes == 0);
-    // The receipt travels with the one close_panel() call, not a separate
-    // printers_changed() ahead of a bare close: the panel's own deferred
-    // teardown closes with no facts of its own, and a standalone refresh
-    // here would race it and lose, wiping the receipt the moment Home got
-    // it. See IConversationHost::close_panel.
-    CHECK(panel.refreshes == 1);
-    REQUIRE(conversation.state_json()["added"].size() == 1);
-    CHECK(conversation.state_json()["canAdd"] == false);
-    conversation.handle_page_message("printer_action", json{{"action", "add"}});
-    CHECK(backend.added.size() == 1);
-    conversation.handle_page_message("printer_action", json{{"action", "close"}});
-    REQUIRE(panel.last_closed_with.has_value());
-    CHECK(panel.last_closed_with->printer == "Prusa MK3S");
-    CHECK(panel.last_closed_with->nozzle == 0.25);
-}
-
-TEST_CASE("an old Add message cannot submit connection credentials", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.network = {found_a1()};
-    backend.refusal = "That access code was not accepted.";
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "01P00A3B"}});
-
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "add"}, {"accessCode", "12345678"}, {"note", "An access code was entered."}});
-    REQUIRE(backend.added.size() == 1);
-    CHECK(backend.added.front().device_id == "01P00A3B");
-    // Refused, so the panel stays, and the thread holds the record and the
-    // reason -- never the code.
-    CHECK(panel.closes == 0);
-    CHECK(std::find(panel.notes.begin(), panel.notes.end(), "An access code was entered.") == panel.notes.end());
-    for (const std::string& note : panel.notes)
-        CHECK_THAT(note, !ContainsSubstring("12345678"));
-    CHECK_THAT(conversation.state_json().dump(), !ContainsSubstring("12345678"));
-}
-
-TEST_CASE("a code with no network printer to go to is not sent", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}});
-
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "add"}, {"accessCode", "12345678"}, {"note", "An access code was entered."}});
-    REQUIRE(backend.added.size() == 1);
-    CHECK(panel.notes.empty());
-}
-
-// -- printer_change -----------------------------------------------------------
-
-TEST_CASE("a change is checked before its card, and the card states it", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Lab Printer");
-
-    const auto preflight = [&](const json& arguments) {
-        Agent::ToolActivity activity = call("printer_change", arguments);
-        const std::optional<Agent::ToolError> error = conversation.preflight_tool(Agent::ToolHandler::PrinterChange, activity);
-        return std::make_pair(error, activity);
-    };
-
-    SECTION("nothing named") {
-        const auto [error, activity] = preflight(json::object());
-        REQUIRE(error.has_value());
-        CHECK(error->code == "nothing_to_change");
-        CHECK(error->message == "Name the nozzle or the spools that changed.");
-    }
-    SECTION("a size this model does not ship") {
-        const auto [error, activity] = preflight(json{{"nozzle", 0.3}});
-        REQUIRE(error.has_value());
-        CHECK(error->code == "unknown_nozzle");
-        CHECK(error->message == "JusPrin supports 0.2, 0.4, 0.6 and 0.8 mm nozzles for Bambu Lab A1 mini, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
-    }
-    SECTION("what it already is") {
-        const auto [error, activity] = preflight(json{{"nozzle", 0.4}});
-        REQUIRE(error.has_value());
-        CHECK(error->code == "nothing_to_change");
-    }
-    SECTION("the printer went while the card would wait") {
-        backend.saved.clear();
-        const auto [error, activity] = preflight(json{{"nozzle", 0.6}});
-        REQUIRE(error.has_value());
-        CHECK(error->code == "printer_gone");
-        CHECK_THAT(error->message, ContainsSubstring("Lab Printer"));
-    }
-    SECTION("a real change is restated for the card") {
-        const auto [error, activity] = preflight(json{{"nozzle", 0.6}});
-        REQUIRE_FALSE(error.has_value());
-        CHECK(activity.title == "Change nozzle");
-        const json arguments = json::parse(activity.arguments_json);
-        CHECK(arguments.at("confirm").at("printer") == "Bambu Lab A1 mini");
-        CHECK(arguments.at("confirm").at("before").at("nozzle") == 0.4);
-        CHECK(arguments.at("nozzle") == 0.6);
-    }
-    SECTION("an unchanged field is dropped from the card") {
-        const auto [error, activity] =
-            preflight(json{{"nozzle", 0.4}, {"spools", json::array({json{{"name", "Teal PLA"}, {"material", "PLA"}}})}});
-        REQUIRE_FALSE(error.has_value());
-        CHECK(activity.title == "Change spools");
-        const json arguments = json::parse(activity.arguments_json);
-        CHECK_FALSE(arguments.contains("nozzle"));
-        CHECK(arguments.at("confirm").at("before").at("spools").size() == 2);
-    }
-}
-
-TEST_CASE("an applied change returns what changed and the printer as it now is", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Lab Printer");
-
-    const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterChange,
-                                                  call("printer_change", json{{"nozzle", 0.6}}, "m-3"));
-    REQUIRE(result.handled);
-    REQUIRE_FALSE(result.error.has_value());
-    const json output = json::parse(result.result_json);
-    CHECK(Agent::ToolRegistry::instance().validate_output(*Agent::ToolRegistry::instance().find("printer_change"), output));
-    CHECK(output.at("state") == "applied");
-    REQUIRE(output.at("changed").size() == 1);
-    CHECK(output["changed"][0] == json{{"field", "nozzle"}, {"before", 0.4}, {"after", 0.6}});
+    CHECK(backend.added[0].model_id == "Prusa MK3S");
+    CHECK(backend.added[0].variant == "0.6");
+    CHECK(backend.added[0].material == "Prusa Generic PLA");
+    CHECK(backend.added[0].device_id.empty());
+    CHECK(output.at("printer").at("name") == "Prusa MK3S");
     CHECK(output.at("printer").at("nozzle") == 0.6);
-    CHECK(output.at("printer").at("nozzles") == json::array({0.2, 0.4, 0.6, 0.8}));
-    CHECK(output.at("printer").at("connected") == false);
-    REQUIRE(backend.changed.size() == 1);
-    CHECK_FALSE(backend.changed.front().spools.has_value());
-
-    const json state = conversation.state_json();
-    CHECK(state.at("facts").at("nozzle").at("size") == 0.6);
-    CHECK(state.at("facts").at("nozzle").at("provenance") == "changed");
-    const json& undo = state.at("blocks").back();
-    CHECK(undo.at("kind") == "undo");
-    CHECK(undo.at("changed") == json{{"nozzle", json{{"before", 0.4}, {"after", 0.6}}}});
-    CHECK(undo.at("afterMessageId") == "m-3");
-    CHECK(panel.refreshes == 1);
-    // A change is not an Add: nothing here leads Home's column or claims an
-    // assumption, so the refresh carries no receipt.
-    CHECK_FALSE(panel.last_added_printer.has_value());
-    // What the model is told next is the printer as it now is.
-    CHECK(conversation.state_json().at("context").at("printer").at("nozzle") == 0.6);
-}
-
-TEST_CASE("Undo reverses the last change directly, with no card and no model turn", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Lab Printer");
-    conversation.execute_tool(Agent::ToolHandler::PrinterChange, call("printer_change", json{{"nozzle", 0.6}}));
-    const std::string undo = conversation.state_json().at("blocks").back().at("id");
-
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "undo"}, {"id", undo}, {"note", "The person undid the change."}});
-    REQUIRE(backend.changed.size() == 2);
-    REQUIRE(backend.changed.back().nozzle.has_value());
-    CHECK(*backend.changed.back().nozzle == 0.4);
-    CHECK(backend.saved.front().nozzle == 0.4);
+    // Home leads with it; the page and the model now have a printer to talk about.
+    CHECK(panel.added_printers == std::vector<std::string>{"Prusa MK3S"});
+    CHECK(conversation.printer_name() == "Prusa MK3S");
+    CHECK(conversation.state_json().at("context").at("printer").at("name") == "Prusa MK3S");
     CHECK(panel.turns == 0);
-    CHECK(panel.notes == std::vector<std::string>{"The person undid the change."});
-    const json blocks = conversation.state_json().at("blocks");
-    CHECK(std::none_of(blocks.begin(), blocks.end(), [](const json& block) { return block.value("kind", "") == "undo"; }));
-    CHECK(conversation.state_json().at("facts").at("nozzle").at("provenance") == "settled");
-
-    // A second tap has nothing left to undo, and records nothing.
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "undo"}, {"id", undo}, {"note", "The person undid the change."}});
-    CHECK(backend.changed.size() == 2);
-    CHECK(panel.notes.size() == 1);
-}
-
-TEST_CASE("an Undo that fails says why, and not what the page wrote", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Lab Printer");
-    conversation.execute_tool(Agent::ToolHandler::PrinterChange, call("printer_change", json{{"nozzle", 0.6}}));
-    const std::string undo = conversation.state_json().at("blocks").back().at("id");
-
-    backend.refusal = "The printer file is read-only.";
-    conversation.handle_page_message("printer_action",
-                                     json{{"action", "undo"}, {"id", undo}, {"note", "The person undid the change."}});
-    CHECK(panel.notes == std::vector<std::string>{"Undo did not go through: The printer file is read-only."});
-}
-
-TEST_CASE("a change the person kept is declined, with the printer as it is", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Lab Printer");
-
-    Agent::ToolActivity kept = call("printer_change", json{{"nozzle", 0.6}});
-    kept.state              = Agent::ToolState::Rejected;
-    const std::optional<json> output = conversation.tool_output(kept);
-    REQUIRE(output.has_value());
-    CHECK(output->at("state") == "declined");
-    CHECK(output->at("changed").empty());
-    CHECK(output->at("printer").at("nozzle") == 0.4);
-    CHECK(Agent::ToolRegistry::instance().validate_output(*Agent::ToolRegistry::instance().find("printer_change"), *output));
-    CHECK(backend.changed.empty());
-}
-
-TEST_CASE("a Change session states the printer it is about", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Lab Printer");
-
-    const json state = conversation.state_json();
-    CHECK(state.at("mode") == "change");
-    CHECK(state.at("facts").at("printer").at("name") == "Lab Printer");
-    CHECK(state.at("facts").at("nozzle").at("size") == 0.4);
-    CHECK(state.at("facts").at("plate").at("name") == "Textured PEI Plate");
-    CHECK(state.at("facts").at("plate").at("provenance") == "assumed");
-    CHECK(state.at("facts").at("filament").at("ams") == "AMS lite");
-    CHECK(state.at("facts").at("filament").at("spools") ==
-          json::array({json{{"name", "PLA Matte"}, {"material", "PLA"}, {"colour", "#5f7d4f"}},
-                       json{{"name", "PETG"}, {"material", "PETG"}, {"colour", "#204080"}}}));
-    CHECK(state.at("facts").at("filament").at("provenance") == "settled");
-    CHECK(state.at("blocks").empty());
-}
-
-TEST_CASE("Set it up myself leads to Orca's own screens", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved = {lab_printer()};
-
-    PrinterConversation adding(backend, panel);
-    adding.start(ConversationMode::Add);
-    adding.handle_page_message("printer_action", json{{"action", "manual_setup"}});
-    CHECK(backend.manual_setups == 1);
-    CHECK(panel.closes == 0);
-
-    PrinterConversation changing(backend, panel);
-    changing.start(ConversationMode::Change, "Lab Printer");
-    changing.handle_page_message("printer_action", json{{"action", "manual_setup"}});
-    CHECK(backend.settings_opened == std::vector<std::string>{"Lab Printer"});
-    CHECK(panel.closes == 0);
-}
-
-TEST_CASE("connection retry keeps the saved printer and credentials out of the thread", "[printer-conversation]")
-{
-    FakeBackend backend;
-    RecordingPanel panel;
-    backend.connection_info.provider = "bambu";
-    backend.connection_error = "Check the access code.";
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    identified(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}});
-    conversation.handle_page_message("printer_action", json{{"action", "add"}});
-    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"id", "Prusa MK3S"}});
-    for (int retry = 0; retry != 2; ++retry)
-        conversation.handle_page_message("printer_action", json{{"action", "connection_start"}, {"deviceId", "serial"}, {"accessCode", "privatecode"}});
-    REQUIRE(backend.added.size() == 1);
-    CHECK(backend.connection_names == std::vector<std::string>{"Prusa MK3S", "Prusa MK3S"});
-    CHECK(backend.connection_code == "privatecode");
-    CHECK(conversation.state_json()["connection"]["state"] == "failed");
-    CHECK(conversation.state_json()["added"][0]["name"] == "Prusa MK3S");
-    CHECK_THAT(conversation.state_json().dump(), !ContainsSubstring("privatecode"));
     CHECK(panel.notes.empty());
-    CHECK(conversation.profile().tool_names.empty());
-    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"id", "Another printer"}});
-    CHECK(conversation.state_json()["connection"]["name"] == "Prusa MK3S");
+
+    // A second yes is not a second printer.
+    CHECK(refused(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}) == "already_added");
+    CHECK(backend.added.size() == 1);
+    // A new session may add another of the same model.
+    conversation.start(ConversationMode::Add);
+    ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
+    CHECK(backend.added.size() == 2);
 }
 
-TEST_CASE("manual completion reports actual additions and no success on cancellation", "[printer-conversation]")
+TEST_CASE("printer_add refuses an unknown model, an unshipped nozzle, and passes on a failed save", "[printer-conversation]")
 {
-    FakeBackend backend;
+    FakeBackend    backend;
     RecordingPanel panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
-    CHECK(conversation.state_json()["added"].empty());
-    CHECK(conversation.state_json()["manualApplied"] == false);
-    CHECK(panel.closes == 0);
-    backend.manual_result.applied = true;
-    auto first = lab_printer();
-    auto second = first;
-    second.name = "Second printer";
-    backend.manual_result.added = {first, second};
-    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
-    REQUIRE(conversation.state_json()["added"].size() == 2);
-    CHECK(conversation.state_json()["added"][1]["name"] == "Second printer");
-    CHECK_FALSE(conversation.state_json()["canAdd"].get<bool>());
-    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
-    CHECK(backend.manual_setups == 2);
-    conversation.handle_page_message("printer_action", json{{"action", "network_pick"}, {"id", "stale-device"}});
-    CHECK(panel.turns == 0);
+
+    CHECK(refused(conversation, "printer_add", json{{"catalogId", "BBL/N1"}}) == "unknown_printer");
+    CHECK(refused(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}, {"nozzle", 0.3}}) == "unknown_nozzle");
+    CHECK(backend.added.empty());
+    backend.refusal = "That name is taken.";
+    const auto result = run(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
+    REQUIRE(result.error.has_value());
+    CHECK(result.error->code == "add_failed");
+    CHECK(result.error->message == "That name is taken.");
+    CHECK(panel.refreshes == 0);
 }
 
-TEST_CASE("connect later opens without agent tools and reflects observed status", "[printer-conversation]")
+TEST_CASE("printer_change saves what changed and returns the printer as it now is", "[printer-conversation]")
 {
-    FakeBackend backend;
+    FakeBackend    backend;
     RecordingPanel panel;
     backend.saved = {lab_printer()};
-    backend.connection_info.provider = "bambu";
-    backend.connection_info.state = "connecting";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Lab Printer");
+
+    const json spools_now = json::array({json{{"name", "PLA Matte"}, {"material", "PLA"}, {"colour", "#5f7d4f"}},
+                                         json{{"name", "PETG"}, {"material", "PETG"}, {"colour", "#204080"}}});
+    const json output = ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}, {"spools", spools_now}});
+    // The spools said are the spools there: only the nozzle is changed.
+    REQUIRE(backend.changed.size() == 1);
+    CHECK(backend.changed[0].nozzle == 0.6);
+    CHECK_FALSE(backend.changed[0].spools.has_value());
+    CHECK(output.at("changed") == json::array({json{{"field", "nozzle"}, {"before", 0.4}, {"after", 0.6}}}));
+    CHECK(output.at("printer").at("nozzle") == 0.6);
+    CHECK(conversation.state_json().at("context").at("printer").at("nozzle") == 0.6);
+    CHECK(panel.refreshes == 1);
+
+    // Putting it back is the same tool.
+    ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.4}});
+    CHECK(backend.saved[0].nozzle == 0.4);
+}
+
+TEST_CASE("printer_change refuses what it cannot change, before saving anything", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved = {lab_printer()};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Lab Printer");
+
+    CHECK(refused(conversation, "printer_change", json{{"printerName", "Garage"}, {"nozzle", 0.6}}) == "unknown_printer");
+    CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}}) == "nothing_to_change");
+    CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.4}}) == "nothing_to_change");
+    CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.3}}) == "unknown_nozzle");
+    CHECK(backend.changed.empty());
+    backend.refusal = "The profile is read-only.";
+    CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}) == "change_failed");
+}
+
+// -- Connecting ---------------------------------------------------------------
+
+namespace {
+
+PrinterConnectionInfo bambu_on_network()
+{
+    PrinterConnectionInfo info;
+    info.provider   = "bambu";
+    info.state      = "not_configured";
+    info.candidates = {{"01P00A3B", "Workshop", "192.168.1.30", true}, {"CLOUD01", "Office", "", false}};
+    return info;
+}
+
+} // namespace
+
+TEST_CASE("printer_connection_status starts looking and lists only LAN-mode printers", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = bambu_on_network();
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Connect, "Lab Printer");
-    CHECK(conversation.profile().tool_names.empty());
-    CHECK(conversation.state_json()["connection"]["state"] == "connecting");
-    backend.connection_info.state = "verified";
-    conversation.handle_page_message("printer_action", json{{"action", "connection_refresh"}});
-    CHECK(conversation.state_json()["connection"]["state"] == "verified");
-    CHECK(backend.added.empty());
-    CHECK(panel.turns == 0);
-    backend.connection_info.state = "not_configured";
-    conversation.handle_page_message("printer_action", json{{"action", "connection_sign_in"}});
-    CHECK(backend.sign_ins == 1);
-    CHECK(panel.turns == 0);
-    backend.connection_info.state = "unavailable";
-    conversation.handle_page_message("printer_action", json{{"action", "connection_sign_in"}});
-    CHECK(backend.sign_ins == 1);
+
+    const json output = ran(conversation, "printer_connection_status", json::object());
+    // Looking again does not start looking again.
+    ran(conversation, "printer_connection_status", json::object());
+    CHECK(backend.prepared == std::vector<std::string>{"Lab Printer"});
+    CHECK(output.at("candidates") == json::array({json{{"deviceId", "01P00A3B"}, {"name", "Workshop"}, {"address", "192.168.1.30"}}}));
+    // Before a printer is saved there is nothing to connect.
+    conversation.start(ConversationMode::Add);
+    CHECK(refused(conversation, "printer_connection_status", json::object()) == "no_printer");
 }
 
-TEST_CASE("a removed connect target stays a connection outcome instead of starting an add", "[printer-conversation]")
+TEST_CASE("printer_connect is checked before its card, and titles it", "[printer-conversation]")
 {
-    FakeBackend backend;
+    FakeBackend    backend;
     RecordingPanel panel;
-    backend.connection_info.state = "unavailable";
+    backend.saved           = {lab_printer()};
+    backend.connection_info = bambu_on_network();
     PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Connect, "Removed printer");
-    CHECK(conversation.state_json()["mode"] == "connect");
-    CHECK(conversation.state_json()["connection"]["state"] == "unavailable");
-    CHECK(conversation.profile().tool_names.empty());
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+
+    auto preflight = [&](const json& arguments) {
+        Agent::ToolActivity activity = call("printer_connect", arguments);
+        return std::make_pair(conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, activity), activity);
+    };
+    // A printer reached through a Bambu account is not offered.
+    CHECK(preflight(json{{"deviceId", "CLOUD01"}}).first->code == "unknown_device");
+    const auto [problem, activity] = preflight(json{{"deviceId", "01P00A3B"}});
+    CHECK_FALSE(problem.has_value());
+    CHECK(activity.title == "Connect to Workshop");
+    CHECK(json::parse(activity.arguments_json).at("provider") == "bambu");
+    CHECK(json::parse(activity.arguments_json).at("printerName") == "Lab Printer");
+    // Named as the person sees it, it is the same printer; the card and the
+    // connection use its id.
+    const auto [by_name, named] = preflight(json{{"deviceId", "Workshop"}});
+    CHECK_FALSE(by_name.has_value());
+    CHECK(json::parse(named.arguments_json).at("deviceId") == "01P00A3B");
+    CHECK_THAT(preflight(json{{"deviceId", "Nope"}}).first->message, ContainsSubstring("01P00A3B (Workshop)"));
+
+    backend.connection_info = PrinterConnectionInfo{"host", "not_configured"};
+    CHECK(preflight(json{{"hostType", "moonraker"}}).first->code == "address_needed");
+    CHECK(preflight(json{{"hostType", "moonraker"}, {"address", "192.168.1.42"}}).second.title ==
+          "Connect to 192.168.1.42");
+    backend.connection_info = PrinterConnectionInfo{"unavailable", "unavailable", "Install the network plugin."};
+    CHECK(preflight(json{{"deviceId", "01P00A3B"}}).first->message == "Install the network plugin.");
+    // It connects the printer the conversation is about, and nothing before one is saved.
+    conversation.start(ConversationMode::Add);
+    CHECK(preflight(json{{"deviceId", "01P00A3B"}}).first->code == "no_printer");
 }
 
-TEST_CASE("the panel answers only its own messages", "[printer-conversation]")
+TEST_CASE("a host connection's outcome is the tool's own result", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = PrinterConnectionInfo{"host", "verified"};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+
+    const json arguments{{"printerName", "Lab Printer"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"}, {"provider", "host"}};
+    Agent::ToolActivity activity = call("printer_connect", arguments);
+    activity.action_id           = "a-1";
+    panel.credentials["a-1"]     = "key123";
+    auto result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+    CHECK(json::parse(result.result_json) == json{{"state", "verified"}, {"message", ""}});
+    CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "moonraker", "192.168.1.42", "key123"});
+    CHECK(panel.credentials.empty());
+
+    backend.connection_error = "Use an HTTP or HTTPS address.";
+    result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+    CHECK(json::parse(result.result_json) == json{{"state", "failed"}, {"message", "Use an HTTP or HTTPS address."}});
+}
+
+TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = bambu_on_network();
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+
+    Agent::ToolActivity activity = call("printer_connect", json{{"printerName", "Lab Printer"}, {"deviceId", "01P00A3B"}, {"provider", "bambu"}});
+    activity.action_id       = "a-1";
+    panel.credentials["a-1"] = "12345678";
+    const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+    CHECK(json::parse(result.result_json).at("state") == "connecting");
+    CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "01P00A3B", "12345678"});
+
+    using namespace std::chrono_literals;
+    const auto start = std::chrono::steady_clock::now();
+    backend.connection_info.state = "connecting";
+    conversation.tick(start);
+    CHECK(panel.notes.empty());
+    // A second connection waits for this one.
+    Agent::ToolActivity again = call("printer_connect", json{{"deviceId", "01P00A3B"}});
+    CHECK(conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, again)->code == "connection_in_progress");
+
+    backend.connection_info.state   = "failed";
+    backend.connection_info.message = "The printer did not respond.";
+    conversation.tick(start + 500ms); // not yet a second since it last looked
+    CHECK(panel.notes.empty());
+    conversation.tick(start + 1100ms);
+    REQUIRE(panel.notes == std::vector<std::string>{"Connection to Lab Printer failed: The printer did not respond."});
+    check_is_a_statement(panel.notes.front());
+    CHECK(panel.turns == 1);
+    conversation.tick(start + 5s);
+    CHECK(panel.notes.size() == 1);
+    CHECK(panel.turns == 1);
+}
+
+// -- OrcaSlicer's own screens, and closing -------------------------------------
+
+TEST_CASE("the full printer list reports what it added, as a tool and from the menu", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    // Closed without adding anything.
+    CHECK(ran(conversation, "printer_manual_setup", json::object()) == json{{"applied", false}, {"added", json::array()}});
+    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    CHECK(panel.notes.empty());
+    CHECK(panel.turns == 0);
+
+    backend.manual_result = ManualPrinterResult{true, {lab_printer()}};
+    CHECK(ran(conversation, "printer_manual_setup", json::object()).at("added") == json::array({"Lab Printer"}));
+    CHECK(conversation.printer_name() == "Lab Printer");
+    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    REQUIRE(panel.notes == std::vector<std::string>{"The person added Lab Printer from OrcaSlicer's printer list."});
+    check_is_a_statement(panel.notes.front());
+    CHECK(panel.turns == 1);
+    CHECK(backend.manual_setups == 4);
+}
+
+TEST_CASE("printer settings open for the printer the conversation is about", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = PrinterConnectionInfo{"host", "unknown"};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    // Nothing to open before there is a printer.
+    conversation.handle_page_message("printer_action", json{{"action", "open_printer_settings"}});
+    CHECK(backend.settings_opened.empty());
+
+    conversation.start(ConversationMode::Change, "Lab Printer");
+    conversation.handle_page_message("printer_action", json{{"action", "open_printer_settings"}});
+    CHECK(ran(conversation, "printer_manual_connection", json::object()) == json{{"state", "opened"}});
+    CHECK(backend.settings_opened == std::vector<std::string>{"Lab Printer", "Lab Printer"});
+}
+
+TEST_CASE("printer_setup_finish closes the panel", "[printer-conversation]")
 {
     FakeBackend         backend;
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
-
-    CHECK_FALSE(conversation.handle_page_message("user_message", json{{"text", "hello"}}));
-    CHECK(conversation.handle_page_message("printer_action", json{{"action", "close"}}));
+    CHECK(ran(conversation, "printer_setup_finish", json::object()) == json{{"state", "closed"}});
     CHECK(panel.closes == 1);
-}
-
-TEST_CASE("a printer this app has not saved is one to add", "[printer-conversation]")
-{
-    FakeBackend         backend;
-    RecordingPanel      panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Bambu Lab A1 mini 0.4 nozzle");
-
-    CHECK(conversation.mode() == ConversationMode::Add);
-    CHECK(conversation.printer_name().empty());
-    CHECK(conversation.state_json().at("mode") == "add");
-    CHECK(conversation.profile().tool_names == std::vector<std::string>{"printer_identify"});
-}
-
-TEST_CASE("the printer tools join no plans", "[printer-conversation]")
-{
-    for (const char* name : {"printer_identify", "printer_change"}) {
-        INFO(name);
-        const Agent::ToolDefinition* definition = Agent::ToolRegistry::instance().find(name);
-        REQUIRE(definition != nullptr);
-        CHECK_FALSE(Agent::joins_plans(*definition));
-        CHECK_FALSE(definition->input_schema["properties"].contains("planId"));
-        CHECK_FALSE(definition->input_schema["properties"].contains("accessCode"));
-    }
-    for (const char* gone : {"printer_catalog_search", "printer_propose", "printer_suggest"})
-        CHECK(Agent::ToolRegistry::instance().find(gone) == nullptr);
-    const std::string description = Agent::ToolRegistry::instance().find("printer_identify")->description;
-    CHECK(description.find("It never picks a printer.") != std::string::npos);
-    CHECK(description.find("Add is unavailable") != std::string::npos);
 }
 
 TEST_CASE("a printer conversation writes nothing into the project", "[printer-conversation]")
@@ -1232,6 +846,7 @@ class HostedPanel final : public IConversationHost
 public:
     Agent::AgentHost*    host{nullptr};
     PrinterConversation* conversation{nullptr};
+    int                  closes{0};
 
     std::string post_note(const std::string& text) override { return host->post_note(text); }
     std::string post_opening(const std::string& text) override { return host->post_assistant_message(text); }
@@ -1242,8 +857,13 @@ public:
         if (host != nullptr && conversation != nullptr)
             host->set_session_profile(conversation->profile());
     }
-    void close_panel(const PinnedFacts*) override {}
-    void printers_changed(const PinnedFacts*) override {}
+    void close_panel() override { ++closes; }
+    void printers_changed(const std::string&) override {}
+    std::optional<std::string> take_credential(const std::string& action_id) override
+    {
+        const std::optional<json> input = host->take_decision_input(action_id);
+        return input ? std::optional<std::string>(input->value("credential", std::string())) : std::nullopt;
+    }
 };
 
 Agent::ProjectPersistence::Config in_memory()
@@ -1267,13 +887,13 @@ struct PrinterHost
     FakeBackend               backend;
     HostedPanel               panel;
     PrinterConversation       conversation{backend, panel};
-    std::vector<json>         sent;
+    std::vector<std::string>  sent;
 
     explicit PrinterHost(ConversationMode mode, bool printer_session = true)
         : host(workspace, persistence, Agent::AgentAvailability::Ready, false, make_agent())
     {
         persistence.attach();
-        host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
+        host.set_send([this](const std::string& envelope) { sent.push_back(envelope); });
         backend.saved = {lab_printer()};
         panel.host         = &host;
         panel.conversation = &conversation;
@@ -1290,12 +910,7 @@ struct PrinterHost
             // What the page does once it has the session's facts.
             conversation.handle_page_message("printer_instructions", json{{"text", "You are the printer assistant."}});
         }
-        host.on_page_message(json{{"protocol", Agent::Protocol::kName},
-                                  {"version", Agent::Protocol::kVersion},
-                                  {"id", "w-hello"},
-                                  {"type", "hello"},
-                                  {"payload", {{"protocolVersions", {Agent::Protocol::kVersion}}, {"capabilities", {"streaming"}}}}}
-                                 .dump());
+        page("hello", {{"protocolVersions", {Agent::Protocol::kVersion}}, {"capabilities", {"streaming"}}});
     }
 
     Agent::AgentServicePtr make_agent()
@@ -1305,25 +920,21 @@ struct PrinterHost
         return scripted;
     }
 
-    void say(const std::string& text)
+    void page(const std::string& type, const json& payload)
     {
         static int next = 0;
         host.on_page_message(json{{"protocol", Agent::Protocol::kName},
                                   {"version", Agent::Protocol::kVersion},
                                   {"id", "w-" + std::to_string(++next)},
-                                  {"type", "user_message"},
-                                  {"payload", {{"clientMessageId", "c-" + std::to_string(next)}, {"text", text}}}}
+                                  {"type", type},
+                                  {"payload", payload}}
                                  .dump());
     }
 
-    void decide(const std::string& action_id, const std::string& decision)
+    void say(const std::string& text)
     {
-        host.on_page_message(json{{"protocol", Agent::Protocol::kName},
-                                  {"version", Agent::Protocol::kVersion},
-                                  {"id", "w-decide-" + action_id + decision},
-                                  {"type", "tool_decision"},
-                                  {"payload", {{"actionId", action_id}, {"decision", decision}}}}
-                                 .dump());
+        static int next = 0;
+        page("user_message", {{"clientMessageId", "c-" + std::to_string(++next)}, {"text", text}});
     }
 
     void pump()
@@ -1339,14 +950,122 @@ struct PrinterHost
     std::vector<json> of_type(const std::string& type) const
     {
         std::vector<json> found;
-        for (const json& envelope : sent)
-            if (envelope.value("type", "") == type)
-                found.push_back(envelope);
+        for (const std::string& envelope : sent)
+            if (json::parse(envelope).value("type", "") == type)
+                found.push_back(json::parse(envelope));
         return found;
     }
 };
 
 } // namespace
+
+TEST_CASE("printer_add and printer_change run on the person's yes, with no card", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Change);
+    harness.agent->call = Agent::ToolRequest{"printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}.dump()};
+    harness.say("yes, set 0.6 mm");
+    harness.pump();
+
+    auto activities = harness.activities();
+    REQUIRE(activities.size() == 1);
+    CHECK_FALSE(activities.front().requires_approval);
+    CHECK(activities.front().state == Agent::ToolState::Succeeded);
+    CHECK(harness.backend.saved.front().nozzle == 0.6);
+    REQUIRE(harness.agent->results.size() == 1);
+    const json output = json::parse(harness.agent->results.front().output_json);
+    CHECK(output.at("changed")[0].at("after") == 0.6);
+    CHECK_FALSE(output.contains("workspace"));
+    CHECK_FALSE(harness.agent->requests.front().session.include_workspace);
+
+    harness.agent->call = Agent::ToolRequest{"printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}.dump()};
+    harness.say("yes, add it");
+    harness.pump();
+    activities = harness.activities();
+    REQUIRE(activities.size() == 2);
+    CHECK_FALSE(activities.back().requires_approval);
+    CHECK(harness.backend.added.size() == 1);
+}
+
+TEST_CASE("a refused printer tool reaches the model as its error, with nothing saved", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Change);
+    harness.agent->call = Agent::ToolRequest{"printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.3}}.dump()};
+    harness.say("i put a 0.3 on it");
+    harness.pump();
+
+    REQUIRE(harness.agent->results.size() == 1);
+    CHECK(json::parse(harness.agent->results.front().output_json).at("error").at("code") == "unknown_nozzle");
+    CHECK(harness.backend.changed.empty());
+}
+
+namespace {
+
+// Drives printer_connect to its card in a Connect session about a Bambu Lab
+// printer on the network.
+Agent::ToolActivity propose_connect(PrinterHost& harness)
+{
+    harness.backend.connection_info = bambu_on_network();
+    harness.agent->call = Agent::ToolRequest{"printer_connect", json{{"deviceId", "01P00A3B"}}.dump()};
+    harness.say("yes, connect it");
+    harness.pump();
+    const auto activities = harness.activities();
+    REQUIRE(activities.size() == 1);
+    REQUIRE(activities.front().requires_approval);
+    REQUIRE(activities.front().state == Agent::ToolState::Pending);
+    return activities.front();
+}
+
+} // namespace
+
+TEST_CASE("the credential reaches the printer and nothing else", "[printer-conversation][host]")
+{
+    const std::string secret = "S3cretCode";
+    PrinterHost harness(ConversationMode::Connect);
+    const Agent::ToolActivity card = propose_connect(harness);
+    CHECK(card.title == "Connect to Workshop");
+
+    harness.page("tool_decision", {{"actionId", card.action_id}, {"decision", "approve"}, {"input", {{"credential", secret}}}});
+    harness.pump();
+    REQUIRE(harness.backend.connects.size() == 1);
+    CHECK(harness.backend.connects.front() == std::vector<std::string>{"Lab Printer", "01P00A3B", secret});
+
+    // The printer settles, the app says so, and the model answers.
+    harness.backend.connection_info.state = "verified";
+    harness.conversation.tick(std::chrono::steady_clock::now());
+    harness.pump();
+
+    for (const Agent::ToolActivity& activity : harness.activities()) {
+        CHECK_THAT(activity.arguments_json, !ContainsSubstring(secret));
+        CHECK_THAT(activity.result_json, !ContainsSubstring(secret));
+    }
+    for (const std::string& envelope : harness.sent)
+        CHECK_THAT(envelope, !ContainsSubstring(secret));
+    for (const Agent::AgentRequest& request : harness.agent->requests)
+        for (const Agent::AgentConversationContext& entry : request.conversation)
+            CHECK_THAT(entry.text, !ContainsSubstring(secret));
+    for (const Agent::AgentToolResult& result : harness.agent->results)
+        CHECK_THAT(result.output_json, !ContainsSubstring(secret));
+    CHECK_THAT(harness.persistence.document().dump(), !ContainsSubstring(secret));
+    // Handed over once, and gone.
+    CHECK_FALSE(harness.host.take_decision_input(card.action_id).has_value());
+}
+
+TEST_CASE("writing instead of connecting cancels the card, and the message is answered", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Connect);
+    const Agent::ToolActivity card = propose_connect(harness);
+    const std::size_t results = harness.agent->results.size();
+
+    harness.say("where do I find the access code?");
+    harness.pump();
+
+    CHECK(harness.activities().front().state == Agent::ToolState::Rejected);
+    CHECK(harness.backend.connects.empty());
+    REQUIRE(harness.agent->results.size() == results + 1);
+    CHECK(json::parse(harness.agent->results.back().output_json) == json{{"state", "cancelled"}});
+    // The question gets its own turn once the card's is answered.
+    CHECK(harness.agent->requests.back().user_text == "where do I find the access code?");
+}
 
 TEST_CASE("a printer session's notes reach the model as the app's words; a project's do not", "[printer-conversation][host]")
 {
@@ -1436,86 +1155,6 @@ TEST_CASE("a printer session never answers with the project assistant's instruct
     harness.pump();
     REQUIRE(harness.agent->requests.size() == 1);
     CHECK(harness.agent->requests.front().session.instructions == "You add printers.");
-}
-
-TEST_CASE("a printer tool's result reaches the model as the tool's own facts, with no project", "[printer-conversation][host]")
-{
-    PrinterHost harness(ConversationMode::Add);
-    harness.agent->call = Agent::ToolRequest{"printer_identify", json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}}.dump()};
-    harness.say("the small bambu one");
-    harness.pump();
-
-    REQUIRE(harness.agent->results.size() == 1);
-    const json output = json::parse(harness.agent->results.front().output_json);
-    CHECK_FALSE(output.contains("workspace"));
-    CHECK_FALSE(output.contains("workspaceRevision"));
-    CHECK(output.at("printers")[0].at("catalogId") == "BBL/Bambu Lab A1 mini");
-    // And the turn itself carried no project either.
-    CHECK_FALSE(harness.agent->requests.front().session.include_workspace);
-    // No card to approve: the person's tap on Add is the decision.
-    const auto activities = harness.activities();
-    REQUIRE(activities.size() == 1);
-    CHECK_FALSE(activities.front().requires_approval);
-}
-
-TEST_CASE("a change to a size the printer lacks fails before any card", "[printer-conversation][host]")
-{
-    PrinterHost harness(ConversationMode::Change);
-    harness.agent->call = Agent::ToolRequest{"printer_change", json{{"nozzle", 0.3}}.dump()};
-    harness.say("i put a 0.3 on it");
-    harness.pump();
-
-    const auto activities = harness.activities();
-    REQUIRE(activities.size() == 1);
-    CHECK(activities.front().state == Agent::ToolState::Failed);
-    REQUIRE(harness.agent->results.size() == 1);
-    const json output = json::parse(harness.agent->results.front().output_json);
-    CHECK(output.at("error").at("code") == "unknown_nozzle");
-    CHECK(harness.backend.changed.empty());
-}
-
-TEST_CASE("a change waits for its card: kept is declined, set is applied", "[printer-conversation][host]")
-{
-    PrinterHost harness(ConversationMode::Change);
-    harness.agent->call = Agent::ToolRequest{"printer_change", json{{"nozzle", 0.6}}.dump()};
-    harness.say("i put a 0.6 nozzle on it");
-    harness.pump();
-
-    auto activities = harness.activities();
-    REQUIRE(activities.size() == 1);
-    CHECK(activities.front().state == Agent::ToolState::Pending);
-    CHECK(activities.front().requires_approval);
-    CHECK(activities.front().title == "Change nozzle");
-    CHECK(harness.backend.changed.empty());
-
-    SECTION("Keep 0.4 mm") {
-        harness.decide(activities.front().action_id, "reject");
-        harness.pump();
-        REQUIRE(harness.agent->results.size() == 1);
-        const json output = json::parse(harness.agent->results.front().output_json);
-        CHECK(output.at("state") == "declined");
-        CHECK(output.at("changed").empty());
-        CHECK(harness.backend.changed.empty());
-    }
-    SECTION("Set 0.6 mm") {
-        harness.decide(activities.front().action_id, "approve");
-        harness.pump();
-        REQUIRE(harness.agent->results.size() == 1);
-        const json output = json::parse(harness.agent->results.front().output_json);
-        CHECK(output.at("state") == "applied");
-        CHECK(output.at("changed")[0].at("after") == 0.6);
-        CHECK_FALSE(output.contains("workspace"));
-        CHECK(harness.backend.saved.front().nozzle == 0.6);
-
-        // Undo is the app's: no new card, no new tool call, no model turn.
-        const std::size_t requests = harness.agent->requests.size();
-        const std::string undo     = harness.conversation.state_json().at("blocks").back().at("id");
-        harness.conversation.handle_page_message("printer_action", json{{"action", "undo"}, {"id", undo}});
-        harness.pump();
-        CHECK(harness.backend.saved.front().nozzle == 0.4);
-        CHECK(harness.activities().size() == 1);
-        CHECK(harness.agent->requests.size() == requests);
-    }
 }
 
 // -- The shipped profiles, and what goes over the wire ----------------------
@@ -1609,30 +1248,7 @@ TEST_CASE("the shipped profiles give the panel the printers people name", "[prin
         CHECK(ids.insert(printer.id).second);
 }
 
-TEST_CASE("the worked examples' facts come from the shipped profiles", "[printer-conversation][catalog]")
-{
-    CatalogBackend      backend;
-    RecordingPanel      panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-
-    // "the small bambu one"
-    json output = identified(conversation, json{{"catalogIds", {"BBL/Bambu Lab A1 mini"}}});
-    CHECK(output["printers"][0]["buildVolume"] == "180 × 180 × 180 mm");
-    CHECK(output["printers"][0]["assumed"] ==
-          json{{"nozzle", 0.4}, {"plate", "Textured PEI Plate"}, {"filament", "Bambu PLA Basic @BBL A1M"}});
-
-    // "voron 2.4 350mm": no plate to talk about.
-    output = identified(conversation, json{{"catalogIds", {"Voron/Voron 2.4 350"}}});
-    CHECK(output["printers"][0]["assumed"]["plate"].is_null());
-
-    // "the prusa, the 0.3 nozzle"
-    const auto refused = identify(conversation, json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
-    REQUIRE(refused.error.has_value());
-    CHECK(refused.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
-}
-
-TEST_CASE("the model is offered one tool per mode and no project", "[printer-conversation][openai]")
+TEST_CASE("the model is offered every printer tool and no project", "[printer-conversation][openai]")
 {
     CatalogBackend backend;
     backend.saved = {lab_printer()};
@@ -1641,23 +1257,21 @@ TEST_CASE("the model is offered one tool per mode and no project", "[printer-con
     PrinterConversation adding(backend, panel);
     adding.start(ConversationMode::Add);
     adding.handle_page_message("printer_instructions", json{{"text", "You add printers."}});
-    json body = request_body(adding.profile(), "the small bambu one");
-    REQUIRE(body.at("tools").size() == 1);
-    CHECK(body["tools"][0].at("name") == "printer_identify");
-    CHECK_FALSE(body["tools"][0].at("parameters").at("properties").contains("planId"));
-    CHECK(body.at("instructions") == adding.profile().instructions);
+    const json body = request_body(adding.profile(), "the small bambu one");
+    std::vector<std::string> names;
+    for (const json& tool : body.at("tools")) {
+        names.push_back(tool.at("name"));
+        CHECK_FALSE(tool.at("parameters").at("properties").contains("planId"));
+        // No tool takes a credential from the model.
+        for (const char* secret : {"accessCode", "apiKey", "credential", "password"})
+            CHECK_FALSE(tool.at("parameters").at("properties").contains(secret));
+    }
+    std::sort(names.begin(), names.end());
+    CHECK(names == PrinterConversation::session_tools());
+    CHECK(body.at("instructions") == "You add printers.");
     const json& user = body.at("input").back();
     CHECK(user.at("role") == "user");
     CHECK(user.at("content")[0].at("text") == "the small bambu one");
-
-    PrinterConversation changing(backend, panel);
-    changing.start(ConversationMode::Change, "Lab Printer");
-    changing.handle_page_message("printer_instructions", json{{"text", "You change printers."}});
-    body = request_body(changing.profile(), "i put a 0.6 nozzle on it");
-    CHECK(body.at("instructions") == "You change printers.");
-    REQUIRE(body.at("tools").size() == 1);
-    CHECK(body["tools"][0].at("name") == "printer_change");
-    CHECK_FALSE(body["tools"][0].at("parameters").at("properties").contains("accessCode"));
 }
 
 TEST_CASE("a turn the app started ends on its note, with no empty message from the person", "[printer-conversation][openai]")
@@ -1707,24 +1321,6 @@ TEST_CASE("write the printer session requests for the evaluation", "[.printer-ev
     // nothing said about the nozzle.
     json identified_all = json::object();
     for (const CatalogPrinter& printer : backend.printers)
-        identified_all[printer.id] = identified(adding, json{{"catalogIds", {printer.id}}})["printers"][0];
+        identified_all[printer.id] = ran(adding, "printer_identify", json{{"catalogIds", {printer.id}}})["printers"][0];
     std::ofstream(std::string(out) + "/identify_results.json") << identified_all.dump(2);
-}
-
-TEST_CASE("connection assistance receives instructions without printer mutation tools", "[printer-conversation]")
-{
-    FakeBackend backend;
-    RecordingPanel panel;
-    PrinterConversation conversation(backend, panel);
-    backend.connection_info.provider = "bambu";
-    backend.connection_info.candidates = {{"serial", "Garage", "192.168.1.2", true}};
-    backend.connection_info.nozzle_mismatch = true;
-    conversation.start(ConversationMode::Connect, "Garage");
-    conversation.handle_page_message("printer_opening", json{{"text", "I can help you connect."}});
-    conversation.handle_page_message("printer_instructions", json{{"text", "Help with connection. Credentials go only in the form."}});
-    CHECK(conversation.profile().tool_names.empty());
-    CHECK(conversation.profile().instructions == "Help with connection. Credentials go only in the form.");
-    CHECK(panel.openings == std::vector<std::string>{"I can help you connect."});
-    CHECK(conversation.state_json()["connection"]["candidates"][0]["lanMode"] == true);
-    CHECK(conversation.state_json()["connection"]["nozzleMismatch"] == true);
 }

@@ -52,6 +52,7 @@ TEST_CASE("the payload carries the three fields the page reads", "[home]")
     CHECK(payload.at("projects").is_array());
     CHECK(payload.at("printers").is_array());
     CHECK(payload.at("projects").empty());
+    CHECK(payload.at("highlightPrinter") == "");
 }
 
 TEST_CASE("appearance is the page's own vocabulary, not a boolean", "[home]")
@@ -190,36 +191,14 @@ TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]
     CHECK(printers.at(1).at("canRemove") == false);
 }
 
-// The receipt is a one-off `printer_added` message, not part of `state`: the
-// page tells an assumed fact from a settled one to word the strip correctly.
-TEST_CASE("the added-printer receipt carries the name and what each fact was", "[home]")
-{
-    AddedPrinterEntry entry;
-    entry.name             = "Bambu Lab A1 mini";
-    entry.nozzle_text      = "0.4 mm";
-    entry.nozzle_assumed   = false;
-    entry.plate_text       = "Textured PEI Plate";
-    entry.plate_assumed    = true;
-    entry.filament_text    = "Bambu PLA Basic";
-    entry.filament_assumed = true;
-
-    const json payload = added_printer_payload(entry);
-    CHECK(payload.at("name") == "Bambu Lab A1 mini");
-    CHECK(payload.at("nozzleText") == "0.4 mm");
-    CHECK(payload.at("nozzleAssumed") == false);
-    CHECK(payload.at("plateText") == "Textured PEI Plate");
-    CHECK(payload.at("plateAssumed") == true);
-    CHECK(payload.at("filamentText") == "Bambu PLA Basic");
-    CHECK(payload.at("filamentAssumed") == true);
-}
-
 TEST_CASE("Home connection actions do not depend on translated status text", "[home]")
 {
     Snapshot snapshot;
     snapshot.printers = {a_printer()};
-    for (const auto* action : {"connect", "reconnect", "settings"}) {
-        snapshot.printers[0].connection_action = action;
-        snapshot.printers[0].connection_text = "Localized status";
-        CHECK(state_payload(snapshot)["printers"][0]["connectionAction"] == action);
-    }
+    snapshot.printers[0].connection_action = "reconnect";
+    snapshot.printers[0].connection_text   = "Localized status";
+    CHECK(state_payload(snapshot)["printers"][0]["connectionAction"] == "reconnect");
+    // No button is no field.
+    snapshot.printers[0].connection_action.clear();
+    CHECK_FALSE(state_payload(snapshot)["printers"][0].contains("connectionAction"));
 }

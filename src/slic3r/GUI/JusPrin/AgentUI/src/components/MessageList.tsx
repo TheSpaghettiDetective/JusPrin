@@ -23,7 +23,8 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
-import { PrinterBlockAction, PrinterBlockView, PrinterTap } from './PrinterPanel';
+import { PrinterBlockView } from './PrinterPanel';
+import { splitChoices, withoutPartialChoices } from '../replyChoices';
 
 interface Props {
   messages: Message[];
@@ -37,17 +38,15 @@ interface Props {
   onRetry: (messageId: string) => void;
   onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
+  // Sends a reply chip's text as the person's message.
+  onSend: (text: string) => void;
   // The setup card's expansion is a layer over this thread; the thread dims
   // rather than being covered, so the conversation stays legibly there.
   dimmed?: boolean;
   // The printer panel's own cards, each anchored after the message that drew
-  // it, the way history entries are. Absent everywhere else.
+  // it, the way history entries are. Absent everywhere else, and its
+  // presence is what makes this the printer panel's thread.
   printerBlocks?: PrinterBlock[];
-  onPrinterAction?: (action: PrinterBlockAction, id: string, tap: PrinterTap) => void;
-  // What a tool-only printer-panel turn says while it still has no words.
-  // The caller computes this from its own session mode (printerWords.ts's
-  // workingText) rather than this component naming a tool or a mode itself.
-  printerActivityText?: string;
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
@@ -105,10 +104,9 @@ export function MessageList({
   onRetry,
   onToolDecision,
   onToolCancel,
+  onSend,
   dimmed,
-  printerBlocks = [],
-  onPrinterAction,
-  printerActivityText,
+  printerBlocks,
   renderActivity,
   answeredState = true,
 }: Props) {
@@ -127,6 +125,7 @@ export function MessageList({
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
   }, [messages, toolActivities, builds, exportedCopies, physicalPrints, changes, printerBlocks, followBottom]);
+  const printerPanel = printerBlocks !== undefined;
 
   const history: ManufacturingHistoryEntry[] = [
     ...builds.map((record) => ({ kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
@@ -146,14 +145,11 @@ export function MessageList({
   const changesAfter = (messageId: string) => changes.filter((change) => messageOfItem.get(change.afterId) === messageId);
   const leadingChanges = changes.filter((change) => !messageOfItem.has(change.afterId));
   const historyAfter = (messageId: string) => history.filter((entry) => entry.afterMessageId === messageId);
-  const printerBlocksAfter = (messageId: string) =>
-    printerBlocks.filter((block) => block.afterMessageId === messageId).sort((a, b) => a.seq - b.seq);
   const printerBlockViews = (messageId: string) =>
-    onPrinterAction
-      ? printerBlocksAfter(messageId).map((block) => (
-          <PrinterBlockView key={block.id} block={block} onAction={onPrinterAction} />
-        ))
-      : null;
+    (printerBlocks ?? [])
+      .filter((block) => block.afterMessageId === messageId)
+      .sort((a, b) => a.seq - b.seq)
+      .map((block) => <PrinterBlockView key={block.id} block={block} />);
   const leadingHistory = history.filter(
     (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
   );
@@ -189,8 +185,6 @@ export function MessageList({
               <div className="message note" role="status">
                 {message.text}
               </div>
-              {/* A tap the app answers itself draws its card under the
-                  note that records it, as "Use this" does. */}
               {printerBlockViews(message.id)}
             </div>
           );
@@ -198,9 +192,9 @@ export function MessageList({
         // it is, or shows what changed: it draws inline, above any words as
         // their caption, rather than as a named file chip below them.
         const attached = (message.attachments ?? []).map((id) => attachmentsById.get(id)).filter((a): a is AttachmentInfo => !!a);
-        const photos = onPrinterAction ? attached.filter((a) => a.kind === 'image' && a.previewDataUrl) : [];
+        const photos = printerPanel ? attached.filter((a) => a.kind === 'image' && a.previewDataUrl) : [];
         const otherAttachments = attached.filter((a) => !photos.includes(a));
-        // The model sometimes calls printer_identify with no words yet: its
+        // The model sometimes calls a printer tool with no words yet: its
         // actual reply lands in a later, separate message once it sees the
         // tool's result. A bare, empty bubble either mid-stream or once it
         // settles reads as a rendering bug, not a pause -- name the work
@@ -208,7 +202,7 @@ export function MessageList({
         // failed or stopped turn always still renders, so its error and
         // Retry stay reachable.
         const emptyPrinterTurn =
-          Boolean(onPrinterAction) &&
+          printerPanel &&
           message.role === 'assistant' &&
           !message.text &&
           photos.length === 0 &&
@@ -216,9 +210,20 @@ export function MessageList({
           message.state !== 'stopped' &&
           !(message.state === 'failed' && message.error);
         const workingOnCard = emptyPrinterTurn && message.id === streamingMessageId;
+        // Only the newest finished reply offers its choices; any later
+        // message, the person's own included, answers them.
+        const streaming = message.id === streamingMessageId;
+        const reply =
+          message.role !== 'assistant'
+            ? { body: message.text, choices: [] }
+            : streaming
+              ? { body: withoutPartialChoices(message.text), choices: [] }
+              : splitChoices(message.text);
+        const choices =
+          message.state === 'complete' && message.id === messages[messages.length - 1].id ? reply.choices : [];
         const bubble = workingOnCard ? (
           <div className="printer-activity" role="status">
-            {printerActivityText ?? 'Working on it…'}
+            Working on it…
           </div>
         ) : emptyPrinterTurn ? null : (
           <div className={`message ${message.role}`}>
@@ -241,12 +246,21 @@ export function MessageList({
                   ))}
                 </div>
               )}
-              {message.text &&
+              {reply.body &&
                 (message.role === 'assistant' ? (
-                  <MarkdownMessage streaming={message.id === streamingMessageId}>{message.text}</MarkdownMessage>
+                  <MarkdownMessage streaming={streaming}>{reply.body}</MarkdownMessage>
                 ) : (
-                  <span>{message.text}</span>
+                  <span>{reply.body}</span>
                 ))}
+              {choices.length > 0 && (
+                <div className="reply-chips">
+                  {choices.map((choice) => (
+                    <button key={choice} type="button" className="reply-chip" onClick={() => onSend(choice)}>
+                      {choice}
+                    </button>
+                  ))}
+                </div>
+              )}
               {otherAttachments.length > 0 && (
                 <div className="message-attachments">
                   {otherAttachments.map((attachment) => (

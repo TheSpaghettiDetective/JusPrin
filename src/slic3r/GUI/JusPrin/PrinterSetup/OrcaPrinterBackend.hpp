@@ -8,6 +8,7 @@
 #include "PrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
 #include <chrono>
+#include <memory>
 
 namespace Slic3r::GUI { class Plater; }
 namespace Slic3r::GUI::JusPrin::Workspace { class SpoolStore; }
@@ -54,8 +55,12 @@ private:
         std::string device_id;
         std::chrono::steady_clock::time_point started;
         std::chrono::system_clock::time_point observation_start;
+        // Deselected, to be selected again on the next event turn.
+        bool reselecting{false};
     };
     std::optional<ConnectionAttempt> m_connection_attempt;
+    // What a deferred reselection checks before touching this backend.
+    std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
     struct HostAttempt {
         std::string name, host_type, address, api_key;
         std::string state;

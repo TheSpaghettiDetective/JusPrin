@@ -37,9 +37,7 @@ describe('protocol constants come from the shared file', () => {
       'printers',
       'appearance',
       'printer_error',
-      'printer_added',
       'bridge_error',
-      'printer_panel',
     ];
     expect([...page].sort()).toEqual([...protocolJson.pageMessageTypes].sort());
     expect([...host].sort()).toEqual([...protocolJson.hostMessageTypes].sort());

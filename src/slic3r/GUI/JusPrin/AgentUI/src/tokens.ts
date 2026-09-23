@@ -15,26 +15,23 @@ export { applyAppearance } from '@shared/tokens';
 // writes, so a test can check that the stylesheet only asks for variables
 // that exist.
 export function staticVariableNames(): string[] {
-  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-dialog-scrim', '--printer-setup-width'];
+  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-setup-width',
+    '--reply-chip-height', '--reply-chip-padding-x'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
 //   --thread-row-line-gap  the space between a thread row's title and its
 //                          metadata line, an internal size of the row
-//   --printer-dialog-scrim the printer panel's own dialog shade, a
-//                          percentage for color-mix() -- the same
-//                          component.printerDialog token Home's rename and
-//                          remove dialogs use, so every printer-feature
-//                          dialog reads the same weight over the page.
+//   --reply-chip-height,   a reply the assistant offers as a chip under its
+//   --reply-chip-padding-x message: its height and its text's inset.
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
   const { component } = tokens as unknown as {
-    component: { threadRow: { lineGap: number }; printerDialog: { scrimAlpha: number }; printerSetup: { contentWidth: number } };
+    component: { threadRow: { lineGap: number }; printerSetup: { contentWidth: number };
+      replyChip: { height: number; paddingX: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
   document.documentElement.style.setProperty('--printer-setup-width', `${component.printerSetup.contentWidth}px`);
-  document.documentElement.style.setProperty(
-    '--printer-dialog-scrim',
-    `${Math.round((component.printerDialog.scrimAlpha / 255) * 100)}%`,
-  );
+  document.documentElement.style.setProperty('--reply-chip-height', `${component.replyChip.height}px`);
+  document.documentElement.style.setProperty('--reply-chip-padding-x', `${component.replyChip.paddingX}px`);
 }

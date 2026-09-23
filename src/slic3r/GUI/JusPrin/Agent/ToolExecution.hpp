@@ -61,10 +61,17 @@ enum class ToolSource : std::uint8_t { Agent, Mcp };
 // reverse it in the UI. Without it every "check this print" would cost a card
 // and the card would stop meaning anything. Destructive actions never
 // qualify, whatever they declare.
-constexpr bool approval_required(ActionClass action_class, bool computation_only = false)
+//
+// A second: a mutation confirmed in conversation. The printer panel is a
+// conversation about one machine, where the assistant asks "Add the Kobra 3
+// with a 0.4 mm nozzle?" and the person's own yes, typed or tapped as a
+// suggested reply, is the decision; a card repeating the question would ask
+// it twice. The registry allows it only on the printer panel's tools.
+constexpr bool approval_required(ActionClass action_class, bool computation_only = false,
+                                 bool confirmed_in_conversation = false)
 {
     return action_class == ActionClass::Destructive ||
-           (action_class == ActionClass::Mutation && !computation_only);
+           (action_class == ActionClass::Mutation && !computation_only && !confirmed_in_conversation);
 }
 
 // Destructive actions always require action-time approval and must never use
