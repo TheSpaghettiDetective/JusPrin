@@ -19,3 +19,17 @@ are you done?
 ---
 
 Continue if you're not done yet.
+
+---
+
+<task-notification>
+<task-id>bdptxv2y0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/beca91c5-d624-4783-92ba-0c3e96508706/tasks/bdptxv2y0.output</output-file>
+<status>failed</status>
+<summary>Monitor "rest of the live run, including Moonraker" script failed (exit 1)</summary>
+<event>finished: pass=74 fail=1 exit=1
+HARNESS CHECK live_say: the plate is smooth PEI now FAIL
+server saw:</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
