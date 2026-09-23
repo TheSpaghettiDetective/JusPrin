@@ -1,0 +1,101 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M36CSMEWBZ8RDKPA81VPGWPW",
+  "session_id": "01a0ccc1-7695-7ec3-9bcb-9bcd76aae0eb",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-23T05:46:11.000644Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-sol",
+  "turn_id": "278fd43345fa",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 47064,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 705408,
+    "output_tokens": 3549,
+    "api_call_count": 21
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-23T05:46:10.972338Z",
+    "agent_lines": 1,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "total_lines_changed": 2,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 57799,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/hooks.json": 52,
+        "tests/data/20mm_cube.obj": 20,
+        "tests/data/2x20x10.obj": 20,
+        "tests/data/A.obj": 1867,
+        "tests/data/A_upsidedown.obj": 2504,
+        "tests/data/V.obj": 68,
+        "tests/data/V_standing.obj": 38,
+        "tests/data/bridge.obj": 44,
+        "tests/data/cube_with_concave_hole.obj": 72,
+        "tests/data/cube_with_concave_hole_enlarged.obj": 112,
+        "tests/data/cube_with_concave_hole_enlarged_standing.obj": 112,
+        "tests/data/cube_with_hole.obj": 48,
+        "tests/data/extruder_idler.obj": 7164,
+        "tests/data/extruder_idler_quads.obj": 7348,
+        "tests/data/frog_legs.obj": 36702,
+        "tests/data/ipadstand.obj": 86,
+        "tests/data/jusprin/box_20x15x10.step": 416,
+        "tests/data/jusprin/harness.conf": 30,
+        "tests/data/overhang.obj": 179,
+        "tests/data/pyramid.obj": 11,
+        "tests/data/simplification.obj": 46,
+        "tests/data/sloping_hole.obj": 204,
+        "tests/data/small_dorito.obj": 14,
+        "tests/data/test_config/new_from_ini.ini": 1,
+        "tests/data/test_stl/ASCII/20mmbox-CR.stl": 1,
+        "tests/data/test_stl/ASCII/20mmbox-CRLF.stl": 86,
+        "tests/data/test_stl/ASCII/20mmbox-LF.stl": 86,
+        "tests/data/test_stl/ASCII/20mmbox-nonstandard.stl": 86,
+        "tests/data/two_hollow_squares.obj": 144
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 290,
+      "user_lines_removed": 0,
+      "agent_lines_added": 57510,
+      "agent_lines_removed": 1,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/hooks.json": 52
+      }
+    }
+  ]
+}

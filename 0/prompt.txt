@@ -1,0 +1,1 @@
+check to see if local repo is the same as the c:\src\JusPrin on gcp vm jusprin-win-test. if so, check why it builds ok on remote but not on local mac
