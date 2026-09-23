@@ -189,3 +189,7 @@ If this event is something the user would act on now, send a PushNotification. R
 <event>printer-setup: 124 pass, 0 fail, HARNESS RESULT PASS failures=0 exit=0</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+yes, commit it
