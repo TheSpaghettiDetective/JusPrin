@@ -1,0 +1,9 @@
+check recent commits to see if they are all just about printer setup UX/UI tweakings
+
+---
+
+how was the upstream changed by the 3 commits:
+
+---
+
+Describe the impacts it combined.
