@@ -1,0 +1,74 @@
+continue
+
+---
+
+do it!!!!
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<summary>Monitor event: "Wait for app launch and settle"</summary>
+<event>PID_FOUND=34880
+check 1 cpu=94.0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<summary>Monitor event: "Wait for app launch and settle"</summary>
+<event>check 2 cpu=77.6</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<summary>Monitor event: "Wait for app launch and settle"</summary>
+<event>check 3 cpu=94.8</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bva6r2d4p</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/95aaeb82-a094-41b8-8373-baad2f413081/tasks/bva6r2d4p.output</output-file>
+<status>completed</status>
+<summary>Monitor "Wait for app launch and settle" stream ended</summary>
+<event>check 4 cpu=5.3
+SETTLED</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+Summarize your work in plain English under 50 words.
+
+---
+
+Have you fucking finished your job? Would you just let me know, please? I beg you.
+
+---
+
+has laude/printer-conversation-panel-af11cb branch been erged to this branch?
+
+---
+
+how about jusprin-newui?  What's the relationship between these three branches?
+
+---
+
+does it make sense to squash all commits hese-commits-are-probably-wrong bganch and merge it to jusprin-newui?
+
+---
+
+squash them into 1 commit. don't use Fx in commit msg because we won't commit handoff doc. than merge to jusprin-newui. make sure you don't commit handoff doc. then delete the handoff doc
+
+---
+
+Check out their untracked hands-off docs to see if they're all done. If so, delete them.
