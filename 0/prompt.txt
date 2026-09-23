@@ -1,0 +1,13 @@
+how was the upstream changed by the 3 commits combined
+
+---
+
+Are these changes Absolutely necessary to achieve the stated goal?
+
+---
+
+ok. do both on in a worktree
+
+---
+
+what's the commit that implemented override
