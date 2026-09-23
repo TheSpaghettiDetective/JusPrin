@@ -3,7 +3,7 @@
   "checkpoint_id": "01M38289BCDG6TNV0MA8QGJY77",
   "strategy": "manual-commit",
   "branch": "claude/drop-upstream-extras",
-  "checkpoints_count": 32,
+  "checkpoints_count": 33,
   "files_touched": [
     "src/slic3r/GUI/GUI_App.cpp",
     "src/slic3r/GUI/GUI_App.hpp",
@@ -27,13 +27,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 882,
-    "cache_creation_tokens": 1081806,
-    "cache_read_tokens": 178969958,
-    "output_tokens": 344849,
-    "api_call_count": 420
+    "input_tokens": 1608,
+    "cache_creation_tokens": 2040137,
+    "cache_read_tokens": 349669443,
+    "output_tokens": 653624,
+    "api_call_count": 771
   }
 }
