@@ -116,6 +116,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
+#include "slic3r/Utils/NetworkAgentFactory.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 
@@ -1410,14 +1411,24 @@ private:
                         }) == 1, "connect_keeps_one_saved_identity");
                         self->check(self->selected_printer() == kAddedPrinterProfile &&
                             self->m_plater->is_project_dirty() == dirty, "connect_preserves_unrelated_project_selection_and_edits");
-                        // Stock policy: re-evaluating the non-Bambu slicing profile hands the
-                        // provider back to Orca's profile-driven choice.
-                        wxGetApp().switch_printer_agent();
-                        self->check(wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id !=
-                            fake_bambu_printer_agent_id(wxGetApp().app_config), "profile_reevaluation_replaces_connection_provider");
+                        // Profile changes go through Orca's own preset selection, which
+                        // re-evaluates the printer agent. The printer's own Bambu profile
+                        // keeps the connection; a non-Bambu profile hands the agent back
+                        // to Orca's profile-driven choice, as stock Orca does.
+                        const auto agent_id = [] { return wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id; };
+                        const std::string fake = fake_bambu_printer_agent_id(wxGetApp().app_config);
+                        self->check(SetupCommands::select_printer_preset(*self->m_plater, name) && agent_id() == fake &&
+                            backend->connection(name).state == "verified", "selecting_the_printers_own_profile_keeps_the_connection");
+                        self->check(SetupCommands::select_printer_preset(*self->m_plater, kAddedPrinterProfile) && agent_id() != fake,
+                            "selecting_a_non_bambu_profile_replaces_connection_provider");
+                        const auto replaced = std::chrono::steady_clock::now();
+                        std::cerr << "HARNESS NOTE state_after_provider_replaced " << backend->connection(name).state << '\n';
+                        self->wait_until([backend, name] { return backend->connection(name).state == "unknown"; },
+                            "home_reports_unknown_after_provider_replaced", [self, backend, name, device, replaced, agent_id, fake] {
+                        std::cerr << "HARNESS NOTE seconds_until_unknown " << std::chrono::duration_cast<std::chrono::seconds>(
+                            std::chrono::steady_clock::now() - replaced).count() << '\n';
                         backend->prepare_connection(name);
-                        self->check(wxGetApp().getAgent()->get_printer_agent()->get_agent_info().id ==
-                            fake_bambu_printer_agent_id(wxGetApp().app_config), "connecting_again_reinstalls_provider");
+                        self->check(agent_id() == fake, "connecting_again_reinstalls_provider");
                         wxGetApp().CallAfter([self, backend, name, device] {
                         self->check(backend->connect_printer(name, device, "").empty(), "reconnect_after_profile_reevaluation");
                         self->wait_until([backend, name] { return backend->connection(name).state == "verified"; },
@@ -1444,6 +1455,7 @@ private:
                                     });
                                 });
                             });
+                        });
                         });
                     });
                 });
@@ -5144,7 +5156,17 @@ private:
 
     void verify_uninstall_restores_stock()
     {
+        // A printer connection can leave an agent the slicing profile would not
+        // pick. Detaching the shell hands the choice back to the profile.
+        NetworkAgent* agent = wxGetApp().getAgent();
+        const std::string profile_agent = agent->get_printer_agent()->get_agent_info().id;
+        agent->set_printer_agent(NetworkAgentFactory::create_printer_agent_by_id(
+            JUSPRIN_FAKE_BAMBU_AGENT_ID, agent->get_cloud_agent(BBL_CLOUD_PROVIDER), Slic3r::data_dir()));
+        check(profile_agent != JUSPRIN_FAKE_BAMBU_AGENT_ID &&
+                  agent->get_printer_agent()->get_agent_info().id == JUSPRIN_FAKE_BAMBU_AGENT_ID,
+              "detach_fixture_installs_an_agent_the_profile_does_not_pick");
         detach_shell();
+        check(agent->get_printer_agent()->get_agent_info().id == profile_agent, "detach_restores_the_profile_driven_agent");
         check(installed_shell() == nullptr, "shell_detached");
         check(m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_restored");
         check(m_plater->is_sidebar_available(), "sidebar_available_restored");
