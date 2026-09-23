@@ -1,0 +1,30 @@
+check the recdent commits to understand how we want the  "printers" area on the home page to behave. summarize your understanding in plain eng under 200 words
+
+---
+
+Now, this printer area should have the experience that's intuitive for the users, but also should be backed by the object-relationship structure existed in OrcaSlicer per fork stewardship. let me know if this doesn't make sense to you
+
+---
+
+So if we just use these 2 concepts in upstream orcaslicer, we can accomplish what we need for the printers area experience, right?
+
+User printer profile: a profile the user saves under their own name, inheriting from a system profile. Orca's "Physical Printer" dialog saves one of these. Two machines of the same model are two user profiles with the same parent.
+Bambu device: a networked machine Orca discovers or binds, with its own rename and unbind dialogs.
+
+?
+
+---
+
+The only link Orca makes is picking a system profile that matches the device's model when the user selects the device, which can't tell two machines of the same model apart. - if so, how does vanilla orcaslicer know how to slice for a babmu printer?  I guess my question is  Why orchestras can use existing data structure to deliver a reasonable user experience while we need extra data structure.
+
+---
+
+the stored link works only for bambu printers, or for other printers as well?
+
+---
+
+so this means that for non-bambu printers, a new user printer profile has to be created just to store the new  connectoion info even if a 2nd printer is exactly the same as the 1st?
+
+---
+
+have we covered "the one gap Orca doesn't fill, and two details that follow from how those two work"?
