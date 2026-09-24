@@ -366,6 +366,10 @@
     "printerSetup": {
       "contentWidth": 720
     },
+    "replyChip": {
+      "height": 28,
+      "paddingX": 12
+    },
     "printerCard": {
       "columnWidth": 320,
       "progressHeight": 4,

@@ -100,6 +100,11 @@ public:
     // place of the host's envelope; nullopt keeps the host's.
     using ToolOutputFormatter = std::function<std::optional<nlohmann::json>(const ToolActivity& activity)>;
     void set_session_tool_output(ToolOutputFormatter formatter) { m_session_tool_output = std::move(formatter); }
+    // What the person typed into an approval card beside approving it -- a
+    // credential the model must never see -- handed once to the executor of
+    // that action and then forgotten. It is kept out of the activity, every
+    // envelope, every note and the document.
+    std::optional<nlohmann::json> take_decision_input(const std::string& action_id);
     // Appends a message the agent is shown as having said, without asking the
     // model for it: a panel whose opening line is always the same. Returns
     // its id so the owner can anchor what it draws underneath.
@@ -261,6 +266,7 @@ private:
     void begin_reply(const std::string& user_message_id);
     void begin_stream(ConversationMessage assistant, const std::string& conversation_id);
     AgentRequest make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id) const;
+    nlohmann::json tool_output_json(const ToolActivity& activity) const;
     void complete_stream();
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);
@@ -378,6 +384,8 @@ private:
     bool                            m_mcp_busy{false};
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
+    // See take_decision_input.
+    std::map<std::string, nlohmann::json>          m_decision_inputs;
     // Every process setting the agent has applied, mapped to the value it
     // applied. A key stays the agent's only while that value is still in
     // force: hand-edit the setting and it becomes yours again, because the

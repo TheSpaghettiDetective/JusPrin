@@ -69,7 +69,7 @@ struct PrinterEntry
     // sends a bar.
     int                     progress_percent{-1};
     std::string             connection_text;
-    std::string             connection_action{"connect"};
+    std::string             connection_action; // "reconnect", or empty for no button
     std::string             nozzle_text;
     std::string             material_label;
     std::vector<SpoolEntry> spools;
@@ -81,31 +81,13 @@ struct Snapshot
     bool                      dark{false};
     std::vector<ProjectEntry> projects;
     std::vector<PrinterEntry> printers;
-    // The printer conversation has the printers column, so the page leaves
-    // that place to it.
-    bool                      printer_panel_open{false};
+    // A printer the conversation just added: the page leads with it and
+    // draws attention to its card once. Empty for any other push.
+    std::string               highlight_printer;
 };
 
-// The `state` payload: { appearance, projects, printers, printerPanelOpen }.
+// The `state` payload: { appearance, projects, printers, highlightPrinter }.
 nlohmann::json state_payload(const Snapshot& snapshot);
 
-// What a successful Add just saved: sent once, as its own `printer_added`
-// message, so the page can lead its column with this printer and say what
-// it assumed -- the ordinary `state` push says nothing about why the list
-// changed. A field is assumed when the card that added it was, not read
-// from the printer or stated by the person; the text is already formatted.
-struct AddedPrinterEntry
-{
-    std::string name;
-    std::string nozzle_text;
-    bool        nozzle_assumed{false};
-    std::string plate_text;
-    bool        plate_assumed{false};
-    std::string filament_text;
-    bool        filament_assumed{false};
-};
-
-// The `printer_added` payload.
-nlohmann::json added_printer_payload(const AddedPrinterEntry& entry);
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

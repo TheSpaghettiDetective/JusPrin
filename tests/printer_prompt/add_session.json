@@ -1,0 +1,2050 @@
+{
+ "_comment": "Recorded from a --printer-live run of the app (2026-09-24): the Add session the page was sent, with its full printer list, and what printer_identify and printer_add returned for these printers.",
+ "session": {
+  "mode": "add",
+  "printerName": "",
+  "blocks": [],
+  "context": {
+   "printers": [
+    [
+     "Artillery/Artillery Genius",
+     "Artillery Genius",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Artillery/Artillery Genius Pro",
+     "Artillery Genius Pro",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Artillery/Artillery Hornet",
+     "Artillery Hornet",
+     "230 × 230 × 250 mm"
+    ],
+    [
+     "Artillery/Artillery M1 Pro",
+     "Artillery M1 Pro",
+     "265 × 283 × 260 mm"
+    ],
+    [
+     "Artillery/Artillery Sidewinder X1",
+     "Artillery Sidewinder X1",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Artillery/Artillery Sidewinder X2",
+     "Artillery Sidewinder X2",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Artillery/Artillery Sidewinder X3 Plus",
+     "Artillery Sidewinder X3 Plus",
+     "300 × 305 × 400 mm"
+    ],
+    [
+     "Artillery/Artillery Sidewinder X3 Pro",
+     "Artillery Sidewinder X3 Pro",
+     "240 × 245 × 260 mm"
+    ],
+    [
+     "Artillery/Artillery Sidewinder X4 Plus",
+     "Artillery Sidewinder X4 Plus",
+     "300 × 310 × 400 mm"
+    ],
+    [
+     "Artillery/Artillery Sidewinder X4 Pro",
+     "Artillery Sidewinder X4 Pro",
+     "240 × 250 × 260 mm"
+    ],
+    [
+     "CONSTRUCT3D/Construct 1",
+     "CONSTRUCT3D Construct 1",
+     "225 × 260 × 180 mm"
+    ],
+    [
+     "CONSTRUCT3D/Construct 1 XL",
+     "CONSTRUCT3D Construct 1 XL",
+     "325 × 370 × 400 mm"
+    ],
+    [
+     "OpenEYE/OpenEYE Peacock V2",
+     "OpenEYE Peacock V2",
+     "233.5 × 228 × 200 mm"
+    ],
+    [
+     "Wanhao France/D12 230 PRO M2 DIRECT",
+     "Wanhao France D12 230 PRO M2 DIRECT",
+     "230 × 230 × 240 mm"
+    ],
+    [
+     "Wanhao France/D12 230 PRO M2 MONO DUAL",
+     "Wanhao France D12 230 PRO M2 MONO DUAL",
+     "230 × 230 × 240 mm"
+    ],
+    [
+     "Wanhao France/D12 230 PRO M2 MONO DUAL PoopTool",
+     "Wanhao France D12 230 PRO M2 MONO DUAL PoopTool",
+     "230 × 230 × 240 mm"
+    ],
+    [
+     "Wanhao France/D12 230 PRO SMARTPAD DIRECT",
+     "Wanhao France D12 230 PRO SMARTPAD DIRECT",
+     "230 × 230 × 240 mm"
+    ],
+    [
+     "Wanhao France/D12 230 PRO SMARTPAD MONO DUAL",
+     "Wanhao France D12 230 PRO SMARTPAD MONO DUAL",
+     "230 × 230 × 240 mm"
+    ],
+    [
+     "Wanhao France/D12 230 PRO SMARTPAD MONO DUAL PoopTool",
+     "Wanhao France D12 230 PRO SMARTPAD MONO DUAL PoopTool",
+     "230 × 230 × 240 mm"
+    ],
+    [
+     "Wanhao France/D12 300 PRO M2 DIRECT",
+     "Wanhao France D12 300 PRO M2 DIRECT",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Wanhao France/D12 300 PRO M2 MONO DUAL",
+     "Wanhao France D12 300 PRO M2 MONO DUAL",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Wanhao France/D12 300 PRO M2 MONO DUAL PoopTool",
+     "Wanhao France D12 300 PRO M2 MONO DUAL PoopTool",
+     "310 × 310 × 400 mm"
+    ],
+    [
+     "Wanhao France/D12 300 PRO SMARTPAD DIRECT",
+     "Wanhao France D12 300 PRO SMARTPAD DIRECT",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Wanhao France/D12 300 PRO SMARTPAD MONO DUAL",
+     "Wanhao France D12 300 PRO SMARTPAD MONO DUAL",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Wanhao France/D12 300 PRO SMARTPAD MONO DUAL PoopTool",
+     "Wanhao France D12 300 PRO SMARTPAD MONO DUAL PoopTool",
+     "310 × 310 × 400 mm"
+    ],
+    [
+     "Wanhao France/D12 500 PRO M2 DIRECT",
+     "Wanhao France D12 500 PRO M2 DIRECT",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Wanhao France/D12 500 PRO M2 MONO DUAL",
+     "Wanhao France D12 500 PRO M2 MONO DUAL",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Wanhao France/D12 500 PRO M2 MONO DUAL PoopTool",
+     "Wanhao France D12 500 PRO M2 MONO DUAL PoopTool",
+     "510 × 510 × 500 mm"
+    ],
+    [
+     "Wanhao France/D12 500 PRO SMARTPAD DIRECT",
+     "Wanhao France D12 500 PRO SMARTPAD DIRECT",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Wanhao France/D12 500 PRO SMARTPAD MONO DUAL",
+     "Wanhao France D12 500 PRO SMARTPAD MONO DUAL",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Wanhao France/D12 500 PRO SMARTPAD MONO DUAL PoopTool",
+     "Wanhao France D12 500 PRO SMARTPAD MONO DUAL PoopTool",
+     "510 × 510 × 500 mm"
+    ],
+    [
+     "BIQU/BIQU B1",
+     "BIQU B1",
+     "235 × 235 × 270 mm"
+    ],
+    [
+     "BIQU/BIQU BX",
+     "BIQU BX",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "BIQU/BIQU Hurakan",
+     "BIQU Hurakan",
+     "220 × 220 × 270 mm"
+    ],
+    [
+     "Comgrow/Comgrow T300",
+     "Comgrow T300",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "Comgrow/Comgrow T500",
+     "Comgrow T500",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Cubicon/Cubicon xCeler-I",
+     "Cubicon xCeler-I",
+     "250 × 250 × 290 mm"
+    ],
+    [
+     "Cubicon/Cubicon xCeler-Mini",
+     "Cubicon xCeler-Mini",
+     "150 × 150 × 150 mm"
+    ],
+    [
+     "Cubicon/Cubicon xCeler-Plus",
+     "Cubicon xCeler-Plus",
+     "310 × 310 × 310 mm"
+    ],
+    [
+     "Positron3D/The Positron",
+     "Positron 3D The Positron",
+     "180 × 180 × 165 mm"
+    ],
+    [
+     "Voxelab/Voxelab Aquila X2",
+     "Voxelab Aquila X2",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Mellow/M1",
+     "Mellow M1",
+     "106 × 106 × 100 mm"
+    ],
+    [
+     "WEMAKE3D/WEMAKE3D PhoenixProV1",
+     "WEMAKE3D PhoenixProV1",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "WEMAKE3D/WEMAKE3D TinyBotV1",
+     "WEMAKE3D TinyBotV1",
+     "210 × 210 × 400 mm"
+    ],
+    [
+     "Chuanying/Chuanying X1",
+     "Chuanying X1",
+     "220 × 220 × 220 mm"
+    ],
+    [
+     "Vzbot/Vzbot 235 AWD",
+     "Vzbot 235 AWD",
+     "235 × 235 × 200 mm"
+    ],
+    [
+     "Vzbot/Vzbot 330 AWD",
+     "Vzbot 330 AWD",
+     "330 × 330 × 400 mm"
+    ],
+    [
+     "re3D/re3D Gigabot 4",
+     "re3D Gigabot 4",
+     "590 × 600 × 600 mm"
+    ],
+    [
+     "re3D/re3D Gigabot 4 XLT",
+     "re3D Gigabot 4 XLT",
+     "590 × 760 × 900 mm"
+    ],
+    [
+     "re3D/re3D GigabotX 2",
+     "re3D GigabotX 2",
+     "552 × 593 × 470 mm"
+    ],
+    [
+     "re3D/re3D GigabotX 2 XLT",
+     "re3D GigabotX 2 XLT",
+     "552 × 740 × 470 mm"
+    ],
+    [
+     "re3D/re3D Terabot 4",
+     "re3D Terabot 4",
+     "915 × 915 × 1000 mm"
+    ],
+    [
+     "re3D/re3D TerabotX 2",
+     "re3D TerabotX 2",
+     "892 × 908 × 870 mm"
+    ],
+    [
+     "Blocks/BLOCKS Pro S100",
+     "BLOCKS Pro S100",
+     "1000 × 1000 × 900 mm"
+    ],
+    [
+     "Blocks/BLOCKS RD50 V2",
+     "BLOCKS RD50 V2",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Blocks/BLOCKS RF50",
+     "BLOCKS RF50",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "FlyingBear/FlyingBear Ghost 6",
+     "FlyingBear Ghost 6",
+     "255 × 210 × 210 mm"
+    ],
+    [
+     "FlyingBear/FlyingBear Ghost7",
+     "FlyingBear Ghost7",
+     "250 × 250 × 205 mm"
+    ],
+    [
+     "FlyingBear/FlyingBear Reborn3",
+     "FlyingBear Reborn3",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "FlyingBear/FlyingBear S1",
+     "FlyingBear S1",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "MagicMaker/MM BoneKing",
+     "MagicMaker MM BoneKing",
+     "310 × 306 × 300 mm"
+    ],
+    [
+     "MagicMaker/MM hj SK",
+     "MagicMaker MM hj SK",
+     "220 × 210 × 300 mm"
+    ],
+    [
+     "MagicMaker/MM hqs SF",
+     "MagicMaker MM hqs SF",
+     "220 × 210 × 300 mm"
+    ],
+    [
+     "MagicMaker/MM hqs hj",
+     "MagicMaker MM hqs hj",
+     "220 × 210 × 300 mm"
+    ],
+    [
+     "MagicMaker/MM slb",
+     "MagicMaker MM slb",
+     "125 × 125 × 160 mm"
+    ],
+    [
+     "Tiertime/Tiertime UP300 HS",
+     "Tiertime UP300 HS",
+     "207 × 255 × 230 mm"
+    ],
+    [
+     "Tiertime/Tiertime UP310 Pro",
+     "Tiertime UP310 Pro",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Tiertime/Tiertime UP400 Pro",
+     "Tiertime UP400 Pro",
+     "400 × 350 × 380 mm"
+    ],
+    [
+     "Tiertime/Tiertime UP600 HS",
+     "Tiertime UP600 HS",
+     "500 × 400 × 600 mm"
+    ],
+    [
+     "DeltaMaker/DeltaMaker 2",
+     "DeltaMaker 2",
+     "276 × 240 × 260 mm"
+    ],
+    [
+     "DeltaMaker/DeltaMaker 2T",
+     "DeltaMaker 2T",
+     "276 × 240 × 460 mm"
+    ],
+    [
+     "DeltaMaker/DeltaMaker 2XT",
+     "DeltaMaker 2XT",
+     "276 × 240 × 565 mm"
+    ],
+    [
+     "Lulzbot/Lulzbot Taz 4 or 5",
+     "Lulzbot Taz 4 or 5",
+     "280 × 280 × 250 mm"
+    ],
+    [
+     "Lulzbot/Lulzbot Taz 6",
+     "Lulzbot Taz 6",
+     "280 × 280 × 250 mm"
+    ],
+    [
+     "Lulzbot/Lulzbot Taz Pro Dual",
+     "Lulzbot Taz Pro Dual",
+     "280 × 280 × 280 mm"
+    ],
+    [
+     "Lulzbot/Lulzbot Taz Pro S",
+     "Lulzbot Taz Pro S",
+     "280 × 280 × 280 mm"
+    ],
+    [
+     "M3D/M3D Enabler D8500 MM Model",
+     "M3D Enabler D8500 MM Model",
+     ""
+    ],
+    [
+     "Flashforge/Flashforge AD5X",
+     "Flashforge AD5X",
+     "220 × 220 × 220 mm"
+    ],
+    [
+     "Flashforge/Flashforge Adventurer 3 Series",
+     "Flashforge Adventurer 3 Series",
+     "150 × 150 × 150 mm"
+    ],
+    [
+     "Flashforge/Flashforge Adventurer 4 Series",
+     "Flashforge Adventurer 4 Series",
+     "220 × 200 × 250 mm"
+    ],
+    [
+     "Flashforge/Flashforge Adventurer 5M",
+     "Flashforge Adventurer 5M",
+     "220 × 220 × 220 mm"
+    ],
+    [
+     "Flashforge/Flashforge Adventurer 5M Pro",
+     "Flashforge Adventurer 5M Pro",
+     "220 × 220 × 220 mm"
+    ],
+    [
+     "Flashforge/Flashforge Artemis",
+     "Flashforge Artemis",
+     "190 × 195 × 200 mm"
+    ],
+    [
+     "Flashforge/Flashforge Creator 5",
+     "Flashforge Creator 5",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "Flashforge/Flashforge Creator 5 Pro",
+     "Flashforge Creator 5 Pro",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "Flashforge/Flashforge Guider 2s",
+     "Flashforge Guider 2s",
+     "280 × 250 × 300 mm"
+    ],
+    [
+     "Flashforge/Flashforge Guider 3 Ultra",
+     "Flashforge Guider 3 Ultra",
+     "300 × 330 × 600 mm"
+    ],
+    [
+     "Flashforge/Flashforge Guider4",
+     "Flashforge Guider4",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Flashforge/Flashforge Guider4 Pro",
+     "Flashforge Guider4 Pro",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Co Print/Co Print ChromaSet",
+     "Co Print ChromaSet",
+     "225 × 225 × 250 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Cast",
+     "RatRig V-Cast",
+     "300 × 300 × 250 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 3 200",
+     "RatRig V-Core 3 200",
+     "200 × 200 × 200 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 3 300",
+     "RatRig V-Core 3 300",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 3 400",
+     "RatRig V-Core 3 400",
+     "400 × 400 × 400 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 3 500",
+     "RatRig V-Core 3 500",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 300",
+     "RatRig V-Core 4 300",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 400",
+     "RatRig V-Core 4 400",
+     "400 × 400 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 500",
+     "RatRig V-Core 4 500",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 HYBRID 300",
+     "RatRig V-Core 4 HYBRID 300",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 HYBRID 400",
+     "RatRig V-Core 4 HYBRID 400",
+     "400 × 400 × 400 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 HYBRID 500",
+     "RatRig V-Core 4 HYBRID 500",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 300",
+     "RatRig V-Core 4 IDEX 300",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 300 COPY MODE",
+     "RatRig V-Core 4 IDEX 300 COPY MODE",
+     "150 × 300 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 300 MIRROR MODE",
+     "RatRig V-Core 4 IDEX 300 MIRROR MODE",
+     "120 × 300 × 300 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 400",
+     "RatRig V-Core 4 IDEX 400",
+     "400 × 400 × 400 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 400 COPY MODE",
+     "RatRig V-Core 4 IDEX 400 COPY MODE",
+     "200 × 400 × 400 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 400 MIRROR MODE",
+     "RatRig V-Core 4 IDEX 400 MIRROR MODE",
+     "170 × 400 × 400 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 500",
+     "RatRig V-Core 4 IDEX 500",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 500 COPY MODE",
+     "RatRig V-Core 4 IDEX 500 COPY MODE",
+     "250 × 500 × 500 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Core 4 IDEX 500 MIRROR MODE",
+     "RatRig V-Core 4 IDEX 500 MIRROR MODE",
+     "220 × 500 × 500 mm"
+    ],
+    [
+     "Ratrig/RatRig V-Minion",
+     "RatRig V-Minion",
+     "180 × 180 × 180 mm"
+    ],
+    [
+     "Elegoo/Elegoo Centauri Carbon 2",
+     "Elegoo Centauri Carbon 2",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "Elegoo/Elegoo Centauri 2",
+     "Elegoo Centauri 2",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "Elegoo/Elegoo Centauri Carbon",
+     "Elegoo Centauri Carbon",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "Elegoo/Elegoo Centauri",
+     "Elegoo Centauri",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "Elegoo/Elegoo OrangeStorm Giga",
+     "Elegoo OrangeStorm Giga",
+     "810 × 805 × 1010 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 4 Max",
+     "Elegoo Neptune 4 Max",
+     "426 × 426 × 480 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 4 Plus",
+     "Elegoo Neptune 4 Plus",
+     "325 × 325 × 385 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 4 Pro",
+     "Elegoo Neptune 4 Pro",
+     "230 × 230 × 265 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 4",
+     "Elegoo Neptune 4",
+     "230 × 230 × 265 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 3 Max",
+     "Elegoo Neptune 3 Max",
+     "425 × 425 × 500 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 3 Plus",
+     "Elegoo Neptune 3 Plus",
+     "325 × 325 × 400 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 3 Pro",
+     "Elegoo Neptune 3 Pro",
+     "230 × 230 × 280 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 3",
+     "Elegoo Neptune 3",
+     "235 × 235 × 280 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune X",
+     "Elegoo Neptune X",
+     "235 × 235 × 300 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 2S",
+     "Elegoo Neptune 2S",
+     "235 × 235 × 250 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 2D",
+     "Elegoo Neptune 2D",
+     "235 × 235 × 250 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune 2",
+     "Elegoo Neptune 2",
+     "235 × 235 × 250 mm"
+    ],
+    [
+     "Elegoo/Elegoo Neptune",
+     "Elegoo Neptune",
+     "210 × 210 × 200 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC Artemis 300",
+     "SeeMeCNC Artemis 300",
+     "290 × 290 × 500 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC BOSSdelta 300",
+     "SeeMeCNC BOSSdelta 300",
+     "300 × 300 × 495 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC BOSSdelta 500 0505",
+     "SeeMeCNC BOSSdelta 500 0505",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC BOSSdelta 500 0510",
+     "SeeMeCNC BOSSdelta 500 0510",
+     "500 × 500 × 1000 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC BOSSdelta 500 0521",
+     "SeeMeCNC BOSSdelta 500 0521",
+     "500 × 500 × 2100 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC RostockMAX v3.2",
+     "SeeMeCNC RostockMAX v3.2",
+     "270 × 270 × 385 mm"
+    ],
+    [
+     "SeeMeCNC/SeeMeCNC RostockMAX v4",
+     "SeeMeCNC RostockMAX v4",
+     "280 × 280 × 385 mm"
+    ],
+    [
+     "Anker/Anker M5",
+     "Anker M5",
+     "235 × 235 × 250 mm"
+    ],
+    [
+     "Anker/Anker M5 All-Metal Hot End",
+     "Anker M5 All-Metal Hot End",
+     "235 × 235 × 250 mm"
+    ],
+    [
+     "Anker/Anker M5C",
+     "Anker M5C",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Dremel/Dremel 3D20",
+     "Dremel 3D20",
+     "230 × 150 × 140 mm"
+    ],
+    [
+     "Dremel/Dremel 3D40",
+     "Dremel 3D40",
+     "225 × 155 × 170 mm"
+    ],
+    [
+     "Dremel/Dremel 3D45",
+     "Dremel 3D45",
+     "225 × 155 × 170 mm"
+    ],
+    [
+     "UltiMaker/UltiMaker 2",
+     "UltiMaker 2",
+     "224 × 225 × 212 mm"
+    ],
+    [
+     "Volumic/EXO42",
+     "Volumic EXO42",
+     "420 × 420 × 420 mm"
+    ],
+    [
+     "Volumic/EXO42 IDRE",
+     "Volumic EXO42 IDRE",
+     "372 × 420 × 400 mm"
+    ],
+    [
+     "Volumic/EXO42 Performance",
+     "Volumic EXO42 Performance",
+     "420 × 420 × 420 mm"
+    ],
+    [
+     "Volumic/EXO42 Stage 2",
+     "Volumic EXO42 Stage 2",
+     "420 × 420 × 420 mm"
+    ],
+    [
+     "Volumic/EXO65",
+     "Volumic EXO65",
+     "650 × 650 × 650 mm"
+    ],
+    [
+     "Volumic/EXO65 IDRE",
+     "Volumic EXO65 IDRE",
+     "602 × 650 × 630 mm"
+    ],
+    [
+     "Volumic/EXO65 Performance",
+     "Volumic EXO65 Performance",
+     "650 × 650 × 650 mm"
+    ],
+    [
+     "Volumic/EXO65 Stage 2",
+     "Volumic EXO65 Stage 2",
+     "650 × 650 × 650 mm"
+    ],
+    [
+     "Volumic/SH65",
+     "Volumic SH65",
+     "650 × 300 × 300 mm"
+    ],
+    [
+     "Volumic/SH65 IDRE",
+     "Volumic SH65 IDRE",
+     "602 × 300 × 280 mm"
+    ],
+    [
+     "Volumic/SH65 Performance",
+     "Volumic SH65 Performance",
+     "650 × 300 × 300 mm"
+    ],
+    [
+     "Volumic/SH65 Stage 2",
+     "Volumic SH65 Stage 2",
+     "650 × 300 × 300 mm"
+    ],
+    [
+     "Volumic/VS20MK2",
+     "Volumic VS20MK2",
+     "200 × 200 × 220 mm"
+    ],
+    [
+     "Volumic/VS30MK2",
+     "Volumic VS30MK2",
+     "300 × 200 × 300 mm"
+    ],
+    [
+     "Volumic/VS30MK3",
+     "Volumic VS30MK3",
+     "300 × 200 × 300 mm"
+    ],
+    [
+     "Volumic/VS30MK3 Stage 2",
+     "Volumic VS30MK3 Stage 2",
+     "300 × 200 × 300 mm"
+    ],
+    [
+     "Volumic/VS30SC",
+     "Volumic VS30SC",
+     "300 × 200 × 300 mm"
+    ],
+    [
+     "Volumic/VS30SC2",
+     "Volumic VS30SC2",
+     "300 × 200 × 310 mm"
+    ],
+    [
+     "Volumic/VS30SC2 Performance",
+     "Volumic VS30SC2 Performance",
+     "300 × 200 × 310 mm"
+    ],
+    [
+     "Volumic/VS30SC2 Stage 2",
+     "Volumic VS30SC2 Stage 2",
+     "300 × 200 × 310 mm"
+    ],
+    [
+     "Volumic/VS30ULTRA",
+     "Volumic VS30ULTRA",
+     "290 × 200 × 300 mm"
+    ],
+    [
+     "WonderMaker/WonderMaker ZR",
+     "WonderMaker ZR",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "WonderMaker/WonderMaker ZR Ultra",
+     "WonderMaker ZR Ultra",
+     "300 × 270 × 290 mm"
+    ],
+    [
+     "WonderMaker/WonderMaker ZR Ultra S",
+     "WonderMaker ZR Ultra S",
+     "300 × 270 × 290 mm"
+    ],
+    [
+     "Anycubic/Anycubic 4Max Pro",
+     "Anycubic 4Max Pro",
+     "270 × 205 × 200 mm"
+    ],
+    [
+     "Anycubic/Anycubic 4Max Pro 2",
+     "Anycubic 4Max Pro 2",
+     "270 × 210 × 190 mm"
+    ],
+    [
+     "Anycubic/Anycubic Chiron",
+     "Anycubic Chiron",
+     "400 × 400 × 450 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra",
+     "Anycubic Kobra",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 2",
+     "Anycubic Kobra 2",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 2 Max",
+     "Anycubic Kobra 2 Max",
+     "420 × 420 × 500 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 2 Neo",
+     "Anycubic Kobra 2 Neo",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 2 Plus",
+     "Anycubic Kobra 2 Plus",
+     "320 × 320 × 400 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 2 Pro",
+     "Anycubic Kobra 2 Pro",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 3",
+     "Anycubic Kobra 3",
+     "255 × 255 × 260 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra 3 Max",
+     "Anycubic Kobra 3 Max",
+     "426 × 420 × 501 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra Max",
+     "Anycubic Kobra Max",
+     "400 × 400 × 450 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra Neo",
+     "Anycubic Kobra Neo",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra Plus",
+     "Anycubic Kobra Plus",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra S1",
+     "Anycubic Kobra S1",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra S1 Max",
+     "Anycubic Kobra S1 Max",
+     "350 × 350 × 350 mm"
+    ],
+    [
+     "Anycubic/Anycubic Kobra X",
+     "Anycubic Kobra X",
+     "260 × 260 × 260 mm"
+    ],
+    [
+     "Anycubic/Anycubic Predator",
+     "Anycubic Predator",
+     "370 × 370 × 455 mm"
+    ],
+    [
+     "Anycubic/Anycubic Vyper",
+     "Anycubic Vyper",
+     "250 × 255 × 265 mm"
+    ],
+    [
+     "Anycubic/Anycubic i3 Mega S",
+     "Anycubic i3 Mega S",
+     "210 × 210 × 205 mm"
+    ],
+    [
+     "CoLiDo/CoLiDo 160 V2",
+     "CoLiDo 160 V2",
+     "160 × 160 × 180 mm"
+    ],
+    [
+     "CoLiDo/CoLiDo DIY 4.0",
+     "CoLiDo DIY 4.0",
+     "225 × 220 × 230 mm"
+    ],
+    [
+     "CoLiDo/CoLiDo DIY 4.0 V2",
+     "CoLiDo DIY 4.0 V2",
+     "230 × 230 × 255 mm"
+    ],
+    [
+     "CoLiDo/CoLiDo SR1",
+     "CoLiDo SR1",
+     "220 × 220 × 251 mm"
+    ],
+    [
+     "CoLiDo/CoLiDo X16",
+     "CoLiDo X16",
+     "160 × 160 × 180 mm"
+    ],
+    [
+     "LH/LH Stinger",
+     "LH Stinger",
+     "200 × 200 × 180 mm"
+    ],
+    [
+     "LH/LH Stinger MMU",
+     "LH Stinger MMU",
+     "200 × 200 × 180 mm"
+    ],
+    [
+     "Geeetech/Geeetech A10 M",
+     "Geeetech A10 M",
+     "220 × 220 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech A10 Pro",
+     "Geeetech A10 Pro",
+     "220 × 220 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech A10 T",
+     "Geeetech A10 T",
+     "220 × 220 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech A20",
+     "Geeetech A20",
+     "250 × 250 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech A20 M",
+     "Geeetech A20 M",
+     "250 × 250 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech A20 T",
+     "Geeetech A20 T",
+     "250 × 250 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech A30 M",
+     "Geeetech A30 M",
+     "320 × 320 × 420 mm"
+    ],
+    [
+     "Geeetech/Geeetech A30 Pro",
+     "Geeetech A30 Pro",
+     "320 × 320 × 420 mm"
+    ],
+    [
+     "Geeetech/Geeetech A30 T",
+     "Geeetech A30 T",
+     "320 × 320 × 420 mm"
+    ],
+    [
+     "Geeetech/Geeetech M1",
+     "Geeetech M1",
+     "105 × 105 × 95 mm"
+    ],
+    [
+     "Geeetech/Geeetech Mizar",
+     "Geeetech Mizar",
+     "220 × 220 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech Mizar M",
+     "Geeetech Mizar M",
+     "255 × 255 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech Mizar Max",
+     "Geeetech Mizar Max",
+     "320 × 320 × 400 mm"
+    ],
+    [
+     "Geeetech/Geeetech Mizar Pro",
+     "Geeetech Mizar Pro",
+     "220 × 220 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech Mizar S",
+     "Geeetech Mizar S",
+     "255 × 255 × 260 mm"
+    ],
+    [
+     "Geeetech/Geeetech Thunder",
+     "Geeetech Thunder",
+     "250 × 250 × 260 mm"
+    ],
+    [
+     "FLSun/FLSun Q5",
+     "FLSun Q5",
+     "200 × 200 × 200 mm"
+    ],
+    [
+     "FLSun/FLSun QQ-S Pro",
+     "FLSun QQ-S Pro",
+     "260 × 260 × 360 mm"
+    ],
+    [
+     "FLSun/FLSun S1",
+     "FLSun S1",
+     "320 × 320 × 430 mm"
+    ],
+    [
+     "FLSun/FLSun Super Racer (SR)",
+     "FLSun Super Racer (SR)",
+     "270 × 270 × 330 mm"
+    ],
+    [
+     "FLSun/FLSun T1",
+     "FLSun T1",
+     "260 × 260 × 330 mm"
+    ],
+    [
+     "FLSun/FLSun V400",
+     "FLSun V400",
+     "300 × 300 × 410 mm"
+    ],
+    [
+     "SecKit/SecKit SK-Tank",
+     "SecKit SK-Tank",
+     "350 × 350 × 400 mm"
+    ],
+    [
+     "SecKit/Seckit Go3",
+     "Seckit Go3",
+     "300 × 300 × 275 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S1000",
+     "Z-Bolt S1000",
+     "1000 × 1000 × 1000 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S1000 Dual",
+     "Z-Bolt S1000 Dual",
+     "1000 × 1000 × 1000 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S300",
+     "Z-Bolt S300",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S300 Dual",
+     "Z-Bolt S300 Dual",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S400",
+     "Z-Bolt S400",
+     "400 × 400 × 700 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S400 Dual",
+     "Z-Bolt S400 Dual",
+     "400 × 400 × 700 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S600",
+     "Z-Bolt S600",
+     "600 × 600 × 900 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S600 Dual",
+     "Z-Bolt S600 Dual",
+     "600 × 600 × 900 mm"
+    ],
+    [
+     "Z-Bolt/Z-Bolt S800 Dual",
+     "Z-Bolt S800 Dual",
+     "802 × 802 × 802 mm"
+    ],
+    [
+     "Tronxy/Tronxy X5SA 400 Marlin Firmware",
+     "Tronxy X5SA 400 Marlin Firmware",
+     "400 × 400 × 400 mm"
+    ],
+    [
+     "BBL/Bambu Lab A1",
+     "Bambu Lab A1",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "BBL/Bambu Lab A1 mini",
+     "Bambu Lab A1 mini",
+     "180 × 180 × 180 mm"
+    ],
+    [
+     "BBL/Bambu Lab H2D",
+     "Bambu Lab H2D",
+     "350 × 320 × 325 mm"
+    ],
+    [
+     "BBL/Bambu Lab H2D Pro",
+     "Bambu Lab H2D Pro",
+     "350 × 320 × 325 mm"
+    ],
+    [
+     "BBL/Bambu Lab H2S",
+     "Bambu Lab H2S",
+     "340 × 320 × 340 mm"
+    ],
+    [
+     "BBL/Bambu Lab P1P",
+     "Bambu Lab P1P",
+     "256 × 256 × 250 mm"
+    ],
+    [
+     "BBL/Bambu Lab P1S",
+     "Bambu Lab P1S",
+     "256 × 256 × 250 mm"
+    ],
+    [
+     "BBL/Bambu Lab P2S",
+     "Bambu Lab P2S",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "BBL/Bambu Lab X1",
+     "Bambu Lab X1",
+     "256 × 256 × 250 mm"
+    ],
+    [
+     "BBL/Bambu Lab X1 Carbon",
+     "Bambu Lab X1 Carbon",
+     "256 × 256 × 250 mm"
+    ],
+    [
+     "BBL/Bambu Lab X1E",
+     "Bambu Lab X1E",
+     "256 × 256 × 250 mm"
+    ],
+    [
+     "BBL/Bambu Lab X2D",
+     "Bambu Lab X2D",
+     "256 × 256 × 261 mm"
+    ],
+    [
+     "Custom/Generic Klipper Printer",
+     "Custom Printer Generic Klipper Printer",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "Custom/Generic Marlin Printer",
+     "Custom Printer Generic Marlin Printer",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "Custom/Generic RRF Printer",
+     "Custom Printer Generic RRF Printer",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "Custom/Generic Repetier Printer",
+     "Custom Printer Generic Repetier Printer",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "Custom/Generic ToolChanger Printer",
+     "Custom Printer Generic ToolChanger Printer",
+     "350 × 350 × 300 mm"
+    ],
+    [
+     "LONGER/LONGER LK10",
+     "LONGER LK10",
+     "225 × 225 × 265 mm"
+    ],
+    [
+     "LONGER/LONGER LK10 Plus",
+     "LONGER LK10 Plus",
+     "320 × 320 × 400 mm"
+    ],
+    [
+     "Wanhao/Wanhao D12-300",
+     "Wanhao D12-300",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Folgertech/Folgertech FT-5",
+     "Folgertech FT-5",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Folgertech/Folgertech FT-6",
+     "Folgertech FT-6",
+     "700 × 350 × 400 mm"
+    ],
+    [
+     "Folgertech/Folgertech i3",
+     "Folgertech i3",
+     "200 × 200 × 175 mm"
+    ],
+    [
+     "Sovol/Sovol SV01",
+     "Sovol SV01",
+     "280 × 240 × 300 mm"
+    ],
+    [
+     "Sovol/Sovol SV01 Pro",
+     "Sovol SV01 Pro",
+     "280 × 240 × 300 mm"
+    ],
+    [
+     "Sovol/Sovol SV02",
+     "Sovol SV02",
+     "280 × 240 × 300 mm"
+    ],
+    [
+     "Sovol/Sovol SV05",
+     "Sovol SV05",
+     "220 × 220 × 300 mm"
+    ],
+    [
+     "Sovol/Sovol SV06",
+     "Sovol SV06",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Sovol/Sovol SV06 ACE",
+     "Sovol SV06 ACE",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Sovol/Sovol SV06 Plus",
+     "Sovol SV06 Plus",
+     "300 × 300 × 340 mm"
+    ],
+    [
+     "Sovol/Sovol SV06 Plus ACE",
+     "Sovol SV06 Plus ACE",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "Sovol/Sovol SV07",
+     "Sovol SV07",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Sovol/Sovol SV07 Plus",
+     "Sovol SV07 Plus",
+     "300 × 300 × 350 mm"
+    ],
+    [
+     "Sovol/Sovol SV08",
+     "Sovol SV08",
+     "350 × 350 × 345 mm"
+    ],
+    [
+     "Sovol/Sovol SV08 MAX",
+     "Sovol SV08 MAX",
+     "500 × 500 × 500 mm"
+    ],
+    [
+     "Sovol/Sovol Zero",
+     "Sovol Zero",
+     "152.4 × 152.4 × 152.4 mm"
+    ],
+    [
+     "Raise3D/Raise3D Pro3",
+     "Raise3D Pro3",
+     "340 × 300 × 300 mm"
+    ],
+    [
+     "Raise3D/Raise3D Pro3 Plus",
+     "Raise3D Pro3 Plus",
+     "340 × 300 × 605 mm"
+    ],
+    [
+     "Afinia/Afinia H+1(HS)",
+     "Afinia H+1(HS)",
+     "207 × 255 × 230 mm"
+    ],
+    [
+     "Eryone/Eryone ER20",
+     "Eryone ER20",
+     "243 × 220 × 200 mm"
+    ],
+    [
+     "Eryone/Eryone ER20 Klipper",
+     "Eryone ER20 Klipper",
+     "243 × 220 × 190 mm"
+    ],
+    [
+     "Eryone/Thinker X400",
+     "Eryone Thinker X400",
+     "400 × 400 × 400 mm"
+    ],
+    [
+     "Peopoly/Peopoly Magneto X",
+     "Peopoly Magneto X",
+     "300 × 400 × 300 mm"
+    ],
+    [
+     "Voron/Voron 0.1",
+     "Voron 0.1",
+     "120 × 120 × 120 mm"
+    ],
+    [
+     "Voron/Voron 2.4 250",
+     "Voron 2.4 250",
+     "250 × 250 × 225 mm"
+    ],
+    [
+     "Voron/Voron 2.4 300",
+     "Voron 2.4 300",
+     "300 × 300 × 275 mm"
+    ],
+    [
+     "Voron/Voron 2.4 350",
+     "Voron 2.4 350",
+     "350 × 350 × 325 mm"
+    ],
+    [
+     "Voron/Voron Switchwire 250",
+     "Voron Switchwire 250",
+     "250 × 210 × 240 mm"
+    ],
+    [
+     "Voron/Voron Trident 250",
+     "Voron Trident 250",
+     "250 × 250 × 250 mm"
+    ],
+    [
+     "Voron/Voron Trident 300",
+     "Voron Trident 300",
+     "300 × 300 × 250 mm"
+    ],
+    [
+     "Voron/Voron Trident 350",
+     "Voron Trident 350",
+     "350 × 350 × 250 mm"
+    ],
+    [
+     "Creality/Creality CR-10 Max",
+     "Creality CR-10 Max",
+     "450 × 450 × 470 mm"
+    ],
+    [
+     "Creality/Creality CR-10 SE",
+     "Creality CR-10 SE",
+     "220 × 220 × 265 mm"
+    ],
+    [
+     "Creality/Creality CR-10 V2",
+     "Creality CR-10 V2",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Creality/Creality CR-10 V3",
+     "Creality CR-10 V3",
+     "300 × 300 × 400 mm"
+    ],
+    [
+     "Creality/Creality CR-6 Max",
+     "Creality CR-6 Max",
+     "390 × 390 × 400 mm"
+    ],
+    [
+     "Creality/Creality CR-6 SE",
+     "Creality CR-6 SE",
+     "225 × 235 × 250 mm"
+    ],
+    [
+     "Creality/Creality CR-M4",
+     "Creality CR-M4",
+     "450 × 450 × 470 mm"
+    ],
+    [
+     "Creality/Creality Ender-3",
+     "Creality Ender-3",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 Pro",
+     "Creality Ender-3 Pro",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 S1",
+     "Creality Ender-3 S1",
+     "220 × 220 × 270 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 S1 Plus",
+     "Creality Ender-3 S1 Plus",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 S1 Pro",
+     "Creality Ender-3 S1 Pro",
+     "220 × 220 × 270 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V2",
+     "Creality Ender-3 V2",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V2 Neo",
+     "Creality Ender-3 V2 Neo",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V3",
+     "Creality Ender-3 V3",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V3 KE",
+     "Creality Ender-3 V3 KE",
+     "220 × 220 × 245 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V3 Plus",
+     "Creality Ender-3 V3 Plus",
+     "300 × 300 × 330 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V3 SE",
+     "Creality Ender-3 V3 SE",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality Ender-3 V4",
+     "Creality Ender-3 V4",
+     ""
+    ],
+    [
+     "Creality/Creality Ender-5",
+     "Creality Ender-5",
+     "220 × 220 × 300 mm"
+    ],
+    [
+     "Creality/Creality Ender-5 Max",
+     "Creality Ender-5 Max",
+     ""
+    ],
+    [
+     "Creality/Creality Ender-5 Plus",
+     "Creality Ender-5 Plus",
+     "350 × 350 × 400 mm"
+    ],
+    [
+     "Creality/Creality Ender-5 Pro (2019)",
+     "Creality Ender-5 Pro (2019)",
+     "220 × 220 × 300 mm"
+    ],
+    [
+     "Creality/Creality Ender-5 S1",
+     "Creality Ender-5 S1",
+     "220 × 220 × 300 mm"
+    ],
+    [
+     "Creality/Creality Ender-5S",
+     "Creality Ender-5S",
+     "220 × 220 × 300 mm"
+    ],
+    [
+     "Creality/Creality Ender-6",
+     "Creality Ender-6",
+     "250 × 250 × 400 mm"
+    ],
+    [
+     "Creality/Creality Hi",
+     "Creality Hi",
+     ""
+    ],
+    [
+     "Creality/Creality K1",
+     "Creality K1",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality K1_CFS-C",
+     "Creality K1_CFS-C",
+     ""
+    ],
+    [
+     "Creality/Creality K1 Max",
+     "Creality K1 Max",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Creality/Creality K1 Max_CFS-C",
+     "Creality K1 Max_CFS-C",
+     ""
+    ],
+    [
+     "Creality/Creality K1 SE",
+     "Creality K1 SE",
+     ""
+    ],
+    [
+     "Creality/Creality K1 SE_CFS-C",
+     "Creality K1 SE_CFS-C",
+     ""
+    ],
+    [
+     "Creality/Creality K1C",
+     "Creality K1C",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "Creality/Creality K1C_CFS-C",
+     "Creality K1C_CFS-C",
+     ""
+    ],
+    [
+     "Creality/Creality K2",
+     "Creality K2",
+     "260 × 260 × 260 mm"
+    ],
+    [
+     "Creality/Creality K2 SE",
+     "Creality K2 SE",
+     ""
+    ],
+    [
+     "Creality/Creality K2 Plus",
+     "Creality K2 Plus",
+     "350 × 350 × 350 mm"
+    ],
+    [
+     "Creality/Creality K2 Pro",
+     "Creality K2 Pro",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Creality/Creality SPARKX i7",
+     "Creality SPARKX i7",
+     ""
+    ],
+    [
+     "Creality/Creality Sermoon V1",
+     "Creality Sermoon V1",
+     "175 × 175 × 165 mm"
+    ],
+    [
+     "RH3D/E3NG v1.2S",
+     "RH3D E3NG v1.2S",
+     "232 × 232 × 245 mm"
+    ],
+    [
+     "InfiMech/InfiMech EX",
+     "InfiMech EX",
+     "250 × 250 × 205 mm"
+    ],
+    [
+     "InfiMech/InfiMech EX+APS",
+     "InfiMech EX+APS",
+     "250 × 250 × 167 mm"
+    ],
+    [
+     "InfiMech/InfiMech TX",
+     "InfiMech TX",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "InfiMech/InfiMech TX Hardened Steel Nozzle",
+     "InfiMech TX Hardened Steel Nozzle",
+     "220 × 220 × 250 mm"
+    ],
+    [
+     "iQ/TiQ2",
+     "innovatiQ TiQ2",
+     "330 × 330 × 300 mm"
+    ],
+    [
+     "iQ/TiQ8",
+     "innovatiQ TiQ8",
+     "500 × 400 × 450 mm"
+    ],
+    [
+     "Phrozen/Phrozen Arco",
+     "Phrozen Arco",
+     "300 × 300 × 300 mm"
+    ],
+    [
+     "Prusa/Prusa CORE One",
+     "Prusa CORE One",
+     "250 × 220 × 270 mm"
+    ],
+    [
+     "Prusa/Prusa CORE One HF",
+     "Prusa CORE One HF",
+     "250 × 220 × 270 mm"
+    ],
+    [
+     "Prusa/Prusa CORE One L",
+     "Prusa CORE One L",
+     "300 × 300 × 331 mm"
+    ],
+    [
+     "Prusa/Prusa CORE One L HF",
+     "Prusa CORE One L HF",
+     "300 × 300 × 331 mm"
+    ],
+    [
+     "Prusa/Prusa MINI",
+     "Prusa MINI",
+     "180 × 180 × 180 mm"
+    ],
+    [
+     "Prusa/Prusa MINI IS",
+     "Prusa MINI IS",
+     "180 × 180 × 180 mm"
+    ],
+    [
+     "Prusa/Prusa MK3.5",
+     "Prusa MK3.5",
+     "250 × 210 × 210 mm"
+    ],
+    [
+     "Prusa/Prusa MK3S",
+     "Prusa MK3S",
+     "250 × 210 × 210 mm"
+    ],
+    [
+     "Prusa/Prusa MK4",
+     "Prusa MK4",
+     "250 × 210 × 220 mm"
+    ],
+    [
+     "Prusa/Prusa MK4S",
+     "Prusa MK4S",
+     "250 × 210 × 220 mm"
+    ],
+    [
+     "Prusa/Prusa MK4S HF",
+     "Prusa MK4S HF",
+     "250 × 210 × 220 mm"
+    ],
+    [
+     "Prusa/Prusa XL",
+     "Prusa XL",
+     "360 × 360 × 360 mm"
+    ],
+    [
+     "Prusa/Prusa XL 5T",
+     "Prusa XL 5T",
+     "360 × 360 × 360 mm"
+    ],
+    [
+     "TwoTrees/TwoTrees SK1",
+     "TwoTrees SK1",
+     "256 × 256 × 256 mm"
+    ],
+    [
+     "TwoTrees/TwoTrees SP-5 Klipper",
+     "TwoTrees SP-5 Klipper",
+     "310 × 310 × 350 mm"
+    ],
+    [
+     "RolohaunDesign/Rolohaun Delta Flyer Refit",
+     "RolohaunDesign Rolohaun Delta Flyer Refit",
+     "110 × 110 × 115 mm"
+    ],
+    [
+     "RolohaunDesign/Rook MK1 LDO",
+     "RolohaunDesign Rook MK1 LDO",
+     "110 × 110 × 111 mm"
+    ],
+    [
+     "Kingroon/Kingroon KLP1",
+     "Kingroon KLP1",
+     "230 × 230 × 210 mm"
+    ],
+    [
+     "Kingroon/Kingroon KP3S 3.0",
+     "Kingroon KP3S 3.0",
+     "180 × 180 × 180 mm"
+    ],
+    [
+     "Kingroon/Kingroon KP3S PRO S1",
+     "Kingroon KP3S PRO S1",
+     "200 × 200 × 200 mm"
+    ],
+    [
+     "Kingroon/Kingroon KP3S PRO V2",
+     "Kingroon KP3S PRO V2",
+     "205 × 205 × 200 mm"
+    ],
+    [
+     "Kingroon/Kingroon KP3S V1",
+     "Kingroon KP3S V1",
+     "180 × 180 × 180 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250",
+     "Snapmaker A250",
+     "230 × 250 × 230 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 BKit",
+     "Snapmaker A250 BKit",
+     "230 × 250 × 224 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 Dual",
+     "Snapmaker A250 Dual",
+     "230 × 250 × 190 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 Dual BKit",
+     "Snapmaker A250 Dual BKit",
+     "230 × 250 × 184 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 Dual QS+B Kit",
+     "Snapmaker A250 Dual QS+B Kit",
+     "230 × 250 × 169 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 Dual QSKit",
+     "Snapmaker A250 Dual QSKit",
+     "230 × 250 × 175 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 QS+B Kit",
+     "Snapmaker A250 QS+B Kit",
+     "230 × 250 × 209 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A250 QSKit",
+     "Snapmaker A250 QSKit",
+     "230 × 250 × 215 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350",
+     "Snapmaker A350",
+     "320 × 350 × 325 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 BKit",
+     "Snapmaker A350 BKit",
+     "320 × 350 × 319 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 Dual",
+     "Snapmaker A350 Dual",
+     "320 × 350 × 285 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 Dual BKit",
+     "Snapmaker A350 Dual BKit",
+     "320 × 350 × 279 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 Dual QS+B Kit",
+     "Snapmaker A350 Dual QS+B Kit",
+     "320 × 350 × 264 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 Dual QSKit",
+     "Snapmaker A350 Dual QSKit",
+     "320 × 350 × 270 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 QS+B Kit",
+     "Snapmaker A350 QS+B Kit",
+     "320 × 350 × 304 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker A350 QSKit",
+     "Snapmaker A350 QSKit",
+     "320 × 350 × 310 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker Artisan",
+     "Snapmaker Artisan",
+     "400 × 400 × 400 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker J1",
+     "Snapmaker J1",
+     "324 × 200 × 200 mm"
+    ],
+    [
+     "Snapmaker/Snapmaker U1",
+     "Snapmaker U1",
+     "270 × 270 × 270.05 mm"
+    ],
+    [
+     "Qidi/Qidi Q1 Pro",
+     "Qidi Q1 Pro",
+     "245 × 245 × 240 mm"
+    ],
+    [
+     "Qidi/Qidi Q2",
+     "Qidi Q2",
+     "270 × 270 × 256 mm"
+    ],
+    [
+     "Qidi/Qidi Q2C",
+     "Qidi Q2C",
+     "270 × 270 × 256 mm"
+    ],
+    [
+     "Qidi/Qidi X-CF Pro",
+     "Qidi X-CF Pro",
+     "300 × 250 × 300 mm"
+    ],
+    [
+     "Qidi/Qidi X-Max",
+     "Qidi X-Max",
+     "300 × 250 × 300 mm"
+    ],
+    [
+     "Qidi/Qidi X-Max 3",
+     "Qidi X-Max 3",
+     "325 × 325 × 315 mm"
+    ],
+    [
+     "Qidi/Qidi X-Max 4",
+     "Qidi X-Max 4",
+     "390 × 390 × 340 mm"
+    ],
+    [
+     "Qidi/Qidi X-Plus",
+     "Qidi X-Plus",
+     "270 × 200 × 200 mm"
+    ],
+    [
+     "Qidi/Qidi X-Plus 3",
+     "Qidi X-Plus 3",
+     "280 × 280 × 270 mm"
+    ],
+    [
+     "Qidi/Qidi X-Plus 4",
+     "Qidi X-Plus 4",
+     "305 × 305 × 280 mm"
+    ],
+    [
+     "Qidi/Qidi X-Smart 3",
+     "Qidi X-Smart 3",
+     "175 × 180 × 170 mm"
+    ],
+    [
+     "Vivedino/Troodon 2.0 - Klipper",
+     "Vivedino Troodon 2.0 - Klipper",
+     "350 × 350 × 330 mm"
+    ],
+    [
+     "Vivedino/Troodon 2.0 - RRF",
+     "Vivedino Troodon 2.0 - RRF",
+     "350 × 350 × 330 mm"
+    ],
+    [
+     "Ginger Additive/Ginger G1",
+     "Ginger Additive Ginger G1",
+     "1000 × 1000 × 1000 mm"
+    ]
+   ],
+   "network": []
+  }
+ },
+ "printer_identify": {
+  "BBL/Bambu Lab A1 mini": {
+   "alreadyYours": false,
+   "assumed": {
+    "filament": "Bambu PLA Basic @BBL A1M",
+    "nozzle": 0.4,
+    "plate": "Textured PEI Plate"
+   },
+   "brand": "Bambu Lab",
+   "buildVolume": "180 × 180 × 180 mm",
+   "catalogId": "BBL/Bambu Lab A1 mini",
+   "model": "A1 mini",
+   "nozzles": [
+    0.2,
+    0.4,
+    0.6,
+    0.8
+   ]
+  },
+  "Prusa/Prusa MK4": {
+   "alreadyYours": false,
+   "assumed": {
+    "filament": "Prusa Generic PLA @MK4",
+    "nozzle": 0.4,
+    "plate": null
+   },
+   "brand": "Prusa",
+   "buildVolume": "250 × 210 × 220 mm",
+   "catalogId": "Prusa/Prusa MK4",
+   "model": "MK4",
+   "nozzles": [
+    0.25,
+    0.4,
+    0.6,
+    0.8
+   ]
+  },
+  "Prusa/Prusa MK4S": {
+   "alreadyYours": false,
+   "assumed": {
+    "filament": "Prusa Generic PLA @MK4S",
+    "nozzle": 0.4,
+    "plate": null
+   },
+   "brand": "Prusa",
+   "buildVolume": "250 × 210 × 220 mm",
+   "catalogId": "Prusa/Prusa MK4S",
+   "model": "MK4S",
+   "nozzles": [
+    0.25,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.8
+   ]
+  },
+  "Prusa/Prusa MK4S HF": {
+   "alreadyYours": false,
+   "assumed": {
+    "filament": "Prusa Generic PLA @MK4S HF0.4",
+    "nozzle": 0.4,
+    "plate": null
+   },
+   "brand": "Prusa",
+   "buildVolume": "250 × 210 × 220 mm",
+   "catalogId": "Prusa/Prusa MK4S HF",
+   "model": "MK4S HF",
+   "nozzles": [
+    0.4,
+    0.5,
+    0.6,
+    0.8
+   ]
+  }
+ },
+ "printer_add": {
+  "BBL/Bambu Lab A1 mini": {
+   "printer": {
+    "connected": false,
+    "model": "Bambu Lab A1 mini",
+    "name": "Bambu Lab A1 mini",
+    "nozzle": 0.4,
+    "nozzles": [
+     0.2,
+     0.4,
+     0.6,
+     0.8
+    ],
+    "spools": [
+     {
+      "colour": "#26A69A",
+      "material": "Bambu PLA Basic @BBL A1M",
+      "name": "Teal PLA"
+     }
+    ]
+   }
+  },
+  "Prusa/Prusa MK4S": {
+   "printer": {
+    "connected": false,
+    "model": "Prusa MK4S",
+    "name": "Prusa MK4S",
+    "nozzle": 0.4,
+    "nozzles": [
+     0.25,
+     0.3,
+     0.4,
+     0.5,
+     0.6,
+     0.8
+    ],
+    "spools": [
+     {
+      "colour": "#26A69A",
+      "material": "Prusa Generic PLA @MK4S",
+      "name": "Teal PLA"
+     }
+    ]
+   }
+  }
+ }
+}

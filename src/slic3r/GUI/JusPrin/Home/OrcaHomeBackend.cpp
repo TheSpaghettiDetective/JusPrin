@@ -113,9 +113,10 @@ void describe_device(MachineObject& machine, PrinterEntry& printer)
         printer.status_text = std::string(status.ToUTF8());
     }
     const bool configured = PrinterSetup::has_verified_printer_connection(machine.get_dev_id());
-    printer.connection_text = std::string((connected ? _L("Connected") :
-        !configured ? _L("Not connected") : _L("Status unknown")).ToUTF8());
-    printer.connection_action = connected ? "settings" : configured ? "reconnect" : "connect";
+    // A printer never connected says nothing about it: connecting is in its
+    // menu. One that was connected says whether it still is.
+    printer.connection_text   = connected || configured ? std::string((connected ? _L("Connected") : _L("Can't reach it")).ToUTF8()) : std::string();
+    printer.connection_action = !connected && configured ? "reconnect" : "";
     if (const DevExtderSystem* extruders = machine.GetExtderSystem()) {
         const float diameter = extruders->GetNozzleDiameter(0);
         if (diameter > 0.f)
@@ -218,12 +219,12 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_rename        = true;
         printer.can_remove        = true;
         const bool verified_before = PrinterSetup::has_verified_printer_connection(named.device_id);
-        printer.connection_text = utf8(verified_before ? _L("Status unknown") : _L("Not connected"));
-        printer.connection_action = verified_before ? "reconnect" : "connect";
+        printer.connection_text   = verified_before ? utf8(_L("Can't reach it")) : std::string();
+        printer.connection_action = verified_before ? "reconnect" : "";
         if (const auto* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false, true))
             if (!preset->config.opt_string("print_host").empty()) {
-                printer.connection_text = utf8(_L("File sending configured"));
-                printer.connection_action = "settings";
+                printer.connection_text   = utf8(_L("Sends files over Wi-Fi"));
+                printer.connection_action = "";
             }
         if (named.nozzle > 0.)
             printer.nozzle_text = nozzle_text(named.nozzle);

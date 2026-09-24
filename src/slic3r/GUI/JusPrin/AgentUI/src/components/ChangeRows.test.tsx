@@ -37,6 +37,7 @@ function thread(changes: ChangeInfo[], extra: { builds?: BuildInfo[]; activities
       onRetry={noop}
       onToolDecision={noop}
       onToolCancel={noop}
+      onSend={noop}
     />,
   );
 }

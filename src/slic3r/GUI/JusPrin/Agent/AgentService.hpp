@@ -33,8 +33,15 @@ struct AgentAttachmentContext
 
 struct AgentConversationContext
 {
-    std::string role; // user|assistant
+    std::string role; // user|assistant|developer; empty for a tool exchange
     std::string text;
+    // A tool the model called in an earlier turn and what it got back, kept
+    // as one entry so the call is never sent without its output. Set when
+    // call_id is; role and text are then empty.
+    std::string call_id;
+    std::string tool;
+    std::string arguments_json;
+    std::string output_json;
 };
 
 // What one conversation is for. The project conversation leaves this at its
@@ -50,6 +57,11 @@ struct AgentSessionProfile
     // where the workspace is sent: there a note restates project state the
     // snapshot already carries, and a stale one would contradict it.
     bool                     notes_in_context{false};
+    // A message the person sends while a card waits for their decision is
+    // their answer instead: the card is rejected, then the message answered.
+    // For a conversation whose only card collects a credential, where
+    // "where do I find the code?" must not wait behind that card.
+    bool                     reply_cancels_pending_card{false};
 };
 
 struct AgentRequest

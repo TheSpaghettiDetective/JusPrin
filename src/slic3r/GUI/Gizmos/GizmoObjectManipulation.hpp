@@ -147,7 +147,6 @@ public:
 
     // JusPrin: the resets the input windows perform, so a panel drawn in their
     // place runs this code rather than a copy of it.
-    void reset_position() { reset_position_value(); }
     void reset_rotation(bool to_value_when_tool_opened) { reset_rotation_value(to_value_when_tool_opened); }
     void reset_scale() { reset_scale_value(); }
 

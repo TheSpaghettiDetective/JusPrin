@@ -140,7 +140,7 @@ export function PrinterMenu({
             {named && actions.onConnect && <button type="button" role="menuitem" onClick={() => {
               setOpen(false);
               actions.onConnect?.(printer.id);
-            }}>Connection settings…</button>}
+            }}>Connect…</button>}
             <button
               type="button"
               role="menuitem"

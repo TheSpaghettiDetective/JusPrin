@@ -323,6 +323,14 @@ TEST_CASE("printer setup has a readable conversation width", "[brand]")
         {{"contentWidth", 720}}, "component.printerSetup");
 }
 
+// The replies the printer assistant offers under its message: a pill (the
+// radius scale's own pill) this tall, text inset this far from its ends.
+TEST_CASE("the reply chip geometry is explicit", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("replyChip"),
+        {{"height", 28}, {"paddingX", 12}}, "component.replyChip");
+}
+
 TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();

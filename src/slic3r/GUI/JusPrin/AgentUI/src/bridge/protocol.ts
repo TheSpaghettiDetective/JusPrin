@@ -373,13 +373,10 @@ export interface PhysicalPrintInfo {
 }
 
 // -- The printer panel ------------------------------------------------------
-// One session of the printer panel on Home: the facts it pins above the
-// thread, the cards drawn inside the thread, and what can be tapped. The app
-// sends facts only; every word the panel shows is made on the page
-// (printerWords.ts). Absent on hosts without the printer_panel capability,
-// and on every host that is showing the project's own conversation.
-
-export type FactProvenance = 'settled' | 'assumed' | 'changed';
+// One session of the printer panel on Home: the picture cards the thread
+// draws, and the facts the model's instructions state. Every word the panel
+// shows is made on the page. Absent on every host that is showing the
+// project's own conversation.
 
 export interface PrinterSpoolInfo {
   name: string;
@@ -387,88 +384,51 @@ export interface PrinterSpoolInfo {
   colour?: string; // "#RRGGBB"
 }
 
-// The four facts a printer is. An empty name or a size of 0 is a fact nobody
-// has stated yet.
-export interface PrinterFacts {
-  printer: { name: string; provenance: FactProvenance };
-  nozzle: { size: number; provenance: FactProvenance };
-  plate: { name: string; provenance: FactProvenance };
-  // What is loaded, when the printer reported it or the app remembers it;
-  // otherwise the filament profile the card assumes.
-  filament: { preset: string; ams: string; spools: PrinterSpoolInfo[]; provenance: FactProvenance };
-}
-
 export interface PrinterCardInfo {
   catalogId: string;
-  deviceId: string;
   name: string; // brand and model
   buildVolume: string; // "180 × 180 × 180 mm"
   picture: string; // data URL, empty when the profile ships no picture
-  action: 'add' | 'choose';
-  // What this printer's card sets up if added; empty where its profile names
-  // none.
-  assumed: { nozzle: number; plate: string; filament: string };
-  // A printer found on the network: what it reported.
-  device?: { nozzle: number; ams: string; spools: PrinterSpoolInfo[]; reported: boolean };
 }
 
 export interface NetworkPrinterInfo {
-  deviceId: string;
   name: string;
   serial: string;
   online: boolean;
-  // The model in the list the printer reports being, when there is one.
-  match?: { name: string; nozzle: number; reported: boolean };
 }
 
 // A card in the thread, anchored after the message it belongs to, in the same
-// way tool activity and history entries are.
+// way tool activity and history entries are. None has anything to tap.
 export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
-  // undo: the last change to this printer, with the button that reverses it
-  kind: 'tip' | 'network' | 'printers' | 'undo';
+  kind: 'tip' | 'network' | 'printers' | 'added';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
-  collapsed?: boolean; // a newer answer, or "Not this one", replaced it
-  // undo: what the change was
-  changed?: {
-    nozzle?: { before: number; after: number };
-    spools?: { before: PrinterSpoolInfo[]; after: PrinterSpoolInfo[] };
-  };
+  // 'added': the printer printer_add just saved, as it was saved.
+  printer?: AddedPrinterInfo;
 }
 
-// What a printer_change card states, added to the call's arguments by the
-// host before the card is shown: the printer, and what it has now.
-export interface PrinterChangeConfirm {
-  printer: string;
-  before: { nozzle?: number; spools?: PrinterSpoolInfo[] };
+export interface AddedPrinterInfo {
+  name: string;
+  nozzle: number; // mm
 }
 
 export interface PrinterSessionPayload {
   mode: 'add' | 'change' | 'connect';
-  facts: PrinterFacts;
+  // The printer the conversation is about; empty until one is added.
+  printerName: string;
   blocks: PrinterBlock[];
-  // A printer is on its card, ready to add or to refuse.
-  canAdd: boolean;
-  added?: { name: string; model: string; connected?: boolean }[];
-  manualApplied?: boolean;
-  connection?: PrinterConnectionInfo | null;
   // The facts the model's instructions state (printerInstructions.ts).
-  context?: PrinterContext;
+  context: PrinterContext;
+  // How each approved printer_connect card's attempt stands, by action id.
+  connections?: Record<string, PrinterConnectionInfo>;
 }
 
 export interface PrinterConnectionInfo {
-  name: string;
-  provider: string;
-  state: 'not_configured' | 'connecting' | 'verified' | 'failed' | 'unavailable' | 'unknown';
-  message: string;
-  deviceId: string;
-  candidates: { id: string; name: string; address: string; lanMode?: boolean }[];
-  address?: string;
-  hostType?: string;
-  signedIn?: boolean;
-  nozzleMismatch?: boolean;
+  state: 'connecting' | 'verified' | 'failed' | 'cancelled';
+  // What the card connects to: the address, or the printer's network name.
+  target: string;
 }
 
 export interface PrinterContext {
@@ -476,7 +436,7 @@ export interface PrinterContext {
   // build volume], and what is on the network now.
   printers?: [string, string, string][];
   network?: { name: string; serial: string }[];
-  // Change: the printer as it is now.
+  // The printer the conversation is about, as it is now.
   printer?: {
     name: string;
     model: string;
@@ -484,6 +444,7 @@ export interface PrinterContext {
     nozzles: number[];
     spools: PrinterSpoolInfo[];
     connected: boolean;
+    provider: 'bambu' | 'host';
   };
 }
 

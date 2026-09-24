@@ -944,6 +944,16 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump(), envelope_id);
 
     cancel_conversation_title();
+    if (m_session_profile.reply_cancels_pending_card) {
+        std::vector<std::string> waiting;
+        for (const ToolActivity& activity : m_tools.activities())
+            if (activity.state == ToolState::Pending && activity.requires_approval)
+                waiting.push_back(activity.action_id);
+        // Each rejection hands its result to the model and starts that
+        // follow-up, so the message below queues behind it.
+        for (const std::string& action_id : waiting)
+            m_tools.reject(action_id);
+    }
     if (agent_busy()) {
         // The page disables sending while a reply streams; if a message
         // arrives anyway, answer it after the current stream finishes.
@@ -1179,6 +1189,10 @@ void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::
         return;
     }
 
+    // Kept until the action runs, on a later tick, and its executor takes it;
+    // an action that ends without taking it drops it in continue_after_tool.
+    if (decision == "approve" && payload.contains("input") && m_tools.find(action_id)->state == ToolState::Pending)
+        m_decision_inputs[action_id] = payload["input"];
     const bool changed = decision == "approve" ? m_tools.approve(action_id) : m_tools.reject(action_id);
     if (!changed) {
         // A resent decision after a reload or reconnect: acknowledge with the
@@ -1186,6 +1200,16 @@ void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::
         if (const ToolActivity* activity = m_tools.find(action_id))
             send_tool_activity(*activity, envelope_id);
     }
+}
+
+std::optional<json> AgentHost::take_decision_input(const std::string& action_id)
+{
+    const auto found = m_decision_inputs.find(action_id);
+    if (found == m_decision_inputs.end())
+        return std::nullopt;
+    json input = std::move(found->second);
+    m_decision_inputs.erase(found);
+    return input;
 }
 
 void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json)
@@ -1624,8 +1648,16 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     // The provider gets bounded semantic history. The current user message is
     // supplied separately with its attachments, and the streaming placeholder
     // is native-only state, so neither is duplicated here.
+    // The calls each earlier assistant message made, with their results, so
+    // a later turn can use what an earlier one found (the id of a printer on
+    // the network) instead of inventing it. The document lists them in the
+    // order made.
+    std::map<std::string, std::vector<ToolActivity>> calls_by_message;
+    for (ToolActivity& activity : document.activities())
+        if (!activity.call_id.empty())
+            calls_by_message[activity.correlation_id].push_back(std::move(activity));
     for (const ConversationMessage& message : document.messages(conversation_id)) {
-        if (message.id == assistant.id || message.id == assistant.in_reply_to || message.text.empty())
+        if (message.id == assistant.id || message.id == assistant.in_reply_to)
             continue;
         // In the project's conversation notes stay out of the model's
         // context. They restate a setup change the workspace snapshot already
@@ -1635,11 +1667,37 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
         // record of what the person did: they go in, as the app's own words.
         if (message.role == MessageRole::Note && !m_session_profile.notes_in_context)
             continue;
-        AgentConversationContext entry;
-        entry.role = message.role == MessageRole::Note ? "developer" : role_name(message.role);
-        entry.text = message.text;
-        request.conversation.emplace_back(std::move(entry));
+        if (!message.text.empty()) {
+            AgentConversationContext entry;
+            entry.role = message.role == MessageRole::Note ? "developer" : role_name(message.role);
+            entry.text = message.text;
+            request.conversation.emplace_back(std::move(entry));
+        }
+        // A call follows the assistant message that made it, whose words (often
+        // none) came before the call; the reply to its result is the next
+        // message. Each call carries its result, so none is sent unanswered.
+        const auto calls = calls_by_message.find(message.id);
+        if (calls == calls_by_message.end())
+            continue;
+        for (const ToolActivity& activity : calls->second) {
+            AgentConversationContext entry;
+            entry.call_id        = activity.call_id;
+            entry.tool           = activity.tool;
+            entry.arguments_json = activity.arguments_json;
+            entry.output_json    = tool_output_json(activity).dump();
+            // A large result (a settings search, a slice report) is not worth
+            // its space on every later turn: the model keeps the outcome and
+            // may ask for the details again.
+            constexpr std::size_t kReplayedResultCap = 16 * 1024;
+            if (entry.output_json.size() > kReplayedResultCap)
+                entry.output_json = json{{"state", tool_state_name(activity.state)},
+                                         {"omitted", "The result, " + std::to_string(entry.output_json.size()) +
+                                                         " bytes, is not repeated here; call the tool again for it."}}
+                                        .dump();
+            request.conversation.emplace_back(std::move(entry));
+        }
     }
+    // Entries: a replayed call counts as one, like a message.
     constexpr std::size_t kHistoryMessages = 20;
     if (request.conversation.size() > kHistoryMessages)
         request.conversation.erase(request.conversation.begin(), request.conversation.end() - kHistoryMessages);
@@ -1727,7 +1785,7 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
 
     const ToolActivity& proposed =
         m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks}, ToolSource::Agent,
-                        stream.conversation_id);
+                        stream.conversation_id, call.call_id);
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);
@@ -1818,25 +1876,11 @@ std::set<std::string> AgentHost::agent_authored_keys(const Workspace::WorkspaceS
     return keys;
 }
 
-void AgentHost::continue_after_tool(const ToolActivity& activity)
+// What the model reads for a call's outcome: the host's envelope, or the
+// session's own words for its tools.
+json AgentHost::tool_output_json(const ToolActivity& activity) const
 {
-    const auto found = m_tool_continuations.find(activity.action_id);
-    if (found == m_tool_continuations.end())
-        return;
-
-    PendingToolContinuation continuation = found->second;
-    m_tool_continuations.erase(found);
-
-    const bool queued = activity.state == ToolState::Pending;
-    json output{{"state", queued ? "queued" : tool_state_name(activity.state)}};
-    // A session about something other than the project is never told about
-    // the project, in its tool results any more than in its turns.
-    if (m_session_profile.include_workspace) {
-        const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
-        output["actionId"]          = activity.action_id;
-        output["workspaceRevision"] = current_workspace.revision;
-        output["workspace"]         = context_json(current_workspace, agent_authored_keys(current_workspace));
-    }
+    json output{{"state", tool_state_name(activity.state)}};
     if (!activity.result_json.empty())
         output["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
@@ -1845,6 +1889,31 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     if (m_session_tool_output)
         if (std::optional<json> own = m_session_tool_output(activity))
             output = std::move(*own);
+    return output;
+}
+
+void AgentHost::continue_after_tool(const ToolActivity& activity)
+{
+    m_decision_inputs.erase(activity.action_id);
+    const auto found = m_tool_continuations.find(activity.action_id);
+    if (found == m_tool_continuations.end())
+        return;
+
+    PendingToolContinuation continuation = found->second;
+    m_tool_continuations.erase(found);
+
+    const bool queued = activity.state == ToolState::Pending;
+    json       output = tool_output_json(activity);
+    if (queued)
+        output["state"] = "queued";
+    // A session about something other than the project is never told about
+    // the project, in its tool results any more than in its turns.
+    if (m_session_profile.include_workspace) {
+        const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
+        output["actionId"]          = activity.action_id;
+        output["workspaceRevision"] = current_workspace.revision;
+        output["workspace"]         = context_json(current_workspace, agent_authored_keys(current_workspace));
+    }
     if (queued) {
         output["planId"]  = activity.plan_id;
         output["message"] = "Queued in plan " + activity.plan_id +

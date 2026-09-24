@@ -10,6 +10,7 @@
 
 #include "PrinterSetupTypes.hpp"
 
+#include <chrono>
 #include <optional>
 #include <string>
 #include <vector>
@@ -98,6 +99,10 @@ struct ConnectionCandidate
     bool lan_mode{false};
 };
 
+// How long a connection attempt waits for the printer before it is reported
+// as failed. The model is told the same number when an attempt starts.
+inline constexpr std::chrono::seconds kConnectionWait{30};
+
 struct PrinterConnectionInfo
 {
     std::string provider{"unavailable"};
@@ -140,6 +145,10 @@ public:
 
     // Connection is a separate operation against an existing saved printer.
     // Credentials are input-only and never part of a snapshot or conversation.
+    // connect_printer and connect_host start an attempt and return at once;
+    // connection() reports it as connecting until it settles, and a new
+    // attempt replaces one still waiting. connect_host saves the address only
+    // once the printer has answered.
     virtual PrinterConnectionInfo connection(const std::string& name) { return {}; }
     virtual void prepare_connection(const std::string& name) {}
     virtual void sign_in_to_bambu() {}
@@ -147,6 +156,9 @@ public:
                                        const std::string& access_code) { return "Connection is unavailable."; }
     virtual std::string connect_host(const std::string& name, const std::string& host_type,
                                     const std::string& address, const std::string& api_key) { return "Connection is unavailable."; }
+    // Abandons this printer's attempt if it is still waiting: whatever the
+    // printer answers afterwards is dropped.
+    virtual void cancel_connection(const std::string& name) {}
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

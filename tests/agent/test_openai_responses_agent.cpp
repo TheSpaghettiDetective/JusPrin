@@ -2,8 +2,12 @@
 
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <cstdlib>
+#include <fstream>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
@@ -111,6 +115,57 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
     CHECK(serialized.find("do not scale") != std::string::npos);
+}
+
+TEST_CASE("OpenAI request replays an earlier turn's call beside its output, with no item id", "[agent][openai]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
+
+    AgentRequest request = request_fixture();
+    AgentConversationContext call;
+    call.call_id        = "call_7";
+    call.tool           = "printer_connection_status";
+    call.arguments_json = "{}";
+    call.output_json    = R"({"candidates":[{"deviceId":"01P00A3B"}],"state":"succeeded"})";
+    request.conversation = {{"user", "is it online?"}, call, {"assistant", "Yes, Workshop is."}};
+    REQUIRE(agent.start(request));
+    REQUIRE(fake->requests.size() == 1);
+
+    const json input = json::parse(fake->requests.front().body).at("input");
+    REQUIRE(input.size() == 5);
+    CHECK(input[0] == json{{"role", "user"}, {"content", "is it online?"}});
+    // Exactly these fields: the service's item id would name nothing it kept.
+    CHECK(input[1] == json{{"type", "function_call"}, {"call_id", "call_7"}, {"name", "printer_connection_status"}, {"arguments", "{}"}});
+    CHECK(input[2] == json{{"type", "function_call_output"}, {"call_id", "call_7"}, {"output", call.output_json}});
+    CHECK(input[3] == json{{"role", "assistant"}, {"content", "Yes, Workshop is."}});
+    CHECK(input[4].at("role") == "user");
+}
+
+// tests/printer_prompt/run_prompt_tests.py sends the model the printer panel's
+// tools from this file, without the app: it must be what the app sends.
+// JUSPRIN_UPDATE_PRINTER_TOOLS=1 rewrites it from the registry.
+TEST_CASE("the printer prompt tests send the printer panel's tools as the app does", "[agent][openai][printer]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
+    AgentRequest request;
+    request.request_id                = "printer-1";
+    request.user_text                 = "Yes, it is";
+    request.session.tool_names        = Slic3r::GUI::JusPrin::PrinterSetup::PrinterConversation::session_tools();
+    request.session.include_workspace = false;
+    REQUIRE(agent.start(request));
+    const json sent = json::parse(fake->requests.front().body)["tools"];
+
+    const std::string path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/printer_prompt/printer_tools.json";
+    if (const char* update = std::getenv("JUSPRIN_UPDATE_PRINTER_TOOLS"); update != nullptr && std::string(update) == "1")
+        std::ofstream(path) << sent.dump(2) << '\n';
+    std::ifstream file(path);
+    REQUIRE(file.good());
+    INFO("tests/printer_prompt/printer_tools.json is out of date: run this test with JUSPRIN_UPDATE_PRINTER_TOOLS=1");
+    CHECK(json::parse(file) == sent);
 }
 
 TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent][openai]")

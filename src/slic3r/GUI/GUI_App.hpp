@@ -2,7 +2,6 @@
 #define slic3r_GUI_App_hpp_
 
 #include <memory>
-#include <utility>
 #include <string>
 #include "ImGuiWrapper.hpp"
 #include "ConfigWizard.hpp"
@@ -365,9 +364,6 @@ public:
     NetworkAgent* getAgent() { return m_agent; }
 
     // Dynamic printer agent switching
-    // An explicit monitor connection may select a provider independently of slicing.
-    // Empty IDs retain the stock profile-driven selection. Runtime only.
-    std::pair<std::string, std::string> printer_agent_override;
     void switch_printer_agent();
 
     FilamentColorCodeQuery* get_filament_color_code_query();

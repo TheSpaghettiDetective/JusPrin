@@ -42,19 +42,17 @@ public:
     // this when Home becomes visible: the gallery is a view of state that
     // changes while another screen is in front. `added` leads the column
     // with a successful Add and sends its receipt, for this one refresh.
-    void refresh(const AddedPrinterEntry* added = nullptr);
+    void refresh(const std::string& added = {});
 
     HomeHost&        host() { return *m_host; }
     OrcaHomeBackend& backend() { return *m_backend; }
     wxWebView* webview() const { return m_webview; }
 
-    // Puts a panel of the shell's beside the page, at a fixed width, where
-    // the page's own printers column is. The page hides that column while the
-    // panel is shown, so the two never both claim it. The shell owns the
+    // Puts a panel of the shell's in the page's place. The shell owns the
     // panel's lifetime; passing nullptr takes it back out.
-    void attach_side_panel(wxWindow* panel, int width_dip);
-    // Add uses the whole workspace; existing-printer edits stay beside Home.
-    void show_side_panel(bool shown, bool focused = false);
+    void attach_side_panel(wxWindow* panel);
+    // The panel takes the whole workspace while it is shown.
+    void show_side_panel(bool shown);
 
 private:
     void on_script_message(wxWebViewEvent& event);
@@ -67,11 +65,9 @@ private:
     std::unique_ptr<HomeHost>         m_host;
     wxWebView*                m_webview{nullptr};
     wxStaticText*             m_error{nullptr};
-    // The page and the shell's panel side by side; the page takes the whole
-    // row while no panel is attached.
+    // The page, or the shell's panel in its place.
     wxBoxSizer*               m_row{nullptr};
     wxWindow*                 m_side_panel{nullptr};
-    int                       m_side_panel_width{0};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

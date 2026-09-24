@@ -38,6 +38,35 @@ json string_array_schema()
     return json{{"type", "array"}, {"items", string_schema()}};
 }
 
+// A saved printer as the printer tools return it.
+json printer_saved_schema()
+{
+    return object_schema(json{{"name", string_schema()},
+                              {"model", string_schema()},
+                              {"nozzle", number_schema()},
+                              {"nozzles", {{"type", "array"}, {"items", number_schema()}}},
+                              {"spools", {{"type", "array"}, {"items", printer_spool_schema()}}},
+                              {"connected", boolean_schema()}},
+                         json::array({"name", "model", "nozzle", "nozzles", "spools", "connected"}));
+}
+
+// Whether a saved printer can be reached, and how.
+json printer_connection_schema()
+{
+    return object_schema(
+        json{{"provider", {{"type", "string"}, {"enum", json::array({"bambu", "host", "unavailable"})}}},
+             {"state", string_schema()},
+             {"message", string_schema()},
+             {"candidates", {{"type", "array"},
+                             {"items", object_schema(json{{"deviceId", string_schema()}, {"name", string_schema()},
+                                                          {"address", string_schema()}},
+                                                     json::array({"deviceId", "name", "address"}))}}},
+             {"address", string_schema()},
+             {"hostType", string_schema()},
+             {"nozzleMismatch", boolean_schema()}},
+        json::array({"provider", "state", "message", "candidates", "address", "hostType", "nozzleMismatch"}));
+}
+
 bool has_only(const json& value, std::initializer_list<std::string_view> allowed)
 {
     if (!value.is_object())
@@ -566,8 +595,37 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         });
     }
 
+    // printer_change names the saved printer it changes; the connection tools
+    // act on the one the conversation is about, which the model would
+    // otherwise confuse with a printer's name on the network.
+    const auto names_printer = [&arguments] {
+        return arguments.contains("printerName") && arguments["printerName"].is_string() && optional_text(arguments, "printerName") &&
+               !arguments["printerName"].get_ref<const std::string&>().empty();
+    };
+    if (definition.handler == ToolHandler::PrinterManualSetup || definition.handler == ToolHandler::PrinterSetupFinish ||
+        definition.handler == ToolHandler::PrinterConnectionStatus || definition.handler == ToolHandler::PrinterManualConnection)
+        return arguments.empty();
+    if (definition.handler == ToolHandler::PrinterAdd)
+        return has_only(arguments, {"catalogId", "nozzle"}) && arguments.contains("catalogId") && optional_text(arguments, "catalogId") &&
+               valid_nozzle();
+    // printer_connect reaches a printer one way: a Bambu Lab printer found on
+    // the network, or a print host at the address the person gave. Anything
+    // less is refused before a card is drawn, so the model asks instead.
+    if (definition.handler == ToolHandler::PrinterConnect) {
+        if (!has_only(arguments, {"deviceId", "hostType", "address"}) || !optional_text(arguments, "deviceId") ||
+            !optional_text(arguments, "address"))
+            return false;
+        const auto given = [&arguments](const char* key) {
+            return arguments.contains(key) && !arguments[key].get_ref<const std::string&>().empty();
+        };
+        if (arguments.contains("deviceId"))
+            return arguments.size() == 1 && given("deviceId");
+        return arguments.size() == 2 && given("address") &&
+               (arguments["hostType"] == "moonraker" || arguments["hostType"] == "octoprint");
+    }
+
     if (definition.handler == ToolHandler::PrinterChange) {
-        if (!has_only(arguments, {"nozzle", "spools"}) || !valid_nozzle())
+        if (!has_only(arguments, {"printerName", "nozzle", "spools"}) || !names_printer() || !valid_nozzle())
             return false;
         if (!arguments.contains("spools"))
             return true;
@@ -1400,17 +1458,20 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Internal,
          ToolAvailability::Always,
          ToolHandler::RecordPhysicalPrint},
-        // The printer panel's own two, one per mode. They exist only inside a
-        // printer session, which is why they carry no in-app or MCP exposure:
-        // the project conversation has no printer to identify or change.
-        // Neither decides anything: the model does, and these check its
-        // decision against the printer data and carry it out.
+        // The printer panel's own tools. They exist only inside a printer
+        // session, which is why they carry no in-app or MCP exposure: the
+        // project conversation has no printer to add, change or connect.
+        // None decides anything: the model does, from what the person says,
+        // and these check its decision against the printer data and carry it
+        // out. The person's own yes in the conversation is the confirmation
+        // for all but printer_connect, whose card is where the person types
+        // a credential the model must never see.
         {"printer_identify",
          "Show the printers you mean",
-         "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them to "
-         "the person, and returns reference details. With multiple results, ask the person to click This one; Add is unavailable "
-         "and nozzle details are premature. With one result, explain the nozzle choice and Add this printer. "
-         "alreadyYours only means settings for the same model were saved before, not the same physical printer. It never picks a printer.",
+         "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them "
+         "to the person as picture cards, and returns reference details. It saves nothing: call printer_add once the person "
+         "confirms one model. alreadyYours only means settings for the same model were saved before, not the same physical "
+         "printer.",
          object_schema(json{{"catalogIds", {{"type", "array"}, {"items", string_schema()},
                                             {"description", "1 to 3 ids, copied exactly from the printer list."}}},
                             {"nozzle", {{"type", "number"},
@@ -1435,35 +1496,122 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::PrinterIdentify},
+        {"printer_add",
+         "Add this printer",
+         "Saves the printer the person confirmed, so they can prepare prints for it. Call it only after the person said yes to "
+         "this model and nozzle. It does not connect to the machine. Returns the printer as saved; its name is what the other "
+         "printer tools take.",
+         object_schema(json{{"catalogId", {{"type", "string"}, {"description", "Copied exactly from the printer list."}}},
+                            {"nozzle", {{"type", "number"},
+                                        {"description", "Nozzle size in mm, only when the person or a photo said it."}}}},
+                       json::array({"catalogId"})),
+         object_schema(json{{"printer", printer_saved_schema()}}, json::array({"printer"})),
+         ActionClass::Mutation,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterAdd,
+         false,
+         true},
         {"printer_change",
          "Change this printer",
-         "You work out what changed on this printer from what the person says. This tool checks it against what this printer's "
-         "profile allows, asks the person to confirm, saves it, and returns the printer as it now is. It never decides what changed.",
-         object_schema(json{{"nozzle", {{"type", "number"}, {"description", "The nozzle size now on it, in mm."}}},
+         "Saves what physically changed on a saved printer, after the person confirmed it. Change only what they said changed. "
+         "Returns what changed and the printer as it now is.",
+         object_schema(json{{"printerName", string_schema()},
+                            {"nozzle", {{"type", "number"}, {"description", "The nozzle size now on it, in mm."}}},
                             {"spools", {{"type", "array"}, {"maxItems", 16},
                                         {"description", "The complete list of spools loaded now; it replaces the whole list."},
                                         {"items", object_schema(json{{"name", {{"type", "string"}, {"maxLength", 64}}},
                                                                      {"material", {{"type", "string"}, {"maxLength", 32}}},
                                                                      {"colour", {{"type", "string"}, {"maxLength", 9}}}},
-                                                                json::array({"name", "material"}))}}}}),
-         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"applied", "declined"})}}},
-                            {"changed", {{"type", "array"},
+                                                                json::array({"name", "material"}))}}}},
+                       json::array({"printerName"})),
+         object_schema(json{{"changed", {{"type", "array"},
                                          {"items", object_schema(json{{"field", {{"type", "string"}, {"enum", json::array({"nozzle", "spools"})}}},
                                                                       {"before", {{"type", json::array({"number", "array"})}, {"items", printer_spool_schema()}}},
                                                                       {"after", {{"type", json::array({"number", "array"})}, {"items", printer_spool_schema()}}}},
                                                                  json::array({"field", "before", "after"}))}}},
-                            {"printer", object_schema(json{{"name", string_schema()},
-                                                           {"nozzle", number_schema()},
-                                                           {"nozzles", {{"type", "array"}, {"items", number_schema()}}},
-                                                           {"spools", {{"type", "array"}, {"items", printer_spool_schema()}}},
-                                                           {"connected", boolean_schema()}},
-                                                      json::array({"name", "nozzle", "nozzles", "spools", "connected"}))}},
-                       json::array({"state", "changed", "printer"})),
+                            {"printer", printer_saved_schema()}},
+                       json::array({"changed", "printer"})),
          ActionClass::Mutation,
          ToolExposure::Printer,
          ToolAvailability::Always,
-         ToolHandler::PrinterChange},
+         ToolHandler::PrinterChange,
+         false,
+         true},
+        {"printer_connection_status",
+         "Check a printer's connection",
+         "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it "
+         "also lists the printers of that model in LAN mode on the network now, and starts looking for them if it was not "
+         "already.",
+         object_schema(json::object()),
+         printer_connection_schema(),
+         ActionClass::ReadOnly,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterConnectionStatus},
+        {"printer_connect",
+         "Connect this printer",
+         "Connects the printer this conversation is about. It shows the person a card where they type the access code or API "
+         "key themselves, never in chat, and runs when they tap Connect. For a Bambu Lab printer pass only the deviceId from "
+         "printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and "
+         "until they give one, ask for it instead of calling this. connecting means the app is still waiting for the "
+         "printer and will report the outcome in a note.",
+         object_schema(json{{"deviceId", {{"type", "string"}, {"description", "Bambu Lab only, alone: from printer_connection_status."}}},
+                            {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})},
+                                          {"description", "Moonraker or OctoPrint only, together with address."}}},
+                            {"address", {{"type", "string"}, {"maxLength", 256},
+                                         {"description", "The address the person gave, as they open the printer in a browser."}}}}),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"connecting", "verified", "failed"})}}},
+                            {"message", string_schema()}},
+                       json::array({"state", "message"})),
+         ActionClass::Mutation,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterConnect},
+        {"printer_manual_setup",
+         "Browse the full printer list",
+         "Opens OrcaSlicer's own list of every printer, where the person picks and sets one up themselves. Use it when the "
+         "person asks for the full list, or when no model or more than three fit. Returns the printers they added there, "
+         "possibly none.",
+         object_schema(json::object()),
+         object_schema(json{{"applied", boolean_schema()}, {"added", string_array_schema()}}, json::array({"applied", "added"})),
+         ActionClass::Mutation,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterManualSetup,
+         false,
+         true},
+        {"printer_manual_connection",
+         "Open printer settings",
+         "Opens OrcaSlicer's printer settings for the printer this conversation is about, in a window beside this one, where "
+         "the person enters connection details themselves. Ask them to say when they are done, then check with "
+         "printer_connection_status.",
+         object_schema(json::object()),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"opened"})}}}}, json::array({"state"})),
+         ActionClass::Mutation,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterManualConnection,
+         false,
+         true},
+        {"printer_setup_finish",
+         "Close printer setup",
+         "Closes this panel and returns the person to Home. Call it when the person says they are done.",
+         object_schema(json::object()),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"closed"})}}}}, json::array({"state"})),
+         ActionClass::Mutation,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterSetupFinish,
+         false,
+         true},
     };
+    // A conversation is the confirmation only where the conversation is about
+    // the one machine the tool changes; anywhere else a card still decides.
+    for (const ToolDefinition& definition : definitions)
+        if (definition.confirmed_in_conversation &&
+            (!has_exposure(definition.exposure, ToolExposure::Printer) || definition.action_class == ActionClass::Destructive))
+            throw std::logic_error("Only a printer panel mutation may be confirmed in conversation: " + definition.name);
     // Every change can join a plan; the decoders never see the field.
     // plan_set records the agent's own words and is not a change to group.
     for (ToolDefinition& definition : definitions)
@@ -1610,6 +1758,9 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                 message += " " + outside + ".";
             if (definition.handler == ToolHandler::ProjectOpen && arguments.contains("path") == arguments.contains("new"))
                 message += " Give exactly one of path and new.";
+            if (definition.handler == ToolHandler::PrinterConnect)
+                message += " Give deviceId alone, or hostType with the address the person gave. Without an address, ask the "
+                           "person for the one they open the printer with in a browser, and call this once they give it.";
         }
         return {{}, ToolError{"invalid_arguments", message}};
     }
@@ -1638,7 +1789,7 @@ bool ToolRegistry::requires_approval(const ToolDefinition& definition, const std
         if (!arguments.is_discarded() && arguments.value("preempt", false))
             computation_only = false;
     }
-    return approval_required(definition.action_class, computation_only);
+    return approval_required(definition.action_class, computation_only, definition.confirmed_in_conversation);
 }
 
 std::string ToolRegistry::approval_title(const ToolDefinition& definition, const std::string& arguments_json) const

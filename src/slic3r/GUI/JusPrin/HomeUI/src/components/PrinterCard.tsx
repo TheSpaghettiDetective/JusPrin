@@ -48,8 +48,8 @@ export function PrinterCard({
           <button type="button" className="button-secondary launch-monitor" onClick={() => onLaunchMonitor(printer.id)}>
             <MonitorGlyph />Launch monitor
           </button>
-        ) : printer.kind === 'named' && actions.onConnect && (
-          <button type="button" className="button-secondary launch-monitor" onClick={() => actions.onConnect?.(printer.id)}>{printer.connectionAction === 'settings' ? 'Connection settings' : printer.connectionAction === 'reconnect' ? 'Reconnect' : 'Connect printer'}</button>
+        ) : printer.connectionAction === 'reconnect' && actions.onConnect && (
+          <button type="button" className="button-secondary launch-monitor" onClick={() => actions.onConnect?.(printer.id)}>Reconnect</button>
         )}
       </div>
     );

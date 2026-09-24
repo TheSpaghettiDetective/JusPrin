@@ -158,20 +158,17 @@ void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
     Show();
 }
 
-void PrinterPanel::close(const PinnedFacts* added)
+void PrinterPanel::close()
 {
     Hide();
-    // Copied now: tear_down_runtime destroys the conversation that owns the
-    // facts `added` points at, and that runs before the deferred callback
-    // below reads them.
-    const std::optional<PinnedFacts> pending = added != nullptr ? std::optional<PinnedFacts>(*added) : std::nullopt;
-    // The runtime is destroyed from the page's own message handler, so it
-    // cannot be torn down inside a call its own host is still on the stack
-    // for -- the trap the add-printer dialog documented.
-    CallAfter([this, pending] {
+    // The runtime is closed from the page's own message handler or from a
+    // tool its host is running, so it cannot be torn down inside a call its
+    // own host is still on the stack for -- the trap the add-printer dialog
+    // documented.
+    CallAfter([this] {
         tear_down_runtime();
         if (m_callbacks.closed)
-            m_callbacks.closed(pending ? &*pending : nullptr);
+            m_callbacks.closed();
     });
 }
 
@@ -192,6 +189,7 @@ void PrinterPanel::on_pump(wxTimerEvent&)
     host.pump_stream();
     host.pump_tools();
     host.pump_setup();
+    m_conversation->tick(std::chrono::steady_clock::now());
 }
 
 // -- What the conversation asks of its panel ---------------------------------
@@ -228,12 +226,20 @@ void PrinterPanel::profile_changed()
         m_web_view->host().set_session_profile(m_conversation->profile());
 }
 
-void PrinterPanel::close_panel(const PinnedFacts* added) { close(added); }
+void PrinterPanel::close_panel() { close(); }
 
-void PrinterPanel::printers_changed(const PinnedFacts* added)
+void PrinterPanel::printers_changed(const std::string& added)
 {
     if (m_callbacks.printers_changed)
         m_callbacks.printers_changed(added);
+}
+
+std::optional<std::string> PrinterPanel::take_credential(const std::string& action_id)
+{
+    const std::optional<nlohmann::json> input = m_web_view ? m_web_view->host().take_decision_input(action_id) : std::nullopt;
+    if (!input)
+        return std::nullopt;
+    return input->value("credential", std::string());
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

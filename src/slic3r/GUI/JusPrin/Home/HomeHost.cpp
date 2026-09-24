@@ -41,34 +41,23 @@ Snapshot HomeHost::collect() const
     snapshot.dark     = m_backend.dark();
     snapshot.projects = m_backend.recent_projects();
     snapshot.printers = m_backend.printers();
-    snapshot.printer_panel_open = m_printer_panel_open;
     return snapshot;
 }
 
-void HomeHost::push_state(const AddedPrinterEntry* added)
+void HomeHost::push_state(const std::string& added)
 {
     if (!m_connected)
         return;
     Snapshot snapshot = collect();
-    if (added != nullptr) {
-        // Lead the column with it rather than wherever the backend's own
-        // (alphabetical, not chronological) order puts it.
-        const auto match = std::find_if(snapshot.printers.begin(), snapshot.printers.end(),
-                                        [added](const PrinterEntry& printer) { return printer.name == added->name; });
-        if (match != snapshot.printers.end())
-            std::rotate(snapshot.printers.begin(), match, match + 1);
+    // Lead the column with it rather than wherever the backend's own
+    // (alphabetical, not chronological) order puts it.
+    const auto match = std::find_if(snapshot.printers.begin(), snapshot.printers.end(),
+                                    [&added](const PrinterEntry& printer) { return !added.empty() && printer.name == added; });
+    if (match != snapshot.printers.end()) {
+        std::rotate(snapshot.printers.begin(), match, match + 1);
+        snapshot.highlight_printer = added;
     }
     send("state", state_payload(snapshot));
-    if (added != nullptr)
-        send("printer_added", added_printer_payload(*added));
-}
-
-void HomeHost::set_printer_panel_open(bool open)
-{
-    m_printer_panel_open = open;
-    if (!m_connected)
-        return;
-    send("printer_panel", json{{"open", open}});
 }
 
 void HomeHost::push_appearance(bool dark)

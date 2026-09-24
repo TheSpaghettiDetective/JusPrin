@@ -332,7 +332,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 
 const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
                                                       ToolExecutionPacing pacing, ToolSource source,
-                                                      const std::string& plan_scope)
+                                                      const std::string& plan_scope, const std::string& call_id)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -340,6 +340,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     ToolActivity activity;
     activity.action_id         = m_action_id_allocator ? m_action_id_allocator() : "t-" + std::to_string(m_next_action_id++);
     activity.correlation_id    = correlation_id;
+    activity.call_id           = call_id;
     activity.source            = source;
     activity.server            = kServerName;
     activity.tool              = request.tool;
@@ -2024,8 +2025,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     // owned by the surface that asked for them, and both still run here,
     // inside this approval and state machine.
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
-        definition->handler == ToolHandler::RecordPhysicalPrint || definition->handler == ToolHandler::PrinterIdentify ||
-        definition->handler == ToolHandler::PrinterChange) {
+        definition->handler == ToolHandler::RecordPhysicalPrint || has_exposure(definition->exposure, ToolExposure::Printer)) {
         if (!m_extension_executor) {
             fail(activity, "execution_failed", "The registered tool executor is unavailable.");
             return;

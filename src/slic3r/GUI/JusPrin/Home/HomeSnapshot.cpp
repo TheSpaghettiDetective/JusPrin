@@ -76,7 +76,7 @@ json printer_json(const PrinterEntry& printer)
     };
     set_if_present(out, "statusText", printer.status_text);
     set_if_present(out, "connectionText", printer.connection_text);
-    out["connectionAction"] = printer.connection_action;
+    set_if_present(out, "connectionAction", printer.connection_action);
     set_if_present(out, "nozzleText", printer.nozzle_text);
     set_if_present(out, "materialLabel", printer.material_label);
     // A bar belongs to a running job; a finished or idle printer sends none
@@ -102,20 +102,7 @@ json state_payload(const Snapshot& snapshot)
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
         {"printers", std::move(printers)},
-        {"printerPanelOpen", snapshot.printer_panel_open},
-    };
-}
-
-json added_printer_payload(const AddedPrinterEntry& entry)
-{
-    return json{
-        {"name", entry.name},
-        {"nozzleText", entry.nozzle_text},
-        {"nozzleAssumed", entry.nozzle_assumed},
-        {"plateText", entry.plate_text},
-        {"plateAssumed", entry.plate_assumed},
-        {"filamentText", entry.filament_text},
-        {"filamentAssumed", entry.filament_assumed},
+        {"highlightPrinter", snapshot.highlight_printer},
     };
 }
 

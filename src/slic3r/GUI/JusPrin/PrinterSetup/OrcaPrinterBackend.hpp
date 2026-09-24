@@ -7,7 +7,9 @@
 
 #include "PrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
+#include <atomic>
 #include <chrono>
+#include <memory>
 
 namespace Slic3r::GUI { class Plater; }
 namespace Slic3r::GUI::JusPrin::Workspace { class SpoolStore; }
@@ -38,6 +40,7 @@ public:
                                const std::string& access_code) override;
     std::string connect_host(const std::string& name, const std::string& host_type,
                             const std::string& address, const std::string& api_key) override;
+    void cancel_connection(const std::string& name) override;
 
 private:
     const CatalogPrinter* model_of(const std::string& printer_name) const;
@@ -54,13 +57,26 @@ private:
         std::string device_id;
         std::chrono::steady_clock::time_point started;
         std::chrono::system_clock::time_point observation_start;
+        // Deselected, to be selected again on the next event turn.
+        bool reselecting{false};
     };
     std::optional<ConnectionAttempt> m_connection_attempt;
+    // What a deferred reselection checks before touching this backend.
+    std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
+    // A print host is tested on a thread of its own, which writes its verdict
+    // into `verdict` and keeps it alive. Dropping or replacing the attempt is
+    // what leaves a late verdict unread.
+    enum class HostVerdict { Testing, Passed, Failed };
     struct HostAttempt {
         std::string name, host_type, address, api_key;
+        std::chrono::steady_clock::time_point started;
+        std::shared_ptr<std::atomic<HostVerdict>> verdict;
         std::string state;
         std::string message;
     };
+    // Reads a waiting attempt's verdict, and saves the settings it tested
+    // once the host has answered.
+    void settle(HostAttempt& attempt);
     std::optional<HostAttempt> m_host_attempt;
 };
 

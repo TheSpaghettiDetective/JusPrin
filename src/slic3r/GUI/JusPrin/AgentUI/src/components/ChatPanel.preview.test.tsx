@@ -72,6 +72,7 @@ function thread(builds: BuildInfo[], copies: ExportedCopyInfo[], prints: Physica
       onRetry={noop}
       onToolDecision={noop}
       onToolCancel={noop}
+      onSend={noop}
     />,
   );
 }
