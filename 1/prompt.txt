@@ -1,0 +1,158 @@
+<task-notification>
+<task-id>b4kx3utoq</task-id>
+<summary>Monitor event: "worktree build: completion or errors"</summary>
+<event>[300/881] Building CXX object src/libslic3r/CMakeFiles/libslic3r.dir/RelWithDebInfo/Fill/Lightning/Generator.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4kx3utoq</task-id>
+<summary>Monitor event: "worktree build: completion or errors"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7brl8jcs</task-id>
+<summary>Monitor event: "worktree build: completion or errors"</summary>
+<event>[600/881] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/RelWithDebInfo/GUI/MultiMachineManagerPage.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7brl8jcs</task-id>
+<summary>Monitor event: "worktree build: completion or errors"</summary>
+<event>[800/881] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/RelWithDebInfo/GUI/JusPrin/Canvas/ToolValuePanel.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7brl8jcs</task-id>
+<summary>Monitor event: "worktree build: completion or errors"</summary>
+<event>[Monitor expired after 30m with 2 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjyg07p10</task-id>
+<summary>Monitor event: "connect trials (current prompt): per-trial results"</summary>
+<event>HARNESS TRIAL trial 1/6: card</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjyg07p10</task-id>
+<summary>Monitor event: "connect trials (current prompt): per-trial results"</summary>
+<event>HARNESS TRIAL trial 2/6: NO CARD</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjyg07p10</task-id>
+<summary>Monitor event: "connect trials (current prompt): per-trial results"</summary>
+<event>HARNESS TRIAL trial 3/6: NO CARD</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjyg07p10</task-id>
+<summary>Monitor event: "connect trials (current prompt): per-trial results"</summary>
+<event>HARNESS TRIAL trial 4/6: NO CARD</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjyg07p10</task-id>
+<summary>Monitor event: "connect trials (current prompt): per-trial results"</summary>
+<event>HARNESS TRIAL trial 5/6: NO CARD</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjyg07p10</task-id>
+<summary>Monitor event: "connect trials (current prompt): per-trial results"</summary>
+<event>HARNESS TRIAL trial 6/6: NO CARD
+HARNESS TRIALS connect reached the card in 1 of 6; an id was refused in 0 of 6
+HARNESS CHECK trials_connect_reaches_the_card_6_of_6 FAIL
+HARNESS RESULT FAIL failures=1</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk63s1ams</task-id>
+<summary>Monitor event: "A/B connect trials: per-trial results and totals"</summary>
+<event>==&gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/f665746c-cfdb-4776-8406-cafeefecc864/scratchpad/ab-current.log &lt;==
+==&gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/f665746c-cfdb-4776-8406-cafeefecc864/scratchpad/ab-withline.log &lt;==</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk63s1ams</task-id>
+<summary>Monitor event: "A/B connect trials: per-trial results and totals"</summary>
+<event>==&gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/f665746c-cfdb-4776-8406-cafeefecc864/scratchpad/ab-current.log &lt;==</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk63s1ams</task-id>
+<summary>Monitor event: "A/B connect trials: per-trial results and totals"</summary>
+<event>HARNESS TRIALS connect reached the card in 8 of 10; an id was refused in 2 of 10
+HARNESS RESULT FAIL failures=1</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk63s1ams</task-id>
+<summary>Monitor event: "A/B connect trials: per-trial results and totals"</summary>
+<event>exit=1
+==&gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/f665746c-cfdb-4776-8406-cafeefecc864/scratchpad/ab-withline.log &lt;==</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk63s1ams</task-id>
+<summary>Monitor event: "A/B connect trials: per-trial results and totals"</summary>
+<event>HARNESS TRIALS connect reached the card in 5 of 10; an id was refused in 5 of 10
+HARNESS RESULT FAIL failures=1</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk63s1ams</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/f665746c-cfdb-4776-8406-cafeefecc864/tasks/bk63s1ams.output</output-file>
+<status>completed</status>
+<summary>Monitor "A/B connect trials: per-trial results and totals" stream ended</summary>
+<event>ALL_DONE</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
