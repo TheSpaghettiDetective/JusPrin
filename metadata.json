@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M3A7HRAPE9Z0Q1FT1GH97QFF",
+  "strategy": "manual-commit",
+  "branch": "claude/llm-tool-history-context-774814",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentService.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecution.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_project_state.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1446,
+    "cache_creation_tokens": 160276,
+    "cache_read_tokens": 6414437,
+    "output_tokens": 60955,
+    "api_call_count": 48
+  }
+}

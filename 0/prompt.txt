@@ -1,0 +1,46 @@
+<pasted_content id="02ce">
+Between turns, the app sends the model only the text of earlier messages, not earlier tool calls or their results.
+
+Is ommiting previous tool calls/results  a common practice for a llm harness? If not, should we just add the tool calls and results back into the request that we send to the llm model? If so, what are some of the problems that you have been struggling with?
+Short answer: no, dropping all earlier tool calls and results isn't the usual default. Yes, I think we should send them again, at least in the printer chat. And to be clear about the last part: I haven't tried this yet, so I haven't hit problems with it. What follows is what I expect from reading the code, not what I ran into.
+Is dropping them common practice?
+The usual pattern, and what OpenAI's and Anthropic's tool-use docs assume, is to keep the whole transcript: user messages, the assistant's tool calls, the tool results, and the replies. The model's later decisions depend on what earlier tools returned. Mature harnesses do trim, but selectively: they compact or summarize old results when the context grows large, shorten very large outputs, or drop images. Throwing away every tool result at every turn boundary is unusual.
+Why this app does it anyway
+It looks like a deliberate choice made for the project chat, not an oversight:
+
+* History is rebuilt from the saved chat document as "bounded semantic history": the last 20 messages, text only (`AgentHost.cpp` 1648–1669).
+* The project chat sends a fresh, authoritative snapshot of the workspace on every turn. Old tool results there would mostly repeat that snapshot, and could contradict it once the project changed. The code already keeps the app's own notes out of the project chat for exactly that reason (line ~1655).
+* Within one turn the app does keep everything. `OpenAIResponsesAgent.cpp` 205 says "retain the complete turn input, including... earlier tool results, for each continuation". Results are only lost between turns.
+
+The printer chat has no workspace snapshot (`include_workspace = false`). So the reason for dropping results doesn't apply there, but the cost does: the looked-up printer id disappears before the person says "connect it".
+Should we add them back?
+For the printer chat, yes. I'd do it with a per-session switch, like the existing `notes_in_context` flag that the printer chat already turns on. The project chat would be untouched, and the change stays in the fork's own agent code.
+Problems I'd expect
+
+1. The provider's call ids aren't saved. OpenAI requires each `function_call` to be followed by a `function_call_output` with the same `call_id`. The app stores each tool activity with its arguments and result (`ToolActivity` in `ToolExecution.hpp`), but the provider's `call_id` is described as "opaque outside the service" (`AgentService.hpp:75`) and isn't kept. We'd either save it, or make up ids at replay time. I believe made-up ids work when history is resent in full, which is what `store:false` means, but I haven't verified it.
+2. Every call needs an output, including calls that were cancelled, rejected or still pending. A dangling call makes the request invalid. The printer chat already has a result for cancelled calls (`{"state":"cancelled"}` in `PrinterConversation::tool_output`), so this is mostly covered.
+3. Stale facts. A connection status from five minutes ago may no longer be true. The model might trust it instead of checking again. That's milder than inventing an id, but worth a prompt test case.
+4. Size. Tool results are much bigger than chat text. The printer tools' results are small, but images or big payloads would count against the 20-message window, and a limit would need to count results too.
+5. Secrets. The access code must never enter the history. By design it goes straight from the card to the connection and isn't in `printer_connect`'s arguments or result, and the live test already checks that. Replaying results widens where a leak would show up, so that check matters more.
+6. The prompt test must copy the change. `run_prompt_tests.py` deliberately copies the text-only history. It would need the same switch, and the connect case should then be measured before and after. I'd expect the made-up ids and the sensitivity to wording to mostly disappear, but that's a prediction until measured.
+
+This one change would also cover the fragile part of your proposed add flow: the model could see its own earlier `printer_identify` call and wouldn't need to repeat it after "Yes, add it".
+Did you mix up a lot of things here? I am not following what you are trying to say with the workspace snapshot. Can you rephrase my question so that I can be sure that you understood this correctly, and then try to answer that again, clearly and concisely, with plain English, no jargons.
+Yes, I mixed too much in. Here is your question as I understand it:
+"When our app sends a new message to the AI, it leaves out the tools the AI used earlier in the chat and what those tools returned. Do other AI apps normally do that? If not, should we just include them? And what goes wrong if we do?"
+Do other apps normally leave them out? No. The normal practice is to send the whole conversation every time, including which tools the AI used and what they returned. The AI needs that to remember what it already found out. Apps sometimes shorten very long tool output to save space, but they don't throw it all away.
+Why does our app leave them out? My best guess, from the code comments, is that it was designed for the main project chat. There, the app attaches a fresh description of the open project to every message, so old tool output could be out of date and conflict with it. The printer chat attaches no such description, so it simply loses the information, like the printer's id.
+Should we include them? Yes, at least in the printer chat. That fixes the "made-up printer id" failure at its root, instead of working around it in the system prompt.
+What could go wrong? I haven't tried it yet, so these are what I'd expect, not problems I ran into:
+
+1. Some bookkeeping is missing. Each tool call needs an id that links it to its result. The app saves the calls and results, but not that id, so we'd have to start saving it.
+2. Old results can go stale. "The printer is online" may no longer be true ten minutes later. The AI might trust it instead of checking again.
+3. Longer requests. More text is sent each time, which costs a bit more. The printer tools' results are small, so this is minor.
+4. The access code must never be included. It already never goes through the tools, so this should hold, but it's worth keeping the existing test that checks it.
+</pasted_content id="02ce">
+
+This is my conversation with another AI agent. Check the agent's answers To see if uh they are consistent with best practices and what's going on in the code.
+
+---
+
+Go ahead and add tool history back for the printer chat.
