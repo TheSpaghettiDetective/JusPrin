@@ -1,0 +1,29 @@
+I think you got the user experience wrong, and I suspect this is why your test case behave very strange. The more natural user experience is:
+
+* agent gives init info
+* user provides input/photo
+* agent checks against tool.
+* if only 1 found, shows printer cards. agent asks "should I add this one?" + yes/not chips
+* if up to 3 found, shows printer cards. agent asks "which one?"  + printer chips + none of them chip
+* if more than 3 or 0, agent flllows up.
+* if users clicks positive chip, add "yes confirmed" (or something more clear) as user msg. agent calls tool to add it. tool returns success. we should printer added card. agent can repeat the card and it's ok
+* in agent's response, Either with or without repeating the printer added info, further prompt for connecting the printer. 
+
+Do you think this is a more natural user experience? if so, is this something you can achieve with the instructions? Or you think that this will be too complicated for agent to follow reliably?
+
+---
+
+<cross-session-message from="uds:/tmp/claude/cc-socks/65995.sock" from-session="local_3da3e604-0799-4bc1-9021-1039ec2c449e" from-name="Tool calls/results in LLM message history" from-mode="bypass">
+Handoff from Kenneth's other session: jusprin-newui now replays each chat's earlier tool calls and results to the model, which fixes the made-up printer id at the root; details in a doc, path below.
+
+Commit 115e2776bf on jusprin-newui, "Replay each chat's earlier tool calls and results to the model". Full handoff (untracked, do not commit): /Users/kenneth/Projects/JusPrin/.claude/worktrees/llm-tool-history-context-774814/agent-docs/jusprin/tool-history-replay-handoff.md
+
+The short version:
+- Every chat, printer and project, now sends the model each earlier assistant message's tool calls with their results, in order. No per-session switch: Kenneth asked what scenario needs one off, there was none, and he had it removed.
+- The provider's call id is saved on ToolActivity as callId. One history entry per call+result pair, so the 20-entry cap never sends a call without its output. Results over 16 KiB are replayed as state plus a "call the tool again" note. The live result's workspace/actionId are left out on replay. OpenAIResponsesAgent emits function_call + function_call_output with the saved call_id and deliberately no item id (with store:false the fc_ id names nothing kept).
+- Measured live with the real printer tools and prompt, 5 runs each, "is it online?" then "Yes, connect it": text-only history 0 of 5 correct (2 sent hostType moonraker for a Bambu printer, 1 used the name as the id, 2 looked again); with replay 5 of 5 called printer_connect with deviceId 01P00A3B. The project chat was not measured live.
+- For your add flow: after printer_identify in one turn and "Yes, add it" in the next, the model now sees its own printer_identify call and result. Re-measure the add cases with the replay in place before changing the prompt for them.
+- tests/printer_prompt/run_prompt_tests.py on claude/printer-receipt-card still copies text-only history, so its numbers no longer match what the app sends. Give it the same replay: keep each turn's function_call (without id) and function_call_output in self.history.
+- Tests: agent_bridge_tests, 255 cases pass. New cases in test_printer_conversation.cpp, test_openai_responses_agent.cpp, test_project_state.cpp.
+- A 30-second live re-measure recipe (eval dump, esbuild render of the real prompt, key location) is in the doc.
+</cross-session-message>
