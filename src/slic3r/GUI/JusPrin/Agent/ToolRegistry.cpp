@@ -608,9 +608,21 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     if (definition.handler == ToolHandler::PrinterAdd)
         return has_only(arguments, {"catalogId", "nozzle"}) && arguments.contains("catalogId") && optional_text(arguments, "catalogId") &&
                valid_nozzle();
-    if (definition.handler == ToolHandler::PrinterConnect)
-        return has_only(arguments, {"deviceId", "hostType", "address"}) && optional_text(arguments, "deviceId") && optional_text(arguments, "address") &&
-               (!arguments.contains("hostType") || arguments["hostType"] == "moonraker" || arguments["hostType"] == "octoprint");
+    // printer_connect reaches a printer one way: a Bambu Lab printer found on
+    // the network, or a print host at the address the person gave. Anything
+    // less is refused before a card is drawn, so the model asks instead.
+    if (definition.handler == ToolHandler::PrinterConnect) {
+        if (!has_only(arguments, {"deviceId", "hostType", "address"}) || !optional_text(arguments, "deviceId") ||
+            !optional_text(arguments, "address"))
+            return false;
+        const auto given = [&arguments](const char* key) {
+            return arguments.contains(key) && !arguments[key].get_ref<const std::string&>().empty();
+        };
+        if (arguments.contains("deviceId"))
+            return arguments.size() == 1 && given("deviceId");
+        return arguments.size() == 2 && given("address") &&
+               (arguments["hostType"] == "moonraker" || arguments["hostType"] == "octoprint");
+    }
 
     if (definition.handler == ToolHandler::PrinterChange) {
         if (!has_only(arguments, {"printerName", "nozzle", "spools"}) || !names_printer() || !valid_nozzle())
@@ -1540,12 +1552,15 @@ std::vector<ToolDefinition> make_definitions()
         {"printer_connect",
          "Connect this printer",
          "Connects the printer this conversation is about. It shows the person a card where they type the access code or API "
-         "key themselves, never in chat, and runs when they tap Connect. For a Bambu Lab printer pass the deviceId from "
-         "printer_connection_status; for Moonraker or OctoPrint pass hostType and the address the person gave. connecting means "
-         "the app is still waiting for the printer and will report the outcome in a note.",
-         object_schema(json{{"deviceId", string_schema()},
-                            {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})}}},
-                            {"address", {{"type", "string"}, {"maxLength", 256}}}}),
+         "key themselves, never in chat, and runs when they tap Connect. For a Bambu Lab printer pass only the deviceId from "
+         "printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and "
+         "until they give one, ask for it instead of calling this. connecting means the app is still waiting for the "
+         "printer and will report the outcome in a note.",
+         object_schema(json{{"deviceId", {{"type", "string"}, {"description", "Bambu Lab only, alone: from printer_connection_status."}}},
+                            {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})},
+                                          {"description", "Moonraker or OctoPrint only, together with address."}}},
+                            {"address", {{"type", "string"}, {"maxLength", 256},
+                                         {"description", "The address the person gave, as they open the printer in a browser."}}}}),
          object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"connecting", "verified", "failed"})}}},
                             {"message", string_schema()}},
                        json::array({"state", "message"})),
@@ -1743,6 +1758,9 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                 message += " " + outside + ".";
             if (definition.handler == ToolHandler::ProjectOpen && arguments.contains("path") == arguments.contains("new"))
                 message += " Give exactly one of path and new.";
+            if (definition.handler == ToolHandler::PrinterConnect)
+                message += " Give deviceId alone, or hostType with the address the person gave. Without an address, ask the "
+                           "person for the one they open the printer with in a browser, and call this once they give it.";
         }
         return {{}, ToolError{"invalid_arguments", message}};
     }

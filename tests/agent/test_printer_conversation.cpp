@@ -633,7 +633,7 @@ TEST_CASE("printer_connect is checked before its card, and titles it", "[printer
     CHECK_THAT(preflight(json{{"deviceId", "Nope"}}).first->message, ContainsSubstring("01P00A3B (Workshop)"));
 
     backend.connection_info = PrinterConnectionInfo{"host", "not_configured"};
-    CHECK(preflight(json{{"hostType", "moonraker"}}).first->code == "address_needed");
+    CHECK(preflight(json{{"deviceId", "01P00A3B"}}).first->code == "address_needed");
     CHECK(preflight(json{{"hostType", "moonraker"}, {"address", "192.168.1.42"}}).second.title ==
           "Connect to 192.168.1.42");
     backend.connection_info = PrinterConnectionInfo{"unavailable", "unavailable", "Install the network plugin."};
@@ -641,6 +641,28 @@ TEST_CASE("printer_connect is checked before its card, and titles it", "[printer
     // It connects the printer the conversation is about, and nothing before one is saved.
     conversation.start(ConversationMode::Add);
     CHECK(preflight(json{{"deviceId", "01P00A3B"}}).first->code == "no_printer");
+}
+
+TEST_CASE("printer_connect takes a found printer or an address, never part of one", "[printer-conversation]")
+{
+    const auto&                  registry   = Agent::ToolRegistry::instance();
+    const Agent::ToolDefinition* definition = registry.find("printer_connect");
+    REQUIRE(definition != nullptr);
+    const auto checked = [&](const json& arguments) { return registry.validate_call(*definition, arguments.dump()); };
+
+    CHECK(checked(json{{"deviceId", "01P00A3B"}}).valid());
+    CHECK(checked(json{{"hostType", "moonraker"}, {"address", "192.168.1.42"}}).valid());
+    // What the live model sent after "go ahead", before anyone gave an
+    // address: refused here, so no card is drawn and the model is told to ask.
+    const auto without_address = checked(json{{"hostType", "moonraker"}});
+    REQUIRE_FALSE(without_address.valid());
+    CHECK_THAT(without_address.error->message, ContainsSubstring("ask the person"));
+    CHECK_FALSE(checked(json{{"address", ""}}).valid());
+    CHECK_FALSE(checked(json{{"hostType", "moonraker"}, {"address", ""}}).valid());
+    CHECK_FALSE(checked(json{{"address", "192.168.1.42"}}).valid());
+    CHECK_FALSE(checked(json::object()).valid());
+    CHECK_FALSE(checked(json{{"deviceId", ""}}).valid());
+    CHECK_FALSE(checked(json{{"deviceId", "01P00A3B"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"}}).valid());
 }
 
 TEST_CASE("a host connection's outcome is the tool's own result", "[printer-conversation]")

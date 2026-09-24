@@ -301,7 +301,9 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         activity.title = "Connect to " + found->name;
         arguments["deviceId"] = found->id;
     } else if (info.provider == "host") {
-        if (!arguments.contains("hostType") || arguments.value("address", std::string()).empty())
+        // The registry has already refused a hostType without an address; a
+        // deviceId here names a Bambu Lab printer this one is not.
+        if (!arguments.contains("hostType"))
             return ToolError{"address_needed", "Pass hostType and the address the person gave."};
         activity.title = "Connect to " + arguments["address"].get<std::string>();
     } else
