@@ -620,8 +620,50 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         m_backend.open_printer_settings(m_printer_name);
         m_host.printers_changed();
         m_host.session_changed();
-    }
+    } else if (action == "undo_add")
+        undo_add(payload.value("blockId", std::string()));
     return true;
+}
+
+void PrinterConversation::undo_add(const std::string& block_id)
+{
+    json* receipt = nullptr;
+    for (json& block : m_blocks)
+        if (block.value("id", std::string()) == block_id && block.value("kind", std::string()) == "added")
+            receipt = &block;
+    // A second tap that arrived before the page redrew the first has nothing
+    // left to undo.
+    if (receipt == nullptr || receipt->value("removed", false))
+        return;
+
+    // Orca's own delete, as Home's "Remove printer…" runs it: the printer the
+    // project was set up for gives way to the profile it was based on.
+    const std::string name = receipt->at("printer").at("name");
+    if (const std::string problem = m_backend.remove_printer(name); !problem.empty()) {
+        m_host.post_note("Undo did not remove " + name + ": " + problem);
+        m_host.session_changed();
+        return;
+    }
+    // printer_add saves a printer based on a shipped profile, which Orca
+    // deletes without asking; only a printer of the person's own design can
+    // be kept by declining there.
+    if (!saved(name).name.empty())
+        throw std::logic_error("Removing an added printer left it saved");
+
+    if (m_connecting == name)
+        abandon_connection();
+    (*receipt)["removed"] = true;
+    // The same printer can now be added again, and nothing here is about it.
+    for (auto added = m_added.begin(); added != m_added.end();)
+        added = added->second == name ? m_added.erase(added) : std::next(added);
+    if (m_printer_name == name)
+        m_printer_name.clear();
+    if (m_prepared == name)
+        m_prepared.clear();
+    m_host.post_note("The person tapped Undo on the receipt: " + name + " is removed and is no longer one of their printers.");
+    m_host.printers_changed();
+    m_host.session_changed();
+    m_host.start_turn();
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

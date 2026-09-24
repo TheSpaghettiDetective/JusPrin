@@ -438,6 +438,7 @@ export function App({
               physicalPrints={[]}
               changes={[]}
               printerBlocks={session?.blocks ?? []}
+              onUndoAdd={(blockId) => client.send('printer_action', { action: 'undo_add', blockId })}
               answeredState={false}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolDecision={sendToolDecision}

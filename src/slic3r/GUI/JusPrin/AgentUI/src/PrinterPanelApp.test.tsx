@@ -217,6 +217,19 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Connect it' })).toBeInTheDocument();
   });
 
+  it('undoes an add from its receipt, which then says the printer is removed', async () => {
+    const added = { id: 'b2', seq: 2, afterMessageId: 'm-1', kind: 'added' as const, printer: { name: 'Creality K1', nozzle: 0.4 } };
+    const host = open(state({ session: session({ printerName: 'Creality K1', blocks: [added] }) }));
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'undo_add', blockId: 'b2' });
+
+    host.deliver('printer_session', session({ blocks: [{ ...added, removed: true }] }));
+    const receipt = screen.getByText('Printer removed').closest('.printer-added')!;
+    expect(receipt).toHaveClass('printer-added-removed');
+    expect(screen.queryByText('Printer added')).toBeNull();
+    expect(receipt.querySelector('button')).toBeNull();
+  });
+
   it('asks for the access code on its card, and sends it only with Connect', async () => {
     const connect: ToolActivityInfo = {
       actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to Workshop',

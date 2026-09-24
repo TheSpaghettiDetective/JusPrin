@@ -76,6 +76,8 @@ describe('the instructions', () => {
       'is not one model',
       'never substitute a size',
       'alreadyYours means',
+      'undid adding a printer, that printer is removed',
+      'Do not add the same model again unless they ask for it',
       'Never ask for a password, access code or API key in chat',
       '"connecting" means the app is still waiting',
       'a timeout means no response, not a wrong code',

@@ -58,6 +58,14 @@ The app streams its requests and this script does not; nothing else differs.
   lookup of the chosen printer draws a second picture card; it is reported,
   not failed.
 
+- `add-then-undo`: the person names one model, it is added, then they tap Undo
+  on its receipt. The app removes it, posts its note as a developer message,
+  and starts a turn with nothing said (`PrinterConversation::undo_add`).
+  Passes when that reply adds nothing, drops the connect offer and asks which
+  printer they have. Without the prompt's rule about undone adds it passed 3 of
+  20 (2026-09-24): the model mostly said "Okay, it's removed" and stopped, and
+  some replies said "I removed" as if it had.
+
 The add cases use `add_session.json`, recorded from a `--printer-live` run: the
 Add session the page was sent, including the full printer list, and what
 `printer_identify` and `printer_add` returned for the printers the cases name.

@@ -188,6 +188,11 @@ std::string OrcaPrinterBackend::change_printer(const ChangePrinterRequest& reque
     return {};
 }
 
+std::string OrcaPrinterBackend::remove_printer(const std::string& name)
+{
+    return std::string(Printers::remove_named_printer(m_plater, m_spools, name).ToUTF8());
+}
+
 ManualPrinterResult OrcaPrinterBackend::run_manual_setup()
 {
     // OrcaSlicer's own printer wizard, unchanged, and the printers it

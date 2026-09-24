@@ -1,7 +1,8 @@
 // The printer panel's cards: the pictures the thread draws, and the one card
 // that asks for something -- the credential printer_connect needs, typed here
-// so it never passes through the conversation. Everything else the person
-// does in this panel is a message.
+// so it never passes through the conversation -- and Undo on an added
+// printer's receipt. Everything else the person does in this panel is a
+// message.
 
 import { memo, useState } from 'react';
 import type {
@@ -25,7 +26,13 @@ export function CameraGlyph({ className }: { className: string }) {
 }
 
 // One card in the thread, under the message it belongs to.
-export const PrinterBlockView = memo(function PrinterBlockView({ block }: { block: PrinterBlock }) {
+export const PrinterBlockView = memo(function PrinterBlockView({
+  block,
+  onUndoAdd,
+}: {
+  block: PrinterBlock;
+  onUndoAdd?: (blockId: string) => void;
+}) {
   if (block.kind === 'tip')
     return (
       <div className="printer-tip">
@@ -38,22 +45,28 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block }: { bloc
     );
 
   // The receipt for printer_add: the same words every time, from what the
-  // app saved, whatever the model's reply around it says.
+  // app saved, whatever the model's reply around it says. Undo takes the
+  // printer away again, and the receipt stays to say so.
   if (block.kind === 'added') {
     const printer = block.printer!;
     return (
-      <div className="printer-added" role="status">
+      <div className={block.removed ? 'printer-added printer-added-removed' : 'printer-added'} role="status">
         <svg className="printer-added-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="12" cy="12" r="10" />
-          <path d="m7.5 12.5 3 3 6-6.5" />
+          {!block.removed && <path d="m7.5 12.5 3 3 6-6.5" />}
         </svg>
         <span className="printer-added-text">
-          <span className="printer-added-caption">Printer added</span>
+          <span className="printer-added-caption">{block.removed ? 'Printer removed' : 'Printer added'}</span>
           <span className="printer-added-name">
             {printer.name}
             {printer.nozzle > 0 && <small> · {numberText(printer.nozzle)} mm nozzle</small>}
           </span>
         </span>
+        {!block.removed && onUndoAdd && (
+          <button type="button" className="printer-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
+            Undo
+          </button>
+        )}
       </div>
     );
   }

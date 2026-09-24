@@ -8,7 +8,8 @@
 // and acts through the session's tools, which check its decision against the
 // printer data and carry it out. The person's yes in the conversation is the
 // confirmation; the one card is printer_connect's, where a credential is typed
-// so it never passes through the model.
+// so it never passes through the model. The one other thing to tap is Undo on
+// an added printer's receipt, which the model then hears about in a note.
 //
 // A session is opened for one printer question -- add a printer, change this
 // one, connect this one -- and is discarded when the panel closes. Nothing
@@ -111,6 +112,8 @@ private:
     // Drops a connection attempt still waiting, so what the printer answers
     // later is never read.
     void abandon_connection();
+    // Undo on an added printer's receipt: removes that printer.
+    void undo_add(const std::string& block_id);
 
     SavedPrinter          saved(const std::string& name) const;
     const CatalogPrinter* catalog_entry(const std::string& id) const;

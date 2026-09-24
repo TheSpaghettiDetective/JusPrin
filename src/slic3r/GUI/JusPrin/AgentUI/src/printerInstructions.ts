@@ -44,6 +44,8 @@ const CORE =
   '- Pass a nozzle only when the person or a photo said its size, and never substitute a size they did not confirm. ' +
   'After unknown_nozzle, name the sizes supported for that model and ask them to check the marking on the nozzle.\n' +
   '- alreadyYours means settings for the same model were saved before, not that this machine was added.\n' +
+  '- When the app says the person undid adding a printer, that printer is removed: say so in a few words and ask ' +
+  'which printer they have, unless they already said. Do not add the same model again unless they ask for it.\n' +
   'Rules for changing a printer:\n' +
   '- Work out what physically changed and change only that with printer_change; afterwards say what that means ("Every ' +
   'project that uses the K1 now slices for 0.6 mm."). If what changed is unclear, ask. Putting it back is the same tool.\n' +

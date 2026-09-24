@@ -1981,6 +1981,22 @@ button.wide {
   color: var(--text-secondary);
 }
 
+.printer-added-undo {
+  flex: none;
+  margin-left: auto;
+}
+
+/* Undone: the receipt stays, no longer a success. */
+.printer-added-removed .printer-added-icon,
+.printer-added-removed .printer-added-caption {
+  color: var(--text-secondary);
+}
+
+.printer-added-removed .printer-added-name {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
 .printer-found {
   display: flex;
   flex-direction: column;

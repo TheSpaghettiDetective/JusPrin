@@ -124,6 +124,17 @@ public:
             }
         return {};
     }
+    std::vector<std::string> removed;
+    // Takes the printer out of `saved`, as the Orca backend does.
+    std::string remove_printer(const std::string& name) override
+    {
+        removed.push_back(name);
+        if (!refusal.empty())
+            return refusal;
+        saved.erase(std::remove_if(saved.begin(), saved.end(), [&name](const SavedPrinter& printer) { return printer.name == name; }),
+                    saved.end());
+        return {};
+    }
     ManualPrinterResult      manual_result;
     PrinterConnectionInfo    connection_info;
     std::vector<std::string> prepared;
@@ -859,6 +870,102 @@ TEST_CASE("an attempt the last session left waiting is dropped when the next one
 
 // -- OrcaSlicer's own screens, and closing -------------------------------------
 
+// -- Undo on an added printer's receipt ----------------------------------------
+
+void undo_add(PrinterConversation& conversation, const std::string& block_id)
+{
+    conversation.handle_page_message("printer_action", json{{"action", "undo_add"}, {"blockId", block_id}});
+}
+
+TEST_CASE("Undo on the receipt removes the printer, tells the model, and the right one can be added", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}, "m-4");
+    const std::string receipt = conversation.state_json().at("blocks").back().at("id");
+
+    // A tap naming no receipt removes nothing.
+    undo_add(conversation, "b99");
+    CHECK(backend.removed.empty());
+
+    undo_add(conversation, receipt);
+    CHECK(backend.removed == std::vector<std::string>{"Prusa MK3S"});
+    CHECK(backend.saved.empty());
+    // The receipt stays where it was, now saying so.
+    const json block = conversation.state_json().at("blocks").back();
+    CHECK(block.at("id") == receipt);
+    CHECK(block.at("afterMessageId") == "m-4");
+    CHECK(block.at("removed") == true);
+    // Nothing is about that printer any more; the printer list is back.
+    CHECK(conversation.printer_name().empty());
+    CHECK_FALSE(conversation.state_json().at("context").contains("printer"));
+    CHECK(conversation.state_json().at("context").contains("printers"));
+    // Home forgets it, and the model hears it from the app and answers.
+    CHECK(panel.added_printers.back().empty());
+    REQUIRE(panel.notes == std::vector<std::string>{
+                               "The person tapped Undo on the receipt: Prusa MK3S is removed and is no longer one of their printers."});
+    check_is_a_statement(panel.notes.front());
+    CHECK(panel.turns == 1);
+
+    // A second tap that crossed the redraw is the same tap.
+    undo_add(conversation, receipt);
+    CHECK(backend.removed.size() == 1);
+    CHECK(panel.notes.size() == 1);
+    CHECK(panel.turns == 1);
+
+    // "Already added" no longer holds for it.
+    ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
+    CHECK(backend.added.size() == 2);
+    CHECK(conversation.printer_name() == "Prusa MK3S");
+}
+
+TEST_CASE("an Undo Orca refuses leaves the printer and its receipt as they were", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
+    const std::string receipt = conversation.state_json().at("blocks").back().at("id");
+    const int         refreshes = panel.refreshes;
+
+    backend.refusal = "Other printer profiles are based on \"Prusa MK3S\".";
+    undo_add(conversation, receipt);
+    CHECK(backend.saved.size() == 1);
+    CHECK_FALSE(conversation.state_json().at("blocks").back().contains("removed"));
+    CHECK(conversation.printer_name() == "Prusa MK3S");
+    CHECK(panel.refreshes == refreshes);
+    CHECK(panel.notes == std::vector<std::string>{"Undo did not remove Prusa MK3S: Other printer profiles are based on \"Prusa MK3S\"."});
+    CHECK(panel.turns == 0);
+}
+
+TEST_CASE("Undo while the added printer is connecting drops the attempt", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.connection_info = PrinterConnectionInfo{"host", "connecting"};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
+    const std::string receipt = conversation.state_json().at("blocks").back().at("id");
+    tap_connect(conversation, panel,
+                json{{"printerName", "Prusa MK3S"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"},
+                     {"provider", "host"}, {"target", "192.168.1.42"}},
+                "a-1");
+    REQUIRE(card_state(conversation, "a-1").at("state") == "connecting");
+
+    undo_add(conversation, receipt);
+    CHECK(backend.cancelled == std::vector<std::string>{"Prusa MK3S"});
+    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
+    // What the printer answers afterwards is never read.
+    backend.connection_info.state = "verified";
+    conversation.tick(std::chrono::steady_clock::now());
+    CHECK(panel.notes.size() == 1);
+    CHECK(panel.turns == 1);
+}
+
 TEST_CASE("the full printer list reports what it added, as a tool and from the menu", "[printer-conversation]")
 {
     FakeBackend    backend;
@@ -1462,6 +1569,7 @@ public:
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
     std::string add_printer(const AddPrinterRequest&, SavedPrinter&) override { return {}; }
     std::string change_printer(const ChangePrinterRequest&, SavedPrinter&) override { return {}; }
+    std::string remove_printer(const std::string&) override { return {}; }
     ManualPrinterResult run_manual_setup() override { return {}; }
     void        open_printer_settings(const std::string&) override {}
 

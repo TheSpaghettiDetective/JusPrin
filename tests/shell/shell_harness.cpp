@@ -941,7 +941,8 @@ private:
                 std::cerr << "HARNESS LIVE   " << who << ": " << message.text << '\n';
             for (const nlohmann::json& receipt : live_receipts())
                 if (receipt.value("afterMessageId", "") == message.id)
-                    std::cerr << "HARNESS LIVE   receipt: Printer added, " << receipt["printer"].value("name", "") << ", "
+                    std::cerr << "HARNESS LIVE   receipt: Printer " << (receipt.value("removed", false) ? "removed" : "added") << ", "
+                              << receipt["printer"].value("name", "") << ", "
                               << receipt["printer"].value("nozzle", 0.) << " mm nozzle\n";
         }
         if (m_live_printed < messages.size() && messages.back().role == Agent::MessageRole::Assistant && messages.back().text.empty())
@@ -1120,6 +1121,47 @@ private:
             check(!added.empty() && live_receipt_for(added), "live_a_chosen_printer_draws_its_receipt");
             live_capture("add-prusa-mk4s-chosen");
         });
+        // Undo on its receipt deletes it as Orca does -- the profile it was
+        // based on is selected -- and the model answers the app's note.
+        auto undone = std::make_shared<std::pair<std::string, std::string>>(); // the printer, its parent
+        m_live_steps.push_back({"tap Undo on the receipt",
+                                [this, undone] {
+                                    const auto receipts = live_receipts();
+                                    if (receipts.empty())
+                                        return;
+                                    undone->first = receipts.back()["printer"].value("name", "");
+                                    if (const Preset* printer = printer_profile(undone->first))
+                                        undone->second = printer->inherits();
+                                    live_send("printer_action", {{"action", "undo_add"}, {"blockId", receipts.back().value("id", "")}});
+                                },
+                                [this] {
+                                    const auto receipts = live_receipts();
+                                    return (receipts.empty() || receipts.back().value("removed", false)) && live_settled();
+                                },
+                                [this, undone] {
+                                    live_print_calls();
+                                    const auto receipts = live_receipts();
+                                    check(!undone->first.empty() && printer_profile(undone->first) == nullptr, "live_undo_removes_the_added_printer");
+                                    check(!receipts.empty() && receipts.back().value("removed", false), "live_undo_marks_the_receipt");
+                                    check(!undone->second.empty() && selected_printer() == undone->second,
+                                          "live_undo_selects_the_profile_the_printer_was_based_on");
+                                    const auto messages = live_messages();
+                                    const auto note     = std::find_if(messages.rbegin(), messages.rend(), [](const Agent::ConversationMessage& message) {
+                                        return message.role == Agent::MessageRole::Note;
+                                    });
+                                    check(note != messages.rbegin() && note != messages.rend() &&
+                                              note->text.find("tapped Undo") != std::string::npos &&
+                                              messages.back().role == Agent::MessageRole::Assistant &&
+                                              messages.back().text.find('?') != std::string::npos,
+                                          "live_undo_is_answered_with_a_question");
+                                    const auto adds = live_calls("printer_add");
+                                    check(std::count_if(adds.begin(), adds.end(), [](const Agent::ToolActivity* call) {
+                                              return call->state == Agent::ToolState::Succeeded;
+                                          }) == 1,
+                                          "live_undo_adds_nothing_back");
+                                    m_live_added.erase(std::remove(m_live_added.begin(), m_live_added.end(), undone->first), m_live_added.end());
+                                    live_capture("add-prusa-mk4s-undone");
+                                }});
 
         live_open(Mode::Add);
         live_say("my elegoo mars", [this] {

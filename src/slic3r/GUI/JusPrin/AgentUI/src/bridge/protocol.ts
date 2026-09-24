@@ -398,7 +398,8 @@ export interface NetworkPrinterInfo {
 }
 
 // A card in the thread, anchored after the message it belongs to, in the same
-// way tool activity and history entries are. None has anything to tap.
+// way tool activity and history entries are. Only the 'added' receipt has
+// anything to tap: Undo.
 export interface PrinterBlock {
   id: string;
   seq: number;
@@ -407,6 +408,8 @@ export interface PrinterBlock {
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
   // 'added': the printer printer_add just saved, as it was saved.
   printer?: AddedPrinterInfo;
+  // 'added': Undo removed it again.
+  removed?: boolean;
 }
 
 export interface AddedPrinterInfo {

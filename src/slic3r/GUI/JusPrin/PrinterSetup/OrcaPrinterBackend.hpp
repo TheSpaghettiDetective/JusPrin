@@ -30,6 +30,7 @@ public:
 
     std::string add_printer(const AddPrinterRequest& request, SavedPrinter& added) override;
     std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& changed) override;
+    std::string remove_printer(const std::string& name) override;
 
     ManualPrinterResult run_manual_setup() override;
     void open_printer_settings(const std::string& name) override;

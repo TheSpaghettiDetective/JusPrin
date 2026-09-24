@@ -116,6 +116,17 @@ class Conversation:
             self.waiting = None
         turn = self.history + [{"role": "user", "content": [{"type": "input_text", "text": words}]}]
         self.history.append({"role": "user", "content": words})
+        self.respond(turn)
+
+    def note(self, text):
+        """The app's own line, as the developer, then the turn it starts
+        (AgentHost::start_turn): the person has said nothing."""
+        self.log.append("app: " + text)
+        self.history.append({"role": "developer", "content": text})
+        self.respond(list(self.history))
+
+    def respond(self, turn):
+        """The model until it stops or a card waits."""
         rejected = 0
         for _ in range(MAX_REQUESTS_PER_TURN):
             response = post({"model": self.model, "store": False, "parallel_tool_calls": False,
@@ -295,7 +306,43 @@ class AddChooseFromThree(AddCase):
         return passed, detail
 
 
-CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree)}
+class AddThenUndo(AddCase):
+    """The person names one model, it is added, and they tap Undo on its
+    receipt: the app removes it and says so in a note, then the model answers
+    with nothing said. Passes when that reply adds nothing, drops the connect
+    offer, and asks which printer they have."""
+
+    name = "add-then-undo"
+    printer = "BBL/Bambu Lab A1 mini"
+
+    def run(self, conversation):
+        self.say(conversation, "bambu lab a1 mini")
+        if self.added != [self.printer]:
+            return False, f"setup: added {self.added or 'nothing'}"
+        name = ADD["printer_add"][self.printer]["printer"]["name"]
+        # The app's note, word for word (PrinterConversation::undo_add).
+        self.added = []  # the printer is gone; another add of it is a new one
+        self.turn += 1
+        start = len(conversation.log)
+        conversation.note(f"The person tapped Undo on the receipt: {name} is removed and is no longer one of their printers.")
+        replies = [line[len("assistant: "):] for line in conversation.log[start:] if line.startswith("assistant: ")]
+        reply = replies[-1] if replies else ""
+        problems = []
+        if self.added:
+            problems.append(f"ADDED {self.added} AGAIN")
+        if not reply:
+            problems.append("NO REPLY")
+        if "Connect it" in reply:
+            problems.append("STILL OFFERS TO CONNECT")
+        if "?" not in reply:
+            problems.append("ASKED NOTHING")
+        detail = "; ".join(problems) or "asked again: " + repr(reply[-120:])
+        if self.untested:
+            detail += "; untested " + ", ".join(self.untested)
+        return not problems, detail
+
+
+CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo)}
 
 
 # --- Runner ------------------------------------------------------------------

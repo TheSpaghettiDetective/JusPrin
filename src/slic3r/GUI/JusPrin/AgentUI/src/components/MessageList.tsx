@@ -47,6 +47,8 @@ interface Props {
   // it, the way history entries are. Absent everywhere else, and its
   // presence is what makes this the printer panel's thread.
   printerBlocks?: PrinterBlock[];
+  // Undo on an added printer's receipt, by block id.
+  onUndoAdd?: (blockId: string) => void;
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
@@ -107,6 +109,7 @@ export function MessageList({
   onSend,
   dimmed,
   printerBlocks,
+  onUndoAdd,
   renderActivity,
   answeredState = true,
 }: Props) {
@@ -149,7 +152,7 @@ export function MessageList({
     (printerBlocks ?? [])
       .filter((block) => block.afterMessageId === messageId)
       .sort((a, b) => a.seq - b.seq)
-      .map((block) => <PrinterBlockView key={block.id} block={block} />);
+      .map((block) => <PrinterBlockView key={block.id} block={block} onUndoAdd={onUndoAdd} />);
   const leadingHistory = history.filter(
     (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
   );

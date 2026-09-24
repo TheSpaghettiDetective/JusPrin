@@ -137,6 +137,8 @@ public:
     // for the person explaining what stopped it.
     virtual std::string add_printer(const AddPrinterRequest& request, SavedPrinter& added) = 0;
     virtual std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& changed) = 0;
+    // Deletes a saved printer the way Home's "Remove printer…" does.
+    virtual std::string remove_printer(const std::string& name) = 0;
 
     // The manual paths behind "Set it up myself": OrcaSlicer's own printer
     // wizard for a new printer, its printer settings for an existing one.
