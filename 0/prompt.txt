@@ -1,0 +1,45 @@
+ping me when you have screenshots
+
+---
+
+<task-notification>
+<task-id>bdhat2gwe</task-id>
+<summary>Monitor event: "worktree build2 restart (-j4): progress, errors, exit"</summary>
+<event>[Monitor expired after 30m with no events delivered. Re-arm it if you still need the watch — and widen the filter if silence was unexpected.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bz1fmv92a</task-id>
+<summary>Monitor event: "worktree build2 restart (-j4): progress every 100 steps, errors, exit"</summary>
+<event>step 127/438</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bz1fmv92a</task-id>
+<summary>Monitor event: "worktree build2 restart (-j4): progress every 100 steps, errors, exit"</summary>
+<event>step 235/438</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc8vb0r63</task-id>
+<tool-use-id>toolu_01755y8o2nnzy2sW7Jq5HcZH</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cb4c8804-b0a0-4ca0-b4a5-6b6998947d4b/tasks/bc8vb0r63.output</output-file>
+<status>completed</status>
+<summary>Monitor "worktree build3 (full parallel): errors and exit" stream ended</summary>
+<event>exit=0
+ld: warning: ignoring duplicate libraries: '-lm', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libjpeg.a', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libpng.a', 'deps_src/libnest2d/RelWithDebInfo/liblibnest2d.a', 'src/libslic3r/RelWithDebInfo/liblibslic3r.a'
+exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+Clearly state the test results and what you wanted to say in plain English. Do not use jargons
