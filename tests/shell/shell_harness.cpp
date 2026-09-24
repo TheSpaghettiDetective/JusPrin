@@ -66,6 +66,14 @@
 //              checked (cards drawn or not, the change card, the saved
 //              nozzle, Undo). The key is written to this run's throwaway
 //              app config, where the panel reads it.
+//   --printer-connect-capture <output-directory>
+//              needs OPENAI_API_KEY and macOS: connects a Klipper printer
+//              through the real printer panel and the live model, against
+//              print hosts on loopback ports, and writes a PNG of the panel
+//              at each state of the connect card (waiting, a question asked
+//              meanwhile, failed, cancelled, connected) and of Home after.
+//              The pictures are WebKit's own snapshots, which need no Screen
+//              Recording permission
 //   --manual-tool-strip
 //              leaves the shell open on the two-plate fixture with an object
 //              selected, for hands-on testing of the canvas tool strip
@@ -187,6 +195,7 @@ namespace fs = boost::filesystem;
 
 #ifdef __APPLE__
 void set_harness_appearance(bool dark);
+bool snapshot_web_view(void* native_web_view, const char* path);
 #endif
 
 namespace Slic3r::GUI::JusPrin {
@@ -367,6 +376,8 @@ struct HarnessState
     bool header_visual{false};
     std::optional<bool> dark_appearance;
     fs::path capture_dir;
+    // --printer-connect-capture: the connect flow only, pictured.
+    bool connect_capture{false};
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
@@ -1005,6 +1016,11 @@ private:
         // directory, never the person's.
         // As a std::string: a char* would pick AppConfig::set's bool overload.
         wxGetApp().app_config->set("jusprin_agent", "openai_api_key", std::string(std::getenv("OPENAI_API_KEY")));
+        if (m_state->connect_capture) {
+            queue_connect_capture();
+            run_live_steps();
+            return;
+        }
         using Mode = PrinterSetup::ConversationMode;
 
         // Adding: nothing is saved until the person says yes.
@@ -1323,6 +1339,158 @@ private:
                                     check(!leaked, "live_the_code_is_nowhere_in_the_conversation");
                                 }});
         run_live_steps();
+    }
+
+    // --printer-connect-capture: connecting a Klipper printer with the live
+    // model, against print hosts on loopback ports, pictured at each state of
+    // the card: waiting, a question asked meanwhile, failed, cancelled,
+    // connected, and Home afterwards.
+    std::vector<std::shared_ptr<StandInHost>> m_capture_hosts;
+
+    const Agent::ToolActivity* last_connect() const
+    {
+        const auto calls = live_calls("printer_connect");
+        return calls.empty() ? nullptr : calls.back();
+    }
+
+    std::string connection_state(const std::string& action) const
+    {
+        return live_panel()->session_json()["connections"].value(action, nlohmann::json::object()).value("state", "");
+    }
+
+    void capture_web_view(wxWebView* view, const std::string& name)
+    {
+#ifdef __APPLE__
+        fs::create_directories(m_state->capture_dir);
+        const std::string file = (m_state->capture_dir / (name + ".png")).string();
+        const bool ok = view != nullptr && snapshot_web_view(view->GetNativeBackend(), file.c_str());
+        check(ok, "captured_" + name);
+        if (ok)
+            std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+#else
+        fail("--printer-connect-capture pictures web views through WebKit, on macOS only");
+#endif
+    }
+
+    void capture_panel(const std::string& name) { capture_web_view(live_panel()->web_view()->webview(), name); }
+
+    // Gives `address` and taps Connect on the card the model draws for it,
+    // naming the server if the model asks which kind it is.
+    void connect_to(const std::string& words, const std::string& address, const std::string& picture)
+    {
+        m_live_steps.push_back({"say: " + words, [this, words] { say(words); }, {}, {}});
+        m_live_steps.push_back({"say, if asked: Moonraker",
+                                [this, address] {
+                                    const auto* card = last_connect();
+                                    if (card == nullptr || card->state != Agent::ToolState::Pending ||
+                                        card->arguments_json.find(address) == std::string::npos)
+                                        say("Moonraker");
+                                },
+                                {},
+                                [this, address, picture] {
+                                    live_print_calls();
+                                    const auto* card = last_connect();
+                                    check(card != nullptr && card->state == Agent::ToolState::Pending &&
+                                              card->arguments_json.find(address) != std::string::npos,
+                                          "capture_card_for_" + picture);
+                                    if (!picture.empty())
+                                        capture_panel(picture);
+                                }});
+        m_live_steps.push_back({"type the API key, tap Connect",
+                                [this] {
+                                    if (const auto* card = last_connect(); card != nullptr && card->state == Agent::ToolState::Pending)
+                                        live_send("tool_decision", {{"actionId", card->action_id}, {"decision", "approve"},
+                                                                    {"input", {{"credential", "moonkey123"}}}});
+                                },
+                                [this] {
+                                    const auto* card = last_connect();
+                                    return card != nullptr && card->state == Agent::ToolState::Succeeded && live_settled();
+                                },
+                                {}});
+    }
+
+    void queue_connect_capture()
+    {
+        using namespace std::chrono_literals;
+        using Mode = PrinterSetup::ConversationMode;
+        // Holds the request, then hangs up; holds it past the wait; answers.
+        const auto failing   = std::make_shared<StandInHost>(12000ms, /*answer=*/false);
+        const auto silent    = std::make_shared<StandInHost>(-1ms, /*answer=*/false);
+        const auto answering = std::make_shared<StandInHost>(3000ms, /*answer=*/true);
+        m_capture_hosts      = {failing, silent, answering};
+
+        m_live_steps.push_back({"make: a Klipper printer",
+                                [this] {
+                                    const auto before = wxGetApp().app_config->vendors();
+                                    std::string error;
+                                    SetupCommands::install_and_select_printer(*m_plater, "Custom", "Generic Klipper Printer", "0.4", {}, error);
+                                    Printers::name_installed_printers(*m_plater, before);
+                                    m_live_host_printer = "Generic Klipper Printer";
+                                    SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+                                },
+                                [] { return true; },
+                                [this] { check(printer_profile(m_live_host_printer) != nullptr, "capture_klipper_printer_saved"); }});
+        m_live_steps.push_back({"open: connect the Klipper printer",
+                                [this] {
+                                    live_show(Mode::Connect, m_live_host_printer);
+                                    m_live_printed = 0;
+                                },
+                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                {}});
+
+        // Waiting, and a question while it waits.
+        connect_to(failing->address(), failing->address(), "1-card");
+        m_live_steps.push_back({"picture: connecting", [] {}, {}, [this] {
+                                    check(connection_state(last_connect()->action_id) == "connecting", "capture_is_connecting");
+                                    capture_panel("2-connecting");
+                                }});
+        m_live_steps.push_back({"say: how long does this take?", [this] { say("how long does this take?"); }, {},
+                                [this] {
+                                    check(connection_state(last_connect()->action_id) == "connecting",
+                                          "capture_answered_while_connecting");
+                                    capture_panel("3-asked-while-waiting");
+                                }});
+        // It fails, and the model offers the ways forward.
+        m_live_steps.push_back({"wait: the attempt fails", [] {},
+                                [this] {
+                                    const auto* card = last_connect();
+                                    return connection_state(card->action_id) == "failed" && live_note_after(card->correlation_id) &&
+                                           live_settled();
+                                },
+                                [this] { capture_panel("4-failed"); }});
+
+        // Cancelled while it waits.
+        connect_to("Let's try " + silent->address() + " instead.", silent->address(), "");
+        m_live_steps.push_back({"tap Cancel on the waiting card",
+                                [this] { live_send("printer_action", {{"action", "cancel_connection"}, {"actionId", last_connect()->action_id}}); },
+                                // The app notes the cancel and starts no turn: nothing more is said.
+                                [this] { return connection_state(last_connect()->action_id) == "cancelled"; },
+                                [this] { capture_panel("5-cancelled"); }});
+
+        // Connected.
+        connect_to("Try " + answering->address() + ".", answering->address(), "");
+        m_live_steps.push_back({"wait: the attempt is verified", [] {},
+                                [this] {
+                                    const auto* card = last_connect();
+                                    return connection_state(card->action_id) == "verified" && live_note_after(card->correlation_id) &&
+                                           live_settled();
+                                },
+                                [this] {
+                                    check(printer_profile(m_live_host_printer)->config.opt_string("print_host") ==
+                                              m_capture_hosts.back()->address(),
+                                          "capture_verified_address_saved");
+                                    capture_panel("6-connected");
+                                }});
+        // Home, with the printer the panel connected.
+        m_live_steps.push_back({"back to Home", [this] { live_panel()->close(); },
+                                [this] { return !live_panel()->IsShown() && installed_shell()->home_view()->IsShown(); },
+                                [this] {
+                                    for (int settle = 0; settle < 20; ++settle) {
+                                        wxYield();
+                                        wxMilliSleep(50);
+                                    }
+                                    capture_web_view(installed_shell()->home_view()->webview(), "7-home");
+                                }});
     }
 
     void finish_printer_live()
@@ -5854,6 +6022,15 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PrinterSetup;
         else if (argument == "--printer-live")
             state->mode = HarnessState::Mode::PrinterLive;
+        else if (argument == "--printer-connect-capture") {
+            if (++index == argc) {
+                std::cerr << "--printer-connect-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode            = HarnessState::Mode::PrinterLive;
+            state->connect_capture = true;
+            state->capture_dir     = fs::absolute(argv[index]);
+        }
         else if (argument == "--recomputing-capture") {
             if (++index == argc) {
                 std::cerr << "--recomputing-capture requires an output directory\n";
