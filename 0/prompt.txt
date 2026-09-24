@@ -1,0 +1,171 @@
+Summarize what you are trying to say in plain English under 150 words.
+
+---
+
+<!-- reply -->
+> The buttons it offers usually just say "Yes | No".
+
+this can be simply fixed By making the instruction more clear, right?
+
+---
+
+the your tests check out, You have all the information you need to finish this task, correct? since you said that "The model offers to connect only 27% to 77% of the time." is a pre-existing problem. and having the model to repeat "printer added" is fine
+
+---
+
+If your answer is yes to all the questions above, go ahead and implement it.
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-a1-mini PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-a1-mini-second-yes PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-prusa-mk4-asks-which PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-prusa-mk4s-chosen PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+go ahead with both. Do live testing afterwards and take screenshots so that I can see what the final user experience look like.
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-a1-mini PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-a1-mini-second-yes PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-prusa-mk4-asks-which PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-prusa-mk4s-chosen PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS RESULT PASS failures=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-a1-mini PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-a1-mini-second-yes PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-prusa-mk4-asks-which PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS CHECK captured_add-prusa-mk4s-chosen PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<summary>Monitor event: "final live runs (light, dark): snapshots, failures, results"</summary>
+<event>HARNESS RESULT PASS failures=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0vzicmj2</task-id>
+<tool-use-id>toolu_017uSpno4KiCXFp79n8bcUJA</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dc396e34-1b97-4a13-b735-fbdb2679e9ab/tasks/b0vzicmj2.output</output-file>
+<status>completed</status>
+<summary>Monitor "final live runs (light, dark): snapshots, failures, results" stream ended</summary>
+<event>ALL_DONE</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+All six commits are about this task, right? if so squash them. then merge the squashed commit into jusprin-newui

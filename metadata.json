@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M3A9Y0DWXPK4HWTVGY2NAKD7",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-receipt-card",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/printer_prompt/README.md",
+    "tests/printer_prompt/add_session.json",
+    "tests/printer_prompt/run_prompt_tests.py",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 18803,
+    "cache_read_tokens": 8527058,
+    "output_tokens": 6963,
+    "api_call_count": 14
+  }
+}
