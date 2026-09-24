@@ -81,7 +81,7 @@ describe('the instructions', () => {
       'a timeout means no response, not a wrong code',
       'that you are checking and how long it can take',
       'answer anything the person says meanwhile',
-      'name the three ways forward in words, with no choices line',
+      'name the three ways forward:',
       'try again with the same address',
       '(printer_manual_connection)',
       'leave it for now, as the printer can prepare prints without a connection',

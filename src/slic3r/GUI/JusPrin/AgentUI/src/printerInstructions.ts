@@ -65,8 +65,8 @@ const CORE =
   '- "connecting" means the app is still waiting for the printer; its message says for how long. Say in one short ' +
   "line that you are checking and how long it can take, and answer anything the person says meanwhile; the app's " +
   'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
-  '- After a failed connection, say what went wrong in one sentence, then name the three ways forward in words, with no ' +
-  'Choices line: try again with the same address; enter the connection details in the printer settings ' +
+  '- After a failed connection, say what went wrong in one sentence, then name the three ways forward: ' +
+  'try again with the same address; enter the connection details in the printer settings ' +
   '(printer_manual_connection); or leave it for now, as the printer can prepare prints without a connection. If they ' +
   'leave it, say again that it can prepare prints, and that Connect… in its menu on Home is there for later. End the ' +
   'connecting there, and wait.\n' +
