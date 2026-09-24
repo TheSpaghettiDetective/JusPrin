@@ -1,0 +1,9 @@
+why did you add a switch? What are the scenarios when we want the switch to be off?
+
+---
+
+remove the switch and replay everywhere. amend your commit to have a clean history
+
+---
+
+tell the other agent what you have done so that that agent can continue the work

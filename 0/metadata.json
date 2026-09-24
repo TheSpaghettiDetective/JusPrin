@@ -1,0 +1,77 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M3A7RTYFNZPVYJ6NREFGPRS5",
+  "session_id": "b6450deb-fc78-4a7b-ab40-474d3df43b3c",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-24T17:35:21.093413Z",
+  "branch": "claude/llm-tool-history-context-774814",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentService.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecution.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_project_state.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "03949a620223",
+  "checkpoint_transcript_start": 491,
+  "transcript_lines_at_start": 491,
+  "compact_transcript_start": 70,
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 8615,
+    "cache_read_tokens": 1048618,
+    "output_tokens": 9073,
+    "api_call_count": 5
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-24T17:35:21.028685Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 16,
+    "total_committed": 3,
+    "total_lines_changed": 16,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 345,
+      "user_lines_removed": 17,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 4,
+        ".codex/hooks.json": 52,
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp": 16,
+        "tests/agent/test_printer_conversation.cpp": 35
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp": 6,
+        "src/slic3r/GUI/JusPrin/Agent/AgentService.hpp": 6,
+        "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp": 1,
+        "tests/agent/test_printer_conversation.cpp": 4
+      }
+    }
+  ]
+}
