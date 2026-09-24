@@ -1940,6 +1940,47 @@ button.wide {
   color: var(--action-primary);
 }
 
+/* printer_add's receipt: the app's own line that the printer is saved. */
+.printer-added {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+}
+
+.printer-added-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--status-success);
+}
+
+.printer-added-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.printer-added-caption {
+  font: var(--font-label-bold);
+  color: var(--status-success);
+}
+
+/* Wraps rather than clips: the nozzle at its end is the fact to check. */
+.printer-added-name {
+  overflow-wrap: anywhere;
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.printer-added-name small {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
 .printer-found {
   display: flex;
   flex-direction: column;

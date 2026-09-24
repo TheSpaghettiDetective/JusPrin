@@ -89,6 +89,9 @@ describe('the instructions', () => {
       'call printer_setup_finish only when the person says they are done',
       'call the tool without asking again',
       'ask first and stop: that reply calls no tool',
+      // Measured: without the exact words, the offer came in 27-77% of replies
+      // and its choices were mostly a bare "Yes | No".
+      'end the reply to a successful printer_add with exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"',
     ])
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
   });

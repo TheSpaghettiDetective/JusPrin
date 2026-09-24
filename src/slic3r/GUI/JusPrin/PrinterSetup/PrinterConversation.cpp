@@ -325,7 +325,7 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
     const json arguments = json::parse(activity.arguments_json);
     switch (handler) {
     case ToolHandler::PrinterIdentify: return identify(arguments, activity.correlation_id);
-    case ToolHandler::PrinterAdd: return add(arguments);
+    case ToolHandler::PrinterAdd: return add(arguments, activity.correlation_id);
     case ToolHandler::PrinterChange: return change(arguments);
     case ToolHandler::PrinterConnectionStatus: return connection_status(m_printer_name);
     case ToolHandler::PrinterConnect: return connect(arguments, activity.action_id);
@@ -404,7 +404,7 @@ Result PrinterConversation::identify(const json& arguments, const std::string& m
     return ok(json{{"printers", std::move(found)}});
 }
 
-Result PrinterConversation::add(const json& arguments)
+Result PrinterConversation::add(const json& arguments, const std::string& message_id)
 {
     const std::string     id      = arguments.at("catalogId");
     const CatalogPrinter* printer = catalog_entry(id);
@@ -431,6 +431,10 @@ Result PrinterConversation::add(const json& arguments)
         throw std::logic_error("A successful add did not save a printer");
     m_printer_name = now.name;
     m_added[id]    = now.name;
+    // The receipt is the app's, drawn from what was saved: the model's reply
+    // can word the moment any way, but whether it happened is not its to say.
+    m_blocks.push_back(json{{"id", next_block_id()}, {"seq", m_blocks.size() + 1}, {"afterMessageId", message_id},
+                            {"kind", "added"}, {"printer", json{{"name", now.name}, {"nozzle", now.nozzle}}}});
     m_host.printers_changed(now.name);
     m_host.session_changed();
     return ok(json{{"printer", printer_json(now)}});

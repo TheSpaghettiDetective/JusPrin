@@ -30,6 +30,19 @@ describe('the cards the agent draws', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('says a printer was added, with its name and nozzle, and nothing to tap', () => {
+    render(<PrinterBlockView block={block({ kind: 'added', printer: { name: 'Creality K1', nozzle: 0.4 } })} />);
+    const receipt = screen.getByRole('status');
+    expect(receipt).toHaveTextContent('Printer added');
+    expect(receipt).toHaveTextContent('Creality K1 · 0.4 mm nozzle');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('leaves out a nozzle the saved printer does not state', () => {
+    render(<PrinterBlockView block={block({ kind: 'added', printer: { name: 'Creality K1', nozzle: 0 } })} />);
+    expect(screen.getByRole('status')).toHaveTextContent(/^Printer addedCreality K1$/);
+  });
+
   it('says how a photo gets in, in words', () => {
     render(<PrinterBlockView block={block({ kind: 'tip' })} />);
     expect(screen.getByText(/a photo is the fastest way/)).toBeInTheDocument();

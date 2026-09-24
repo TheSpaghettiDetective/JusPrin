@@ -843,6 +843,19 @@ private:
               name);
     }
 
+    // --- Pictures of the live run (PRINTER_LIVE_CAPTURE_DIR) ----------------
+    //
+    // With the variable set, each capture point writes <name>.png of the
+    // panel, through WebKit's own snapshot as --printer-connect-capture does.
+    void live_capture(const std::string& name)
+    {
+        const char* dir = std::getenv("PRINTER_LIVE_CAPTURE_DIR");
+        if (dir == nullptr)
+            return;
+        m_state->capture_dir = dir;
+        capture_panel(name);
+    }
+
     void say(const std::string& text)
     {
         static int next = 0;
@@ -926,10 +939,38 @@ private:
                                                                          "model";
             if (!message.text.empty())
                 std::cerr << "HARNESS LIVE   " << who << ": " << message.text << '\n';
+            for (const nlohmann::json& receipt : live_receipts())
+                if (receipt.value("afterMessageId", "") == message.id)
+                    std::cerr << "HARNESS LIVE   receipt: Printer added, " << receipt["printer"].value("name", "") << ", "
+                              << receipt["printer"].value("nozzle", 0.) << " mm nozzle\n";
         }
         if (m_live_printed < messages.size() && messages.back().role == Agent::MessageRole::Assistant && messages.back().text.empty())
             std::cerr << "HARNESS LIVE   model: (a finished reply with no words)\n";
         m_live_printed = messages.size();
+    }
+
+    // The "Printer added" cards the page draws in this session's thread.
+    std::vector<nlohmann::json> live_receipts() const
+    {
+        std::vector<nlohmann::json> receipts;
+        if (live_panel()->host() == nullptr)
+            return receipts;
+        for (const nlohmann::json& block : live_panel()->session_json().value("blocks", nlohmann::json::array()))
+            if (block.value("kind", "") == "added")
+                receipts.push_back(block);
+        return receipts;
+    }
+
+    // One receipt per printer added, under a message the thread has.
+    bool live_receipt_for(const std::string& printer) const
+    {
+        const auto receipts = live_receipts();
+        if (receipts.size() != 1 || receipts.front()["printer"].value("name", "") != printer)
+            return false;
+        const auto messages = live_messages();
+        return std::any_of(messages.begin(), messages.end(), [&](const Agent::ConversationMessage& message) {
+            return message.id == receipts.front().value("afterMessageId", "");
+        });
     }
 
     void run_live_steps()
@@ -1042,10 +1083,14 @@ private:
             live_print_calls();
             m_live_added = added_printers();
             check(m_live_added.size() == 1 && printer_profile(m_live_added.front()) != nullptr, "live_naming_the_model_adds_it");
+            check(!m_live_added.empty() && live_receipt_for(m_live_added.front()), "live_an_added_printer_draws_its_receipt");
+            live_capture("add-a1-mini");
         });
         live_say("yes, add it", [this, added_printers] {
             live_print_calls();
             check(added_printers().size() == 1, "live_a_second_yes_adds_no_second_printer");
+            check(!m_live_added.empty() && live_receipt_for(m_live_added.front()), "live_a_second_yes_draws_no_second_receipt");
+            live_capture("add-a1-mini-second-yes");
         });
 
         live_open(Mode::Add);
@@ -1061,6 +1106,19 @@ private:
                         ++shown;
                     }
             check(only_mk4s && shown != 1, "live_prusa_mk4_asks_which");
+            live_capture("add-prusa-mk4-asks-which");
+        });
+        // Answering with one of the three, as a tap on its choice sends it.
+        live_say("Prusa MK4S", [this] {
+            live_print_calls();
+            std::string added;
+            for (const Agent::ToolActivity* call : live_calls("printer_add"))
+                if (call->state == Agent::ToolState::Succeeded)
+                    added = nlohmann::json::parse(call->result_json)["printer"].value("name", "");
+            if (!added.empty())
+                m_live_added.push_back(added);
+            check(!added.empty() && live_receipt_for(added), "live_a_chosen_printer_draws_its_receipt");
+            live_capture("add-prusa-mk4s-chosen");
         });
 
         live_open(Mode::Add);

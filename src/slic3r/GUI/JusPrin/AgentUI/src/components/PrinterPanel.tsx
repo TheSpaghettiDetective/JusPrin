@@ -11,6 +11,7 @@ import type {
   PrinterConnectionInfo,
   ToolActivityInfo,
 } from '../bridge/protocol';
+import { numberText } from '../printerWords';
 
 // The camera the panel shows wherever a photo is offered. Inline, like the
 // composer's send arrow, because the icon set carries no camera yet.
@@ -35,6 +36,27 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block }: { bloc
         </span>
       </div>
     );
+
+  // The receipt for printer_add: the same words every time, from what the
+  // app saved, whatever the model's reply around it says.
+  if (block.kind === 'added') {
+    const printer = block.printer!;
+    return (
+      <div className="printer-added" role="status">
+        <svg className="printer-added-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="m7.5 12.5 3 3 6-6.5" />
+        </svg>
+        <span className="printer-added-text">
+          <span className="printer-added-caption">Printer added</span>
+          <span className="printer-added-name">
+            {printer.name}
+            {printer.nozzle > 0 && <small> · {numberText(printer.nozzle)} mm nozzle</small>}
+          </span>
+        </span>
+      </div>
+    );
+  }
 
   if (block.kind === 'network')
     return (

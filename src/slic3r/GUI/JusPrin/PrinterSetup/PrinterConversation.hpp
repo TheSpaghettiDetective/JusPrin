@@ -1,7 +1,7 @@
 #pragma once
 
 // The subject of the printer panel's conversation: what the model is told and
-// may call there, and the picture cards the page draws in the thread.
+// may call there, and the cards the page draws in the thread.
 //
 // The conversation is the whole panel. The model does the understanding --
 // which printer someone has, what changed on one they own, how to reach it --
@@ -103,7 +103,7 @@ public:
 private:
     using Result = Agent::ToolExecutionCoordinator::ExtensionResult;
     Result identify(const nlohmann::json& arguments, const std::string& message_id);
-    Result add(const nlohmann::json& arguments);
+    Result add(const nlohmann::json& arguments, const std::string& message_id);
     Result change(const nlohmann::json& arguments);
     Result connection_status(const std::string& name);
     Result connect(const nlohmann::json& arguments, const std::string& action_id);

@@ -1,0 +1,178 @@
+[
+  {
+    "description": "Saves the printer the person confirmed, so they can prepare prints for it. Call it only after the person said yes to this model and nozzle. It does not connect to the machine. Returns the printer as saved; its name is what the other printer tools take.",
+    "name": "printer_add",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogId": {
+          "description": "Copied exactly from the printer list.",
+          "type": "string"
+        },
+        "nozzle": {
+          "description": "Nozzle size in mm, only when the person or a photo said it.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "catalogId"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Saves what physically changed on a saved printer, after the person confirmed it. Change only what they said changed. Returns what changed and the printer as it now is.",
+    "name": "printer_change",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "nozzle": {
+          "description": "The nozzle size now on it, in mm.",
+          "type": "number"
+        },
+        "printerName": {
+          "type": "string"
+        },
+        "spools": {
+          "description": "The complete list of spools loaded now; it replaces the whole list.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "colour": {
+                "maxLength": 9,
+                "type": "string"
+              },
+              "material": {
+                "maxLength": 32,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "material"
+            ],
+            "type": "object"
+          },
+          "maxItems": 16,
+          "type": "array"
+        }
+      },
+      "required": [
+        "printerName"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Connects the printer this conversation is about. It shows the person a card where they type the access code or API key themselves, never in chat, and runs when they tap Connect. For a Bambu Lab printer pass only the deviceId from printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and until they give one, ask for it instead of calling this. connecting means the app is still waiting for the printer and will report the outcome in a note.",
+    "name": "printer_connect",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "description": "The address the person gave, as they open the printer in a browser.",
+          "maxLength": 256,
+          "type": "string"
+        },
+        "deviceId": {
+          "description": "Bambu Lab only, alone: from printer_connection_status.",
+          "type": "string"
+        },
+        "hostType": {
+          "description": "Moonraker or OctoPrint only, together with address.",
+          "enum": [
+            "moonraker",
+            "octoprint"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it also lists the printers of that model in LAN mode on the network now, and starts looking for them if it was not already.",
+    "name": "printer_connection_status",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
+    "description": "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them to the person as picture cards, and returns reference details. It saves nothing: call printer_add once the person confirms one model. alreadyYours only means settings for the same model were saved before, not the same physical printer.",
+    "name": "printer_identify",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogIds": {
+          "description": "1 to 3 ids, copied exactly from the printer list.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nozzle": {
+          "description": "Nozzle size in mm, only when the person or a photo said it.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "catalogIds"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Opens OrcaSlicer's printer settings for the printer this conversation is about, in a window beside this one, where the person enters connection details themselves. Ask them to say when they are done, then check with printer_connection_status.",
+    "name": "printer_manual_connection",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
+    "description": "Opens OrcaSlicer's own list of every printer, where the person picks and sets one up themselves. Use it when the person asks for the full list, or when no model or more than three fit. Returns the printers they added there, possibly none.",
+    "name": "printer_manual_setup",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
+    "description": "Closes this panel and returns the person to Home. Call it when the person says they are done.",
+    "name": "printer_setup_finish",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  }
+]

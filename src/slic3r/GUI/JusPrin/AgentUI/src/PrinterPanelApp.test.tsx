@@ -196,6 +196,27 @@ describe('the printer panel page', () => {
     expect(screen.getByText('What printer do you have?').compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('draws the added receipt between the turn that saved the printer and the reply after it', () => {
+    open(
+      state({
+        conversation: [
+          { id: 'm-1', role: 'user', state: 'complete', text: 'creality k1', attempt: 1 },
+          { id: 'm-2', role: 'assistant', state: 'complete', text: '', attempt: 1 },
+          { id: 'm-3', role: 'assistant', state: 'complete', text: 'Want to connect it?\nChoices: Connect it | Not now', attempt: 1 },
+        ],
+        session: session({
+          printerName: 'Creality K1',
+          blocks: [{ id: 'b2', seq: 2, afterMessageId: 'm-2', kind: 'added', printer: { name: 'Creality K1', nozzle: 0.4 } }],
+        }),
+      }),
+    );
+    const receipt = screen.getByText('Printer added').closest('.printer-added')!;
+    expect(screen.getByText('creality k1').compareDocumentPosition(receipt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(receipt.compareDocumentPosition(screen.getByText('Want to connect it?')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The reply's own choices are still the reply's, under it.
+    expect(screen.getByRole('button', { name: 'Connect it' })).toBeInTheDocument();
+  });
+
   it('asks for the access code on its card, and sends it only with Connect', async () => {
     const connect: ToolActivityInfo = {
       actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to Workshop',

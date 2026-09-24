@@ -403,8 +403,15 @@ export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
-  kind: 'tip' | 'network' | 'printers';
+  kind: 'tip' | 'network' | 'printers' | 'added';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
+  // 'added': the printer printer_add just saved, as it was saved.
+  printer?: AddedPrinterInfo;
+}
+
+export interface AddedPrinterInfo {
+  name: string;
+  nozzle: number; // mm
 }
 
 export interface PrinterSessionPayload {

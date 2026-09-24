@@ -489,7 +489,7 @@ TEST_CASE("printer_add saves once and the session is then about that printer", "
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    const json output = ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}, {"nozzle", 0.6}});
+    const json output = ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}, {"nozzle", 0.6}}, "m-4");
     REQUIRE(backend.added.size() == 1);
     CHECK(backend.added[0].model_id == "Prusa MK3S");
     CHECK(backend.added[0].variant == "0.6");
@@ -503,10 +503,17 @@ TEST_CASE("printer_add saves once and the session is then about that printer", "
     CHECK(conversation.state_json().at("context").at("printer").at("name") == "Prusa MK3S");
     CHECK(panel.turns == 0);
     CHECK(panel.notes.empty());
+    // Its receipt follows the message that added it, stating what was saved.
+    const json receipt = conversation.state_json().at("blocks").back();
+    CHECK(receipt.at("kind") == "added");
+    CHECK(receipt.at("afterMessageId") == "m-4");
+    CHECK(receipt.at("printer") == json{{"name", "Prusa MK3S"}, {"nozzle", 0.6}});
 
-    // A second yes is not a second printer.
+    // A second yes is not a second printer, nor a second receipt.
+    const size_t blocks = conversation.state_json().at("blocks").size();
     CHECK(refused(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}) == "already_added");
     CHECK(backend.added.size() == 1);
+    CHECK(conversation.state_json().at("blocks").size() == blocks);
     // A new session may add another of the same model.
     conversation.start(ConversationMode::Add);
     ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
@@ -529,6 +536,8 @@ TEST_CASE("printer_add refuses an unknown model, an unshipped nozzle, and passes
     CHECK(result.error->code == "add_failed");
     CHECK(result.error->message == "That name is taken.");
     CHECK(panel.refreshes == 0);
+    // Nothing was saved, so nothing says it was: only the tip is drawn.
+    CHECK(conversation.state_json().at("blocks").size() == 1);
 }
 
 TEST_CASE("printer_change saves what changed and returns the printer as it now is", "[printer-conversation]")
@@ -1128,6 +1137,25 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
     REQUIRE(activities.size() == 2);
     CHECK_FALSE(activities.back().requires_approval);
     CHECK(harness.backend.added.size() == 1);
+
+    // The receipt reaches the page after the reply that added the printer...
+    const json receipt = harness.conversation.state_json().at("blocks").back();
+    CHECK(receipt.at("kind") == "added");
+    CHECK(receipt.at("afterMessageId") == activities.back().correlation_id);
+    CHECK_FALSE(activities.back().correlation_id.empty());
+    // ...and never the model: the next request carries the thread's words,
+    // and the receipt is not one of them.
+    harness.agent->call.reset();
+    harness.say("thanks");
+    harness.pump();
+    const Agent::AgentRequest& next = harness.agent->requests.back();
+    CHECK(next.user_text == "thanks");
+    CHECK(next.conversation.size() >= 4);
+    for (const Agent::AgentConversationContext& message : next.conversation) {
+        INFO(message.text);
+        CHECK(message.text.find("added") == std::string::npos);
+        CHECK(message.text.find("Prusa MK3S") == std::string::npos);
+    }
 }
 
 TEST_CASE("a refused printer tool reaches the model as its error, with nothing saved", "[printer-conversation][host]")

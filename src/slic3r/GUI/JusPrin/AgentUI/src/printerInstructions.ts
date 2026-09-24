@@ -52,7 +52,9 @@ const CORE =
   'Rules for connecting a printer:\n' +
   '- The connection tools act on the printer this is about, named below; a printer found on the network is only ever ' +
   'a deviceId.\n' +
-  '- Connecting is optional; after adding, offer it once. For a Bambu Lab printer, call printer_connection_status and ' +
+  '- Connecting is optional; after adding, offer it once: end the reply to a successful printer_add with exactly ' +
+  '"Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now". ' +
+  'For a Bambu Lab printer, call printer_connection_status and ' +
   'connect to a printer it lists; with more than one, ask which. None listed means LAN mode is off or it is on another ' +
   'network: say where to turn LAN mode on (on the printer\'s screen, in its network settings; ask what they see rather ' +
   'than invent a menu). For Moonraker or OctoPrint, ask for the address they open it with in a browser, including its ' +
