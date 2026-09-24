@@ -637,6 +637,7 @@ private:
     std::vector<std::string> m_live_added;
     bool                     m_live_wizard_seen{false};
     std::string              m_live_host_printer;
+    std::string              m_live_step; // the running step's label
 
     // The Orca backend over the harness's own plater, for what the panel's
     // conversation reads through it.
@@ -663,12 +664,24 @@ private:
     void live_send(const std::string& type, const nlohmann::json& payload)
     {
         static int next = 0;
-        live_panel()->host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
-                                                             {"version", Agent::Protocol::kVersion},
-                                                             {"id", "live-" + std::to_string(++next)},
-                                                             {"type", type},
-                                                             {"payload", payload}}
-                                                  .dump());
+        // The model can close the panel (printer_setup_finish) before the
+        // script is done with it. The step then fails by name, and the run
+        // goes on: live_settled() counts a closed panel as settled, and the
+        // next open starts a fresh session.
+        Agent::AgentHost* host = live_panel()->host();
+        if (host == nullptr) {
+            std::string step;
+            for (const char c : m_live_step)
+                step += std::isalnum(static_cast<unsigned char>(c)) ? static_cast<char>(std::tolower(static_cast<unsigned char>(c))) : '_';
+            check(false, "live_panel_open_for_" + step);
+            return;
+        }
+        host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                             {"version", Agent::Protocol::kVersion},
+                                             {"id", "live-" + std::to_string(++next)},
+                                             {"type", type},
+                                             {"payload", payload}}
+                                  .dump());
     }
 
     // Whether the app posted a note after this message.
@@ -791,6 +804,7 @@ private:
         LiveStep step = std::move(m_live_steps.front());
         m_live_steps.pop_front();
         std::cerr << "HARNESS LIVE -- " << step.label << '\n';
+        m_live_step = step.label;
         step.act();
         auto ready = step.ready ? step.ready : [this] { return live_settled(); };
         wait_until(
