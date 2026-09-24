@@ -181,6 +181,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <regex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -1024,6 +1025,33 @@ private:
         m_live_steps.push_back({"say: " + words, [this, words] { say(words); }, {}, std::move(check)});
     }
 
+    // Whether the page draws Done as a reply's one choice: "Choices:" starting
+    // a word on its last line, after something said, as splitChoices reads it.
+    static bool offers_only_done(const std::string& text)
+    {
+        const std::string trimmed = text.substr(0, text.find_last_not_of(" \t\r\n") + 1);
+        const std::size_t cut  = trimmed.find_last_of('\n');
+        const std::string line = cut == std::string::npos ? trimmed : trimmed.substr(cut + 1);
+        std::smatch       found;
+        if (!std::regex_search(line, found, std::regex(R"((^|\s)Choices:\s*(.*?)\s*$)")))
+            return false;
+        return found[2] == "Done" && (cut != std::string::npos || found.position(0) > 0);
+    }
+
+    // Once nothing is left to decide the reply offers Done alone, and the
+    // person's "Done", as its chip sends it, closes the panel through
+    // printer_setup_finish.
+    void live_done(const std::string& after)
+    {
+        m_live_steps.push_back({"check: Done is offered", [] {}, [] { return true; }, [this, after] {
+                                    const auto messages = live_messages();
+                                    check(!messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
+                                              offers_only_done(messages.back().text),
+                                          "live_" + after + "_offers_done");
+                                }});
+        live_say("Done", [this, after] { check(!live_panel()->IsShown(), "live_done_after_" + after + "_closes_the_panel"); });
+    }
+
     bool live_identified(const std::string& id) const
     {
         for (const Agent::ToolActivity* call : live_calls("printer_identify"))
@@ -1093,6 +1121,8 @@ private:
             check(!m_live_added.empty() && live_receipt_for(m_live_added.front()), "live_a_second_yes_draws_no_second_receipt");
             live_capture("add-a1-mini-second-yes");
         });
+        live_say("Not now", [this] { live_print_calls(); });
+        live_done("not_now");
 
         live_open(Mode::Add);
         live_say("prusa mk4", [this] {
@@ -1438,6 +1468,7 @@ private:
                                                  activity.result_json.find(kCode) != std::string::npos;
                                     check(!leaked, "live_the_code_is_nowhere_in_the_conversation");
                                 }});
+        live_done("verified_connection");
         run_live_steps();
     }
 

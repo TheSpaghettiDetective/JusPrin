@@ -35,6 +35,7 @@ import concurrent.futures
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -106,6 +107,7 @@ class Conversation:
         self.history = [{"role": "assistant", "content": prompt["opening"]}]  # the page's opening line
         self.log = ["assistant: " + prompt["opening"]]
         self.waiting = None  # a card left up at the end of the last turn
+        self.waiting_turn = None  # the input of the turn that card stopped
 
     def say(self, words):
         """One turn: the person's words, then the model until it stops or a card waits."""
@@ -124,6 +126,16 @@ class Conversation:
         self.log.append("app: " + text)
         self.history.append({"role": "developer", "content": text})
         self.respond(list(self.history))
+
+    def decide(self, result):
+        """The person decides the waiting card; its result continues the turn
+        that card stopped, as the app's continue_after_tool does."""
+        call, turn = self.waiting, self.waiting_turn
+        self.waiting = self.waiting_turn = None
+        self.log.append("  card decided -> " + dump(result))
+        turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
+        self.history += self.replayed(call, result)
+        self.respond(turn)
 
     def respond(self, turn):
         """The model until it stops or a card waits."""
@@ -150,7 +162,7 @@ class Conversation:
                 (result, waits), recorded = self.case.tool(call["name"], arguments), True
             self.log.append("  -> " + dump(result))
             if waits:
-                self.waiting = call  # a card is up: the app waits for the person
+                self.waiting, self.waiting_turn = call, turn  # a card is up: the app waits for the person
                 break
             turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
             if recorded:
@@ -342,7 +354,181 @@ class AddThenUndo(AddCase):
         return not problems, detail
 
 
-CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo)}
+def last_reply(conversation, words=None, note=None):
+    """The last thing the model wrote in one turn: the person's words, or the
+    app's note."""
+    start = len(conversation.log)
+    if note is None:
+        conversation.say(words)
+    else:
+        conversation.note(note)
+    replies = [line for line in conversation.log[start:] if line.startswith("assistant: ")]
+    return replies[-1][len("assistant: "):] if replies else ""
+
+
+def offers_done(reply):
+    """Whether the page draws Done as the reply's one chip, reading the reply
+    as splitChoices (replyChoices.ts) does: "Choices:" starting a word on the
+    last line, with something said before it."""
+    lines = reply.rstrip().splitlines()
+    found = re.search(r"(^|\s)Choices:(.*)$", lines[-1]) if lines else None
+    if found is None:
+        return False
+    said = "\n".join(lines[:-1]) + lines[-1][:found.start()]
+    return [choice.strip() for choice in found.group(2).split("|") if choice.strip()] == ["Done"] and said.strip() != ""
+
+
+class Finishing:
+    """The end of a case: once nothing is left to decide, the reply ends with
+    Done alone, and "Done", as its chip sends it, closes the panel. Closing
+    before that is a failure, whatever else happened."""
+
+    finished = 0  # printer_setup_finish calls
+
+    def finish(self, name):
+        if name == "printer_setup_finish":
+            self.finished += 1
+            return {"state": "closed"}, False
+        return None
+
+    def end(self, conversation, reply, detail):
+        offered = offers_done(reply)
+        early = self.finished
+        last_reply(conversation, "Done")
+        closed = self.finished > early
+        detail += "; offered Done" if offered else "; NO DONE OFFER: " + repr(reply[-120:])
+        if early:
+            detail += "; CLOSED BEFORE DONE"
+        detail += "; closed on Done" if closed else "; NOT CLOSED ON DONE"
+        return offered and not early and closed, detail
+
+
+class AddNotNowDone(Finishing, AddCase):
+    """The person adds a printer and turns down connecting it. Passes when the
+    reply to "Not now" offers Done alone and Done closes the panel."""
+
+    name = "add-not-now-done"
+
+    def tool(self, name, arguments):
+        return self.finish(name) or AddCase.tool(self, name, arguments)
+
+    def run(self, conversation):
+        self.say(conversation, "bambu lab a1 mini")
+        reply = self.say(conversation, "Not now")
+        detail = "added" if self.added == ["BBL/Bambu Lab A1 mini"] else f"added {self.added or 'nothing'}"
+        return self.end(conversation, reply, detail)
+
+
+class ConnectOutcome(Finishing, ConnectBambu):
+    """Connect the saved A1 mini, as connect-bambu does, then the person taps
+    Connect on the card and the app reports the outcome in a note."""
+
+    def tool(self, name, arguments):
+        return self.finish(name) or ConnectBambu.tool(self, name, arguments)
+
+    def connect(self, conversation, outcome):
+        """The model's reply to the app's note, or None when no card came."""
+        ConnectBambu.run(self, conversation)
+        if not self.card:
+            return None
+        conversation.decide({"state": "connecting", "message": "The app is checking the printer now and gives it up to 30 seconds."})
+        return last_reply(conversation, note="Connection to Bambu Lab A1 mini " + outcome)
+
+
+class ConnectVerifiedDone(ConnectOutcome):
+    """Passes when the reply to a verified connection offers Done alone and
+    Done closes the panel."""
+
+    name = "connect-verified-done"
+
+    def run(self, conversation):
+        reply = self.connect(conversation, "verified.")
+        if reply is None:
+            return False, "NO CARD"
+        return self.end(conversation, reply, "verified")
+
+
+class ConnectLeaveDone(ConnectOutcome):
+    """The connection fails and the person leaves it for now. Passes when the
+    reply to that offers Done alone and Done closes the panel."""
+
+    name = "connect-leave-done"
+
+    def run(self, conversation):
+        reply = self.connect(conversation, "failed: The printer did not respond. Check that it is on the network and try again.")
+        if reply is None:
+            return False, "NO CARD"
+        reply = last_reply(conversation, "Leave it for now")
+        return self.end(conversation, reply, "failed, left")
+
+
+class ConnectAfterQuestion(Finishing, ConnectBambu):
+    """The person writes while the card waits, as --printer-live does: the app
+    cancels the card and the waiting turn goes on with that, then the question
+    is a turn of its own. A cancelled card is not a failed connection. Passes
+    when neither reply offers Done or closes the panel, and "connect it" then
+    opens a fresh card."""
+
+    name = "connect-after-question"
+
+    def tool(self, name, arguments):
+        return self.finish(name) or ConnectBambu.tool(self, name, arguments)
+
+    def run(self, conversation):
+        ConnectBambu.run(self, conversation)
+        if not self.card:
+            return False, "NO CARD"
+        start = len(conversation.log)
+        conversation.decide({"state": "cancelled"})
+        cancelled = [line for line in conversation.log[start:] if line.startswith("assistant: ")]
+        answered = last_reply(conversation, "where do I find the access code?")
+        self.card = False
+        last_reply(conversation, "ok, I have the code now. Connect it")
+        offered = [reply for reply in cancelled + ["assistant: " + answered] if offers_done(reply[len("assistant: "):])]
+        detail = "fresh card" if self.card else "NO FRESH CARD"
+        if offered:
+            detail += "; DONE OFFERED: " + repr(offered[0][-120:])
+        if self.finished:
+            detail += "; CLOSED"
+        return self.card and not offered and not self.finished, detail
+
+
+class ChangeNozzleDone(Finishing):
+    """The person says the nozzle changed. Passes when it is changed to that
+    size alone, and the reply offers Done alone and Done closes the panel."""
+
+    name = "change-nozzle-done"
+    printer = {"name": "Bambu Lab A1 mini", "model": "Bambu Lab A1 mini", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
+               "spools": [{"name": "Teal PLA", "material": "Bambu PLA Basic @BBL A1M", "colour": "#26A69A"}], "connected": False}
+    session = {"mode": "change", "printerName": printer["name"], "blocks": [],
+               "context": {"printer": {**printer, "provider": "bambu"}}}
+
+    def __init__(self):
+        self.changes = []
+        self.other = []
+
+    def tool(self, name, arguments):
+        if name == "printer_setup_finish":
+            return self.finish(name)
+        if name == "printer_change":
+            self.changes.append(arguments)
+            after = {**self.printer, "nozzle": arguments.get("nozzle", self.printer["nozzle"])}
+            return {"changed": [{"field": "nozzle", "before": 0.4, "after": after["nozzle"]}], "printer": after}, False
+        self.other.append(name)
+        return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
+
+    def run(self, conversation):
+        reply = last_reply(conversation, "I put a 0.6 nozzle on it")
+        changed = self.changes == [{"printerName": self.printer["name"], "nozzle": 0.6}]
+        detail = "changed to 0.6" if changed else f"CHANGES {self.changes}"
+        if self.other:
+            detail += "; also called " + ", ".join(self.other)
+        passed, detail = self.end(conversation, reply, detail)
+        return passed and changed, detail
+
+
+CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowDone,
+                                      ConnectVerifiedDone, ConnectLeaveDone, ConnectAfterQuestion, ChangeNozzleDone)}
 
 
 # --- Runner ------------------------------------------------------------------

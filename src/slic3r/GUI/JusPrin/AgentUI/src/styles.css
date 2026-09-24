@@ -375,6 +375,9 @@ body {
   max-width: var(--printer-setup-width);
   margin-inline: auto;
 }
+/* Its dialog is Home's printer-dialog kind, over the whole window. */
+.app--printer-setup .chat-dialog-shade { background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); }
+.app--printer-setup .chat-dialog { max-width: var(--printer-dialog-width); border-radius: var(--printer-dialog-radius); box-shadow: var(--elevation-strong); }
 .app--printer-setup .printer-header {
   height: auto;
   flex-wrap: wrap;

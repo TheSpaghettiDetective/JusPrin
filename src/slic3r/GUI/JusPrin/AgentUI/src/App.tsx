@@ -4,7 +4,7 @@ import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard } from './components/SetupCard';
-import { ActionMenu, ChatHeader, ChatList, MenuItem } from './components/ChatNavigation';
+import { ActionMenu, ChatHeader, ChatList, Dialog, MenuItem } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
@@ -170,6 +170,12 @@ export function App({
     sentInstructions.current = text;
     client.send('printer_instructions', { text });
   }, [printerPanel, state.session, state.connection, client]);
+
+  // The printer panel's Back asks first once leaving would lose something:
+  // what the person said, or what they are about to send. The composer's
+  // words are mirrored here, not in state, so typing renders nothing more.
+  const [confirmPrinterClose, setConfirmPrinterClose] = useState(false);
+  const printerDraft = useRef('');
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
 
@@ -393,6 +399,14 @@ export function App({
     const printerAction = (action: string) => client.send('printer_action', { action });
     const menu: MenuItem[] = [{ label: 'Browse the full printer list', onSelect: () => printerAction('manual_setup') }];
     if (session?.printerName) menu.push({ label: 'Open printer settings', onSelect: () => printerAction('open_printer_settings') });
+    // Done never comes here: the model's printer_setup_finish closes the
+    // panel from the app.
+    const back = () => {
+      const started = state.messages.some((message) => message.role === 'user') ||
+        state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';
+      if (started) setConfirmPrinterClose(true);
+      else printerAction('close');
+    };
     return (
       // The whole panel takes a photo, not only the composer: a picture of
       // the printer is dropped where the person is looking.
@@ -409,11 +423,22 @@ export function App({
         {errorNotice}
         <div className="chat-content">
           <header className="chat-header printer-header">
-            <button type="button" className="printer-link-button" onClick={() => printerAction('close')}>
+            <button type="button" className="printer-link-button" onClick={back}>
               ‹ Back
             </button>
             <ActionMenu label="More" items={menu} />
           </header>
+          {confirmPrinterClose && (
+            <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)}>
+              <p>This conversation will be closed. You can't continue it at a later point. Are you sure?</p>
+              <div className="chat-dialog-buttons">
+                <button type="button" onClick={() => setConfirmPrinterClose(false)}>Cancel</button>
+                <button type="button" className="danger" onClick={() => { setConfirmPrinterClose(false); printerAction('close'); }}>
+                  Close conversation
+                </button>
+              </div>
+            </Dialog>
+          )}
           {notConfigured ? (
             body(session?.mode === 'add' && view === 'chat' ? () => printerAction('manual_setup') : undefined)
           ) : (
@@ -453,7 +478,9 @@ export function App({
               photoButton
               streaming={streaming}
               attachments={stagedAttachments}
-              onSend={sendMessage}
+              onDraftChange={(text) => { printerDraft.current = text; }}
+              draftDebounceMs={0}
+              onSend={(text) => { printerDraft.current = ''; sendMessage(text); }}
               onStop={() => {
                 if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
               }}

@@ -65,6 +65,24 @@ The app streams its requests and this script does not; nothing else differs.
   printer they have. Without the prompt's rule about undone adds it passed 3 of
   20 (2026-09-24): the model mostly said "Okay, it's removed" and stopped, and
   some replies said "I removed" as if it had.
+- `add-not-now-done`, `connect-verified-done`, `connect-leave-done`,
+  `change-nozzle-done`: the four places the prompt says nothing is left to
+  decide -- the person turns down connecting, the app's note says the
+  connection is verified, they leave a failed connection for now, a nozzle
+  change is saved. Each passes when that reply offers Done as its one choice,
+  read as the page reads it, and the person's "Done" then calls
+  `printer_setup_finish`, which it must not call before. The connect cases tap
+  Connect on the card and deliver the app's note as the app does: a developer
+  message and no user message. Before the finishing rule, 0 of 20 offered Done
+  in each; stated only as a general rule, the leave and change replies, whose
+  own rules say how they end, offered it in 11 and 15 of 20.
+- `connect-after-question`: the person writes while the credential card waits,
+  as `--printer-live` does. The app cancels the card and the waiting turn goes
+  on with `{"state": "cancelled"}`, then the question is a turn of its own.
+  Passes when neither reply offers Done and "connect it" then opens a fresh
+  card. The finishing rule first made the cancelled reply read as leaving
+  connecting for now, with Done, in 11 of 20; the rule's own exception for a
+  cancelled card brought that to 1 of 40.
 
 The add cases use `add_session.json`, recorded from a `--printer-live` run: the
 Add session the page was sent, including the full printer list, and what

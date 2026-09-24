@@ -94,6 +94,17 @@ describe('the instructions', () => {
       // Measured: without the exact words, the offer came in 27-77% of replies
       // and its choices were mostly a bare "Yes | No".
       'end the reply to a successful printer_add with exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"',
+      // Measured: as a general rule alone, Done came in as few as 11 of 20
+      // replies after leaving connecting and 15 of 20 after a change, whose
+      // own rules said how those replies end; pinned there too, 20 of 20.
+      'Done, below, is the only one offered alone',
+      'end the reply with the line "Choices: Done", the one choice offered alone',
+      'after the person turns down connecting, after the app says the connection is verified, after they leave connecting for now, and after a successful printer_change',
+      'is there for later, and end with "Choices: Done"',
+      'now slices for 0.6 mm.") and end with "Choices: Done"',
+      // Measured: without it, the reply to a card cancelled by writing
+      // offered Done in 11 of 20; with it, 1 of 40.
+      'Never after printer_connect comes back cancelled: nothing failed and nothing was declined',
     ])
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
   });
@@ -110,6 +121,7 @@ describe('the instructions', () => {
     expect(examples.map((line) => splitChoices(`Question?\n${line}`).choices)).toEqual([
       ['Yes, that is it', 'Different printer'],
       ['Prusa MK4', 'Prusa MK4S', 'Prusa MK4S HF'],
+      ['Done'],
     ]);
   });
 });

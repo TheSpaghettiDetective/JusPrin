@@ -113,11 +113,59 @@ describe('the printer panel page', () => {
     expect(screen.queryByTestId('current-setup')).toBeNull();
   });
 
-  it('goes back without asking, whatever is on the page', async () => {
+  it('goes back without asking before the person has said anything', async () => {
+    const host = open();
+    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  const said = state({ conversation: [
+    { id: 'm-1', role: 'assistant', state: 'complete', text: 'What printer do you have?', attempt: 1 },
+    { id: 'm-2', role: 'user', state: 'complete', text: 'creality k1', attempt: 1 },
+  ] } as Partial<StatePayload>);
+
+  it('asks before going back once the person has said something, and Cancel stays', async () => {
+    const host = open(said);
+    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    const dialog = screen.getByRole('dialog', { name: 'Close this conversation?' });
+    expect(dialog).toHaveTextContent("This conversation will be closed. You can't continue it at a later point. Are you sure?");
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+
+    // Escape is Cancel.
+    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+  });
+
+  it('closes the conversation when the person confirms', async () => {
+    const host = open(said);
+    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close conversation' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('asks before going back over words not yet sent', async () => {
     const host = open();
     await userEvent.type(screen.getByLabelText('Message the Agent'), 'half a thought');
     await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
-    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+  });
+
+  it('sends a tapped Done as the person’s own message, and asks nothing', async () => {
+    const host = open(state({ conversation: [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'Not now', attempt: 1 },
+      { id: 'm-2', role: 'assistant', state: 'complete', text: 'It can still prepare prints.\nChoices: Done', attempt: 1 },
+    ] } as Partial<StatePayload>));
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Done' });
+    expect(host.lastOfType('printer_action')).toBeUndefined();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
