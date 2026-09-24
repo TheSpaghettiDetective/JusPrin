@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M3A0Z6K1W8AF03ZPA83Z2J0C",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-connect-async",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterBackend.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 434,
+    "cache_creation_tokens": 1870847,
+    "cache_read_tokens": 74072973,
+    "output_tokens": 178453,
+    "api_call_count": 217
+  }
+}
