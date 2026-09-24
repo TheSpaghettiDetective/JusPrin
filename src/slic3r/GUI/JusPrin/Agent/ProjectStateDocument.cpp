@@ -298,6 +298,8 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     entry["actionId"]         = activity.action_id;
     entry["source"]           = activity.source == ToolSource::Mcp ? "mcp" : "agent";
     entry["correlationId"]    = activity.correlation_id;
+    if (!activity.call_id.empty())
+        entry["callId"] = activity.call_id;
     entry["server"]           = activity.server;
     entry["tool"]             = activity.tool;
     entry["title"]            = activity.title;
@@ -331,6 +333,7 @@ ToolActivity read_activity(const json& entry)
     const auto source = entry.value("source", activity.correlation_id.rfind("mcp-", 0) == 0 ? "mcp" : "agent");
     if (source != "mcp" && source != "agent") throw std::invalid_argument("Unknown tool activity source");
     activity.source = source == "mcp" ? ToolSource::Mcp : ToolSource::Agent;
+    activity.call_id           = entry.value("callId", "");
     activity.server            = entry.value("server", "");
     activity.tool              = entry.value("tool", "");
     activity.title             = entry.value("title", "");

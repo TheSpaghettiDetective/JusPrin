@@ -266,6 +266,7 @@ private:
     void begin_reply(const std::string& user_message_id);
     void begin_stream(ConversationMessage assistant, const std::string& conversation_id);
     AgentRequest make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id) const;
+    nlohmann::json tool_output_json(const ToolActivity& activity) const;
     void complete_stream();
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);

@@ -115,6 +115,9 @@ struct ToolActivity
 {
     std::string   action_id;      // coordinator-assigned, stable across reloads
     std::string   correlation_id; // assistant message or adapter request correlation
+    // The provider's id for the call that proposed this activity, so a later
+    // turn can replay the call with its result; empty for a call from MCP.
+    std::string   call_id;
     std::string   server;
     std::string   tool;
     std::string   title;

@@ -113,6 +113,32 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(serialized.find("do not scale") != std::string::npos);
 }
 
+TEST_CASE("OpenAI request replays an earlier turn's call beside its output, with no item id", "[agent][openai]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
+
+    AgentRequest request = request_fixture();
+    AgentConversationContext call;
+    call.call_id        = "call_7";
+    call.tool           = "printer_connection_status";
+    call.arguments_json = "{}";
+    call.output_json    = R"({"candidates":[{"deviceId":"01P00A3B"}],"state":"succeeded"})";
+    request.conversation = {{"user", "is it online?"}, call, {"assistant", "Yes, Workshop is."}};
+    REQUIRE(agent.start(request));
+    REQUIRE(fake->requests.size() == 1);
+
+    const json input = json::parse(fake->requests.front().body).at("input");
+    REQUIRE(input.size() == 5);
+    CHECK(input[0] == json{{"role", "user"}, {"content", "is it online?"}});
+    // Exactly these fields: the service's item id would name nothing it kept.
+    CHECK(input[1] == json{{"type", "function_call"}, {"call_id", "call_7"}, {"name", "printer_connection_status"}, {"arguments", "{}"}});
+    CHECK(input[2] == json{{"type", "function_call_output"}, {"call_id", "call_7"}, {"output", call.output_json}});
+    CHECK(input[3] == json{{"role", "assistant"}, {"content", "Yes, Workshop is."}});
+    CHECK(input[4].at("role") == "user");
+}
+
 TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent][openai]")
 {
     auto transport = std::make_unique<FakeTransport>();

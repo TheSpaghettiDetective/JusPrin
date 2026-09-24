@@ -33,8 +33,15 @@ struct AgentAttachmentContext
 
 struct AgentConversationContext
 {
-    std::string role; // user|assistant
+    std::string role; // user|assistant|developer; empty for a tool exchange
     std::string text;
+    // A tool the model called in an earlier turn and what it got back, kept
+    // as one entry so the call is never sent without its output. Set when
+    // call_id is; role and text are then empty.
+    std::string call_id;
+    std::string tool;
+    std::string arguments_json;
+    std::string output_json;
 };
 
 // What one conversation is for. The project conversation leaves this at its

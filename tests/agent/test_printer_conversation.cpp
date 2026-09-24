@@ -1270,6 +1270,92 @@ TEST_CASE("a printer session's notes reach the model as the app's words; a proje
     }
 }
 
+TEST_CASE("a session replays its earlier tool calls to the model, printer or project", "[printer-conversation][host]")
+{
+    SECTION("printer session") {
+        PrinterHost harness(ConversationMode::Connect);
+        harness.backend.connection_info = bambu_on_network();
+        harness.agent->call             = Agent::ToolRequest{"printer_connection_status", "{}"};
+        harness.say("is it online?");
+        harness.pump();
+        REQUIRE(harness.agent->results.size() == 1);
+        const Agent::AgentToolResult live = harness.agent->results.front();
+        CHECK(live.output_json.find("01P00A3B") != std::string::npos);
+
+        harness.say("connect it");
+        harness.pump();
+        const Agent::AgentRequest& request = harness.agent->requests.back();
+        REQUIRE(request.user_text == "connect it");
+        const auto& history = request.conversation;
+        const auto  call    = std::find_if(history.begin(), history.end(), [](const auto& entry) { return !entry.call_id.empty(); });
+        REQUIRE(call != history.end());
+        CHECK(call->call_id == live.call_id);
+        CHECK(call->tool == "printer_connection_status");
+        CHECK(json::parse(call->arguments_json) == json::object());
+        // The very words the model read when the call ran, so the next turn
+        // has the printer's id from it.
+        CHECK(call->output_json == live.output_json);
+        CHECK(call->role.empty());
+        CHECK(call->text.empty());
+        // It sits after the question that led to it and before the reply that read its result.
+        const auto asked   = std::find_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "is it online?"; });
+        const auto replied = std::find_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "Done."; });
+        REQUIRE(asked != history.end());
+        REQUIRE(replied != history.end());
+        CHECK(asked < call);
+        CHECK(call < replied);
+        CHECK(std::count_if(history.begin(), history.end(), [](const auto& entry) { return !entry.call_id.empty(); }) == 1);
+    }
+    SECTION("project session") {
+        PrinterHost harness(ConversationMode::Add, /*printer_session=*/false);
+        harness.agent->call = Agent::ToolRequest{"printer_list", "{}"};
+        harness.say("which printers are there?");
+        harness.pump();
+        REQUIRE(harness.agent->results.size() == 1);
+        CHECK(harness.agent->results.front().state == "succeeded");
+
+        harness.say("and now?");
+        harness.pump();
+        const Agent::AgentRequest& request = harness.agent->requests.back();
+        REQUIRE(request.user_text == "and now?");
+        const auto call = std::find_if(request.conversation.begin(), request.conversation.end(),
+                                       [](const auto& entry) { return !entry.call_id.empty(); });
+        REQUIRE(call != request.conversation.end());
+        CHECK(call->tool == "printer_list");
+        // The project's tools answer with the workspace beside the result; on
+        // replay the workspace is left out, since the turn carries the current one.
+        const json replayed = json::parse(call->output_json);
+        const json live     = json::parse(harness.agent->results.front().output_json);
+        CHECK(replayed.at("result") == live.at("result"));
+        CHECK(live.contains("workspace"));
+        CHECK_FALSE(replayed.contains("workspace"));
+        CHECK_FALSE(replayed.contains("actionId"));
+    }
+}
+
+TEST_CASE("a large earlier result is replayed as its state and a note, not its bytes", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Connect);
+    harness.backend.connection_info = bambu_on_network();
+    std::string address(20 * 1024, 'x');
+    harness.backend.connection_info.message = address;
+    harness.agent->call = Agent::ToolRequest{"printer_connection_status", "{}"};
+    harness.say("is it online?");
+    harness.pump();
+    REQUIRE(harness.agent->results.size() == 1);
+    REQUIRE(harness.agent->results.front().output_json.size() > 20 * 1024);
+
+    harness.say("connect it");
+    harness.pump();
+    const auto& history = harness.agent->requests.back().conversation;
+    const auto  call    = std::find_if(history.begin(), history.end(), [](const auto& entry) { return !entry.call_id.empty(); });
+    REQUIRE(call != history.end());
+    const json output = json::parse(call->output_json);
+    CHECK(output.at("state") == "succeeded");
+    CHECK_THAT(output.at("omitted").get<std::string>(), Catch::Matchers::ContainsSubstring("call the tool again"));
+    CHECK(call->output_json.size() < 512);
+}
+
 TEST_CASE("a printer session spends no request on a chat title, so the app's turn is never stuck behind one",
           "[printer-conversation][host]")
 {

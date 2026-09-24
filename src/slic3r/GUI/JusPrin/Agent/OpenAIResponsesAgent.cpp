@@ -103,8 +103,18 @@ bool OpenAIResponsesAgent::busy() const { return m_busy; }
 json OpenAIResponsesAgent::initial_input(const AgentRequest& request) const
 {
     json input = json::array();
-    for (const auto& message : request.conversation)
-        input.push_back(json{{"role", message.role}, {"content", message.text}});
+    for (const auto& message : request.conversation) {
+        if (message.call_id.empty()) {
+            input.push_back(json{{"role", message.role}, {"content", message.text}});
+            continue;
+        }
+        // A call from an earlier turn, replayed for this stateless request.
+        // Its call_id pairs it with its output. The item id the service gave
+        // the call is not sent: with store:false it names nothing kept.
+        input.push_back(json{{"type", "function_call"}, {"call_id", message.call_id}, {"name", message.tool},
+                             {"arguments", message.arguments_json}});
+        input.push_back(json{{"type", "function_call_output"}, {"call_id", message.call_id}, {"output", message.output_json}});
+    }
     if (request.purpose == AgentRequest::Purpose::ConversationTitle)
         return input;
     // A turn the app started, after one of its own notes: nothing was said,
