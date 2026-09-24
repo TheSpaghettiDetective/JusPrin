@@ -156,3 +156,7 @@ If this event is something the user would act on now, send a PushNotification. R
 <event>ALL_DONE</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+by "live test", I mean some lightweight testing harness to Prevent the regressions like this. This system prompt testing does not really require the app to be running, right? Can you isolate the test into a light-weight Python script so that you can run those test cases independently without pulling in all the complicated app that's useless for the testing?
