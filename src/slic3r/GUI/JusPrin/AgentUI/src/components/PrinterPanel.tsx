@@ -4,7 +4,13 @@
 // does in this panel is a message.
 
 import { memo, useState } from 'react';
-import type { NetworkPrinterInfo, PrinterBlock, PrinterCardInfo, ToolActivityInfo } from '../bridge/protocol';
+import type {
+  NetworkPrinterInfo,
+  PrinterBlock,
+  PrinterCardInfo,
+  PrinterConnectionInfo,
+  ToolActivityInfo,
+} from '../bridge/protocol';
 
 // The camera the panel shows wherever a photo is offered. Inline, like the
 // composer's send arrow, because the icon set carries no camera yet.
@@ -67,23 +73,48 @@ export const PrinterBlockView = memo(function PrinterBlockView({ block }: { bloc
 });
 
 // printer_connect's card. Connect approves the call and hands the app what
-// was typed; the model hears only how the connection went.
+// was typed; the model hears only how the connection went. After Connect the
+// card follows the attempt itself, as the app reports it in `connection`.
 export function PrinterCredentialCard({
   activity,
+  connection,
   onDecision,
+  onCancelConnection,
 }: {
   activity: ToolActivityInfo;
+  connection?: PrinterConnectionInfo;
   onDecision: (actionId: string, decision: 'approve' | 'reject', input?: { credential: string }) => void;
+  onCancelConnection: (actionId: string) => void;
 }) {
   const [credential, setCredential] = useState('');
   const bambu = activity.arguments.provider === 'bambu';
-  if (activity.state !== 'pending')
+  if (activity.state !== 'pending') {
+    // Approved and about to start, or started: both are the wait.
+    const state =
+      activity.state === 'rejected' ? 'cancelled' : connection?.state ?? (activity.state === 'failed' ? 'failed' : 'connecting');
+    const target = connection?.target;
     return (
       <div className="tool-card printer-credential" data-testid={`tool-${activity.actionId}`}>
         <div className="tool-title">{activity.title}</div>
-        <div className="tool-state">{activity.state === 'rejected' ? 'Cancelled' : 'Sent'}</div>
+        {state === 'connecting' && (
+          <>
+            <div className="tool-state">Connecting…</div>
+            <div className="tool-actions">
+              <progress aria-label="Connecting" />
+              {connection && (
+                <button type="button" onClick={() => onCancelConnection(activity.actionId)}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          </>
+        )}
+        {state === 'verified' && <div className="tool-state done">Connected</div>}
+        {state === 'failed' && <div className="tool-error">{target ? `Couldn't reach ${target}` : "Couldn't connect"}</div>}
+        {state === 'cancelled' && <div className="tool-state">Cancelled</div>}
       </div>
     );
+  }
   return (
     <form
       className="tool-card printer-credential"

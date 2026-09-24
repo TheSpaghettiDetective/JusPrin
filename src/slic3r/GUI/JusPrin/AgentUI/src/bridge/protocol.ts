@@ -414,6 +414,14 @@ export interface PrinterSessionPayload {
   blocks: PrinterBlock[];
   // The facts the model's instructions state (printerInstructions.ts).
   context: PrinterContext;
+  // How each approved printer_connect card's attempt stands, by action id.
+  connections?: Record<string, PrinterConnectionInfo>;
+}
+
+export interface PrinterConnectionInfo {
+  state: 'connecting' | 'verified' | 'failed' | 'cancelled';
+  // What the card connects to: the address, or the printer's network name.
+  target: string;
 }
 
 export interface PrinterContext {

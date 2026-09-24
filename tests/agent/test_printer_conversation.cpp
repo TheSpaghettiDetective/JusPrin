@@ -143,6 +143,8 @@ public:
         connects.push_back({name, type, address, key});
         return connection_error;
     }
+    std::vector<std::string> cancelled;
+    void cancel_connection(const std::string& name) override { cancelled.push_back(name); }
     ManualPrinterResult run_manual_setup() override { ++manual_setups; return manual_result; }
     void open_printer_settings(const std::string& name) override { settings_opened.push_back(name); }
 };
@@ -625,6 +627,8 @@ TEST_CASE("printer_connect is checked before its card, and titles it", "[printer
     CHECK(activity.title == "Connect to Workshop");
     CHECK(json::parse(activity.arguments_json).at("provider") == "bambu");
     CHECK(json::parse(activity.arguments_json).at("printerName") == "Lab Printer");
+    // What the card names once it has started.
+    CHECK(json::parse(activity.arguments_json).at("target") == "Workshop");
     // Named as the person sees it, it is the same printer; the card and the
     // connection use its id.
     const auto [by_name, named] = preflight(json{{"deviceId", "Workshop"}});
@@ -634,8 +638,9 @@ TEST_CASE("printer_connect is checked before its card, and titles it", "[printer
 
     backend.connection_info = PrinterConnectionInfo{"host", "not_configured"};
     CHECK(preflight(json{{"deviceId", "01P00A3B"}}).first->code == "address_needed");
-    CHECK(preflight(json{{"hostType", "moonraker"}, {"address", "192.168.1.42"}}).second.title ==
-          "Connect to 192.168.1.42");
+    const auto [host_problem, host_card] = preflight(json{{"hostType", "moonraker"}, {"address", "192.168.1.42"}});
+    CHECK(host_card.title == "Connect to 192.168.1.42");
+    CHECK(json::parse(host_card.arguments_json).at("target") == "192.168.1.42");
     backend.connection_info = PrinterConnectionInfo{"unavailable", "unavailable", "Install the network plugin."};
     CHECK(preflight(json{{"deviceId", "01P00A3B"}}).first->message == "Install the network plugin.");
     // It connects the printer the conversation is about, and nothing before one is saved.
@@ -665,27 +670,68 @@ TEST_CASE("printer_connect takes a found printer or an address, never part of on
     CHECK_FALSE(checked(json{{"deviceId", "01P00A3B"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"}}).valid());
 }
 
-TEST_CASE("a host connection's outcome is the tool's own result", "[printer-conversation]")
+// Starts printer_connect as the coordinator does once the person taps Connect
+// on card `action`.
+Agent::ToolExecutionCoordinator::ExtensionResult tap_connect(PrinterConversation& conversation, RecordingPanel& panel,
+                                                              const json& arguments, const std::string& action,
+                                                              const std::string& credential = {})
+{
+    Agent::ToolActivity activity = call("printer_connect", arguments);
+    activity.action_id           = action;
+    panel.credentials[action]    = credential;
+    return conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+}
+
+const json kHostArguments{{"printerName", "Lab Printer"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"},
+                          {"provider", "host"},           {"target", "192.168.1.42"}};
+const json kBambuArguments{{"printerName", "Lab Printer"}, {"deviceId", "01P00A3B"}, {"provider", "bambu"}, {"target", "Workshop"}};
+
+json card_state(const PrinterConversation& conversation, const std::string& action)
+{
+    return conversation.state_json().at("connections").value(action, json());
+}
+
+TEST_CASE("a host connection waits like a Bambu Lab one: connecting, then one note and one turn", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
     backend.saved           = {lab_printer()};
-    backend.connection_info = PrinterConnectionInfo{"host", "verified"};
+    backend.connection_info = PrinterConnectionInfo{"host", "connecting"};
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Connect, "Lab Printer");
 
-    const json arguments{{"printerName", "Lab Printer"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"}, {"provider", "host"}};
-    Agent::ToolActivity activity = call("printer_connect", arguments);
-    activity.action_id           = "a-1";
-    panel.credentials["a-1"]     = "key123";
-    auto result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
-    CHECK(json::parse(result.result_json) == json{{"state", "verified"}, {"message", ""}});
+    const auto result = tap_connect(conversation, panel, kHostArguments, "a-1", "key123");
+    // The model hears how long the wait is, so a question about it is
+    // answered from what it was told.
+    CHECK(json::parse(result.result_json) ==
+          json{{"state", "connecting"}, {"message", "The app is checking the printer now and gives it up to 30 seconds."}});
+    CHECK(Agent::ToolRegistry::instance().validate_output(*Agent::ToolRegistry::instance().find("printer_connect"),
+                                                          json::parse(result.result_json)));
     CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "moonraker", "192.168.1.42", "key123"});
     CHECK(panel.credentials.empty());
+    CHECK(card_state(conversation, "a-1") == json{{"state", "connecting"}, {"target", "192.168.1.42"}});
 
+    using namespace std::chrono_literals;
+    const auto start = std::chrono::steady_clock::now();
+    conversation.tick(start);
+    CHECK(panel.notes.empty());
+    CHECK(panel.turns == 0);
+
+    backend.connection_info = PrinterConnectionInfo{"host", "failed", "The printer did not respond."};
+    conversation.tick(start + 1100ms);
+    REQUIRE(panel.notes == std::vector<std::string>{"Connection to Lab Printer failed: The printer did not respond."});
+    CHECK(panel.turns == 1);
+    CHECK(card_state(conversation, "a-1").at("state") == "failed");
+    conversation.tick(start + 5s);
+    CHECK(panel.notes.size() == 1);
+
+    // Refused before it started: the card says so at once, and nothing waits.
     backend.connection_error = "Use an HTTP or HTTPS address.";
-    result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
-    CHECK(json::parse(result.result_json) == json{{"state", "failed"}, {"message", "Use an HTTP or HTTPS address."}});
+    const auto refused = tap_connect(conversation, panel, kHostArguments, "a-2");
+    CHECK(json::parse(refused.result_json) == json{{"state", "failed"}, {"message", "Use an HTTP or HTTPS address."}});
+    CHECK(card_state(conversation, "a-2").at("state") == "failed");
+    conversation.tick(start + 10s);
+    CHECK(panel.notes.size() == 1);
 }
 
 TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", "[printer-conversation]")
@@ -697,10 +743,7 @@ TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", 
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Connect, "Lab Printer");
 
-    Agent::ToolActivity activity = call("printer_connect", json{{"printerName", "Lab Printer"}, {"deviceId", "01P00A3B"}, {"provider", "bambu"}});
-    activity.action_id       = "a-1";
-    panel.credentials["a-1"] = "12345678";
-    const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+    const auto result = tap_connect(conversation, panel, kBambuArguments, "a-1", "12345678");
     CHECK(json::parse(result.result_json).at("state") == "connecting");
     CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "01P00A3B", "12345678"});
 
@@ -709,9 +752,6 @@ TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", 
     backend.connection_info.state = "connecting";
     conversation.tick(start);
     CHECK(panel.notes.empty());
-    // A second connection waits for this one.
-    Agent::ToolActivity again = call("printer_connect", json{{"deviceId", "01P00A3B"}});
-    CHECK(conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, again)->code == "connection_in_progress");
 
     backend.connection_info.state   = "failed";
     backend.connection_info.message = "The printer did not respond.";
@@ -724,6 +764,88 @@ TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", 
     conversation.tick(start + 5s);
     CHECK(panel.notes.size() == 1);
     CHECK(panel.turns == 1);
+}
+
+TEST_CASE("a second connection while one waits replaces it, and only the second reports", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = PrinterConnectionInfo{"host", "connecting"};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+
+    tap_connect(conversation, panel, kHostArguments, "a-1");
+    // The person gave another address meanwhile: nothing refuses the call.
+    Agent::ToolActivity again = call("printer_connect", json{{"hostType", "moonraker"}, {"address", "192.168.1.43"}});
+    CHECK_FALSE(conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, again).has_value());
+    json second = kHostArguments;
+    second["address"] = second["target"] = "192.168.1.43";
+    CHECK(json::parse(tap_connect(conversation, panel, second, "a-2").result_json).at("state") == "connecting");
+    CHECK(backend.connects.size() == 2);
+    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
+    CHECK(card_state(conversation, "a-2") == json{{"state", "connecting"}, {"target", "192.168.1.43"}});
+
+    backend.connection_info.state = "verified";
+    conversation.tick(std::chrono::steady_clock::now());
+    CHECK(panel.notes == std::vector<std::string>{"Connection to Lab Printer verified."});
+    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
+    CHECK(card_state(conversation, "a-2").at("state") == "verified");
+}
+
+TEST_CASE("Cancel on a waiting card drops the attempt, and a later answer is never read", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = PrinterConnectionInfo{"host", "connecting"};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    tap_connect(conversation, panel, kHostArguments, "a-1");
+
+    // A Cancel for a card that is not the waiting one stops nothing.
+    conversation.handle_page_message("printer_action", json{{"action", "cancel_connection"}, {"actionId", "a-0"}});
+    CHECK(backend.cancelled.empty());
+    CHECK(card_state(conversation, "a-1").at("state") == "connecting");
+
+    conversation.handle_page_message("printer_action", json{{"action", "cancel_connection"}, {"actionId", "a-1"}});
+    CHECK(backend.cancelled == std::vector<std::string>{"Lab Printer"});
+    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
+    // The model reads it next time; the person has said nothing to answer.
+    REQUIRE(panel.notes == std::vector<std::string>{"The person cancelled connecting Lab Printer."});
+    check_is_a_statement(panel.notes.front());
+    CHECK(panel.turns == 0);
+
+    backend.connection_info.state = "verified";
+    conversation.tick(std::chrono::steady_clock::now());
+    CHECK(panel.notes.size() == 1);
+    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
+    // Twice is once.
+    conversation.handle_page_message("printer_action", json{{"action", "cancel_connection"}, {"actionId", "a-1"}});
+    CHECK(backend.cancelled.size() == 1);
+}
+
+TEST_CASE("an attempt the last session left waiting is dropped when the next one starts", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {lab_printer()};
+    backend.connection_info = PrinterConnectionInfo{"host", "connecting"};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    tap_connect(conversation, panel, kHostArguments, "a-1");
+
+    // The panel closed mid-test, and opens again.
+    conversation.start(ConversationMode::Change, "Lab Printer");
+    CHECK(backend.cancelled == std::vector<std::string>{"Lab Printer"});
+    CHECK(conversation.state_json().at("connections").empty());
+    backend.connection_info.state = "verified";
+    conversation.tick(std::chrono::steady_clock::now());
+    CHECK(panel.notes.empty());
+    CHECK(panel.turns == 0);
+    // Nothing was waiting the second time.
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    CHECK(backend.cancelled.size() == 1);
 }
 
 // -- OrcaSlicer's own screens, and closing -------------------------------------
@@ -1087,6 +1209,35 @@ TEST_CASE("writing instead of connecting cancels the card, and the message is an
     CHECK(json::parse(harness.agent->results.back().output_json) == json{{"state", "cancelled"}});
     // The question gets its own turn once the card's is answered.
     CHECK(harness.agent->requests.back().user_text == "where do I find the access code?");
+}
+
+TEST_CASE("a message sent while connecting is answered first, and the outcome's turn follows it",
+          "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Connect);
+    const Agent::ToolActivity card = propose_connect(harness);
+    harness.page("tool_decision", {{"actionId", card.action_id}, {"decision", "approve"}, {"input", {{"credential", "1234"}}}});
+    harness.pump();
+    REQUIRE_FALSE(harness.agent->results.empty());
+    CHECK_THAT(json::parse(harness.agent->results.back().output_json).at("message").get<std::string>(),
+               ContainsSubstring("up to 30 seconds"));
+    const std::size_t before = harness.agent->requests.size();
+
+    // Typed while the printer is still being checked; the check settles
+    // while that reply is under way.
+    harness.backend.connection_info.state = "connecting";
+    harness.say("how long does this take?");
+    harness.backend.connection_info.state = "verified";
+    harness.conversation.tick(std::chrono::steady_clock::now());
+    harness.pump();
+
+    REQUIRE(harness.agent->requests.size() == before + 2);
+    CHECK(harness.agent->requests[before].user_text == "how long does this take?");
+    CHECK(harness.agent->requests[before + 1].user_text.empty());
+    const auto& context = harness.agent->requests[before + 1].conversation;
+    CHECK(std::any_of(context.begin(), context.end(), [](const Agent::AgentConversationContext& entry) {
+        return entry.text == "Connection to Lab Printer verified.";
+    }));
 }
 
 TEST_CASE("a printer session's notes reach the model as the app's words; a project's do not", "[printer-conversation][host]")

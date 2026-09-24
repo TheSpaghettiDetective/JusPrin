@@ -84,6 +84,9 @@
 //              printer of one model, Home's list, rename, remove, and a
 //              nozzle change that keeps the printer's own settings
 
+// First: on Windows asio needs winsock2.h ahead of any windows.h.
+#include <boost/asio.hpp>
+
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/Utils.hpp"
@@ -160,12 +163,15 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <condition_variable>
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <thread>
@@ -201,6 +207,126 @@ wxString ui_name(const char* utf8) { return wxString::FromUTF8(utf8); }
 // back UTF-8, and letting that std::string convert itself to wxString would
 // re-decode it through the locale and undo the round trip on Windows.
 wxString ui_name(const std::string& utf8) { return wxString::FromUTF8(utf8.c_str()); }
+
+// A print host on a loopback port, for connection tests without hardware.
+// Each request is held for `hold` (until the stand-in goes, when it is
+// negative), then either answered as Moonraker's /server/info or hung up on.
+class StandInHost
+{
+public:
+    StandInHost(std::chrono::milliseconds hold, bool answer)
+        : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+        , m_hold(hold)
+        , m_answer(answer)
+    {
+        m_thread = std::thread([this] { serve(); });
+    }
+    ~StandInHost()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_stopping = true;
+        }
+        m_released.notify_all();
+        // Wakes a blocking accept.
+        boost::system::error_code ignored;
+        boost::asio::ip::tcp::socket wake(m_io);
+        wake.connect(m_acceptor.local_endpoint(), ignored);
+        m_thread.join();
+    }
+    std::string address() const { return "http://127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+    int requests() const { return m_requests; }
+
+private:
+    void serve()
+    {
+        for (;;) {
+            boost::system::error_code error;
+            boost::asio::ip::tcp::socket socket(m_io);
+            m_acceptor.accept(socket, error);
+            std::unique_lock<std::mutex> lock(m_mutex);
+            if (m_stopping || error)
+                return;
+            ++m_requests;
+            boost::asio::streambuf request;
+            lock.unlock();
+            boost::asio::read_until(socket, request, "\r\n\r\n", error);
+            lock.lock();
+            if (m_hold.count() < 0)
+                m_released.wait(lock, [this] { return m_stopping; });
+            else
+                m_released.wait_for(lock, m_hold, [this] { return m_stopping; });
+            if (m_answer && !m_stopping) {
+                const std::string body = R"({"result":{"klippy_state":"ready"}})";
+                const std::string reply = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+                                          std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+                boost::asio::write(socket, boost::asio::buffer(reply), error);
+            }
+            socket.close(error);
+        }
+    }
+
+    boost::asio::io_context        m_io;
+    boost::asio::ip::tcp::acceptor m_acceptor;
+    std::chrono::milliseconds      m_hold;
+    bool                           m_answer;
+    std::atomic<int>               m_requests{0};
+    std::mutex                     m_mutex;
+    std::condition_variable        m_released;
+    bool                           m_stopping{false};
+    std::thread                    m_thread;
+};
+
+// A model that answers the first message by calling `tool` with `arguments`,
+// and anything after that with a line of text.
+class ToolCallingAgent final : public Agent::IAgentService
+{
+public:
+    ToolCallingAgent(std::string tool, nlohmann::json arguments) : m_tool(std::move(tool)), m_arguments(std::move(arguments)) {}
+
+    bool ready() const override { return true; }
+    bool busy() const override { return m_active; }
+    bool start(const Agent::AgentRequest& request) override
+    {
+        m_active = true;
+        if (request.purpose != Agent::AgentRequest::Purpose::ConversationTitle && !m_called) {
+            m_called = true;
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-1", Agent::ToolRequest{m_tool, m_arguments.dump()}, true}));
+        } else {
+            m_events.push_back(Agent::AgentEvent::delta("Checking."));
+            m_events.push_back(Agent::AgentEvent::completed());
+        }
+        return true;
+    }
+    bool continue_after_tool(const Agent::AgentToolResult&) override
+    {
+        m_events.push_back(Agent::AgentEvent::delta("Checking."));
+        m_events.push_back(Agent::AgentEvent::completed());
+        return true;
+    }
+    void cancel() override
+    {
+        m_active = false;
+        m_events.clear();
+    }
+    std::optional<Agent::AgentEvent> poll() override
+    {
+        if (m_events.empty())
+            return std::nullopt;
+        Agent::AgentEvent event = std::move(m_events.front());
+        m_events.pop_front();
+        if (event.kind == Agent::AgentEventKind::Completed || event.kind == Agent::AgentEventKind::Failed)
+            m_active = false;
+        return event;
+    }
+
+private:
+    std::string                   m_tool;
+    nlohmann::json                m_arguments;
+    std::deque<Agent::AgentEvent> m_events;
+    bool                          m_active{false};
+    bool                          m_called{false};
+};
 
 // wxString::ToStdString() narrows through that same locale converter and
 // returns an empty string when a character will not fit the code page. Names
@@ -1154,19 +1280,25 @@ private:
                                                   nlohmann::json::parse(card()->arguments_json).value("provider", "") == "host",
                                               "live_host_asks_for_the_key_on_its_card");
                                     }});
-            m_live_steps.push_back({"type the API key, tap Connect",
+            // And asks while the printer is being checked: the question is
+            // answered, and the app's note about the outcome comes after it.
+            m_live_steps.push_back({"type the API key, tap Connect, ask how long it takes",
                                     [this, card] {
                                         if (card() != nullptr && card()->state == Agent::ToolState::Pending)
                                             live_send("tool_decision", {{"actionId", card()->action_id}, {"decision", "approve"},
                                                                         {"input", {{"credential", kKey}}}});
+                                        say("how long does this take?");
                                     },
-                                    [this, card] { return card() != nullptr && card()->state != Agent::ToolState::Pending &&
-                                                          card()->state != Agent::ToolState::Approved &&
-                                                          card()->state != Agent::ToolState::Running && live_settled(); },
-                                    [this, card] {
+                                    [this, card] { return card() != nullptr && card()->state == Agent::ToolState::Succeeded &&
+                                                          live_note_after(card()->correlation_id) && live_settled(); },
+                                    [this] {
+                                        live_print_new();
                                         live_print_calls();
-                                        check(card()->state == Agent::ToolState::Succeeded &&
-                                                  nlohmann::json::parse(card()->result_json).value("state", "") == "verified",
+                                        const auto messages = live_messages();
+                                        check(std::any_of(messages.begin(), messages.end(), [](const auto& message) {
+                                                  return message.role == Agent::MessageRole::Note &&
+                                                         message.text.find("verified") != std::string::npos;
+                                              }),
                                               "live_host_connection_is_verified");
                                         const char* log = std::getenv("PRINTER_LIVE_MOONRAKER_LOG");
                                         std::ifstream seen(log ? log : "");
@@ -1231,6 +1363,190 @@ private:
         return wxGetApp().preset_bundle->printers.find_preset(name, false, true);
     }
 
+    struct HostOutcome
+    {
+        std::string               state;
+        int                       ticks{0};
+        std::chrono::milliseconds took{0};
+    };
+
+    // Connects `name` to a Moonraker host and waits up to `limit` for the
+    // outcome, counting a 100 ms timer's ticks meanwhile: a test run on the
+    // main thread stops the app, and the timer with it.
+    static HostOutcome connect_host_and_wait(PrinterSetup::OrcaPrinterBackend& backend, const std::string& name,
+                                             const std::string& address, std::chrono::seconds limit)
+    {
+        HostOutcome outcome;
+        wxTimer     timer;
+        timer.Bind(wxEVT_TIMER, [&outcome](wxTimerEvent&) { ++outcome.ticks; });
+        timer.Start(100);
+        const auto        start   = std::chrono::steady_clock::now();
+        const std::string problem = backend.connect_host(name, "moonraker", address, "");
+        outcome.state             = problem.empty() ? backend.connection(name).state : "refused: " + problem;
+        while (outcome.state == "connecting" && std::chrono::steady_clock::now() - start < limit) {
+            wxYield();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            outcome.state = backend.connection(name).state;
+        }
+        timer.Stop();
+        outcome.took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+        std::cout << "HARNESS host connect to " << address << ": " << outcome.state << " after " << outcome.took.count()
+                  << " ms, " << outcome.ticks << " timer ticks" << std::endl;
+        return outcome;
+    }
+
+    // Waits, yielding to the app, until `done` or `limit` passes.
+    static bool wait_for(const std::function<bool()>& done, std::chrono::milliseconds limit)
+    {
+        const auto until = std::chrono::steady_clock::now() + limit;
+        while (!done()) {
+            if (std::chrono::steady_clock::now() > until)
+                return false;
+            wxYield();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        return true;
+    }
+
+    // Testing a print host takes as long as the host takes to answer, and
+    // the app goes on meanwhile: a host that holds the request for three
+    // seconds leaves a 100 ms timer ticking the whole time. The address is
+    // saved only once the host has answered, and an answer nobody waits for
+    // any more is dropped.
+    void verify_host_connection_keeps_the_app_responsive(PrinterSetup::OrcaPrinterBackend& backend)
+    {
+        using namespace std::chrono_literals;
+        const auto saved_address = [] { return printer_profile(kAddedPrinter)->config.opt_string("print_host"); };
+        const std::string address_before = saved_address();
+        {
+            StandInHost       slow(3000ms, /*answer=*/false);
+            const HostOutcome outcome = connect_host_and_wait(backend, kAddedPrinter, slow.address(), 20s);
+            check(outcome.state == "failed" && outcome.took >= 2500ms, "host_slow_failure_is_reported");
+            check(outcome.ticks >= 10, "host_test_leaves_the_app_responsive");
+            check(saved_address() == address_before, "host_failure_leaves_the_profile_as_it_was");
+        }
+        std::string answered;
+        {
+            StandInHost       host(0ms, /*answer=*/true);
+            const HostOutcome outcome = connect_host_and_wait(backend, kAddedPrinter, host.address(), 20s);
+            answered = host.address();
+            check(outcome.state == "verified" && host.requests() == 1, "host_that_answers_is_verified");
+            check(saved_address() == answered &&
+                      printer_profile(kAddedPrinter)->config.opt_enum<PrintHostType>("host_type") == htMoonraker,
+                  "host_success_saves_the_address");
+        }
+        {
+            // Would answer in two seconds; cancelled first.
+            StandInHost late(2000ms, /*answer=*/true);
+            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "").empty() &&
+                      backend.connection(kAddedPrinter).state == "connecting",
+                  "host_attempt_starts_waiting");
+            backend.cancel_connection(kAddedPrinter);
+            wait_for([] { return false; }, 3000ms);
+            check(backend.connection(kAddedPrinter).state != "verified" && saved_address() == answered,
+                  "host_cancel_drops_a_late_answer");
+        }
+        {
+            // Replaced by a second attempt, to a closed port, before it answers.
+            StandInHost late(2000ms, /*answer=*/true);
+            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "").empty(), "host_first_attempt_starts");
+            const HostOutcome second = connect_host_and_wait(backend, kAddedPrinter, "http://127.0.0.1:1", 20s);
+            wait_for([] { return false; }, 3000ms);
+            check(second.state == "failed" && backend.connection(kAddedPrinter).state == "failed" && saved_address() == answered,
+                  "host_replaced_attempt_answer_is_dropped");
+        }
+        {
+            // Accepts and never answers: failed at the wait, not never.
+            StandInHost       silent(-1ms, /*answer=*/false);
+            const HostOutcome outcome = connect_host_and_wait(backend, kAddedPrinter, silent.address(), 45s);
+            check(outcome.state == "failed" && outcome.took >= PrinterSetup::kConnectionWait &&
+                      outcome.took < PrinterSetup::kConnectionWait + 5s,
+                  "host_that_never_answers_fails_at_the_wait");
+            check(backend.connection(kAddedPrinter).message.find("did not respond") != std::string::npos,
+                  "host_silence_is_reported_as_no_response");
+            check(saved_address() == answered, "host_silence_leaves_the_profile");
+        }
+        verify_panel_close_drops_a_waiting_connection(answered);
+    }
+
+    // Opens the panel on `printer` with a model that answers the first
+    // message by calling `tool`, sends that message, and returns the call.
+    const Agent::ToolActivity* call_in_panel(const std::string& printer, const std::string& tool, const nlohmann::json& arguments,
+                                             const std::string& name)
+    {
+        using namespace std::chrono_literals;
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        panel->open(PrinterSetup::ConversationMode::Connect, printer);
+        const bool loaded = wait_for([panel] {
+            return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
+        }, 60s);
+        check(loaded, name + "_page_loaded");
+        if (!loaded)
+            return nullptr;
+        Agent::AgentHost* host = panel->host();
+        host->set_agent(std::make_unique<ToolCallingAgent>(tool, arguments), Agent::AgentAvailability::Ready);
+        static int next = 0;
+        host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                             {"version", Agent::Protocol::kVersion},
+                                             {"id", "call-" + std::to_string(++next)},
+                                             {"type", "user_message"},
+                                             {"payload", {{"clientMessageId", "call-c-" + std::to_string(next)}, {"text", "go on"}}}}
+                                  .dump());
+        const auto call = [host, tool]() -> const Agent::ToolActivity* {
+            for (const auto& activity : host->tools().activities())
+                if (activity.tool == tool)
+                    return &activity;
+            return nullptr;
+        };
+        const bool made = wait_for([&] {
+            const auto* activity = call();
+            return activity != nullptr && activity->state != Agent::ToolState::Approved && activity->state != Agent::ToolState::Running;
+        }, 10s);
+        check(made, name + "_tool_called");
+        return made ? call() : nullptr;
+    }
+
+    // The panel closed while its printer was still being checked, and the
+    // host answers afterwards: nothing is saved, then or when the panel next
+    // looks at the connection.
+    void verify_panel_close_drops_a_waiting_connection(const std::string& saved)
+    {
+        using namespace std::chrono_literals;
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        StandInHost                 late(2000ms, /*answer=*/true);
+        const Agent::ToolActivity*  card = call_in_panel(kAddedPrinter, "printer_connect",
+                                                         nlohmann::json{{"hostType", "moonraker"}, {"address", late.address()}},
+                                                         "panel_close_fixture");
+        check(card != nullptr && card->state == Agent::ToolState::Pending, "panel_close_fixture_card_drawn");
+        if (card == nullptr)
+            return;
+        const std::string action = card->action_id;
+        panel->host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                      {"version", Agent::Protocol::kVersion},
+                                                      {"id", "close-decision"},
+                                                      {"type", "tool_decision"},
+                                                      {"payload", {{"actionId", action}, {"decision", "approve"}, {"input", {{"credential", ""}}}}}}
+                                           .dump());
+        check(wait_for([&] {
+                  return panel->session_json()["connections"].value(action, nlohmann::json::object()).value("state", "") == "connecting";
+              }, 10s),
+              "panel_close_fixture_is_connecting");
+        panel->close();
+        wait_for([] { return false; }, 3000ms);
+        check(!panel->IsShown() && late.requests() == 1, "panel_close_mid_test_closes");
+
+        // Opened again: the status the model reads does not bring the old
+        // answer back.
+        const Agent::ToolActivity* status = call_in_panel(kAddedPrinter, "printer_connection_status", nlohmann::json::object(),
+                                                          "panel_reopen");
+        check(status != nullptr && status->state == Agent::ToolState::Succeeded &&
+                  nlohmann::json::parse(status->result_json).value("state", "") != "verified",
+              "panel_reopen_does_not_read_the_old_answer");
+        check(printer_profile(kAddedPrinter)->config.opt_string("print_host") == saved, "panel_close_mid_test_saves_nothing");
+        panel->close();
+        wait_for([panel] { return !panel->IsShown(); }, 5s);
+    }
+
     // A printer is a named user profile: a second one of a model is a second
     // printer, Home lists each, and renaming or removing one leaves the rest.
     void verify_named_printers()
@@ -1282,18 +1598,20 @@ private:
                   listed->can_rename && listed->can_remove,
               "named_home_offers_the_printer_menu");
 
+        verify_host_connection_keeps_the_app_responsive(backend);
+
         // Configure an unselected saved printer through the real adapter. A
         // closed loopback port exercises an actual provider failure without
         // contacting hardware or sending any file.
-        const bool dirty_before_connection = m_plater->is_project_dirty();
-        error = backend.connect_host(kAddedPrinter, "moonraker", "http://127.0.0.1:1", "");
-        check(error.empty() && backend.connection(kAddedPrinter).state == "failed",
+        const bool        dirty_before_connection = m_plater->is_project_dirty();
+        const std::string address_before          = printer_profile(kAddedPrinter)->config.opt_string("print_host");
+        check(connect_host_and_wait(backend, kAddedPrinter, "http://127.0.0.1:1", std::chrono::seconds(20)).state == "failed",
               "named_host_test_failure_is_a_connection_outcome");
         check(printer_profile(kAddedPrinter) != nullptr && selected_printer() == second &&
                   m_plater->is_project_dirty() == dirty_before_connection,
               "named_connect_preserves_saved_printer_and_unrelated_project");
-        check(printer_profile(kAddedPrinter)->config.opt_string("print_host") == "http://127.0.0.1:1",
-              "named_host_settings_stay_with_the_existing_printer");
+        check(printer_profile(kAddedPrinter)->config.opt_string("print_host") == address_before,
+              "named_host_failure_keeps_the_saved_address");
         auto& printer_presets = wxGetApp().preset_bundle->printers;
         const bool dirty_on_selected = m_plater->is_project_dirty();
         check(Printers::configure_named_printer_host(second, htOctoPrint, "http://127.0.0.1:1", "").empty() &&

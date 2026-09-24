@@ -22,6 +22,7 @@
 #include "slic3r/Utils/NetworkAgentFactory.hpp"
 
 #include <algorithm>
+#include <thread>
 #include <wx/utils.h>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
@@ -251,6 +252,8 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         const Preset* preset = wxGetApp().preset_bundle->printers.find_preset(name, false, true);
         if (!preset)
             throw std::logic_error("A saved printer has no preset");
+        if (m_host_attempt && m_host_attempt->name == name && m_host_attempt->state == "connecting")
+            settle(*m_host_attempt);
         const auto type = preset->config.opt_enum<PrintHostType>("host_type");
         info.address = preset->config.opt_string("print_host");
         info.host_type = type == htMoonraker ? "moonraker" : type == htOctoPrint ? "octoprint" : "other";
@@ -264,8 +267,11 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         }
         if (m_host_attempt && m_host_attempt->name == name) {
             auto& attempt = *m_host_attempt;
-            if (info.address != attempt.address || info.host_type != attempt.host_type ||
-                preset->config.opt_string("printhost_apikey") != attempt.api_key) {
+            // Only a verified attempt saved its settings; it holds while the
+            // printer is still set up as it was tested.
+            if (attempt.state == "verified" &&
+                (info.address != attempt.address || info.host_type != attempt.host_type ||
+                 preset->config.opt_string("printhost_apikey") != attempt.api_key)) {
                 info.message = "Connection settings changed. Test the new connection again.";
                 return info;
             }
@@ -323,7 +329,7 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         } else if (machine == nullptr) {
             info.state = "failed";
             info.message = "The printer is no longer available. Refresh the printer list and try again.";
-        } else if (std::chrono::steady_clock::now() - attempt.started > std::chrono::seconds(30)) {
+        } else if (std::chrono::steady_clock::now() - attempt.started > kConnectionWait) {
             info.state = "failed";
             info.message = "The printer did not respond. Check that it is on the network and try again.";
         } else {
@@ -344,9 +350,11 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
 std::string OrcaPrinterBackend::connect_printer(const std::string& name, const std::string& device_id,
                                                const std::string& access_code)
 {
-    if (m_connection_attempt && connection(m_connection_attempt->name).state == "connecting")
-        return m_connection_attempt->name == name && m_connection_attempt->device_id == device_id ?
-            std::string() : "A connection is already in progress.";
+    // The same printer asked for again keeps waiting; anything else replaces
+    // the attempt below.
+    if (m_connection_attempt && m_connection_attempt->name == name && m_connection_attempt->device_id == device_id &&
+        connection(name).state == "connecting")
+        return {};
     const auto info = connection(name);
     if (info.provider != "bambu" || info.state == "unavailable")
         return info.message;
@@ -411,23 +419,62 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
     // Reuse a saved secret only for the same endpoint and provider.
     const std::string key = api_key.empty() && address == info.address && host_type == info.host_type ?
         preset->config.opt_string("printhost_apikey") : api_key;
-    const auto problem = Printers::configure_named_printer_host(name, host_type == "moonraker" ? htMoonraker : htOctoPrint,
-                                                               address, key);
-    if (!problem.empty())
-        return problem.ToStdString();
+    // Tested on a copy: the printer's own settings change only once the host
+    // has answered (settle).
     DynamicPrintConfig config = preset->config;
+    config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(host_type == "moonraker" ? htMoonraker : htOctoPrint));
+    config.set_key_value("print_host", new ConfigOptionString(address));
+    config.set_key_value("printhost_apikey", new ConfigOptionString(key));
     std::unique_ptr<PrintHost> host(PrintHost::get_print_host(&config));
     if (!host)
         throw std::logic_error("A supported print host has no adapter");
-    // Reuse PhysicalPrinterDialog's synchronous test boundary. There is no
-    // background callback that can outlive the panel or target a new selection.
-    // Unexpected failures propagate through the native command boundary.
-    wxBusyCursor wait;
-    wxString detail;
-    const bool passed = host->test(detail);
-    m_host_attempt = HostAttempt{name, host_type, address, key, passed ? "verified" : "failed",
-        passed ? std::string() : "Could not reach the print host. Check its address, API key and network, then try again."};
+    // PrintHost::test blocks until the host answers, and a host that accepts
+    // the connection and never replies holds it with no upper bound (Http's
+    // DEFAULT_TIMEOUT_MAX is 0). So it runs on a thread of its own, as
+    // upstream's upload queue runs these adapters. Nothing waits for it:
+    // joining could hold the panel's close for as long as the host dawdles,
+    // and kConnectionWait reports the failure meanwhile. The adapter keeps
+    // copies of what it read from `config`.
+    auto verdict = std::make_shared<std::atomic<HostVerdict>>(HostVerdict::Testing);
+    std::thread([host = std::move(host), verdict] {
+        wxString detail;
+        verdict->store(host->test(detail) ? HostVerdict::Passed : HostVerdict::Failed);
+    }).detach();
+    m_host_attempt = HostAttempt{name, host_type, address, key, std::chrono::steady_clock::now(), std::move(verdict), "connecting", {}};
     return {};
+}
+
+void OrcaPrinterBackend::settle(HostAttempt& attempt)
+{
+    switch (attempt.verdict->load()) {
+    case HostVerdict::Passed: {
+        const wxString problem = Printers::configure_named_printer_host(
+            attempt.name, attempt.host_type == "moonraker" ? htMoonraker : htOctoPrint, attempt.address, attempt.api_key);
+        attempt.state   = problem.empty() ? "verified" : "failed";
+        attempt.message = problem.ToStdString();
+        break;
+    }
+    case HostVerdict::Failed:
+        attempt.state   = "failed";
+        attempt.message = "Could not reach the print host. Check its address, API key and network, then try again.";
+        break;
+    case HostVerdict::Testing:
+        if (std::chrono::steady_clock::now() - attempt.started > kConnectionWait) {
+            attempt.state   = "failed";
+            attempt.message = "The printer did not respond. Check that it is on the network and try again.";
+        }
+        break;
+    }
+}
+
+void OrcaPrinterBackend::cancel_connection(const std::string& name)
+{
+    if (m_host_attempt && m_host_attempt->name == name && m_host_attempt->state == "connecting")
+        m_host_attempt.reset();
+    // A Bambu Lab printer stays linked to the device and selected, as after a
+    // failure; undoing both is separate work.
+    if (m_connection_attempt && m_connection_attempt->name == name)
+        m_connection_attempt.reset();
 }
 
 void OrcaPrinterBackend::open_printer_settings(const std::string& name)

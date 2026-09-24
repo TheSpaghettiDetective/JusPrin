@@ -28,7 +28,7 @@ constexpr std::size_t kInstructionsLimit = 256 * 1024;
 // none of it reaches the thread.
 constexpr std::size_t kNoteLimit = 2 * 1024;
 
-// How often a Bambu Lab connection attempt is looked at while it settles.
+// How often a connection attempt is looked at while it settles.
 constexpr auto kConnectionLook = std::chrono::seconds(1);
 
 Result ok(const json& output)
@@ -156,6 +156,9 @@ std::vector<std::string> PrinterConversation::session_tools()
 
 void PrinterConversation::start(ConversationMode mode, const std::string& printer_name)
 {
+    // An attempt the last session left waiting -- its panel closed meanwhile
+    // -- is dropped before this session can read, and save, its outcome.
+    abandon_connection();
     m_mode         = mode;
     m_printer_name = mode == ConversationMode::Add ? std::string() : printer_name;
     m_blocks       = json::array();
@@ -164,7 +167,7 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     // A new session's page writes its instructions again.
     m_instructions.clear();
     m_network.clear();
-    m_connecting.clear();
+    m_connections = json::object();
     m_prepared.clear();
     m_added.clear();
 
@@ -266,7 +269,8 @@ json PrinterConversation::state_json() const
     return json{{"mode", m_mode == ConversationMode::Add ? "add" : m_mode == ConversationMode::Connect ? "connect" : "change"},
                 {"printerName", m_printer_name},
                 {"blocks", m_blocks},
-                {"context", context_json()}};
+                {"context", context_json()},
+                {"connections", m_connections}};
 }
 
 // -- The session's tools ----------------------------------------------------
@@ -279,8 +283,6 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     const std::string name      = m_printer_name;
     if (saved(name).name.empty())
         return ToolError{"no_printer", "There is no saved printer to connect yet: add one first."};
-    if (!m_connecting.empty())
-        return ToolError{"connection_in_progress", "A connection to " + m_connecting + " is still being checked."};
 
     const PrinterConnectionInfo info = m_backend.connection(name);
     if (info.provider == "bambu") {
@@ -300,12 +302,14 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         }
         activity.title = "Connect to " + found->name;
         arguments["deviceId"] = found->id;
+        arguments["target"]   = found->name;
     } else if (info.provider == "host") {
         // The registry has already refused a hostType without an address; a
         // deviceId here names a Bambu Lab printer this one is not.
         if (!arguments.contains("hostType"))
             return ToolError{"address_needed", "Pass hostType and the address the person gave."};
-        activity.title = "Connect to " + arguments["address"].get<std::string>();
+        activity.title      = "Connect to " + arguments["address"].get<std::string>();
+        arguments["target"] = arguments["address"];
     } else
         return ToolError{"connection_unavailable", info.message};
     // Which field the card asks for, and the printer it named: what runs
@@ -484,23 +488,42 @@ Result PrinterConversation::connection_status(const std::string& name)
 
 Result PrinterConversation::connect(const json& arguments, const std::string& action_id)
 {
-    const std::string name = arguments.at("printerName");
+    const std::string name   = arguments.at("printerName");
+    const std::string target = arguments.at("target");
     // Typed on the card, used here, and kept nowhere else.
     const std::string credential = m_host.take_credential(action_id).value_or(std::string());
-    if (arguments.at("provider") == "bambu") {
-        if (const std::string problem = m_backend.connect_printer(name, arguments.at("deviceId"), credential); !problem.empty())
-            return ok(json{{"state", "failed"}, {"message", problem}});
-        m_connecting = name;
-        m_last_look  = {};
-        return ok(json{{"state", "connecting"}, {"message", ""}});
-    }
-    const std::string problem = m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), credential);
-    m_host.printers_changed();
-    if (!problem.empty())
+    const std::string problem =
+        arguments.at("provider") == "bambu" ?
+            m_backend.connect_printer(name, arguments.at("deviceId"), credential) :
+            m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), credential);
+    if (!problem.empty()) {
+        m_connections[action_id] = json{{"state", "failed"}, {"target", target}};
+        m_host.session_changed();
         return ok(json{{"state", "failed"}, {"message", problem}});
-    // connect_host tests the host and keeps the outcome for connection().
-    const PrinterConnectionInfo info = m_backend.connection(name);
-    return ok(json{{"state", info.state == "verified" ? "verified" : "failed"}, {"message", info.message}});
+    }
+    // The backend has replaced an attempt still waiting; its card is done.
+    if (!m_connecting_action.empty())
+        m_connections[m_connecting_action]["state"] = "cancelled";
+    m_connecting             = name;
+    m_connecting_action      = action_id;
+    m_last_look              = {};
+    m_connections[action_id] = json{{"state", "connecting"}, {"target", target}};
+    m_host.session_changed();
+    // What the model says while it waits, and what it answers if asked how
+    // long this takes.
+    return ok(json{{"state", "connecting"},
+                   {"message", "The app is checking the printer now and gives it up to " +
+                                   std::to_string(kConnectionWait.count()) + " seconds."}});
+}
+
+void PrinterConversation::abandon_connection()
+{
+    if (m_connecting.empty())
+        return;
+    m_backend.cancel_connection(m_connecting);
+    m_connections[m_connecting_action]["state"] = "cancelled";
+    m_connecting.clear();
+    m_connecting_action.clear();
 }
 
 Result PrinterConversation::manual_setup()
@@ -526,10 +549,13 @@ void PrinterConversation::tick(std::chrono::steady_clock::time_point now)
     if (info.state == "connecting")
         return;
     const std::string name = m_connecting;
+    m_connections[m_connecting_action]["state"] = info.state == "verified" ? "verified" : "failed";
     m_connecting.clear();
+    m_connecting_action.clear();
     m_host.post_note(info.state == "verified" ? "Connection to " + name + " verified." :
                                                 "Connection to " + name + " failed: " + info.message);
     m_host.printers_changed();
+    m_host.session_changed();
     m_host.start_turn();
 }
 
@@ -576,6 +602,15 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             m_host.printers_changed(m_printer_name);
             m_host.session_changed();
             m_host.start_turn();
+        }
+    } else if (action == "cancel_connection") {
+        // The card's Cancel while its attempt waits. A card that has settled
+        // has nothing left to stop.
+        if (!m_connecting_action.empty() && payload.value("actionId", std::string()) == m_connecting_action) {
+            const std::string name = m_connecting;
+            abandon_connection();
+            m_host.post_note("The person cancelled connecting " + name + ".");
+            m_host.session_changed();
         }
     } else if (action == "open_printer_settings" && !m_printer_name.empty()) {
         m_backend.open_printer_settings(m_printer_name);

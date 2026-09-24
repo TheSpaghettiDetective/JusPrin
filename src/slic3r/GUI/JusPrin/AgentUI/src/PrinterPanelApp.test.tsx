@@ -213,6 +213,21 @@ describe('the printer panel page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
     expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-connect', decision: 'approve', input: { credential: 'secretcode' } });
   });
+
+  it('follows the attempt the app reports, and Cancel stops that attempt', async () => {
+    const connect: ToolActivityInfo = {
+      actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to 192.168.1.42',
+      arguments: { printerName: 'Kobra 3', hostType: 'moonraker', address: '192.168.1.42', provider: 'host' }, actionClass: 'mutation',
+      requiresApproval: true, sessionId: '1', expectedRevision: 1, state: 'succeeded', progress: { current: 1, total: 1 },
+    };
+    const host = open(state({
+      toolActivities: [connect],
+      session: session({ connections: { 't-connect': { state: 'connecting', target: '192.168.1.42' } } }),
+    }));
+    expect(screen.getByText('Connecting…')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'cancel_connection', actionId: 't-connect' });
+  });
 });
 
 describe('a photo in the printer panel', () => {

@@ -425,7 +425,14 @@ export function App({
               // The one card the person decides on is the credential's; every
               // other tool is what the model then says it did.
               toolActivities={state.toolActivities.filter((activity) => activity.tool === 'printer_connect')}
-              renderActivity={(activity) => <PrinterCredentialCard activity={activity} onDecision={sendToolDecision} />}
+              renderActivity={(activity) => (
+                <PrinterCredentialCard
+                  activity={activity}
+                  connection={session?.connections?.[activity.actionId]}
+                  onDecision={sendToolDecision}
+                  onCancelConnection={(actionId) => client.send('printer_action', { action: 'cancel_connection', actionId })}
+                />
+              )}
               builds={[]}
               exportedCopies={[]}
               physicalPrints={[]}

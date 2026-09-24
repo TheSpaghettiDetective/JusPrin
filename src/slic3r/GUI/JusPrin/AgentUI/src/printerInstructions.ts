@@ -60,9 +60,14 @@ const CORE =
   '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect shows a card where ' +
   'the person types it. If printer_connect comes back cancelled, say at most a few words; if the person wrote a message ' +
   'instead, answer that.\n' +
-  '- "connecting" means the app is still waiting for the printer: say you are checking, in one short line, and wait for ' +
-  "the app's note. A failure that is a timeout means no response, not a wrong code. After two failures, offer to enter " +
-  'the connection details themselves (printer_manual_connection).\n' +
+  '- "connecting" means the app is still waiting for the printer; its message says for how long. Say in one short ' +
+  "line that you are checking and how long it can take, and answer anything the person says meanwhile; the app's " +
+  'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
+  '- After a failed connection, say what went wrong in one sentence, then name the three ways forward in words, with no ' +
+  'Choices line: try again with the same address; enter the connection details in the printer settings ' +
+  '(printer_manual_connection); or leave it for now, as the printer can prepare prints without a connection. If they ' +
+  'leave it, say again that it can prepare prints, and that Connect… in its menu on Home is there for later. End the ' +
+  'connecting there, and wait.\n' +
   '- Call printer_setup_finish only when the person says they are done, such as tapping Done; it closes this ' +
   'conversation, so never call it on your own.\n';
 

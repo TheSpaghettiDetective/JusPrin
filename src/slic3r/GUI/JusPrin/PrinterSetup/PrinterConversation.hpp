@@ -93,9 +93,9 @@ public:
     // What the model reads back for a call to this session's tools.
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
 
-    // Called on the panel's pump. While a Bambu Lab connection is being
-    // verified, looks at most once a second, and once it settles says how in
-    // a note and has the model answer.
+    // Called on the panel's pump. While a connection is being verified, looks
+    // at most once a second, and once it settles says how in a note and has
+    // the model answer.
     void tick(std::chrono::steady_clock::time_point now);
 
     static std::vector<std::string> session_tools();
@@ -108,6 +108,9 @@ private:
     Result connection_status(const std::string& name);
     Result connect(const nlohmann::json& arguments, const std::string& action_id);
     Result manual_setup();
+    // Drops a connection attempt still waiting, so what the printer answers
+    // later is never read.
+    void abandon_connection();
 
     SavedPrinter          saved(const std::string& name) const;
     const CatalogPrinter* catalog_entry(const std::string& id) const;
@@ -137,9 +140,13 @@ private:
     std::map<std::string, std::string> m_added;
     // The printer discovery was started for this session.
     std::string m_prepared;
-    // A Bambu Lab connection waiting for the printer to answer.
+    // The connection waiting for the printer to answer: the printer, and the
+    // card that started it.
     std::string                           m_connecting;
+    std::string                           m_connecting_action;
     std::chrono::steady_clock::time_point m_last_look{};
+    // How each approved card's attempt stands, by action id, for the page.
+    nlohmann::json m_connections = nlohmann::json::object();
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup
