@@ -1,0 +1,52 @@
+Summarize what you are trying to say in plain English under 150 words.
+
+---
+
+<!-- reply -->
+> The buttons it offers usually just say "Yes | No".
+
+this can be simply fixed By making the instruction more clear, right?
+
+---
+
+the your tests check out, You have all the information you need to finish this task, correct? since you said that "The model offers to connect only 27% to 77% of the time." is a pre-existing problem. and having the model to repeat "printer added" is fine
+
+---
+
+If your answer is yes to all the questions above, go ahead and implement it.
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-a1-mini PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-a1-mini-second-yes PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-prusa-mk4-asks-which PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2r69otce</task-id>
+<summary>Monitor event: "live test: captures, failures, result"</summary>
+<event>HARNESS CHECK live_captured_add-prusa-mk4s-chosen PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
