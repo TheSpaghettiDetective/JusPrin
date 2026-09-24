@@ -1,0 +1,94 @@
+<task-notification>
+<task-id>bktvenbig</task-id>
+<summary>Monitor event: "worktree harness build (repro) progress and exit"</summary>
+<event>step 78</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bktvenbig</task-id>
+<summary>Monitor event: "worktree harness build (repro) progress and exit"</summary>
+<event>step 101</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bktvenbig</task-id>
+<summary>Monitor event: "worktree harness build (repro) progress and exit"</summary>
+<event>step 202</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bktvenbig</task-id>
+<summary>Monitor event: "worktree harness build (repro) progress and exit"</summary>
+<event>step 303</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bktvenbig</task-id>
+<summary>Monitor event: "worktree harness build (repro) progress and exit"</summary>
+<event>[Monitor expired after 30m with 4 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+kill the build tasks you started. we will wait for a later time slot
+
+---
+
+resume the build
+
+---
+
+<task-notification>
+<task-id>bc0kz3bgd</task-id>
+<summary>Monitor event: "resumed harness build progress and exit"</summary>
+<event>progress [0/2]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc0kz3bgd</task-id>
+<summary>Monitor event: "resumed harness build progress and exit"</summary>
+<event>progress [54/239]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc0kz3bgd</task-id>
+<summary>Monitor event: "resumed harness build progress and exit"</summary>
+<event>progress [110/239]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc0kz3bgd</task-id>
+<summary>Monitor event: "resumed harness build progress and exit"</summary>
+<event>progress [160/239]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc0kz3bgd</task-id>
+<summary>Monitor event: "resumed harness build progress and exit"</summary>
+<event>progress [228/239]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
