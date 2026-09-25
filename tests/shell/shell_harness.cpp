@@ -145,6 +145,7 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
+#include "slic3r/GUI/JusPrin/Home/PrinterWindow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
@@ -155,6 +156,7 @@
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/PrinterWebView.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -245,6 +247,13 @@ public:
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_stopping = true;
+            // A client can connect and never send a request -- a web view
+            // opening spare connections does -- which would hold the serving
+            // thread in its read for good.
+            if (m_serving != nullptr) {
+                boost::system::error_code ignored;
+                m_serving->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored);
+            }
         }
         m_released.notify_all();
         // Wakes a blocking accept.
@@ -268,9 +277,11 @@ private:
                 return;
             ++m_requests;
             boost::asio::streambuf request;
+            m_serving = &socket;
             lock.unlock();
             boost::asio::read_until(socket, request, "\r\n\r\n", error);
             lock.lock();
+            m_serving = nullptr;
             if (m_hold.count() < 0)
                 m_released.wait(lock, [this] { return m_stopping; });
             else
@@ -293,6 +304,7 @@ private:
     std::mutex                     m_mutex;
     std::condition_variable        m_released;
     bool                           m_stopping{false};
+    boost::asio::ip::tcp::socket*  m_serving{nullptr}; // the connection being read, under m_mutex
     std::thread                    m_thread;
 };
 
@@ -1721,6 +1733,65 @@ private:
         return true;
     }
 
+    // What Home's printer rail shows for the named printer `name`, read through
+    // the real backend.
+    std::optional<Home::PrinterEntry> home_card(const std::string& name) const
+    {
+        Home::OrcaHomeBackend home(*m_frame, nullptr);
+        for (Home::PrinterEntry& card : home.printers())
+            if (card.id == "named:" + name)
+                return card;
+        return std::nullopt;
+    }
+
+    // The printer windows open now: Home's own printer windows are the only
+    // top-level frames that hold a PrinterWebView.
+    static std::vector<Home::PrinterWindow*> printer_windows()
+    {
+        std::vector<Home::PrinterWindow*> windows;
+        for (wxWindow* window : wxTopLevelWindows)
+            if (auto* printer = dynamic_cast<Home::PrinterWindow*>(window); printer && !printer->IsBeingDeleted())
+                windows.push_back(printer);
+        return windows;
+    }
+
+    // "Open printer window" on a print host's card: a window of its own,
+    // loaded from that printer's saved address, while the project's selected
+    // printer and the page the person is on stay as they were.
+    void verify_open_printer_window(const StandInHost& host)
+    {
+        using namespace std::chrono_literals;
+        const std::string selected_before = selected_printer();
+        const int         tab_before      = m_notebook->GetSelection();
+        check(selected_before != kAddedPrinter && printer_windows().empty(), "printer_window_fixture_starts_on_another_printer");
+        {
+            Home::OrcaHomeBackend home(*m_frame, nullptr);
+            home.launch_monitor(std::string("named:") + kAddedPrinter);
+            const auto opened = printer_windows();
+            check(opened.size() == 1 && opened.front()->GetTitle() == wxString::FromUTF8(kAddedPrinter) &&
+                      opened.front()->IsShown(),
+                  "printer_window_opens_for_the_printer");
+            check(selected_printer() == selected_before && m_notebook->GetSelection() == tab_before,
+                  "printer_window_leaves_the_project_printer_and_page");
+            // Its browser is asked for the saved address.
+            wxWebView* browser = nullptr;
+            if (opened.size() == 1)
+                for (wxWindow* child : opened.front()->view()->GetChildren())
+                    if (auto* found = dynamic_cast<wxWebView*>(child))
+                        browser = found;
+            const std::string address = host.address();
+            check(browser != nullptr && wait_for([browser, &address] {
+                      return browser->GetCurrentURL().ToStdString().rfind(address, 0) == 0;
+                  }, 20s),
+                  "printer_window_loads_the_saved_address");
+            home.launch_monitor(std::string("named:") + kAddedPrinter);
+            check(printer_windows() == opened, "printer_window_second_click_reuses_the_window");
+        }
+        // Home's backend closes its windows when it goes, as the app's main
+        // window taking Home with it does.
+        check(wait_for([] { return printer_windows().empty(); }, 5s), "printer_window_closes_with_home");
+    }
+
     // Testing a print host takes as long as the host takes to answer, and
     // the app goes on meanwhile: a host that holds the request for three
     // seconds leaves a 100 ms timer ticking the whole time. The address is
@@ -1737,6 +1808,13 @@ private:
             check(outcome.state == "failed" && outcome.took >= 2500ms, "host_slow_failure_is_reported");
             check(outcome.ticks >= 10, "host_test_leaves_the_app_responsive");
             check(saved_address() == address_before, "host_failure_leaves_the_profile_as_it_was");
+            // Finding 04 of the setup walkthrough: Home said "Sends files over
+            // Wi-Fi" right after this. The card now says only what is verified.
+            const auto card = home_card(kAddedPrinter);
+            check(address_before.empty() && card && card->connection_state == Home::ConnectionState::None &&
+                      card->connection_text == "Not connected" && card->address.empty() && !card->can_launch_monitor,
+                  "home_says_not_connected_after_a_failed_host_test");
+            check(card && card->model_text == "Ender-3 V2 Neo \xC2\xB7 0.4 mm", "home_model_row_names_model_and_nozzle");
         }
         std::string answered;
         {
@@ -1747,6 +1825,13 @@ private:
             check(saved_address() == answered &&
                       printer_profile(kAddedPrinter)->config.opt_enum<PrintHostType>("host_type") == htMoonraker,
                   "host_success_saves_the_address");
+            const std::string address = answered.substr(answered.find("://") + 3);
+            const auto        card    = home_card(kAddedPrinter);
+            check(card && card->connection_state == Home::ConnectionState::Connected && card->connection_kind == "host" &&
+                      card->address == address && card->connection_text == "Connected \xC2\xB7 " + address &&
+                      card->can_launch_monitor && card->connection_action.empty(),
+                  "home_says_connected_with_the_saved_address");
+            verify_open_printer_window(host);
         }
         {
             // Would answer in two seconds; cancelled first.
@@ -2004,6 +2089,51 @@ private:
         verify_saved_bambu_connection();
     }
 
+    // Home's card for a connected Bambu printer: Online on its transport, and
+    // what its trays hold, with a swatch only where a tray reports a colour.
+    void verify_home_bambu_card(const std::string& name, std::function<void()> then)
+    {
+        const auto card = home_card(name);
+        check(card && card->connection_state == Home::ConnectionState::Online && card->connection_kind == "lan" &&
+                  card->connection_text == "Online \xC2\xB7 LAN" && card->can_launch_monitor &&
+                  card->connection_action.empty(),
+              "home_says_online_for_a_connected_bambu_printer");
+        check(card && card->model_text.rfind("A1 mini \xC2\xB7 ", 0) == 0, "home_model_row_names_the_bambu_model");
+        const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
+        check(fake != nullptr, "home_trays_fixture_drives_the_fake");
+        if (fake == nullptr) {
+            then();
+            return;
+        }
+        const std::string control = fake->control_file_path();
+        boost::filesystem::create_directories(boost::filesystem::path(control).parent_path());
+        {
+            boost::nowide::ofstream out(control);
+            out << R"({"spools":[{"subBrands":"PLA Matte","trayType":"PLA","colour":"5F7D4FFF"},)"
+                   R"({"subBrands":"PETG HF","trayType":"PETG"}]})";
+        }
+        wait_until(
+            [self = shared_from_this(), name] {
+                const auto read = self->home_card(name);
+                return read && read->spools.size() == 2;
+            },
+            "home_reads_the_connected_printers_trays",
+            [self = shared_from_this(), name, control, then] {
+                const auto read = self->home_card(name);
+                if (read)
+                    for (const Home::SpoolEntry& spool : read->spools)
+                        std::cerr << "HARNESS NOTE home_tray material=" << spool.material << " colour=" << spool.colour << '\n';
+                self->check(read && read->spools.size() == 2 && read->spools[0].material == "PLA" &&
+                                read->spools[0].colour == "#5F7D4F",
+                            "home_names_a_trays_material_and_colour");
+                self->check(read && read->spools.size() == 2 && read->spools[1].material == "PETG" &&
+                                read->spools[1].colour.empty(),
+                            "home_draws_no_colour_a_tray_did_not_report");
+                boost::filesystem::remove(control);
+                then();
+            });
+    }
+
     void verify_saved_bambu_connection()
     {
         // Exercise the actual adapter and parsed device observations with the
@@ -2031,6 +2161,10 @@ private:
                 wxGetApp().getDeviceManager()->get_my_machine(device)->reset(); // Ignore the fake's unsolicited heartbeat.
                 self->check(Printers::link_named_printer(name, device).empty(), "discovered_device_linked_before_authentication");
                 self->check(backend->connection(name).state == "not_configured", "identified_device_has_neutral_first_connection_state");
+                const auto linked = self->home_card(name);
+                self->check(linked && linked->connection_state == Home::ConnectionState::None &&
+                    linked->connection_text == "Not connected" && !linked->can_launch_monitor && linked->connection_action.empty(),
+                    "home_says_not_connected_for_a_linked_but_unverified_device");
                 self->check(backend->connect_printer(name, device, "").empty(), "connect_existing_saved_bambu");
                 self->check(backend->connection(name).state == "connecting", "connect_waits_for_fresh_device_data");
                 self->check(backend->connect_printer(name, device, "").empty(), "duplicate_connect_is_idempotent");
@@ -2047,6 +2181,7 @@ private:
                 self->check(backend->connect_printer(name, device, "").empty(), "interrupted_connection_can_retry");
                 self->wait_until([backend, name] { return backend->connection(name).state == "verified"; },
                     "connect_verified_from_parsed_fake_data", [self, backend, name, device, dirty] {
+                        self->verify_home_bambu_card(name, [self, backend, name, device, dirty] {
                         self->check(backend->connection(name).nozzle_mismatch, "reported_nozzle_mismatch_does_not_block_connection");
                         self->check(wxGetApp().app_config->get("jusprin_verified_connections", device) == "true",
                             "verified_connection_history_is_recorded_for_this_device");
@@ -2096,10 +2231,16 @@ private:
                                             PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), nullptr);
                                         self->check(reopened.connection(name).state == "unknown",
                                             "previously_verified_connection_remains_distinct_from_never_connected");
+                                        // Verified before and silent now: Offline, with Reconnect.
+                                        const auto silent = self->home_card(name);
+                                        self->check(silent && silent->connection_state == Home::ConnectionState::Offline &&
+                                            silent->connection_text == "Offline" && silent->connection_action == "reconnect" &&
+                                            !silent->can_launch_monitor, "home_says_offline_for_a_silent_verified_printer");
                                         self->finish();
                                     });
                                 });
                             });
+                        });
                         });
                         });
                     });
@@ -2148,11 +2289,10 @@ private:
             "  var cards = Array.prototype.map.call(document.querySelectorAll('.printer-card'), function (card) {"
             "    var name = card.querySelector('.printer-name');"
             "    var bar = card.querySelector('[role=progressbar]');"
-            "    var dot = card.querySelector('.status-dot');"
             "    return { name: name ? name.textContent : '',"
-            "             printing: !!(dot && dot.classList.contains('printing')),"
+            "             printing: !!card.querySelector('.printer-job'),"
             "             progress: bar ? Number(bar.getAttribute('aria-valuenow')) : -1,"
-            "             details: Array.prototype.map.call(card.querySelectorAll('.printer-detail'), function (d) { return d.textContent; }),"
+            "             details: Array.prototype.map.call(card.querySelectorAll('.printer-fact dd'), function (d) { return d.textContent; }),"
             "             buttons: Array.prototype.map.call(card.querySelectorAll('button:not(.printer-menu-button):not([role=menuitem])'), function (b) { return b.textContent; }),"
             "             menuOpen: !!card.querySelector('.printer-menu') };"
             "  });"
@@ -2253,7 +2393,7 @@ private:
             m_frame->select_tab(size_t(MainFrame::tpHome));
         installed_shell()->home_view()->refresh();
         wait_for_home_page(
-            [](const nlohmann::json& card) { return !card.value("printing", true) && card_says(card, "Connected") && has_button(card, "Launch monitor"); },
+            [](const nlohmann::json& card) { return !card.value("printing", true) && card_says(card, "Online") && has_button(card, "Launch monitor"); },
             "home_live_page_shows_online", [self = shared_from_this()] {
                 self->check(self->still_on_home(), "home_live_online_on_home");
                 // The card's menu stays open through every update below.
@@ -2309,7 +2449,7 @@ private:
         const auto stopped = std::chrono::steady_clock::now();
         wait_for_home_page(
             [](const nlohmann::json& card) {
-                return !card.value("printing", true) && card_says(card, "Can't reach it") && !has_button(card, "Launch monitor") && has_button(card, "Reconnect");
+                return !card.value("printing", true) && card_says(card, "Offline") && !has_button(card, "Launch monitor") && has_button(card, "Reconnect");
             },
             "home_live_page_shows_offline", [self = shared_from_this(), stopped] {
                 std::cerr << "HARNESS NOTE home_live_seconds_until_offline "

@@ -14,6 +14,13 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 namespace {
 
+// "#RRGGBB", or empty when the tray reported no colour: upstream decodes a
+// missing colour as white, which would draw a white spool nobody loaded.
+std::string reported_colour(const DevAmsTray& tray)
+{
+    return tray.color.empty() ? std::string() : std::string(tray.get_color().GetAsString(wxC2S_HTML_SYNTAX).ToUTF8());
+}
+
 // The nozzle and the loaded spools, as the device last reported them. The
 // plate is not among them: MachineObject carries no build-plate type.
 void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
@@ -39,8 +46,7 @@ void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
             if (!tray || !tray->is_exists) continue;
             const std::string material = tray->sub_brands.empty() ? tray->get_display_filament_type() : tray->sub_brands;
             if (material.empty()) continue;
-            printer.spools.push_back({(tray->is_bbl ? "Bambu " : "") + material,
-                                      std::string(tray->get_color().GetAsString(wxC2S_HTML_SYNTAX).ToUTF8()),
+            printer.spools.push_back({(tray->is_bbl ? "Bambu " : "") + material, reported_colour(*tray),
                                       tray->get_display_filament_type()});
         }
     }
@@ -48,8 +54,7 @@ void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
     for (const DevAmsTray& tray : machine.vt_slot) {
         if (!tray.is_exists || tray.get_display_filament_type().empty()) continue;
         const std::string material = tray.sub_brands.empty() ? tray.get_display_filament_type() : tray.sub_brands;
-        printer.spools.push_back({(tray.is_bbl ? "Bambu " : "") + material,
-                                  std::string(tray.get_color().GetAsString(wxC2S_HTML_SYNTAX).ToUTF8()),
+        printer.spools.push_back({(tray.is_bbl ? "Bambu " : "") + material, reported_colour(tray),
                                   tray.get_display_filament_type()});
     }
 }

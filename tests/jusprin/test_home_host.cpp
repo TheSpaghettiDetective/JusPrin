@@ -391,8 +391,9 @@ TEST_CASE("a live refresh sends only when a card changed", "[home]")
 
     backend.machines.front().progress_percent = 44;
     CHECK(host.refresh_if_changed());
-    backend.machines.front().state           = PrinterState::Offline;
-    backend.machines.front().connection_text = "Can't reach it";
+    backend.machines.front().state            = PrinterState::Offline;
+    backend.machines.front().connection_state = ConnectionState::Offline;
+    backend.machines.front().connection_text  = "Offline";
     CHECK(host.refresh_if_changed());
     CHECK(wire.of_type("state").back().at("payload").at("printers").at(0).at("state") == "offline");
     CHECK(wire.of_type("state").size() == states_after_hello + 3);

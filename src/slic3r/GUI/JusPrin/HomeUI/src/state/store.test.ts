@@ -21,6 +21,7 @@ const printer: PrinterInfo = {
   canRename: true,
   canRemove: true,
   state: 'printing',
+  connectionState: 'online',
   spools: [],
   canLaunchMonitor: true,
 };

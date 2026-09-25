@@ -37,6 +37,17 @@ const char* to_string(PrinterKind kind)
     return "named";
 }
 
+const char* to_string(ConnectionState state)
+{
+    switch (state) {
+    case ConnectionState::Online: return "online";
+    case ConnectionState::Offline: return "offline";
+    case ConnectionState::Connected: return "connected";
+    case ConnectionState::None: break;
+    }
+    return "none";
+}
+
 namespace {
 
 void set_if_present(json& target, const char* key, const std::string& value)
@@ -60,14 +71,19 @@ json project_json(const ProjectEntry& project)
 json printer_json(const PrinterEntry& printer)
 {
     json spools = json::array();
-    for (const SpoolEntry& spool : printer.spools)
-        spools.push_back(json{{"colour", spool.colour}});
+    for (const SpoolEntry& spool : printer.spools) {
+        json entry = json::object();
+        set_if_present(entry, "material", spool.material);
+        set_if_present(entry, "colour", spool.colour);
+        spools.push_back(std::move(entry));
+    }
 
     json out{
         {"id", printer.id},
         {"name", printer.name},
         {"kind", to_string(printer.kind)},
         {"state", to_string(printer.state)},
+        {"connectionState", to_string(printer.connection_state)},
         {"spools", std::move(spools)},
         {"canLaunchMonitor", printer.can_launch_monitor},
         {"canOpenSettings", printer.can_open_settings},
@@ -76,9 +92,10 @@ json printer_json(const PrinterEntry& printer)
     };
     set_if_present(out, "statusText", printer.status_text);
     set_if_present(out, "connectionText", printer.connection_text);
+    set_if_present(out, "connectionKind", printer.connection_kind);
     set_if_present(out, "connectionAction", printer.connection_action);
-    set_if_present(out, "nozzleText", printer.nozzle_text);
-    set_if_present(out, "materialLabel", printer.material_label);
+    set_if_present(out, "address", printer.address);
+    set_if_present(out, "modelText", printer.model_text);
     // A bar belongs to a running job; a finished or idle printer sends none
     // rather than a zero-width one.
     if (printer.state == PrinterState::Printing && printer.progress_percent >= 0)

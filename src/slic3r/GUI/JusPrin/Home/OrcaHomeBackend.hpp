@@ -10,8 +10,12 @@
 // a rebase and nothing else.
 
 #include "HomeBackend.hpp"
+#include "PrinterWindow.hpp"
+
+#include <wx/weakref.h>
 
 #include <functional>
+#include <map>
 
 namespace Slic3r { namespace GUI {
 class MainFrame;
@@ -29,6 +33,7 @@ public:
     // `spools` may be null: the shell owns the one store, and Home renders
     // without swatches rather than opening a second writer to the same file.
     OrcaHomeBackend(MainFrame& frame, Workspace::SpoolStore* spools);
+    ~OrcaHomeBackend() override;
 
     // How Home opens the printer conversation, which replaces its printers
     // column: an empty name adds a printer, a name changes that one. The
@@ -52,9 +57,14 @@ public:
     std::string remove_printer(const std::string& printer_id) override;
 
 private:
-    MainFrame&             m_frame;
-    Workspace::SpoolStore* m_spools{nullptr};
-    OpenConversation       m_open_conversation;
+    // A print host's own page (Mainsail, Fluidd, OctoPrint) in a window of
+    // its own; the project's selected printer stays as it is.
+    void open_printer_window(const std::string& name);
+
+    MainFrame&                                         m_frame;
+    Workspace::SpoolStore*                             m_spools{nullptr};
+    OpenConversation                                   m_open_conversation;
+    std::map<std::string, wxWeakRef<PrinterWindow>>    m_printer_windows; // by printer name
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

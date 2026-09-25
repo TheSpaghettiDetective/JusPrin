@@ -4,9 +4,16 @@
 #include "PrinterSetupTypes.hpp"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
+
+// A printer profile's name as brand and model: {"Bambu Lab", "A1 mini"} for
+// "Bambu Lab A1 mini" under the vendor file "Bambulab". A name that does not
+// start with its brand keeps the vendor's name as the brand and is the model
+// whole.
+std::pair<std::string, std::string> split_brand(const std::string& vendor_name, const std::string& profile_name);
 
 class PrinterCatalog
 {

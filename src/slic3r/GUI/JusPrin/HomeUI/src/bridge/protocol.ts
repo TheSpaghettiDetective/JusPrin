@@ -5,7 +5,7 @@
 //
 // The page owns its own chrome strings, as the Agent page does. The host sends
 // data plus the few lines only it can phrase: a project's status text and a
-// printer's connection and nozzle lines come from native code that already has
+// printer's connection and model lines come from native code that already has
 // the device facts and the translations.
 
 import protocolJson from '@resources/jusprin/home/protocol.json';
@@ -68,10 +68,23 @@ export interface ProjectInfo {
 
 export type PrinterState = 'idle' | 'printing' | 'offline';
 
+// A spool the printer holds: a connected Bambu printer's tray, or one the
+// person described. Either field may be absent; the card names what it knows
+// and draws a swatch only for a colour.
 export interface SpoolInfo {
-  // '#RRGGBB', from the fork-owned spool store.
-  colour: string;
+  // The filament type, such as 'PLA'.
+  material?: string;
+  // '#RRGGBB'.
+  colour?: string;
 }
+
+// What the connection line rests on. 'online' and 'offline' are a Bambu
+// device's; 'connected' is a print host with a saved address; 'none' is
+// neither, and draws no dot.
+export type ConnectionState = 'none' | 'online' | 'offline' | 'connected';
+
+// How the printer is reached; 'host' is Moonraker or OctoPrint.
+export type ConnectionKind = 'lan' | 'cloud' | 'host';
 
 // A named printer is one the person added and names in JusPrin: this page
 // confirms its rename and removal. A device is a Bambu printer no named
@@ -93,11 +106,17 @@ export interface PrinterInfo {
   statusText?: string;
   // 0-100, present only while printing; drives the progress bar's width.
   progressPercent?: number;
+  connectionState: ConnectionState;
+  // Host-formatted Connection row, e.g. "Online · LAN", "Not connected".
   connectionText?: string;
+  connectionKind?: ConnectionKind;
   connectionAction?: 'reconnect';
-  nozzleText?: string;
-  materialLabel?: string;
+  // A print host's address as saved, without its scheme.
+  address?: string;
+  // Host-formatted Model row, e.g. "X1 Carbon · 0.4 mm".
+  modelText?: string;
   spools: SpoolInfo[];
+  // A Bambu card's Launch monitor, or a print host's Open printer window.
   canLaunchMonitor: boolean;
 }
 
