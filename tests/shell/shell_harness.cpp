@@ -137,6 +137,7 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
+#include "slic3r/GUI/JusPrin/Home/PrinterWindow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
@@ -147,6 +148,7 @@
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/PrinterWebView.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -236,6 +238,13 @@ public:
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_stopping = true;
+            // A client can connect and never send a request -- a web view
+            // opening spare connections does -- which would hold the serving
+            // thread in its read for good.
+            if (m_serving != nullptr) {
+                boost::system::error_code ignored;
+                m_serving->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored);
+            }
         }
         m_released.notify_all();
         // Wakes a blocking accept.
@@ -259,9 +268,11 @@ private:
                 return;
             ++m_requests;
             boost::asio::streambuf request;
+            m_serving = &socket;
             lock.unlock();
             boost::asio::read_until(socket, request, "\r\n\r\n", error);
             lock.lock();
+            m_serving = nullptr;
             if (m_hold.count() < 0)
                 m_released.wait(lock, [this] { return m_stopping; });
             else
@@ -284,6 +295,7 @@ private:
     std::mutex                     m_mutex;
     std::condition_variable        m_released;
     bool                           m_stopping{false};
+    boost::asio::ip::tcp::socket*  m_serving{nullptr}; // the connection being read, under m_mutex
     std::thread                    m_thread;
 };
 
@@ -1646,6 +1658,54 @@ private:
         return std::nullopt;
     }
 
+    // The printer windows open now: Home's own printer windows are the only
+    // top-level frames that hold a PrinterWebView.
+    static std::vector<Home::PrinterWindow*> printer_windows()
+    {
+        std::vector<Home::PrinterWindow*> windows;
+        for (wxWindow* window : wxTopLevelWindows)
+            if (auto* printer = dynamic_cast<Home::PrinterWindow*>(window); printer && !printer->IsBeingDeleted())
+                windows.push_back(printer);
+        return windows;
+    }
+
+    // "Open printer window" on a print host's card: a window of its own,
+    // loaded from that printer's saved address, while the project's selected
+    // printer and the page the person is on stay as they were.
+    void verify_open_printer_window(const StandInHost& host)
+    {
+        using namespace std::chrono_literals;
+        const std::string selected_before = selected_printer();
+        const int         tab_before      = m_notebook->GetSelection();
+        check(selected_before != kAddedPrinter && printer_windows().empty(), "printer_window_fixture_starts_on_another_printer");
+        {
+            Home::OrcaHomeBackend home(*m_frame, nullptr);
+            home.launch_monitor(std::string("named:") + kAddedPrinter);
+            const auto opened = printer_windows();
+            check(opened.size() == 1 && opened.front()->GetTitle() == wxString::FromUTF8(kAddedPrinter) &&
+                      opened.front()->IsShown(),
+                  "printer_window_opens_for_the_printer");
+            check(selected_printer() == selected_before && m_notebook->GetSelection() == tab_before,
+                  "printer_window_leaves_the_project_printer_and_page");
+            // Its browser is asked for the saved address.
+            wxWebView* browser = nullptr;
+            if (opened.size() == 1)
+                for (wxWindow* child : opened.front()->view()->GetChildren())
+                    if (auto* found = dynamic_cast<wxWebView*>(child))
+                        browser = found;
+            const std::string address = host.address();
+            check(browser != nullptr && wait_for([browser, &address] {
+                      return browser->GetCurrentURL().ToStdString().rfind(address, 0) == 0;
+                  }, 20s),
+                  "printer_window_loads_the_saved_address");
+            home.launch_monitor(std::string("named:") + kAddedPrinter);
+            check(printer_windows() == opened, "printer_window_second_click_reuses_the_window");
+        }
+        // Home's backend closes its windows when it goes, as the app's main
+        // window taking Home with it does.
+        check(wait_for([] { return printer_windows().empty(); }, 5s), "printer_window_closes_with_home");
+    }
+
     // Testing a print host takes as long as the host takes to answer, and
     // the app goes on meanwhile: a host that holds the request for three
     // seconds leaves a 100 ms timer ticking the whole time. The address is
@@ -1683,8 +1743,9 @@ private:
             const auto        card    = home_card(kAddedPrinter);
             check(card && card->connection_state == Home::ConnectionState::Connected && card->connection_kind == "host" &&
                       card->address == address && card->connection_text == "Connected \xC2\xB7 " + address &&
-                      card->connection_action.empty(),
+                      card->can_launch_monitor && card->connection_action.empty(),
                   "home_says_connected_with_the_saved_address");
+            verify_open_printer_window(host);
         }
         {
             // Would answer in two seconds; cancelled first.

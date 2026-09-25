@@ -307,6 +307,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
                 printer.connection_kind    = "host";
                 printer.address            = host_address(host);
                 printer.connection_text    = utf8(_L("Connected") + middle_dot() + wxString::FromUTF8(printer.address));
+                printer.can_launch_monitor = true;
             }
         }
         double nozzle = named.nozzle;
@@ -421,6 +422,10 @@ void OrcaHomeBackend::launch_monitor(const std::string& printer_id)
         for (const Printers::NamedPrinter& named : Printers::named_printers())
             if (named.name == *name)
                 device_id = named.device_id;
+    if (const auto name = strip(printer_id, kNamedPrefix); name && device_id.empty()) {
+        open_printer_window(*name);
+        return;
+    }
     if (device_id.empty())
         return; // the card changed under the click; the refreshed rail says so
     // Upstream's own path to the Monitor, as the device popup and the
@@ -430,6 +435,30 @@ void OrcaHomeBackend::launch_monitor(const std::string& printer_id)
     // decline the switch -- it vetoes the Monitor tab when the network plugin
     // is missing -- and that refusal is upstream's to make.
     m_frame.jump_to_monitor(device_id);
+}
+
+void OrcaHomeBackend::open_printer_window(const std::string& name)
+{
+    const Preset* preset = wxGetApp().preset_bundle->printers.find_preset(name, false, true);
+    if (preset == nullptr || preset->config.opt_string("print_host").empty())
+        return; // the card changed under the click; the refreshed rail says so
+    // One window per printer: a second click brings it back rather than
+    // opening another beside it.
+    if (auto open = m_printer_windows.find(name); open != m_printer_windows.end() && open->second) {
+        open->second->Iconize(false);
+        open->second->Raise();
+        return;
+    }
+    m_printer_windows[name] = new PrinterWindow(name, preset->config);
+}
+
+OrcaHomeBackend::~OrcaHomeBackend()
+{
+    // The windows have no parent, so they would outlive the app's main
+    // window; they go with it, as the Device tab they stand in for does.
+    for (auto& [name, window] : m_printer_windows)
+        if (window)
+            window->Destroy();
 }
 
 void OrcaHomeBackend::add_printer()

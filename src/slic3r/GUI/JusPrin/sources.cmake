@@ -58,6 +58,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Home/OrcaHomeBackend.hpp
     GUI/JusPrin/Home/HomeWebView.cpp
     GUI/JusPrin/Home/HomeWebView.hpp
+    GUI/JusPrin/Home/PrinterWindow.cpp
+    GUI/JusPrin/Home/PrinterWindow.hpp
     GUI/JusPrin/Mcp/McpProtocol.cpp
     GUI/JusPrin/Mcp/McpProtocol.hpp
     GUI/JusPrin/Mcp/McpServer.cpp
