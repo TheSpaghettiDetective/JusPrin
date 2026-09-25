@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3CEW39JTZMNBGXNY0T91A2E",
+  "strategy": "manual-commit",
+  "branch": "merge-printer-card-into-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp",
+    "src/slic3r/GUI/JusPrin/Home/PrinterWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Home/PrinterWindow.hpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterCard.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterCard.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/state/store.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp",
+    "src/slic3r/GUI/JusPrin/Testing/README.md",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/jusprin/test_fake_bambu_agent.cpp",
+    "tests/jusprin/test_home_host.cpp",
+    "tests/jusprin/test_home_snapshot.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 597771,
+    "cache_read_tokens": 9496687,
+    "output_tokens": 7971,
+    "api_call_count": 16
+  }
+}
