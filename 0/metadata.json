@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3BKRS2RYAKKD45Q3KN1D3ES",
+  "session_id": "62c208cd-d30a-4e34-b4e2-724b5833969a",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-25T06:24:16.2578912Z",
+  "branch": "claude/printer-card-messaging-906fb4",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "0cc169baf158",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 572,
+    "cache_creation_tokens": 1404423,
+    "cache_read_tokens": 105742463,
+    "output_tokens": 222891,
+    "api_call_count": 286
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-25T06:24:15.8541584Z",
+    "agent_lines": 0,
+    "agent_removed": 3,
+    "human_added": 200,
+    "human_modified": 193,
+    "human_removed": 0,
+    "total_committed": 393,
+    "total_lines_changed": 397,
+    "agent_percentage": 0.7556675062972292,
+    "metric_version": 2
+  }
+}

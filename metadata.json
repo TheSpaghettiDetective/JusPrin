@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3BKRS2RYAKKD45Q3KN1D3ES",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-card-messaging-906fb4",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 572,
+    "cache_creation_tokens": 1404423,
+    "cache_read_tokens": 105742463,
+    "output_tokens": 222891,
+    "api_call_count": 286
+  }
+}
