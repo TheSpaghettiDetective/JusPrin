@@ -13,8 +13,8 @@
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/SelectMachinePop.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
-#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
@@ -23,6 +23,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <optional>
 #include <set>
@@ -90,12 +91,57 @@ std::optional<std::string> strip(const std::string& id, const std::string& prefi
     return id.substr(prefix.size());
 }
 
-std::string nozzle_text(double diameter)
+std::string utf8(const wxString& text) { return std::string(text.ToUTF8()); }
+
+// "X1 Carbon" for the model a profile or a device names: the profile's
+// "Bambu Lab X1 Carbon", or a device's own id, "BL-P001". The loaded vendor
+// profiles answer, as the catalogue would without reading its files again.
+// The brand stays when the rest is only a number: "2.4 350" names no printer,
+// "Voron 2.4 350" does. A profile model no vendor lists keeps its own name; a
+// device id, nothing.
+std::string model_name(const std::string& printer_model, const std::string& device_model_id = {})
 {
-    return std::string(wxString::Format(_L("%.1f mm nozzle"), diameter).ToUTF8());
+    for (const auto& [id, vendor] : wxGetApp().preset_bundle->vendors)
+        for (const VendorProfile::PrinterModel& model : vendor.models)
+            if (printer_model.empty() ? !device_model_id.empty() && model.model_id == device_model_id
+                                      : model.id == printer_model) {
+                const std::string rest = PrinterSetup::split_brand(vendor.name, model.id).second;
+                return !rest.empty() && std::isdigit(static_cast<unsigned char>(rest.front())) ? model.id : rest;
+            }
+    return printer_model;
 }
 
-// What the device reports about itself and its job.
+// "X1 Carbon · 0.4 mm", or whichever half is known.
+std::string model_text(const std::string& model, double nozzle)
+{
+    wxString text = wxString::FromUTF8(model);
+    if (nozzle > 0.)
+        text += (text.empty() ? wxString() : middle_dot()) + wxString::Format("%g mm", nozzle);
+    return utf8(text);
+}
+
+// "192.168.1.42:7125" for "http://192.168.1.42:7125/": the host and port as
+// saved, without the scheme, a path, or any credentials written into it.
+std::string host_address(const std::string& print_host)
+{
+    std::string address = print_host;
+    if (const size_t scheme = address.find("://"); scheme != std::string::npos)
+        address = address.substr(scheme + 3);
+    address = address.substr(0, address.find('/'));
+    if (const size_t at = address.rfind('@'); at != std::string::npos)
+        address = address.substr(at + 1);
+    return address.empty() ? print_host : address;
+}
+
+double reported_nozzle(MachineObject& machine)
+{
+    const DevExtderSystem* extruders = machine.GetExtderSystem();
+    return extruders != nullptr ? extruders->GetNozzleDiameter(0) : 0.;
+}
+
+// What the device reports about itself and its job. The connection line is
+// the device's only when it has something verified to say; otherwise the
+// card keeps what it had.
 void describe_device(MachineObject& machine, PrinterEntry& printer)
 {
     const bool printing        = machine_is_printing(machine);
@@ -112,15 +158,17 @@ void describe_device(MachineObject& machine, PrinterEntry& printer)
             status += middle_dot() + remaining;
         printer.status_text = std::string(status.ToUTF8());
     }
-    const bool configured = PrinterSetup::has_verified_printer_connection(machine.get_dev_id());
-    // A printer never connected says nothing about it: connecting is in its
-    // menu. One that was connected says whether it still is.
-    printer.connection_text   = connected || configured ? std::string((connected ? _L("Connected") : _L("Can't reach it")).ToUTF8()) : std::string();
-    printer.connection_action = !connected && configured ? "reconnect" : "";
-    if (const DevExtderSystem* extruders = machine.GetExtderSystem()) {
-        const float diameter = extruders->GetNozzleDiameter(0);
-        if (diameter > 0.f)
-            printer.nozzle_text = nozzle_text(diameter);
+    const std::string kind = machine.connection_type();
+    if (connected) {
+        printer.connection_state  = ConnectionState::Online;
+        printer.connection_kind   = kind;
+        printer.connection_text   = utf8(_L("Online") + middle_dot() + (kind == "lan" ? _L("LAN") : _L("Cloud")));
+        printer.connection_action = "";
+    } else if (PrinterSetup::has_verified_printer_connection(machine.get_dev_id())) {
+        printer.connection_state  = ConnectionState::Offline;
+        printer.connection_kind   = kind;
+        printer.connection_text   = utf8(_L("Offline"));
+        printer.connection_action = "reconnect";
     }
 }
 
@@ -130,7 +178,15 @@ MachineObject* my_machine(const std::string& device_id)
     return devices != nullptr ? devices->get_my_machine(device_id) : nullptr;
 }
 
-std::string utf8(const wxString& text) { return std::string(text.ToUTF8()); }
+// The filament type a spool's preset names ("PLA"), or empty.
+std::string filament_type(const std::string& filament_preset)
+{
+    const Preset* preset = wxGetApp().preset_bundle->filaments.find_preset(filament_preset, false, true);
+    if (preset == nullptr)
+        return {};
+    const auto* type = preset->config.option<ConfigOptionStrings>("filament_type");
+    return type != nullptr && !type->values.empty() ? type->values.front() : std::string();
+}
 
 std::string gone() { return utf8(_L("This printer no longer exists.")); }
 
@@ -204,12 +260,33 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
                 machines.emplace(entry.first, entry.second);
     }
 
+    // What each connected device has loaded, read once for the whole rail.
+    // A connected device with nothing loaded has an empty entry: it is the
+    // printer saying so, and the card believes it over what was remembered.
+    std::map<std::string, std::vector<SpoolEntry>> loaded;
+    if (!machines.empty())
+        for (const PrinterSetup::DiscoveredPrinter& device : PrinterSetup::discover_printers())
+            if (device.connected) {
+                auto& spools = loaded[device.stable_id];
+                for (const PrinterSetup::DiscoveredPrinter::Spool& spool : device.spools)
+                    spools.push_back(SpoolEntry{spool.material, spool.colour});
+            }
+
+    // Every card says something about its connection; one with nothing
+    // verified says so in words, and draws no dot.
+    const auto settle_connection = [](PrinterEntry& printer) {
+        if (printer.connection_state != ConnectionState::None)
+            return;
+        printer.connection_text   = utf8(_L("Not connected"));
+        printer.connection_kind   = "";
+        printer.connection_action = "";
+    };
+
     // The printers the person added, each with the device it stands for when
     // that device is here. The device's own reading of the nozzle wins: a
     // printer whose hardware was changed says so.
     std::vector<PrinterEntry> printers;
     std::set<std::string>     represented;
-    const std::string         material = utf8(SetupCommands::current_filament().material);
     for (const Printers::NamedPrinter& named : Printers::named_printers()) {
         PrinterEntry printer;
         printer.id                = kNamedPrefix + named.name;
@@ -218,29 +295,44 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_open_settings = true;
         printer.can_rename        = true;
         printer.can_remove        = true;
-        const bool verified_before = PrinterSetup::has_verified_printer_connection(named.device_id);
-        printer.connection_text   = verified_before ? utf8(_L("Can't reach it")) : std::string();
-        printer.connection_action = verified_before ? "reconnect" : "";
-        if (const auto* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false, true))
-            if (!preset->config.opt_string("print_host").empty()) {
-                printer.connection_text   = utf8(_L("Sends files over Wi-Fi"));
-                printer.connection_action = "";
+        std::string model;
+        if (const auto* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false, true)) {
+            model = model_name(preset->config.opt_string("printer_model"));
+            // A print host's address is saved only once the host has answered
+            // (or typed into Orca's own settings dialog, which is not tested:
+            // an accepted gap). Nothing here says whether it answers now.
+            const std::string host = preset->config.opt_string("print_host");
+            if (!host.empty()) {
+                printer.connection_state   = ConnectionState::Connected;
+                printer.connection_kind    = "host";
+                printer.address            = host_address(host);
+                printer.connection_text    = utf8(_L("Connected") + middle_dot() + wxString::FromUTF8(printer.address));
             }
-        if (named.nozzle > 0.)
-            printer.nozzle_text = nozzle_text(named.nozzle);
+        }
+        double nozzle = named.nozzle;
         if (const auto found = machines.find(named.device_id); !named.device_id.empty() && found != machines.end()) {
             describe_device(*found->second, printer);
-            if (printer.can_launch_monitor)
+            if (printer.can_launch_monitor) {
                 wxGetApp().app_config->set("jusprin_verified_connections", named.device_id, "true");
+                if (const double reported = reported_nozzle(*found->second); reported > 0.)
+                    nozzle = reported;
+            }
             represented.insert(named.device_id);
+        } else if (PrinterSetup::has_verified_printer_connection(named.device_id)) {
+            // Connected before, and the app has not heard of the device since.
+            printer.connection_state  = ConnectionState::Offline;
+            printer.connection_text   = utf8(_L("Offline"));
+            printer.connection_action = "reconnect";
         }
-        // Spools are remembered per printer; the material the project has
-        // loaded only describes the one in force.
-        if (m_spools != nullptr)
+        settle_connection(printer);
+        printer.model_text = model_text(model, nozzle);
+        // A connected printer says what it holds; otherwise the spools the
+        // person described for it stand in.
+        if (const auto held = loaded.find(named.device_id); !named.device_id.empty() && held != loaded.end())
+            printer.spools = held->second;
+        else if (m_spools != nullptr)
             for (const Workspace::Spool& spool : m_spools->spools_for(named.name))
-                printer.spools.push_back(SpoolEntry{spool.colour});
-        if (named.selected && !printer.spools.empty())
-            printer.material_label = material;
+                printer.spools.push_back(SpoolEntry{filament_type(spool.filament_preset), spool.colour});
         printers.push_back(std::move(printer));
     }
 
@@ -257,6 +349,10 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_rename = !machine->is_lan_mode_printer() && machine->is_online();
         printer.can_remove = !machine->is_lan_mode_printer();
         describe_device(*machine, printer);
+        settle_connection(printer);
+        printer.model_text = model_text(model_name({}, machine->printer_type), reported_nozzle(*machine));
+        if (const auto held = loaded.find(id); held != loaded.end())
+            printer.spools = held->second;
         printers.push_back(std::move(printer));
     }
     return printers;

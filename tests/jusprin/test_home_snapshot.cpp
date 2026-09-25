@@ -33,10 +33,11 @@ PrinterEntry a_printer()
     printer.state              = PrinterState::Printing;
     printer.status_text        = "Printing - 43% - 2h left";
     printer.progress_percent   = 43;
-    printer.connection_text    = "Connected - LAN";
-    printer.nozzle_text        = "0.4 mm nozzle";
-    printer.material_label     = "PLA";
-    printer.spools             = {SpoolEntry{"#000000"}, SpoolEntry{"#FFFFFF"}};
+    printer.connection_state   = ConnectionState::Online;
+    printer.connection_text    = "Online - LAN";
+    printer.connection_kind    = "lan";
+    printer.model_text         = "X1 Carbon - 0.4 mm";
+    printer.spools             = {SpoolEntry{"PLA", "#000000"}, SpoolEntry{"PETG", "#FFFFFF"}};
     printer.can_launch_monitor = true;
     return printer;
 }
@@ -115,12 +116,74 @@ TEST_CASE("a printing printer carries its job, its bar, and its spools", "[home]
     CHECK(printer.at("state") == "printing");
     CHECK(printer.at("statusText") == "Printing - 43% - 2h left");
     CHECK(printer.at("progressPercent") == 43);
-    CHECK(printer.at("connectionText") == "Connected - LAN");
-    CHECK(printer.at("nozzleText") == "0.4 mm nozzle");
-    CHECK(printer.at("materialLabel") == "PLA");
+    CHECK(printer.at("connectionState") == "online");
+    CHECK(printer.at("connectionText") == "Online - LAN");
+    CHECK(printer.at("connectionKind") == "lan");
+    CHECK(printer.at("modelText") == "X1 Carbon - 0.4 mm");
     CHECK(printer.at("canLaunchMonitor") == true);
+    CHECK_FALSE(printer.contains("address"));
     REQUIRE(printer.at("spools").size() == 2);
+    CHECK(printer.at("spools").at(0).at("material") == "PLA");
     CHECK(printer.at("spools").at(0).at("colour") == "#000000");
+    // The card's material now comes from what the printer holds; the
+    // project's filament is not a fact about the printer.
+    CHECK_FALSE(printer.contains("materialLabel"));
+    CHECK_FALSE(printer.contains("nozzleText"));
+}
+
+// The dot and the connection row rest on the state; the words are the host's.
+TEST_CASE("every connection state maps to the page's vocabulary", "[home]")
+{
+    Snapshot snapshot;
+    snapshot.printers = {PrinterEntry{}};
+    CHECK(state_payload(snapshot).at("printers").at(0).at("connectionState") == "none");
+    const std::pair<ConnectionState, const char*> expected[] = {
+        {ConnectionState::None, "none"},
+        {ConnectionState::Online, "online"},
+        {ConnectionState::Offline, "offline"},
+        {ConnectionState::Connected, "connected"},
+    };
+    for (const auto& [state, text] : expected) {
+        snapshot.printers[0].connection_state = state;
+        INFO(text);
+        CHECK(state_payload(snapshot).at("printers").at(0).at("connectionState") == text);
+    }
+}
+
+// A spool described without a colour is still a material the card names; a
+// sent empty colour would draw a swatch of nothing.
+TEST_CASE("a spool without a colour sends its material and no colour", "[home]")
+{
+    Snapshot snapshot;
+    PrinterEntry printer;
+    printer.spools    = {SpoolEntry{"PLA", ""}, SpoolEntry{"", "#C8202D"}};
+    snapshot.printers = {printer};
+    const json spools = state_payload(snapshot).at("printers").at(0).at("spools");
+    REQUIRE(spools.size() == 2);
+    CHECK(spools.at(0).at("material") == "PLA");
+    CHECK_FALSE(spools.at(0).contains("colour"));
+    CHECK_FALSE(spools.at(1).contains("material"));
+    CHECK(spools.at(1).at("colour") == "#C8202D");
+}
+
+// A print host is Connected on its saved address and offers its own page.
+TEST_CASE("a print host carries its address and its page", "[home]")
+{
+    Snapshot snapshot;
+    PrinterEntry host;
+    host.id                 = "named:Voron";
+    host.connection_state   = ConnectionState::Connected;
+    host.connection_kind    = "host";
+    host.address            = "192.168.1.42:7125";
+    host.connection_text    = "Connected - 192.168.1.42:7125";
+    host.can_launch_monitor = true;
+    snapshot.printers       = {host};
+    const json printer = state_payload(snapshot).at("printers").at(0);
+    CHECK(printer.at("connectionState") == "connected");
+    CHECK(printer.at("connectionKind") == "host");
+    CHECK(printer.at("address") == "192.168.1.42:7125");
+    CHECK(printer.at("canLaunchMonitor") == true);
+    CHECK_FALSE(printer.contains("connectionAction"));
 }
 
 // An idle printer is one collapsed row. Sending a bar or a job line for it
@@ -141,6 +204,8 @@ TEST_CASE("an idle printer sends no progress bar", "[home]")
     CHECK_FALSE(printer.contains("statusText"));
     CHECK(printer.at("spools").empty());
     CHECK(printer.at("canLaunchMonitor") == false);
+    CHECK_FALSE(printer.contains("modelText"));
+    CHECK_FALSE(printer.contains("connectionKind"));
 }
 
 TEST_CASE("a printing printer with no percentage yet sends no bar", "[home]")

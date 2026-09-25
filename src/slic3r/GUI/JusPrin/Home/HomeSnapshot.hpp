@@ -35,9 +35,12 @@ struct ProjectEntry
     std::string        status_text;
 };
 
+// A spool the printer holds. Either field may be empty: a spool described
+// without a colour is still a material the card can name.
 struct SpoolEntry
 {
-    std::string colour; // '#RRGGBB'
+    std::string material; // the filament type, such as "PLA"
+    std::string colour;   // '#RRGGBB'
 };
 
 enum class PrinterState { Idle, Printing, Offline };
@@ -52,6 +55,14 @@ const char* to_string(PrinterState state);
 enum class PrinterKind { Named, Device };
 
 const char* to_string(PrinterKind kind);
+
+// What a card's connection line and dot rest on, apart from its words.
+// Online and Offline are a Bambu device's: data in the last 30 seconds, or
+// verified before and silent now. Connected is a print host's: an address is
+// saved. None is neither, and draws no dot.
+enum class ConnectionState { None, Online, Offline, Connected };
+
+const char* to_string(ConnectionState state);
 
 struct PrinterEntry
 {
@@ -68,10 +79,17 @@ struct PrinterEntry
     // Below zero whenever there is no job to report; only a printing printer
     // sends a bar.
     int                     progress_percent{-1};
+    // The Connection row: the finished line, the state it rests on, and the
+    // transport -- "lan", "cloud", "host", or empty.
+    ConnectionState         connection_state{ConnectionState::None};
     std::string             connection_text;
+    std::string             connection_kind;
     std::string             connection_action; // "reconnect", or empty for no button
-    std::string             nozzle_text;
-    std::string             material_label;
+    // A print host's address as saved, without its scheme.
+    std::string             address;
+    // The Model row, "X1 Carbon · 0.4 mm"; empty when neither is known.
+    std::string             model_text;
+    // The Loaded row; empty when nothing is known to be loaded.
     std::vector<SpoolEntry> spools;
     bool                    can_launch_monitor{false};
 };

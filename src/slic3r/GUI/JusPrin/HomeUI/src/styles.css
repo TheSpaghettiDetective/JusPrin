@@ -217,6 +217,27 @@ body {
   background: var(--status-success);
 }
 
+/* A printer card's dot is its connection: reachable, or known and silent. A
+   printer with nothing verified draws no dot at all. */
+.status-dot.online,
+.status-dot.connected {
+  background: var(--status-success);
+}
+
+.status-dot.offline {
+  background: var(--status-warning);
+}
+
+/* Read by a screen reader, not drawn. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* Printer rail: a fixed column, full height beside the gallery. */
 .printer-column {
   flex: 0 0 var(--printer-card-column-width);
@@ -279,21 +300,42 @@ body {
   background: var(--status-success);
 }
 
-.printer-detail {
+/* Connection, Model, Loaded: a label column and a value column, the same on
+   every card. */
+.printer-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  margin: 4px 0 0;
+}
+
+.printer-fact {
+  display: contents;
+}
+
+.printer-fact dt {
   font: var(--font-body-small);
   color: var(--text-secondary);
 }
 
+.printer-fact dd {
+  margin: 0;
+  min-width: 0;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+/* Four swatches, one AMS, fit beside the material on one line. */
 .printer-spools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 4px;
 }
 
 .printer-material {
-  font: var(--font-label-bold);
-  color: var(--text-secondary);
+  margin-right: 4px;
 }
 
 /* Without the border the black spool vanishes on the dark card and the white

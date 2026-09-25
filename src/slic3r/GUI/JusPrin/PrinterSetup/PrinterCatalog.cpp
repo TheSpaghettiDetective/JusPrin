@@ -12,6 +12,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <tuple>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -214,14 +215,19 @@ double nozzle_of(const std::string& variant)
     }
 }
 
+void name_printer(CatalogPrinter& printer, const std::string& vendor_name, const std::string& profile_name)
+{
+    std::tie(printer.vendor_name, printer.model_name) = split_brand(vendor_name, profile_name);
+}
+
+} // namespace
+
 // Most profiles repeat the brand at the start of the model's name, often
 // spelled better than the vendor file does ("Bambu Lab A1 mini" under
 // "Bambulab"). Then the brand is that spelling and the model is the rest;
 // otherwise the brand is the vendor file's own name.
-void name_printer(CatalogPrinter& printer, const std::string& vendor_name, const std::string& profile_name)
+std::pair<std::string, std::string> split_brand(const std::string& vendor_name, const std::string& profile_name)
 {
-    printer.vendor_name     = vendor_name;
-    printer.model_name      = profile_name;
     const std::string brand = letters_and_digits(vendor_name);
     // At each word boundary, "Bambu" then "Bambu Lab": the brand may be more
     // than one word.
@@ -230,15 +236,11 @@ void name_printer(CatalogPrinter& printer, const std::string& vendor_name, const
         const std::string prefix = letters_and_digits(profile_name.substr(0, end));
         if (prefix.size() > brand.size())
             break;
-        if (prefix == brand) {
-            printer.vendor_name = profile_name.substr(0, end);
-            printer.model_name  = profile_name.substr(end + 1);
-            break;
-        }
+        if (prefix == brand)
+            return {profile_name.substr(0, end), profile_name.substr(end + 1)};
     }
+    return {vendor_name, profile_name};
 }
-
-} // namespace
 
 std::vector<CatalogPrinter> PrinterCatalog::panel_printers() const
 {
