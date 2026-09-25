@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3BKRF5NSFHHDR1Q7507DEFP",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-card-messaging-906fb4",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterCard.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/state/store.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp",
+    "tests/jusprin/test_home_snapshot.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 570,
+    "cache_creation_tokens": 1403305,
+    "cache_read_tokens": 105126241,
+    "output_tokens": 222348,
+    "api_call_count": 285
+  }
+}
