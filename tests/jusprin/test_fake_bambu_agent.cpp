@@ -94,10 +94,13 @@ TEST_CASE("FakeBambuAgent push_status reports loaded spools as a real AMS and tr
     CHECK(trays[0]["id"] == "0");
     CHECK(trays[0]["tray_sub_brands"] == "PLA Matte");
     CHECK(trays[0]["tray_type"] == "PLA");
+    // Without an id beside it, upstream drops the type.
+    CHECK(trays[0].contains("tray_info_idx"));
     CHECK(trays[0]["tray_color"] == "5F7D4FFF");
     CHECK(trays[1]["id"] == "1");
     CHECK(trays[1]["tray_sub_brands"] == "PETG");
     CHECK_FALSE(trays[1].contains("tray_type"));
+    CHECK_FALSE(trays[1].contains("tray_info_idx"));
     CHECK_FALSE(trays[1].contains("tray_color"));
 }
 

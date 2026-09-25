@@ -262,8 +262,13 @@ std::string FakeBambuAgent::build_push_status_json(const FakeBambuStatusStep& st
         for (std::size_t i = 0; i < step.spools.size() && i < 4; ++i) {
             const FakeBambuSpool& spool = step.spools[i];
             json tray{{"id", std::to_string(i)}, {"tray_sub_brands", spool.sub_brands}, {"remain", 80}};
-            if (!spool.tray_type.empty())
-                tray["tray_type"] = spool.tray_type;
+            // Upstream reads a tray's type only beside its filament id, as
+            // hardware always sends both. An id no preset carries falls back
+            // to the type itself.
+            if (!spool.tray_type.empty()) {
+                tray["tray_type"]     = spool.tray_type;
+                tray["tray_info_idx"] = "";
+            }
             if (!spool.colour.empty())
                 tray["tray_color"] = spool.colour;
             trays.push_back(std::move(tray));

@@ -72,6 +72,8 @@ public:
     void        wait_scenario_done();
     void        cancel_scenario();
     bool        reload_control_file();
+    // <datadir>/jusprin/fake_printer.json, which a test writes to drive state.
+    std::string control_file_path() const;
     std::string last_print_filename() const;
     FakeBambuStatusStep current_step() const;
 
@@ -120,7 +122,6 @@ public:
     FilamentSyncMode get_filament_sync_mode() const override { return FilamentSyncMode::subscription; }
 
 private:
-    std::string control_file_path() const;
     std::string build_push_status_json(const FakeBambuStatusStep& step) const;
     std::string build_version_json() const;
     void        emit_status(const std::string& dev_id, const FakeBambuStatusStep& step);
