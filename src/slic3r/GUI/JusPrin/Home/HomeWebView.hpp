@@ -9,6 +9,7 @@
 #include "OrcaHomeBackend.hpp"
 
 #include <wx/panel.h>
+#include <wx/timer.h>
 
 #include <memory>
 
@@ -43,6 +44,13 @@ public:
     // changes while another screen is in front. `added` leads the column
     // with a successful Add and sends its receipt, for this one refresh.
     void refresh(const std::string& added = {});
+    // While live, the printer cards follow the devices, profiles and spools
+    // they describe without the person leaving Home: once a second -- the
+    // Monitor's own refresh rate -- the rail is re-read and sent only when a
+    // card changed. Polled, because upstream announces no device update, and
+    // a printer going Offline is time passing rather than a message. The
+    // shell makes Home live exactly while it is the selected screen.
+    void set_live(bool live);
 
     HomeHost&        host() { return *m_host; }
     OrcaHomeBackend& backend() { return *m_backend; }
@@ -58,6 +66,7 @@ private:
     void on_script_message(wxWebViewEvent& event);
     void on_load_error(wxWebViewEvent& event);
     void show_page_error(const wxString& reason);
+    void on_live_tick(wxTimerEvent& event);
 
     const ShellTheme&                 m_theme;
     // The backend outlives the host that reads through it.
@@ -68,6 +77,7 @@ private:
     // The page, or the shell's panel in its place.
     wxBoxSizer*               m_row{nullptr};
     wxWindow*                 m_side_panel{nullptr};
+    wxTimer                   m_live_timer;
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

@@ -83,6 +83,14 @@
 //              duplicates and undoes, opens More (Windows), orbits and
 //              narrows the window; asserts the open tool, selection and
 //              instance count at each step, and writes tool-strip-*.png
+//   --home-live
+//              saves and connects the in-process fake Bambu printer, then
+//              drives it Online, Printing and Offline while Home stays on
+//              screen, reading the printer card from the Home page itself:
+//              every change must arrive without leaving Home, a card menu
+//              opened first must stay open, and nothing is sent while the
+//              printer is unchanged or Home is hidden. About a minute; the
+//              Offline step waits out the 30-second freshness window
 //   --printer-setup
 //              drives the Add a printer modal from the printer menu with the
 //              deterministic recognizer: dismissal and scrim lifetime, the
@@ -166,6 +174,7 @@
 #include <wx/timer.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/nowide/fstream.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -362,7 +371,8 @@ struct HarnessState
         ToolStripCapture,
         ManualToolStrip,
         PrinterSetup,
-        PrinterLive
+        PrinterLive,
+        HomeLive
     };
 
     std::atomic<int>  result{-1};
@@ -461,6 +471,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::PrinterLive) {
                 begin_printer_live();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::HomeLive) {
+                begin_home_live();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::McpSetup) {
@@ -2090,6 +2104,230 @@ private:
                         });
                     });
                 });
+            });
+    }
+
+    // --- Home's printer cards, live while Home stays up (--home-live) -----
+    // A fake Bambu printer, saved and connected through the real backend,
+    // goes Online, Printing, then Offline while Home is on screen. The
+    // harness never leaves Home and never asks it to refresh after the first
+    // look, and it reads the cards from the page itself -- what the person
+    // sees -- rather than from the backend. A card menu opened at the start
+    // must still be open at the end.
+    static constexpr const char* kHomeLivePrinter = "Live A1 mini";
+
+    std::shared_ptr<PrinterSetup::OrcaPrinterBackend> m_home_live_backend;
+    std::string                                       m_home_live_control;
+    // The page's last answer to read_home_page(): {cards:[...]}.
+    nlohmann::json m_home_page;
+    bool           m_home_page_bound{false};
+    unsigned       m_home_page_ticks{0};
+
+    // Asks the Home page what its printer cards show. The answer arrives as a
+    // script message; HomeHost ignores it (another protocol) and the handler
+    // below keeps it.
+    void read_home_page()
+    {
+        wxWebView* view = installed_shell()->home_view()->webview();
+        if (view == nullptr)
+            return;
+        if (!m_home_page_bound) {
+            view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [weak = std::weak_ptr<Scenario>(shared_from_this())](wxWebViewEvent& event) {
+                event.Skip();
+                const auto self = weak.lock();
+                if (!self)
+                    return;
+                const nlohmann::json message = nlohmann::json::parse(event.GetString().ToUTF8().data(), nullptr, false);
+                if (message.is_object() && message.value("harness", "") == "home-cards")
+                    self->m_home_page = message;
+            });
+            m_home_page_bound = true;
+        }
+        WebView::RunScript(view,
+            "(function () {"
+            "  var cards = Array.prototype.map.call(document.querySelectorAll('.printer-card'), function (card) {"
+            "    var name = card.querySelector('.printer-name');"
+            "    var bar = card.querySelector('[role=progressbar]');"
+            "    var dot = card.querySelector('.status-dot');"
+            "    return { name: name ? name.textContent : '',"
+            "             printing: !!(dot && dot.classList.contains('printing')),"
+            "             progress: bar ? Number(bar.getAttribute('aria-valuenow')) : -1,"
+            "             details: Array.prototype.map.call(card.querySelectorAll('.printer-detail'), function (d) { return d.textContent; }),"
+            "             buttons: Array.prototype.map.call(card.querySelectorAll('button:not(.printer-menu-button):not([role=menuitem])'), function (b) { return b.textContent; }),"
+            "             menuOpen: !!card.querySelector('.printer-menu') };"
+            "  });"
+            "  window.wx.postMessage(JSON.stringify({ harness: 'home-cards', cards: cards }));"
+            "})()");
+    }
+
+    // The live printer's card as the page last drew it, or null.
+    nlohmann::json home_page_card() const
+    {
+        if (m_home_page.contains("cards"))
+            for (const nlohmann::json& card : m_home_page["cards"])
+                if (card.value("name", "") == kHomeLivePrinter)
+                    return card;
+        return nullptr;
+    }
+
+    static bool has_button(const nlohmann::json& card, const std::string& label)
+    {
+        for (const nlohmann::json& button : card.value("buttons", nlohmann::json::array()))
+            if (button.get<std::string>().find(label) != std::string::npos)
+                return true;
+        return false;
+    }
+
+    static bool card_says(const nlohmann::json& card, const std::string& text)
+    {
+        for (const nlohmann::json& detail : card.value("details", nlohmann::json::array()))
+            if (detail.get<std::string>().find(text) != std::string::npos)
+                return true;
+        return false;
+    }
+
+    // Waits until the page draws the live card so that `drawn` holds, asking
+    // the page again every quarter second.
+    void wait_for_home_page(std::function<bool(const nlohmann::json&)> drawn, const std::string& name, std::function<void()> then)
+    {
+        m_home_page = nullptr;
+        wait_until([this, drawn] { const nlohmann::json card = home_page_card(); return !card.is_null() && drawn(card); },
+                   name, std::move(then), [this] {
+                       if (m_home_page_ticks % 500 == 499)
+                           std::cerr << "HARNESS NOTE home_page_card " << home_page_card().dump() << '\n';
+                       if (m_home_page_ticks++ % 25 == 0)
+                           read_home_page();
+                   });
+    }
+
+    void write_home_live_control(const std::string& json)
+    {
+        boost::filesystem::create_directories(boost::filesystem::path(m_home_live_control).parent_path());
+        boost::nowide::ofstream out(m_home_live_control);
+        out << json;
+    }
+
+    bool still_on_home() const
+    {
+        return m_notebook->GetSelection() == MainFrame::tpHome && installed_shell()->home_view()->IsShown() &&
+               installed_shell()->home_view()->webview()->IsShownOnScreen();
+    }
+
+    void begin_home_live()
+    {
+        wxGetApp().app_config->set("jusprin", "fake_printer", "true");
+        m_home_live_backend = std::make_shared<PrinterSetup::OrcaPrinterBackend>(
+            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), installed_shell()->status_row()->spool_store());
+        PrinterSetup::AddPrinterRequest request;
+        request.vendor_id = "BBL";
+        request.model_id  = "Bambu Lab A1 mini";
+        request.variant   = "0.4";
+        request.name      = kHomeLivePrinter;
+        PrinterSetup::SavedPrinter saved;
+        check(m_home_live_backend->add_printer(request, saved).empty() && saved.name == kHomeLivePrinter, "home_live_printer_saved");
+        m_home_live_backend->prepare_connection(kHomeLivePrinter);
+        wait_until([self = shared_from_this()] { return !self->m_home_live_backend->connection(kHomeLivePrinter).candidates.empty(); },
+                   "home_live_fake_discovered", [self = shared_from_this()] {
+                       const std::string device = self->m_home_live_backend->connection(kHomeLivePrinter).candidates.front().id;
+                       const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
+                       self->check(fake != nullptr, "home_live_fake_agent_installed");
+                       if (fake == nullptr) {
+                           self->finish();
+                           return;
+                       }
+                       // The path the fake rereads (Testing/README.md).
+                       self->m_home_live_control = (fs::path(Slic3r::data_dir()) / "jusprin" / "fake_printer.json").string();
+                       self->write_home_live_control(R"({"state":"idle"})");
+                       self->check(Printers::link_named_printer(kHomeLivePrinter, device).empty() &&
+                                       self->m_home_live_backend->connect_printer(kHomeLivePrinter, device, "").empty(),
+                                   "home_live_connect_starts");
+                       self->wait_until([self] { return self->m_home_live_backend->connection(kHomeLivePrinter).state == "verified"; },
+                                        "home_live_printer_connected", [self] { self->home_live_online(); });
+                   });
+    }
+
+    // The one look on the way in. Everything after it has to arrive live.
+    void home_live_online()
+    {
+        if (m_notebook->GetSelection() != MainFrame::tpHome)
+            m_frame->select_tab(size_t(MainFrame::tpHome));
+        installed_shell()->home_view()->refresh();
+        wait_for_home_page(
+            [](const nlohmann::json& card) { return !card.value("printing", true) && card_says(card, "Connected") && has_button(card, "Launch monitor"); },
+            "home_live_page_shows_online", [self = shared_from_this()] {
+                self->check(self->still_on_home(), "home_live_online_on_home");
+                // The card's menu stays open through every update below.
+                WebView::RunScript(installed_shell()->home_view()->webview(),
+                                   wxString::FromUTF8(std::string("document.querySelector('.printer-menu-button[aria-label=\"Actions for ") +
+                                                      kHomeLivePrinter + "\"]').click()"));
+                self->wait_for_home_page([](const nlohmann::json& card) { return card.value("menuOpen", false); },
+                                         "home_live_card_menu_opens", [self] { self->home_live_printing(); });
+            });
+    }
+
+    void home_live_printing()
+    {
+        write_home_live_control(R"({"state":"printing","progress":0.43})");
+        wait_for_home_page(
+            [](const nlohmann::json& card) { return card.value("printing", false) && card.value("progress", -1) == 43; },
+            "home_live_page_shows_printing", [self = shared_from_this()] {
+                self->check(self->still_on_home(), "home_live_printing_without_leaving_home");
+                self->check(self->home_page_card().value("menuOpen", false), "home_live_printing_keeps_the_card_menu_open");
+                self->home_live_quiet();
+            });
+    }
+
+    // The fake keeps pushing the same status every second; none of it may
+    // reach the page. Then the cost of the check that decided so.
+    void home_live_quiet()
+    {
+        Home::HomeHost& host  = installed_shell()->home_view()->host();
+        const auto      sent  = host.messages_sent();
+        const auto      until = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "home_live_quiet_window_elapsed",
+                   [self = shared_from_this(), sent] {
+                       Home::HomeHost& host = installed_shell()->home_view()->host();
+                       std::cerr << "HARNESS NOTE home_live_sent_while_unchanged " << host.messages_sent() - sent << '\n';
+                       self->check(host.messages_sent() == sent, "home_live_sends_nothing_while_unchanged");
+                       constexpr int kRuns   = 500;
+                       int           sends   = 0;
+                       const auto    started = std::chrono::steady_clock::now();
+                       for (int i = 0; i < kRuns; ++i)
+                           sends += host.refresh_if_changed() ? 1 : 0;
+                       const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count();
+                       std::cerr << "HARNESS NOTE home_live_unchanged_tick_us " << static_cast<double>(micros) / kRuns << '\n';
+                       self->check(sends == 0, "home_live_unchanged_tick_sends_nothing");
+                       self->home_live_offline();
+                   });
+    }
+
+    // Offline is time passing: the fake stops reporting, and the card
+    // changes when the freshness window closes, with no message to say so.
+    void home_live_offline()
+    {
+        write_home_live_control(R"({"state":"idle","offline":true})");
+        const auto stopped = std::chrono::steady_clock::now();
+        wait_for_home_page(
+            [](const nlohmann::json& card) {
+                return !card.value("printing", true) && card_says(card, "Can't reach it") && !has_button(card, "Launch monitor") && has_button(card, "Reconnect");
+            },
+            "home_live_page_shows_offline", [self = shared_from_this(), stopped] {
+                std::cerr << "HARNESS NOTE home_live_seconds_until_offline "
+                          << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - stopped).count() << '\n';
+                self->check(self->still_on_home(), "home_live_offline_without_leaving_home");
+                self->check(self->home_page_card().value("menuOpen", false), "home_live_offline_keeps_the_card_menu_open");
+                // Off Home, the rail stops being read.
+                self->m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                Home::HomeHost& host = installed_shell()->home_view()->host();
+                const auto      sent = host.messages_sent();
+                self->write_home_live_control(R"({"state":"idle"})");
+                const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+                self->wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "home_live_hidden_window_elapsed",
+                                 [self, sent] {
+                                     self->check(installed_shell()->home_view()->host().messages_sent() == sent,
+                                                 "home_live_sends_nothing_while_home_is_hidden");
+                                     self->finish();
+                                 });
             });
     }
 
@@ -6151,6 +6389,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
         else if (argument == "--printer-setup")
             state->mode = HarnessState::Mode::PrinterSetup;
+        else if (argument == "--home-live")
+            state->mode = HarnessState::Mode::HomeLive;
         else if (argument == "--printer-live")
             state->mode = HarnessState::Mode::PrinterLive;
         else if (argument == "--printer-connect-capture") {

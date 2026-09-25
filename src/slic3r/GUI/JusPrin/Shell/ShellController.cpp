@@ -520,7 +520,8 @@ void ShellController::apply_current_appearance()
 //
 // The gallery is a view of state that changes while another screen is in front
 // -- a project saved, a print started -- so it is refreshed on the way in
-// rather than kept live behind the canvas.
+// rather than kept live behind the canvas. While it is on screen its printer
+// cards stay live (HomeWebView::set_live).
 void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
 {
     on_page_changed();
@@ -548,6 +549,7 @@ void ShellController::on_page_changed()
     const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
     if (home)
         m_home->refresh();
+    m_home->set_live(home);
     // A throwaway setup webview elsewhere (the Add a printer dialog) may have
     // written a working agent config since the docked pane last checked; push
     // it in now, the same "refresh on the way in" pattern as Home's gallery

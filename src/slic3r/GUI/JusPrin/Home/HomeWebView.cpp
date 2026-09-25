@@ -19,6 +19,7 @@
 #include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/toplevel.h>
 #include <wx/webview.h>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
@@ -43,8 +44,9 @@ wxString home_page_url()
 } // namespace
 
 HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame, Workspace::SpoolStore* spools)
-    : wxPanel(parent, wxID_ANY), m_theme(theme)
+    : wxPanel(parent, wxID_ANY), m_theme(theme), m_live_timer(this)
 {
+    Bind(wxEVT_TIMER, &HomeWebView::on_live_tick, this, m_live_timer.GetId());
     m_backend = std::make_unique<OrcaHomeBackend>(frame, spools);
     m_host    = std::make_unique<HomeHost>(*m_backend, [this](const std::string& envelope) {
         if (m_webview == nullptr)
@@ -93,6 +95,7 @@ HomeWebView::~HomeWebView()
     // The webview outlives this frame's teardown callbacks in wx's child
     // destruction order; drop the host first so it cannot run script against a
     // dying view, then the backend it reads through.
+    m_live_timer.Stop();
     m_host.reset();
     m_backend.reset();
 }
@@ -107,6 +110,26 @@ void HomeWebView::apply_appearance(bool dark)
 }
 
 void HomeWebView::refresh(const std::string& added) { m_host->push_state(added); }
+
+void HomeWebView::set_live(bool live)
+{
+    if (!live)
+        m_live_timer.Stop();
+    else if (!m_live_timer.IsRunning())
+        m_live_timer.Start(1000);
+}
+
+void HomeWebView::on_live_tick(wxTimerEvent&)
+{
+    // Nothing to update while the printer conversation covers the page or the
+    // window is minimized. The first tick after either is over catches up:
+    // the comparison is against what was last sent, not the last tick.
+    if (m_webview == nullptr || !m_webview->IsShownOnScreen())
+        return;
+    if (const auto* top = dynamic_cast<const wxTopLevelWindow*>(wxGetTopLevelParent(this)); top != nullptr && top->IsIconized())
+        return;
+    m_host->refresh_if_changed();
+}
 
 void HomeWebView::attach_side_panel(wxWindow* panel)
 {

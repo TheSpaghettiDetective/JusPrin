@@ -299,6 +299,38 @@ describe('Home', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  // The host pushes a fresh state while Home is on screen whenever a card
+  // changes. Whatever the person has open on a card has to survive it.
+  it('keeps an open card menu open while its printer changes state', async () => {
+    const host = start();
+    const idle = printer({ state: 'idle', statusText: undefined, progressPercent: undefined });
+    host.deliver('state', state({ printers: [idle] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    host.deliver('state', state({ printers: [printer()] }));
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '43');
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    host.deliver('state', state({ printers: [printer({ state: 'offline', connectionText: "Can't reach it" })] }));
+    expect(screen.getByText("Can't reach it")).toBeInTheDocument();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('keeps a rename in progress while its printer changes state', async () => {
+    const host = start();
+    host.deliver('state', state());
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    const input = within(screen.getByRole('dialog', { name: 'Rename printer' })).getByLabelText('Printer name');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Garage');
+
+    host.deliver('state', state({ printers: [printer({ progressPercent: 44, statusText: 'Printing · 44% · 2h left' })] }));
+    expect(screen.getByRole('dialog', { name: 'Rename printer' })).toBeInTheDocument();
+    expect(input).toHaveValue('Garage');
+  });
+
   it('follows the host into dark mode', () => {
     const host = start();
     host.deliver('state', state({ appearance: 'dark' }));
