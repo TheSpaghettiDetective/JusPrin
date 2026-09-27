@@ -2920,11 +2920,16 @@ private:
     // and nothing forwards, so a click posted to the popup arrives nowhere and
     // the row is never invoked -- the menu simply stays as it was, which reads
     // as "the row did nothing" rather than as a broken click.
+    //
+    // The macOS position is measured from the popup through screen
+    // coordinates, so a control nested in a panel (a colour cell) is hit where
+    // it is; its own GetPosition() is relative to that panel, not the popup.
     void click_row(HeaderMenu* menu, wxWindow* row)
     {
 #ifdef __WXOSX__
         wxWindow* target = menu;
-        const wxPoint at = row->GetPosition() + wxPoint(row->GetSize().x / 2, row->GetSize().y / 2);
+        const wxPoint at = row->GetScreenPosition() - menu->GetScreenPosition()
+            + wxPoint(row->GetSize().x / 2, row->GetSize().y / 2);
 #else
         wxWindow* target = row;
         const wxPoint at(row->GetSize().x / 2, row->GetSize().y / 2);
