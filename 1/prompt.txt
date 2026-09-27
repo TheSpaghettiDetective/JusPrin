@@ -1,0 +1,114 @@
+> Make the exit a real control, one label, both states: a "Close" button (or an X) at the header's right, styled from the button recipe, in place of the breadcrumb link. Before a printer is added it means cancel; after, it means done. Same control, no state-dependent label.
+
+Go with this approach. add a high prior item. Ideally we can also let the agent tell users about the everything is done, they can use "x" to close it. will this make the insutrcitons too long and confusing?
+
+---
+
+<!-- reply -->
+> No. Orca never polls a print host; sends are fire-and-forget, so there is no job state to show.
+
+it is doable based on the sidechat below:
+does moonraker octoprint allow orcaslicer to query the rprint job status?
+
+Let me check what Orca's print-host adapters actually implement before answering.
+
+Two more checks to make the answer precise: how Orca picks the Moonraker agent, and whether the fork's connect flow ever binds a Moonraker printer to it.
+
+One more check: an older note of mine says the Moonraker agent's status stream is compiled out with #if 0 on this branch. Verifying that against the current file.
+
+Short answer: yes for both APIs, but Orca only half-implements it, and this fork's connect flow doesn't use even that half. The quoted sentence is true of the PrintHost send path and of this fork's Home card today, but false as a statement about what Moonraker/OctoPrint allow.
+
+What the two APIs offer
+
+Moonraker exposes job state directly: GET /printer/objects/query?print_stats&virtual_sdcard returns print_stats.state (standby/printing/paused/complete/error), filename, durations, and virtual_sdcard.progress. It also has a WebSocket at /websocket with printer.objects.subscribe, which pushes notify_status_update on every change, so no polling is needed.
+OctoPrint exposes the same through REST: GET /api/job (state, file, progress completion, printTime, printTimeLeft) and GET /api/printer (temps and state flags), both behind the API key. No push channel in the core API; a client polls.
+What Orca implements in this tree
+
+The PrintHost classes (Moonraker.cpp, OctoPrint.cpp) implement only test and upload. That is the path this fork's connect_host uses, and it really is fire-and-forget. OctoPrint.cpp only ever calls api/version; there is no api/job or api/printer anywhere in src/slic3r.
+Separately, upstream added a MoonrakerPrinterAgent (src/slic3r/Utils/MoonrakerPrinterAgent.cpp), registered in NetworkAgentFactory alongside the Qidi, Snapmaker and Creality agents that subclass it. It has the full status machinery: query_printer_status over HTTP, a WebSocket thread that subscribes to print_stats, virtual_sdcard, heaters and fans, and map_moonraker_state into the same MachineObject state the Bambu cards use. So the code to show Idle/Printing/Offline for a Klipper printer exists.
+But it is compiled out. MoonrakerPrinterAgent.cpp:2084-2099 wraps the initial status query and start_status_stream in #if 0 with the comment "disable websocket for now, as we don't use MonitorPanel for Moonraker printers yet". Only the connect handshake (/server/info) runs. There is no OctoPrint printer agent at all.
+How that reaches the fork's Home card
+
+GUI_App::switch_printer_agent picks the Moonraker agent only when the preset's printer_agent field says so. Vendor profiles set it for Qidi, Creality K2/SPARKX, Snapmaker U1 and OpenEYE; a generic Klipper preset, and anything this fork's connect_host sets up, has it empty and gets the plain Orca agent. connect_host writes print_host/host_type and never binds a device_id, so describe_device never runs for these printers and the card can only say "Sends files over Wi-Fi".
+
+What it would take to show job status for Moonraker
+
+Per my note from the jusprin-newui-fakeprinter branch, this was already done once there: flip the #if 0 to #if 1, set printer_agent=moonraker on the preset, and let the Home backend report state for a host printer whose device id matches. Screenshots there showed Idle, Printing and Offline against the Python fake. Two gotchas from that work: the agent honours enable_ssl_for_mqtt (default true) and dials https:// unless it is off, and a preset with an unparsable version is silently skipped. That branch was never merged into jusprin-newui; the #if 0 is still there.
+
+For OctoPrint there is no agent, so it would be new code: a polling agent against /api/job and /api/printer, or accept that OctoPrint printers stay send-only.
+
+---
+
+<!-- reply -->
+> Only what the person told the chat. Klipper has no filament colour; Spoolman is not integrated.
+
+it's ok. if for scenarios where there are no filament colors, can we can just show a downgraded version?
+
+---
+
+<!-- reply -->
+> Yes, reliably. Freshness from the device, and "LAN" or "Cloud" from the device's connection type.	Only "address saved and the test passed" (since c922876c66). No live reachability. Best honest line: "Sends files to 192.168.1.42".	Nothing
+
+We now have a conslidated connection status line based on the sidechat below, rigth? 
+if we change the wording to "connected/Not connected" for moonraker/octoprint as long as the connection setting is set. "online/offline/not connected" for bambu, is it doable and good enough?
+
+Let me check what each state would map to in the current backend before answering.
+
+Doable, yes, and it is a small change: every state you named maps onto a boolean the Home backend already computes. Good enough, yes, with one gap to close and one known quirk to accept.
+
+Where it maps today (OrcaHomeBackend.cpp):
+
+Card says	Bambu (line 118)	Moonraker/OctoPrint (lines 222–227)
+Online	has_recent_printer_data true (data in the last 30 s)	never
+Offline	verified before (jusprin_verified_connections flag) and no recent data; keeps the Reconnect button	never
+Connected	never	print_host non-empty on the preset
+Not connected	no verified flag, no data	print_host empty
+
+So it is a wording swap at those two places plus the Reconnect gating, which stays as is. No tests assert the current strings, so nothing else breaks. The vocabulary is also honest about confidence: Online/Offline is live evidence, Connected is "set up and verified once", and the shared "Not connected" means the same thing on both kinds. If the Moonraker agent's status stream is ever switched on, host printers simply move to the Online/Offline column without renaming anything.
+
+The gap: "Connected" for a host is only true if the address was tested. The chat path guarantees that since c922876c66 (saved only on a passed test), but Orca's own printer settings dialog, reachable from the card menu and the overflow menu, saves print_host without any test. A printer configured there would read "Connected" on the strength of a typed address. Fix: gate on a verified flag for hosts too, the same jusprin_verified_connections mechanism keyed by printer name or address, set only by connect_host on pass. A few lines, and it makes the two columns symmetric: both "Connected" and "Online" require a successful contact at some point.
+
+The quirk to accept: "Offline" for a Bambu printer means "no data in 30 s", which also happens when the app is on a different printer's preset (the agent switches away) or the person is signed out of Bambu cloud. Your standing note treats that window as normal, and it is, but "Offline" is a stronger word than "Can't reach it" for a printer that is fine. Two options: keep "Offline" and let Reconnect explain itself, or use "Offline" only when this printer's preset is the selected one and "Not connected" otherwise. I would ship the first and watch for confusion; the second adds a rule nobody will remember.
+
+One follow-on: with this vocabulary the dot finally has a clean mapping. Green for Online and Connected, the warning colour for Offline, no dot for Not connected.
+
+These gaps are okay, acceptable.
+
+Understood. Then the change is the wording swap at the two sites in OrcaHomeBackend.cpp (line 118 for a Bambu device, lines 222–227 for a named printer), with the Reconnect gating and the 30-second window left as they are and "Connected" for hosts meaning "an address is saved". No tests pin the current strings, so nothing else moves.
+
+If you want the dot to follow the same vocabulary, that is one more line in the card's class choice and two token colours: green for Online and Connected, the warning colour for Offline, no dot for Not connected. The main session can pick that up alongside the wording, or leave the dot for later.
+
+---
+
+<!-- reply -->
+> No monitor exists. A cheap substitute is an "Open printer page" link to the saved address, which is Mainsail or Fluidd for most Klipper printers.
+
+baesd on sidechat:
+I am pretty sure moonraker/octoprint has the device tab too, right?
+
+Let me check what Orca actually gates the device tab on, rather than answer from memory.
+
+You're right, and I was wrong to say "no monitor exists". Orca has a Device tab for non-Bambu printers too. Here is what the code actually does:
+
+MainFrame::show_device(bool bBBLPrinter) (MainFrame.cpp:1374) builds one of two Device tabs depending on the selected preset:
+
+Bambu: the native MonitorPanel (status, temps, AMS, camera, controls). This is what the Home card's "Launch monitor" opens today through jump_to_monitor(device_id).
+Everything else: a PrinterWebView (MainFrame.cpp:1436-1447), which is an embedded browser. load_printer_url() (line 4235) fills it with PrintHost::get_print_host_webui(config), the printer's web address derived from print_host and host_type, with the API key passed along for PrusaLink/PrusaConnect. For a Moonraker printer that is Mainsail or Fluidd; for OctoPrint it is OctoPrint's own page.
+
+So for Moonraker/OctoPrint printers the Device tab exists and is the printer's own web UI in a tab, not a native panel. That is a real "Launch monitor" target, not just a link to an external browser.
+
+What this means for the card:
+
+The can_launch_monitor gate in OrcaHomeBackend::describe_device (line 106) is currently connected, which only Bambu devices ever satisfy, and launch_monitor (line 320) resolves a device id and calls jump_to_monitor. Both are Bambu-only paths today.
+For a host printer the equivalent is: can_launch_monitor = !print_host.empty() (the address was saved and, since c922876c66, tested), and the action is to select the preset if it isn't already, call show_device(false) if needed, then load_printer_url() and switch to tpMonitor. All of those are existing upstream calls; the fork needs a second branch in launch_monitor that takes a named printer without a device id, about 15 lines in OrcaHomeBackend.cpp.
+One caveat to check when building it: show_device is driven by preset selection, so if the person's current project has a Bambu preset selected and they tap "Launch monitor" on a Klipper card, the app has to switch the selected printer preset first, which changes the open project's printer. That is the same side effect Orca's own Device tab has when you change printers, but on a Home card it may surprise; worth making the card's action say "Open printer page" for host printers so the switch is expected.
+
+Corrected row for the earlier table: Launch monitor for Moonraker/OctoPrint: yes, via Orca's existing web-view Device tab, with the button label ideally reflecting that it opens the printer's own page.
+
+---
+
+now, do you have a clear idea about how #4 can be addressed by a redesigned printer card? If so, update the artifact. Also create a handoff doc so that another agent can implement it.
+
+---
+
+copy the handoff to gcp vm jusprin-win-test, user guitest and folder ~/Downloads
