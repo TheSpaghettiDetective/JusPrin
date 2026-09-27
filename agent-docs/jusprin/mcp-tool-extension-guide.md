@@ -1,6 +1,6 @@
 # Guide for adding JusPrin tools
 
-**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The six-tool MCP catalog includes workspace inspection, slice-review reporting, and the verified process-settings workflow. A [candidate catalog](#candidate-catalog) derived from the product surfaces follows the implemented catalog record; nothing in it exists unless the catalog record says so.
+**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The MCP catalog includes workspace inspection, slice-review reporting, and the verified process/object-settings workflow. A [candidate catalog](#candidate-catalog) derived from the product surfaces follows the implemented catalog record; nothing in it exists unless the catalog record says so.
 
 JusPrin has one tool system with multiple adapters. New capabilities are added to the shared registry, executed by `ToolExecutionCoordinator`, and implemented through the typed live-workspace boundary; the OpenAI and MCP adapters only translate that contract to their wire formats. This guide keeps the catalog small, honest, safe to evolve, and driven by real printing tasks rather than an abstract feature inventory.
 
@@ -59,7 +59,7 @@ Deterministic workflow machinery can be a tool. Examples include generating Orca
 
 ## Prefer extending nouns over multiplying verbs
 
-The implemented process-settings workflow uses four stable operations over searchable data:
+The settings workflow uses four stable operations over searchable data, regardless of which preset layer owns the values:
 
 ```text
 settings_search → settings_get → settings_preview_patch → settings_apply_patch
@@ -234,7 +234,7 @@ The settings tools implement the following bounded correction details:
 - out of range: key, diagnostic message, and `min`/`max` bounds; units are available from setting metadata;
 - incompatible settings: conflicting keys and Orca's reason;
 - stale call: expected and current session/revision, plus instruction to read again;
-- unavailable operation: no active FFF process preset;
+- unavailable operation: the requested scope has no active preset or target;
 - rejected approval: terminal `approval_rejected`, not a generic execution failure.
 
 Unexpected invariant failures must remain visible to diagnostics and Sentry. Catch at an abstraction boundary only to recover, translate a known error, or add essential context.
@@ -364,10 +364,10 @@ Current registry, in deterministic name order. `Internal` entries are native man
 | `record_export_copy` | Record a verified G-code export | destructive | Internal | manufacturing history | coordinator's history recorder | exported-copy ID and build ID |
 | `record_physical_print` | Record a completed print fact | destructive | Internal | manufacturing history; does not start a printer | coordinator's history recorder | physical-print ID, build ID and recorded flag |
 | `region_annotate` | Say what parts of an object mean and have Orca print them that way | mutation | both | 32 regions per call; artifacts in one undo step | `TriangleSelector` paint, modifier and blocker volumes, object overrides; records in `IProductState` | each region's kind, binding and what it generated |
-| `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | preview session/revision and confirmed before/after values | `IWorkspace::apply_settings` through `Tab::load_config` | bounded actual changes/normalization, revision, dirty flag and `projectUndo: false` |
-| `settings_get` | Read current values and preset origin | read-only | both | 1–32 process keys | `IWorkspace::read_settings` using the edited process preset | at most 32 values and unknown-key issues; canonical values are preserved |
-| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | active FFF process preset; the reviewed writable keys | `IWorkspace::preview_settings` using a clone and Orca validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
-| `settings_search` | Find a process setting without loading its full catalog | read-only | both | active FFF process preset | `IWorkspace::search_settings` using Orca definitions | 1–25 matches; deterministic cursor paging and bounded metadata |
+| `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | currently process or object; required printer/filament expansion is specified below | `IWorkspace::apply_settings` through the owning config and `Tab::load_config` paths | bounded actual changes/normalization, revision, dirty flag and truthful `projectUndo` |
+| `settings_get` | Read current values and preset origin | read-only | both | currently process or object; required printer/filament expansion is specified below | `IWorkspace::read_settings` using the scoped owner | at most 32 values and unknown-key issues; canonical values are preserved |
+| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | currently process or object; required printer/filament expansion is specified below | `IWorkspace::preview_settings` using a clone and scope-specific validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
+| `settings_search` | Find a setting without loading the full catalog | read-only | both | currently process; required scope expansion is specified below | `IWorkspace::search_settings` using Orca definitions filtered by scope | 1–25 matches; deterministic cursor paging and bounded metadata |
 | `slice_inspect` | Look inside a slice: layers or G-code | read-only | both | one plate's current slice | `GCodeProcessorResult::moves` and the plate's G-code file | 100 layers per page (index, z, height, time, 16 roles, speed, fan, temperature and flow ranges) or 64 KB of G-code, with `next` |
 | `slice_report` | Check a sliced plate before committing to it | read-only | both | one plate's current slice | `Print` statistics and the plate's `GCodeProcessorResult`; `BuildVolume` for the bed check | 16 filaments, 32 findings, critical first; Orca's send-dialog advisories only as Orca shows them (`appliesWhen: timelapse`, the bed-temperature one never); 32 support contacts, seam regions, first-layer objects and islands; intent checks |
 | `slice_start` | Slice without leaving the conversation | mutation (computation-only; `preempt` restores the card) | both | one plate, or every plate | `Plater`'s own toolbar slice events | handle plus the slicing section |
@@ -468,7 +468,7 @@ Every catalog tool is visible over MCP except `object_import`, which takes a cha
 
 The three fixtures are retired, each in the change that landed its replacement: `duplicate_object` with `plate_layout` (the tests that used it as their canonical mutation now propose one more copy through `plate_layout` and count instances, and so do the deterministic mock agent and the live regression), `import_model` with `object_import` (the import tests, the mock agent's attachment reply and the bridge test now use it), and `inspect_selection` with the summary's selection ids (the canonical read-only action in the tests is now `workspace_inspect`). `tests/agent/test_tool_registry.cpp` pins the exact exposed-name lists, so every retirement is visible in that test's diff.
 
-Settings search/read cover the active FFF process preset. The write allowlist is `writable_setting` in `SettingsSupport.hpp`: layers, walls, shells and infill (`layer_height`, `wall_loops`, `wall_generator`, `detect_thin_wall`, `only_one_wall_top`, the shell layer counts and thicknesses, infill density, direction and the three surface or infill patterns); the support family (`enable_support`, `support_type`, `support_style`, `support_threshold_angle`, `support_on_build_plate_only`, the interface layer counts and pattern, and the top and bottom contact distances); adhesion and seam (`brim_type`, `brim_width`, `skirt_loops`, `skirt_distance`, `seam_position`); and ten speed keys. `settings_search` takes `writable` to list only these and `changedOnly` to list only keys that differ from the saved preset; with an empty query, `changedOnly` lists every unsaved change. Apply takes `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use Orca preset revert or a previewed inverse patch to restore values; ordinary project Undo does not reverse preset edits.
+The implemented baseline covers the active FFF process preset and one object's overrides. The next settings milestone replaces that schema with the required four-scope contract in [Settings tools: contract and hazards](#settings-tools-contract-and-hazards); there is deliberately no compatibility mode for calls that omit `scope`. The process write allowlist is `writable_setting` in `SettingsSupport.hpp`: layers, walls, shells and infill (`layer_height`, `wall_loops`, `wall_generator`, `detect_thin_wall`, `only_one_wall_top`, the shell layer counts and thicknesses, infill density, direction and the three surface or infill patterns); the support family (`enable_support`, `support_type`, `support_style`, `support_threshold_angle`, `support_on_build_plate_only`, the interface layer counts and pattern, and the top and bottom contact distances); adhesion and seam (`brim_type`, `brim_width`, `skirt_loops`, `skirt_distance`, `seam_position`); and ten speed keys. `settings_search` takes `writable` to list only the requested scope's allowlist and `changedOnly` to list only keys that differ from that scope's saved preset or inherited value. Apply takes `scope`, the scope's exact target when required, `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use the owning preset's revert control or a previewed inverse patch to restore preset values; ordinary project Undo reverses object overrides but not process, filament, or printer preset edits.
 
 The OpenAI adapter preserves the registry schemas and uses non-strict function calling for optional arguments or dynamic patch maps, which OpenAI strict mode cannot express. Native registry validation remains authoritative. Stateless Responses continuations retain user context and all prior tool results; the live multi-tool regression covers this path.
 
@@ -503,10 +503,10 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 |---|---|---|---|---|
 | `workspace_inspect` | R | The one read for current state. `sections` selects any of: `summary` (default: project identity and saved state, printer pointer, intent line, selection ids, plate and object counts, plan headline, top unresolved warning); `project` (description, designer, license, safety and usage notes, assembly, bill of materials, profile notes, attachment list, versions and recovery state, each with provenance); `intent` (the intent record with provenance and an `unanswered` list); `printer` (the selected printer: configured versus observed nozzle, plate, and filaments with timestamps, computed `mismatches`, `confirmedFacts`, job progress, temperatures, alerts, monitoring policy); `objects` (plates, objects, parts, instances, enabled, extruder, quantity, bounding box, override and region counts, print order); `plan` (the pinned plan, deviations from the profile, estimates when a slice is valid); `slicing` (state and action handle per plate, progress, invalidation); `history` (undo and redo snapshots). `level` concise or detail. | workspace snapshot; `MachineObject`; `PresetBundle`; JusPrin stores; `UndoRedo` | per section: 4 KB text fields, 64 attachments, 16 slots and alerts, 64 objects with cursor, 32 history entries |
 | `object_analyze` | R | Geometry facts for one object. `include` any of: `mesh` (dimensions, volume, health, units suspicion); `features` (planar face groups and cylindrical holes with revision-scoped handles); `orientations` (score each entry of `candidates`, or Orca's auto-orient candidates, for overhang area, support volume, bed contact, and which handles face down); `fit` (plate fit, overlaps, likely duplicates); `regions` (annotations and their `bindingLost` or `artifactsMissing` flags); `measure` (distances between two handles). | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` evaluation; `PartPlate` checks; JusPrin annotation store | 32 faces and holes by area; 8 candidates; 16 overlaps, duplicates, measurements; 32 regions |
-| `settings_search` | R | As implemented, plus `scope` and `target` as optional fields advertised per standing decision 2, and `writable` and `changedOnly` filters. `changedOnly` answers "what deviates from the profile". | `print_config_def`; dirty options | 25 per page |
-| `settings_get` | R | As implemented, plus optional `scope` and `target`; origin reported as system, user preset, project edit, or object override. | edited presets; `ModelConfig` | 32 keys |
-| `settings_preview_patch` | R | As implemented, extended to the same scopes and targets. | `ConfigManipulation` on a clone; `Slic3r::validate` | 32 keys |
-| `settings_apply_patch` | M | As implemented, extended to the same scopes and targets. Optional `persistAs` saves the resulting preset as a named user profile in the same approval, which makes the call destructive and the card says so. | `Tab` load_config and save_preset; `ModelConfig` | 32 keys |
+| `settings_search` | R | Required `scope`; required `target` for `object` and `filament`, forbidden otherwise; `writable` and `changedOnly` filters. `changedOnly` answers what differs from the owning preset or inherited value. | `print_config_def`; scoped edited preset or `ModelConfig`; dirty options | 25 per page |
+| `settings_get` | R | Required `scope` and its exact target; origin reported as system, user preset, project edit, filament preset, printer preset, or object override. | scoped edited presets; `PresetBundle::filament_presets`; `ModelConfig` | 32 keys |
+| `settings_preview_patch` | R | Required `scope` and its exact target; applies the scope-specific writable allowlist, dependencies, validation, persistence and undo semantics. | scope-specific config clone; `ConfigManipulation` where applicable; `Slic3r::validate` | 32 keys |
+| `settings_apply_patch` | M | Required `scope` and the same target as preview. Optional `persistAs` is valid only for preset scopes, saves the result as a named user preset in the same approval, and makes the call destructive. | owning `Tab` and `PresetCollection`; `ModelConfig` for object | 32 keys |
 | `intent_update` | M | Record what the user said about the print: a same-shape list of `{field, value}` over the intent record. The card shows the interpreted answer so the user confirms the agent's understanding; provenance becomes `user_confirmed` only through this card. | JusPrin intent store | 32 fields |
 | `plan_set` | M\* | The agent's own statement: orientation rationale, strategy per concern, unverified assumptions, compromises and risks, confidence per decision, alternatives. Computation-only. | JusPrin plan store | 2 KB per field, 16 decisions |
 | `slice_start` | M\* | Slice one plate or all; returns an action handle. Refuses to pre-empt a GUI-started slice unless `preempt: true`, which brings the card. | `Plater` reslice; `BackgroundSlicingProcess` | |
@@ -614,7 +614,7 @@ One tool per setting or per "make it stronger" bundle; printing advice; preferen
 4. Concurrent edit: the user changes a setting in the GUI while an external agent has a pending apply. The apply fails as stale and the agent recovers with one preview and one apply. Every toolset.
 5. Load measurement: the live regression reports, per request, definition bytes, input tokens, and cached tokens for the full catalog, and the transcript is reviewed for wrong-tool selections. These numbers decide whether deferral is adopted.
 
-## Process-settings tools: contract and hazards
+## Settings tools: contract and hazards
 
 The settings tools are the reference implementation of this guide. What
 follows is the part of their design that stays true after the work is done;
@@ -625,78 +625,157 @@ before expanding the write allowlist or adding a tool that changes a preset.
 
 1. Settings are data: four generic tools over searchable records, never one
    tool per setting.
-2. The active FFF process preset's edited configuration is the default
-   scope. `target: {objectId}` on `settings_get`, `settings_preview_patch`,
-   and `settings_apply_patch` reads and writes one object's overrides in its
-   `ModelConfig` instead (see "Per-object overrides" below). No printer,
-   filament, plate, part, or modifier layer until each is a separately tested
-   capability.
-3. Metadata, parsing, and serialization come from Orca's own
+2. Every settings call requires `scope`, whose enum is exactly `process`,
+   `object`, `filament`, or `printer`. Missing scope is `invalid_arguments`.
+   There is no default, inference from `target`, alias, or compatibility mode.
+3. `target` is scope-dependent and closed:
+
+   | `scope` | `target` | Meaning |
+   |---|---|---|
+   | `process` | forbidden | the active edited FFF process preset |
+   | `object` | required `{objectId}` | that object's `ModelConfig` overrides |
+   | `filament` | required `{filamentIndex}` | the preset used by that 1-based project filament index |
+   | `printer` | forbidden | the active edited FFF printer preset |
+
+   These rules apply to `settings_search`, `settings_get`,
+   `settings_preview_patch`, and `settings_apply_patch`. Reject an extra,
+   missing, zero-based, or wrong-shaped target as `invalid_arguments`.
+4. Scope identifies the settings owner; it does not select a preset.
+   `printer_setup` remains the only tool that switches printer, process, or
+   filament presets. Settings tools edit the already selected owner and must
+   never switch a preset, discard dirty edits, change nozzle topology, or
+   substitute a compatible profile as a side effect.
+5. Metadata, parsing, and serialization come from Orca's own
    `print_config_def` and config option machinery. There is no parallel table
    of types, enum values, ranges, units, or aliases.
-4. Search and read cover every process-setting definition; mutation is a
-   reviewed allowlist. Every search and read record says whether the key is
-   writable; other keys return `unsupported_setting_mutation`. Expand the list
-   only after the real-adapter tests cover the option type, its dependency
-   behavior, and the visible UI update for each new key.
-5. A batch applies whole or not at all, through `Tab::load_config`, the path
-   Orca itself uses to load a config into a preset. Never mutate the config
-   behind the visible preset UI and imitate the notifications.
-6. Process preset edits are not in project Undo. Results say so and return
-   the previous values so a caller can propose the inverse.
-7. A preview that finds invalid settings is a successful call with
+6. Search and read cover every definition applicable to the requested scope;
+   mutation has a separate reviewed allowlist per scope. Every search and read
+   record says whether the key is writable; other keys return
+   `unsupported_setting_mutation`. Expand an allowlist only after real-adapter
+   tests cover the option type, dependency behavior, visible UI update, dirty
+   state, persistence and undo/revert behavior for that scope.
+7. A batch applies whole or not at all, through `Tab::load_config` or the
+   scope's existing owner path. Never mutate a config behind the visible
+   preset UI and imitate the notifications.
+8. Process, filament, and printer preset edits are not in project Undo.
+   Results say `projectUndo: false` and return previous values so a caller can
+   propose an inverse. Object overrides use one Orca snapshot and return
+   `projectUndo: true`.
+9. Every result echoes the validated `scope`, normalized `target`, owning
+   `presetName` when there is one, `sessionId`, and `revision`. Filament
+   results also return `affectedFilamentIndices`, because several project
+   filament indices may use the same preset.
+10. A preview that finds invalid settings is a successful call with
    `valid: false`. Malformed input is a tool error.
-8. All values cross JSON as strings in their canonical Orca serialization;
+11. All values cross JSON as strings in their canonical Orca serialization;
    callers may send numbers or booleans and the decoder converts them. All
    Orca ids cross JSON as strings.
+
+The schema change is intentionally breaking. This interface does not need a
+backward-compatibility period: update the in-app adapter, MCP projection,
+deterministic agent, fixtures, and eval prompts in the same change. Do not add
+a protocol-version branch, feature flag, alias, fallback, or migration path
+for the old missing-scope or implicit-object forms. After the change, every
+caller must send the new contract.
+
+### Scope-specific ownership
+
+- **Process:** the active `prints.get_edited_preset()` and
+  `Tab(Preset::TYPE_PRINT)`. The implemented normalizer, validation, dirty
+  state, approval binding, and inverse-patch rules below continue to apply.
+- **Object:** the selected `ModelObject`'s `ModelConfig`, identified only by
+  `target.objectId`. The implemented project-Undo behavior below continues to
+  apply.
+- **Filament:** `target.filamentIndex` is 1-based and resolves through
+  `PresetBundle::filament_presets` to a named filament preset. Search, get and
+  preview resolve it without changing the selected filament tab. Preview and
+  apply bind that index, resolved preset name, every before value, and the set
+  of other project filament indices that use the same preset. A changed
+  mapping or preset is `stale_workspace`. Apply must use the filament preset
+  owner and `Tab(Preset::TYPE_FILAMENT)` without silently switching away from
+  or discarding another dirty edited preset; if Orca cannot do that safely,
+  return `unsaved_edits`. The result names every affected index.
+- **Printer:** the active `printers.get_edited_preset()` and
+  `Tab(Preset::TYPE_PRINTER)`. Generic settings mutation does not select a
+  printer or change hardware identity. The initial writable allowlist excludes
+  topology and compatibility keys such as extruder count, nozzle layout, and
+  printer technology until their substitutions are modeled and tested; those
+  setup changes stay in `printer_setup`.
+
+`persistAs` is invalid for `object`. For `process`, `filament`, or `printer`,
+it saves the post-patch config as a named user preset only after preview and
+approval show the destination and overwrite behavior. Without `persistAs`,
+the tool changes only the edited preset and leaves it dirty.
+
+### Scope expansion acceptance criteria
+
+- The registry exposes the same required `scope` enum and target shape through
+  the in-app and MCP adapters; catalog tests pin both projections.
+- Argument tests reject omitted or unknown scopes and every missing, extra,
+  zero-based, mixed, or malformed target. No test accepts the old call shape.
+- Search, get, preview, and apply each have fake- and real-adapter coverage for
+  all four scopes, including a readable but unwritable key.
+- Filament tests cover index-to-preset resolution, two indices sharing one
+  preset, a mapping that becomes stale, and a dirty preset that cannot be
+  changed without an implicit switch or discard.
+- Printer tests prove that a normal writable value updates the native field,
+  dirty marker, slice invalidation, and read-back value, while topology and
+  compatibility keys remain unwritable.
+- Apply tests prove atomic failure, scope-specific approval text, preset revert
+  or inverse-patch behavior, and project Undo only for object overrides.
+- Evals and deterministic-agent fixtures use explicit scopes before the old
+  schema is removed; there is no dual-schema phase.
 
 ### Error codes
 
 | Condition | Code |
 |---|---|
+| missing or unknown `scope`; forbidden, missing, or malformed `target` | `invalid_arguments` |
 | key not in the definition table | `unknown_setting` with suggestions |
-| key not a process option | `unsupported_scope` |
-| readable key outside the allowlist | `unsupported_setting_mutation` |
+| known key not applicable to the requested scope | `unsupported_scope` |
+| readable key outside that scope's allowlist | `unsupported_setting_mutation` |
+| requested object, filament index, or owning preset is gone | `workspace_unavailable` |
+| applying a filament target would discard another dirty edited preset | `unsaved_edits` |
 | parse failure, bound violation, or layer height outside the printer's range | `invalid_setting_value` with `allowed` or bounds |
-| spiral-mode conflict or a validator message on a touched key | `incompatible_settings` with the conflicting keys |
-| session or revision mismatch, or a before value moved since preview | `stale_workspace` with expected and current |
+| a scope-specific dependency or validator rule conflicts | `incompatible_settings` with the conflicting keys |
+| session, revision, target mapping, preset, or before value changed since preview | `stale_workspace` with expected and current |
 | user rejected in JusPrin | `approval_rejected` |
 | client cancelled or the app closed | `cancelled` |
-| no FFF project or no process preset | `workspace_unavailable` |
 | the batch call failed after validation | `execution_failed` |
-| malformed arguments | `invalid_arguments` |
 
 Preview never fails for content reasons. Apply fails with the first blocking
 code and mutates nothing. Never convert an invariant failure into success.
 
 ### Orca entry points the tools use
 
-- **Atomic batch:** `Tab::load_config(const DynamicPrintConfig&)` in
+- **Process atomic batch:** `Tab::load_config(const DynamicPrintConfig&)` in
   `src/slic3r/GUI/Tab.cpp` diffs against the edited preset, sets every changed
   key, then runs `update_dirty()`, `reload_config()`, and `update()` once.
   `TabPrint::update()` runs the FFF normalizer and reaches
   `Plater::on_config_change`, which invalidates slicing as a sidebar edit
   would. Apply is therefore: build a config holding only the changed keys and
   call `wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff)`.
-- **Parsing:** clone the edited config and `set_deserialize(key, text)` per
+- **Filament and printer batches:** use the same `Tab::load_config` owner on
+  `Preset::TYPE_FILAMENT` or `Preset::TYPE_PRINTER`, but only after preview
+  models that tab's dependencies, compatibility consequences and dialog
+  predicates. A scope is not complete until a real-adapter test proves the
+  native fields, dirty marker, slicing invalidation and read-back values.
+- **Parsing:** clone the scoped config and `set_deserialize(key, text)` per
   key; Orca throws for unknown keys and unparseable values. Canonical value is
   `option->serialize()` after parsing.
 - **Bounds and enums:** `ConfigOptionDef` in `src/libslic3r/Config.hpp`
   (`type`, `label`, `category`, `tooltip`, `sidetext`, `min`, `max`, `mode`,
   `readonly`, `enum_values`, `enum_labels`). Treat `min` and `max` as absent
   when they are the float limits.
-- **Validation:** `Slic3r::validate(const FullPrintConfig&)` in
-  `src/libslic3r/PrintConfig.cpp`, fed from `preset_bundle->full_config()`
-  with the patched keys applied. Messages for touched keys are blocking;
-  messages for untouched keys are warnings, because the preset was already
-  invalid. `Print::validate` is a slicing-time check and is not part of
-  preview, as in Orca's own UI.
-- **Dirty state:** `PresetCollection::current_dirty_options()` and
-  `current_different_from_parent_options()`; the preset name is
-  `prints.get_edited_preset().name`. The Tab's per-option revert buttons read
-  the same data, so they keep working after a tool apply.
+- **Validation:** build the full effective configuration with the scoped clone
+  installed, then run the validator appropriate to that owner. Process and
+  object continue to use `Slic3r::validate(const FullPrintConfig&)`. Do not
+  assume that process normalization covers filament or printer dependencies.
+- **Dirty state:** use the owning `PresetCollection`'s dirty and
+  different-from-parent APIs. The result must name the owning preset and
+  whether it is dirty after the call.
 
-### The normalizer can open dialogs and rewrite values
+### The process normalizer can open dialogs and rewrite values
 
 `update_print_fff_config` and `toggle_print_fff_options` in
 `src/slic3r/GUI/ConfigManipulation.cpp` run inside `TabPrint::update()` after
@@ -763,8 +842,9 @@ report.
 
 ### Per-object overrides
 
-An object target reads the value the object prints with: its own override
-where `ModelConfig` has one (`overridden: true`), otherwise the process value.
+`scope: "object"` with `target: {"objectId": "..."}` reads the value the
+object prints with: its own override where `ModelConfig` has one
+(`overridden: true`), otherwise the process value.
 A patch is checked against the process config with the object's overrides and
 the patch applied, with the same parsing, bounds, dialog predicates, support
 style rule, and `Slic3r::validate` as a process patch. Keys that are neither
