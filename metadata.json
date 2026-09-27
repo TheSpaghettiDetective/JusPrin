@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3JEQM2D9VZRTEY28NAV52Z0",
+  "strategy": "manual-commit",
+  "branch": "claude/klipper-mmu-lanes",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeWebView.cpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/HostLaneReader.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp",
+    "src/slic3r/GUI/JusPrin/Printers/HostLanes.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/HostLanes.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/jusprin/CMakeLists.txt",
+    "tests/jusprin/test_host_lanes.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 58,
+    "cache_creation_tokens": 31810,
+    "cache_read_tokens": 10790933,
+    "output_tokens": 12146,
+    "api_call_count": 27,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}
