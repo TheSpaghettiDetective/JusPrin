@@ -43,6 +43,21 @@ describe('the cards the agent draws', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/^Printer addedCreality K1$/);
   });
 
+  it('says the plug-in is needed, and Install asks the app to install it', async () => {
+    const install = vi.fn();
+    render(<PrinterBlockView block={block({ kind: 'plugin' })} onInstallPlugin={install} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Bambu network plug-in needed');
+    expect(screen.getByRole('status')).toHaveTextContent('already works for preparing prints');
+    await userEvent.click(screen.getByRole('button', { name: 'Install plug-in' }));
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it('says once the plug-in is installed, with nothing left to tap', () => {
+    render(<PrinterBlockView block={block({ kind: 'plugin', installed: true })} onInstallPlugin={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Network plug-in installed');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('says how a photo gets in, in words', () => {
     render(<PrinterBlockView block={block({ kind: 'tip' })} />);
     expect(screen.getByText(/a photo is the fastest way/)).toBeInTheDocument();

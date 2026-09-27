@@ -2000,6 +2000,51 @@ button.wide {
   text-decoration: line-through;
 }
 
+/* The app's notice that Bambu's network plug-in is missing. Laid out as the
+   receipt is; the button sits under the words, which need the width. */
+.printer-plugin {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+}
+
+.printer-plugin-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--status-warning);
+}
+
+.printer-plugin-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.printer-plugin-caption {
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.printer-plugin-body {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-plugin-install {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.printer-plugin-installed .printer-plugin-icon,
+.printer-plugin-installed .printer-plugin-caption {
+  color: var(--status-success);
+}
+
 .printer-found {
   display: flex;
   flex-direction: column;

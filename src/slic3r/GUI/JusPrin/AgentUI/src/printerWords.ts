@@ -31,6 +31,10 @@ export function placeholder(session: PrinterSessionPayload): string {
 export function opening(session: PrinterSessionPayload): string {
   const printer = session.context.printer;
   const name = printer?.name || session.printerName || 'this printer';
+  // Asking about the printer's LAN mode is no use while this computer has
+  // nothing to reach it with; the notice under this line offers the plug-in.
+  if (session.mode === 'connect' && printer?.provider === 'bambu' && printer.needsNetworkPlugin)
+    return `To connect ${name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. ${name} already works for preparing prints.`;
   if (session.mode === 'connect')
     return printer?.provider === 'bambu'
       ? `Let’s connect ${name}. Is it turned on, in LAN mode, and on the same network as this computer?\nChoices: Yes, it is | How do I check?`

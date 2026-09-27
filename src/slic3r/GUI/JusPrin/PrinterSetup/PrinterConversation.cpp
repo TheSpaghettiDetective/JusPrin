@@ -170,6 +170,7 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_connections = json::object();
     m_prepared.clear();
     m_added.clear();
+    m_needs_plugin = false;
 
     // A printer this app has not saved cannot be changed, and the header's
     // menu can name one: a system profile is selected until the person adds
@@ -193,7 +194,45 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
                                     {"kind", "network"}, {"printers", std::move(found)}});
         }
     }
+    // Connecting a Bambu Lab printer that nothing can reach yet: the opening
+    // says so, and the notice under it offers the plug-in.
+    if (m_mode == ConversationMode::Connect && saved(m_printer_name).vendor_id == "BBL" &&
+        m_backend.connection(m_printer_name).needs_network_plugin)
+        show_plugin_needed({});
     m_host.session_changed();
+}
+
+void PrinterConversation::show_plugin_needed(const std::string& message_id)
+{
+    m_needs_plugin = true;
+    const bool shown = std::any_of(m_blocks.begin(), m_blocks.end(), [](const json& block) {
+        return block.value("kind", std::string()) == "plugin" && !block.value("installed", false);
+    });
+    if (shown)
+        return;
+    m_blocks.push_back(json{{"id", next_block_id()}, {"seq", m_blocks.size() + 1}, {"afterMessageId", message_id}, {"kind", "plugin"}});
+    m_host.session_changed();
+}
+
+void PrinterConversation::install_network_plugin()
+{
+    if (!m_needs_plugin || m_printer_name.empty())
+        return;
+    m_backend.install_network_plugin();
+    // Closing the installer, or a download that failed, leaves the notice
+    // and its button as they were; Orca's dialog has said what happened.
+    if (m_backend.connection(m_printer_name).needs_network_plugin)
+        return;
+    m_needs_plugin = false;
+    for (json& block : m_blocks)
+        if (block.value("kind", std::string()) == "plugin")
+            block["installed"] = true;
+    // Discovery could not start without the plug-in; the next status check
+    // starts it.
+    m_prepared.clear();
+    m_host.post_note("Bambu's network plug-in is installed now, so " + m_printer_name + " can be connected.");
+    m_host.session_changed();
+    m_host.start_turn();
 }
 
 SavedPrinter PrinterConversation::saved(const std::string& name) const
@@ -245,6 +284,8 @@ json PrinterConversation::context_json() const
     if (const SavedPrinter printer = saved(m_printer_name); !printer.name.empty()) {
         context["printer"]             = printer_json(printer);
         context["printer"]["provider"] = printer.vendor_id == "BBL" ? "bambu" : "host";
+        if (m_needs_plugin)
+            context["printer"]["needsNetworkPlugin"] = true;
     }
     return context;
 }
@@ -285,6 +326,10 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         return ToolError{"no_printer", "There is no saved printer to connect yet: add one first."};
 
     const PrinterConnectionInfo info = m_backend.connection(name);
+    // No printer can be listed without the plug-in, so the reason is that,
+    // not an unknown device.
+    if (info.needs_network_plugin)
+        return ToolError{"connection_unavailable", info.message};
     if (info.provider == "bambu") {
         // The person names the printer as its list shows it, so its name
         // finds it as surely as its id.
@@ -327,7 +372,7 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
     case ToolHandler::PrinterIdentify: return identify(arguments, activity.correlation_id);
     case ToolHandler::PrinterAdd: return add(arguments, activity.correlation_id);
     case ToolHandler::PrinterChange: return change(arguments);
-    case ToolHandler::PrinterConnectionStatus: return connection_status(m_printer_name);
+    case ToolHandler::PrinterConnectionStatus: return connection_status(m_printer_name, activity.correlation_id);
     case ToolHandler::PrinterConnect: return connect(arguments, activity.action_id);
     case ToolHandler::PrinterManualSetup: return manual_setup();
     case ToolHandler::PrinterManualConnection: {
@@ -476,7 +521,7 @@ Result PrinterConversation::change(const json& arguments)
     return ok(json{{"changed", std::move(what)}, {"printer", printer_json(after)}});
 }
 
-Result PrinterConversation::connection_status(const std::string& name)
+Result PrinterConversation::connection_status(const std::string& name, const std::string& message_id)
 {
     if (saved(name).name.empty())
         return refuse("no_printer", "There is no saved printer to connect yet: add one first.");
@@ -487,7 +532,10 @@ Result PrinterConversation::connection_status(const std::string& name)
         m_backend.prepare_connection(name);
         m_prepared = name;
     }
-    return ok(connection_json(m_backend.connection(name)));
+    const PrinterConnectionInfo info = m_backend.connection(name);
+    if (info.needs_network_plugin)
+        show_plugin_needed(message_id);
+    return ok(connection_json(info));
 }
 
 Result PrinterConversation::connect(const json& arguments, const std::string& action_id)
@@ -622,6 +670,8 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         m_host.session_changed();
     } else if (action == "undo_add")
         undo_add(payload.value("blockId", std::string()));
+    else if (action == "install_network_plugin")
+        install_network_plugin();
     return true;
 }
 

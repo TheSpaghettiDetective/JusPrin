@@ -158,6 +158,18 @@ public:
     void cancel_connection(const std::string& name) override { cancelled.push_back(name); }
     ManualPrinterResult run_manual_setup() override { ++manual_setups; return manual_result; }
     void open_printer_settings(const std::string& name) override { settings_opened.push_back(name); }
+    // The installer: counts runs, and loads the plug-in only when told to.
+    int  plugin_installs{0};
+    bool install_succeeds{false};
+    void install_network_plugin() override
+    {
+        ++plugin_installs;
+        if (install_succeeds) {
+            connection_info.needs_network_plugin = false;
+            connection_info.state                = "not_configured";
+            connection_info.message.clear();
+        }
+    }
 };
 
 class RecordingPanel final : public IConversationHost
@@ -606,7 +618,136 @@ PrinterConnectionInfo bambu_on_network()
     return info;
 }
 
+// A Bambu Lab printer on a computer without Bambu's network plug-in.
+PrinterConnectionInfo bambu_without_plugin()
+{
+    PrinterConnectionInfo info;
+    info.provider             = "bambu";
+    info.state                = "unavailable";
+    info.message              = "Connecting a Bambu Lab printer needs Bambu's network plug-in.";
+    info.needs_network_plugin = true;
+    return info;
+}
+
+SavedPrinter bambu_lab_printer()
+{
+    SavedPrinter printer = lab_printer();
+    printer.vendor_id    = "BBL";
+    return printer;
+}
+
+std::vector<json> blocks_of(const PrinterConversation& conversation, const std::string& kind)
+{
+    std::vector<json> found;
+    const json        state = conversation.state_json();
+    for (const json& block : state.at("blocks"))
+        if (block.value("kind", std::string()) == kind)
+            found.push_back(block);
+    return found;
+}
+
 } // namespace
+
+// -- Bambu's network plug-in -------------------------------------------------
+
+TEST_CASE("without the plug-in, checking the connection draws the app's notice once", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {bambu_lab_printer()};
+    backend.connection_info = bambu_without_plugin();
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Lab Printer");
+    CHECK(blocks_of(conversation, "plugin").empty());
+    CHECK_FALSE(conversation.state_json().at("context").at("printer").contains("needsNetworkPlugin"));
+
+    const json output = ran(conversation, "printer_connection_status", json::object(), "m-7");
+    CHECK(output.at("state") == "unavailable");
+    CHECK(output.at("message") == backend.connection_info.message);
+    // Under the reply that checked, and once however often the model checks.
+    ran(conversation, "printer_connection_status", json::object(), "m-8");
+    const auto notices = blocks_of(conversation, "plugin");
+    REQUIRE(notices.size() == 1);
+    CHECK(notices.front().at("afterMessageId") == "m-7");
+    // The model is told the fact too, for the page to write into its instructions.
+    CHECK(conversation.state_json().at("context").at("printer").at("needsNetworkPlugin") == true);
+}
+
+TEST_CASE("Connect on a Bambu Lab printer without the plug-in opens on the notice", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {bambu_lab_printer()};
+    backend.connection_info = bambu_without_plugin();
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+
+    CHECK(conversation.state_json().at("context").at("printer").at("needsNetworkPlugin") == true);
+    conversation.handle_page_message("printer_opening", json{{"text", "To connect Lab Printer, JusPrin first needs the plug-in."}});
+    const auto notices = blocks_of(conversation, "plugin");
+    REQUIRE(notices.size() == 1);
+    CHECK(notices.front().at("afterMessageId") == "opening-1");
+    CHECK(panel.turns == 0);
+
+    // A print host needs no plug-in, and asks nothing of Bambu's.
+    SavedPrinter host = lab_printer();
+    host.name         = "Voron";
+    host.vendor_id    = "Voron";
+    backend.saved.push_back(host);
+    conversation.start(ConversationMode::Connect, "Voron");
+    CHECK(blocks_of(conversation, "plugin").empty());
+}
+
+TEST_CASE("printer_connect without the plug-in gives the plug-in as the reason", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {bambu_lab_printer()};
+    backend.connection_info = bambu_without_plugin();
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+
+    Agent::ToolActivity activity = call("printer_connect", json{{"deviceId", "0309DA123456789"}});
+    const auto problem = conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, activity);
+    REQUIRE(problem.has_value());
+    CHECK(problem->code == "connection_unavailable");
+    CHECK(problem->message == backend.connection_info.message);
+}
+
+TEST_CASE("Install on the notice runs the installer and tells the model when it worked", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {bambu_lab_printer()};
+    backend.connection_info = bambu_without_plugin();
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    ran(conversation, "printer_connection_status", json::object());
+    REQUIRE(backend.prepared.size() == 1);
+
+    // Closed without installing: nothing changes and nothing is said.
+    REQUIRE(conversation.handle_page_message("printer_action", json{{"action", "install_network_plugin"}}));
+    CHECK(backend.plugin_installs == 1);
+    CHECK(panel.notes.empty());
+    CHECK(panel.turns == 0);
+    CHECK_FALSE(blocks_of(conversation, "plugin").front().value("installed", false));
+
+    backend.install_succeeds = true;
+    conversation.handle_page_message("printer_action", json{{"action", "install_network_plugin"}});
+    CHECK(backend.plugin_installs == 2);
+    CHECK(blocks_of(conversation, "plugin").front().at("installed") == true);
+    CHECK_FALSE(conversation.state_json().at("context").at("printer").contains("needsNetworkPlugin"));
+    REQUIRE(panel.notes.size() == 1);
+    check_is_a_statement(panel.notes.front());
+    CHECK_THAT(panel.notes.front(), ContainsSubstring("installed"));
+    CHECK(panel.turns == 1);
+    // Looking for the printer could not start before; the next check starts it.
+    ran(conversation, "printer_connection_status", json::object());
+    CHECK(backend.prepared.size() == 2);
+    // Nothing is left to install.
+    conversation.handle_page_message("printer_action", json{{"action", "install_network_plugin"}});
+    CHECK(backend.plugin_installs == 2);
+}
 
 TEST_CASE("printer_connection_status starts looking and lists only LAN-mode printers", "[printer-conversation]")
 {
