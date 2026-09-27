@@ -1,0 +1,18 @@
+OrcaSlicer keeps three kinds of saved settings:
+- printer settings (bed size, retraction, speed limits, start G-code)
+- filament settings (temperatures, flow)
+- process settings (layer height, walls, infill, supports, print speeds)
+
+The assistant already has tools to search settings, read them, and change them with a preview and an approval card. But those tools only ever look at the third kind, process settings. They cannot see or change printer settings at all. That is the whole gap.
+
+"Scope" was my word for "which of the three kinds of settings the assistant is asking about". Today there is no choice, it is always process settings. The change is to let the assistant say "printer settings" when it calls the same tools.
+
+"Target" is an option those tools already have. It means "apply this change to this one object only, not the whole print", for example printing one part with more infill than the others. It only accepts an object. I brought it up because it cannot be used to point at a printer, so a separate way to name the printer is needed: the printer conversation can be about a printer that is not the one selected in the open project.
+
+So, to let people change printer settings by talking, four things are needed:
+1. Let the assistant ask for printer settings instead of process settings.
+2. Let it say which printer, by name.
+3. Decide which printer settings it may change, and check each one for side effects in OrcaSlicer first. The assistant may change about forty process settings today, and each of those was checked this way. This is most of the work.
+4. Give the printer conversation's assistant access to these tools. Today only the project conversation's assistant has them.
+
+check git log, @agent-docs, or entire to find the rationale behind the decision of only exposing process settings
