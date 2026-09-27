@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M3G34DP9RFWGZ2CDEW34KY0Q",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/data/20mm_cube.obj",
+    "tests/data/2x20x10.obj",
+    "tests/data/A.obj",
+    "tests/data/A_upsidedown.obj",
+    "tests/data/V.obj",
+    "tests/data/V_standing.obj",
+    "tests/data/bridge.obj",
+    "tests/data/cube_with_concave_hole.obj",
+    "tests/data/cube_with_concave_hole_enlarged.obj",
+    "tests/data/cube_with_concave_hole_enlarged_standing.obj",
+    "tests/data/cube_with_hole.obj",
+    "tests/data/extruder_idler.obj",
+    "tests/data/extruder_idler_quads.obj",
+    "tests/data/frog_legs.obj",
+    "tests/data/ipadstand.obj",
+    "tests/data/jusprin/box_20x15x10.step",
+    "tests/data/jusprin/harness.conf",
+    "tests/data/jusprin/tee_with_hole.stl",
+    "tests/data/overhang.obj",
+    "tests/data/pyramid.obj",
+    "tests/data/simplification.obj",
+    "tests/data/sloping_hole.obj",
+    "tests/data/small_dorito.obj",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_3mf/Prusa.stl",
+    "tests/data/test_config/new_from_ini.ini",
+    "tests/data/test_stl/ASCII/20mmbox-CR.stl",
+    "tests/data/test_stl/ASCII/20mmbox-CRLF.stl",
+    "tests/data/test_stl/ASCII/20mmbox-LF.stl",
+    "tests/data/test_stl/ASCII/20mmbox-nonstandard.stl",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl",
+    "tests/data/two_hollow_squares.obj"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4784,
+    "cache_creation_tokens": 2227716,
+    "cache_read_tokens": 49706107,
+    "output_tokens": 138206,
+    "api_call_count": 171
+  }
+}

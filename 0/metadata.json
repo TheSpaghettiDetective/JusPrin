@@ -1,0 +1,91 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M3G34DP9RFWGZ2CDEW34KY0Q",
+  "session_id": "49ad3806-419d-49f2-8833-1578cd5bf2b3",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-27T00:09:43.064386Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 3,
+  "files_touched": [
+    "tests/data/20mm_cube.obj",
+    "tests/data/2x20x10.obj",
+    "tests/data/A.obj",
+    "tests/data/A_upsidedown.obj",
+    "tests/data/V.obj",
+    "tests/data/V_standing.obj",
+    "tests/data/bridge.obj",
+    "tests/data/cube_with_concave_hole.obj",
+    "tests/data/cube_with_concave_hole_enlarged.obj",
+    "tests/data/cube_with_concave_hole_enlarged_standing.obj",
+    "tests/data/cube_with_hole.obj",
+    "tests/data/extruder_idler.obj",
+    "tests/data/extruder_idler_quads.obj",
+    "tests/data/frog_legs.obj",
+    "tests/data/ipadstand.obj",
+    "tests/data/jusprin/box_20x15x10.step",
+    "tests/data/jusprin/harness.conf",
+    "tests/data/jusprin/tee_with_hole.stl",
+    "tests/data/overhang.obj",
+    "tests/data/pyramid.obj",
+    "tests/data/simplification.obj",
+    "tests/data/sloping_hole.obj",
+    "tests/data/small_dorito.obj",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_3mf/Prusa.stl",
+    "tests/data/test_config/new_from_ini.ini",
+    "tests/data/test_stl/ASCII/20mmbox-CR.stl",
+    "tests/data/test_stl/ASCII/20mmbox-CRLF.stl",
+    "tests/data/test_stl/ASCII/20mmbox-LF.stl",
+    "tests/data/test_stl/ASCII/20mmbox-nonstandard.stl",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl",
+    "tests/data/two_hollow_squares.obj"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "ad08c4ad6a7d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4784,
+    "cache_creation_tokens": 2227716,
+    "cache_read_tokens": 49706107,
+    "output_tokens": 138206,
+    "api_call_count": 171
+  },
+  "session_metrics": {
+    "turn_count": 14
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 294,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 79,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".codex/config.toml": 4,
+        ".codex/hooks.json": 52
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
