@@ -398,18 +398,22 @@ export interface NetworkPrinterInfo {
 }
 
 // A card in the thread, anchored after the message it belongs to, in the same
-// way tool activity and history entries are. Only the 'added' receipt has
-// anything to tap: Undo.
+// way tool activity and history entries are. Two have something to tap: Undo
+// on the 'added' receipt, and Install on the 'plugin' notice.
 export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
-  kind: 'tip' | 'network' | 'printers' | 'added';
+  // 'plugin': Bambu's network plug-in is missing, so a Bambu Lab printer
+  // cannot be reached.
+  kind: 'tip' | 'network' | 'printers' | 'added' | 'plugin';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
   // 'added': the printer printer_add just saved, as it was saved.
   printer?: AddedPrinterInfo;
   // 'added': Undo removed it again.
   removed?: boolean;
+  // 'plugin': the plug-in has been installed since.
+  installed?: boolean;
 }
 
 export interface AddedPrinterInfo {
@@ -448,6 +452,8 @@ export interface PrinterContext {
     spools: PrinterSpoolInfo[];
     connected: boolean;
     provider: 'bambu' | 'host';
+    // Bambu's network plug-in is missing, so nothing can reach it yet.
+    needsNetworkPlugin?: boolean;
   };
 }
 

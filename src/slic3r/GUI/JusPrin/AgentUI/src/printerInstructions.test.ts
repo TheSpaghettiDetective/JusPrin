@@ -61,6 +61,14 @@ describe('the instructions', () => {
     expect(text).toContain('Connected to this app: no\n');
     expect(text).toContain('Connects through: Bambu Lab LAN mode');
     expect(text).not.toContain('Printer list');
+    expect(text).not.toContain('network plug-in');
+  });
+
+  it('state that the printer cannot be reached without the plug-in, when the app says so', () => {
+    const printer = { ...change.context.printer!, needsNetworkPlugin: true };
+    const text = printerInstructions({ ...change, context: { ...change.context, printer } });
+    expect(text).toContain("Bambu's network plug-in: not installed, so nothing can reach this printer yet.");
+    expect(text).not.toMatch(/button/);
   });
 
   it('name what is on the network', () => {

@@ -29,9 +29,11 @@ export function CameraGlyph({ className }: { className: string }) {
 export const PrinterBlockView = memo(function PrinterBlockView({
   block,
   onUndoAdd,
+  onInstallPlugin,
 }: {
   block: PrinterBlock;
   onUndoAdd?: (blockId: string) => void;
+  onInstallPlugin?: () => void;
 }) {
   if (block.kind === 'tip')
     return (
@@ -70,6 +72,35 @@ export const PrinterBlockView = memo(function PrinterBlockView({
       </div>
     );
   }
+
+  // The app's own notice that nothing can reach a Bambu Lab printer without
+  // Bambu's network plug-in: the same words every time, whatever the model
+  // says around it. Install runs Orca's installer; once the plug-in is there
+  // the notice says so and the button goes.
+  if (block.kind === 'plugin')
+    return (
+      <div className={block.installed ? 'printer-plugin printer-plugin-installed' : 'printer-plugin'} role="status">
+        <svg className="printer-plugin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          {block.installed ? <path d="m7.5 12.5 3 3 6-6.5" /> : <path d="M12 7v6M12 16.5v.5" />}
+        </svg>
+        <span className="printer-plugin-text">
+          <span className="printer-plugin-caption">
+            {block.installed ? 'Network plug-in installed' : 'Bambu network plug-in needed'}
+          </span>
+          <span className="printer-plugin-body">
+            {block.installed
+              ? 'Your Bambu Lab printer can be connected now.'
+              : 'Connecting a Bambu Lab printer needs Bambu’s network plug-in. Your printer already works for preparing prints without it.'}
+          </span>
+        </span>
+        {!block.installed && onInstallPlugin && (
+          <button type="button" className="primary printer-plugin-install" onClick={() => onInstallPlugin()}>
+            Install plug-in
+          </button>
+        )}
+      </div>
+    );
 
   if (block.kind === 'network')
     return (

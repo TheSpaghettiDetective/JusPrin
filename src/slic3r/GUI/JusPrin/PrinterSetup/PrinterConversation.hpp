@@ -106,9 +106,15 @@ private:
     Result identify(const nlohmann::json& arguments, const std::string& message_id);
     Result add(const nlohmann::json& arguments, const std::string& message_id);
     Result change(const nlohmann::json& arguments);
-    Result connection_status(const std::string& name);
+    Result connection_status(const std::string& name, const std::string& message_id);
     Result connect(const nlohmann::json& arguments, const std::string& action_id);
     Result manual_setup();
+    // The notice that Bambu's network plug-in is missing, under this message:
+    // drawn by the app, once a session, whatever the model says around it.
+    void show_plugin_needed(const std::string& message_id);
+    // Its Install button: runs the installer, and tells the model if the
+    // plug-in is there afterwards.
+    void install_network_plugin();
     // Drops a connection attempt still waiting, so what the printer answers
     // later is never read.
     void abandon_connection();
@@ -143,6 +149,9 @@ private:
     std::map<std::string, std::string> m_added;
     // The printer discovery was started for this session.
     std::string m_prepared;
+    // The printer this is about cannot be reached until Bambu's network
+    // plug-in is installed.
+    bool m_needs_plugin{false};
     // The connection waiting for the printer to answer: the printer, and the
     // card that started it.
     std::string                           m_connecting;

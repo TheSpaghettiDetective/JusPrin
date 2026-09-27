@@ -242,6 +242,13 @@ void OrcaPrinterBackend::sign_in_to_bambu()
     wxGetApp().request_login(false, BBL_CLOUD_PROVIDER);
 }
 
+void OrcaPrinterBackend::install_network_plugin()
+{
+    // Orca's own installer, as its "Click here to install it" hint runs it:
+    // the download turns the plug-in's preference on and loads it in place.
+    wxGetApp().ShowDownNetPluginDlg();
+}
+
 PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
 {
     PrinterConnectionInfo info;
@@ -290,10 +297,16 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
     auto* devices = wxGetApp().getDeviceManager();
     auto* agent = wxGetApp().getAgent();
     info.signed_in = agent && agent->is_user_login(BBL_CLOUD_PROVIDER);
-    if (!devices || !agent || (fake_bambu_printer_agent_id(wxGetApp().app_config).empty() &&
-                              !NetworkAgent::is_network_module_loaded())) {
+    if (fake_bambu_printer_agent_id(wxGetApp().app_config).empty() && !NetworkAgent::is_network_module_loaded()) {
         info.state = "unavailable";
-        info.message = "Install or enable the Bambu network plugin in Preferences to connect. Your printer is already available for preparing prints.";
+        info.needs_network_plugin = true;
+        info.message = "Connecting a Bambu Lab printer needs Bambu's network plug-in, which is not installed or not turned on. "
+                       "The printer can already prepare prints without it.";
+        return info;
+    }
+    if (!devices || !agent) {
+        info.state = "unavailable";
+        info.message = "Connecting is not available right now. The printer can already prepare prints.";
         return info;
     }
     auto candidates = devices->get_local_machinelist();

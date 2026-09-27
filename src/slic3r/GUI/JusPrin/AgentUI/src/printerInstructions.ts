@@ -101,6 +101,10 @@ export function printerInstructions(session: PrinterSessionPayload): string {
       text += `\n- ${spool.name || spool.material} (${spool.material}${spool.colour ? `, ${spool.colour}` : ''})`;
     text += `\nConnected to this app: ${printer.connected ? 'yes' : 'no'}\n`;
     text += `Connects through: ${printer.provider === 'bambu' ? 'Bambu Lab LAN mode' : 'Moonraker or OctoPrint'}\n`;
+    if (printer.needsNetworkPlugin)
+      text +=
+        "Bambu's network plug-in: not installed, so nothing can reach this printer yet. The app has shown the person how to " +
+        'install it.\n';
   }
   if (context.printers) {
     text += '\nPrinter list (catalogId | brand and model | build volume):\n';

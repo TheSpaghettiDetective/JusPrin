@@ -37,6 +37,7 @@ public:
     PrinterConnectionInfo connection(const std::string& name) override;
     void prepare_connection(const std::string& name) override;
     void sign_in_to_bambu() override;
+    void install_network_plugin() override;
     std::string connect_printer(const std::string& name, const std::string& device_id,
                                const std::string& access_code) override;
     std::string connect_host(const std::string& name, const std::string& host_type,

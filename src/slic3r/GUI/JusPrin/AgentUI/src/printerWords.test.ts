@@ -37,6 +37,16 @@ describe('the opening', () => {
     expect(choices).toEqual(['Yes, it is', 'How do I check?']);
   });
 
+  it('says a Bambu Lab printer needs the plug-in first, and asks nothing about LAN mode', () => {
+    const text = opening(
+      session({ mode: 'connect', context: { printer: { ...printer, provider: 'bambu', needsNetworkPlugin: true } } }),
+    );
+    expect(text).toMatch(/^To connect Workshop, JusPrin first needs Bambu’s network plug-in/);
+    expect(text).toContain('Workshop already works for preparing prints.');
+    expect(text).not.toMatch(/LAN mode/);
+    expect(splitChoices(text).choices).toEqual([]);
+  });
+
   it('asks a Moonraker or OctoPrint printer for its address, with nothing to tap', () => {
     const text = opening(session({ mode: 'connect', context: { printer: { ...printer, provider: 'host' } } }));
     expect(text).toContain('What address do you use to open it in a browser?');
@@ -44,10 +54,11 @@ describe('the opening', () => {
   });
 
   it('never advertises a form or a button', () => {
-    for (const mode of ['add', 'change', 'connect'] as const) {
-      const text = opening(session({ mode, context: { printer: { ...printer, provider: 'bambu' } } }));
-      expect(text).not.toMatch(/form|button|tap /i);
-    }
+    for (const mode of ['add', 'change', 'connect'] as const)
+      for (const needsNetworkPlugin of [false, true]) {
+        const text = opening(session({ mode, context: { printer: { ...printer, provider: 'bambu', needsNetworkPlugin } } }));
+        expect(text).not.toMatch(/form|button|tap /i);
+      }
   });
 });
 

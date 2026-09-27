@@ -114,6 +114,9 @@ struct PrinterConnectionInfo
     std::string host_type;
     bool signed_in{false};
     bool nozzle_mismatch{false};
+    // A Bambu Lab printer, on a computer where Bambu's network plug-in is not
+    // installed or not turned on: nothing reaches the printer until it is.
+    bool needs_network_plugin{false};
 };
 
 struct ManualPrinterResult
@@ -154,6 +157,10 @@ public:
     virtual PrinterConnectionInfo connection(const std::string& name) { return {}; }
     virtual void prepare_connection(const std::string& name) {}
     virtual void sign_in_to_bambu() {}
+    // Downloads and loads Bambu's network plug-in behind Orca's own progress
+    // dialog, as Orca's "Click here to install it" does. Returns once that
+    // dialog closes, whether or not the plug-in is loaded then.
+    virtual void install_network_plugin() {}
     virtual std::string connect_printer(const std::string& name, const std::string& device_id,
                                        const std::string& access_code) { return "Connection is unavailable."; }
     virtual std::string connect_host(const std::string& name, const std::string& host_type,

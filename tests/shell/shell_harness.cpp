@@ -66,6 +66,15 @@
 //              checked (cards drawn or not, the change card, the saved
 //              nozzle, Undo). The key is written to this run's throwaway
 //              app config, where the panel reads it.
+//   --printer-live-no-plugin
+//              needs OPENAI_API_KEY and a machine without the Bambu network
+//              plug-in: adds a Bambu Lab printer through the live model and
+//              asks to connect it, from the add flow and from Home's
+//              Connect…, with the fake printer off. Checks what the app
+//              shows: the opening names the plug-in, not LAN mode; its
+//              notice is drawn once; no connect card opens; a connect the
+//              model tries anyway is refused for the plug-in; and Done ends
+//              it. The model's own words are printed for reading
 //   --printer-connect-capture <output-directory>
 //              needs OPENAI_API_KEY and macOS: connects a Klipper printer
 //              through the real printer panel and the live model, against
@@ -389,6 +398,9 @@ struct HarnessState
     fs::path capture_dir;
     // --printer-connect-capture: the connect flow only, pictured.
     bool connect_capture{false};
+    // --printer-live-no-plugin: connecting a Bambu Lab printer without the
+    // network plug-in, and without the fake printer standing in for it.
+    bool no_plugin{false};
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
@@ -1105,6 +1117,11 @@ private:
             run_live_steps();
             return;
         }
+        if (m_state->no_plugin) {
+            queue_no_plugin_live();
+            run_live_steps();
+            return;
+        }
         using Mode = PrinterSetup::ConversationMode;
 
         // Adding: nothing is saved until the person says yes.
@@ -1512,8 +1529,14 @@ private:
         check(ok, "captured_" + name);
         if (ok)
             std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+#elif defined(_WIN32)
+        // WebView2 has no synchronous snapshot, so the window is copied from
+        // the screen, whole, as the tool-strip captures are. That needs a
+        // desktop: an RDP session that is disconnected captures nothing.
+        (void) view;
+        write_screen_capture(m_frame->GetScreenRect(), name);
 #else
-        fail("--printer-connect-capture pictures web views through WebKit, on macOS only");
+        fail("--printer-connect-capture pictures web views on macOS and Windows only");
 #endif
     }
 
@@ -1636,6 +1659,139 @@ private:
                                     }
                                     capture_web_view(installed_shell()->home_view()->webview(), "7-home");
                                 }});
+    }
+
+    // --- A Bambu Lab printer without the network plug-in, live -------------
+    //
+    // What someone hears when they ask to connect a Bambu Lab printer on a
+    // machine where the plug-in is not installed: from the add flow, and
+    // from Home's Connect…. The fake printer stays off, so nothing stands in
+    // for the plug-in.
+    static bool mentions(std::string text, const std::vector<std::string>& words)
+    {
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return std::any_of(words.begin(), words.end(), [&](const std::string& word) { return text.find(word) != std::string::npos; });
+    }
+
+    static bool mentions_plugin(const std::string& text) { return mentions(text, {"plug-in", "plugin", "plug in"}); }
+
+    // Whether printer_connection_status has said the plug-in is missing, and
+    // whether a connect card is waiting for a code it could never use.
+    bool live_status_said_unavailable() const
+    {
+        for (const Agent::ToolActivity* call : live_calls("printer_connection_status"))
+            if (call->state == Agent::ToolState::Succeeded &&
+                nlohmann::json::parse(call->result_json).value("state", "") == "unavailable")
+                return true;
+        return false;
+    }
+
+    bool live_connect_card_waiting() const
+    {
+        const auto calls = live_calls("printer_connect");
+        return !calls.empty() && calls.back()->state == Agent::ToolState::Pending;
+    }
+
+    // A picture of the panel (PRINTER_LIVE_CAPTURE_DIR), named for the
+    // appearance the run was given.
+    void live_capture_themed(const std::string& name)
+    {
+        std::string file = name;
+        std::replace(file.begin(), file.end(), '_', '-');
+        live_capture(file + (m_state->dark_appearance.value_or(false) ? "-dark" : "-light"));
+    }
+
+    // The app's notice that the plug-in is missing, as the page draws it.
+    std::size_t live_plugin_notices() const
+    {
+        if (live_panel()->host() == nullptr)
+            return 0;
+        std::size_t notices = 0;
+        for (const nlohmann::json& block : live_panel()->session_json().value("blocks", nlohmann::json::array()))
+            notices += block.value("kind", "") == "plugin" ? 1 : 0;
+        return notices;
+    }
+
+    // A printer_connect the model tried anyway was refused with the plug-in
+    // as the reason, not as an unknown printer.
+    bool live_connect_refusals_name_the_plugin() const
+    {
+        for (const Agent::ToolActivity* call : live_calls("printer_connect"))
+            if (call->error && call->error->code != "connection_unavailable")
+                return false;
+        return true;
+    }
+
+    void queue_no_plugin_live()
+    {
+        using Mode = PrinterSetup::ConversationMode;
+        m_live_steps.push_back({"check: no plug-in, no fake", [] {}, [] { return true; }, [this] {
+                                    const bool loaded = NetworkAgent::is_network_module_loaded();
+                                    const std::string fake = fake_bambu_printer_agent_id(wxGetApp().app_config);
+                                    std::cerr << "HARNESS LIVE   network plug-in loaded: " << (loaded ? "yes" : "no")
+                                              << ", fake printer: " << (fake.empty() ? "off" : fake) << '\n';
+                                    check(!loaded && fake.empty(), "no_plugin_run_has_neither_the_plugin_nor_the_fake");
+                                }});
+
+        // From the add flow: the model offers to connect, the person says yes.
+        live_open(Mode::Add);
+        live_say("I have a Bambu Lab A1 mini", [this] {
+            live_print_calls();
+            for (const Agent::ToolActivity* call : live_calls("printer_add"))
+                if (call->state == Agent::ToolState::Succeeded)
+                    m_live_added.push_back(nlohmann::json::parse(call->result_json)["printer"].value("name", ""));
+            check(m_live_added.size() == 1, "no_plugin_the_a1_mini_is_added");
+        });
+        // What must reach the person is the app's to show, not the model's to
+        // remember: the notice, once, and no card asking for a code nothing
+        // can use. The model's words are printed for reading.
+        const auto app_says_the_plugin_is_needed = [this](const std::string& name) {
+            live_print_calls();
+            check(live_plugin_notices() == 1, name + "_draws_one_plugin_notice");
+            check(!live_connect_card_waiting(), name + "_opens_no_connect_card");
+            check(live_connect_refusals_name_the_plugin(), name + "_a_connect_attempt_is_refused_for_the_plugin");
+            live_capture_themed(name);
+        };
+        live_say("Connect it", [this, app_says_the_plugin_is_needed] {
+            check(live_status_said_unavailable(), "no_plugin_add_flow_status_reports_unavailable");
+            app_says_the_plugin_is_needed("no_plugin_add_flow");
+        });
+        live_say("where do I get it?", [app_says_the_plugin_is_needed] { app_says_the_plugin_is_needed("no_plugin_where_to_get_it"); });
+        live_say("I'd rather not install anything right now. Leave it.", [this] { live_print_calls(); });
+        live_done("no_plugin_add_flow");
+
+        // From Home's Connect…: the conversation opens on the saved printer.
+        m_live_steps.push_back({"open: Connect… on the added printer",
+                                [this] {
+                                    live_show(Mode::Connect, m_live_added.empty() ? std::string() : m_live_added.front());
+                                    m_live_printed = 0;
+                                },
+                                // Until the page's opening is posted, too.
+                                [this] {
+                                    return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() &&
+                                           live_panel()->instructions_ready() && !live_messages().empty();
+                                },
+                                [this] {
+                                    check(!m_live_added.empty(), "no_plugin_connect_has_the_added_printer");
+                                    // Before the model says anything: the page's opening and the
+                                    // app's notice under it.
+                                    live_print_new();
+                                    const auto messages = live_messages();
+                                    check(!messages.empty() && messages.front().text.rfind("To connect ", 0) == 0 &&
+                                              mentions_plugin(messages.front().text) && !mentions(messages.front().text, {"lan mode"}),
+                                          "no_plugin_connect_opens_on_the_plugin_not_lan_mode");
+                                    check(live_plugin_notices() == 1, "no_plugin_connect_opens_with_the_notice");
+                                    live_capture_themed("no_plugin_connect_opening");
+                                }});
+        live_say("Connect it", [app_says_the_plugin_is_needed] { app_says_the_plugin_is_needed("no_plugin_connect_flow"); });
+        // Someone who is sure the printer's side is right.
+        live_say("LAN mode is definitely on, I just checked on the printer",
+                 [app_says_the_plugin_is_needed] { app_says_the_plugin_is_needed("no_plugin_lan_mode_on"); });
+        // A serial number the app cannot see without the plug-in.
+        live_say("Its serial number is 0309DA123456789. Just connect to that one.",
+                 [app_says_the_plugin_is_needed] { app_says_the_plugin_is_needed("no_plugin_a_serial"); });
+        live_say("Leave it for now", [] {});
+        live_done("no_plugin_connect_flow");
     }
 
     void finish_printer_live()
@@ -6393,6 +6549,10 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::HomeLive;
         else if (argument == "--printer-live")
             state->mode = HarnessState::Mode::PrinterLive;
+        else if (argument == "--printer-live-no-plugin") {
+            state->mode      = HarnessState::Mode::PrinterLive;
+            state->no_plugin = true;
+        }
         else if (argument == "--printer-connect-capture") {
             if (++index == argc) {
                 std::cerr << "--printer-connect-capture requires an output directory\n";
