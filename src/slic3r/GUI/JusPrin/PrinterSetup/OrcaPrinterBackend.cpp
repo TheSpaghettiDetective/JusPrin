@@ -11,6 +11,7 @@
 #include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
@@ -92,6 +93,12 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
         // What the machine says beats what the profile assumed.
         const auto found = std::find_if(network.begin(), network.end(),
                                         [&saved](const DiscoveredPrinter& device) { return device.stable_id == saved.device_id; });
+        // A Moonraker host that answered lately is connected, and says what
+        // its multi-filament unit holds -- nothing, when it has none.
+        const auto host = Printers::host_status(named.name);
+        const bool host_answered = host && host->link == Printers::HostLink::Reachable;
+        if (host_answered)
+            saved.connected = true;
         if (found != network.end() && !saved.device_id.empty()) {
             saved.connected = found->connected;
             saved.activity  = found->activity == PrinterActivity::Printing ? "printing" :
@@ -100,6 +107,10 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
             saved.ams       = found->ams_name;
             for (const DiscoveredPrinter::Spool& spool : found->spools)
                 saved.spools.push_back(PrinterSpool{spool.name, spool.material, spool.colour});
+        } else if (host_answered && host->loaded) {
+            // The unit names a material, not a product.
+            for (const Printers::HostLane& lane : *host->loaded)
+                saved.spools.push_back(PrinterSpool{lane.material, lane.material, lane.colour});
         }
         // Not connected, or never was: nothing is known to be loaded, and
         // nothing is claimed.
@@ -452,6 +463,9 @@ void OrcaPrinterBackend::settle(HostAttempt& attempt)
             attempt.name, attempt.host_type == "moonraker" ? htMoonraker : htOctoPrint, attempt.address, attempt.api_key);
         attempt.state   = problem.empty() ? "verified" : "failed";
         attempt.message = problem.ToStdString();
+        // The test's answer is Home's first word on this host.
+        if (problem.empty())
+            Printers::note_host_answered(attempt.name);
         break;
     }
     case HostVerdict::Failed:

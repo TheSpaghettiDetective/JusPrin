@@ -7,6 +7,7 @@
 
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
@@ -124,9 +125,12 @@ void HomeWebView::on_live_tick(wxTimerEvent&)
     // Nothing to update while the printer conversation covers the page or the
     // window is minimized. The first tick after either is over catches up:
     // the comparison is against what was last sent, not the last tick.
-    if (m_webview == nullptr || !m_webview->IsShownOnScreen())
-        return;
     if (const auto* top = dynamic_cast<const wxTopLevelWindow*>(wxGetTopLevelParent(this)); top != nullptr && top->IsIconized())
+        return;
+    // Print hosts are read on their own schedule, and the conversation that
+    // covers the page reads them too, so they are kept fresh either way.
+    Printers::refresh_host_readings();
+    if (m_webview == nullptr || !m_webview->IsShownOnScreen())
         return;
     m_host->refresh_if_changed();
 }

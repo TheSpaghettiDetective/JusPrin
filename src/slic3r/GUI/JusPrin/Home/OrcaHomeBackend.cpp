@@ -12,6 +12,7 @@
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/SelectMachinePop.hpp"
+#include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
@@ -264,7 +265,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
     // Every card says something about its connection; one with nothing
     // verified says so in words, and draws no dot.
     const auto settle_connection = [](PrinterEntry& printer) {
-        if (printer.connection_state != ConnectionState::None)
+        if (printer.connection_state != ConnectionState::None || !printer.connection_text.empty())
             return;
         printer.connection_text   = utf8(_L("Not connected"));
         printer.connection_kind   = "";
@@ -285,11 +286,13 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_rename        = true;
         printer.can_remove        = true;
         std::string model;
+        // What a Moonraker host last said its multi-filament unit holds.
+        std::optional<std::vector<Printers::HostLane>> host_loaded;
         if (const auto* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false, true)) {
             model = model_name(preset->config.opt_string("printer_model"));
             // A print host's address is saved only once the host has answered
             // (or typed into Orca's own settings dialog, which is not tested:
-            // an accepted gap). Nothing here says whether it answers now.
+            // an accepted gap).
             const std::string host = preset->config.opt_string("print_host");
             if (!host.empty()) {
                 printer.connection_state   = ConnectionState::Connected;
@@ -297,6 +300,23 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
                 printer.address            = host_address(host);
                 printer.connection_text    = utf8(_L("Connected") + middle_dot() + wxString::FromUTF8(printer.address));
                 printer.can_launch_monitor = true;
+            }
+            // A Moonraker host is read, so the line says whether it answers
+            // now. Other hosts are not, and keep the saved address's word.
+            if (const auto status = Printers::host_status(named.name)) {
+                if (status->link == Printers::HostLink::Reachable) {
+                    host_loaded = status->loaded;
+                } else if (status->link == Printers::HostLink::Unreachable) {
+                    printer.connection_state   = ConnectionState::Offline;
+                    printer.connection_text    = utf8(_L("Offline"));
+                    printer.connection_action  = "reconnect";
+                    printer.can_launch_monitor = false;
+                } else {
+                    // Asked, and not answered yet: no dot until it has.
+                    printer.connection_state   = ConnectionState::None;
+                    printer.connection_text    = utf8(_L("Checking connection") + wxString::FromUTF8("\xE2\x80\xA6"));
+                    printer.can_launch_monitor = false;
+                }
             }
         }
         double nozzle = named.nozzle;
@@ -318,9 +338,13 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.model_text = model_text(model, nozzle);
         // Only a connected printer says what it holds. Nothing else stands
         // in for it: the project's filament is what a print needs, not what
-        // is on the machine.
+        // is on the machine. A Moonraker host that answered lately counts:
+        // its multi-filament unit's lanes, or nothing when it has none.
         if (const auto held = loaded.find(named.device_id); !named.device_id.empty() && held != loaded.end())
             printer.spools = held->second;
+        else if (host_loaded)
+            for (const Printers::HostLane& lane : *host_loaded)
+                printer.spools.push_back(SpoolEntry{lane.material, lane.colour});
         printers.push_back(std::move(printer));
     }
 

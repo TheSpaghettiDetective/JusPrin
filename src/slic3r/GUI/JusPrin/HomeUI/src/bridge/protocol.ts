@@ -78,9 +78,10 @@ export interface SpoolInfo {
   colour?: string;
 }
 
-// What the connection line rests on. 'online' and 'offline' are a Bambu
-// device's; 'connected' is a print host with a saved address; 'none' is
-// neither, and draws no dot.
+// What the connection line rests on. 'online' is a Bambu device's;
+// 'connected' is a print host with a saved address (for Moonraker, one that
+// answered lately); 'offline' is a Bambu device or a Moonraker host that has
+// gone silent; 'none' is neither, and draws no dot.
 export type ConnectionState = 'none' | 'online' | 'offline' | 'connected';
 
 // How the printer is reached; 'host' is Moonraker or OctoPrint.

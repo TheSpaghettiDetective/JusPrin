@@ -60,7 +60,9 @@ const char* to_string(PrinterKind kind);
 // What a card's connection line and dot rest on, apart from its words.
 // Online and Offline are a Bambu device's: data in the last 30 seconds, or
 // verified before and silent now. Connected is a print host's: an address is
-// saved. None is neither, and draws no dot.
+// saved, and for a Moonraker host, it answered in the last 30 seconds; a
+// Moonraker host that stopped answering is Offline too. None is neither, and
+// draws no dot.
 enum class ConnectionState { None, Online, Offline, Connected };
 
 const char* to_string(ConnectionState state);

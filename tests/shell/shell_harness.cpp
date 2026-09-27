@@ -318,6 +318,101 @@ private:
     std::thread                    m_thread;
 };
 
+// A Moonraker host with a multi-filament unit, on a loopback port: answers
+// /server/info as a connection test expects, and the two lane sources from
+// whatever the test last set -- a body, or nothing (a 404) for lane_data.
+class StandInMoonraker
+{
+public:
+    StandInMoonraker() : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+    {
+        m_thread = std::thread([this] { serve(); });
+    }
+    ~StandInMoonraker()
+    {
+        m_stopping = true;
+        boost::system::error_code    ignored;
+        boost::asio::ip::tcp::socket wake(m_io);
+        wake.connect(m_acceptor.local_endpoint(), ignored);
+        m_thread.join();
+    }
+    std::string address() const { return "http://127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+    // Empty: the namespace was never written, which Moonraker answers with 404.
+    void set_lane_data(std::string body)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lane_data = std::move(body);
+    }
+    void set_mmu(std::string status)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_mmu = std::move(status);
+    }
+    int requests(const std::string& path_prefix) const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        int count = 0;
+        for (const std::string& path : m_paths)
+            count += path.rfind(path_prefix, 0) == 0 ? 1 : 0;
+        return count;
+    }
+
+private:
+    void serve()
+    {
+        for (;;) {
+            boost::system::error_code    error;
+            boost::asio::ip::tcp::socket socket(m_io);
+            m_acceptor.accept(socket, error);
+            if (m_stopping || error)
+                return;
+            boost::asio::streambuf request;
+            boost::asio::read_until(socket, request, "\r\n\r\n", error);
+            std::string line;
+            std::istream stream(&request);
+            std::getline(stream, line); // "GET /path HTTP/1.1"
+            const size_t      start = line.find(' ') + 1;
+            const std::string path  = line.substr(start, line.find(' ', start) - start);
+            unsigned          status = 200;
+            std::string       body;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_paths.push_back(path);
+                if (path.rfind("/server/info", 0) == 0) {
+                    body = R"({"result":{"klippy_state":"ready","moonraker_version":"harness"}})";
+                } else if (path.rfind("/server/database/item?namespace=lane_data", 0) == 0) {
+                    if (m_lane_data.empty()) {
+                        status = 404;
+                        body   = R"({"error":{"code":404,"message":"Namespace 'lane_data' not found"}})";
+                    } else {
+                        body = m_lane_data;
+                    }
+                } else if (path.rfind("/printer/objects/query?mmu", 0) == 0) {
+                    body = R"({"result":{"eventtime":1.0,"status":{)" +
+                           (m_mmu.empty() ? std::string() : R"("mmu":)" + m_mmu) + "}}}";
+                } else {
+                    status = 404;
+                    body   = R"({"error":{"code":404,"message":"Not Found"}})";
+                }
+            }
+            const std::string reply = "HTTP/1.1 " + std::to_string(status) + (status == 200 ? " OK" : " Not Found") +
+                                      "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) +
+                                      "\r\nConnection: close\r\n\r\n" + body;
+            boost::asio::write(socket, boost::asio::buffer(reply), error);
+            socket.close(error);
+        }
+    }
+
+    boost::asio::io_context        m_io;
+    boost::asio::ip::tcp::acceptor m_acceptor;
+    std::atomic<bool>              m_stopping{false};
+    mutable std::mutex             m_mutex;
+    std::string                    m_lane_data;
+    std::string                    m_mmu;
+    std::vector<std::string>       m_paths;
+    std::thread                    m_thread;
+};
+
 // A model that answers the first message by calling `tool` with `arguments`,
 // and anything after that with a line of text.
 class ToolCallingAgent final : public Agent::IAgentService
@@ -2043,6 +2138,104 @@ private:
         verify_panel_close_drops_a_waiting_connection(answered);
     }
 
+    // "PLA #5F7D4F, PETG" for a card's Loaded row, to compare and to print.
+    static std::string loaded_text(const std::vector<Home::SpoolEntry>& spools)
+    {
+        std::string text;
+        for (const Home::SpoolEntry& spool : spools)
+            text += (text.empty() ? "" : ", ") + spool.material + (spool.colour.empty() ? "" : " " + spool.colour);
+        return text;
+    }
+
+    // A Klipper printer's multi-filament unit, as its Moonraker host reports
+    // it, reaches Home's card and the printer conversation; a printer without
+    // one shows nothing loaded; a host that stops answering goes Offline.
+    // Read through the real backends against a stand-in Moonraker.
+    void verify_host_lanes(PrinterSetup::OrcaPrinterBackend& backend)
+    {
+        using namespace std::chrono_literals;
+        const auto card = [&]() -> std::optional<Home::PrinterEntry> {
+            Home::OrcaHomeBackend home(*m_frame);
+            for (Home::PrinterEntry& entry : home.printers())
+                if (entry.id == std::string("named:") + kAddedPrinter)
+                    return entry;
+            return std::nullopt;
+        };
+        const auto loaded_now = [&] {
+            const auto read = card();
+            return read ? loaded_text(read->spools) : std::string("(no card)");
+        };
+        const auto saved_now = [&]() -> PrinterSetup::SavedPrinter {
+            for (const PrinterSetup::SavedPrinter& saved : backend.saved_printers())
+                if (saved.name == kAddedPrinter)
+                    return saved;
+            return {};
+        };
+        // A poll is due every ten seconds, so a change shows within one.
+        const auto shows = [&](const std::string& expected, const std::string& name) {
+            const bool shown = wait_for([&] { return loaded_now() == expected; }, 25s);
+            std::cout << "HARNESS host lanes " << name << ": \"" << loaded_now() << "\"" << std::endl;
+            check(shown, name);
+        };
+
+        std::string address;
+        {
+            StandInMoonraker host;
+            host.set_lane_data(R"({"result":{"namespace":"lane_data","value":{
+                "lane1":{"color":"#5F7D4F","material":"PLA","lane":"0","spool_id":null},
+                "lane2":{"color":"","material":"PETG","lane":"1","spool_id":null},
+                "lane3":{"color":"","material":"","lane":"2","spool_id":null}}}})");
+            address = host.address();
+            check(connect_host_and_wait(backend, kAddedPrinter, address, 20s).state == "verified", "host_lanes_fixture_connects");
+            const auto first = card();
+            check(first && first->connection_state == Home::ConnectionState::Connected && first->can_launch_monitor,
+                  "host_lanes_connection_test_counts_as_an_answer");
+
+            shows("PLA #5F7D4F, PETG", "host_lanes_home_shows_the_loaded_lanes");
+            const PrinterSetup::SavedPrinter saved = saved_now();
+            check(saved.connected && saved.spools.size() == 2 && saved.spools[0].material == "PLA" &&
+                      saved.spools[0].colour == "#5F7D4F" && saved.spools[1].material == "PETG" && saved.spools[1].colour.empty(),
+                  "host_lanes_conversation_reads_the_loaded_lanes");
+
+            host.set_lane_data(R"({"result":{"namespace":"lane_data","value":{
+                "lane1":{"color":"#5F7D4F","material":"PLA","lane":"0"},
+                "lane2":{"color":"","material":"","lane":"1"},
+                "lane3":{"color":"0xAA3322","material":"ASA","lane":"2"}}}})");
+            shows("PLA #5F7D4F, ASA #AA3322", "host_lanes_home_follows_a_spool_change");
+
+            // Happy Hare without the lane_data namespace.
+            host.set_lane_data("");
+            host.set_mmu(R"({"num_gates":4,"gate_status":[1,0,2,-1],"gate_material":["PETG","PLA","TPU","ABS"],
+                             "gate_color":["ff8800","","112233",""],"gate_temperature":[235,210,220,240]})");
+            shows("PETG #FF8800, TPU #112233", "host_lanes_home_reads_happy_hare");
+
+            // No unit at all: the printer says nothing is loaded, and it is
+            // still connected.
+            host.set_mmu("");
+            shows("", "host_lanes_printer_without_a_unit_shows_nothing");
+            const auto plain = card();
+            check(plain && plain->connection_state == Home::ConnectionState::Connected, "host_lanes_printer_without_a_unit_is_connected");
+            check(saved_now().connected && saved_now().spools.empty(), "host_lanes_conversation_reads_no_unit_as_nothing");
+            check(host.requests("/server/database/item") >= 4 && host.requests("/printer/objects/query") >= 2,
+                  "host_lanes_both_sources_are_read");
+        }
+
+        // The host stops answering: Offline once its last answer is stale,
+        // with Reconnect, and no longer said to hold anything.
+        const bool offline = wait_for([&] {
+            const auto read = card();
+            return read && read->connection_state == Home::ConnectionState::Offline;
+        }, PrinterSetup::kConnectionWait + 20s);
+        const auto gone = card();
+        std::cout << "HARNESS host lanes silent: " << (gone ? gone->connection_text : "(no card)") << ", \""
+                  << (gone ? loaded_text(gone->spools) : "") << "\"" << std::endl;
+        check(offline && gone->connection_text == "Offline" && gone->connection_action == "reconnect" &&
+                  !gone->can_launch_monitor && gone->address == address.substr(address.find("://") + 3),
+              "host_lanes_silent_host_goes_offline");
+        check(gone && gone->spools.empty(), "host_lanes_silent_host_claims_nothing_loaded");
+        check(!saved_now().connected && saved_now().spools.empty(), "host_lanes_conversation_sees_the_silent_host_disconnected");
+    }
+
     // Opens the panel on `printer` with a model that answers the first
     // message by calling `tool`, sends that message, and returns the call.
     const Agent::ToolActivity* call_in_panel(const std::string& printer, const std::string& tool, const nlohmann::json& arguments,
@@ -2172,6 +2365,7 @@ private:
               "named_home_offers_the_printer_menu");
 
         verify_host_connection_keeps_the_app_responsive(backend);
+        verify_host_lanes(backend);
 
         // Configure an unselected saved printer through the real adapter. A
         // closed loopback port exercises an actual provider failure without
