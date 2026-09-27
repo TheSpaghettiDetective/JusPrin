@@ -348,7 +348,22 @@
     },
     "swatch": {
       "size": 24,
-      "radius": 4
+      "radius": 4,
+      "gap": 4,
+      "captionGap": 4,
+      "inset": 2,
+      "currentInset": 1,
+      "ringWidth": 1,
+      "currentRingWidth": 2,
+      "glyphWidth": 1
+    },
+    "slotDot": {
+      "size": 8,
+      "compactSize": 4,
+      "gap": 3,
+      "compactGap": 2,
+      "labelGap": 8,
+      "fadedAlpha": 90
     },
     "projectCard": {
       "minWidth": 240,

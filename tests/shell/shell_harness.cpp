@@ -2901,6 +2901,10 @@ private:
                         self->verify_filament_menu();
                         self->capture_chip_appearance();
                         self->verify_filament_change();
+                        self->verify_colour_keyboard();
+#ifdef _WIN32
+                        self->verify_one_line_across_a_dialog();
+#endif
                         self->verify_filament_slots();
                         self->verify_header_setup(Preset::TYPE_PRINTER);
                     });
@@ -3321,6 +3325,148 @@ private:
         check(chip_label(row, "Filament") == before.alias, "the_chip_follows_the_restored_filament");
     }
 
+    // The colour row by keyboard alone, through the menu's own key handler:
+    // Down onto the first filament, Up into the colour row, Right to a saved
+    // colour, Return to apply it. The menu stays open and the keyboard stays
+    // on that colour after the rebuild; Down leaves the row again.
+    void verify_colour_keyboard()
+    {
+        auto*          row           = installed_shell()->status_row();
+        const wxColour saved("#101010"); // remembered by verify_filament_change
+        const wxString saved_name    = saved.GetAsString(wxC2S_HTML_SYNTAX);
+        const wxString colour_before = SetupCommands::current_colour();
+        const auto     filaments     = SetupCommands::compatible_filaments();
+
+        row->open_filament_menu();
+        HeaderMenu* menu = visible_header_menu();
+        check(menu != nullptr, "filament_menu_opens_for_the_keyboard");
+        if (menu == nullptr || filaments.empty()) return;
+        const auto key = [&](int code) {
+            wxKeyEvent event(wxEVT_CHAR_HOOK);
+            event.m_keyCode = code;
+            menu->GetEventHandler()->ProcessEvent(event);
+            wxYield();
+            menu = visible_header_menu();
+        };
+        const auto keyboard_on = [&]() -> wxString {
+            HeaderMenuKeyView* keys = menu ? menu->key_view() : nullptr;
+            return keys && keys->key_child() ? keys->key_child()->GetName() : wxString();
+        };
+
+        key(WXK_DOWN);
+        check(menu && menu->selected_item() && menu->selected_item()->GetName() == filaments.front().alias,
+              "down_selects_the_first_filament");
+        key(WXK_UP);
+        check(menu && menu->key_view_active() && menu->selected_item() == nullptr, "up_from_the_first_filament_enters_the_colour_row");
+        check(keyboard_on() == wxColour(colour_before).GetAsString(wxC2S_HTML_SYNTAX), "the_keyboard_starts_on_the_slot_colour");
+        for (int step = 0; step < 16 && keyboard_on() != saved_name; ++step)
+            key(WXK_RIGHT);
+        check(keyboard_on() == saved_name, "right_reaches_a_saved_colour");
+
+        key(WXK_RETURN);
+        wxYield();
+        menu = visible_header_menu();
+        check(wxColour(SetupCommands::current_colour()) == saved, "return_applies_the_colour");
+        check(menu != nullptr, "the_menu_stays_open_after_a_keyboard_colour");
+        check(menu && menu->key_view_active() && keyboard_on() == saved_name, "the_keyboard_stays_on_the_applied_colour");
+
+        key(WXK_DOWN);
+        check(menu && !menu->key_view_active() && menu->selected_item() != nullptr, "down_leaves_the_colour_row");
+        if (menu) menu->close();
+        wxYield();
+
+        SetupCommands::set_filament_colour(*m_plater, 0, wxColour(colour_before));
+        row->refresh();
+    }
+
+#ifdef _WIN32
+    // One visit, one line, even when the menu steps out to a dialog and comes
+    // back: pick a filament, open the colour picker from "+" and press OK,
+    // pick another filament in the menu that returns, then leave. The system
+    // picker is the native one on Windows, so a timer, which its own message
+    // loop still serves, presses OK in it.
+    void verify_one_line_across_a_dialog()
+    {
+        auto*      row    = installed_shell()->status_row();
+        const auto before = SetupCommands::current_filament();
+        const wxString colour_before = SetupCommands::current_colour();
+        wxString first, second;
+        for (const auto& filament : SetupCommands::compatible_filaments()) {
+            if (filament.preset_name == before.preset_name) continue;
+            if (first.empty()) first = filament.alias;
+            else if (second.empty()) second = filament.alias;
+        }
+        check(!first.empty() && !second.empty(), "two_other_filaments_exist");
+        if (first.empty() || second.empty()) return;
+
+        Agent::AgentHost& host        = installed_shell()->agent_pane()->web_view().host();
+        const auto        count_notes = [&host] {
+            const auto messages = host.conversation();
+            return std::count_if(messages.begin(), messages.end(),
+                                 [](const auto& message) { return message.role == Agent::MessageRole::Note; });
+        };
+        const auto notes_before = count_notes();
+
+        row->open_filament_menu();
+        HeaderMenu* menu = visible_header_menu();
+        if (menu != nullptr) menu = click_menu_row(menu, first);
+        check(menu != nullptr && SetupCommands::current_filament().alias == first, "the_first_filament_is_picked");
+        if (menu == nullptr) return;
+
+        bool          pressed = false;
+        wxEvtHandler  handler;
+        wxTimer       timer(&handler);
+        handler.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+            struct Search { DWORD pid; HWND found; } search{GetCurrentProcessId(), nullptr};
+            EnumWindows([](HWND hwnd, LPARAM data) -> BOOL {
+                auto* s = reinterpret_cast<Search*>(data);
+                DWORD pid = 0;
+                GetWindowThreadProcessId(hwnd, &pid);
+                wchar_t name[16] = {};
+                GetClassNameW(hwnd, name, 16);
+                if (pid == s->pid && IsWindowVisible(hwnd) && std::wstring(name) == L"#32770") {
+                    s->found = hwnd;
+                    return FALSE;
+                }
+                return TRUE;
+            }, reinterpret_cast<LPARAM>(&search));
+            if (search.found != nullptr) {
+                PostMessageW(search.found, WM_COMMAND, IDOK, 0);
+                pressed = true;
+                timer.Stop();
+            }
+        });
+        timer.Start(100);
+        wxWindow* plus = wxWindow::FindWindowByName("Other colour", menu);
+        check(plus != nullptr, "the_colour_row_offers_the_picker");
+        if (plus != nullptr) {
+            click_row(menu, plus);
+            for (int i = 0; i < 10 && !pressed; ++i) wxYield();
+            wxYield();
+        }
+        timer.Stop();
+        check(pressed, "the_system_picker_opened_and_took_ok");
+
+        menu = visible_header_menu();
+        check(menu != nullptr, "the_menu_comes_back_after_the_picker");
+        check(count_notes() == notes_before, "stepping_out_to_the_picker_leaves_no_line");
+        if (menu != nullptr) menu = click_menu_row(menu, second);
+        check(SetupCommands::current_filament().alias == second, "the_second_filament_is_picked");
+        if (menu != nullptr) menu->close();
+        wxYield();
+        wxYield();
+
+        check(count_notes() == notes_before + 1, "a_visit_through_a_dialog_leaves_one_line");
+        const auto messages = host.conversation();
+        if (!messages.empty() && messages.back().role == Agent::MessageRole::Note)
+            check(messages.back().text.find(ui_text(second)) != std::string::npos, "the_line_names_the_final_filament");
+
+        check(SetupCommands::select_filament_preset(*m_plater, 0, before.preset_name), "the_fixture_filament_is_restored_after_the_dialog");
+        SetupCommands::set_filament_colour(*m_plater, 0, wxColour(colour_before));
+        row->refresh();
+    }
+#endif
+
     // Several slots: "Add a slot" turns the one-slot menu into the slot list
     // with the new slot open, and the chip draws a dot per slot -- faded for a
     // slot the plate does not print with. Adding a slot changes no filament,
@@ -3372,6 +3518,52 @@ private:
             check(std::find(names.begin(), names.end(), "1  " + ui_text(slots[0].filament.alias)) != names.end() &&
                       std::find(names.begin(), names.end(), "2  " + ui_text(slots[1].filament.alias)) != names.end(),
                   "the_slot_list_names_each_slot");
+            // The row as it renders: number, then dot, then name. Read from
+            // the row's own drawing, left to right: the first column holding
+            // text ink comes before the first holding the slot's colour, and
+            // more text follows the dot.
+            if (auto* first = dynamic_cast<HeaderButton*>(
+                    wxWindow::FindWindowByName(ui_name("1  " + ui_text(slots[0].filament.alias)), menu))) {
+                const wxImage image = first->snapshot().ConvertToImage();
+                const fs::path out  = (std::getenv("JUSPRIN_ARTIFACT_DIR") ? fs::path(std::getenv("JUSPRIN_ARTIFACT_DIR"))
+                                                                          : fs::path(data_dir()) / "chip-appearance") /
+                                     "slot-list-row.png";
+                fs::create_directories(out.parent_path());
+                image.SaveFile(wxString::FromUTF8(out.string()), wxBITMAP_TYPE_PNG);
+                std::cout << "HARNESS ARTIFACT slot-list-row " << out.string() << std::endl;
+                // Ink is whatever stands well apart from the row's own background,
+                // in either mode and whatever the font smoothing tints it; the
+                // dot is found by the slot's colour and kept out of the ink.
+                const wxColour dot(slots[0].colour);
+                const int      mid_y = image.GetHeight() / 2;
+                const auto     luminance = [&](int x, int y) {
+                    return (image.GetRed(x, y) * 299 + image.GetGreen(x, y) * 587 + image.GetBlue(x, y) * 114) / 1000;
+                };
+                const auto close_to = [&](int x, int y, const wxColour& c, int within) {
+                    const int dr = image.GetRed(x, y) - c.Red(), dg = image.GetGreen(x, y) - c.Green(), db = image.GetBlue(x, y) - c.Blue();
+                    return dr * dr + dg * dg + db * db < within * within;
+                };
+                // Only the row's inside: the snapshot's rounded corners leave an
+                // unpainted edge that must not read as ink.
+                int       text_x = -1, dot_x = -1, text_after_dot = -1;
+                const int edge       = first->FromDIP(4);
+                const int background = luminance(edge, mid_y);
+                const int dot_size   = first->FromDIP(8);
+                for (int x = edge; x < image.GetWidth() - edge; ++x)
+                    for (int y = image.GetHeight() / 4; y < image.GetHeight() * 3 / 4; ++y) {
+                        if (dot.IsOk() && dot_x < 0 && close_to(x, y, dot, 40)) dot_x = x;
+                        const bool on_dot = dot_x >= 0 && x >= dot_x - 1 && x <= dot_x + dot_size + 1;
+                        if (!on_dot && std::abs(luminance(x, y) - background) > 110) {
+                            if (text_x < 0) text_x = x;
+                            if (dot_x >= 0 && x > dot_x + dot_size + 1 && text_after_dot < 0) text_after_dot = x;
+                        }
+                    }
+                std::cout << "HARNESS NOTE slot_row text_x=" << text_x << " dot_x=" << dot_x
+                          << " text_after_dot=" << text_after_dot << std::endl;
+                check(text_x > edge && dot_x > text_x && text_after_dot > dot_x, "a_slot_row_reads_number_dot_name");
+            } else {
+                check(false, "a_slot_row_reads_number_dot_name");
+            }
             menu->close();
             wxYield();
             wxYield();
@@ -5035,13 +5227,20 @@ private:
         check(!turns.empty() && turns.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
         check(!turns.empty() && turns.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
         if (turns.empty()) return;
-        // The filament change earlier in this run posted one note for its
-        // visit; the colour-only click and the slot added and taken away
-        // posted none, because the plan did not change.
-        check(notes.size() == 1, "one_menu_visit_posts_one_note");
-        if (notes.size() == 1) {
-            check(notes[0].text.find("Filament is now") != std::string::npos, "the_note_names_the_new_filament");
-            check(!notes[0].swatch.empty(), "the_note_carries_its_colour");
+        // Each menu visit earlier in this run that changed a filament posted
+        // one note -- on Windows the second visit also stepped out to the
+        // colour picker and came back -- and the colour-only visits and the
+        // slot added and taken away posted none, because the plan did not
+        // change.
+#ifdef _WIN32
+        const std::size_t visits = 2;
+#else
+        const std::size_t visits = 1;
+#endif
+        check(notes.size() == visits, "one_note_per_menu_visit_that_changed_a_filament");
+        for (const auto& note : notes) {
+            check(note.text.find("Filament is now") != std::string::npos, "the_note_names_the_new_filament");
+            check(!note.swatch.empty(), "the_note_carries_its_colour");
         }
         // A note is a statement, not a turn: nothing replies to it, and it
         // never carries the streaming or failure states a turn can.

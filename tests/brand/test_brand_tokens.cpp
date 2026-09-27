@@ -354,6 +354,28 @@ TEST_CASE("the menu geometry is explicit", "[brand]")
         "component.popover");
 }
 
+// The header chip's slot dots and the filament menu's colour cells are drawn
+// by the fork, so every size they use is here rather than in the code.
+TEST_CASE("the filament chip and colour row geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& component = tokens.at("component");
+    require_exact_table<int>(component.at("slotDot"),
+        {{"size", 8}, {"compactSize", 4}, {"gap", 3}, {"compactGap", 2}, {"labelGap", 8}, {"fadedAlpha", 90}},
+        "component.slotDot");
+    require_exact_table<int>(component.at("swatch"),
+        {{"size", 24}, {"radius", 4}, {"gap", 4}, {"captionGap", 4}, {"inset", 2}, {"currentInset", 1},
+         {"ringWidth", 1}, {"currentRingWidth", 2}, {"glyphWidth", 1}},
+        "component.swatch");
+    // The focus ring is drawn in the gap between two cells, so it must fit
+    // there, and the design system requires it to be 2 DIP.
+    require_exact_table<int>(component.at("focus"), {{"width", 2}, {"offset", 2}}, "component.focus", {"rule"});
+    CHECK(component.at("focus").at("width").get<int>() <= component.at("swatch").at("gap").get<int>());
+    // A dot that fades must stay visible, and a faded one must read as secondary.
+    CHECK(component.at("slotDot").at("fadedAlpha").get<int>() > 0);
+    CHECK(component.at("slotDot").at("fadedAlpha").get<int>() < 255);
+}
+
 
 // Home sizes its inline glyphs -- the printer beside a name, the monitor on
 // its button -- from the smallest step of this scale, so it must stay the

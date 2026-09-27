@@ -73,8 +73,12 @@ private:
         bool                       from_list{false};
     };
 
-    // Opens a fresh popup at the same anchor on `view`.
+    // Opens a fresh popup at the same anchor on `view`. Without an anchor to
+    // open at, the visit ends instead.
     static void reopen(const Ptr& self, View view);
+    // Closes the popup to run `task` -- a modal dialog -- and reopens it on
+    // `back`, all within the same visit.
+    static void step_out(const Ptr& self, View back, const std::function<void()>& task);
     static void show(const Ptr& self, View view);
     static void show_slots(const Ptr& self);
     static void show_slot(const Ptr& self, std::size_t slot, bool from_list);
@@ -97,6 +101,12 @@ private:
     // (to put a modal dialog on screen) can bring the menu back afterwards.
     wxWeakRef<HeaderButton> m_anchor;
     Visit             m_visit;
+    // Set while the menu closes itself to put a dialog up; that close does
+    // not end the visit.
+    bool              m_stepping_out{false};
+    // The colour the keyboard is on in the colour row, by value ("#RRGGBB",
+    // or "+"), so it survives the row being rebuilt.
+    std::string       m_colour_cursor;
 };
 
 } // namespace Slic3r::GUI::JusPrin

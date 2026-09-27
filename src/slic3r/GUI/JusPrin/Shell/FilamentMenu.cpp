@@ -23,6 +23,9 @@ namespace {
 constexpr std::size_t kColoursPerRow = 8;
 constexpr std::size_t kColourCells   = 2 * kColoursPerRow;
 
+// The colour row's name for its "+" cell, where a swatch cell uses its value.
+constexpr const char* kPickerKey = "+";
+
 wxString middot() { return wxString::FromUTF8(" \xC2\xB7 "); }
 
 wxString nozzle_text(double nozzle) { return wxString::Format("%g", nozzle); }
@@ -60,28 +63,29 @@ HeaderMenuItem title_row(const wxString& text)
     return item;
 }
 
+std::string colour_key(const wxColour& colour)
+{
+    return colour.IsOk() ? std::string(colour.GetAsString(wxC2S_HTML_SYNTAX).ToUTF8()) : std::string(kPickerKey);
+}
+
 // One colour cell of the grid: a swatch, or the "+" that opens the picker.
+// It only draws and reports clicks; the row owns what a cell does.
 class ColourCell : public wxPanel
 {
 public:
     ColourCell(wxWindow* parent, const ShellTheme& theme, const ShellPalette& palette, const wxColour& colour,
-               bool current, std::function<void()> activate)
+               bool current, std::function<void()> clicked)
         : wxPanel(parent, wxID_ANY, wxDefaultPosition,
                   parent->FromDIP(wxSize(theme.metrics().swatch.size, theme.metrics().swatch.size)))
-        , m_palette(palette), m_colour(colour), m_current(current), m_radius(theme.metrics().swatch.radius)
-        , m_activate(std::move(activate))
+        , m_swatch(theme.metrics().swatch), m_palette(palette), m_colour(colour), m_current(current)
+        , m_clicked(std::move(clicked))
     {
         SetBackgroundStyle(wxBG_STYLE_PAINT);
         SetCursor(wxCursor(wxCURSOR_HAND));
         Bind(wxEVT_PAINT, &ColourCell::paint, this);
         Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) { m_hover = true; Refresh(); });
         Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) { m_hover = false; Refresh(); });
-        // The handler rebuilds the popup, which destroys this cell; leave the
-        // event first.
-        Bind(wxEVT_LEFT_UP, [this](wxMouseEvent&) {
-            auto activate = m_activate;
-            CallAfter([activate] { if (activate) activate(); });
-        });
+        Bind(wxEVT_LEFT_UP, [this](wxMouseEvent&) { if (m_clicked) m_clicked(); });
     }
 
 private:
@@ -92,14 +96,14 @@ private:
         dc.Clear();
         std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
         if (!gc) return;
-        const wxRect box    = GetClientRect().Deflate(m_current ? 1 : 2);
-        const double radius = FromDIP(m_radius);
+        const wxRect box    = GetClientRect().Deflate(FromDIP(m_current ? m_swatch.current_inset : m_swatch.inset));
+        const double radius = FromDIP(m_swatch.radius);
         if (!m_colour.IsOk()) {
             // The "+": the system picker, for a colour not saved yet.
-            gc->SetPen(wxPen(m_hover ? m_palette.border_strong : m_palette.border_subtle));
+            gc->SetPen(wxPen(m_hover ? m_palette.border_strong : m_palette.border_subtle, FromDIP(m_swatch.ring_width)));
             gc->SetBrush(*wxTRANSPARENT_BRUSH);
             gc->DrawRoundedRectangle(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1, radius);
-            gc->SetPen(wxPen(m_palette.text_secondary, FromDIP(1)));
+            gc->SetPen(wxPen(m_palette.text_secondary, FromDIP(m_swatch.glyph_width)));
             const double cx = box.x + box.width / 2., cy = box.y + box.height / 2., arm = box.width / 4.;
             gc->StrokeLine(cx - arm, cy, cx + arm, cy);
             gc->StrokeLine(cx, cy - arm, cx, cy + arm);
@@ -107,17 +111,147 @@ private:
         }
         // The current colour is ringed; the others show a quiet edge so a
         // white or near-background colour stays visible.
-        gc->SetPen(wxPen(m_current || m_hover ? m_palette.border_strong : m_palette.border_subtle, m_current ? FromDIP(2) : 1));
+        gc->SetPen(wxPen(m_current || m_hover ? m_palette.border_strong : m_palette.border_subtle,
+                         FromDIP(m_current ? m_swatch.current_ring_width : m_swatch.ring_width)));
         gc->SetBrush(wxBrush(m_colour));
         gc->DrawRoundedRectangle(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1, radius);
     }
 
+    SwatchMetrics         m_swatch;
     ShellPalette          m_palette;
     wxColour              m_colour;
     bool                  m_current{false};
-    int                   m_radius{0};
     bool                  m_hover{false};
-    std::function<void()> m_activate;
+    std::function<void()> m_clicked;
+};
+
+// The colour row: its caption, then the grid of cells. It is one stop in the
+// menu's keyboard model: Left and Right move between cells, Return and Space
+// apply one, and the cell the keyboard is on carries the focus ring, drawn in
+// the gap around it so the swatch itself never changes size.
+class ColourRow : public wxPanel, public HeaderMenuKeyView
+{
+public:
+    struct Cell
+    {
+        wxColour              colour; // invalid for the "+"
+        bool                  current{false};
+        std::function<void()> apply;
+    };
+
+    ColourRow(wxWindow* parent, const ShellTheme& theme, const ShellPalette& palette, std::vector<Cell> cells,
+              const std::string& cursor, std::function<void(const std::string&)> cursor_moved)
+        : wxPanel(parent)
+        , m_palette(palette), m_swatch(theme.metrics().swatch), m_ring(theme.metrics().focus.width)
+        , m_cursor_moved(std::move(cursor_moved))
+    {
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        Bind(wxEVT_PAINT, &ColourRow::paint, this);
+        auto* column = new wxBoxSizer(wxVERTICAL);
+
+        auto* caption = new wxStaticText(this, wxID_ANY, _L("COLOUR"));
+        style_label(*caption, theme, TextRole::Metadata, palette.text_secondary);
+        caption->SetBackgroundColour(palette.surface_raised);
+        // The caption lines up with the cells, which stand in by the ring's
+        // width so a ring round an outer cell is not cut off.
+        column->Add(caption, 0, wxLEFT | wxBOTTOM, FromDIP(m_ring));
+        column->AddSpacer(FromDIP(m_swatch.caption_gap) - FromDIP(m_ring));
+
+        auto* grid = new wxGridSizer(int(kColoursPerRow), FromDIP(m_swatch.gap), FromDIP(m_swatch.gap));
+        for (std::size_t index = 0; index < cells.size(); ++index) {
+            auto* cell = new ColourCell(this, theme, palette, cells[index].colour, cells[index].current,
+                                        [this, index] { activate(index); });
+            const std::string key = colour_key(cells[index].colour);
+            cell->SetName(key == kPickerKey ? wxString("Other colour") : wxString::FromUTF8(key));
+            cell->SetToolTip(key == kPickerKey ? _L("Other colour…") : wxString::FromUTF8(key));
+            grid->Add(cell, 0);
+            m_cells.push_back(cell);
+            m_keys.push_back(key);
+            m_apply.push_back(std::move(cells[index].apply));
+        }
+        column->Add(grid, 0, wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(m_ring));
+        SetSizerAndFit(column);
+
+        const auto found = std::find(m_keys.begin(), m_keys.end(), cursor);
+        m_cursor         = found == m_keys.end() ? 0 : std::size_t(found - m_keys.begin());
+    }
+
+    void set_key_focus(bool focused) override
+    {
+        m_focused = focused;
+        if (focused) report_cursor();
+        Refresh();
+    }
+
+    bool on_menu_key(int key_code) override
+    {
+        if (m_cells.empty()) return false;
+        switch (key_code) {
+        case WXK_LEFT:
+            if (m_cursor > 0) --m_cursor;
+            report_cursor();
+            Refresh();
+            return true;
+        case WXK_RIGHT:
+            if (m_cursor + 1 < m_cells.size()) ++m_cursor;
+            report_cursor();
+            Refresh();
+            return true;
+        case WXK_RETURN:
+        case WXK_NUMPAD_ENTER:
+        case WXK_SPACE:
+            activate(m_cursor);
+            return true;
+        default: return false;
+        }
+    }
+
+    wxWindow* key_child() const override { return m_cells.empty() ? nullptr : m_cells[m_cursor]; }
+
+private:
+    void report_cursor()
+    {
+        if (m_cursor_moved && m_cursor < m_keys.size()) m_cursor_moved(m_keys[m_cursor]);
+    }
+
+    // Applying a colour rebuilds the menu, which destroys this row and the
+    // cell that asked. The menu runs it once the current event is done.
+    void activate(std::size_t index)
+    {
+        if (index >= m_apply.size()) return;
+        m_cursor = index;
+        report_cursor();
+        auto apply = m_apply[index];
+        wxWindow* menu = GetParent();
+        menu->CallAfter([alive = wxWeakRef<wxWindow>(menu), apply] { if (alive && apply) apply(); });
+    }
+
+    void paint(wxPaintEvent&)
+    {
+        wxAutoBufferedPaintDC dc(this);
+        dc.SetBackground(wxBrush(m_palette.surface_raised));
+        dc.Clear();
+        if (!m_focused || m_cursor >= m_cells.size()) return;
+        std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+        if (!gc) return;
+        // The ring sits wholly outside the cell, in the gap the grid leaves.
+        const double ring = FromDIP(m_ring);
+        const wxRect cell = m_cells[m_cursor]->GetRect();
+        gc->SetPen(wxPen(m_palette.border_focus, ring));
+        gc->SetBrush(*wxTRANSPARENT_BRUSH);
+        gc->DrawRoundedRectangle(cell.x - ring / 2., cell.y - ring / 2., cell.width + ring, cell.height + ring,
+                                 FromDIP(m_swatch.radius) + ring / 2.);
+    }
+
+    ShellPalette                             m_palette;
+    SwatchMetrics                            m_swatch;
+    int                                      m_ring{0};
+    std::function<void(const std::string&)> m_cursor_moved;
+    std::vector<ColourCell*>                 m_cells;
+    std::vector<std::string>                 m_keys;
+    std::vector<std::function<void()>>       m_apply;
+    std::size_t                              m_cursor{0};
+    bool                                     m_focused{false};
 };
 
 } // namespace
@@ -135,15 +269,37 @@ void FilamentMenu::open(wxWindow* owner, const ShellTheme& theme, bool dark, Hos
 
 void FilamentMenu::reopen(const Ptr& self, View view)
 {
-    if (!self->m_anchor) return;
+    self->m_stepping_out = false;
+    if (!self->m_anchor) {
+        // The menu cannot come back, so the visit ends here and its line is
+        // not lost.
+        end_visit(self);
+        return;
+    }
     auto* menu   = new HeaderMenu(self->m_owner, self->m_theme, self->m_dark, {});
     self->m_menu = menu;
-    // The visit ends when the popup goes, however it goes: click-away, Esc,
-    // or a row that opens a dialog. The callbacks hold the controller, so it
-    // is still alive here.
-    menu->set_dismiss_listener([self] { self->m_owner->CallAfter([self] { end_visit(self); }); });
+    // A visit ends when the person leaves the menu: click-away, Esc, Tab, or a
+    // row that hands off for good (Filament settings…, the tray row). A close
+    // the menu makes itself, to put a dialog up and come back, is not one.
+    // The callbacks hold the controller, so it is still alive here.
+    menu->set_dismiss_listener([self] {
+        if (self->m_stepping_out) return;
+        self->m_owner->CallAfter([self] { end_visit(self); });
+    });
     show(self, view);
     menu->open(*self->m_anchor);
+}
+
+void FilamentMenu::step_out(const Ptr& self, View back, const std::function<void()>& task)
+{
+    // The dialogs this puts up are modal, and on macOS a system panel's window
+    // frame is its only way out -- a transient popup above it would cover
+    // that frame. The popup goes first and comes back afterwards, in the same
+    // visit.
+    self->m_stepping_out = true;
+    if (auto* menu = self->m_menu.get()) menu->close();
+    task();
+    reopen(self, back);
 }
 
 void FilamentMenu::end_visit(const Ptr& self)
@@ -179,8 +335,8 @@ void FilamentMenu::add_tray_row(const Ptr& self, std::vector<HeaderMenuItem>& ro
         row.decoration.sub_label = wxString::Format(_L("%s is offline. Turn it on to read what's loaded."),
                                                     SetupCommands::current_printer().nickname);
     } else {
-        // On request only: Orca's own sync dialog, unchanged. It is modal, so
-        // the popup closes first.
+        // On request only: Orca's own sync, unchanged. It hands off for good,
+        // so the menu closes and the visit ends.
         row.invoke = [self] {
             if (self->m_host.plater && SetupCommands::sync_from_printer(*self->m_host.plater) && self->m_host.changed)
                 self->m_host.changed();
@@ -203,8 +359,12 @@ void FilamentMenu::show_slots(const Ptr& self)
     rows.push_back(title_row(wxString::Format(_L("FILAMENTS ON %s"), printer_caption(printer, shared_nozzle(printer)))));
     for (const auto& slot : slots) {
         HeaderMenuItem row;
-        row.label          = wxString::Format("%d  %s", int(slot.index + 1), slot.filament.alias);
-        row.decoration.dot = wxColour(slot.colour);
+        // Number, dot, name, as the design reads. The number is drawn ahead
+        // of the dot; the row's name still says all three in words.
+        row.label           = slot.filament.alias;
+        row.name            = wxString::Format("%d  %s", int(slot.index + 1), slot.filament.alias);
+        row.decoration.lead = wxString::Format("%d", int(slot.index + 1));
+        row.decoration.dot  = wxColour(slot.colour);
         wxString detail;
         if (slot.nozzle > 0.)
             detail = nozzle_text(slot.nozzle);
@@ -281,15 +441,18 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
     }
 
     // Everything that fits, installed or not, is Orca's own page; it installs
-    // what is ticked there, and the menu comes back with the list current.
+    // what is ticked there, and the menu comes back with the list current,
+    // in the same visit.
     HeaderMenuItem other;
     other.separator           = true;
     other.label               = _L("Other filament…");
     other.decoration.trailing = HeaderIcon::Right;
+    other.keeps_open          = true;
     other.invoke              = [self, here] {
-        SetupCommands::open_filament_library();
-        if (self->m_host.changed) self->m_host.changed();
-        reopen(self, here);
+        step_out(self, here, [self] {
+            SetupCommands::open_filament_library();
+            if (self->m_host.changed) self->m_host.changed();
+        });
     };
     rows.push_back(std::move(other));
 
@@ -317,18 +480,11 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
 
 wxWindow* FilamentMenu::build_colour_row(const Ptr& self, wxWindow* parent, View view)
 {
-    const std::size_t slot = view.slot.value_or(0);
-    const auto& palette = self->m_theme.palette(self->m_dark);
-    auto*       panel   = new wxPanel(parent);
-    panel->SetBackgroundColour(palette.surface_raised);
-    auto* column = new wxBoxSizer(wxVERTICAL);
+    const std::size_t slot    = view.slot.value_or(0);
+    const auto&       palette = self->m_theme.palette(self->m_dark);
+    const auto        slots   = SetupCommands::filament_slots();
+    const wxColour    current = slot < slots.size() ? wxColour(slots[slot].colour) : wxColour();
 
-    auto* caption = new wxStaticText(panel, wxID_ANY, _L("COLOUR"));
-    style_label(*caption, self->m_theme, TextRole::Metadata, palette.text_secondary);
-    column->Add(caption, 0, wxBOTTOM, panel->FromDIP(4));
-
-    const auto     slots   = SetupCommands::filament_slots();
-    const wxColour current = slot < slots.size() ? wxColour(slots[slot].colour) : wxColour();
     // The slot's own colour first, then the saved ones, each once. No names:
     // the app holds a colour as a value and nothing more.
     std::vector<wxColour> colours;
@@ -338,54 +494,43 @@ wxWindow* FilamentMenu::build_colour_row(const Ptr& self, wxWindow* parent, View
             colours.push_back(saved);
     if (colours.size() > kColourCells - 1) colours.resize(kColourCells - 1);
 
-    auto* grid = new wxGridSizer(int(kColoursPerRow), panel->FromDIP(4), panel->FromDIP(4));
-    for (const wxColour& colour : colours) {
-        const bool chosen = colour == current;
-        auto* cell = new ColourCell(panel, self->m_theme, palette, colour, chosen, [self, view, colour] {
-            // Colour only: the plan does not change, so the visit records
-            // nothing for the thread.
-            if (self->m_host.plater) SetupCommands::set_filament_colour(*self->m_host.plater, view.slot.value_or(0), colour);
-            if (self->m_host.changed) self->m_host.changed();
-            show(self, view);
-        });
-        cell->SetName(colour.GetAsString(wxC2S_HTML_SYNTAX));
-        cell->SetToolTip(colour.GetAsString(wxC2S_HTML_SYNTAX));
-        grid->Add(cell, 0);
-    }
-    auto* plus = new ColourCell(panel, self->m_theme, palette, wxColour(), false, [self, view] {
-        pick_colour(self, view.slot.value_or(0), view);
-    });
-    plus->SetName("Other colour");
-    plus->SetToolTip(_L("Other colour…"));
-    grid->Add(plus, 0);
-    column->Add(grid, 0);
+    std::vector<ColourRow::Cell> cells;
+    for (const wxColour& colour : colours)
+        cells.push_back({colour, colour == current, [self, view, colour] {
+                             // Colour only: the plan does not change, so the
+                             // visit records nothing for the thread.
+                             if (self->m_host.plater)
+                                 SetupCommands::set_filament_colour(*self->m_host.plater, view.slot.value_or(0), colour);
+                             if (self->m_host.changed) self->m_host.changed();
+                             show(self, view);
+                         }});
+    cells.push_back({wxColour(), false, [self, view] { pick_colour(self, view.slot.value_or(0), view); }});
 
-    panel->SetSizerAndFit(column);
-    return panel;
+    // The keyboard's place is kept by value, so it stays on the same colour
+    // when applying it moves that colour to the front of the row.
+    return new ColourRow(parent, self->m_theme, palette, std::move(cells), self->m_colour_cursor,
+                         [self](const std::string& key) { self->m_colour_cursor = key; });
 }
 
 void FilamentMenu::pick_colour(const Ptr& self, std::size_t slot, View back)
 {
-    // The system picker is modal, and on macOS its window frame is its only
-    // way out -- a transient popup above it would cover that frame. The popup
-    // goes first and comes back afterwards.
-    if (auto* menu = self->m_menu.get()) menu->close();
-    const auto slots = SetupCommands::filament_slots();
-    wxColourData data;
-    data.SetChooseFull(true);
-    if (slot < slots.size()) data.SetColour(wxColour(slots[slot].colour));
-    const auto saved = SetupCommands::saved_colours();
-    for (std::size_t i = 0; i < saved.size() && i < 16; ++i)
-        data.SetCustomColour(int(i), saved[i]);
-    wxColourDialog dialog(self->m_owner, &data);
-    dialog.CenterOnParent();
-    if (dialog.ShowModal() == wxID_OK) {
-        const wxColour picked = dialog.GetColourData().GetColour();
-        SetupCommands::remember_colour(picked);
-        if (self->m_host.plater) SetupCommands::set_filament_colour(*self->m_host.plater, slot, picked);
-        if (self->m_host.changed) self->m_host.changed();
-    }
-    reopen(self, back);
+    step_out(self, back, [self, slot] {
+        const auto   slots = SetupCommands::filament_slots();
+        wxColourData data;
+        data.SetChooseFull(true);
+        if (slot < slots.size()) data.SetColour(wxColour(slots[slot].colour));
+        const auto saved = SetupCommands::saved_colours();
+        for (std::size_t i = 0; i < saved.size() && i < 16; ++i)
+            data.SetCustomColour(int(i), saved[i]);
+        wxColourDialog dialog(self->m_owner, &data);
+        dialog.CenterOnParent();
+        if (dialog.ShowModal() == wxID_OK) {
+            const wxColour picked = dialog.GetColourData().GetColour();
+            SetupCommands::remember_colour(picked);
+            if (self->m_host.plater) SetupCommands::set_filament_colour(*self->m_host.plater, slot, picked);
+            if (self->m_host.changed) self->m_host.changed();
+        }
+    });
 }
 
 } // namespace Slic3r::GUI::JusPrin

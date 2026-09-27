@@ -42,6 +42,9 @@ struct SlotDot
 // with no decoration should read as exactly that at the call site.
 struct HeaderRowDecoration
 {
+    // Text ahead of everything else on the row, in the label's own face -- a
+    // slot's number, which the design reads before the slot's dot.
+    wxString lead;
     // Leading dot. Set with a valid colour for a filled swatch; set with an
     // invalid colour for the dashed outline of a colour nobody chose.
     std::optional<wxColour> dot;
@@ -122,6 +125,8 @@ private:
     // Width of the slot-dot run and its "+n", gap to the label included; zero
     // without slot dots. Shared by measuring and painting.
     int  slot_dots_width() const;
+    // Width of the leading text and its gap; zero without one.
+    int  lead_width() const;
     // Screen rect of the row-action glyph, empty when there is none.
     wxRect row_action_rect() const;
     const ShellTheme& m_theme;
@@ -155,6 +160,28 @@ struct HeaderMenuItem {
     HeaderIcon row_action{HeaderIcon::None};
     std::function<void()> invoke_row_action;
     HeaderRowDecoration decoration;
+    // The row's window name, which lookups and assistive technology read;
+    // empty uses the label. Set when the row draws part of what it says
+    // outside the label, as a slot row draws its number. Last, so rows
+    // written positionally elsewhere stay as they are.
+    wxString name;
+};
+
+// A custom view among a menu's rows that takes part in the menu's keyboard
+// model -- the filament menu's colour row. The menu moves into it with Up
+// from the row below it (or Down from the row above), and out of it again the
+// same way; while it is in, Left, Right, Return and Space are the view's.
+class HeaderMenuKeyView
+{
+public:
+    virtual ~HeaderMenuKeyView() = default;
+    // Shows or hides the view's own focus mark.
+    virtual void set_key_focus(bool focused) = 0;
+    // Left, Right, Return or Space while the view has the keyboard. Returns
+    // false for a key it does not use.
+    virtual bool on_menu_key(int key_code) = 0;
+    // The child the keyboard is on, for tests and assistive technology.
+    virtual wxWindow* key_child() const = 0;
 };
 
 // Right-aligned transient menu. The popup owns only presentation; callbacks
@@ -170,6 +197,10 @@ public:
                std::vector<HeaderMenuItem> items);
     void open(HeaderButton& anchor);
     HeaderButton* selected_item() const { return m_selected < 0 ? nullptr : m_items[m_selected]; }
+    // The custom view, when it takes part in the keyboard model, and whether
+    // the keyboard is in it now.
+    HeaderMenuKeyView* key_view() const;
+    bool               key_view_active() const { return m_header_active && key_view() != nullptr; }
 
     // Swaps the rows for a new set and re-lays out at the same anchor. The
     // width stays put so the popup does not jump as the person types.
@@ -193,6 +224,8 @@ protected:
 
 private:
     void select_item(int index);
+    void enter_key_view();
+    void leave_key_view();
     void build(std::vector<HeaderMenuItem> items);
     void on_key(wxKeyEvent& event);
     void reposition();
@@ -203,6 +236,11 @@ private:
     wxWindow* m_header{nullptr};
     std::function<wxWindow*(wxWindow*)> m_header_builder;
     int m_header_after_rows{0};
+    // The first selectable row below the custom view, and whether the
+    // keyboard is in the view. The flag survives a rebuild, so a view that
+    // rebuilds the menu on Return keeps the keyboard.
+    int  m_header_item_index{-1};
+    bool m_header_active{false};
     std::function<void()> m_dismissed;
     wxWeakRef<HeaderButton> m_anchor;
     bool m_closed{false};
