@@ -1,0 +1,219 @@
+open https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=0-1 in browser. check maker-at-work-tools-attach layer
+
+---
+
+use Chrome
+
+---
+
+the dashed rectangle is supposed to indicate selection of an object. And the  vertical toolbar should be docked on the rectangle rather than the right edge of the 3d view. does it make more ssense to you now?
+
+---
+
+Now I want to check the technical feasibility of this design.  My first question is that the vanilla orca slicer indicates the selection using a 3D view rather than a 2D rectangle.  Find other common application that has a 3D viewer and check if they all use 3D selection rather than 2D rectangles.  Or if you know that the selection in a 3D viewer has to be 3D for a good reason, also let me know.
+
+---
+
+<task-notification>
+<task-id>ae80a74a3f91bff9b</task-id>
+<tool-use-id>toolu_018fTqnPnAWz5utj8GAdTR5n</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2e34431f-eec3-4f51-a67b-4bc5b3a66821/tasks/ae80a74a3f91bff9b.output</output-file>
+<status>completed</status>
+<summary>Agent "Research 3D selection UI conventions" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no rule that selection in a 3D viewer has to be drawn in 3D. The evidence splits by kind of app. Tools with an orbiting camera (slicers, CAD, game engines) all mark selection in 3D. Office and presentation apps that place a 3D model on a 2D page use a flat 2D rectangle with handles. My reading, which no source states, is that your mockup takes the page-app pattern into an orbit-camera app. I found no app with an orbiting camera that uses a 2D screen rectangle. The closest precedent for a toolbar attached to the object is Microsoft's HoloLens bounding box, which is 3D.
+
+| App | Selection indicator | 2D/3D | Contextual toolbar / anchor | Source | Status |
+|---|---|---|---|---|---|
+| OrcaSlicer | Corner brackets on the world-space bounding box (white; yellow in the assemble view), plus mesh tint | 3D | Fixed top toolbar; the gizmo draws on the object | local `src/slic3r/GUI/Selection.cpp:2001-2012, 2619`; `3DScene.cpp:305` | Verified (code) |
+| Bambu Studio | World-space bounding box scaled to the object; XYZ move arrows on the object | 3D | Fixed top toolbar | github.com/bambulab/BambuStudio `src/slic3r/GUI/Selection.cpp` `render_bounding_box`; https://wiki.bambulab.com/en/bambu-studio/skills/move | Verified |
+| PrusaSlicer | Probably the same corner brackets (shared code history); its source has since been restructured | 3D? | Fixed toolbar | — | Inferred |
+| Cura | Blue outline around the model | Outline | Fixed left toolbar | https://github.com/Ultimaker/Cura/wiki/Tools | Verified |
+| Creality Print | Not found (Orca-derived, so probably corner brackets) | ? | Fixed top toolbar | https://wiki.creality.com/en/software/6-0/move-function | Toolbar verified; indicator inferred |
+| Lychee | White border around the selected model, drawn from the current point of view | Screen-space silhouette | — | https://docs.mango3d.io/doc/resin-documentation/resin-3d-view/view-options/ | Verified |
+| Chitubox | Docs don't say | ? | — | https://docs.chitubox.com/en-US/chitubox/latest/model-editing | Not verified |
+| Tinkercad | 4 handles on the workplane plus 1 above the shape | 3D | Inspector fixed top-right | https://libguides.uthscsa.edu/3Dmodeling/using-shapes ; https://www.tinkercad.com/help-center/using-the-inspector | Verified (third-party guide; Inspector position from a search snippet) |
+| SketchUp | Entities turn blue; groups get a blue bounding box | 3D | None | https://mastersketchup.com/sketchup-groups-and-components/ | Verified (third-party) |
+| Onshape | Selected part tinted yellow `#ffc107` | 3D tint | Right-click menu | https://cad.onshape.com/help/Content/Home/colors.htm | Verified |
+| Fusion 360 | Forums mention blue highlight; official docs silent | 3D tint? | — | https://forums.autodesk.com/t5/fusion-support-forum/my-model-turned-blue-like-it-is-selected/td-p/9575647 | Not verified |
+| Shapr3D | Indicator not found | ? | Tool menus float at the canvas sides and change with the selection; right-click context menus | https://support.shapr3d.com/hc/en-us/articles/7873942151068-Context-menus | Menus verified |
+| Blender | "Outline Selected" overlay | Silhouette | — | https://artisticrender.com/how-to-use-3d-viewport-overlays-in-blender-3d/ | Verified (official manual blocked) |
+| Unity | Orange outline (children blue); optional wireframe | Silhouette | — | https://docs.unity3d.com/Manual/GizmosMenu.html | Verified |
+| Unreal | Yellow highlight plus transform widget | Silhouette + gizmo | — | https://dev.epicgames.com/documentation/unreal-engine/selecting-actors-in-unreal-engine | Verified |
+| Godot | Orange box around the object's extents, plus a see-through copy visible behind geometry | 3D | — | https://github.com/godotengine/godot/pull/40106 | Verified |
+| PowerPoint/Word | Normal resize handles, 2D rotate handle, 3D rotate control in the centre; the model sits inside a frame | **2D** | Ribbon tab | https://support.microsoft.com/en-us/office/graphics-visuals/get-creative-with-3d-models ; https://thepowerpointblog.com/using-3d-models/ | Verified |
+| Keynote | Selection handles around the object, Rotate button in the centre | **2D** | Format sidebar | https://support.apple.com/guide/keynote/add-3d-objects-tane2b2f4354/mac | Handles verified; rectangle shape inferred |
+| Paint 3D | Corner resize boxes; half-circle rotate handles on the right, top and bottom sides | **2D** box | — | https://www.laptopmag.com/articles/rotate-resize-paint-3d | Handles verified; screen-aligned inferred |
+| 3D Builder | Axis arrow gizmo on the object | 3D | — | https://www.sculpteo.com/en/tutorial/3d-builder-tutorial/ | Verified (third-party) |
+| HoloLens / MRTK | Bounding box with corner scale and edge rotate handles | 3D | **App bar on the bottom edge of the object's bounds, on the side facing the user** | https://learn.microsoft.com/en-us/windows/mixed-reality/design/app-bar-and-bounding-box | Verified |
+| Canva, Spline, Figma | Help page blocked (Canva); docs silent (Spline); no 3D feature found (Figma) | ? | — | — | Not verified |
+
+## Reasons and tradeoffs
+
+**Sourced:**
+- **Microsoft Mixed Reality guidance.** The bounding box shows the object's full extent, so an object snapped to a surface doesn't seem to have phantom space around it. The toolbar stays on the side nearest the user so it is never blocked. This is the clearest precedent for docking a toolbar to a selected 3D object, and it is attached to a 3D box.
+- **Godot.** The see-through box stays visible behind other objects while "still having a sense of depth" (PR above). An open proposal says axis-aligned boxes are "visually misleading" on non-box-shaped meshes and look bigger than the mesh: https://github.com/godotengine/godot-proposals/issues/14064
+- **VR highlighting study.** Thin outlines were often too easy to miss, and tinting the whole object hid its details: https://arxiv.org/html/2403.15321
+
+**My reasoning (no source found):**
+- PowerPoint, Keynote and Paint 3D can use a 2D box because the model is a page element: the frame is its footprint on the page, and rotating turns the model inside that frame instead of moving a scene camera.
+- In a slicer, a box around the projected silhouette changes size and shape every time the camera orbits. The toolbar docked to it would jump around.
+- On a crowded plate, neighbouring boxes overlap and it becomes unclear which object is selected.
+- A flat box says nothing about height or where the part touches the bed, which matter for printing.
+- In its favour: it is always readable, easy to anchor a native toolbar to, and familiar from 2D design tools.
+- If you keep the 2D box, I'd suggest computing it from the 8 projected corners of the 3D bounding box, keeping the toolbar inside the viewport, and hiding both while the camera orbits or the object is dragged.</result>
+<usage><subagent_tokens>111231</subagent_tokens><tool_uses>60</tool_uses><duration_ms>196017</duration_ms></usage>
+</task-notification>
+
+---
+
+show me a few screenshots from Cura, Lychee, Blender and Unity when there are objects selected so that I can check the visual
+
+---
+
+do any of them have the tool bar docked with the boundary of the selection, insetead of on view boundary?  I guess the reason is that the selection for moves. When the camera pin or zoom, there is the viewport itself. It's static, right?
+
+---
+
+I think a better design is to do what's similar to vanilla orcaslicer: 3d selection, and tool bar docked at the edge of the 3d viewer.  but we want it to look more applealing than vanilla orcaslicer. prompt the figma agent in the browser, to change the existing design in that direction, and check the agent's work to see if it looks elegant
+
+---
+
+Did you design the toolbar by allowing the user to drag it around?  If so, do you allow it to snap to a corner or an edge?
+
+---
+
+create a handoff doc for another agent to implement it
+
+---
+
+<task-notification>
+<task-id>ad18232fea17ee49d</task-id>
+<tool-use-id>toolu_019wbyzzKSoyWth6AZUNDHyU</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2e34431f-eec3-4f51-a67b-4bc5b3a66821/tasks/ad18232fea17ee49d.output</output-file>
+<status>completed</status>
+<summary>Agent "Map selection and canvas toolbar code" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Everything you asked about exists except a JusPrin viewport toolbar and a literal-colour guard for native C++; both are "not found". Paths are relative to `/Users/kenneth/Projects/JusPrin`.
+
+## 1. How the selection indicator is drawn
+
+**Corner brackets**
+- `Selection::render` is at `src/slic3r/GUI/Selection.cpp:2001-2013`. It takes the box and transform from `get_bounding_box_in_current_reference_system()` and colours the brackets `ColorRGB::WHITE()`, or `YELLOW()` on the assemble canvas (line 2011). The colour is hard-coded, with no config.
+- It is called from `GLCanvas3D::_render_selection` (`src/slic3r/GUI/GLCanvas3D.cpp:8297-8306`), and only when no gizmo is running. That is the three call sites at `GLCanvas3D.cpp:2084/2091/2104`.
+- `Selection::render_bounding_box` is at `Selection.cpp:2619-2771`:
+  - Each bracket arm is 20% of the box size on that axis (`0.2f * box.size()`, line 2630). That makes 48 line vertices, 3 arms at each of 8 corners (lines 2641-2695).
+  - If `auto_drop` is false, it adds down-arrows under the 4 bottom corners (lines 2698-2731).
+  - The geometry is cached in `m_box` and rebuilt only when the box or `auto_drop` changes (line 2624).
+  - Line width is `glLineWidth(2.0f * m_scale_factor)` on compatibility profiles (line 2747). On core profiles it uses the `dashed_thick_lines` shader with `width = 1.5f` and `gap_size = 0` (lines 2749, 2763-2764). GLES uses `dashed_lines`.
+  - The colour comes in as a parameter and is applied with `m_box.set_color(to_rgba(color))` (line 2768).
+- Per-volume boxes: sidebar hover draws a YELLOW box through the same function (`Selection.cpp:2614`).
+
+**Mesh tint**
+- `GLVolume::set_render_color()` is at `src/slic3r/GUI/3DScene.cpp:280-354`. The old `SELECTED_COLOR`, `HOVER_SELECT_COLOR` and `HOVER_DESELECT_COLOR` branch is commented out (lines 299-307).
+- Today a selected volume is its own colour brightened by `brighten_color(base_color, 1.25f)` (lines 325-327). Despite the parameter, that function just adds a fixed +0.25 lightness in HSL (lines 191-241, declared at `3DScene.hpp:99`).
+- Unprintable selected volumes get a brightened `UNPRINTABLE_COLOR` (line 344).
+- The other static colours are at `3DScene.cpp:146-166`. `update_render_colors()` pulls them from the ImGui `RenderColor::colors[...]` table (lines 168-178), but there is no entry for a selected colour.
+- Optional outline: when `volume-&gt;selected &amp;&amp; wxGetApp().show_outline()` (`3DScene.cpp:1134`), it calls `GLVolume::render_with_outline` (lines 480-560). That is a depth pre-pass, then the `is_outline` uniform in `resources/shaders/{110,140}/gouraud.fs` (around lines 37 and 170), using `DetectSilho`/`getBackfaceColor` and `INFLATE 1`.
+- **App setting:** the outline is controlled by `show_outline` in app config, default false (`src/libslic3r/AppConfig.cpp:310-311`). The getter and toggle are at `src/slic3r/GUI/GUI_App.hpp:391-392`, with a menu toggle at `MainFrame.cpp:3139` and a canvas menu entry at `GLCanvas3D.cpp:9240`.
+
+**Hover**
+- Hover state is set in `GLCanvas3D.cpp:9925-9957` (`HS_Select`, `HS_Deselect`, `HS_Hover`) and `Selection.cpp:2538-2539`. The enum is at `3DScene.hpp:106`.
+- Because the colour branch is commented out, hover has **no colour effect**. It only affects sinking contours (`3DScene.cpp:1076` and `1155`).
+
+## 2. Existing canvas toolbars
+
+**Overlay pass**
+- Everything is drawn from `GLCanvas3D::_render_overlays` (`GLCanvas3D.cpp:8402-8455`). In order: separators, main toolbar, collapse, assemble-view, plate toolbar, return button, paint toolbar, the gizmo toolbar (`_render_gizmos_overlay`), object labels, the 3D navigator, and the bottom-left view toolbar (`_render_canvas_toolbar`, lines 9112+).
+- `_render_overlays` is called only when `!m_legacy_overlays_hidden` (line 2148).
+
+**Main toolbar (`GLToolbar`)**
+- Set up in `_init_main_toolbar` (`GLCanvas3D.cpp:6732`) as a horizontal strip (line 6758).
+- Buttons: `add`, `addplate`, `orient`, `arrange`, `more` (`EVT_GLTOOLBAR_MORE`, line 6834), `fewer` (line 6846), `splitobjects`, `splitvolumes`, `layersediting`.
+- Positioned in `_render_main_toolbar` (lines 8635-8650) using `get_main_toolbar_offset()` (lines 8616-8631), which centres main + separator + gizmo + assemble + collapse widths across the top.
+- Coordinates put `{0,0}` at the canvas centre, so top is `0.5*h` and left is `-0.5*w`.
+- `GLToolbar` can already lay out vertically: `Layout::Vertical`, `HO_Right`, `VO_Top`, `set_position(top,left)`, `render_vertical`, `set_input_enabled` (`src/slic3r/GUI/GLToolbar.hpp:277-302, 363-381, 446`).
+
+**Gizmo toolbar (`GLGizmosManager`)**
+- Types are listed at `src/slic3r/GUI/Gizmos/GLGizmosManager.hpp:74-98`. The first three are `Move`, `Rotate`, `Scale`, then `Flatten`, `Cut`, …, `BrimEars`.
+- The gizmo objects are created at `GLGizmosManager.cpp:206-208` (Move3D, Rotate3D, Scale3D).
+- It is horizontal on top because `BBS_TOOLBAR_ON_TOP 1` is defined at `GLGizmosManager.hpp:17`. `get_scaled_total_height/width` are at `GLGizmosManager.cpp:1277-1295`.
+- `render_overlay` (line 614) calls `do_render_overlay` (lines 1180-1275). That places the strip to the right of the main toolbar (lines 1200-1216) and picks each icon's state as normal, hover, active, disabled or highlighted (line 1248).
+- **It also draws the active gizmo's ImGui panel via `render_input_window` (lines 1264 and 1273).** So when legacy overlays are hidden, the Move/Rotate/Scale panels are not drawn either. The 3D handles are still drawn by `_render_current_gizmo` (`GLCanvas3D.cpp:2127`).
+- Icon hit-testing is `get_gizmo_from_mouse` (lines 80-121), gated by `m_picker_input_enabled` (line 759; setter at `GLGizmosManager.hpp:237`).
+- **To activate a tool:** call `GLGizmosManager::open_gizmo(EType)` (`GLGizmosManager.cpp:384-399`). Opening the tool that is already active closes it. Read the active tool with `get_current_type()`.
+
+**Collapse toolbar**
+- Owned by the Plater: `Plater::priv::init_collapse_toolbar` (`Plater.cpp:11144`), laid out vertically, right-aligned, top (line 11163).
+- Drawn by `_render_collapse_toolbar` (`GLCanvas3D.cpp:9326-9342`), which docks it to the canvas's right or left edge depending on sidebar docking.
+
+**Assemble-view toolbar**
+- Set up in `_init_assemble_view_toolbar` (`GLCanvas3D.cpp:6957`), drawn by `_render_assemble_view_toolbar` (lines 9020-9034) to the right of the gizmo strip.
+
+**Duplicate / "more" actions that already exist**
+- `EVT_GLTOOLBAR_MORE` → `Plater::increase_instances()`, and `FEWER` → `decrease_instances()` (`Plater.cpp:5218-5219`; definitions at 14829 and 14869).
+- `EVT_GLTOOLBAR_CLONE` → `Plater::clone_selection()` (`Plater.cpp:17537`), which opens a modal `CloneDialog`. The keyboard shortcut posts it at `GLCanvas3D.cpp:3457`.
+- Copy/paste is `EVT_GLTOOLBAR_COPY` and `EVT_GLTOOLBAR_PASTE`.
+- Right-click menu: `Plater::priv::on_right_click` (`Plater.cpp:10595`) chooses `menus.object_menu()` and friends. There is a public `Plater::object_menu()` (line 18823).
+- In `src/slic3r/GUI/GUI_Factories.cpp`, "Add instance" and "Set number of instances" are at lines 2007-2019 and `append_menu_item_clone` is at line 2073.
+
+## 3. What JusPrin already does around the canvas
+
+**Hiding Orca's overlays**
+- `src/slic3r/GUI/JusPrin/CanvasPresentationController.{hpp,cpp}` has `attach` and `detach`, which flip `GLCanvas3D::set_legacy_overlays_hidden` (`GLCanvas3D.cpp:1809-1826`; declared at `GLCanvas3D.hpp:883-884`).
+- That call disables input on the main toolbar, the assemble toolbar and the gizmo picker. It also sets `only_body` plate rendering (line 2059), suppresses plate hover (line 7230) and skips `_render_overlays` (line 2148).
+- The controller already has **`activate_move()` / `activate_rotate()`** (`CanvasPresentationController.cpp:23-47`), which call `open_gizmo`, then `set_as_dirty` and `request_extra_frame`. There is no `activate_scale` yet, and **nothing calls these two functions**.
+- `ShellController.cpp:258-269` disables the collapse toolbar and attaches the controller to the Prepare canvas. It detaches at line 412 and abandons at line 298; the member is at `ShellController.hpp:135`.
+
+**Sidebar seam**
+- `ShellController.cpp:254` calls `Plater::set_sidebar_available(false)` (`Plater.hpp:333-334`, `Plater.cpp:14678`). `Plater.cpp:5696` enforces it.
+- No `SidebarPolicy` type or "sidebar policy" doc was found; this flag is the seam.
+
+**Viewport toolbar or overlay**
+- **Not found.** No JusPrin ImGui code (no hits for ImGui in `JusPrin/*.cpp/hpp`) and no wx child widget over the canvas. The design doc confirms that ImGui panels and the canvas selection rectangle are deliberately left untouched (`agent-docs/jusprin/design-system.md:233-235, 265`).
+
+**Where native widgets get colours**
+- `ShellTheme` (`src/slic3r/GUI/JusPrin/Shell/ShellTheme.hpp`) exposes `palette(dark)`, `metrics()` and `font(role)`.
+  - Palette fields are listed at lines 15-43, including `surface_selected`, `border_focus`, `action_primary*`, `surface_raised`, `border_subtle`.
+  - Spacing steps `space_1`…`space_12` are at lines 120-129; `space_3` is 12.
+  - `ButtonRecipe icon` is at line 78.
+- It loads from `resources/jusprin/ui/design-tokens.json` (`ShellTheme.cpp:225`). The shared instance is `brand_theme()` in `src/slic3r/GUI/JusPrin/Brand/BrandPalette.hpp:11`.
+- Stock widgets are styled through `Shell/ShellRecipes.hpp`.
+- The token file has **no canvas, viewport or selection tokens**. Its keys cover `component.button.icon`, `menuRow`, `popover`, etc., and its `rules.rawColor` says to resolve primitives through semantic tokens.
+
+**Guards**
+- `design-system.md:162-191` says: never type a colour, radius, font or control size; add the token first and extend `tests/brand/test_brand_tokens.cpp`; spacing may be literal on the 4/8/12/16/20/24/32/40/48 scale; upstream files are off limits for style, and retinting goes only through the hooks in `BrandPalette.cpp`.
+- `tests/brand/test_brand_tokens.cpp` checks the token file itself (hex format, contrast, scales).
+- `tests/jusprin/test_shell_theme.cpp` checks parsing and fonts.
+- The only automated no-literal-colour check is for the web UI (`AgentUI/src/styles.test.ts:59`). **Not found** for native C++; there it is a documented rule only.
+
+## 4. Projecting a 3D bounding box to screen coordinates
+
+- `CameraUtils::project(camera, std::vector&lt;Vec3d&gt;)` and the single-point version (`src/slic3r/GUI/CameraUtils.hpp:27-28`, `.cpp:11-41`) are correct `igl::project` calls. They return top-left-origin pixel coordinates, the same frame ImGui uses. `CameraUtils::create_hull2d(camera, GLVolume)` is at line 36.
+- It is already used for this at `GLSelectionRectangle.cpp:42`, `GLGizmoEmboss.cpp:821` and `SurfaceDrag.cpp:541`.
+- `GLCanvas3D::Labels::render` (`GLCanvas3D.cpp:743-850`) does its own `projection * view` maths, but its perspective branch uses an ad-hoc `0.001f` factor instead of a proper perspective divide (lines 836-846). Prefer `CameraUtils`.
+- `PartPlate.cpp:1261-1265` uses the same pattern as Labels.
+- To get the selection's box, use `Selection::get_bounding_box()` or `get_bounding_box_in_current_reference_system()`.
+
+## 5. Running and testing the Prepare canvas without hardware
+
+- `src/slic3r/GUI/JusPrin/Testing/README.md` only covers the fake Bambu printer. You turn it on with `"jusprin": {"fake_printer": true}` in `JusPrin2.conf` under a scratch `--datadir`; its tests are `jusprin_fake_bambu_tests`. It does not cover the canvas.
+- The full-app harness is `tests/shell/shell_integration_harness` (`tests/shell/shell_harness.cpp`; modes listed at lines 1-68).
+  - Default mode runs automated shell checks, `--stock` checks restoration, `--manual` leaves the app open for a human, and `--manual-mcp &lt;dir&gt;` / `--header-visual &lt;dir&gt;` open fixture projects.
+  - It already checks `prepare_legacy_overlays_hidden` (line 1008) and restoration (line 4212).
+  - `write_screen_capture` (line 2106) saves PNG screenshots.
+  - Build commands are in `agent-docs/jusprin/mcp-tool-extension-guide.md:849-862`.
+- `tests/workspace/real_adapter_harness.cpp` runs the real workspace adapter.
+- `OrcaWorkspaceAdapter::render_view` (`Workspace/OrcaOutputs.cpp:142-160`, behind the MCP `view_render` tool) renders the canvas offscreen. It goes through `render_thumbnail`, so it will not show overlays or brackets.
+- Catch2 targets: `jusprin_tests`, `shell_theme_tests` and `jusprin_fake_bambu_tests` (`tests/jusprin/CMakeLists.txt:4, 42, 55`), `brand_tokens_tests` (`tests/brand`), and `workspace_contract_tests` (`tests/workspace/CMakeLists.txt:1`). The Catch2 conventions are in `tests/CLAUDE.md`.
+- **Not found:** any unit test for `CanvasPresentationController`, `Selection` rendering, or gizmo activation.</result>
+<usage><subagent_tokens>143266</subagent_tokens><tool_uses>39</tool_uses><duration_ms>184071</duration_ms></usage>
+</task-notification>
+
+---
+
+keep in mind that the coding agent has access to the figma design. so yu don't have to describe the peixl-perfect design using words.
+
+---
+
+After you are done, copy the handoff doc to gcp vm jusprin-win-test. user guitest, folder ~/Downloads
