@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3JCF2Z231898NGD89ST7M4G",
+  "strategy": "manual-commit",
+  "branch": "claude/filament-chip",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/FilamentMenu.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.hpp",
+    "tests/brand/test_brand_tokens.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 108,
+    "cache_creation_tokens": 1516986,
+    "cache_read_tokens": 38248988,
+    "output_tokens": 60775,
+    "api_call_count": 52
+  }
+}

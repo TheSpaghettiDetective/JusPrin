@@ -1,0 +1,129 @@
+# Four fixes for the filament chip (branch claude/filament-chip)
+
+All paths are under `src/slic3r/GUI/JusPrin/Shell/` unless stated.
+Line numbers are at commit a74862697e.
+
+## 1. Colour cells cannot be reached by keyboard
+
+**What is wrong.** In the filament menu, the colour swatches and the "+" cell
+respond to the mouse only. A person using the keyboard can change the filament
+but not the colour.
+
+**Where.**
+- `FilamentMenu.cpp:64` `ColourCell` binds enter, leave and left-button-up, and
+  nothing for keys or focus.
+- `HeaderControls.cpp:663` `HeaderMenu::on_key` moves only through `m_items`,
+  the row buttons. The colour row is built by `set_header_builder`, so it is
+  never in that list.
+
+**Expected.**
+- Up from the first filament row moves into the colour row. Down leaves it.
+- Left and Right move between cells, including "+".
+- Return or Space applies the cell, the same as a click.
+- The focused cell shows the 2 DIP focus ring the design system requires.
+- After a colour is applied the menu rebuilds. The keyboard position stays on
+  the same cell.
+- Where a keyboard-opened menu starts does not change.
+
+**How to check.** Add harness checks that send keys through the menu's key
+handler: reach a saved colour with arrows, press Return, and confirm the slot's
+colour changed and the menu stayed open.
+
+## 2. Sizes typed as numbers instead of design tokens
+
+**What is wrong.** The branch adds sizes as typed numbers. The project rule is
+in `agent-docs/jusprin/design-system.md`, section "Writing UI code", rules 1
+and 2: add the token first, extend the guard, then read it from code.
+
+**Where.** New on this branch:
+
+| Value | Location |
+|---|---|
+| Slot dot size, 8 and 4 | `HeaderControls.cpp:121-122` |
+| Gap between slot dots, 3 and 2 | `HeaderControls.cpp:123-124` |
+| Gap from the dots to the label, 8 | `HeaderControls.cpp:263` |
+| Fade strength of an unused slot, 90 of 255 | `HeaderControls.cpp:404` |
+| Colour cell inset and ring width | `FilamentMenu.cpp:95`, `:102`, `:110` |
+
+Carried over from the old spool menu, still typed: the colour grid gap and
+caption gap of 4, at `FilamentMenu.cpp:328` and `:341`.
+
+**Expected.** Each value is a token in
+`resources/jusprin/ui/design-tokens.json`, read through `ShellTheme::metrics()`,
+with a guard in `tests/brand/test_brand_tokens.cpp`. Follow the existing
+`component.swatch` entry: parsed at `ShellTheme.cpp:267`, held in
+`SwatchMetrics` in `ShellTheme.hpp:101`.
+
+**Leave alone.** `kFullSizeDots` and `kColoursPerRow` are counts, not sizes.
+
+**How to check.** The guard test fails when a token is removed or changed. The
+chip renders the same as before.
+
+## 3. One menu visit can post two chat lines
+
+**What is wrong.** The design posts one grey chat line per menu visit that
+changed a filament. A visit ends whenever the popup is dismissed, including
+when the menu closes itself to show a dialog and then reopens.
+
+**Where.**
+- `FilamentMenu.cpp:144` every popup gets a dismiss listener that calls
+  `end_visit`.
+- `FilamentMenu.cpp:372` `pick_colour` closes the popup before the system
+  colour picker, then reopens it.
+- `FilamentMenu.cpp:290` "Other filament…" closes the popup, opens OrcaSlicer's
+  filament page, then reopens it.
+
+**Reproduce first.**
+1. Open the filament menu and pick a different filament.
+2. Click "+", pick a colour, press OK. The menu comes back.
+3. Pick another filament.
+4. Click away.
+
+I expect two chat lines. I have not run this by hand.
+
+**Expected.** One line, naming the final filament. A visit ends only when the
+person leaves the menu: click-away, Esc, Tab, "Filament settings…", or the
+sync row. A close that the menu makes itself, followed by a reopen, is the same
+visit. If the menu cannot reopen, end the visit so the line is not lost.
+
+**How to check.** The existing checks `the_visit_leaves_one_line` and
+`one_menu_visit_posts_one_note` do not cover a close and reopen in the middle.
+Add one that does.
+
+## 4. Dot drawn before the slot number
+
+**What is wrong.** In the slot list, each row reads dot, number, name. The
+design, frame 23d, reads number, dot, name.
+
+**Where.** `FilamentMenu.cpp:206-207`. The number is part of the label, and the
+colour is the row's leading dot, which is drawn before the label at
+`HeaderControls.cpp:393`.
+
+**Expected.** Number first, then the dot, then the filament's short name.
+
+**Keep.** The row's name, used for lookup and accessibility, stays
+"1  Bambu PLA Basic". The harness check `the_slot_list_names_each_slot`
+depends on it.
+
+**How to check.** Render the slot list to a picture in the harness and confirm
+the order. The harness currently photographs only the chip.
+
+---
+
+<task-notification>
+<task-id>bo4wl34bw</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-infallible-diffie-bf2fda\9fc9a2c9-79c1-43c8-a3a6-05a3e1aa64b8\tasks\bo4wl34bw.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the default and live harness modes" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bnla98c9e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-infallible-diffie-bf2fda\9fc9a2c9-79c1-43c8-a3a6-05a3e1aa64b8\tasks\bnla98c9e.output</output-file>
+<status>failed</status>
+<summary>Background command "Rerun the live and default harness modes" failed with exit code 1</summary>
+</task-notification>
