@@ -43,11 +43,11 @@ wxString home_page_url()
 
 } // namespace
 
-HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame, Workspace::SpoolStore* spools)
+HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame)
     : wxPanel(parent, wxID_ANY), m_theme(theme), m_live_timer(this)
 {
     Bind(wxEVT_TIMER, &HomeWebView::on_live_tick, this, m_live_timer.GetId());
-    m_backend = std::make_unique<OrcaHomeBackend>(frame, spools);
+    m_backend = std::make_unique<OrcaHomeBackend>(frame);
     m_host    = std::make_unique<HomeHost>(*m_backend, [this](const std::string& envelope) {
         if (m_webview == nullptr)
             return;

@@ -34,14 +34,13 @@ PrinterPanel::PrinterPanel(wxWindow*              parent,
                            bool                   dark,
                            Workspace::IWorkspace& workspace,
                            Plater&                plater,
-                           Workspace::SpoolStore* spools,
                            Callbacks              callbacks)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_dark(dark)
     , m_workspace(workspace)
     , m_callbacks(std::move(callbacks))
-    , m_backend(std::make_unique<OrcaPrinterBackend>(plater, PrinterCatalog::load(Slic3r::resources_dir()), spools))
+    , m_backend(std::make_unique<OrcaPrinterBackend>(plater, PrinterCatalog::load(Slic3r::resources_dir())))
     // The cast is made here, inside the class, because this panel keeps its
     // conversation-host side private.
     , m_conversation(new PrinterConversation(*m_backend, static_cast<IConversationHost&>(*this)))

@@ -5,7 +5,7 @@
 // A printer is app-level, not project-level, so this follows Home rather than
 // the workspace contract: the surface owns a narrow interface, and one Orca
 // implementation behind it calls the existing owners -- PrinterCatalog,
-// PrinterDiscovery, Printers::, SetupCommands::, SpoolStore. GUI-free and
+// PrinterDiscovery, Printers::, SetupCommands::. GUI-free and
 // Orca-free so the conversation can be tested without either.
 
 #include "PrinterSetupTypes.hpp"
@@ -17,7 +17,7 @@
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
-// One spool as a printer reports it or as this app remembers it.
+// One spool as a connected printer reports it.
 struct PrinterSpool
 {
     std::string name;
@@ -88,7 +88,6 @@ struct ChangePrinterRequest
 {
     std::string                  name; // the saved printer to change
     std::optional<double>        nozzle;
-    std::optional<std::vector<PrinterSpool>> spools;
 };
 
 struct ConnectionCandidate

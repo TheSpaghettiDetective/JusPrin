@@ -35,8 +35,9 @@ struct ProjectEntry
     std::string        status_text;
 };
 
-// A spool the printer holds. Either field may be empty: a spool described
-// without a colour is still a material the card can name.
+// A spool the printer holds, as a connected printer reports its tray. Either
+// field may be empty: a tray that reports no colour is still a material the
+// card can name.
 struct SpoolEntry
 {
     std::string material; // the filament type, such as "PLA"

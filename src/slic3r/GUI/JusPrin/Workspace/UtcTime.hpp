@@ -1,7 +1,7 @@
 #pragma once
 
 // One spelling for a moment in time wherever JusPrin writes one down: saved
-// state, the spool store, and tool results. ISO 8601 in UTC, to the second,
+// state, printer facts, and tool results. ISO 8601 in UTC, to the second,
 // because a reader -- a person or a model -- can read it without converting
 // anything, and a raw epoch count it cannot.
 

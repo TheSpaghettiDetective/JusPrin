@@ -217,12 +217,12 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_status_row->set_agent_pane_toggle([this] { toggle_agent_pane(); });
         m_status_row->set_agent_pane_collapsed(m_agent_pane_collapsed);
 
-        // The header posts its after-swap line into the thread. Wiring it here
-        // rather than giving StatusRow the AgentHost keeps the header free of
-        // any Agent dependency, and the weak reference means a torn-down pane
-        // simply stops accepting notes.
-        m_status_row->set_note_sink([pane = wxWeakRef<AgentPane>(m_agent_pane)](const wxString& text) {
-            if (pane) pane->web_view().host().post_note(text.ToUTF8().data());
+        // The header posts its after-change line into the thread. Wiring it
+        // here rather than giving StatusRow the AgentHost keeps the header free
+        // of any Agent dependency, and the weak reference means a torn-down
+        // pane simply stops accepting notes.
+        m_status_row->set_note_sink([pane = wxWeakRef<AgentPane>(m_agent_pane)](const wxString& text, const wxString& swatch) {
+            if (pane) pane->web_view().host().post_note(text.ToUTF8().data(), swatch.ToUTF8().data());
         });
 
         // Adopt the currently open project once the host has registered its
@@ -239,13 +239,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // predicates that key off GetSelection(), and any future cast of a
         // page all still find the window they expect. The shell owns only
         // which of the two is on screen for tpHome.
-        m_home = new Home::HomeWebView(&frame, *m_theme, frame, m_status_row->spool_store());
+        m_home = new Home::HomeWebView(&frame, *m_theme, frame);
         m_home->Hide();
 
         // The printer conversation lives beside Home's page, in the column
         // the printers list otherwise holds, and Home's own actions open it.
         m_printer_panel = new PrinterSetup::PrinterPanel(
-            m_home, *m_theme, GUI_App::dark_mode(), *m_workspace, *plater, m_status_row->spool_store(),
+            m_home, *m_theme, GUI_App::dark_mode(), *m_workspace, *plater,
             PrinterSetup::PrinterPanel::Callbacks{
                 [this] {
                     m_home->show_side_panel(false);

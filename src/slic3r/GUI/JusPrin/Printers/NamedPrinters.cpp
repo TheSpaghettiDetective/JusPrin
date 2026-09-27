@@ -9,7 +9,6 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Tab.hpp"
@@ -205,8 +204,7 @@ std::string add_named_printer(Plater& plater, const std::string& base_name, cons
     return name;
 }
 
-wxString rename_named_printer(Plater& plater, Workspace::SpoolStore* spools, const std::string& from,
-                              const std::string& to)
+wxString rename_named_printer(Plater& plater, const std::string& from, const std::string& to)
 {
     const Preset* preset = saved_preset(from);
     if (preset == nullptr || !is_named_printer(*preset))
@@ -237,14 +235,12 @@ wxString rename_named_printer(Plater& plater, Workspace::SpoolStore* spools, con
         throw std::runtime_error("Orca did not save printer profile " + from + " as " + to);
     delete_unselected(from);
     relink_device(from, to);
-    if (spools != nullptr)
-        spools->move_printer(from, to);
     if (previous != from)
         select(plater, previous);
     return {};
 }
 
-wxString remove_named_printer(Plater& plater, Workspace::SpoolStore* spools, const std::string& name)
+wxString remove_named_printer(Plater& plater, const std::string& name)
 {
     const Preset* preset = saved_preset(name);
     if (preset == nullptr || !is_named_printer(*preset))
@@ -284,8 +280,6 @@ wxString remove_named_printer(Plater& plater, Workspace::SpoolStore* spools, con
     if (saved_preset(name) != nullptr)
         throw std::runtime_error("Orca did not delete printer profile " + name);
     relink_device(name, {});
-    if (spools != nullptr)
-        spools->remove_printer(name);
     return {};
 }
 
@@ -427,9 +421,18 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
     if (in_use) {
         // The same printer, under the same name: only its settings moved.
         printers.get_edited_preset().config = saved->config;
+        // A filament or process made for the old nozzle may not fit the new
+        // one. The same compatibility pass Tab::select_preset runs when a
+        // printer changes, with its default policy, re-picks whatever no
+        // longer fits and leaves the rest alone.
+        bundle().update_compatible(PresetSelectCompatibleType::Always, PresetSelectCompatibleType::Always);
         plater.update_objects_position_when_select_preset([&] { plater.on_config_change(bundle().full_config()); });
         printer_tab().reload_config();
         printer_tab().update_tab_ui();
+        for (Preset::Type type : {Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
+            if (Tab* tab = wxGetApp().get_tab(type))
+                tab->load_current_preset();
+        plater.sidebar().update_presets(Preset::TYPE_FILAMENT);
     }
     return {};
 }

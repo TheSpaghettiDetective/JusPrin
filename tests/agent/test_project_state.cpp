@@ -691,6 +691,33 @@ TEST_CASE("staged attachments can be removed but sent ones are durable", "[proje
     CHECK(reloaded.messages(reloaded.active_conversation_id())[0].attachment_ids == std::vector<std::string>{a2});
 }
 
+TEST_CASE("a note keeps the colour that leads it across a round-trip", "[project-state]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p-1", "l-1", kT);
+    ConversationMessage note;
+    note.id     = document.allocate_message_id();
+    note.role   = MessageRole::Note;
+    note.state  = MessageState::Complete;
+    note.text   = "Filament is now Prusament PETG.";
+    note.swatch = "#E67E22";
+    document.append_message(document.active_conversation_id(), note, kT);
+    ConversationMessage plain = note;
+    plain.id     = document.allocate_message_id();
+    plain.swatch = {};
+    document.append_message(document.active_conversation_id(), plain, kT);
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const auto messages = reloaded.messages(reloaded.active_conversation_id());
+    REQUIRE(messages.size() == 2);
+    CHECK(messages[0].swatch == "#E67E22");
+    CHECK(messages[1].swatch.empty());
+    // An absent colour is absent in the file too, not an empty string.
+    const std::string dumped = document.dump();
+    CHECK(dumped.find("swatch") == dumped.rfind("swatch"));
+}
+
 TEST_CASE("attachment blobs are written under the project and cleaned up", "[persistence][attachments]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());

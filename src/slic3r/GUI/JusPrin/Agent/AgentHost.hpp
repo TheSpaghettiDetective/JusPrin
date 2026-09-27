@@ -191,8 +191,9 @@ public:
     // Appends one host-authored note to the active conversation: a short
     // factual line about something the shell just changed. It is durable like
     // any message, renders without a bubble, starts no reply, and is never
-    // sent to the model. Returns the note's ID.
-    std::string post_note(const std::string& text);
+    // sent to the model. `swatch`, when given, is a colour ("#RRGGBB") the
+    // line leads with -- the filament a change landed on. Returns the note's ID.
+    std::string post_note(const std::string& text, const std::string& swatch = {});
 
     // Diagnostics for the internal-connection error surface.
     std::uint64_t messages_sent() const { return m_messages_sent; }

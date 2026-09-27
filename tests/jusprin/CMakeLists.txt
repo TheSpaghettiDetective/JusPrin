@@ -2,7 +2,7 @@
 # wx or Orca types. The sources under test are compiled directly into the test
 # binary, so nothing here links libslic3r_gui.
 add_executable(jusprin_tests
-    test_spool_store.cpp
+    test_filament_chip_model.cpp
     test_printer_facts_store.cpp
     test_host_locale.cpp
     test_home_snapshot.cpp
@@ -10,7 +10,7 @@ add_executable(jusprin_tests
     test_printer_names.cpp
     test_installed_models.cpp
     test_viewport_tool_strip.cpp
-    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SpoolStore.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/FilamentChipModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeHost.cpp

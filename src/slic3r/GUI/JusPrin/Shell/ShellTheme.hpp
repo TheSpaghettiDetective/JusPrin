@@ -98,7 +98,32 @@ struct AgentPaneMetrics {
     int resize_handle_width{0};
     int resize_handle_line_width{0};
 };
-struct SwatchMetrics    { int size{0}; int radius{0}; };
+// A colour cell of the filament menu: the swatch, the gaps around the grid,
+// and how a cell is drawn at rest and as the slot's current colour.
+struct SwatchMetrics
+{
+    int size{0};
+    int radius{0};
+    int gap{0};                // between cells
+    int caption_gap{0};        // under the grid's caption
+    int inset{0};              // swatch inside its cell, at rest
+    int current_inset{0};      // ... when it is the slot's colour
+    int ring_width{0};         // edge at rest
+    int current_ring_width{0}; // ring of the slot's colour
+    int glyph_width{0};        // the "+" cell's stroke
+};
+// The chip's row of filament-slot dots.
+struct SlotDotMetrics
+{
+    int size{0};
+    int compact_size{0}; // when more slots are in use than fit at full size
+    int gap{0};
+    int compact_gap{0};
+    int label_gap{0};    // from the last dot to the label
+    int faded_alpha{0};  // 0-255: a slot the plate does not print with
+};
+// The keyboard focus ring every focusable control draws.
+struct FocusMetrics     { int width{0}; int offset{0}; };
 // Home's printers column, which the printer conversation takes over while it
 // is open, so the two are the same width.
 struct PrinterCardMetrics { int column_width{0}; int radius{0}; };
@@ -154,6 +179,8 @@ struct ShellMetrics
     StatusRowMetrics status_row;
     AgentPaneMetrics agent_pane;
     SwatchMetrics    swatch;
+    SlotDotMetrics   slot_dot;
+    FocusMetrics     focus;
     PrinterCardMetrics  printer_card;
 };
 

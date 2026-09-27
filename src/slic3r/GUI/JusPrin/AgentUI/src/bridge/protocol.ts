@@ -71,8 +71,8 @@ export interface Envelope<T = unknown> {
 }
 
 // 'note' is the host's own voice: a short factual line the native shell posts
-// when it changes something the reader should see in the thread (a spool swap,
-// for example). It is never a turn -- no reply follows it, and the host never
+// when it changes something the reader should see in the thread (a filament
+// change, for example). It is never a turn -- no reply follows it, and the host never
 // sends it to the model -- so it renders as a plain line, not a bubble.
 export type MessageRole = 'user' | 'assistant' | 'note';
 export type MessageStateName = 'complete' | 'streaming' | 'failed' | 'stopped';
@@ -95,6 +95,7 @@ export interface WireMessage {
   inReplyTo?: string;
   error?: AgentErrorInfo;
   attachments?: string[]; // sent attachment IDs, resolved against StatePayload.attachments
+  swatch?: string; // notes: a colour, '#RRGGBB', that leads the line
 }
 
 // How a file entered the composer.
@@ -218,8 +219,8 @@ export interface WorkspaceContext {
   projectName: string;
   projectDirty: boolean;
   // `process` is the preset the setting deltas are measured against, so it is
-  // the name the setup card shows; `preset` is the machine and `filament` the
-  // spool. Empty for a non-FFF printer, which has no process preset.
+  // the name the setup card shows; `preset` is the machine and `filament` slot
+  // 1's filament. Empty for a non-FFF printer, which has no process preset.
   printer: { preset: string; filament: string; process: string };
   plates: {
     id: string;

@@ -86,7 +86,7 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // A printer with no process preset has no process settings to drift from
   // either, so there is nothing here to name and the card says nothing.
   const preset = context.printer.process.trim();
-  // The material the plan is written against, so a spool swap shows up here as
+  // The material the plan is written against, so a filament change shows up here as
   // well as on the chip. The "@printer" qualifier is dropped as the chip drops
   // it: it disambiguates presets in a settings list and says nothing here.
   const material = context.printer.filament.split('@')[0].trim();

@@ -147,7 +147,7 @@ describe('App', () => {
     // to a label rather than an empty frame. It names the process preset the
     // changes are measured against, not the machine.
     expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
-    // The card is the plan line, so a spool swap has to be visible here too.
+    // The card is the plan line, so a filament change has to be visible here too.
     expect(screen.getByTestId('current-setup')).toHaveTextContent('Generic PLA');
     expect(screen.queryByText('Current setup')).not.toBeInTheDocument();
   });
@@ -211,6 +211,26 @@ describe('App', () => {
     expect(screen.getByLabelText('Exported copy e-1')).toHaveTextContent('Checksum verified');
     expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Test Printer 0.4');
     expect(screen.getAllByTitle(hash).length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('leads a filament note with its colour, drawn and never named', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('message_added', {
+      message: { id: 'n-1', role: 'note', state: 'complete', text: 'Filament is now Prusament PETG.', attempt: 1, swatch: '#E67E22' },
+    });
+    host.deliver('message_added', {
+      message: { id: 'n-2', role: 'note', state: 'complete', text: 'A note about something else.', attempt: 1 },
+    });
+    const notes = document.querySelectorAll('.message.note');
+    expect(notes).toHaveLength(2);
+    const swatch = notes[0].querySelector<HTMLElement>('.note-swatch');
+    expect(swatch).not.toBeNull();
+    expect(swatch!.style.background).not.toBe('');
+    expect(swatch!.getAttribute('aria-hidden')).toBe('true');
+    expect(notes[0]).toHaveTextContent('Filament is now Prusament PETG.');
+    // A note with no colour draws none.
+    expect(notes[1].querySelector('.note-swatch')).toBeNull();
   });
 
   it('sends a user message on Enter and streams the reply with stop support', async () => {

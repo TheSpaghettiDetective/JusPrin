@@ -552,6 +552,17 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   border: none;
 }
 
+/* The border keeps a white or near-background colour visible. */
+.note-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
 .markdown-content {
   min-width: 0;
   white-space: normal;

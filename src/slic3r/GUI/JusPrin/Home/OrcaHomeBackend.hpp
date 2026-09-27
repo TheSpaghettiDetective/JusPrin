@@ -21,18 +21,12 @@ namespace Slic3r { namespace GUI {
 class MainFrame;
 }} // namespace Slic3r::GUI
 
-namespace Slic3r { namespace GUI { namespace JusPrin { namespace Workspace {
-class SpoolStore;
-}}}} // namespace Slic3r::GUI::JusPrin::Workspace
-
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
 class OrcaHomeBackend final : public IHomeBackend
 {
 public:
-    // `spools` may be null: the shell owns the one store, and Home renders
-    // without swatches rather than opening a second writer to the same file.
-    OrcaHomeBackend(MainFrame& frame, Workspace::SpoolStore* spools);
+    explicit OrcaHomeBackend(MainFrame& frame);
     ~OrcaHomeBackend() override;
 
     // How Home opens the printer conversation, which replaces its printers
@@ -62,7 +56,6 @@ private:
     void open_printer_window(const std::string& name);
 
     MainFrame&                                         m_frame;
-    Workspace::SpoolStore*                             m_spools{nullptr};
     OpenConversation                                   m_open_conversation;
     std::map<std::string, wxWeakRef<PrinterWindow>>    m_printer_windows; // by printer name
 };

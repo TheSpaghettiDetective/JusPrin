@@ -68,9 +68,9 @@ export interface ProjectInfo {
 
 export type PrinterState = 'idle' | 'printing' | 'offline';
 
-// A spool the printer holds: a connected Bambu printer's tray, or one the
-// person described. Either field may be absent; the card names what it knows
-// and draws a swatch only for a colour.
+// A spool the printer holds, as a connected printer reports its tray. Either
+// field may be absent; the card names what it knows and draws a swatch only
+// for a colour.
 export interface SpoolInfo {
   // The filament type, such as 'PLA'.
   material?: string;

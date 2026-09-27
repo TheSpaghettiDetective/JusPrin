@@ -118,8 +118,6 @@ public:
             if (printer.name == request.name) {
                 if (request.nozzle)
                     printer.nozzle = *request.nozzle;
-                if (request.spools)
-                    printer.spools = *request.spools;
                 result = printer;
             }
         return {};
@@ -571,13 +569,9 @@ TEST_CASE("printer_change saves what changed and returns the printer as it now i
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Change, "Lab Printer");
 
-    const json spools_now = json::array({json{{"name", "PLA Matte"}, {"material", "PLA"}, {"colour", "#5f7d4f"}},
-                                         json{{"name", "PETG"}, {"material", "PETG"}, {"colour", "#204080"}}});
-    const json output = ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}, {"spools", spools_now}});
-    // The spools said are the spools there: only the nozzle is changed.
+    const json output = ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}});
     REQUIRE(backend.changed.size() == 1);
     CHECK(backend.changed[0].nozzle == 0.6);
-    CHECK_FALSE(backend.changed[0].spools.has_value());
     CHECK(output.at("changed") == json::array({json{{"field", "nozzle"}, {"before", 0.4}, {"after", 0.6}}}));
     CHECK(output.at("printer").at("nozzle") == 0.6);
     CHECK(conversation.state_json().at("context").at("printer").at("nozzle") == 0.6);
@@ -597,7 +591,7 @@ TEST_CASE("printer_change refuses what it cannot change, before saving anything"
     conversation.start(ConversationMode::Change, "Lab Printer");
 
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Garage"}, {"nozzle", 0.6}}) == "unknown_printer");
-    CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}}) == "nothing_to_change");
+    CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", nullptr}}) == "nothing_to_change");
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.4}}) == "nothing_to_change");
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.3}}) == "unknown_nozzle");
     CHECK(backend.changed.empty());

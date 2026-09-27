@@ -265,8 +265,27 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.agent_pane.resize_handle_line_width = parse_int(agent_pane, "component.agentPane", "resizeHandleLineWidth");
 
     const nlohmann::json& swatch = component.at("swatch");
-    m.swatch.size   = parse_int(swatch, "component.swatch", "size");
-    m.swatch.radius = parse_int(swatch, "component.swatch", "radius");
+    m.swatch.size               = parse_int(swatch, "component.swatch", "size");
+    m.swatch.radius             = parse_int(swatch, "component.swatch", "radius");
+    m.swatch.gap                = parse_int(swatch, "component.swatch", "gap");
+    m.swatch.caption_gap        = parse_int(swatch, "component.swatch", "captionGap");
+    m.swatch.inset              = parse_int(swatch, "component.swatch", "inset");
+    m.swatch.current_inset      = parse_int(swatch, "component.swatch", "currentInset");
+    m.swatch.ring_width         = parse_int(swatch, "component.swatch", "ringWidth");
+    m.swatch.current_ring_width = parse_int(swatch, "component.swatch", "currentRingWidth");
+    m.swatch.glyph_width        = parse_int(swatch, "component.swatch", "glyphWidth");
+
+    const nlohmann::json& slot_dot = component.at("slotDot");
+    m.slot_dot.size         = parse_int(slot_dot, "component.slotDot", "size");
+    m.slot_dot.compact_size = parse_int(slot_dot, "component.slotDot", "compactSize");
+    m.slot_dot.gap          = parse_int(slot_dot, "component.slotDot", "gap");
+    m.slot_dot.compact_gap  = parse_int(slot_dot, "component.slotDot", "compactGap");
+    m.slot_dot.label_gap    = parse_int(slot_dot, "component.slotDot", "labelGap");
+    m.slot_dot.faded_alpha  = parse_int(slot_dot, "component.slotDot", "fadedAlpha");
+
+    const nlohmann::json& focus = component.at("focus");
+    m.focus.width  = parse_int(focus, "component.focus", "width");
+    m.focus.offset = parse_int(focus, "component.focus", "offset");
 
     const nlohmann::json& printer_card = component.at("printerCard");
     m.printer_card.column_width = parse_int(printer_card, "component.printerCard", "columnWidth");

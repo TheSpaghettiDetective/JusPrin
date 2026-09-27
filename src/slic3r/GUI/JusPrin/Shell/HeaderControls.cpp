@@ -98,14 +98,14 @@ wxColour status_colour(StatusTone tone, const ShellPalette& p)
     return p.text_secondary;
 }
 
-// A remembered spool's colour, or the dashed ring that means "no spool chosen
-// yet". Both are drawn at the same size so rows stay aligned either way.
+// A filament colour, or the dashed ring of a colour nobody chose. Both are
+// drawn at the same size so rows stay aligned either way.
 void draw_dot(wxGraphicsContext& gc, const std::optional<wxColour>& dot, double x, double y, double size,
               const ShellPalette& p)
 {
     if (!dot) return;
     if (dot->IsOk()) {
-        // A quiet ring keeps a white or near-background spool visible.
+        // A quiet ring keeps a white or near-background colour visible.
         gc.SetPen(wxPen(p.border_subtle));
         gc.SetBrush(wxBrush(*dot));
     } else {
@@ -241,6 +241,30 @@ int HeaderButton::trailing_reserve() const
     return reserve;
 }
 
+int HeaderButton::lead_width() const
+{
+    if (m_decoration.lead.empty()) return 0;
+    wxClientDC dc(const_cast<HeaderButton*>(this));
+    dc.SetFont(GetFont());
+    return dc.GetTextExtent(m_decoration.lead).x + FromDIP(m_theme.metrics().space_2);
+}
+
+int HeaderButton::slot_dots_width() const
+{
+    if (m_decoration.slot_dots.empty() && m_decoration.slot_more.empty()) return 0;
+    const SlotDotMetrics& metrics = m_theme.metrics().slot_dot;
+    const int dot = FromDIP(m_decoration.small_slot_dots ? metrics.compact_size : metrics.size);
+    const int gap = FromDIP(m_decoration.small_slot_dots ? metrics.compact_gap : metrics.gap);
+    int width = int(m_decoration.slot_dots.size()) * (dot + gap);
+    if (!m_decoration.slot_more.empty()) {
+        wxClientDC dc(const_cast<HeaderButton*>(this));
+        dc.SetFont(detail_font());
+        width += dc.GetTextExtent(m_decoration.slot_more).x + gap;
+    }
+    // The last gap grows to the space a single dot leaves before its label.
+    return width - gap + FromDIP(metrics.label_gap);
+}
+
 wxSize HeaderButton::DoGetBestSize() const
 {
     const ShellMetrics& m = m_theme.metrics();
@@ -264,7 +288,7 @@ wxSize HeaderButton::DoGetBestSize() const
                  dc.GetTextExtent(m_decoration.detail).x;
     }
     const int leading = FromDIP(12) + (m_icon == HeaderIcon::None ? 0 : FromDIP(24)) +
-                        (m_decoration.dot.has_value() ? FromDIP(16) : 0);
+                        (m_decoration.dot.has_value() ? FromDIP(16) : 0) + lead_width() + slot_dots_width();
     // A two-line row is one spacing step taller than the menu row recipe;
     // the print action and the quiet buttons fill the status row.
     const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? m.menu_row.height : m.menu_row.height + m.space_3) :
@@ -314,7 +338,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     wxColour fill = primary ? (!IsEnabled() ? p.action_disabled : m_pressed || m_open ? p.action_primary_pressed :
                               m_hover ? p.action_primary_hover : p.action_primary) :
                    highlighted ? p.surface_selected :
-                   // The spool half sits on a quieter ground than the printer
+                   // The filament half sits on a quieter ground than the printer
                    // half, so the chip reads as two things inside one outline.
                    m_style == HeaderStyle::ChipRight ? p.surface_subtle :
                    m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas;
@@ -366,10 +390,42 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         draw_icon(*gc,icon,x,(h-icon_size)/2,icon_size,foreground);
         x += FromDIP(24);
     }
+    if (const int lead = lead_width(); lead > 0) {
+        // A slot's number, ahead of its dot, in the label's own face.
+        gc->SetFont(GetFont(), foreground);
+        double tw, th; gc->GetTextExtent(m_decoration.lead, &tw, &th);
+        gc->DrawText(m_decoration.lead, x, (h-th)/2);
+        x += lead;
+    }
     if (m_decoration.dot.has_value()) {
         const double dot = FromDIP(8);
         draw_dot(*gc, m_decoration.dot, x, (h-dot)/2, dot, p);
         x += FromDIP(16);
+    }
+    if (const int run = slot_dots_width(); run > 0) {
+        const SlotDotMetrics& metrics = m_theme.metrics().slot_dot;
+        const bool   shrink = m_decoration.small_slot_dots;
+        const double dot   = FromDIP(shrink ? metrics.compact_size : metrics.size);
+        const double gap   = FromDIP(shrink ? metrics.compact_gap : metrics.gap);
+        double       at    = x;
+        for (const SlotDot& slot : m_decoration.slot_dots) {
+            // A faded slot keeps its colour at low strength, ring included,
+            // so it still reads as that colour and as secondary.
+            const unsigned char alpha = slot.faded ? static_cast<unsigned char>(metrics.faded_alpha) : 255;
+            gc->SetPen(wxPen(wxColour(p.border_subtle.Red(), p.border_subtle.Green(), p.border_subtle.Blue(), alpha)));
+            if (slot.colour.IsOk())
+                gc->SetBrush(wxBrush(wxColour(slot.colour.Red(), slot.colour.Green(), slot.colour.Blue(), alpha)));
+            else
+                gc->SetBrush(*wxTRANSPARENT_BRUSH);
+            gc->DrawEllipse(at, (h-dot)/2, dot, dot);
+            at += dot + gap;
+        }
+        if (!m_decoration.slot_more.empty()) {
+            gc->SetFont(detail_font(), p.text_secondary);
+            double tw, th; gc->GetTextExtent(m_decoration.slot_more, &tw, &th);
+            gc->DrawText(m_decoration.slot_more, at, (h-th)/2);
+        }
+        x += run;
     }
 
     // Right edge inward: trailing glyph, check, status, detail. Each consumes
@@ -515,9 +571,13 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     sizer->AddSpacer(FromDIP(popover.padding_y));
     int placed_rows = 0;
     bool after_row = false; // the row gap sits only between two consecutive rows
+    m_header_item_index = -1;
     auto place_header = [&] {
         if (!m_header_builder || m_header != nullptr) return;
         m_header = m_header_builder(this);
+        // The rows placed so far sit above the view; the next one is the
+        // first row below it.
+        m_header_item_index = int(m_items.size());
         if (m_header) sizer->Add(m_header,0,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,FromDIP(8));
         after_row = false;
     };
@@ -545,7 +605,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             continue;
         }
         auto* button = new HeaderButton(this,m_theme,HeaderStyle::Menu,item.label,item.icon);
-        button->SetName(item.label);
+        button->SetName(item.name.empty() ? item.label : item.name);
         item.decoration.detail = item.decoration.detail.empty() ? item.detail : item.decoration.detail;
         button->set_decoration(item.decoration);
         button->set_dark(m_dark);
@@ -585,6 +645,11 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         });
     }
     place_header(); // a step with fewer rows than requested still gets its view
+    // The keyboard stays in a view that rebuilt the menu under it.
+    if (m_header_active) {
+        if (HeaderMenuKeyView* keys = key_view()) keys->set_key_focus(true);
+        else m_header_active = false;
+    }
     sizer->AddSpacer(FromDIP(popover.padding_y));
     SetSizerAndFit(sizer);
     // The first build fixes the width; later rebuilds keep it so swapping to
@@ -614,10 +679,60 @@ void HeaderMenu::replace_items(std::vector<HeaderMenuItem> items)
     reposition();
 }
 
+HeaderMenuKeyView* HeaderMenu::key_view() const
+{
+    return dynamic_cast<HeaderMenuKeyView*>(m_header);
+}
+
+void HeaderMenu::enter_key_view()
+{
+    if (m_selected >= 0 && m_selected < int(m_items.size())) m_items[m_selected]->set_menu_selected(false);
+    m_selected      = -1;
+    m_header_active = true;
+    if (HeaderMenuKeyView* keys = key_view()) keys->set_key_focus(true);
+}
+
+void HeaderMenu::leave_key_view()
+{
+    if (!m_header_active) return;
+    m_header_active = false;
+    if (HeaderMenuKeyView* keys = key_view()) keys->set_key_focus(false);
+}
+
 void HeaderMenu::on_key(wxKeyEvent& e)
 {
     const int key = e.GetKeyCode();
     if (key == WXK_ESCAPE || key == WXK_TAB) { close(); return; }
+
+    // The custom view is one stop in the column of rows: Up from the row just
+    // below it, or Down from the row just above it, moves in; the same keys
+    // move out. Inside, the view has Left, Right, Return and Space.
+    if (HeaderMenuKeyView* keys = key_view(); keys != nullptr && m_header_item_index >= 0) {
+        const auto enabled = [this](int i) { return i >= 0 && i < int(m_items.size()) && m_items[i]->IsEnabled(); };
+        int below = -1, above = -1;
+        for (int i = m_header_item_index; i < int(m_items.size()) && below < 0; ++i)
+            if (enabled(i)) below = i;
+        for (int i = m_header_item_index - 1; i >= 0 && above < 0; --i)
+            if (enabled(i)) above = i;
+        if (m_header_active) {
+            if (key == WXK_LEFT || key == WXK_RIGHT || key == WXK_RETURN || key == WXK_NUMPAD_ENTER || key == WXK_SPACE) {
+                keys->on_menu_key(key);
+                return;
+            }
+            if (key == WXK_DOWN || key == WXK_UP) {
+                const int target = key == WXK_DOWN ? below : above;
+                if (target >= 0) {
+                    leave_key_view();
+                    select_item(target);
+                }
+                return;
+            }
+            leave_key_view(); // Home and End start again from the rows
+        } else if (m_selected >= 0 && ((key == WXK_UP && m_selected == below) || (key == WXK_DOWN && m_selected == above))) {
+            enter_key_view();
+            return;
+        }
+    }
     if (key == WXK_RETURN || key == WXK_NUMPAD_ENTER || key == WXK_SPACE) {
         if (auto* button = selected_item()) {
             wxCommandEvent click(wxEVT_BUTTON,button->GetId());
@@ -676,6 +791,9 @@ void HeaderMenu::reposition()
 
 void HeaderMenu::select_item(int index)
 {
+    // A row the pointer or the keyboard picks takes the keyboard back from
+    // the custom view.
+    leave_key_view();
     if (m_selected >= 0 && m_selected < int(m_items.size())) m_items[m_selected]->set_menu_selected(false);
     m_selected = index;
     m_items[index]->set_menu_selected(true);

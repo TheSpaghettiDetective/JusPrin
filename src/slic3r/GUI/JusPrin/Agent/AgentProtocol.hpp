@@ -123,6 +123,7 @@ struct ConversationMessage
     std::optional<AgentError> error;
     int                       attempt{1};
     std::vector<std::string>  attachment_ids;    // user messages: sent attachment IDs
+    std::string               swatch;            // notes: a colour that leads the line, "#RRGGBB"
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -2,7 +2,7 @@
 
 // The one route from the printer panel to Orca. Every read comes from an
 // existing owner -- the packaged catalogue, Bambu's device list, the printer
-// preset collection, the spool store -- and writes reuse the preset, device,
+// preset collection -- and writes reuse the preset, device,
 // networking and print-host owners rather than copying their mechanisms.
 
 #include "PrinterBackend.hpp"
@@ -12,17 +12,13 @@
 #include <memory>
 
 namespace Slic3r::GUI { class Plater; }
-namespace Slic3r::GUI::JusPrin::Workspace { class SpoolStore; }
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 class OrcaPrinterBackend : public IPrinterBackend
 {
 public:
-    // `spools` is the app-level store the rest of the shell already shares;
-    // without one this backend reports a printer's spools as unknown and
-    // refuses to change them.
-    OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, Workspace::SpoolStore* spools);
+    OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog);
 
     const std::vector<CatalogPrinter>& catalog() const override { return m_models; }
     std::vector<DiscoveredPrinter> network_printers() const override;
@@ -49,7 +45,6 @@ private:
 
     Plater&                     m_plater;
     PrinterCatalog              m_catalog;
-    Workspace::SpoolStore*      m_spools{nullptr};
     // One entry per model, built once from the catalogue's per-variant
     // candidates: the panel proposes printers, and a nozzle is a fact about
     // the printer rather than a printer of its own.

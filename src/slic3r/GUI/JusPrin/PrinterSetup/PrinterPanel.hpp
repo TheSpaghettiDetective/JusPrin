@@ -22,7 +22,6 @@
 #include <vector>
 
 namespace Slic3r::GUI { class Plater; }
-namespace Slic3r::GUI::JusPrin::Workspace { class SpoolStore; }
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -46,7 +45,6 @@ public:
                  bool                   dark,
                  Workspace::IWorkspace& workspace,
                  Plater&                plater,
-                 Workspace::SpoolStore* spools,
                  Callbacks              callbacks);
     ~PrinterPanel() override;
 
