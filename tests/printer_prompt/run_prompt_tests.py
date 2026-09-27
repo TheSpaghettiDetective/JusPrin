@@ -189,7 +189,7 @@ class ConnectBambu:
         "mode": "connect", "printerName": "Bambu Lab A1 mini", "blocks": [],
         "context": {"printer": {
             "name": "Bambu Lab A1 mini", "model": "Bambu Lab A1 mini", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
-            "spools": [{"name": "Teal PLA", "material": "Bambu PLA Basic @BBL A1M", "colour": "#26A69A"}],
+            "spools": [],
             "connected": False, "provider": "bambu"}},
     }
     # printer_connection_status as the app answered it for the fake printer.
@@ -499,7 +499,7 @@ class ChangeNozzleDone(Finishing):
 
     name = "change-nozzle-done"
     printer = {"name": "Bambu Lab A1 mini", "model": "Bambu Lab A1 mini", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
-               "spools": [{"name": "Teal PLA", "material": "Bambu PLA Basic @BBL A1M", "colour": "#26A69A"}], "connected": False}
+               "spools": [], "connected": False}
     session = {"mode": "change", "printerName": printer["name"], "blocks": [],
                "context": {"printer": {**printer, "provider": "bambu"}}}
 

@@ -625,17 +625,8 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     }
 
     if (definition.handler == ToolHandler::PrinterChange) {
-        if (!has_only(arguments, {"printerName", "nozzle", "spools"}) || !names_printer() || !valid_nozzle())
-            return false;
-        if (!arguments.contains("spools"))
-            return true;
-        const json& spools = arguments["spools"];
-        if (!spools.is_array() || spools.size() > 16)
-            return false;
-        return std::all_of(spools.begin(), spools.end(), [](const json& spool) {
-            return has_only(spool, {"name", "material", "colour"}) && spool.contains("name") && spool.contains("material") &&
-                   optional_text(spool, "name") && optional_text(spool, "material") && optional_text(spool, "colour");
-        });
+        return has_only(arguments, {"printerName", "nozzle"}) && names_printer() && arguments.contains("nozzle") &&
+               valid_nozzle();
     }
 
     if (definition.handler == ToolHandler::PresetsList) {
@@ -1514,21 +1505,15 @@ std::vector<ToolDefinition> make_definitions()
          true},
         {"printer_change",
          "Change this printer",
-         "Saves what physically changed on a saved printer, after the person confirmed it. Change only what they said changed. "
+         "Saves a new nozzle size on a saved printer, after the person confirmed it. "
          "Returns what changed and the printer as it now is.",
          object_schema(json{{"printerName", string_schema()},
-                            {"nozzle", {{"type", "number"}, {"description", "The nozzle size now on it, in mm."}}},
-                            {"spools", {{"type", "array"}, {"maxItems", 16},
-                                        {"description", "The complete list of spools loaded now; it replaces the whole list."},
-                                        {"items", object_schema(json{{"name", {{"type", "string"}, {"maxLength", 64}}},
-                                                                     {"material", {{"type", "string"}, {"maxLength", 32}}},
-                                                                     {"colour", {{"type", "string"}, {"maxLength", 9}}}},
-                                                                json::array({"name", "material"}))}}}},
-                       json::array({"printerName"})),
+                            {"nozzle", {{"type", "number"}, {"description", "The nozzle size now on it, in mm."}}}},
+                       json::array({"printerName", "nozzle"})),
          object_schema(json{{"changed", {{"type", "array"},
-                                         {"items", object_schema(json{{"field", {{"type", "string"}, {"enum", json::array({"nozzle", "spools"})}}},
-                                                                      {"before", {{"type", json::array({"number", "array"})}, {"items", printer_spool_schema()}}},
-                                                                      {"after", {{"type", json::array({"number", "array"})}, {"items", printer_spool_schema()}}}},
+                                         {"items", object_schema(json{{"field", {{"type", "string"}, {"enum", json::array({"nozzle"})}}},
+                                                                      {"before", number_schema()},
+                                                                      {"after", number_schema()}},
                                                                  json::array({"field", "before", "after"}))}}},
                             {"printer", printer_saved_schema()}},
                        json::array({"changed", "printer"})),

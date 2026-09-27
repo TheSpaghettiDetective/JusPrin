@@ -46,7 +46,7 @@ private:
     wxWeakRef<wxWindow> m_owner;
     ShellTheme m_theme;
     bool m_dark{false};
-    // Weak: see SpoolMenu -- a transient popup may vanish under us.
+    // Weak: see FilamentMenu -- a transient popup may vanish under us.
     wxWeakRef<HeaderMenu> m_menu;
 };
 

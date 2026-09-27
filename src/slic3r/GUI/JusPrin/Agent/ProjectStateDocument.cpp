@@ -102,6 +102,10 @@ void write_message_fields(json& entry, const ConversationMessage& message)
         entry["attachments"] = message.attachment_ids;
     else
         entry.erase("attachments");
+    if (!message.swatch.empty())
+        entry["swatch"] = message.swatch;
+    else
+        entry.erase("swatch");
 }
 
 ConversationMessage read_message(const json& entry)
@@ -121,6 +125,7 @@ ConversationMessage read_message(const json& entry)
         for (const json& id : entry["attachments"])
             if (id.is_string())
                 message.attachment_ids.push_back(id.get<std::string>());
+    message.swatch = entry.value("swatch", "");
     return message;
 }
 

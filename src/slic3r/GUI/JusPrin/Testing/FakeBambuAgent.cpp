@@ -205,6 +205,8 @@ bool FakeBambuAgent::apply_control_json(const std::string& json_text, FakeBambuS
                 spool.tray_type = entry["trayType"].get<std::string>();
             if (entry.contains("colour") && entry["colour"].is_string())
                 spool.colour = entry["colour"].get<std::string>();
+            if (entry.contains("filamentId") && entry["filamentId"].is_string())
+                spool.filament_id = entry["filamentId"].get<std::string>();
             step.spools.push_back(std::move(spool));
         }
     }
@@ -267,7 +269,7 @@ std::string FakeBambuAgent::build_push_status_json(const FakeBambuStatusStep& st
             // to the type itself.
             if (!spool.tray_type.empty()) {
                 tray["tray_type"]     = spool.tray_type;
-                tray["tray_info_idx"] = "";
+                tray["tray_info_idx"] = spool.filament_id;
             }
             if (!spool.colour.empty())
                 tray["tray_color"] = spool.colour;

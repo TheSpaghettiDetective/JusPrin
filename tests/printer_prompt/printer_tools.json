@@ -23,7 +23,7 @@
     "type": "function"
   },
   {
-    "description": "Saves what physically changed on a saved printer, after the person confirmed it. Change only what they said changed. Returns what changed and the printer as it now is.",
+    "description": "Saves a new nozzle size on a saved printer, after the person confirmed it. Returns what changed and the printer as it now is.",
     "name": "printer_change",
     "parameters": {
       "additionalProperties": false,
@@ -34,41 +34,15 @@
         },
         "printerName": {
           "type": "string"
-        },
-        "spools": {
-          "description": "The complete list of spools loaded now; it replaces the whole list.",
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "colour": {
-                "maxLength": 9,
-                "type": "string"
-              },
-              "material": {
-                "maxLength": 32,
-                "type": "string"
-              },
-              "name": {
-                "maxLength": 64,
-                "type": "string"
-              }
-            },
-            "required": [
-              "name",
-              "material"
-            ],
-            "type": "object"
-          },
-          "maxItems": 16,
-          "type": "array"
         }
       },
       "required": [
-        "printerName"
+        "printerName",
+        "nozzle"
       ],
       "type": "object"
     },
-    "strict": false,
+    "strict": true,
     "type": "function"
   },
   {

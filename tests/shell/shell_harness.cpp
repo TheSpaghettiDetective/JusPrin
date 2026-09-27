@@ -128,7 +128,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
-#include "slic3r/GUI/JusPrin/Shell/PrinterSpoolChip.hpp"
+#include "slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
@@ -157,6 +157,7 @@
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/PrinterWebView.hpp"
+#include "slic3r/GUI/SyncAmsInfoDialog.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -722,7 +723,7 @@ private:
         panel->close();
         wxYield();
         check(!panel->IsShown(), "panel_closes_back_to_the_printer_list");
-        check(Printers::remove_named_printer(*m_plater, nullptr, named).empty(), "panel_cleanup_removes_the_printer");
+        check(Printers::remove_named_printer(*m_plater, named).empty(), "panel_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         verify_setup_install_commands();
     }
@@ -734,8 +735,7 @@ private:
     void verify_nozzle_change_leaves_the_project(const std::string& named)
     {
         PresetCollection&              printers = wxGetApp().preset_bundle->printers;
-        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
-                                                 nullptr);
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
         const auto change = [&](double nozzle) {
             PrinterSetup::ChangePrinterRequest request;
             request.name   = named;
@@ -766,9 +766,25 @@ private:
         // copy follows, still selected, still clean.
         SetupCommands::select_printer_preset(*m_plater, named);
         const bool dirty_on_it = m_plater->is_project_dirty();
+        PresetBundle&     bundle         = *wxGetApp().preset_bundle;
+        const std::string process_before = bundle.prints.get_selected_preset_name();
+        const std::string filament_before = bundle.filament_presets.front();
         check(change(0.6).empty() && selected_printer() == named, "nozzle_change_of_the_projects_printer_keeps_it_selected");
         check(edited_nozzle() == 0.6 && !printers.current_is_dirty(), "nozzle_change_of_the_projects_printer_reaches_it");
-        check(m_plater->is_project_dirty() == dirty_on_it, "nozzle_change_of_the_projects_printer_keeps_its_modified_state");
+        // A process or filament made for the old nozzle is replaced by one
+        // that fits, as Orca's own printer switch does. Replacing it is a real
+        // change to the project; nothing replaced leaves it as it was.
+        const std::string process_after  = bundle.prints.get_selected_preset_name();
+        const std::string filament_after = bundle.filament_presets.front();
+        const bool        repicked       = process_after != process_before || filament_after != filament_before;
+        std::cerr << "HARNESS NOTE nozzle_repick process " << process_before << " -> " << process_after << " filament "
+                  << filament_before << " -> " << filament_after << '\n';
+        const Preset* process_preset  = bundle.prints.find_preset(process_after);
+        const Preset* filament_preset = bundle.filaments.find_preset(filament_after);
+        check(process_preset && process_preset->is_compatible && filament_preset && filament_preset->is_compatible,
+              "nozzle_change_leaves_a_process_and_filament_that_fit");
+        check(m_plater->is_project_dirty() == (dirty_on_it || repicked),
+              "nozzle_change_of_the_projects_printer_changes_the_project_only_by_what_it_repicked");
 
         // Unsaved edits to it are the person's: refused in words, with no
         // prompt, and nothing moved.
@@ -807,7 +823,7 @@ private:
     // conversation reads through it.
     PrinterSetup::OrcaPrinterBackend& live_backend()
     {
-        static PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), nullptr);
+        static PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
         return backend;
     }
 
@@ -1655,11 +1671,11 @@ private:
         live_panel()->close();
         wxYield();
         if (!m_live_printer.empty())
-            Printers::remove_named_printer(*m_plater, nullptr, m_live_printer);
+            Printers::remove_named_printer(*m_plater, m_live_printer);
         for (const std::string& added : m_live_added)
-            Printers::remove_named_printer(*m_plater, nullptr, added);
+            Printers::remove_named_printer(*m_plater, added);
         if (!m_live_host_printer.empty())
-            Printers::remove_named_printer(*m_plater, nullptr, m_live_host_printer);
+            Printers::remove_named_printer(*m_plater, m_live_host_printer);
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         finish();
     }
@@ -1737,7 +1753,7 @@ private:
     // the real backend.
     std::optional<Home::PrinterEntry> home_card(const std::string& name) const
     {
-        Home::OrcaHomeBackend home(*m_frame, nullptr);
+        Home::OrcaHomeBackend home(*m_frame);
         for (Home::PrinterEntry& card : home.printers())
             if (card.id == "named:" + name)
                 return card;
@@ -1765,7 +1781,7 @@ private:
         const int         tab_before      = m_notebook->GetSelection();
         check(selected_before != kAddedPrinter && printer_windows().empty(), "printer_window_fixture_starts_on_another_printer");
         {
-            Home::OrcaHomeBackend home(*m_frame, nullptr);
+            Home::OrcaHomeBackend home(*m_frame);
             home.launch_monitor(std::string("named:") + kAddedPrinter);
             const auto opened = printer_windows();
             check(opened.size() == 1 && opened.front()->GetTitle() == wxString::FromUTF8(kAddedPrinter) &&
@@ -1815,6 +1831,10 @@ private:
                       card->connection_text == "Not connected" && card->address.empty() && !card->can_launch_monitor,
                   "home_says_not_connected_after_a_failed_host_test");
             check(card && card->model_text == "Ender-3 V2 Neo \xC2\xB7 0.4 mm", "home_model_row_names_model_and_nozzle");
+            // The project has a filament selected, and adding the printer
+            // selected it: neither is what the machine holds. A printer that
+            // reports nothing gets no Loaded row.
+            check(card && card->spools.empty(), "home_claims_nothing_loaded_on_a_printer_that_reports_nothing");
         }
         std::string answered;
         {
@@ -1960,8 +1980,7 @@ private:
         }
 
         // What "Add this printer" does, through the one route the panel uses.
-        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()),
-                                                 nullptr);
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
         PrinterSetup::AddPrinterRequest request;
         request.vendor_id = neo->vendor_id;
         request.model_id  = neo->model_id;
@@ -1982,7 +2001,7 @@ private:
         check(added && error.empty() && selected_printer() == second, "named_second_of_a_model_is_a_second_printer");
         check(printer_profile(kAddedPrinter) != nullptr, "named_second_add_keeps_the_first");
 
-        Home::OrcaHomeBackend home(*m_frame, nullptr);
+        Home::OrcaHomeBackend home(*m_frame);
         const auto cards = home.printers();
         const auto card = [&](const std::string& name) -> const Home::PrinterEntry* {
             const auto found = std::find_if(cards.begin(), cards.end(),
@@ -2026,15 +2045,15 @@ private:
                   !Printers::link_named_printer(second, "harness-device").empty(),
               "named_device_link_refuses_a_second_owner");
 
-        check(!Printers::rename_named_printer(*m_plater, nullptr, second, kAddedPrinter).empty() &&
+        check(!Printers::rename_named_printer(*m_plater, second, kAddedPrinter).empty() &&
                   selected_printer() == second,
               "named_rename_refuses_a_taken_name");
-        check(!Printers::rename_named_printer(*m_plater, nullptr, second, "Shed/Neo").empty(),
+        check(!Printers::rename_named_printer(*m_plater, second, "Shed/Neo").empty(),
               "named_rename_refuses_illegal_characters");
-        check(Printers::rename_named_printer(*m_plater, nullptr, second, "Shed Neo").empty() &&
+        check(Printers::rename_named_printer(*m_plater, second, "Shed Neo").empty() &&
                   selected_printer() == "Shed Neo" && printer_profile(second) == nullptr,
               "named_rename_of_the_selected_printer");
-        check(Printers::rename_named_printer(*m_plater, nullptr, kAddedPrinter, "Garage Neo").empty() &&
+        check(Printers::rename_named_printer(*m_plater, kAddedPrinter, "Garage Neo").empty() &&
                   selected_printer() == "Shed Neo" && printer_profile(kAddedPrinter) == nullptr,
               "named_rename_of_another_printer_keeps_the_selection");
         const Preset* garage = printer_profile("Garage Neo");
@@ -2043,10 +2062,10 @@ private:
         check(std::any_of(renamed_printers.begin(), renamed_printers.end(), [](const auto& printer) {
                   return printer.name == "Garage Neo" && printer.device_id == "harness-device";
               }), "named_rename_keeps_the_device_association");
-        check(Printers::remove_named_printer(*m_plater, nullptr, "Garage Neo").empty() &&
+        check(Printers::remove_named_printer(*m_plater, "Garage Neo").empty() &&
                   printer_profile("Garage Neo") == nullptr && selected_printer() == "Shed Neo",
               "named_remove_of_another_printer_keeps_the_selection");
-        check(Printers::remove_named_printer(*m_plater, nullptr, "Shed Neo").empty() &&
+        check(Printers::remove_named_printer(*m_plater, "Shed Neo").empty() &&
                   printer_profile("Shed Neo") == nullptr && selected_printer() == kAddedPrinterProfile,
               "named_remove_of_the_selected_printer_selects_its_parent");
         verify_named_header();
@@ -2057,7 +2076,7 @@ private:
     {
         const std::string name = Printers::add_named_printer(*m_plater, "Lab Printer", {});
         check(SetupCommands::current_printer().nickname == name, "named_header_shows_the_printers_name");
-        check(Printers::remove_named_printer(*m_plater, nullptr, name).empty(), "named_header_cleanup_removes_the_printer");
+        check(Printers::remove_named_printer(*m_plater, name).empty(), "named_header_cleanup_removes_the_printer");
         verify_named_wizard_install();
     }
 
@@ -2082,7 +2101,7 @@ private:
               "named_wizard_install_becomes_a_printer");
         Printers::name_installed_printers(*m_plater, wxGetApp().app_config->vendors());
         check(printer_profile("Generic Klipper Printer (2)") == nullptr, "named_wizard_names_only_new_models");
-        check(Printers::remove_named_printer(*m_plater, nullptr, "Generic Klipper Printer").empty(),
+        check(Printers::remove_named_printer(*m_plater, "Generic Klipper Printer").empty(),
               "named_wizard_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         check(selected_printer() == kSetupFixturePrinter, "named_cleanup_restores_the_fixture_printer");
@@ -2140,7 +2159,7 @@ private:
         // in-process fake. This proves state ownership, not network authentication.
         wxGetApp().app_config->set("jusprin", "fake_printer", "true");
         auto backend = std::make_shared<PrinterSetup::OrcaPrinterBackend>(
-            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), nullptr);
+            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
         PrinterSetup::AddPrinterRequest request;
         request.vendor_id = "BBL";
         request.model_id = "Bambu Lab A1 mini";
@@ -2228,7 +2247,7 @@ private:
                                             timeout.message.find("access code") == std::string::npos,
                                             "timeout_explains_no_response_without_inventing_auth_failure");
                                         PrinterSetup::OrcaPrinterBackend reopened(*self->m_plater,
-                                            PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), nullptr);
+                                            PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
                                         self->check(reopened.connection(name).state == "unknown",
                                             "previously_verified_connection_remains_distinct_from_never_connected");
                                         // Verified before and silent now: Offline, with Reconnect.
@@ -2357,7 +2376,7 @@ private:
     {
         wxGetApp().app_config->set("jusprin", "fake_printer", "true");
         m_home_live_backend = std::make_shared<PrinterSetup::OrcaPrinterBackend>(
-            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), installed_shell()->status_row()->spool_store());
+            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
         PrinterSetup::AddPrinterRequest request;
         request.vendor_id = "BBL";
         request.model_id  = "Bambu Lab A1 mini";
@@ -2466,10 +2485,110 @@ private:
                                  [self, sent] {
                                      self->check(installed_shell()->home_view()->host().messages_sent() == sent,
                                                  "home_live_sends_nothing_while_home_is_hidden");
-                                     self->finish();
+                                     self->home_live_trays();
                                  });
             });
     }
+
+    // The printer reports trays now, so the filament menu leads with "Use
+    // what's loaded on the printer…", and the row opens OrcaSlicer's own sync
+    // dialog with the sidebar hidden. The dialog is modal; a watcher queued
+    // before the click finds it inside its own loop, notes what opened, and
+    // cancels it, so the check never waits on a person. Then the printer goes
+    // quiet, and the row stays where it was, greyed, with the reason.
+    void home_live_trays()
+    {
+        write_home_live_control(
+            R"({"state":"idle","spools":[{"subBrands":"PLA Matte","trayType":"PLA","colour":"5F7D4FFF","filamentId":"GFA01"},)"
+            R"({"subBrands":"PETG HF","trayType":"PETG","filamentId":"GFG02"}]})");
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        wait_until([] { return SetupCommands::printer_trays() == SetupCommands::TrayState::Available; },
+                   "home_live_printer_reports_trays", [self = shared_from_this()] {
+                       installed_shell()->status_row()->open_filament_menu();
+                       auto* menu = self->visible_header_menu();
+                       self->check(menu != nullptr, "filament_menu_opens_on_a_printer_with_trays");
+                       auto* tray = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(
+                                               ui_name("Use what's loaded on the printer…"), menu))
+                                         : nullptr;
+                       self->check(tray != nullptr && tray->IsEnabled(), "the_tray_row_leads_and_is_live");
+                       if (tray == nullptr) {
+                           if (menu) menu->close();
+                           self->finish();
+                           return;
+                       }
+                       self->m_sync_dialog_seen.clear();
+                       self->m_sync_watch_done = false;
+                       self->watch_for_sync_dialog(200);
+                       self->click_row(menu, tray);
+                       self->wait_until([self] { return self->m_sync_watch_done; }, "home_live_sync_run_finished",
+                                        [self] {
+                                            std::cerr << "HARNESS NOTE sync_row_opened " << self->m_sync_dialog_seen << '\n';
+                                            // Orca's sync shows its mapping dialog only when it has a choice to
+                                            // offer, and a message only when something could not be matched;
+                                            // with known trays it copies them without a word. What it did is
+                                            // the check, not which dialogs it showed.
+                                            // What it did: the project's slots are now the printer's trays.
+                                            const auto slots = SetupCommands::filament_slots();
+                                            std::cerr << "HARNESS NOTE slots_after_sync " << slots.size();
+                                            for (const auto& slot : slots)
+                                                std::cerr << " [" << slot.filament.preset_name << " " << slot.colour.ToStdString() << "]";
+                                            std::cerr << '\n';
+                                            self->check(slots.size() == 2 && wxColour(slots[0].colour) == wxColour("#5F7D4F"),
+                                                        "the_sync_copies_the_trays_into_the_slots");
+                                            self->home_live_trays_offline();
+                                        });
+                   });
+    }
+
+    void home_live_trays_offline()
+    {
+        write_home_live_control(R"({"state":"idle","offline":true})");
+        wait_until([] { return SetupCommands::printer_trays() == SetupCommands::TrayState::Offline; },
+                   "home_live_trays_go_offline", [self = shared_from_this()] {
+                       installed_shell()->status_row()->open_filament_menu();
+                       auto* menu = self->visible_header_menu();
+                       auto* tray = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(
+                                               ui_name("Use what's loaded on the printer…"), menu))
+                                         : nullptr;
+                       self->check(tray != nullptr && !tray->IsEnabled(), "an_offline_printer_keeps_the_tray_row_greyed");
+                       self->check(tray != nullptr && tray->decoration().sub_label.Contains("is offline"),
+                                   "the_greyed_tray_row_says_why");
+                       if (menu) menu->close();
+                       self->finish();
+                   });
+    }
+
+    // Polls, from inside whatever modal loop is running, for the dialogs
+    // Orca's sync puts up: its mapping dialog, which is confirmed as a person
+    // syncing would, and the message that may follow, which is dismissed.
+    // Done once a dialog has been seen and none has been open for a while,
+    // so the sync has finished before its outcome is read.
+    void watch_for_sync_dialog(int tries_left, int quiet_polls = 0)
+    {
+        for (wxWindow* window : wxTopLevelWindows)
+            if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog && dialog->IsModal()) {
+                const bool mapping = dynamic_cast<SyncAmsInfoDialog*>(dialog) != nullptr;
+                m_sync_dialog_seen += std::string(m_sync_dialog_seen.empty() ? "" : "; ") +
+                                      (mapping ? "SyncAmsInfoDialog" : "other") + " title=" + ui_text(dialog->GetTitle());
+                dialog->EndModal(mapping ? wxID_YES : wxID_OK);
+                quiet_polls = -1; // restart the quiet count after this one
+                break;
+            }
+        ++quiet_polls;
+        if ((!m_sync_dialog_seen.empty() && quiet_polls >= 10) || tries_left <= 0) {
+            if (m_sync_dialog_seen.empty())
+                m_sync_dialog_seen = "none";
+            m_sync_watch_done = true;
+            return;
+        }
+        wxGetApp().CallAfter([self = shared_from_this(), tries_left, quiet_polls] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            self->watch_for_sync_dialog(tries_left - 1, quiet_polls);
+        });
+    }
+
+    std::string m_sync_dialog_seen;
+    bool        m_sync_watch_done{false};
 
     void check(bool condition, const std::string& name)
     {
@@ -2779,9 +2898,10 @@ private:
                     "home_returns_to_prepare",[self] {
                         self->verify_chip_keyboard();
                         self->verify_menu_in_place_navigation();
-                        self->verify_generic_preset_filter();
+                        self->verify_filament_menu();
                         self->capture_chip_appearance();
-                        self->verify_two_click_swap();
+                        self->verify_filament_change();
+                        self->verify_filament_slots();
                         self->verify_header_setup(Preset::TYPE_PRINTER);
                     });
             });
@@ -2834,70 +2954,47 @@ private:
         return names;
     }
 
-    // "Generic preset…" must narrow the list by the vendor the profile
-    // declares. The earlier implementation instead typed "Generic" into the
-    // search box and re-ran the substring search, which matched any preset
-    // whose name happened to read "generic", missed generic presets named
-    // otherwise, and left a word in a field the person never typed into. Each
-    // of those three is checked here, so a regression to text matching fails
-    // rather than passing on a list that happens to look similar.
-    void verify_generic_preset_filter()
+    // The one-slot filament menu, as the design lists it: a colour row, the
+    // installed filaments that fit in brand-then-name order with the current
+    // one ticked, then Other filament…, Filament settings… and Add a slot. The
+    // fixture printer reports no trays, so the tray row is absent rather than
+    // greyed.
+    void verify_filament_menu()
     {
-        installed_shell()->status_row()->open_spool_menu();
+        installed_shell()->status_row()->open_filament_menu();
         auto* menu = visible_header_menu();
-        check(menu != nullptr, "spool_menu_opens_for_the_generic_filter");
+        check(menu != nullptr, "filament_menu_opens");
         if (menu == nullptr) return;
 
-        menu = click_menu_row(menu, ui_name("Other spool…"));
-        check(menu != nullptr, "other_spool_step_opens");
-        if (menu == nullptr) return;
-        const std::size_t unfiltered_rows = menu_row_names(menu).size();
-
-        menu = click_menu_row(menu, ui_name("Generic preset…"));
-        check(menu != nullptr, "generic_preset_step_opens");
-        if (menu == nullptr) return;
-
-        wxTextCtrl* field = nullptr;
-        for (auto* child : menu->GetChildren())
-            if (auto* text = dynamic_cast<wxTextCtrl*>(child); text && field == nullptr) field = text;
-        check(field != nullptr && field->GetValue().empty(), "generic_step_leaves_the_search_field_empty");
-
+        std::vector<std::string> expected;
+        for (const auto& filament : SetupCommands::compatible_filaments()) expected.push_back(ui_text(filament.alias));
+        check(!expected.empty(), "the_printer_has_installed_filaments");
+        for (const char* tail : {"Other filament…", "Filament settings…", "Add a slot"})
+            expected.push_back(tail);
         const std::vector<std::string> names = menu_row_names(menu);
-        check(!names.empty() && names.front().find("GENERIC") != std::string::npos,
-              "generic_step_title_says_the_list_is_filtered");
-        check(names.size() < unfiltered_rows, "generic_step_shortens_the_list");
+        check(names == expected, "filament_menu_lists_the_installed_filaments_then_the_quiet_rows");
+        if (names != expected)
+            for (const auto& name : names) std::cerr << "HARNESS NOTE filament_menu_row " << name << '\n';
+        check(wxWindow::FindWindowByName(ui_name("Use what's loaded on the printer…"), menu) == nullptr,
+              "no_tray_row_on_a_printer_that_reports_none");
 
-        // The listed rows must be exactly the compatible presets whose vendor
-        // is Generic -- no branded preset admitted, no generic one dropped.
-        std::vector<std::string> listed, expected;
-        for (std::size_t i = 1; i < names.size(); ++i)
-            if (names[i] != "Import a preset file…") listed.push_back(names[i]);
-        std::string branded; // an alias the vendor test must have excluded
-        for (const auto& filament : SetupCommands::compatible_filaments()) {
-            if (filament.vendor == SetupCommands::kGenericVendor) expected.push_back(ui_text(filament.alias));
-            else if (branded.empty()) branded = ui_text(filament.alias);
-        }
-        std::sort(listed.begin(), listed.end());
-        std::sort(expected.begin(), expected.end());
-        check(!expected.empty(), "the_printer_has_generic_filament_presets");
-        check(listed == expected, "generic_step_lists_exactly_the_generic_vendor_presets");
-        check(!branded.empty() && std::find(listed.begin(), listed.end(), branded) == listed.end(),
-              "generic_step_drops_a_branded_preset");
+        auto* current = dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(SetupCommands::current_filament().alias, menu));
+        check(current != nullptr && current->decoration().check, "the_current_filament_is_ticked");
+        // The colour row: the slot's own colour first, and the "+" for the
+        // system picker. Named by value, since the app holds no colour words.
+        check(wxWindow::FindWindowByName(wxColour(SetupCommands::current_colour()).GetAsString(wxC2S_HTML_SYNTAX), menu) != nullptr,
+              "the_colour_row_shows_the_slot_colour");
+        check(wxWindow::FindWindowByName("Other colour", menu) != nullptr, "the_colour_row_offers_the_system_picker");
 
-        // Back must reach the full list again, not leave the menu.
-        menu = click_menu_row(menu, ui_name(names.front()));
-        check(menu != nullptr && menu_row_names(menu).size() == unfiltered_rows,
-              "generic_step_returns_to_the_full_list");
-        if (menu == nullptr) return;
         menu->close();
         wxYield();
-        check(!chip_half_open(), "generic_step_dismisses_cleanly");
+        check(!chip_half_open(), "filament_menu_dismisses_cleanly");
     }
 
     void verify_header_setup(Preset::Type type)
     {
-        // The printer half opens the printer menu; the spool half's row menu
-        // is where Filament settings… now lives, one step in from the list.
+        // The printer half opens the printer menu; the filament half's menu
+        // carries Filament settings….
         if (type == Preset::TYPE_PRINTER) {
             // Printer settings… talks about the selected printer in the
             // printer conversation on Home. Only a printer saved under a name
@@ -2912,34 +3009,14 @@ private:
                 [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
             return;
         }
-        installed_shell()->status_row()->open_spool_menu();
-        // Row one of the spool list is the current spool; its ⋯ menu carries
-        // the filament editor.
-        auto* menu = visible_header_menu();
-        check(menu != nullptr, "spool_menu_opens");
-        if (menu == nullptr) return;
-        auto* row = first_spool_row(menu);
-        check(row != nullptr, "spool_menu_lists_a_spool");
-        if (row == nullptr) return;
-        row->invoke_row_action();
+        installed_shell()->status_row()->open_filament_menu();
+        // Filament settings… is a plain row of the filament menu.
         m_frame->CallAfter([self=shared_from_this(),type] {
             self->choose_header_item(ui_name("Filament settings…"),
                 [self,type] { self->verify_header_setup_open(type); });
         });
     }
 
-    // The first selectable row of an open spool menu: the most recently used
-    // remembered spool.
-    HeaderButton* first_spool_row(HeaderMenu* menu) const
-    {
-        for (auto* child : menu->GetChildren())
-            if (auto* button = dynamic_cast<HeaderButton*>(child); button && button->has_row_action())
-                return button;
-        return nullptr;
-    }
-
-    // Drives the two-click swap without a pointer: open the half, pick a row
-    // that is not the current spool, and confirm the chip followed.
     // Writes the chip as it actually renders, in both appearance modes and in
     // the long-name case, so appearance is evidence rather than a claim. The
     // application draws these itself, so they need no screen-capture
@@ -2947,7 +3024,7 @@ private:
     void capture_chip_appearance()
     {
         auto* row  = installed_shell()->status_row();
-        auto* chip = dynamic_cast<PrinterSpoolChip*>(wxWindow::FindWindowByName("Printer and spool", row));
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(wxWindow::FindWindowByName("Printer and filament", row));
         check(chip != nullptr, "chip_is_in_the_header");
         if (chip == nullptr) return;
 
@@ -2981,11 +3058,11 @@ private:
         m_plater->canvas3D()->get_wxglcanvas()->SetFocus();
         wxYield();
         check(!chip_half_open(), "chip_is_at_rest_before_capture");
-        check(!chip->printer_half().HasFocus() && !chip->spool_half().HasFocus(),
+        check(!chip->printer_half().HasFocus() && !chip->filament_half().HasFocus(),
               "no_focus_ring_when_the_chip_is_captured");
 
-        // Deliberately does NOT refresh: a refresh re-reads the spool store and
-        // would overwrite any label the caller set for the shot.
+        // Deliberately does NOT refresh: a refresh re-reads Orca and would
+        // overwrite any label the caller set for the shot.
         auto write = [&](const std::string& name) {
             chip->Layout();
             const wxBitmap bitmap = chip->snapshot();
@@ -3015,8 +3092,9 @@ private:
         // chip. No refresh after this point: it would restore the real name.
         installed_shell()->status_row()->apply_appearance(false);
         const int natural = chip->GetBestSize().x;
-        chip->set_spool("Prusament Galaxy Black PLA Blend, third reel from the shelf by the window",
-                        wxColour("#101010"));
+        FilamentChipModel long_model;
+        long_model.dots = {{0, "#101010", false}};
+        chip->set_filaments(long_model, "Prusament Galaxy Black PLA Blend, third reel from the shelf by the window", {});
         chip->InvalidateBestSize();
         const int capped = chip->GetBestSize().x;
         const wxImage long_name = write("long-name");
@@ -3024,7 +3102,7 @@ private:
         check(!same_pixels(light, long_name), "long_name_actually_rendered");
         // 240 DIP label cap plus the half's own padding and chevron; a name
         // this long must not push the chip past that.
-        check(capped <= chip->FromDIP(240) + natural, "long_spool_name_stays_within_the_cap");
+        check(capped <= chip->FromDIP(240) + natural, "long_filament_name_stays_within_the_cap");
         std::cout << "HARNESS MEASURE chip_natural_width=" << natural
                   << " chip_capped_width=" << capped << std::endl;
 
@@ -3033,7 +3111,7 @@ private:
         row->refresh();
     }
 
-    // The nozzle, plate, other-spool and per-row steps all replace the popup's
+    // The nozzle, plate and slot steps all replace the popup's
     // own rows instead of opening a second popup. That mechanism is the one
     // thing a screenshot cannot check and a click test kept missing, so it is
     // asserted here: after activating the row, the SAME popup must still be
@@ -3079,9 +3157,9 @@ private:
     // True while either chip half still believes its menu is open.
     bool chip_half_open() const
     {
-        auto* chip = dynamic_cast<PrinterSpoolChip*>(
-            wxWindow::FindWindowByName("Printer and spool", installed_shell()->status_row()));
-        return chip != nullptr && (chip->printer_half().is_open() || chip->spool_half().is_open());
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(
+            wxWindow::FindWindowByName("Printer and filament", installed_shell()->status_row()));
+        return chip != nullptr && (chip->printer_half().is_open() || chip->filament_half().is_open());
     }
 
     // Left/right arrows move between the chip's halves, so the whole chip
@@ -3090,7 +3168,7 @@ private:
     void verify_chip_keyboard()
     {
         auto* row  = installed_shell()->status_row();
-        auto* chip = dynamic_cast<PrinterSpoolChip*>(wxWindow::FindWindowByName("Printer and spool", row));
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(wxWindow::FindWindowByName("Printer and filament", row));
         check(chip != nullptr, "chip_present_for_keyboard");
         if (chip == nullptr) return;
 
@@ -3118,13 +3196,13 @@ private:
             wxYield();
         };
         arrow(chip->printer_half(), WXK_RIGHT);
-        check(chip->spool_half().HasFocus(), "right_arrow_moves_to_the_spool_half");
-        arrow(chip->spool_half(), WXK_LEFT);
+        check(chip->filament_half().HasFocus(), "right_arrow_moves_to_the_filament_half");
+        arrow(chip->filament_half(), WXK_LEFT);
         check(chip->printer_half().HasFocus(), "left_arrow_moves_back_to_the_printer_half");
     }
 
-    // The after-swap line must reach the page as a note, rendered without a
-    // bubble. Checked in the DOM, because the host storing it proves nothing
+    // The after-change line must reach the page as a note, rendered without
+    // a bubble and led by the colour the change landed on. Checked in the DOM, because the host storing it proves nothing
     // about what the reader sees. RunScript cannot return a value on macOS, so
     // the probe reports through the composer draft, which the host owns.
     void verify_note_rendered(std::function<void()> then)
@@ -3134,70 +3212,176 @@ private:
             "(function(){"
             "  var notes = document.querySelectorAll('.message.note');"
             "  var bubbles = document.querySelectorAll('.message.note.user, .message.note.assistant');"
+            "  var swatches = document.querySelectorAll('.message.note .note-swatch');"
             "  var text = notes.length ? notes[0].textContent : '';"
-            "  var probe = 'notes=' + notes.length + ';bubbles=' + bubbles.length + ';first=' + text;"
+            "  var probe = 'notes=' + notes.length + ';bubbles=' + bubbles.length + ';swatches=' + swatches.length + ';first=' + text;"
             "  window.__jusprinTest && window.__jusprinTest.setDraft(probe);"
             "})()");
         wait_until([this] { return persistence().draft().rfind("notes=", 0) == 0; },
             "note_probe_reported", [self = shared_from_this(), then] {
                 const std::string probe = self->persistence().draft();
-                self->check(probe.find("notes=0;") == std::string::npos, "page_renders_the_swap_notes");
+                self->check(probe.find("notes=0;") == std::string::npos, "page_renders_the_filament_note");
                 self->check(probe.find(";bubbles=0;") != std::string::npos, "notes_render_without_a_bubble");
-                self->check(probe.find("Harness Second Spool") != std::string::npos ||
-                            probe.find("Harness Other Preset") != std::string::npos,
-                            "the_rendered_note_names_the_spool");
+                self->check(probe.find(";swatches=0;") == std::string::npos, "the_note_is_led_by_its_colour");
+                self->check(probe.find("Filament is now") != std::string::npos, "the_rendered_note_names_the_filament");
                 std::cout << "HARNESS NOTE PROBE " << probe << std::endl;
                 self->persistence().set_draft({});
                 then();
             });
     }
 
-    void verify_two_click_swap()
+    // A filament change through the menu, as a person makes one: the chip and
+    // the project follow at once, the menu stays open so a colour can change
+    // in the same visit, and the visit leaves one line in the thread when it
+    // ends. Nothing is recorded on the side: the chip names the project.
+    void verify_filament_change()
     {
         auto* row = installed_shell()->status_row();
-        auto spools = row->listed_spools();
-        check(!spools.empty(), "chip_seeds_a_spool_for_this_printer");
-        if (spools.empty()) return;
+        const auto before = SetupCommands::current_filament();
+        check(chip_label(row, "Filament") == before.alias, "chip_names_the_project_filament");
 
-        // A fresh profile has exactly the seeded spool. Remember a second one
-        // -- same preset, a different colour, the ordinary "I loaded the other
-        // reel" case -- so the swap under test is a real swap.
-        const std::string other_colour = spools.front().colour == "#101010" ? "#F5F5F0" : "#101010";
-        const auto second = row->remember_spool(spools.front().filament_preset, other_colour, "Harness Second Spool");
-        check(row->listed_spools().size() == spools.size() + 1, "remembering_a_spool_adds_one_row");
+        std::string other;
+        wxString    other_alias;
+        for (const auto& filament : SetupCommands::compatible_filaments())
+            if (filament.preset_name != before.preset_name) {
+                other       = filament.preset_name;
+                other_alias = filament.alias;
+                break;
+            }
+        check(!other.empty(), "a_second_compatible_filament_exists");
+        if (other.empty()) return;
+        // Orca's own rule for the colour: a preset that names a default colour
+        // brings it; one that names none leaves the slot's colour alone.
+        const Preset*  preset          = wxGetApp().preset_bundle->filaments.find_preset(other);
+        const auto*    defaults        = preset ? preset->config.option<ConfigOptionStrings>("default_filament_colour") : nullptr;
+        const wxString default_colour  = defaults && !defaults->values.empty() ? wxString::FromUTF8(defaults->values.front()) : wxString();
+        const wxString colour_before   = wxColour(SetupCommands::current_colour()).GetAsString(wxC2S_HTML_SYNTAX);
+        const wxString expected_colour = default_colour.empty() ? colour_before
+                                                                : wxColour(default_colour).GetAsString(wxC2S_HTML_SYNTAX);
+        std::cout << "HARNESS NOTE filament_change from=" << before.preset_name << " to=" << other
+                  << " default_colour=" << default_colour.ToStdString() << std::endl;
 
-        const wxString before = chip_label(row, "Spool");
-        check(row->select_spool(second.id), "select_spool_applies_a_remembered_spool");
-        check(chip_label(row, "Spool") == wxString::FromUTF8(second.name), "chip_shows_the_swapped_spool");
-        check(chip_label(row, "Spool") != before, "the_chip_actually_changed");
-        // The project itself moved, not just the label.
-        check(SetupCommands::current_colour().Lower() == wxString::FromUTF8(other_colour).Lower(),
-              "swap_writes_the_colour_into_the_project");
-        // The swapped-to spool is now the most recently used.
-        check(row->listed_spools().front().id == second.id, "swap_stamps_recency");
-        // And it is the one the chip reports as current.
-        const auto current = row->current_spool();
-        check(current.has_value() && current->id == second.id, "current_spool_matches_after_a_swap");
+        // A saved colour for the colour click below, in the picker's own list.
+        const wxColour saved("#101010");
+        SetupCommands::remember_colour(saved);
+        const auto colours = SetupCommands::saved_colours();
+        check(!colours.empty() && colours.front() == saved, "a_picked_colour_joins_the_saved_colours");
 
-        check(!row->select_spool("not-a-spool-id"), "select_spool_refuses_an_unknown_id");
+        Agent::AgentHost& host        = installed_shell()->agent_pane()->web_view().host();
+        const auto        count_notes = [&host] {
+            const auto messages = host.conversation();
+            return std::count_if(messages.begin(), messages.end(),
+                                 [](const auto& message) { return message.role == Agent::MessageRole::Note; });
+        };
+        const auto notes_before = count_notes();
 
-        // Swapping to a DIFFERENT filament preset is a heavier path than
-        // recolouring the same one: it runs Orca's preset switch, which can
-        // touch compatibility, dirty state and the sidebar. The "Use this
-        // spool" step does exactly this, so it is exercised here.
-        const auto compatible = SetupCommands::compatible_filaments();
-        const std::string current_preset = SetupCommands::current_filament().preset_name;
-        std::string other_preset;
-        for (const auto& filament : compatible)
-            if (filament.preset_name != current_preset) { other_preset = filament.preset_name; break; }
-        check(!other_preset.empty(), "a_second_compatible_filament_exists");
-        if (other_preset.empty()) return;
+        row->open_filament_menu();
+        auto* menu = visible_header_menu();
+        check(menu != nullptr, "filament_menu_opens_for_a_change");
+        if (menu == nullptr) return;
+        menu = click_menu_row(menu, other_alias);
+        check(menu != nullptr, "the_menu_stays_open_after_a_filament_click");
+        check(SetupCommands::current_filament().preset_name == other, "the_project_is_on_the_picked_filament");
+        check(chip_label(row, "Filament") == other_alias, "the_chip_names_the_picked_filament");
+        check(wxColour(SetupCommands::current_colour()).GetAsString(wxC2S_HTML_SYNTAX) == expected_colour,
+              "a_filament_change_follows_orcas_colour_rule");
+        if (menu == nullptr) return;
+        auto* ticked = dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(other_alias, menu));
+        check(ticked != nullptr && ticked->decoration().check, "the_tick_moved_to_the_picked_filament");
+        // A thread line lands when the visit ends, not on each click.
+        check(count_notes() == notes_before, "no_line_while_the_menu_is_open");
 
-        const auto crossed = row->remember_spool(other_preset, "#101010", "Harness Other Preset");
-        check(row->select_spool(crossed.id), "select_spool_switches_to_another_preset");
-        check(SetupCommands::current_filament().preset_name == other_preset,
-              "the_project_is_on_the_new_filament_preset");
-        check(chip_label(row, "Spool") == wxString::FromUTF8(crossed.name), "chip_shows_the_cross_preset_spool");
+        // The same visit: a colour.
+        auto* cell = wxWindow::FindWindowByName(saved.GetAsString(wxC2S_HTML_SYNTAX), menu);
+        check(cell != nullptr, "the_colour_row_offers_the_saved_colour");
+        if (cell != nullptr) {
+            click_row(menu, cell);
+            wxYield();
+            menu = visible_header_menu();
+        }
+        check(wxColour(SetupCommands::current_colour()) == saved, "a_colour_click_sets_the_slot_colour");
+        check(menu != nullptr, "the_menu_stays_open_after_a_colour_click");
+        if (menu == nullptr) return;
+
+        menu->close();
+        wxYield();
+        wxYield();
+        check(count_notes() == notes_before + 1, "the_visit_leaves_one_line");
+        const auto messages = host.conversation();
+        if (!messages.empty() && messages.back().role == Agent::MessageRole::Note) {
+            check(messages.back().text.find(ui_text(other_alias)) != std::string::npos, "the_line_names_the_new_filament");
+            check(wxColour(wxString::FromUTF8(messages.back().swatch)) == saved, "the_line_is_led_by_the_colour");
+        }
+
+        // Put the fixture back as it was: later checks slice it, and the
+        // filament picked here need not print on the fixture's plate.
+        check(SetupCommands::select_filament_preset(*m_plater, 0, before.preset_name), "the_fixture_filament_is_restored");
+        SetupCommands::set_filament_colour(*m_plater, 0, wxColour(colour_before));
+        row->refresh();
+        check(chip_label(row, "Filament") == before.alias, "the_chip_follows_the_restored_filament");
+    }
+
+    // Several slots: "Add a slot" turns the one-slot menu into the slot list
+    // with the new slot open, and the chip draws a dot per slot -- faded for a
+    // slot the plate does not print with. Adding a slot changes no filament,
+    // so the visit leaves no line. The slot is taken away again, as the
+    // sidebar's own "-" does, so later checks see the one-slot fixture.
+    void verify_filament_slots()
+    {
+        auto* row  = installed_shell()->status_row();
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(wxWindow::FindWindowByName("Printer and filament", row));
+        check(chip != nullptr, "chip_present_for_slots");
+        if (chip == nullptr) return;
+        check(SetupCommands::filament_slots().size() == 1, "the_fixture_has_one_slot");
+        check(chip->filament_half().decoration().slot_dots.size() == 1, "one_slot_draws_one_dot");
+
+        row->open_filament_menu();
+        auto* menu = visible_header_menu();
+        check(menu != nullptr, "filament_menu_opens_for_a_slot");
+        if (menu == nullptr) return;
+        menu = click_menu_row(menu, ui_name("Add a slot"));
+        check(menu != nullptr, "adding_a_slot_keeps_the_menu_open");
+        const auto slots = SetupCommands::filament_slots();
+        check(slots.size() == 2, "adding_a_slot_adds_one");
+        if (menu == nullptr || slots.size() != 2) return;
+
+        // The new slot's own view, with the way back to the list at the top.
+        check(wxWindow::FindWindowByName(ui_name("Add a slot"), menu) == nullptr, "a_slot_view_does_not_offer_add_a_slot");
+        std::string back_name;
+        for (const auto& name : menu_row_names(menu))
+            if (name.rfind(ui_text(ui_name("FILAMENT · SLOT 2")), 0) == 0) back_name = name;
+        check(!back_name.empty(), "the_new_slot_opens_with_its_title");
+
+        // Behind the menu the chip already draws both slots. A dot fades
+        // exactly when Orca's plate says it does not print with that slot --
+        // unless the plate prints with none, when every slot reads as in use.
+        // At this point in the run the current plate is empty, so both are
+        // full; the fading itself is covered by the chip model's own tests.
+        const auto& dots          = chip->filament_half().decoration().slot_dots;
+        const bool  plate_uses_any = slots[0].used || slots[1].used;
+        check(dots.size() == 2, "two_slots_draw_two_dots");
+        check(dots.size() == 2 && dots[0].faded == (plate_uses_any && !slots[0].used) &&
+                  dots[1].faded == (plate_uses_any && !slots[1].used),
+              "each_dot_fades_exactly_when_the_plate_does_not_use_its_slot");
+        check(chip_label(row, "Filament") == slots[0].filament.alias, "the_label_names_the_filament_both_slots_share");
+
+        if (!back_name.empty()) menu = click_menu_row(menu, ui_name(back_name));
+        check(menu != nullptr, "back_reaches_the_slot_list");
+        if (menu != nullptr) {
+            const auto names = menu_row_names(menu);
+            check(std::find(names.begin(), names.end(), "1  " + ui_text(slots[0].filament.alias)) != names.end() &&
+                      std::find(names.begin(), names.end(), "2  " + ui_text(slots[1].filament.alias)) != names.end(),
+                  "the_slot_list_names_each_slot");
+            menu->close();
+            wxYield();
+            wxYield();
+        }
+
+        // Put the fixture back as it was.
+        m_plater->sidebar().delete_filament();
+        row->refresh();
+        check(SetupCommands::filament_slots().size() == 1, "the_added_slot_is_taken_away");
+        check(chip->filament_half().decoration().slot_dots.size() == 1, "the_chip_follows_back_to_one_slot");
     }
 
     // Since 0e55c4f9be the header's Printer settings… opens the printer
@@ -3222,8 +3406,7 @@ private:
                         self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor &&
                                                          !self->m_plater->is_preview_shown(); },
                             "header_printer_settings_returns_to_prepare", [self] {
-                                self->check(Printers::remove_named_printer(*self->m_plater, nullptr,
-                                                                          self->m_header_setup_printer).empty(),
+                                self->check(Printers::remove_named_printer(*self->m_plater, self->m_header_setup_printer).empty(),
                                             "header_setup_named_printer_removed");
                                 SetupCommands::select_printer_preset(*self->m_plater, self->m_header_setup_restore_printer);
                                 self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() ==
@@ -3262,10 +3445,45 @@ private:
                 self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor; },
                     "header_navigation_keeps_project",[self] {
                         self->check(self->m_plater->model().objects.size() >= 2,"header_navigation_preserves_objects");
+                        self->verify_unused_slot_fades();
                         self->verify_print_preflight(PrintAction::Print);
                         self->begin_slice_all_warm();
                     });
             });
+    }
+
+    // With the fixture's objects on the plate, a slot nothing prints with
+    // keeps its dot, faded, and the label still names what the plate uses.
+    // The slot is added and taken away with the sidebar's own "+" and "-".
+    void verify_unused_slot_fades()
+    {
+        auto* row  = installed_shell()->status_row();
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(wxWindow::FindWindowByName("Printer and filament", row));
+        if (chip == nullptr) return;
+        // The chip reads the current plate; make it one with the fixture's
+        // objects on it, and put the selection back afterwards.
+        auto&     plates   = m_plater->get_partplate_list();
+        const int previous = plates.get_curr_plate_index();
+        int       loaded   = -1;
+        for (int i = 0; i < plates.get_plate_count() && loaded < 0; ++i)
+            if (plates.get_plate(i)->has_printable_instances()) loaded = i;
+        check(loaded >= 0, "the_fixture_has_a_plate_with_objects");
+        if (loaded < 0) return;
+        m_plater->select_plate(loaded);
+        const auto added = SetupCommands::add_filament_slot(*m_plater);
+        check(added.has_value(), "a_slot_can_be_added_with_objects_on_the_plate");
+        if (!added) return;
+        row->refresh();
+        const auto  slots = SetupCommands::filament_slots();
+        const auto& dots  = chip->filament_half().decoration().slot_dots;
+        check(slots.size() == 2 && slots[0].used && !slots[1].used, "the_plate_prints_with_slot_one_only");
+        check(dots.size() == 2 && !dots[0].faded && dots[1].faded, "the_unused_slot_fades");
+        check(slots.size() == 2 && chip_label(row, "Filament") == slots[0].filament.alias,
+              "the_label_names_the_filament_the_plate_uses");
+        m_plater->sidebar().delete_filament();
+        m_plater->select_plate(previous);
+        row->refresh();
+        check(SetupCommands::filament_slots().size() == 1, "the_faded_slot_is_taken_away");
     }
 
     HeaderMenu* visible_header_menu() const
@@ -4808,7 +5026,7 @@ private:
 
         // The thread holds turns and host notes. These checks are about the
         // exchange, so they read the turns; a separate check below covers the
-        // note the earlier spool swap posted.
+        // note the earlier filament change posted.
         std::vector<Agent::ConversationMessage> turns, notes;
         for (const auto& message : host.conversation())
             (message.role == Agent::MessageRole::Note ? notes : turns).push_back(message);
@@ -4817,18 +5035,19 @@ private:
         check(!turns.empty() && turns.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
         check(!turns.empty() && turns.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
         if (turns.empty()) return;
-        // The two swaps earlier in this run posted one note each, in order,
-        // each naming the spool it swapped to.
-        check(notes.size() == 2, "each_spool_swap_posts_one_note");
-        if (notes.size() == 2) {
-            check(notes[0].text.find("Harness Second Spool") != std::string::npos, "first_swap_note_names_its_spool");
-            check(notes[1].text.find("Harness Other Preset") != std::string::npos, "second_swap_note_names_its_spool");
+        // The filament change earlier in this run posted one note for its
+        // visit; the colour-only click and the slot added and taken away
+        // posted none, because the plan did not change.
+        check(notes.size() == 1, "one_menu_visit_posts_one_note");
+        if (notes.size() == 1) {
+            check(notes[0].text.find("Filament is now") != std::string::npos, "the_note_names_the_new_filament");
+            check(!notes[0].swatch.empty(), "the_note_carries_its_colour");
         }
         // A note is a statement, not a turn: nothing replies to it, and it
         // never carries the streaming or failure states a turn can.
         for (const auto& note : notes) {
-            check(note.state == Agent::MessageState::Complete, "swap_note_is_complete");
-            check(note.in_reply_to.empty(), "swap_note_starts_no_exchange");
+            check(note.state == Agent::MessageState::Complete, "filament_note_is_complete");
+            check(note.in_reply_to.empty(), "filament_note_starts_no_exchange");
         }
         // The reply must describe the authoritative fixture, not canned text:
         // the two-plate fixture and its active plate contents appear in it.
@@ -6050,10 +6269,10 @@ private:
         verify_header_layout();
         m_frame->SetSize(m_frame->FromDIP(900),original.y);
         m_frame->Layout();
-        // The single setup chip became a two-half printer/spool chip; both
+        // The single setup chip became a two-half printer/filament chip; both
         // halves must exist, since each anchors its own menu.
-        auto* setup = wxWindow::FindWindowByName("Printer",row) && wxWindow::FindWindowByName("Spool",row)
-                          ? wxWindow::FindWindowByName("Printer and spool",row) : nullptr;
+        auto* setup = wxWindow::FindWindowByName("Printer",row) && wxWindow::FindWindowByName("Filament",row)
+                          ? wxWindow::FindWindowByName("Printer and filament",row) : nullptr;
         setup->SetLabel(wxString('W',180));
         row->SendSizeEvent();
         verify_header_layout();
@@ -6091,10 +6310,10 @@ private:
     {
         auto* row = installed_shell()->status_row();
         auto* home = wxWindow::FindWindowByName("Home navigation",row);
-        // The single setup chip became a two-half printer/spool chip; both
+        // The single setup chip became a two-half printer/filament chip; both
         // halves must exist, since each anchors its own menu.
-        auto* setup = wxWindow::FindWindowByName("Printer",row) && wxWindow::FindWindowByName("Spool",row)
-                          ? wxWindow::FindWindowByName("Printer and spool",row) : nullptr;
+        auto* setup = wxWindow::FindWindowByName("Printer",row) && wxWindow::FindWindowByName("Filament",row)
+                          ? wxWindow::FindWindowByName("Printer and filament",row) : nullptr;
         auto* action = wxWindow::FindWindowByName("Next print action",row);
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         auto* more = wxWindow::FindWindowByName("Project actions",row);

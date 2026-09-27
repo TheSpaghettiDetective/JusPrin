@@ -33,6 +33,10 @@ struct FakeBambuSpool
     std::string sub_brands;
     std::string tray_type;
     std::string colour;
+    // The tray's filament id (tray_info_idx), as hardware sends it beside the
+    // type -- "GFA01" is Bambu PLA Matte. Empty sends an empty id, which
+    // Orca's filament sync skips.
+    std::string filament_id;
 };
 
 struct FakeBambuStatusStep

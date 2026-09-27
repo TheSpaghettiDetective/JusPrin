@@ -70,6 +70,8 @@ json message_json(const ConversationMessage& message)
         result["error"] = error_json(*message.error);
     if (!message.attachment_ids.empty())
         result["attachments"] = message.attachment_ids;
+    if (!message.swatch.empty())
+        result["swatch"] = message.swatch;
     return result;
 }
 
@@ -465,7 +467,7 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
                 {"projectName", snapshot.setup.project_name},
                 {"projectDirty", snapshot.setup.project_dirty},
                 // "process" is the preset the setting deltas are measured
-                // against; the other two describe the machine and the spool.
+                // against; the other two describe the machine and slot 1's filament.
                 {"printer", json{{"preset", snapshot.setup.printer_preset},
                                  {"filament", snapshot.setup.filament_preset},
                                  {"process", snapshot.setup.process_preset}}},
@@ -1111,7 +1113,7 @@ std::string AgentHost::post_assistant_message(const std::string& text)
     return message.id;
 }
 
-std::string AgentHost::post_note(const std::string& text)
+std::string AgentHost::post_note(const std::string& text, const std::string& swatch)
 {
     if (text.empty())
         return {};
@@ -1123,6 +1125,7 @@ std::string AgentHost::post_note(const std::string& text)
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
     note.text  = text;
+    note.swatch = swatch;
     document.append_message(conversation_id, note, m_persistence.timestamp());
     m_persistence.flush();
     // A note starts nothing: no reply, no title generation, no tool run. It

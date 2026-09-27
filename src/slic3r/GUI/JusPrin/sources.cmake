@@ -99,12 +99,14 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/StatusRow.hpp
     GUI/JusPrin/Shell/HeaderControls.cpp
     GUI/JusPrin/Shell/HeaderControls.hpp
-    GUI/JusPrin/Shell/PrinterSpoolChip.cpp
-    GUI/JusPrin/Shell/PrinterSpoolChip.hpp
+    GUI/JusPrin/Shell/PrinterFilamentChip.cpp
+    GUI/JusPrin/Shell/PrinterFilamentChip.hpp
+    GUI/JusPrin/Shell/FilamentChipModel.cpp
+    GUI/JusPrin/Shell/FilamentChipModel.hpp
     GUI/JusPrin/Shell/PrinterMenu.cpp
     GUI/JusPrin/Shell/PrinterMenu.hpp
-    GUI/JusPrin/Shell/SpoolMenu.cpp
-    GUI/JusPrin/Shell/SpoolMenu.hpp
+    GUI/JusPrin/Shell/FilamentMenu.cpp
+    GUI/JusPrin/Shell/FilamentMenu.hpp
     GUI/JusPrin/Shell/SetupCommands.cpp
     GUI/JusPrin/Shell/SetupCommands.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp
@@ -124,8 +126,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/PlaterProjectState.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
-    GUI/JusPrin/Workspace/SpoolStore.cpp
-    GUI/JusPrin/Workspace/SpoolStore.hpp
     GUI/JusPrin/Workspace/UtcTime.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp
     GUI/JusPrin/Testing/FakeBambuAgent.hpp

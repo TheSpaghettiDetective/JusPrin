@@ -1,10 +1,10 @@
 #pragma once
 
+#include "FilamentMenu.hpp"
 #include "ShellTheme.hpp"
 #include "PrimaryPrintAction.hpp"
 
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 
 #include <wx/panel.h>
 #include <wx/weakref.h>
@@ -29,7 +29,7 @@ class ProjectPersistence;
 
 namespace Slic3r::GUI::JusPrin {
 class HeaderButton;
-class PrinterSpoolChip;
+class PrinterFilamentChip;
 
 // Home navigation, a centered setup selector, and right-aligned print actions.
 // Project identity and physical-print count live in the overflow menu. It
@@ -60,33 +60,19 @@ public:
     void show_action_menu();
     void show_overflow_menu();
 
-    // Chip entry points, shared by the controls and the native harness, so the
-    // two-click swap can be driven without a pointer.
+    // Chip entry points, shared by the controls and the native harness, so a
+    // filament change can be driven without a pointer.
     void open_printer_menu();
-    void open_spool_menu();
-    // Applies a remembered spool by ID exactly as picking its row would,
-    // including the recency stamp and the chat line. Returns false when the ID
-    // is not a spool of the current printer.
-    bool select_spool(const std::string& spool_id);
-    // The spools the chip would list right now, most recently used first.
-    std::vector<Workspace::Spool> listed_spools();
-    // The one store, for readers that need spools of a printer other than the
-    // current one -- Home's printer column lists them all. A second store over
-    // the same file would be a second writer, so the shell shares this one.
-    Workspace::SpoolStore* spool_store() const { return m_spools.get(); }
-    // Remembers a spool for the current printer, as the spool menu's
-    // "Use this spool" step does, without selecting it.
-    Workspace::Spool remember_spool(const std::string& filament_preset, const std::string& colour,
-                                    const std::string& name);
+    void open_filament_menu();
+    // What ends a filament menu visit: the chip re-reads Orca, and a visit
+    // that changed a filament leaves one line in the thread.
+    void on_filament_visit(const FilamentMenu::Visit& visit);
     wxString project_summary() const;
 
-    // The spool the project currently corresponds to, seeding one for a
-    // printer that has none so the chip never shows an empty right half.
-    std::optional<Workspace::Spool> current_spool();
-
-    // Where the after-swap chat line goes. Supplied by ShellController once
-    // the Agent pane exists, so the header does not depend on the Agent host.
-    void set_note_sink(std::function<void(const wxString&)> sink) { m_note_sink = std::move(sink); }
+    // Where the after-change chat line goes, with the colour that leads it
+    // ("#RRGGBB", or empty). Supplied by ShellController once the Agent pane
+    // exists, so the header does not depend on the Agent host.
+    void set_note_sink(std::function<void(const wxString&, const wxString&)> sink) { m_note_sink = std::move(sink); }
 
     // The Agent-panel toggle, supplied by ShellController for the same reason
     // as the note sink: the header drives the panel without depending on it.
@@ -96,7 +82,6 @@ public:
     void set_agent_pane_collapsed(bool collapsed);
 
 private:
-    void on_spool_selected(const Workspace::Spool& spool);
     void refresh_chip();
     void layout_header();
     std::tuple<std::uint64_t, std::uint64_t, std::uint64_t> print_target_identity() const;
@@ -109,18 +94,15 @@ private:
     Notebook&                  m_tabpanel;
     Agent::ProjectPersistence& m_persistence;
 
-    HeaderButton*     m_home_button{nullptr};
-    PrinterSpoolChip* m_chip{nullptr};
+    HeaderButton*        m_home_button{nullptr};
+    PrinterFilamentChip* m_chip{nullptr};
     HeaderButton* m_slice_button{nullptr};
     HeaderButton* m_menu_button{nullptr};
     HeaderButton* m_overflow_button{nullptr};
     HeaderButton* m_agent_toggle{nullptr};
 
-    // Remembered spools are machine facts, so they live beside the
-    // application data rather than in the project archive.
-    std::unique_ptr<Workspace::SpoolStore> m_spools;
-    std::function<void(const wxString&)>   m_note_sink;
-    std::function<void()>                  m_agent_pane_toggle;
+    std::function<void(const wxString&, const wxString&)> m_note_sink;
+    std::function<void()>                                 m_agent_pane_toggle;
 
     ProjectStateSubscription m_project_state_subscription;
     bool                     m_dark{false};

@@ -116,19 +116,6 @@ json spools_json(const std::vector<PrinterSpool>& spools)
     return list;
 }
 
-std::vector<PrinterSpool> spools_of(const json& list)
-{
-    std::vector<PrinterSpool> spools;
-    for (const json& spool : list)
-        spools.push_back(PrinterSpool{spool.value("name", std::string()), spool.value("material", std::string()),
-                                      spool.value("colour", std::string())});
-    return spools;
-}
-
-bool same_spools(const std::vector<PrinterSpool>& lhs, const std::vector<PrinterSpool>& rhs)
-{
-    return spools_json(lhs) == spools_json(rhs);
-}
 
 // Only LAN mode: a printer reached through a Bambu account is not offered.
 json connection_json(const PrinterConnectionInfo& info)
@@ -446,20 +433,18 @@ Result PrinterConversation::change(const json& arguments)
     const SavedPrinter now  = saved(name);
     if (now.name.empty())
         return refuse("unknown_printer", unknown_printer_message(name));
-    const bool has_nozzle = said_nozzle(arguments);
-    const bool has_spools = arguments.contains("spools");
-    if (!has_nozzle && !has_spools)
-        return refuse("nothing_to_change", "Name the nozzle or the spools that changed.");
-    if (has_nozzle && !now.nozzles.empty() && !ships(now.nozzles, arguments["nozzle"].get<double>()))
+    // What is loaded is the printer's to report, not the conversation's to
+    // record: the nozzle is the one physical change this tool saves.
+    if (!said_nozzle(arguments))
+        return refuse("nothing_to_change", "Name the nozzle size that changed.");
+    if (!now.nozzles.empty() && !ships(now.nozzles, arguments["nozzle"].get<double>()))
         return unknown_nozzle(now.nozzles, now.model.empty() ? now.name : now.model, arguments["nozzle"].get<double>());
 
     ChangePrinterRequest request;
     request.name = name;
-    if (has_nozzle && arguments["nozzle"].get<double>() != now.nozzle)
+    if (arguments["nozzle"].get<double>() != now.nozzle)
         request.nozzle = arguments["nozzle"].get<double>();
-    if (has_spools && !same_spools(spools_of(arguments["spools"]), now.spools))
-        request.spools = spools_of(arguments["spools"]);
-    if (!request.nozzle && !request.spools)
+    if (!request.nozzle)
         return refuse("nothing_to_change", "That is already how " + name + " is set up.");
 
     SavedPrinter changed;
@@ -467,10 +452,7 @@ Result PrinterConversation::change(const json& arguments)
         return refuse("change_failed", problem);
     const SavedPrinter after = saved(name);
     json               what  = json::array();
-    if (request.nozzle)
-        what.push_back(json{{"field", "nozzle"}, {"before", now.nozzle}, {"after", after.nozzle}});
-    if (request.spools)
-        what.push_back(json{{"field", "spools"}, {"before", spools_json(now.spools)}, {"after", spools_json(after.spools)}});
+    what.push_back(json{{"field", "nozzle"}, {"before", now.nozzle}, {"after", after.nozzle}});
     m_host.printers_changed();
     m_host.session_changed();
     return ok(json{{"changed", std::move(what)}, {"printer", printer_json(after)}});

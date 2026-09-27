@@ -26,16 +26,12 @@ namespace Slic3r { namespace GUI { namespace JusPrin {
 
 class ShellTheme;
 
-namespace Workspace {
-class SpoolStore;
-}
-
 namespace Home {
 
 class HomeWebView : public wxPanel
 {
 public:
-    HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame, Workspace::SpoolStore* spools);
+    HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame);
     ~HomeWebView() override;
 
     void apply_appearance(bool dark);
@@ -44,7 +40,7 @@ public:
     // changes while another screen is in front. `added` leads the column
     // with a successful Add and sends its receipt, for this one refresh.
     void refresh(const std::string& added = {});
-    // While live, the printer cards follow the devices, profiles and spools
+    // While live, the printer cards follow the devices, profiles and trays
     // they describe without the person leaving Home: once a second -- the
     // Monitor's own refresh rate -- the rail is re-read and sent only when a
     // card changed. Polled, because upstream announces no device update, and

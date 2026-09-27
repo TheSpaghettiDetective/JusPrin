@@ -36,7 +36,7 @@ const change = session({
         { name: 'PLA Matte', material: 'PLA', colour: '#5f7d4f' },
         { name: 'PETG', material: 'PETG' },
       ],
-      connected: false,
+      connected: true,
       provider: 'bambu',
     },
   },
@@ -57,10 +57,22 @@ describe('the instructions', () => {
     expect(text).toContain('Name: Lab Printer\n');
     expect(text).toContain('Brand and model: Bambu Lab A1 mini\n');
     expect(text).toContain('Nozzle: 0.4 mm (this model ships 0.2, 0.4, 0.6 and 0.8 mm)');
-    expect(text).toContain('\n- PLA Matte (PLA, #5f7d4f)\n- PETG (PETG)');
-    expect(text).toContain('Connected to this app: no\n');
+    expect(text).toContain('Loaded, as the printer reports it:\n- PLA Matte (PLA, #5f7d4f)\n- PETG (PETG)');
+    expect(text).toContain('Connected to this app: yes\n');
     expect(text).toContain('Connects through: Bambu Lab LAN mode');
     expect(text).not.toContain('Printer list');
+  });
+
+  it('claim nothing is loaded on a printer that is not connected', () => {
+    const offline = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], connected: false } } });
+    const text = printerInstructions(offline);
+    expect(text).toContain('Loaded, as the printer reports it: not known, as it is not connected\n');
+    expect(text).toContain('Connected to this app: no\n');
+  });
+
+  it('say so when a connected printer reports nothing loaded', () => {
+    const empty = session({ ...change, context: { printer: { ...change.context.printer!, spools: [] } } });
+    expect(printerInstructions(empty)).toContain('Loaded, as the printer reports it: nothing\n');
   });
 
   it('name what is on the network', () => {
@@ -88,6 +100,7 @@ describe('the instructions', () => {
       '(printer_manual_connection)',
       'leave it for now, as the printer can prepare prints without a connection',
       'nozzle mismatch reported by the printer',
+      'when someone says what they loaded there is nothing to save',
       'call printer_setup_finish only when the person says they are done',
       'call the tool without asking again',
       'ask first and stop: that reply calls no tool',

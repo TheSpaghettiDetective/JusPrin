@@ -20,7 +20,7 @@ namespace Slic3r::GUI::JusPrin {
 enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Slice, Plates, Export, Print, Cancel,
                         PanelOpen, PanelClosed };
 
-// ChipLeft and ChipRight are the two halves of the printer/spool chip. Each is
+// ChipLeft and ChipRight are the two halves of the printer/filament chip. Each is
 // a separate focus target, and each paints its own outer half of one shared
 // outline, the way PrimaryLeft/PrimaryRight already split the print action.
 enum class HeaderStyle { Quiet, ChipLeft, ChipRight, PrimaryLeft, PrimaryRight, Outline, Menu };
@@ -29,14 +29,27 @@ enum class HeaderStyle { Quiet, ChipLeft, ChipRight, PrimaryLeft, PrimaryRight, 
 // requires state to be readable without relying on hue.
 enum class StatusTone { None, Neutral, Positive, Busy, Warning };
 
+// One dot in a row of filament slots. A faded dot keeps its colour at low
+// strength: a slot the current plate does not print with.
+struct SlotDot
+{
+    wxColour colour;
+    bool     faded{false};
+};
+
 // Everything a menu row can carry beyond its label. Grouped rather than spread
 // over a dozen setters because HeaderMenu builds a row in one shot, and a row
 // with no decoration should read as exactly that at the call site.
 struct HeaderRowDecoration
 {
     // Leading dot. Set with a valid colour for a filled swatch; set with an
-    // invalid colour for the dashed outline the "no spool yet" rows use.
+    // invalid colour for the dashed outline of a colour nobody chose.
     std::optional<wxColour> dot;
+    // A row of slot dots before the label, in slot order, then a grey "+n"
+    // when slots were folded away. Small dots let many slots fit.
+    std::vector<SlotDot> slot_dots;
+    wxString             slot_more;
+    bool                 small_slot_dots{false};
     // Right-aligned secondary text, in the label role.
     wxString   detail;
     // Draws the detail immediately after the label, separated by a middot,
@@ -106,6 +119,9 @@ private:
     const wxFont& role_font() const;
     const wxFont& detail_font() const;
     int  trailing_reserve() const;
+    // Width of the slot-dot run and its "+n", gap to the label included; zero
+    // without slot dots. Shared by measuring and painting.
+    int  slot_dots_width() const;
     // Screen rect of the row-action glyph, empty when there is none.
     wxRect row_action_rect() const;
     const ShellTheme& m_theme;
@@ -144,9 +160,9 @@ struct HeaderMenuItem {
 // Right-aligned transient menu. The popup owns only presentation; callbacks
 // return to the owner after dismissal, never run commands inside mouse capture.
 //
-// A menu can also replace its own contents in place -- the spool menu's
-// "Other spool…" view does this rather than opening a second popup, so the
-// popup keeps its position, its keyboard model, and its dismissal handling.
+// A menu can also replace its own contents in place -- the filament menu's
+// slot views do this rather than opening a second popup, so the popup keeps
+// its position, its keyboard model, and its dismissal handling.
 class HeaderMenu : public PopupWindow
 {
 public:
@@ -158,8 +174,8 @@ public:
     // Swaps the rows for a new set and re-lays out at the same anchor. The
     // width stays put so the popup does not jump as the person types.
     void replace_items(std::vector<HeaderMenuItem> items);
-    // A custom view above the rows -- the search field of the "Other spool…"
-    // step. The builder runs with the popup as parent; nullptr clears it.
+    // A custom view among the rows -- the filament menu's colour row. The
+    // builder runs with the popup as parent; nullptr clears it.
     // `after_rows` places the custom view below that many rows, so a step can
     // keep its title/back row at the top where the design puts it.
     void set_header_builder(std::function<wxWindow*(wxWindow*)> builder, int after_rows = 0);

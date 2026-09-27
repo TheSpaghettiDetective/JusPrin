@@ -25,7 +25,6 @@
 #include <vector>
 
 namespace Slic3r::GUI { class Plater; }
-namespace Slic3r::GUI::JusPrin::Workspace { class SpoolStore; }
 
 namespace Slic3r::GUI::JusPrin::Printers {
 
@@ -54,10 +53,9 @@ std::string add_named_printer(Plater& plater, const std::string& base_name, cons
 // Each returns an empty string when it did what was asked or when the person
 // cancelled an Orca prompt along the way, and a message for the person when
 // the request cannot be carried out (an invalid name, a printer that no
-// longer exists). `spools` may be null.
-wxString rename_named_printer(Plater& plater, Workspace::SpoolStore* spools, const std::string& from,
-                              const std::string& to);
-wxString remove_named_printer(Plater& plater, Workspace::SpoolStore* spools, const std::string& name);
+// longer exists).
+wxString rename_named_printer(Plater& plater, const std::string& from, const std::string& to);
+wxString remove_named_printer(Plater& plater, const std::string& name);
 wxString open_named_printer_settings(Plater& plater, const std::string& name);
 
 // Moves a named printer onto `system_preset`, the sibling system profile for

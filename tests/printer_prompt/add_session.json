@@ -2014,13 +2014,7 @@
      0.6,
      0.8
     ],
-    "spools": [
-     {
-      "colour": "#26A69A",
-      "material": "Bambu PLA Basic @BBL A1M",
-      "name": "Teal PLA"
-     }
-    ]
+    "spools": []
    }
   },
   "Prusa/Prusa MK4S": {
@@ -2037,13 +2031,7 @@
      0.6,
      0.8
     ],
-    "spools": [
-     {
-      "colour": "#26A69A",
-      "material": "Prusa Generic PLA @MK4S",
-      "name": "Teal PLA"
-     }
-    ]
+    "spools": []
    }
   }
  }

@@ -9,9 +9,8 @@
 // fact carries the moment it was confirmed and the moment it stops being
 // current, and a fact past its expiry is simply not reported.
 //
-// Machine facts are app-level, not project-level, the same reasoning as the
-// spool store: a project opened on another machine describes the same print,
-// not the same printer. GUI-free and Orca-free, so it tests against a file.
+// Machine facts are app-level, not project-level: a project opened on
+// another machine describes the same print, not the same printer. GUI-free and Orca-free, so it tests against a file.
 
 #include <chrono>
 #include <functional>
@@ -58,9 +57,9 @@ public:
     };
 
     // A missing file is an empty store. A file that does not parse is moved
-    // aside to "<file_path>.corrupt" and reported through corrupt(), the same
-    // rule as the spool store: facts are cheap to state again, but a damaged
-    // file is evidence and is not overwritten.
+    // aside to "<file_path>.corrupt" and reported through corrupt(): facts
+    // are cheap to state again, but a damaged file is evidence and is not
+    // overwritten.
     explicit PrinterFactsStore(Config config);
 
     PrinterFactsStore(const PrinterFactsStore&)            = delete;

@@ -15,7 +15,6 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
 #include <wx/filename.h>
@@ -178,22 +177,12 @@ MachineObject* my_machine(const std::string& device_id)
     return devices != nullptr ? devices->get_my_machine(device_id) : nullptr;
 }
 
-// The filament type a spool's preset names ("PLA"), or empty.
-std::string filament_type(const std::string& filament_preset)
-{
-    const Preset* preset = wxGetApp().preset_bundle->filaments.find_preset(filament_preset, false, true);
-    if (preset == nullptr)
-        return {};
-    const auto* type = preset->config.option<ConfigOptionStrings>("filament_type");
-    return type != nullptr && !type->values.empty() ? type->values.front() : std::string();
-}
-
 std::string gone() { return utf8(_L("This printer no longer exists.")); }
 
 } // namespace
 
-OrcaHomeBackend::OrcaHomeBackend(MainFrame& frame, Workspace::SpoolStore* spools)
-    : m_frame(frame), m_spools(spools)
+OrcaHomeBackend::OrcaHomeBackend(MainFrame& frame)
+    : m_frame(frame)
 {}
 
 bool OrcaHomeBackend::dark() const { return wxGetApp().dark_mode(); }
@@ -327,13 +316,11 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         }
         settle_connection(printer);
         printer.model_text = model_text(model, nozzle);
-        // A connected printer says what it holds; otherwise the spools the
-        // person described for it stand in.
+        // Only a connected printer says what it holds. Nothing else stands
+        // in for it: the project's filament is what a print needs, not what
+        // is on the machine.
         if (const auto held = loaded.find(named.device_id); !named.device_id.empty() && held != loaded.end())
             printer.spools = held->second;
-        else if (m_spools != nullptr)
-            for (const Workspace::Spool& spool : m_spools->spools_for(named.name))
-                printer.spools.push_back(SpoolEntry{filament_type(spool.filament_preset), spool.colour});
         printers.push_back(std::move(printer));
     }
 
@@ -500,7 +487,7 @@ std::string OrcaHomeBackend::rename_printer(const std::string& printer_id, const
     if (plater == nullptr)
         return gone();
     if (const auto name = strip(printer_id, kNamedPrefix))
-        return utf8(Printers::rename_named_printer(*plater, m_spools, *name, new_name));
+        return utf8(Printers::rename_named_printer(*plater, *name, new_name));
     // A device keeps its own name. Upstream's dialog, as the device list
     // opens it, validates and sends the new one.
     MachineObject* machine = my_machine(strip(printer_id, kDevicePrefix).value_or(std::string()));
@@ -518,7 +505,7 @@ std::string OrcaHomeBackend::remove_printer(const std::string& printer_id)
     if (plater == nullptr)
         return gone();
     if (const auto name = strip(printer_id, kNamedPrefix))
-        return utf8(Printers::remove_named_printer(*plater, m_spools, *name));
+        return utf8(Printers::remove_named_printer(*plater, *name));
     // Removing a device unbinds it from the account, through upstream's
     // dialog, which confirms and reports for itself, as the device list does.
     const std::string device_id = strip(printer_id, kDevicePrefix).value_or(std::string());

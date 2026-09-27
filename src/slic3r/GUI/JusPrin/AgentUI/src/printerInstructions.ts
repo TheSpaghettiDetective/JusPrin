@@ -52,6 +52,8 @@ const CORE =
   'Putting it back is the same tool.\n' +
   "- The plate belongs to each project, not the printer. Nozzle material, such as hardened steel, isn't tracked.\n" +
   '- A nozzle mismatch reported by the printer is something to offer to fix with printer_change.\n' +
+  '- printer_change saves the nozzle only. What is loaded comes from the printer itself when it is connected, and the ' +
+  'filament a print uses is picked in the project, so when someone says what they loaded there is nothing to save.\n' +
   'Rules for connecting a printer:\n' +
   '- The connection tools act on the printer this is about, named below; a printer found on the network is only ever ' +
   'a deviceId.\n' +
@@ -95,8 +97,10 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     if (printer.model) text += `Brand and model: ${printer.model}\n`;
     text += `Nozzle: ${printer.nozzle > 0 ? `${numberText(printer.nozzle)} mm` : 'unknown'}`;
     if (printer.nozzles.length > 0) text += ` (this model ships ${sizesText(printer.nozzles)})`;
-    text += '\nSpools loaded:';
-    if (printer.spools.length === 0) text += ' none recorded';
+    // Only a connected printer says what it holds; nothing stands in for it.
+    text += '\nLoaded, as the printer reports it:';
+    if (!printer.connected) text += ' not known, as it is not connected';
+    else if (printer.spools.length === 0) text += ' nothing';
     for (const spool of printer.spools)
       text += `\n- ${spool.name || spool.material} (${spool.material}${spool.colour ? `, ${spool.colour}` : ''})`;
     text += `\nConnected to this app: ${printer.connected ? 'yes' : 'no'}\n`;

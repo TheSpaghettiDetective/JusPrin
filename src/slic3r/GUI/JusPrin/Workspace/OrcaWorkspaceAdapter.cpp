@@ -676,20 +676,10 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
                 const std::string& name = (*request.filament_presets)[slot];
                 if (slot < bundle->filament_presets.size() && bundle->filament_presets[slot] == name)
                     continue;
-                if (slot == 0) {
-                    if (!SetupCommands::select_filament_preset(m_plater, name))
-                        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the filament.");
-                    continue;
-                }
-                // The filament branch of on_select_preset for a later slot,
-                // which does not load the slot into the filament tab.
-                bundle->set_filament_preset(slot, name);
-                m_plater.update_project_dirty_from_presets();
-                bundle->export_selections(*wxGetApp().app_config);
-                m_plater.sidebar().update_dynamic_filament_list();
-                m_plater.on_filament_change(slot);
-                m_plater.sidebar().update_presets(Preset::TYPE_FILAMENT);
-                m_plater.on_config_change(bundle->full_config());
+                // The same path the header's filament menu takes, so a slot
+                // changed by the agent gets Orca's colour rule too.
+                if (!SetupCommands::select_filament_preset(m_plater, slot, name))
+                    return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the filament.");
             }
         m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings);
     }

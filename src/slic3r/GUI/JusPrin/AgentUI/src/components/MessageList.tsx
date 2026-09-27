@@ -186,6 +186,9 @@ export function MessageList({
           return (
             <div key={message.id} className="message-group">
               <div className="message note" role="status">
+                {/* The colour a change landed on, drawn and never named: the
+                    app holds a colour as a value, not a word. */}
+                {message.swatch && <span className="note-swatch" style={{ background: message.swatch }} aria-hidden="true" />}
                 {message.text}
               </div>
               {printerBlockViews(message.id)}

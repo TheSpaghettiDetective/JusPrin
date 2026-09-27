@@ -83,9 +83,10 @@ tray per spool, up to 4:
 `subBrands` is what `PrinterDiscovery.cpp` reads back as the spool's name
 when set (ahead of `trayType`), so it is the field worth setting for a
 saved/network-printer card or receipt to show something. `trayType` is the
-spool's material (Home's Loaded row names it); the fake sends it with an
-empty `tray_info_idx`, since upstream ignores a type that arrives without
-one. `colour` is optional: a spool without it reports no colour, and Home
+spool's material (Home's Loaded row names it); the fake sends it beside a
+`tray_info_idx`, since upstream ignores a type that arrives without one.
+`filamentId` sets that id (`"GFA01"` is Bambu PLA Matte); left out, the
+id is empty, and Orca's filament sync skips the tray. `colour` is optional: a spool without it reports no colour, and Home
 draws no swatch for it.
 
 Delete the file, or set `"offline": false` and `"state":"idle"`, to return to Idle.

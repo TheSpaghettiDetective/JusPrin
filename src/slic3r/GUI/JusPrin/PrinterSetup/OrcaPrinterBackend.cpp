@@ -14,7 +14,6 @@
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/SpoolStore.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
@@ -40,8 +39,8 @@ double nozzle_of(const std::string& variant)
 
 } // namespace
 
-OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, Workspace::SpoolStore* spools)
-    : m_plater(plater), m_catalog(std::move(catalog)), m_spools(spools)
+OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog)
+    : m_plater(plater), m_catalog(std::move(catalog))
 {
     m_models = m_catalog.panel_printers();
 }
@@ -101,11 +100,9 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
             saved.ams       = found->ams_name;
             for (const DiscoveredPrinter::Spool& spool : found->spools)
                 saved.spools.push_back(PrinterSpool{spool.name, spool.material, spool.colour});
-        } else if (m_spools != nullptr) {
-            // Not connected, or never was: what this app remembers is loaded.
-            for (const Workspace::Spool& spool : m_spools->spools_for(named.name))
-                saved.spools.push_back(PrinterSpool{spool.name, spool.filament_preset, spool.colour});
         }
+        // Not connected, or never was: nothing is known to be loaded, and
+        // nothing is claimed.
         printers.push_back(std::move(saved));
     }
     return printers;
@@ -167,21 +164,6 @@ std::string OrcaPrinterBackend::change_printer(const ChangePrinterRequest& reque
             return problem.ToStdString();
     }
 
-    if (request.spools) {
-        if (m_spools == nullptr)
-            return "This app cannot record spools yet.";
-        for (const Workspace::Spool& spool : m_spools->spools_for(request.name))
-            m_spools->remove(spool.id);
-        for (const PrinterSpool& spool : *request.spools) {
-            Workspace::Spool record;
-            record.printer_preset  = request.name;
-            record.filament_preset = spool.material;
-            record.name            = spool.name;
-            record.colour          = spool.colour;
-            m_spools->add(std::move(record));
-        }
-    }
-
     for (const SavedPrinter& saved : saved_printers())
         if (saved.name == request.name)
             changed = saved;
@@ -190,7 +172,7 @@ std::string OrcaPrinterBackend::change_printer(const ChangePrinterRequest& reque
 
 std::string OrcaPrinterBackend::remove_printer(const std::string& name)
 {
-    return std::string(Printers::remove_named_printer(m_plater, m_spools, name).ToUTF8());
+    return std::string(Printers::remove_named_printer(m_plater, name).ToUTF8());
 }
 
 ManualPrinterResult OrcaPrinterBackend::run_manual_setup()

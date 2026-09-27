@@ -1,5 +1,6 @@
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/PrintConfig.hpp"
@@ -10,11 +11,15 @@
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
+#include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/PresetComboBoxes.hpp"
 #include "slic3r/GUI/Tab.hpp"
+#include "slic3r/Utils/ColorSpaceConvert.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <set>
 
@@ -51,6 +56,34 @@ wxString filament_vendor(const Preset& preset)
     return vendor == "(Undefined)" ? wxString{} : vendor;
 }
 
+FilamentInfo filament_info(const Preset& preset)
+{
+    FilamentInfo info;
+    info.preset_name = preset.name;
+    info.alias       = display_alias(preset);
+    info.vendor      = filament_vendor(preset);
+    info.material    = option_string(preset.config, "filament_type");
+    info.valid       = true;
+    return info;
+}
+
+// The nozzle each slot feeds. Orca's filament_map names an extruder per slot
+// on the printers that use it; a printer without one feeds every slot through
+// its first nozzle.
+std::vector<double> slot_nozzles(const PresetBundle& presets, const std::vector<double>& nozzles, std::size_t slots)
+{
+    std::vector<double> result(slots, nozzles.empty() ? 0. : nozzles.front());
+    const auto* map = presets.project_config.option<ConfigOptionInts>("filament_map");
+    if (nozzles.size() < 2 || map == nullptr)
+        return result;
+    for (std::size_t slot = 0; slot < slots && slot < map->values.size(); ++slot) {
+        const int extruder = map->values[slot] - 1; // 1-based in the config
+        if (extruder >= 0 && extruder < int(nozzles.size()))
+            result[slot] = nozzles[extruder];
+    }
+    return result;
+}
+
 } // namespace
 
 PrinterInfo current_printer()
@@ -73,6 +106,7 @@ PrinterInfo current_printer()
     }
     if (const auto* nozzle = printer.config.option<ConfigOptionFloats>("nozzle_diameter"); nozzle && !nozzle->values.empty()) {
         info.nozzle         = nozzle->values.front();
+        info.nozzles        = nozzle->values;
         info.extruder_count = nozzle->values.size();
     }
     info.valid = true;
@@ -85,14 +119,9 @@ FilamentInfo current_filament()
     const PresetBundle* presets = wxGetApp().preset_bundle;
     if (presets == nullptr || presets->filament_presets.empty())
         return info;
+    if (const Preset* preset = presets->filaments.find_preset(presets->filament_presets.front()))
+        return filament_info(*preset);
     info.preset_name = presets->filament_presets.front();
-    const Preset* preset = presets->filaments.find_preset(info.preset_name);
-    if (preset == nullptr)
-        return info;
-    info.alias    = display_alias(*preset);
-    info.vendor   = filament_vendor(*preset);
-    info.material = option_string(preset->config, "filament_type");
-    info.valid    = true;
     return info;
 }
 
@@ -102,6 +131,39 @@ wxString current_colour()
     if (presets == nullptr)
         return {};
     return option_string(presets->project_config, "filament_colour");
+}
+
+std::vector<FilamentSlot> filament_slots()
+{
+    std::vector<FilamentSlot> slots;
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr)
+        return slots;
+    // The plate's own answer, from the model and the config, so it holds
+    // before anything is sliced. 1-based, like the slots on screen.
+    std::set<int> used;
+    if (Plater* plater = wxGetApp().plater())
+        if (PartPlate* plate = plater->get_partplate_list().get_curr_plate())
+            for (int extruder : plate->get_extruders())
+                used.insert(extruder);
+
+    const PrinterInfo printer = current_printer();
+    const bool        mixed   = std::adjacent_find(printer.nozzles.begin(), printer.nozzles.end(),
+                                                   std::not_equal_to<double>()) != printer.nozzles.end();
+    const std::vector<double> nozzles = slot_nozzles(*presets, printer.nozzles, presets->filament_presets.size());
+    for (std::size_t index = 0; index < presets->filament_presets.size(); ++index) {
+        FilamentSlot slot;
+        slot.index = index;
+        if (const Preset* preset = presets->filaments.find_preset(presets->filament_presets[index]))
+            slot.filament = filament_info(*preset);
+        else
+            slot.filament.preset_name = presets->filament_presets[index];
+        slot.colour = option_string(presets->project_config, "filament_colour", unsigned(index));
+        slot.used   = used.count(int(index) + 1) > 0;
+        slot.nozzle = mixed ? nozzles[index] : 0.;
+        slots.push_back(std::move(slot));
+    }
+    return slots;
 }
 
 std::vector<BedTypeChoice> bed_types()
@@ -146,15 +208,54 @@ std::vector<FilamentInfo> compatible_filaments()
         // compatibility rule is never re-derived here.
         if (!preset.is_visible || !preset.is_compatible || preset.is_default)
             continue;
-        FilamentInfo info;
-        info.preset_name = preset.name;
-        info.alias       = display_alias(preset);
-        info.vendor      = filament_vendor(preset);
-        info.material    = option_string(preset.config, "filament_type");
-        info.valid       = true;
-        filaments.push_back(std::move(info));
+        filaments.push_back(filament_info(preset));
     }
+    // Brand, then name, as the design lists them. The short name usually
+    // starts with the brand already, so ties in brand fall through to it.
+    std::stable_sort(filaments.begin(), filaments.end(), [](const FilamentInfo& a, const FilamentInfo& b) {
+        const int brand = a.vendor.CmpNoCase(b.vendor);
+        return brand != 0 ? brand < 0 : a.alias.CmpNoCase(b.alias) < 0;
+    });
     return filaments;
+}
+
+std::vector<wxColour> saved_colours()
+{
+    std::vector<wxColour> colours;
+    if (AppConfig* config = wxGetApp().app_config)
+        for (const std::string& value : config->get_custom_color_from_config()) {
+            const wxColour colour = string_to_wxColor(value);
+            // The system picker keeps a fixed number of slots and fills the
+            // unused ones with one colour; a repeat says nothing new.
+            if (colour.IsOk() && std::find(colours.begin(), colours.end(), colour) == colours.end())
+                colours.push_back(colour);
+        }
+    return colours;
+}
+
+void remember_colour(const wxColour& colour)
+{
+    AppConfig* config = wxGetApp().app_config;
+    if (config == nullptr || !colour.IsOk())
+        return;
+    // The same list, in the same form, that Orca's own colour fields read and
+    // write (ColourPicker::save_colors_to_config), so both pickers share it.
+    // The system picker has sixteen custom slots; the list never shrinks,
+    // because saving overwrites entries by position and leaves any beyond.
+    std::vector<std::string> values   = config->get_custom_color_from_config();
+    const std::size_t        original = values.size();
+    const std::size_t        slots    = std::max<std::size_t>(original, 16);
+    values.erase(std::remove_if(values.begin(), values.end(),
+                                [&](const std::string& value) { return string_to_wxColor(value) == colour; }),
+                 values.end());
+    values.insert(values.begin(), color_to_string(colour));
+    if (values.size() > slots)
+        values.resize(slots);
+    // Refill what removing repeats freed, so no stale entry survives past the
+    // end; a repeat reads back as nothing new.
+    while (values.size() < original)
+        values.push_back(values.back());
+    config->save_custom_color_to_config(values);
 }
 
 PrinterConnection printer_connection()
@@ -183,44 +284,86 @@ PrinterConnection printer_connection()
     return connection;
 }
 
-bool select_filament_preset(Plater& plater, const std::string& preset_name)
+TrayState printer_trays()
+{
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr)
+        return TrayState::None;
+    // Trays belong to the device a named printer was connected to; a printer
+    // with no device reports nothing.
+    const std::string& selected = presets->printers.get_edited_preset().name;
+    std::string        device_id;
+    for (const Printers::NamedPrinter& named : Printers::named_printers())
+        if (named.name == selected)
+            device_id = named.device_id;
+    if (device_id.empty())
+        return TrayState::None;
+    for (const PrinterSetup::DiscoveredPrinter& device : PrinterSetup::discover_printers(true))
+        if (device.stable_id == device_id) {
+            if (device.connected)
+                return device.spools.empty() ? TrayState::None : TrayState::Available;
+            return TrayState::Offline;
+        }
+    return PrinterSetup::has_verified_printer_connection(device_id) ? TrayState::Offline : TrayState::None;
+}
+
+bool select_filament_preset(Plater& plater, std::size_t slot, const std::string& preset_name)
 {
     PresetBundle* presets = wxGetApp().preset_bundle;
-    if (presets == nullptr || presets->filaments.find_preset(preset_name) == nullptr)
+    if (presets == nullptr || slot >= presets->filament_presets.size())
         return false;
-    Tab* tab = wxGetApp().get_tab(Preset::TYPE_FILAMENT);
-    if (tab == nullptr)
+    const Preset* preset = presets->filaments.find_preset(preset_name);
+    Tab*          tab    = wxGetApp().get_tab(Preset::TYPE_FILAMENT);
+    if (preset == nullptr || tab == nullptr)
         return false;
 
-    // The sequence Plater::priv::on_select_preset runs for a filament combo,
-    // without the sidebar combo's own repaint and AMS badge. There is no
-    // single public Orca call for "select filament preset N by name": the only
-    // entry point is a wxEVT_COMBOBOX carrying a PlaterPresetComboBox as its
-    // event object, and firing that would mean driving a hidden control.
-    // If upstream grows such a call, this body should become one line.
-    presets->set_filament_preset(0, preset_name);
+    // The sequence the sidebar's filament combo runs, without its own repaint
+    // and AMS badge. There is no single public Orca call for "select filament
+    // preset N by name": the only entry point is a wxEVT_COMBOBOX carrying a
+    // PlaterPresetComboBox as its event object, and firing that would mean
+    // driving a hidden control. If upstream grows such a call, this body
+    // should become one line.
+    //
+    // First PresetComboBox::update_ams_color, which OnSelect runs before the
+    // selection reaches Plater: a preset that names a default colour brings it
+    // to the slot; one that names none leaves the slot's colour as it was.
+    const wxString default_colour = option_string(preset->config, "default_filament_colour");
+    if (!default_colour.empty())
+        set_filament_colour(plater, slot, wxColour(default_colour));
+
+    // Then the filament branch of Plater::priv::on_select_preset.
+    const bool was_support = is_support_filament(int(slot));
+    presets->set_filament_preset(slot, preset_name);
     plater.update_project_dirty_from_presets();
     presets->export_selections(*wxGetApp().app_config);
-    plater.on_filament_change(0);
-    tab->select_preset(preset_name);
+    plater.sidebar().update_dynamic_filament_list();
+    if (was_support != is_support_filament(int(slot)) && wxGetApp().app_config->get("auto_calculate_flush") == "all")
+        plater.sidebar().auto_calc_flushing_volumes(int(slot));
+    plater.on_filament_change(slot);
+    // With one slot the filament tab follows the selection; with several it
+    // keeps its own, and only the slot lists repaint.
+    if (presets->filament_presets.size() > 1)
+        plater.sidebar().update_presets(Preset::TYPE_FILAMENT);
+    else
+        tab->select_preset(preset_name);
     plater.on_config_change(presets->full_config());
     return true;
 }
 
-void set_filament_colour(Plater& plater, const wxColour& colour)
+void set_filament_colour(Plater& plater, std::size_t slot, const wxColour& colour)
 {
     PresetBundle* presets = wxGetApp().preset_bundle;
-    if (presets == nullptr || !colour.IsOk())
+    if (presets == nullptr || !colour.IsOk() || slot >= presets->filament_presets.size())
         return;
     DynamicPrintConfig& project = presets->project_config;
 
-    // PlaterPresetComboBox::sync_colour_config, patching extruder 0. The three
-    // options move together: a colour written without its type and
-    // multi-colour siblings leaves a gradient's leftovers behind.
+    // PlaterPresetComboBox::sync_colour_config for one slot. The three options
+    // move together: a colour written without its type and multi-colour
+    // siblings leaves a gradient's leftovers behind.
     auto patch = [&](const char* key, const std::string& value) -> ConfigOptionStrings* {
         auto* option = static_cast<ConfigOptionStrings*>(project.option(key)->clone());
-        if (option->values.empty()) option->values.resize(1);
-        option->values[0] = value;
+        if (option->values.size() <= slot) option->values.resize(slot + 1);
+        option->values[slot] = value;
         return option;
     };
     const std::string hex = colour.GetAsString(wxC2S_HTML_SYNTAX).ToStdString();
@@ -236,8 +379,24 @@ void set_filament_colour(Plater& plater, const wxColour& colour)
     plater.on_config_change(updated);
 
     auto* changed = new wxCommandEvent(EVT_FILAMENT_COLOR_CHANGED);
-    changed->SetInt(0);
+    changed->SetInt(int(slot));
     wxQueueEvent(&plater, changed);
+}
+
+std::optional<std::size_t> add_filament_slot(Plater& plater)
+{
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr)
+        return std::nullopt;
+    const std::size_t before = presets->filament_presets.size();
+    // The sidebar's own "+": the next colour, the plate and object-list
+    // updates, the flush volumes. It refuses at the slot limit and in a
+    // G-code-only project, which the count reports.
+    plater.sidebar().add_filament();
+    plater.sidebar().update_filaments_counter();
+    if (presets->filament_presets.size() <= before)
+        return std::nullopt;
+    return presets->filament_presets.size() - 1;
 }
 
 bool select_printer_preset(Plater& plater, const std::string& preset_name)
@@ -363,57 +522,58 @@ void open_settings_tab(Preset::Type type)
     tab->restore_last_select_item();
 }
 
-void import_preset_file()
+void open_filament_settings(std::size_t slot)
 {
-    // Orca's own Import Configs entry point: file dialog, overwrite
-    // confirmation, and result message all belong to it.
-    if (auto* frame = wxGetApp().mainframe; frame != nullptr)
-        frame->load_config_file();
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    Tab*                tab     = wxGetApp().get_tab(Preset::TYPE_FILAMENT);
+    if (presets == nullptr || tab == nullptr || slot >= presets->filament_presets.size())
+        return;
+    // The filament half of PlaterPresetComboBox::switch_to_tab: the tab loads
+    // this slot's preset and remembers which slot it is editing, so a save
+    // lands on that slot.
+    if (!tab->select_preset(presets->filament_presets[slot]))
+        return;
+    if (auto* combo = tab->get_combo_box())
+        combo->set_filament_idx(int(slot));
+    open_settings_tab(Preset::TYPE_FILAMENT);
+}
+
+void open_filament_library()
+{
+    // The page behind the sidebar combo's "Add/Remove filaments" entry
+    // (PlaterPresetComboBox::OnSelect). run_wizard reloads the presets when
+    // the page applies, so the installed list is current on return.
+    wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_FILAMENTS);
+}
+
+bool sync_from_printer(Plater& plater)
+{
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    DeviceManager*      devices = wxGetApp().getDeviceManager();
+    if (presets == nullptr || devices == nullptr)
+        return false;
+    // Orca's sync reads the machine the device manager has selected. The
+    // project is set up for a named printer, so that printer's device is the
+    // one to read; selecting it is what the device list does on a click.
+    const std::string& selected = presets->printers.get_edited_preset().name;
+    for (const Printers::NamedPrinter& named : Printers::named_printers())
+        if (named.name == selected && !named.device_id.empty()) {
+            MachineObject* machine = devices->get_my_machine(named.device_id);
+            if (machine == nullptr || !machine->is_connected())
+                return false;
+            if (devices->get_selected_machine() != machine)
+                devices->set_selected_machine(named.device_id);
+            // The filament list's own sync button, dialog and all.
+            plater.sidebar().sync_ams_list();
+            return true;
+        }
+    return false;
 }
 
 void open_monitor()
 {
     if (auto* frame = wxGetApp().mainframe; frame != nullptr)
         frame->select_tab(size_t(MainFrame::tpMonitor));
-}
-
-const std::vector<Swatch>& swatches()
-{
-    // The twelve-swatch grid of the "new spool" step. Values are the semantic
-    // filament colours the design calls for, not UI tokens: they stand for
-    // physical filament, so they do not change between light and dark.
-    static const std::vector<Swatch> palette{
-        {"#1A1A1A", "Black"},  {"#F5F5F0", "White"},   {"#8C8C8C", "Grey"},  {"#C0392B", "Red"},
-        {"#E67E22", "Orange"}, {"#F1C40F", "Yellow"},  {"#27AE60", "Green"}, {"#16A085", "Teal"},
-        {"#2E6FD9", "Blue"},   {"#8E44AD", "Purple"},  {"#E084B7", "Pink"},  {"#7F8C8D", "Multicolour"}};
-    return palette;
-}
-
-wxString colour_word(const wxColour& colour)
-{
-    if (!colour.IsOk())
-        return {};
-    // Nearest swatch in plain RGB distance. This only prefills a name the
-    // person can edit, so a simple metric is the honest amount of machinery.
-    const Swatch* best = nullptr;
-    double best_distance = 0.;
-    for (const Swatch& swatch : swatches()) {
-        const wxColour candidate(wxString::FromUTF8(swatch.hex));
-        const double dr = colour.Red() - candidate.Red();
-        const double dg = colour.Green() - candidate.Green();
-        const double db = colour.Blue() - candidate.Blue();
-        const double distance = dr * dr + dg * dg + db * db;
-        if (best == nullptr || distance < best_distance) {
-            best          = &swatch;
-            best_distance = distance;
-        }
-    }
-    // Roughly a quarter of the diagonal of the RGB cube: past that, no word
-    // describes the colour better than none.
-    constexpr double kTooFar = 110. * 110. * 3.;
-    if (best == nullptr || best_distance > kTooFar)
-        return {};
-    return _(best->name);
 }
 
 } // namespace Slic3r::GUI::JusPrin::SetupCommands

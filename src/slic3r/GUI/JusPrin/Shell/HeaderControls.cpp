@@ -98,14 +98,14 @@ wxColour status_colour(StatusTone tone, const ShellPalette& p)
     return p.text_secondary;
 }
 
-// A remembered spool's colour, or the dashed ring that means "no spool chosen
-// yet". Both are drawn at the same size so rows stay aligned either way.
+// A filament colour, or the dashed ring of a colour nobody chose. Both are
+// drawn at the same size so rows stay aligned either way.
 void draw_dot(wxGraphicsContext& gc, const std::optional<wxColour>& dot, double x, double y, double size,
               const ShellPalette& p)
 {
     if (!dot) return;
     if (dot->IsOk()) {
-        // A quiet ring keeps a white or near-background spool visible.
+        // A quiet ring keeps a white or near-background colour visible.
         gc.SetPen(wxPen(p.border_subtle));
         gc.SetBrush(wxBrush(*dot));
     } else {
@@ -115,6 +115,13 @@ void draw_dot(wxGraphicsContext& gc, const std::optional<wxColour>& dot, double 
     }
     gc.DrawEllipse(x, y, size, size);
 }
+
+// Slot dots: full size, and the half size many slots shrink to, with the gap
+// after each. The design's numbers; no token names them.
+constexpr int kSlotDotDip      = 8;
+constexpr int kSlotDotSmallDip = 4;
+constexpr int kSlotGapDip      = 3;
+constexpr int kSlotGapSmallDip = 2;
 
 } // namespace
 
@@ -241,6 +248,21 @@ int HeaderButton::trailing_reserve() const
     return reserve;
 }
 
+int HeaderButton::slot_dots_width() const
+{
+    if (m_decoration.slot_dots.empty() && m_decoration.slot_more.empty()) return 0;
+    const int dot = FromDIP(m_decoration.small_slot_dots ? kSlotDotSmallDip : kSlotDotDip);
+    const int gap = FromDIP(m_decoration.small_slot_dots ? kSlotGapSmallDip : kSlotGapDip);
+    int width = int(m_decoration.slot_dots.size()) * (dot + gap);
+    if (!m_decoration.slot_more.empty()) {
+        wxClientDC dc(const_cast<HeaderButton*>(this));
+        dc.SetFont(detail_font());
+        width += dc.GetTextExtent(m_decoration.slot_more).x + gap;
+    }
+    // The last gap grows to the space a single dot leaves before its label.
+    return width - gap + FromDIP(8);
+}
+
 wxSize HeaderButton::DoGetBestSize() const
 {
     const ShellMetrics& m = m_theme.metrics();
@@ -264,7 +286,7 @@ wxSize HeaderButton::DoGetBestSize() const
                  dc.GetTextExtent(m_decoration.detail).x;
     }
     const int leading = FromDIP(12) + (m_icon == HeaderIcon::None ? 0 : FromDIP(24)) +
-                        (m_decoration.dot.has_value() ? FromDIP(16) : 0);
+                        (m_decoration.dot.has_value() ? FromDIP(16) : 0) + slot_dots_width();
     // A two-line row is one spacing step taller than the menu row recipe;
     // the print action and the quiet buttons fill the status row.
     const int height = m_style == HeaderStyle::Menu ? (m_decoration.sub_label.empty() ? m.menu_row.height : m.menu_row.height + m.space_3) :
@@ -314,7 +336,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     wxColour fill = primary ? (!IsEnabled() ? p.action_disabled : m_pressed || m_open ? p.action_primary_pressed :
                               m_hover ? p.action_primary_hover : p.action_primary) :
                    highlighted ? p.surface_selected :
-                   // The spool half sits on a quieter ground than the printer
+                   // The filament half sits on a quieter ground than the printer
                    // half, so the chip reads as two things inside one outline.
                    m_style == HeaderStyle::ChipRight ? p.surface_subtle :
                    m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas;
@@ -370,6 +392,30 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         const double dot = FromDIP(8);
         draw_dot(*gc, m_decoration.dot, x, (h-dot)/2, dot, p);
         x += FromDIP(16);
+    }
+    if (const int run = slot_dots_width(); run > 0) {
+        const bool   shrink = m_decoration.small_slot_dots;
+        const double dot   = FromDIP(shrink ? kSlotDotSmallDip : kSlotDotDip);
+        const double gap   = FromDIP(shrink ? kSlotGapSmallDip : kSlotGapDip);
+        double       at    = x;
+        for (const SlotDot& slot : m_decoration.slot_dots) {
+            // A faded slot keeps its colour at low strength, ring included,
+            // so it still reads as that colour and as secondary.
+            const unsigned char alpha = slot.faded ? 90 : 255;
+            gc->SetPen(wxPen(wxColour(p.border_subtle.Red(), p.border_subtle.Green(), p.border_subtle.Blue(), alpha)));
+            if (slot.colour.IsOk())
+                gc->SetBrush(wxBrush(wxColour(slot.colour.Red(), slot.colour.Green(), slot.colour.Blue(), alpha)));
+            else
+                gc->SetBrush(*wxTRANSPARENT_BRUSH);
+            gc->DrawEllipse(at, (h-dot)/2, dot, dot);
+            at += dot + gap;
+        }
+        if (!m_decoration.slot_more.empty()) {
+            gc->SetFont(detail_font(), p.text_secondary);
+            double tw, th; gc->GetTextExtent(m_decoration.slot_more, &tw, &th);
+            gc->DrawText(m_decoration.slot_more, at, (h-th)/2);
+        }
+        x += run;
     }
 
     // Right edge inward: trailing glyph, check, status, detail. Each consumes

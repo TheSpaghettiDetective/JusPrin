@@ -222,8 +222,7 @@ export function PrinterMenu({
             ) : (
               <>
                 <p>
-                  Remove “{printer.name}”? Its printer settings and remembered spools will be deleted. Your projects
-                  stay.
+                  Remove “{printer.name}”? Its printer settings will be deleted. Your projects stay.
                 </p>
                 <div className="printer-dialog-buttons">
                   <button type="button" className="button-secondary" onClick={closeDialog}>
