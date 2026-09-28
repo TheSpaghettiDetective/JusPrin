@@ -123,7 +123,6 @@ private:
 
     SavedPrinter          saved(const std::string& name) const;
     const CatalogPrinter* catalog_entry(const std::string& id) const;
-    std::string           unknown_printer_message(const std::string& name) const;
     nlohmann::json        printer_json(const SavedPrinter& printer) const;
     nlohmann::json        context_json() const;
     std::string           next_block_id() { return "b" + std::to_string(m_next_block++); }

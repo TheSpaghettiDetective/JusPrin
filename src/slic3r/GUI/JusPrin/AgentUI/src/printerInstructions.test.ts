@@ -130,6 +130,54 @@ describe('the instructions', () => {
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
   });
 
+  it('send the rules for finding and adding a printer only while adding one', () => {
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(change), printerInstructions(connect)]) {
+      expect(text).not.toContain('Rules for finding the printer');
+      expect(text).not.toContain('printer_add');
+      expect(text).toContain('Rules for changing a printer');
+      expect(text).toContain('Rules for connecting a printer');
+      expect(text).toContain('Rules for finishing');
+    }
+    expect(printerInstructions(add)).toContain('Rules for finding the printer');
+  });
+
+  it('keep the rule for a refused nozzle size in every session, since printer_change refuses one too', () => {
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(add), printerInstructions(change), printerInstructions(connect)])
+      expect(text.match(/After unknown_nozzle, name the sizes supported/g)).toHaveLength(1);
+  });
+
+  it('say that the printer a change or a connection is about is already set up', () => {
+    // Left to "Connected to this app: no", a change session offered to add
+    // the printer it was about (2026-09-28).
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(change), printerInstructions(connect)])
+      expect(text).toContain('This printer is already set up in this app: it can prepare prints now, connected or not.');
+    expect(printerInstructions(add)).not.toContain('already set up in this app');
+  });
+
+  it('say where the settings no tool reaches are, for a printer the person has', () => {
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(change), printerInstructions(connect)]) {
+      expect(text).toContain('is in its printer settings on this computer, which printer_manual_connection opens');
+      expect(text).toContain('Never give a reason you cannot help that the tools and the facts below do not state');
+      expect(text).toContain('Their printer is already set up so they can prepare prints for it');
+      // Measured: without it, "add my other printer too" got "Yes, I can add
+      // it", which the app then refuses.
+      expect(text).toContain('Another printer is not added here: say it is added with + Add printer on Home.');
+    }
+  });
+
+  it('send adding a printer the goal it was measured with, and none of the other sessions\' words', () => {
+    // Measured: the scope rule, or a goal naming all three sessions, made the
+    // model ask about a printer named plainly instead of adding it.
+    const text = printerInstructions(add);
+    expect(text).toContain('The goal is that their printer is set up so they can prepare prints for it');
+    expect(text).not.toContain('What you can do here');
+    expect(text).not.toContain('already set up');
+  });
+
   it('name no button, screen, form or phase of the panel', () => {
     for (const text of [printerInstructions(add), printerInstructions(change)])
       expect(text).not.toMatch(/button|connection form|the form above|phase|Add this printer|This one|Use this|Not this one/);
