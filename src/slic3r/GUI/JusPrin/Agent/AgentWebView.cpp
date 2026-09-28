@@ -95,12 +95,22 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     auto* retry_button = new Button(m_error_panel, _L("Retry"));
     m_retry_button = retry_button;
     retry_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { reload(); });
+    m_return_button = new Button(m_error_panel, _L("Back to Prepare"));
+    m_manual_button = new Button(m_error_panel, _L("Open filament settings"));
+    m_return_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { if (m_on_error_return) m_on_error_return(); });
+    m_manual_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { if (m_on_error_manual) m_on_error_manual(); });
+    m_return_button->Hide();
+    m_manual_button->Hide();
+    auto* actions = new wxBoxSizer(wxHORIZONTAL);
+    actions->Add(retry_button, 0);
+    actions->Add(m_return_button, 0, wxLEFT, FromDIP(8));
+    actions->Add(m_manual_button, 0, wxLEFT, FromDIP(8));
     error_sizer->AddSpacer(FromDIP(24));
     error_sizer->Add(m_error_title, 0, wxLEFT | wxRIGHT, FromDIP(16));
     error_sizer->AddSpacer(FromDIP(8));
     error_sizer->Add(m_error_detail, 0, wxLEFT | wxRIGHT | wxEXPAND, FromDIP(16));
     error_sizer->AddSpacer(FromDIP(16));
-    error_sizer->Add(retry_button, 0, wxLEFT, FromDIP(16));
+    error_sizer->Add(actions, 0, wxLEFT, FromDIP(16));
     m_error_panel->SetSizer(error_sizer);
     m_error_panel->Hide();
     sizer->Add(m_error_panel, 1, wxEXPAND);
@@ -198,6 +208,18 @@ void AgentWebView::reload()
     }
 }
 
+void AgentWebView::set_error_fallback_actions(const wxString& return_label,
+                                              std::function<void()> on_return,
+                                              std::function<void()> on_manual)
+{
+    m_on_error_return = std::move(on_return);
+    m_on_error_manual = std::move(on_manual);
+    m_return_button->SetLabel(return_label);
+    m_return_button->Show(static_cast<bool>(m_on_error_return));
+    m_manual_button->Show(static_cast<bool>(m_on_error_manual));
+    m_error_panel->Layout();
+}
+
 wxString AgentWebView::diagnostics_text(const wxString& reason) const
 {
     wxString text = reason;
@@ -241,6 +263,8 @@ void AgentWebView::apply_appearance(bool dark)
     style_label(*m_error_title, m_theme, TextRole::BodyBold, palette.text_primary);
     style_label(*m_error_detail, m_theme, TextRole::Label, palette.text_secondary);
     style_button(*m_retry_button, m_theme, palette, m_theme.metrics().button.compact);
+    style_button(*m_return_button, m_theme, palette, m_theme.metrics().button.compact);
+    style_button(*m_manual_button, m_theme, palette, m_theme.metrics().button.compact);
     m_host->set_appearance(dark);
     Refresh();
 }

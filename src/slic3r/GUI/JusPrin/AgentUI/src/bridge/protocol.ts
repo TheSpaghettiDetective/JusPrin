@@ -32,7 +32,8 @@ export type PageMessageType =
   | 'reveal_path'
   | 'printer_action'
   | 'printer_instructions'
-  | 'printer_opening';
+  | 'printer_opening'
+  | 'shell_action';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -475,6 +476,7 @@ export interface StatePayload {
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
   session?: PrinterSessionPayload; // only in the printer panel
+  navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 
 export function isEnvelope(value: unknown): value is Envelope {

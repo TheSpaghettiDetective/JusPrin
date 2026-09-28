@@ -366,11 +366,11 @@ body {
 
 /* The printer panel takes Home's whole workspace; its conversation keeps a
    reading width. */
-.app--printer-setup {
+.app--printer-setup, .app--focused-chat {
   background: var(--surface-canvas);
   padding: 16px;
 }
-.app--printer-setup > .chat-content {
+.app--printer-setup > .chat-content, .app--focused-chat > .chat-content {
   width: 100%;
   max-width: var(--printer-setup-width);
   margin-inline: auto;

@@ -4,7 +4,7 @@ import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard } from './components/SetupCard';
-import { ActionMenu, ChatHeader, ChatList, Dialog, MenuItem } from './components/ChatNavigation';
+import { ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
@@ -178,6 +178,7 @@ export function App({
   const printerDraft = useRef('');
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
+  useEffect(() => { if (state.navigation.focused) setView('chat'); }, [state.navigation.focused]);
 
   useEffect(() => {
     if (state.needsResync) {
@@ -311,9 +312,9 @@ export function App({
   }
 
   const unavailable = state.agentStatus === 'unavailable';
-  // The printer greeting is added before an Agent is configured, so it must
-  // not hide setup. The project dock keeps saved history visible instead.
-  const notConfigured = unavailable && (printerPanel || state.messages.length === 0);
+  // The printer greeting and a focused filament context note must not hide
+  // setup. The ordinary project dock keeps saved history visible instead.
+  const notConfigured = unavailable && (printerPanel || state.navigation.focused || state.messages.length === 0);
   const streaming = state.streamingMessageId !== null;
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
@@ -323,6 +324,7 @@ export function App({
     state.messages.some((message) => message.id === activity.correlationId) &&
     ['pending', 'approved', 'running'].includes(activity.state));
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); collapseSetup(); };
+  const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
   const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); collapseSetup(); };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
@@ -334,7 +336,8 @@ export function App({
         if (conversationId !== state.activeConversationId) client.send('switch_conversation', { conversationId });
         setView('chat');
         collapseSetup();
-      }} onCreate={createChat} onConfigure={() => {
+      }} onCreate={createChat} onLeave={state.navigation.focused ? returnToWorkspace : undefined}
+      leaveLabel={state.navigation.returnLabel} onConfigure={() => {
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} />;
 
@@ -397,8 +400,8 @@ export function App({
   if (printerPanel) {
     const session = state.session;
     const printerAction = (action: string) => client.send('printer_action', { action });
-    const menu: MenuItem[] = [{ label: 'Browse the full printer list', onSelect: () => printerAction('manual_setup') }];
-    if (session?.printerName) menu.push({ label: 'Open printer settings', onSelect: () => printerAction('open_printer_settings') });
+    // Done never comes here: the model's printer_setup_finish closes the
+    // panel from the app.
     const back = () => {
       const started = state.messages.some((message) => message.role === 'user') ||
         state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';
@@ -424,7 +427,9 @@ export function App({
             <button type="button" className="printer-link-button" onClick={back}>
               ‹ Back
             </button>
-            <ActionMenu label="More" items={menu} />
+            <button type="button" className="printer-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
+              {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
+            </button>
           </header>
           {confirmPrinterClose && (
             <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)}>
@@ -504,7 +509,7 @@ export function App({
   }
 
   return (
-    <div className="app">
+    <div className={state.navigation.focused ? 'app app--focused-chat' : 'app'}>
       {errorNotice}
       {externalActions.length > 0 && <section className="external-actions" aria-label="External AI tools">
         <h2>External AI tools</h2>
@@ -523,12 +528,16 @@ export function App({
       </section>}
       {view === 'list' && chatList}
       <div className="chat-content" hidden={view === 'list'}>
-      {notConfigured && state.conversations.length === 1 && view !== 'setup' ? (
+      {notConfigured && state.conversations.length === 1 && view !== 'setup' && !state.navigation.focused ? (
         <AgentNotConfiguredHeader />
       ) : (
         <>
           <ChatHeader key={`header-${state.context?.sessionId}-${state.activeConversationId}`} title={activeChat?.title || 'New chat'} busy={busy || pendingAction}
-            onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
+            backLabel={state.navigation.focused && view !== 'setup' ? state.navigation.returnLabel ?? 'Back to Prepare' : 'Back to chats'}
+            backText={state.navigation.focused && view !== 'setup'}
+            onChats={state.navigation.focused ? () => { client.send('state_request', {}); setView('list'); } : undefined}
+            manualAction={state.navigation.focused ? { label: 'Open filament settings', onSelect: () => client.send('shell_action', { action: 'open_filament_settings' }) } : undefined}
+            onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else if (state.navigation.focused) returnToWorkspace(); else { client.send('state_request', {}); setView('list'); } }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }} />

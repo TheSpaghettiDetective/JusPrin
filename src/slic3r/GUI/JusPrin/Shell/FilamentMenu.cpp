@@ -1,5 +1,6 @@
 #include "FilamentMenu.hpp"
 #include "ShellRecipes.hpp"
+#include "ShellController.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -458,7 +459,10 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
 
     HeaderMenuItem settings;
     settings.label  = _L("Filament settings…");
-    settings.invoke = [slot] { SetupCommands::open_filament_settings(slot); };
+    settings.invoke = [slot, name = current.filament.alias.ToStdString()] {
+        if (ShellController* shell = installed_shell())
+            shell->open_filament_help(slot, name);
+    };
     rows.push_back(std::move(settings));
 
     // Adding a slot is offered on the one-slot menu, which then becomes the

@@ -42,7 +42,8 @@
     "reveal_path",
     "printer_action",
     "printer_instructions",
-    "printer_opening"
+    "printer_opening",
+    "shell_action"
   ],
   "hostMessageTypes": [
     "hello_ack",

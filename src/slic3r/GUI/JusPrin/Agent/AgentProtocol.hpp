@@ -90,6 +90,7 @@ inline constexpr const char* kPrinterAction       = "printer_action";
 inline constexpr const char* kPrinterInstructions = "printer_instructions";
 // Its opening line, which the page writes and the app posts.
 inline constexpr const char* kPrinterOpening      = "printer_opening";
+inline constexpr const char* kShellAction          = "shell_action";
 
 } // namespace Protocol
 

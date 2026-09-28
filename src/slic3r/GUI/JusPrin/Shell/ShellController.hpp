@@ -102,6 +102,9 @@ public:
     // header's printer menu it goes to Home first, since that is where the
     // panel lives. Every opening is a new session.
     void open_printer_conversation(const std::string& printer_name = {}, bool connect = false);
+    void open_filament_help(std::size_t slot, const std::string& filament_name);
+    void close_focused_chat();
+    void open_focused_filament_settings();
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
@@ -141,6 +144,9 @@ private:
     bool m_agent_pane_user_collapsed{false};
     // Set by mark_agent_config_possibly_changed(), consumed by on_page_changed().
     bool m_agent_config_possibly_changed{false};
+    bool m_focused_chat{false};
+    std::size_t m_focused_filament_slot{0};
+    int m_printer_return_tab{-1};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

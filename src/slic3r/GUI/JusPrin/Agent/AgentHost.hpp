@@ -76,6 +76,13 @@ public:
     {
         m_session_state_provider = std::move(provider);
     }
+    // Shell navigation is transient view state. It travels with a full state
+    // snapshot so a WebView reload can restore the correct Back action.
+    void set_navigation_state_provider(std::function<nlohmann::json()> provider)
+    {
+        m_navigation_state_provider = std::move(provider);
+    }
+    void refresh_page_state() { send_state(); }
     // Decodes an image attachment's raw bytes into a small thumbnail data
     // URL, for the composer/thread preview only -- the model still gets the
     // untouched original, read separately for its own context. Empty (the
@@ -364,6 +371,7 @@ private:
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;
     std::function<nlohmann::json()> m_session_state_provider;
+    std::function<nlohmann::json()> m_navigation_state_provider;
     ImageThumbnailFn                m_image_thumbnail_maker;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};

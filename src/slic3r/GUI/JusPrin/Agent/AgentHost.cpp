@@ -722,6 +722,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                                           m_persistence.document().setup_intent(active))}};
     if (m_session_state_provider)
         payload["session"] = m_session_state_provider();
+    if (m_navigation_state_provider)
+        payload["navigation"] = m_navigation_state_provider();
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
 

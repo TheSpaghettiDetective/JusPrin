@@ -158,16 +158,25 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')).toBeUndefined();
   });
 
-  it('keeps OrcaSlicer’s own screens in the menu, printer settings only once there is a printer', async () => {
+  it('sends a tapped Done as the person’s own message, and asks nothing', async () => {
+    const host = open(state({ conversation: [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'Not now', attempt: 1 },
+      { id: 'm-2', role: 'assistant', state: 'complete', text: 'It can still prepare prints.\nChoices: Done', attempt: 1 },
+    ] } as Partial<StatePayload>));
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Done' });
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('keeps OrcaSlicer’s own screens visible, printer settings only once there is a printer', async () => {
     const host = open();
-    await userEvent.click(screen.getByRole('button', { name: 'More' }));
-    expect(screen.queryByRole('menuitem', { name: 'Open printer settings' })).toBeNull();
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Browse the full printer list' }));
+    expect(screen.queryByRole('button', { name: 'Open printer settings' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Browse the full printer list' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'manual_setup' });
 
     host.deliver('printer_session', session({ printerName: 'Lab Printer' }));
-    await userEvent.click(screen.getByRole('button', { name: 'More' }));
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Open printer settings' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open printer settings' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'open_printer_settings' });
   });
 

@@ -13,6 +13,7 @@
 #include <wx/timer.h>
 
 #include <memory>
+#include <functional>
 
 class Button;
 class wxWebView;
@@ -45,6 +46,11 @@ public:
 
     void apply_appearance(bool dark);
     void reload();
+    // When the shell temporarily gives this view the whole workspace, keep
+    // its native error surface navigable even if the web bridge never loads.
+    void set_error_fallback_actions(const wxString& return_label,
+                                    std::function<void()> on_return,
+                                    std::function<void()> on_manual);
 
     Agent::AgentHost&    host() { return *m_host; }
     wxWebView*           webview() const { return m_webview; }
@@ -66,6 +72,10 @@ private:
     wxStaticText* m_error_title{nullptr};
     wxStaticText* m_error_detail{nullptr};
     Button*       m_retry_button{nullptr};
+    Button*       m_return_button{nullptr};
+    Button*       m_manual_button{nullptr};
+    std::function<void()> m_on_error_return;
+    std::function<void()> m_on_error_manual;
 
     wxTimer  m_handshake_timer;
     wxString m_page_url;

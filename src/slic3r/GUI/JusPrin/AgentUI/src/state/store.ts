@@ -52,6 +52,7 @@ export interface AgentUiState {
   // What the printer panel shows above and inside its thread; null in the
   // project's own conversation.
   session: PrinterSessionPayload | null;
+  navigation: { focused: boolean; returnLabel?: string };
   // Progress of a credential check. The host owns it; the page only mirrors
   // it, so a reload cannot leave a check looking live when it is not.
   setup: SetupStatusPayload;
@@ -88,6 +89,7 @@ export const initialState: AgentUiState = {
   mcpPreview: null,
   mcpStatus: { phase: 'idle' },
   session: null,
+  navigation: { focused: false },
   setupRequests: 0,
   needsResync: false,
   diagnostics: [],
@@ -159,6 +161,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         attachments: full.attachments ?? [],
         context: full.context,
         session: full.session ?? null,
+        navigation: full.navigation ?? { focused: false },
         // A full state answers a fresh handshake; any check that was in
         // flight before belonged to the previous page.
         setup: { phase: 'idle' },
