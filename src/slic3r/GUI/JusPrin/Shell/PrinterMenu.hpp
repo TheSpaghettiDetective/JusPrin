@@ -5,9 +5,9 @@
 // changes often enough to want here. Everything else is a door into Orca's
 // own settings.
 //
-// Five rows for one printer, by design. Listing several printers, adding one,
-// and connecting a non-Bambu print host are separate work; this slice shows one
-// machine and says plainly when it cannot see its state.
+// The selected printer stays at the top. Other saved printers follow its
+// nozzle and plate rows, with the same live status Home can report. Connecting
+// a non-Bambu print host remains part of printer setup.
 //
 // The plate sub-list replaces the menu's own rows instead of opening a second
 // popup, so there is one surface to dismiss and one keyboard model.

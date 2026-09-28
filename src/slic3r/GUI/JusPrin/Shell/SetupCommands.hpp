@@ -144,6 +144,11 @@ std::optional<std::size_t> add_filament_slot(Plater& plater);
 // update_objects_position_when_select_preset.
 bool select_printer_preset(Plater& plater, const std::string& preset_name);
 
+// Selects a saved printer through Orca's preset path and then selects its
+// linked device for printing. False when the printer disappeared or the person
+// cancelled Orca's unsaved-settings prompt.
+bool select_named_printer(Plater& plater, const std::string& name);
+
 // Enables one shipped vendor/model/variant and selects its real system preset.
 // On a load failure the old AppConfig selections are restored and reloaded.
 bool install_and_select_printer(Plater& plater, const std::string& vendor_id,

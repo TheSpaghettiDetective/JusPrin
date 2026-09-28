@@ -420,6 +420,22 @@ bool select_printer_preset(Plater& plater, const std::string& preset_name)
     return true;
 }
 
+bool select_named_printer(Plater& plater, const std::string& name)
+{
+    const auto saved = Printers::named_printers();
+    const auto found = std::find_if(saved.begin(), saved.end(), [&](const auto& printer) { return printer.name == name; });
+    if (found == saved.end() || !select_printer_preset(plater, name) || current_printer().preset_name != name)
+        return false;
+
+    if (DeviceManager* devices = wxGetApp().getDeviceManager()) {
+        MachineObject* selected = devices->get_selected_machine();
+        const std::string selected_id = selected == nullptr ? std::string() : selected->get_dev_id();
+        if (found->device_id.empty() || selected_id != found->device_id)
+            devices->set_selected_machine(found->device_id);
+    }
+    return true;
+}
+
 bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
                                 const std::string& model_id, const std::string& variant,
                                 const std::string& default_filament, std::string& error)

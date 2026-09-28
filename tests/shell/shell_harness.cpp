@@ -17,6 +17,8 @@
 //   --manual-unconfigured
 //              leaves the isolated JusPrin shell open with no Agent service
 //              configured at all -- the dock's not-set-up empty state
+//   --printer-menu
+//              checks the saved-printer rows and selection in the header menu
 //   --live-agent
 //              uses OPENAI_API_KEY and verifies live context/attachment use,
 //              reload recovery, rejection, native approval/mutation, and the
@@ -487,6 +489,7 @@ struct HarnessState
         TimelineCapture,
         ToolStripCapture,
         ManualToolStrip,
+        PrinterMenu,
         PrinterSetup,
         PrinterLive,
         HomeLive
@@ -585,6 +588,12 @@ public:
     void run_shell_mode()
     {
         try {
+            if (m_state->mode == HarnessState::Mode::PrinterMenu) {
+                check(selected_printer() == kSetupFixturePrinter, "printer_menu_fixture_starts_on_system_profile");
+                verify_other_printers_menu();
+                finish();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::PrinterSetup) {
                 verify_printer_setup();
                 return;
@@ -833,6 +842,50 @@ private:
         check(Printers::remove_named_printer(*m_plater, named).empty(), "panel_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         verify_setup_install_commands();
+    }
+
+    void verify_other_printers_menu()
+    {
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const std::string selected_name = Printers::add_named_printer(*m_plater, "Lab Printer", {});
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const std::string other_name = Printers::add_named_printer(*m_plater, "Other Lab Printer", {});
+        check(SetupCommands::select_named_printer(*m_plater, selected_name),
+              "printer_menu_fixture_selects_first_saved_printer");
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        wxYield();
+
+        auto* header = installed_shell()->status_row();
+        header->refresh();
+        header->open_printer_menu();
+        HeaderMenu* menu = visible_header_menu();
+        check(menu != nullptr, "printer_menu_opens_with_two_saved_printers");
+        if (menu != nullptr) {
+            const auto names = menu_row_names(menu);
+            check(std::find(names.begin(), names.end(), other_name) != names.end(),
+                  "printer_menu_lists_the_other_saved_printer");
+            auto* other = dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(wxString::FromUTF8(other_name), menu));
+            check(other != nullptr && other->decoration().status_word == _L("Not connected"),
+                  "printer_menu_shows_the_other_printers_unverified_state");
+            if (other != nullptr) {
+                click_row(menu, other);
+                wxYield();
+                check(selected_printer() == other_name, "printer_menu_switches_the_projects_printer");
+                check(chip_label(header, "Printer") == wxString::FromUTF8(other_name),
+                      "printer_menu_switch_refreshes_the_chip");
+                check(visible_header_menu() == nullptr, "printer_menu_closes_after_switching");
+            } else {
+                menu->close();
+            }
+        }
+
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(Printers::remove_named_printer(*m_plater, other_name).empty(),
+              "printer_menu_fixture_removes_other_printer");
+        check(Printers::remove_named_printer(*m_plater, selected_name).empty(),
+              "printer_menu_fixture_removes_first_printer");
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        wxYield();
     }
 
     // A nozzle changed from Home is a change to that printer, not to the
@@ -2605,6 +2658,7 @@ private:
                                         self->check(silent && silent->connection_state == Home::ConnectionState::Offline &&
                                             silent->connection_text == "Offline" && silent->connection_action == "reconnect" &&
                                             !silent->can_launch_monitor, "home_says_offline_for_a_silent_verified_printer");
+                                        self->verify_other_printers_menu();
                                         self->finish();
                                     });
                                 });
@@ -7302,6 +7356,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::LiveAgentUnavailable;
         else if (argument == "--printer-setup")
             state->mode = HarnessState::Mode::PrinterSetup;
+        else if (argument == "--printer-menu")
+            state->mode = HarnessState::Mode::PrinterMenu;
         else if (argument == "--home-live")
             state->mode = HarnessState::Mode::HomeLive;
         else if (argument == "--printer-live")

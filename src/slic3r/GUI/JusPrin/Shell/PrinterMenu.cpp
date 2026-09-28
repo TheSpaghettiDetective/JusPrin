@@ -1,6 +1,8 @@
 #include "PrinterMenu.hpp"
 #include "SetupCommands.hpp"
 #include "ShellController.hpp"
+#include "StatusRow.hpp"
+#include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -17,6 +19,40 @@ HeaderMenuItem separator()
     item.separator = true;
     item.title     = true; // never focusable; the rule is the whole row
     return item;
+}
+
+HeaderMenuItem other_printer(const Home::PrinterEntry& printer)
+{
+    HeaderMenuItem row;
+    row.label = wxString::FromUTF8(printer.name);
+    switch (printer.connection_state) {
+    case Home::ConnectionState::Online:
+        if (printer.state == Home::PrinterState::Printing) {
+            row.decoration.status = StatusTone::Busy;
+            row.decoration.status_word = _L("Printing");
+            if (printer.progress_percent >= 0)
+                row.decoration.status_word += wxString::FromUTF8(" \xC2\xB7 ") +
+                                              wxString::Format("%d%%", printer.progress_percent);
+        } else {
+            row.decoration.status = StatusTone::Positive;
+            row.decoration.status_word = _L("Idle");
+        }
+        break;
+    case Home::ConnectionState::Offline:
+        row.decoration.status = StatusTone::Neutral;
+        row.decoration.status_word = _L("Offline");
+        break;
+    case Home::ConnectionState::Connected:
+        // A saved print host can be reached without reporting a live job.
+        row.decoration.status = StatusTone::Positive;
+        row.decoration.status_word = _L("Connected");
+        break;
+    case Home::ConnectionState::None:
+        row.decoration.status = StatusTone::Neutral;
+        row.decoration.status_word = _L("Not connected");
+        break;
+    }
+    return row;
 }
 
 } // namespace
@@ -101,6 +137,33 @@ void PrinterMenu::show_root(const Ptr& self)
     }
     rows.push_back(std::move(plate));
     rows.push_back(separator());
+
+    // Home already resolves each saved printer's device or print-host state.
+    // Use that same reading here so an unselected printer does not silently
+    // become "Idle" just because its profile exists.
+    const auto saved = installed_shell()->home_view()->backend().printers();
+    bool has_other_printers = false;
+    for (const Home::PrinterEntry& entry : saved) {
+        if (entry.kind != Home::PrinterKind::Named || entry.name == printer.preset_name)
+            continue;
+        if (!has_other_printers) {
+            HeaderMenuItem title;
+            title.label = _L("OTHER PRINTERS");
+            title.title = true;
+            rows.push_back(std::move(title));
+            has_other_printers = true;
+        }
+        HeaderMenuItem other = other_printer(entry);
+        other.invoke = [self, name = entry.name] {
+            if (!SetupCommands::select_named_printer(self->m_plater, name))
+                return; // Orca kept the current printer, including when its prompt was cancelled.
+            if (ShellController* shell = installed_shell())
+                shell->status_row()->refresh();
+        };
+        rows.push_back(std::move(other));
+    }
+    if (has_other_printers)
+        rows.push_back(separator());
 
     // Both of these open the printer conversation, which lives on Home, so
     // the shell goes there first. The nickname is the saved printer's own
