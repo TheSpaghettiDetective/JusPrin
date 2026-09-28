@@ -19,6 +19,8 @@
 //              configured at all -- the dock's not-set-up empty state
 //   --printer-menu
 //              checks the saved-printer rows and selection in the header menu
+//   --printer-menu-capture <output-directory>
+//              runs the same checks and captures the open menu
 //   --live-agent
 //              uses OPENAI_API_KEY and verifies live context/attachment use,
 //              reload recovery, rejection, native approval/mutation, and the
@@ -867,6 +869,11 @@ private:
             auto* other = dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(wxString::FromUTF8(other_name), menu));
             check(other != nullptr && other->decoration().status_word == _L("Not connected"),
                   "printer_menu_shows_the_other_printers_unverified_state");
+            if (!m_state->capture_dir.empty()) {
+                wxYield();
+                check(visible_header_menu() == menu, "printer_menu_stays_open_for_capture");
+                blit_screen(m_frame->GetScreenRect(), "printer-menu-other-printers");
+            }
             if (other != nullptr) {
                 click_row(menu, other);
                 wxYield();
@@ -7358,6 +7365,14 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PrinterSetup;
         else if (argument == "--printer-menu")
             state->mode = HarnessState::Mode::PrinterMenu;
+        else if (argument == "--printer-menu-capture") {
+            if (++index == argc) {
+                std::cerr << "--printer-menu-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::PrinterMenu;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--home-live")
             state->mode = HarnessState::Mode::HomeLive;
         else if (argument == "--printer-live")
