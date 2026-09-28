@@ -163,6 +163,9 @@ describe('the instructions', () => {
       expect(text).toContain('is in its printer settings on this computer, which printer_manual_connection opens');
       expect(text).toContain('Never give a reason you cannot help that the tools and the facts below do not state');
       expect(text).toContain('Their printer is already set up so they can prepare prints for it');
+      // Measured: without it, "add my other printer too" got "Yes, I can add
+      // it", which the app then refuses.
+      expect(text).toContain('Another printer is not added here: say it is added with + Add printer on Home.');
     }
   });
 

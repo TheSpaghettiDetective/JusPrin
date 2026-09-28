@@ -34,9 +34,11 @@ const GOAL_THEIRS =
 
 // What no tool reaches, for a printer that is set up. Left unsaid, a question
 // about start g-code was answered with a reason to add or connect the printer
-// first (2026-09-28).
+// first, and "add my other printer too" with "Yes, I can add it", which the
+// app then refuses (2026-09-28).
 const SCOPE =
-  'What you can do here: save the nozzle size on this printer, and connect it. Everything else about it -- its other ' +
+  'What you can do here: save the nozzle size on this printer, and connect it. Another printer is not added here: ' +
+  'say it is added with + Add printer on Home. Everything else about this one -- its other ' +
   'settings, such as start g-code, bed size or speeds -- is in its printer settings on this computer, which ' +
   'printer_manual_connection opens: say so, and offer to open them. Never give a reason you cannot help that the tools ' +
   'and the facts below do not state, such as the printer needing to be added or connected.\n';

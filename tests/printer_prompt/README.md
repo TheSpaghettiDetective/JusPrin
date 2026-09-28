@@ -250,27 +250,33 @@ model's hosts with a note as the last message before trusting its counts.
 
 ## Baseline
 
-The prompt with its sessions split (the Change and Connect sessions get their
-own goal and the scope rule, and no finding rules; Add is unchanged from
-a9ec0277f5), run alongside the prompt before it, 2026-09-28, three runs per
-case. Every case not listed passed 3 of 3 in all four runs.
+The current prompt, run alongside the one before it (`--prompt-rev HEAD`),
+2026-09-28, three runs per case, with the app's refusals in place
+(`PrinterConversation::preflight_tool`). The edit adds one sentence to the
+Change and Connect scope rule: another printer is added with + Add printer on
+Home. Every case not listed passed 3 of 3 in all four runs.
 
 | Case | Default, before | Default, after | `--app`, before | `--app`, after |
 |---|---|---|---|---|
-| `add-full-list` | 3 | 3 | 3 | 2 |
-| `add-many-fit` | 1 | 1 | 3 | 3 |
-| `add-name-starts-two` | 0 | 1 | 0 | 0 |
-| `add-named-model` | 3 | 2 | 3 | 2 |
-| `add-then-undo` | 2 | 3 | 3 | 3 |
-| `add-vague-description` | 3 | 3 | 1 | 3 |
-| `change-ask-start-gcode` | 3 | 3 | 2 | 3 |
-| `change-then-connect` | 2 | 3 | 3 | 3 |
-| `connect-after-question` | 1 | 1 | 3 | 3 |
-| `connect-failed-ways-forward` | 2 | 3 | 3 | 3 |
-| **Total** | **74/84** | **77/84** | **78/84** | **79/84** |
+| `add-many-fit` | 0 | 1 | 2 | 3 |
+| `add-name-starts-two` | 2 | 2 | 0 | 0 |
+| `add-not-now-done` | 3 | 1 | 3 | 3 |
+| `add-then-undo` | 2 | 2 | 3 | 3 |
+| `add-unsupported-printer` | 2 | 3 | 3 | 3 |
+| `change-add-another` | 1 | 3 | 3 | 3 |
+| `change-nozzle-done` | 3 | 2 | 3 | 3 |
+| `connect-after-question` | 2 | 2 | 3 | 3 |
+| `connect-ask-why` | 3 | 3 | 3 | 2 |
+| `connect-bambu-no-plugin` | 3 | 3 | 3 | 2 |
+| `connect-failed-ways-forward` | 3 | 3 | 2 | 3 |
+| **Total** | **78/87** | **79/87** | **82/87** | **82/87** |
 
 The Add rows differ by noise alone: the Add prompt is the same on both sides.
-`change-ask-start-gcode` alone, 20 runs: 18 before and 20 after on the default
-model, 19 and 20 with `--app`. `add-name-starts-two` still fails nearly every
-run on both models: on "bambu a1" the model picks the A1 without asking about
-the A1 mini.
+The Change and Connect drops of one run are failures seen before the edit,
+not about adding. `change-add-another` alone, 20 runs: 15 before and 20 after
+on the default model, 15 and 17 with `--app` (an earlier `--app` run of the
+prompt before scored 9); the failures left answer "Yes, I can add it" or ask
+about the other printer's nozzle, calling no tool, so the app's refusal never
+sees them. `change-ask-start-gcode` alone, 20 runs, before this edit: 20 on
+both models. `add-name-starts-two` still fails nearly every run: on "bambu a1"
+the model picks the A1 without asking about the A1 mini.
