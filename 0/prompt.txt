@@ -1,0 +1,415 @@
+what test cases have you created?
+
+---
+
+Are there existing test cases for system prompt?
+
+---
+
+ok you extend the right harness.
+
+Now do these:
+
+* make sure existing test cases stays.
+* check the git log for what changes have been made to printer instructions, and to fix what problems. If you can identify the test cases for these problems to prevent regression, also add them.
+* reduce the number of runs. 20 seems like a lot. I'm hoping it won't take more than 100 runs in total every time we run the harness. so if we have 20 test cases in total, let's have 5 runs for each of them
+
+---
+
+<task-notification>
+<task-id>a8686433f551adbf0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\a8686433f551adbf0.output</output-file>
+<status>completed</status>
+<summary>Agent "Map prompt history to fixed problems" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found 12 model-behaviour problems that a prompt, fact-line or tool-wording change was made to fix. Nine of them have measured counts or observed wording in the commit messages. Rule 4 in 4d4f9e466b has only indirect evidence from its own unit test, and the three other 4d4f9e466b rules in item 12 have none. The harness covers the Done ending (#8) and Undo after add (#7) fully. It covers the connect offer (#6) fully in two add cases and not at all in a Change or Connect session. Everything else is partly covered or not covered.
+
+Two caveats before the list:
+- **Uncommitted cases.** Thirteen of the 22 cases exist only in the working tree: `change-ask-start-gcode` through `add-ask-start-gcode`. That includes `SavedPrinterCase`, which they share. Only the other nine are committed.
+- **How refused calls are recorded.** The harness rejects bad arguments before `case.tool()` runs, so the cases never see an incomplete `printer_connect` call.
+
+## A. Problems a prompt or tool-wording change fixed
+
+**1. Showing more than three printers** (7f66e75b07, 2026-09-18)
+- **Problem:** the old keyword search tool showed "three of thirteen" Prusas. Once the model chose from the full list, it "tried to show more than three printers 33 times" (evidence is in `agent-docs/jusprin/mcp-tool-extension-guide.md`, added by this commit).
+- **Scenario:** Add. The trigger is a name many models fit, such as "prusa".
+- **Fix:** the prompt rule "More than three fit: do not call it…" plus the `too_many` refusal "More than three fit. Ask one question that narrows it down instead." After it, the model asked a narrowing question every time.
+- **Still current?** Yes: "More than three fit: do not call it; ask one question that narrows it down, or offer to browse the full list (printer_manual_setup)". The `too_many` wording is still in PrinterConversation.cpp:409.
+- **Harness:** not covered. `add-choose-from-three` fits exactly three.
+
+**2. A name that starts several models treated as one** (7f66e75b07, 2026-09-18)
+- **Problem:** a query that equals one model name but begins others. The same guide says "bambu a1": 0/3 was still a weak spot even with the rule in place.
+- **Scenario:** Add. The trigger is "prusa mk4" or "bambu a1".
+- **Still current?** Yes: "A name that is the start of more than one model is not one model…".
+- **Harness:** partly covered. `add-choose-from-three` checks "prusa mk4". The "bambu a1" case measured at 0/3 is not tested.
+
+**3. unknown_nozzle: the model listed the sizes and stopped** (3633478c0e, 2026-09-18; reworded in 67577ad993, 2026-09-22)
+- **Problem:** "a model without that rule in its instructions stated the sizes and stopped".
+- **Scenario:** Add or Change. The trigger is an unsupported size, such as "0.3 nozzle".
+- **Fix:** the tool error gained "Ask which of these is on the printer." It then asked in 6 of 6 runs.
+  - 67577ad993 replaced that with "Ask the person to check the nozzle marking or packaging; do not substitute a size." No reason is given.
+  - 4d4f9e466b added the matching prompt rule, including "never substitute a supported size".
+- **Still current?** Yes, both. Prompt: "never substitute a size they did not confirm. After unknown_nozzle, name the sizes supported … ask them to check the marking on the nozzle". The tool error is at PrinterConversation.cpp:84.
+- **Harness:** partly covered. `change-unshipped-nozzle` checks that nothing is saved and all four sizes are named. It does not check that the reply asks the person to check the nozzle (the original failure), and the Add path is not tested.
+
+**4. Denying that connecting is possible** (a975c79be6, 2026-09-20)
+- **Problem:** the Add rules could make the model say connecting wasn't possible, though a printer found on the network could connect. The commit message doesn't mention it; the only evidence is the unit test comment "F1 review fix … the rule may not deny connecting outright".
+- **Status:** obsolete. 4d4f9e466b replaced it, and 8334b3395b removed the phase model it depended on.
+
+**5. Connect call made before an address was given** (649d74bca8, 2026-09-23)
+- **Problem:** the model called `printer_connect` with `{"hostType":"moonraker"}` or `{"address":""}`. The panel then drew a false "Sent" in 2 of 3 conversations; after the fix, 0 of 4.
+- **Scenario:** Change or Connect for a Moonraker or OctoPrint printer. The trigger is "connect it" before any address.
+- **Fix:** the decoder now refuses the call. The tool description gained "until they give one, ask for it instead of calling this", and the refusal says "Without an address, ask the person…".
+- **Still current?** Yes: ToolRegistry.cpp:1542 and :1747.
+- **Harness:** covered for the outcome. `change-then-connect` checks that the card opens for the given address and that no invented address comes first. `connect-host-address` also applies. An incomplete call itself is rejected before the case sees it, so it is never counted, which is harmless now.
+
+**6. Connect offer after adding was erratic** (0a4d56a797, 2026-09-24)
+- **Problem:** the model offered to connect in "27-77% of replies after an add", and its choices were mostly a bare "Yes | No".
+- **Scenario:** Add, after a successful `printer_add`.
+- **Fix:** an exact closing line, which then passed 30 of 30.
+- **Still current?** Yes: "end the reply to a successful printer_add with exactly "Want to connect it so you can send prints straight to it?"…".
+- **Harness:** covered by `add-named-model` and `add-choose-from-three`. A Change or Connect session is not tested.
+
+**7. Undo after add** (0f382d4098, 2026-09-24)
+- **Problem:** after the app's Undo note, the model "mostly said 'it's removed' and stopped, sometimes 'I removed it'". It passed 3/20 without the rule and 20/20 with it.
+- **Scenario:** Add. The trigger is the developer note "The person tapped Undo on the receipt…".
+- **Still current?** Yes: "When the app says the person undid adding a printer, that printer is removed…".
+- **Harness:** covered by `add-then-undo`.
+
+**8. No Done ending** (9089d6fee7, 2026-09-24)
+- **Problems, three parts:**
+  - (a) After "Not now", a verified connection, "leave it for now" or a saved change, the reply just stopped: 0/20 offered Done in each case.
+  - (b) A general rule alone gave only 11/20 (leave) and 15/20 (change), so Done was written into those two rules as well.
+  - (c) The first wording treated a card cancelled by typing as a failure and offered Done 11/20 (HEAD before this commit: 0). The rule's exception brought that to 1/40.
+- **Scenario:** Add, Connect and Change.
+- **Still current?** Yes:
+  - the "Rules for finishing" block;
+  - "Never after printer_connect comes back cancelled";
+  - "…end with "Choices: Done"" in both the leave rule and the change rule;
+  - "Call printer_setup_finish only when the person says they are done".
+- **Harness:** covered by `add-not-now-done`, `connect-verified-done`, `connect-leave-done`, `change-nozzle-done` and `connect-after-question`.
+
+**9. Failed-connection reply and the wait line** (c922876c66, 2026-09-24; f8b2edb302, 2026-09-24)
+- **Problem:** a failure "ended in a reply with no way forward".
+- **Scenario:** Connect, after the app's "connecting" result and its "failed" note.
+- **Fix:** name three ways forward (20/20; 17/20 also say it can still prepare prints), and say the 30-second wait in the "checking" line (20/20). An earlier draft wording, "enter the details themselves", dropped the unrelated full-list step from 85/90 to 66/90.
+- **f8b2edb302:** removed the "no Choices line" ban. That ban came from a misread review decision, not from model behaviour, and the counts were not re-measured after.
+- **Still current?** Yes: "After a failed connection, say what went wrong in one sentence, then name the three ways forward…" and "Say in one short line that you are checking and how long it can take, and answer anything the person says meanwhile".
+- **Harness:** partly covered. `connect-leave-done` only checks Done after "Leave it for now". Nothing checks that the failure reply names the three ways forward, that the checking line gives the wait, or that a question asked while connecting is answered. `connect-after-question` is about the card before Connect is tapped.
+
+**10. Missing Bambu network plug-in explained badly** (e2e1c6e7cc, 2026-09-27)
+- **Problem:** the model said "isn't available right now", "I still can't reach it" with no reason, and once "In OrcaSlicer, open Preferences". Asked "where do I get it?", it once said the plug-in comes with Bambu Studio; that was left unfixed.
+- **Scenario:** Add then connect, or Home's Connect… for a Bambu printer, with no plug-in installed.
+- **Fix:** a fact line, not a new rule. `printer_connect` is also refused with the plug-in as the reason instead of "No printer in LAN mode…". The app now shows the notice itself.
+- **Still current?** Yes: "Bambu's network plug-in: not installed, so nothing can reach this printer yet…".
+- **Harness:** not covered. No case sets `needsNetworkPlugin`.
+
+**11. Saving what the person loaded** (492fdb5531, 2026-09-27)
+- **Problem:** "the setup chat stored the model's material word where a preset name belonged". This is largely a design change: the spool concept was removed.
+- **Scenario:** Change. The trigger is "I loaded black PETG".
+- **Fix:** `printer_change` is now nozzle-only, with the prompt rule "printer_change saves the nozzle only … there is nothing to save" and the fact "Loaded, as the printer reports it: not known, as it is not connected".
+- **Still current?** Yes.
+- **Harness:** partly covered. `change-loaded-filament` checks nothing is saved; `change-ask-loaded` checks a connected printer's report. "What's loaded?" on a printer that isn't connected, which should get "not known", is not tested.
+
+**12. 4d4f9e466b (2026-09-22) rules with an empty commit body**
+The commit message doesn't say what went wrong; the problem below is inferred from each rule.
+- "Start with just the printer model. Do not ask for nozzle, plate or filament" first. Still current. Not covered.
+- "Never … offer a closest substitute" for a printer that doesn't fit. Still current. Covered by `add-unsupported-printer`, though it doesn't check that the full list is offered.
+- "alreadyYours means settings for the same model were saved before…". Still current, in the prompt and the `printer_identify` description. Not covered: every recorded `alreadyYours` in `add_session.json` is false.
+- Obsolete: "call printer_identify again" after a nozzle correction, and "point to This one / Add this printer". The cards and buttons they depend on were removed in 8334b3395b.
+
+## B. Excluded or not fixed
+- **115e2776bf:** the model invented a deviceId with text-only history (0/5, then 5/5). The fix was app replay, not wording. `connect-bambu` still guards it.
+- **Opener wording in a975c79be6 and e2e1c6e7cc:** app copy, not a model fix.
+- **Change session offering to add a saved printer** (uncommitted `change-ask-start-gcode`, seen 2026-09-28): no rule in the current prompt addresses it. 9f739dccf2's connect-phase rule "Never tell them to add the printer again" was removed in 8334b3395b.
+- **"Show me the full printer list" answered in words** (0f382d4098, 9089d6fee7): 18/20 called `printer_manual_setup` with the Undo rule, 11/20 without it, and the step also fails with the earlier prompt. It was never fixed and has no harness case.
+
+## C. Current rules that encode a behaviour but have no harness case
+- "one to three short sentences" and "Ask one question at a time, and say where to find any answer".
+- "Never say something is done before a tool says so."
+- Photos: "A photo names a model only from a readable name or printed size… ask for a photo of the label… Never judge size from how big it looks. A clone uses the model it copies."
+- Guessing "which printer on the network": ask first. Bambu "with more than one, ask which" is also untested; `connect-bambu` has one candidate.
+- After a named add, "say which nozzle it was set up with and that you can change it" (not checked by `add-named-model`).
+- "Nothing fits… offer the full list" (the offer part isn't checked).
+- "If what changed is unclear, ask." "Putting it back is the same tool" ("put it back to 0.4").
+- "Nozzle material, such as hardened steel, isn't tracked."
+- "A nozzle mismatch reported by the printer is something to offer to fix with printer_change." No case sets `nozzleMismatch` to true.
+- "including its port when there is one" (Moonraker/OctoPrint address).
+- "Never ask for a password, access code or API key in chat, and never repeat one."
+- "If printer_connect comes back cancelled, say at most a few words; if the person wrote a message instead, answer that." `connect-after-question` checks no Done and a fresh card, but not brevity or that the question was answered.
+- "A failure that is a timeout means no response, not a wrong code."
+- On leaving: "say again that it can prepare prints, and that Connect… in its menu on Home is there for later" (only Done is checked).
+- The `already_added` tool error ("To change it, use printer_change…"). The harness answers with its own shorter text, and nothing tests a second yes to the same model.</result>
+<usage><subagent_tokens>171500</subagent_tokens><tool_uses>35</tool_uses><duration_ms>253029</duration_ms></usage>
+</task-notification>
+
+---
+
+run deepseek/deepseek-v4-flash thru openrouter on the harness and compare. use key contained in a key text file in ~/Downloads folder
+
+---
+
+<task-notification>
+<task-id>bse8pz15e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\bse8pz15e.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full suite on both models in parallel" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b30p36n5y</task-id>
+<tool-use-id>toolu_01WdhGkBPdqHy6BqyuVSaBXg</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\b30p36n5y.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun both models on the full suite" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<!-- reply -->
+> Not a fair measure of DeepSeek: 5 of its 12 failures come after an app note. The app sends notes as developer messages. Through OpenRouter, a conversation ending on one gets DeepSeek to reply with nothing or garbled text: in 3 direct tests, one reply was empty and one garbled. That's a message-format problem, not prompt-following. Without those, the two models are about even at this sample size, where a 1–2 run difference per case is noise.
+
+find out why this happens. also keep the case count at 29 and 3 each.
+
+---
+
+find a few other open weight models on openrouter that were recently released and got good reviews. search online to see if they were known to do better with instruction following. then pick 2 of them that were at the same price range, and follow insutrctions well to test for comparisons
+
+also this is our sidechat. fix it too:
+
+<pasted_content id="0349">
+is this causing any issues?
+Yes, but only in the test harness, and it's broader than I said. I had the cause wrong: this isn't a bug in the app and it isn't a recording artifact. `add_session.json` on disk is fine; line 1937 reads `"180 × 180 × 180 mm"`, correct UTF-8. The app builds that string correctly too (PrinterCatalog.cpp:91).
+Cause: `run_prompt_tests.py` reads text without saying it's UTF-8. On Windows, Python 3.13 then falls back to the system's cp1252 encoding:
+
+* `(HERE / "add_session.json").read_text()` turns "×" (bytes `C3 97`) into "Ã—". I saw this earlier: dumping the loaded identify answer showed `180 \u00c3\u2014 180`.
+* `subprocess.run(..., text=True)` in `render()` decodes node's UTF-8 output the same way. That garbles every non-ASCII character in the rendered prompt and opening line:
+   * "Let’s connect…" becomes "Letâ€™s connect…"
+   * "isn’t" becomes "isnâ€™t"
+   * "Connect… in its menu on Home" becomes "Connectâ€¦ in its menu on Home"
+
+The transcripts hid it because printing to the cp1252 console turns the garbled text back into the right bytes. The "�" in the judges' reasons and in replies is the reverse case: the model's real curly quotes don't survive the console. That part is display only.
+What it affects on this machine:
+
+* Every add case. All 383 printer-list lines in the instructions, and every `printer_identify` answer, give the build volume as "Ã—". The A1 entry I wrote into the script is the exception, because Python reads its own source as UTF-8.
+* Connect cases. The garbled apostrophes are in the opening line, the plug-in opening, and the "Connect…" words in the leave rule.
+* Change cases: barely. The Kobra 3 opening is plain ASCII.
+* My first `kobra3.mjs` replay was not affected; it runs entirely in node.
+
+How much it matters:
+
+* The GPT against DeepSeek comparison stays fair: both models got the same garbled input.
+* It isn't exactly the app's prompt. The app sends the characters correctly, so every add and connect count from this machine measured a slightly different prompt. The effect on behaviour is probably small, since the garbled characters sit in build volumes and a few apostrophes, not in the rules. But the harness's purpose is to be faithful to the app, and the README says "nothing else differs", which isn't true on Windows.
+* Only on Windows. macOS and Linux default to UTF-8.
+
+The fix, three small edits:
+
+* `read_text(encoding="utf-8")` for `add_session.json` and `printer_tools.json`.
+* `encoding="utf-8"` in place of `text=True` in `render()`.
+* Optionally, `sys.stdout.reconfigure(encoding="utf-8")` so the logs show replies correctly.
+
+This side chat can't edit files, so the main session would need to make that change and rerun the add and connect cases.
+</pasted_content id="0349">
+
+---
+
+<task-notification>
+<task-id>bl688jqx1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\bl688jqx1.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun GPT and pinned DeepSeek on fixed harness" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0c64f0fd64a923e1</task-id>
+<tool-use-id>toolu_01N3GTtE1Y4NMho6x1BgkLSm</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\a0c64f0fd64a923e1.output</output-file>
+<status>completed</status>
+<summary>Agent "Research open models' instruction following" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I recommend **MiniMax-M3** and **MiMo-V2.6-Pro**. Both cost about $0.30–0.43 in and $0.87–1.20 out per million tokens, and each has the strongest independent evidence in its area. That evidence is thin, though. **The only independent instruction-following score I found for any candidate is MiniMax-M3's IFBench result. I found no independent BFCL or tau2 numbers for any of them.** Every other instruction-following or tool-calling figure below is reported by the vendor. Artificial Analysis (AA) dropped IFBench and τ-bench from its Intelligence Index, so its index score (v4.3.2, used throughout) now mostly measures agentic and coding work.
+
+### Candidates (prices from your list, $/M in / out)
+
+| Model | Weights? | Instruction-following / tool evidence | Known quirks |
+|---|---|---|---|
+| **GLM-5.3-Flash** $0.15/$0.50 | Yes, MIT, 320B/18B active ([HF](https://huggingface.co/zai-org/GLM-5.3-Flash)) | AA index 42, #4 of 116 ([AA](https://artificialanalysis.ai/models/glm-5-3-flash)). AutomationBench 48.8 (vendor, [Z.ai docs](https://docs.z.ai/guides/vlm/glm-5.3-flash)). No IFBench or BFCL published. | **Thinking can't be turned off** ([Z.ai docs](https://docs.z.ai/guides/vlm/glm-5.3-flash)). Verbose: 180M tokens vs 140M median. Hosts have had parser and chat-template bugs: reasoning leaking into replies, tool calls that never happen, output degrading after several tool turns ([vLLM #54744](https://github.com/vllm-project/vllm/issues/54744), [vLLM #55541](https://github.com/vllm-project/vllm/issues/55541), [HF discussion 23](https://huggingface.co/zai-org/GLM-5.3-Flash/discussions/23)). |
+| **GLM-5.3-FlashX** $0.37/$1.25 | Same weights as Flash; FlashX itself is a Z.ai-only fast serving tier ([OrcaRouter](https://www.orcarouter.ai/blog/glm-5-3-flashx-release)) | Same as Flash | Same as Flash, served at about 200 tokens/s |
+| **GLM-5.3** $1.40/$4.40 | Yes, own "GLM-5.3 License" (companies over $10B revenue need a security review) ([New Stack](https://thenewstack.io/zai-glm-weights-license/)) | Not researched in depth | Out of price range |
+| **Qwen3.8-Flash** $0.15/$0.47 | **Partly.** The hosted model is built on Qwen3.8-Flash-Next, whose weights are public under the restrictive Qwen Community License. The API version adds 1M context and built-in tools ([DigitalApplied](https://www.digitalapplied.com/blog/qwen3-8-flash-next-open-weights-vs-hosted-api-split)). | IFBench 81.3 and Toolathlon 73.5, both vendor ([llm-stats](https://llm-stats.com/benchmarks/ifbench), [regolo](https://regolo.ai/deepseek-v4-flash-vs-qwen3-8-flash-next-vs-glm-5-3-flash-the-real-leader-in-quality-to-price-in-2026/)) | Thinking is on by default. I found no independent reviews. |
+| **Qwen3.8-27B** $0.42/$3.00 | Yes, Apache 2.0 | IFBench 79.5 (vendor). AA index 34. | Overthinks: defaults to xhigh reasoning, 200M tokens vs 82M median ([AA](https://artificialanalysis.ai/models/qwen3-8-27b), [HF discussion 76](https://huggingface.co/Qwen/Qwen3.8-27B/discussions/76)). Output price is out of band. |
+| **MiMo-V2.6-Flash** $0.14/$0.28 | Yes, MIT ([HF](https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Flash-RL)) | AA index 38. Toolathlon 73.6 (vendor). No V2.6 IFBench. | Very verbose (240M tokens). Tool-call repetition and retry loops; Xiaomi fixed repetition in the API on 2026-09-25 ([Xiaomi](https://mimo.xiaomi.com/blog/mimo-v2-6-tool-call-repetition), [Tabbit](https://go.tabbit.ai/blog/mimo-v2-6-flash-review)). |
+| **MiMo-V2.6-Pro** $0.43/$0.87 | Yes, MIT, 1T/42B active | **AA index 46, #1 open-weight model** ([AA](https://artificialanalysis.ai/models/mimo-v2-6-pro)). AutomationBench 53.1 (vendor). No IFBench. | Slow: 48.6 tokens/s, time to first token 4 s on AA and about 18 s with a 10k-token input ([Tabbit](https://go.tabbit.ai/blog/mimo-v2-6-pro-review)). One anecdotal 30-minute terminal loop. Same repetition fix as Flash. |
+| **Tencent Hy3** $0.13/$0.53 | Yes, Apache 2.0 ([HF](https://huggingface.co/tencent/Hy3)) | Vendor says tool-call hallucination fell from 12.5% to 5.4%. One small third-party planner test: 73% agreement with Sonnet ([WebBrain](https://www.webbrain.one/blog/tencent-hy3-openrouter-planner-benchmark)). No IFBench. | Evidence is thin |
+| **Nemotron 3.5 Lightning** $0.08/$0.20 | Yes, OpenMDW-1.1, 30B/3B active | IFBench 71.9 (vendor) but **τ³-Banking only 9.28** ([layer3labs](https://www.layer3labs.io/guides/nemotron-3-5-lightning-benchmarks)) | Weak at agentic tool use |
+| **LongCat-2.0** $0.30/$1.20 | Yes, MIT, 1.6T | IFEval 90.0 (vendor, unverified) ([review](https://blog.buildfastwithai.com/longcat-2-0-review-meituan-open-source-coding-model-2026)) | Tool-calling reliability unknown; coding-focused |
+| **MiniMax-M3** $0.30/$1.20 | Yes, MiniMax Community License (attribution required; over $20M revenue needs permission) ([HF](https://huggingface.co/MiniMaxAI/MiniMax-M3/blob/main/LICENSE)) | **IFBench 82.9, independent: #3 overall on AA** ([AA IFBench](https://artificialanalysis.ai/evaluations/ifbench)). MCP-Atlas 74.2 (vendor). AA index only 29. | Concise (120M tokens, below median) and fast (154 tokens/s). **Its reasoning must be passed back between turns (`reasoning_details` on OpenRouter), or multi-turn tool calling degrades** ([MiniMax docs](https://platform.minimax.io/docs/guides/text-m3-function-call), [openclaw #65533](https://github.com/openclaw/openclaw/issues/65533)). |
+| **Step 3.7 Flash** $0.20/$1.15 | Yes, Apache 2.0 ([HF](https://huggingface.co/stepfun-ai/Step-3.7-Flash)) | ClawEval 67.1 (vendor). No instruction-following numbers. | Unknown |
+| **DeepSeek V4.1 Flash** $0.04/$0.29 | Yes, MIT ([HF](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash)) | AA index 39. **AutomationBench-AA 68.9, #2 overall, independent** ([AA](https://artificialanalysis.ai/evaluations/automationbench-aa)). No IFBench. | Emits tool-call tags in a new spaced format that vLLM's parser missed, so calls came back as plain text; the fix needs a new flag and was only partly merged as of 09-22 ([OrcaRouter](https://www.orcarouter.ai/blog/deepseek-v4-1-tool-calling-vllm)). Could vary by OpenRouter provider. Close relative of the V4 Flash you already tested. |
+| **Command A+** $0.30/$1.50 | Yes, Apache 2.0 ([HF](https://huggingface.co/CohereLabs/command-a-plus-05-2026-fp8)) | IFBench 74.0 (vendor). AA index 37 at launch; best non-hallucination score in that group ([AA](https://artificialanalysis.ai/articles/cohere-launches-open-weights-model-command-a-more-than-a-year-since-the-command-a-release)). | The HF repo is named "05-2026", so it may not be a September release. Very fast (281 tokens/s). |
+| **Kimi K3** $3.00/$15.00 | Yes, custom license with revenue and attribution conditions ([VentureBeat](https://venturebeat.com/technology/kimi-k3s-full-weights-are-here-but-theyre-open-with-a-caveat-what-enterprises-should-know)) | Not researched | Far outside the price range |
+
+### Why these two
+
+- **MiniMax-M3** is the only candidate with an independently measured top-tier instruction-following score (IFBench 82.9 on AA). It's also concise and fast, which suits short chat replies with strict formatting rules. Its low AA index reflects long agentic and coding tasks, not rule-following. The main risk is setup: your harness must send `reasoning_details` back on every turn, or the test will understate it.
+- **MiMo-V2.6-Pro** is MIT-licensed and the strongest open-weight model on AA's independent index. The risks are slow first responses and that it's only a week old; the tool-call repetition fix went into the API on 2026-09-25. It has no published instruction-following score, so your test will be the evidence.
+
+**Runner-up: GLM-5.3-FlashX** ($0.37/$1.25), same price band. It has the second-best independent index score (42 for the shared weights). I ranked it lower because thinking can't be turned off, it's verbose, and its serving has a history of tool-call bugs.
+
+**If you'd rather stay in the cheap band** (next to the deepseek-v4-flash and gpt-5.4-mini you already tested): **Qwen3.8-Flash + DeepSeek V4.1 Flash**, both around $0.04–0.15 in and $0.29–0.47 out.
+- Qwen3.8-Flash has the highest instruction-following score there, but it's vendor-only, and the hosted model isn't exactly the released weights.
+- DeepSeek V4.1 Flash has the best independent workflow-automation score. Pin a provider on OpenRouter that has the tool-parser fix.</result>
+<usage><subagent_tokens>137478</subagent_tokens><tool_uses>83</tool_uses><duration_ms>339413</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5byibvea</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\b5byibvea.output</output-file>
+<status>completed</status>
+<summary>Background command "Run MiniMax-M3 and MiMo-V2.6-Pro on the suite" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<!-- reply -->
+> DeepSeek V4 Flash (pinned hosts)
+
+with pinned host,  Deep Seek before Flash doesn't have a use case that causes it to always fail, rigt?
+
+---
+
+okay let's use DeepSeek V4 Flash (pinned hosts)  for evaluating system prompts moving forward.  With this decision made, are you done with your step number one?
+
+---
+
+do 1 and 2.
+
+for 3, this is the sidechat:
+
+<pasted_content id="0349">
+What is this test case? I don't understand. Why did you assume that someone would ask what's the current starting G code while adding a printer?  I don't see why people will ask this question before any printer is added.
+
+It isn't based on anything a real user does; I made it up as a control, and your objection is fair.
+
+Why it exists: the reported bug was the start g-code question in a change conversation, where the model wrongly offered to add a printer that was already added. The likely fix is a prompt line such as "this printer is already added; don't offer to add it." A line like that could leak into the add conversation, because both share one prompt. So I asked the same question in add mode, where no printer exists yet, to catch a fix for change mode that makes add mode worse, for example the model no longer steering toward adding a printer.
+
+Why it's weak: as you say, almost nobody asks about the current start g-code before they have a printer. The case measures an unrealistic conversation, and its expected answer ("ask which printer they have") was my guess, not a rule in the prompt. MiniMax's replies, which said where to find the setting in OrcaSlicer, were arguably fine, and the case failed them anyway.
+
+What I'd do instead, pick one:
+
+Drop it. The risk it was guarding against (a change-mode fix leaking into add mode) is already covered by the other add cases, which check that adding still works: add-named-model, add-vague-description, add-many-fit and the others.
+Replace it with an off-script question people really ask while adding, such as "can it print TPU?", "what's the difference between the A1 and the A1 mini?" or "do I need to connect it?". Passing would mean answering, or saying it can't tell, without adding anything or losing track of the setup.
+
+Dropping it leaves 28 cases, still 3 runs each under the 100-run budget. I'd drop it, or swap it for "what's the difference between the A1 and A1 mini?", which also tests the "bambu a1" confusion all four models had. This side question can't change files, so ask in the main conversation to make either change.
+
+You understand that we do need the test case for asking starting code, G code, when changing the printer settings, right?  You are so confusing.
+
+Yes, and that case stays. Sorry, the similar names are what made this confusing. There are two separate cases:
+
+change-ask-start-gcode: the conversation about the Kobra 3 that's already added, with the question "what's the current start g-code?". This is your reported bug, and it stays. It passes when the reply doesn't treat the printer as not yet added and doesn't say it must be connected to see the setting. Baseline with DeepSeek on the pinned hosts: 3/3.
+add-ask-start-gcode: the same question asked in the add conversation, before any printer exists. This is the artificial one I proposed dropping or replacing.
+
+Only the second one is up for dropping. The change-mode case is the reason the suite was built out in the first place.
+
+Drop the second one in.
+
+I can't make that change from here, because this side chat can't edit files. Ask in the main conversation, for example: "Drop add-ask-start-gcode from the harness."
+
+That change means:
+
+Removed: add-ask-start-gcode, the start g-code question asked while adding a printer, before one exists.
+Kept: change-ask-start-gcode, your reported bug about the Kobra 3 that's already added.
+Suite: 28 cases, still 3 runs each under the 100-run budget, so 84 conversations per run.
+Also to update: remove that case from the README, and the DeepSeek baseline changes from 79/87 to 76/84, since it passed that case 3/3.
+</pasted_content id="0349">
+
+---
+
+now move on to step 2
+
+---
+
+<task-notification>
+<task-id>b65lhp7lv</task-id>
+<tool-use-id>toolu_01TXZMhLrX95SFNbLb3Z6Lef</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\b65lhp7lv.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the after-change evaluation" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bu43b0oq4</task-id>
+<tool-use-id>toolu_01GqZwSMcoPrhMUdh2o9jfxu</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\bu43b0oq4.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun the evaluation on the revised prompt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvphfdgs4</task-id>
+<tool-use-id>toolu_011zbouGG5oHdUeSJYGm9JyZ</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\bvphfdgs4.output</output-file>
+<status>completed</status>
+<summary>Background command "Run paired old-versus-new comparisons" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdqu3ebl6</task-id>
+<tool-use-id>toolu_014xP1dZ4hFoRKwbtjLH1GLd</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\2a802982-550b-4b5d-a885-6f1aa3b4d044\tasks\bdqu3ebl6.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the final paired evaluation" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<!-- reply -->
+> "bambu a1" still fails nearly every run on both models. This change didn't set out to fix it.
+
+give me more details about this test case.
+
+---
+
+So is it fair to say that what you did in step two worked without causing any regression?
+
+---
+
+It's not exactly expected but let's move on from it for now,  Because it's not that bad.  Now should we move on to the next step? If so, what's in the next step? What you do in the next step?
+
+---
+
+this is our sidechat:
+what do you mean? what panel? what tool? what mode?
+I was being too terse. Here's what each word refers to.
+The panel: the printer conversation on Home. It's the chat that opens when someone adds a printer, changes one (the Kobra 3 chat in your screenshot), or connects one.
+The modes: those three kinds of conversation. The code calls them `ConversationMode`: Add, Change and Connect. They're what I've been calling the three sessions or conversations.
+The tools: the functions the model can call in that chat. There are eight:
+
+* `printer_identify` and `printer_add`, which find a printer and save it;
+* `printer_manual_setup`, which opens OrcaSlicer's full printer list;
+* `printer_change`, which saves a new nozzle size;
+* `printer_connection_status`, `printer_connect` and `printer_manual_connection`, for connecting;
+* `printer_setup_finish`, which closes the chat.
+
+The mismatch: agent-docs/jusprin/mcp-tool-extension-guide.md, around line 95 and in its tool table, says the panel offers exactly one tool per mode: `printer_identify` in an Add conversation, `printer_change` in a Change conversation. The code does something else. `PrinterConversation::session_tools()` returns all eight tools in every mode, and the header comment in `printerInstructions.ts` says the same ("offers every printer tool in every session"). So the guide is out of date. I don't know when the code changed.
+Why it matters today: a Change conversation about the Kobra 3 can still call `printer_add` and `printer_identify`. In one test run, "I put a 0.3 nozzle on it" in a Change conversation led the model to call `printer_add`. The prompt change keeps the adding rules out of Change conversations, but the adding tools are still there. Offering only the tools each mode needs would be the next layer of the same fix. That's an app change in C++, not a prompt change.
+
+ Check to see if there are any rationale for the guide to allow only one tool per mode. check agent-docs, git log and/or entire sessions. 
+
+also evaluate if the printers set up tools are consistent with the guide?  If not, don't assume the guide is correct. Check online for the best practices and evaluate and come up with your own conclusion and recommendations.
