@@ -230,14 +230,6 @@ SavedPrinter PrinterConversation::saved(const std::string& name) const
     return {};
 }
 
-// printer_change names the saved printer it changes, and the model sometimes
-// gives a printer's name on the network instead.
-std::string PrinterConversation::unknown_printer_message(const std::string& name) const
-{
-    return "No saved printer is named \"" + name + "\"." +
-           (m_printer_name.empty() ? std::string() : " The saved printer this conversation is about is \"" + m_printer_name + "\".");
-}
-
 const CatalogPrinter* PrinterConversation::catalog_entry(const std::string& id) const
 {
     const std::vector<CatalogPrinter>& catalog = m_backend.catalog();
@@ -305,6 +297,28 @@ json PrinterConversation::state_json() const
 
 std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler, ToolActivity& activity) const
 {
+    // Every session is offered every printer tool, so the tool list stays the
+    // same for the prompt cache; what a call may do depends on the session.
+    // Finding and adding a printer belongs to an Add session: a Change or
+    // Connect session is about a printer the person already has, and an add
+    // there would save another printer and move the session onto it.
+    if (m_mode != ConversationMode::Add && (handler == ToolHandler::PrinterIdentify || handler == ToolHandler::PrinterAdd ||
+                                            handler == ToolHandler::PrinterManualSetup))
+        return ToolError{"not_in_this_conversation",
+                         "This conversation is about " + m_printer_name + ", which is already set up; printers are not "
+                         "found or added here. Tell the person that another printer is added with + Add printer on Home."};
+    // A change is to the printer this session is about, and only once there
+    // is one. The model sometimes names a printer on the network instead.
+    if (handler == ToolHandler::PrinterChange) {
+        if (saved(m_printer_name).name.empty())
+            return ToolError{"no_printer", "No printer is set up in this conversation yet: add one first."};
+        const std::string name = json::parse(activity.arguments_json).value("printerName", std::string());
+        if (name != m_printer_name)
+            return ToolError{saved(name).name.empty() ? "unknown_printer" : "other_printer",
+                             "This conversation can change only \"" + m_printer_name + "\". Another saved printer is "
+                             "changed from Printer settings… in its menu on Home."};
+        return std::nullopt;
+    }
     if (handler != ToolHandler::PrinterConnect)
         return std::nullopt;
     json              arguments = json::parse(activity.arguments_json);
@@ -474,10 +488,9 @@ Result PrinterConversation::add(const json& arguments, const std::string& messag
 
 Result PrinterConversation::change(const json& arguments)
 {
+    // preflight_tool has checked that this is the session's own printer.
     const std::string  name = arguments.at("printerName");
     const SavedPrinter now  = saved(name);
-    if (now.name.empty())
-        return refuse("unknown_printer", unknown_printer_message(name));
     // What is loaded is the printer's to report, not the conversation's to
     // record: the nozzle is the one physical change this tool saves.
     if (!said_nozzle(arguments))

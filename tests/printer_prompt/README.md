@@ -131,10 +131,17 @@ people say in each session -- questions the tools cannot answer, facts that
 need nothing saved, requests that belong to another session -- and each checks
 what must not happen as well as what should. The Change and Connect ones
 answer the tools as `PrinterConversation` does for one saved printer
-(`SavedPrinterCase`), and fail on any call that adds, changes, connects or
-closes when that is not what was asked.
+(`SavedPrinterCase`), including its refusals (`preflight_tool`: no finding or
+adding outside an Add conversation, no change to another printer), and fail
+on any call that adds, changes, connects or closes when that is not what was
+asked.
 
 - Change, about a saved Anycubic Kobra 3 (a print host, not connected):
+  - `change-add-another`: "I also have a Prusa MK4S, can you add it too?" The
+    app refuses adding here, so trying is not a failure; the reply is. Passes
+    when it says another printer is added from Home and does not say this one
+    was added. It measures whether the model recovers from the refusal, which
+    is what would justify offering fewer tools in a Change conversation.
   - `change-ask-start-gcode`: "what's the current start g-code?", a setting no
     tool reads. Fails when the reply treats the printer as not yet added, says
     the setting needs a network connection (it is on this computer), or asks

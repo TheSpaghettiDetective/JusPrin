@@ -1,7 +1,8 @@
 // What the model is told in the printer panel: its system prompt. Written
 // here, on the page, and handed to the app with printer_instructions; the app
 // sends it with every request of the session and offers every printer tool
-// in every session. The facts it states -- the printer list, what is on the
+// in every session, refusing a call that does not fit it
+// (PrinterConversation::preflight_tool). The facts it states -- the printer list, what is on the
 // network, the printer this is about -- come from the app in the session's
 // `context`.
 //

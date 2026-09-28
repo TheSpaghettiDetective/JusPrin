@@ -387,6 +387,10 @@ class AddCase:
                 return unknown_nozzle(answer["printer"]["nozzles"], CATALOG[catalog_id], nozzle), False
             self.added.append(catalog_id)
             return {"printer": {**answer["printer"], "nozzle": nozzle if said else answer["printer"]["nozzle"]}}, False
+        if name == "printer_change" and not self.added:
+            # PrinterConversation::preflight_tool, before anything is added.
+            return {"error": {"code": "no_printer",
+                              "message": "No printer is set up in this conversation yet: add one first."}}, False
         if name == "printer_manual_setup":
             # The person closes OrcaSlicer's list without adding anything.
             self.manual_setup += 1
@@ -701,6 +705,13 @@ class SavedPrinterCase:
 
     def tool(self, name, arguments):
         self.calls.append((name, arguments))
+        # PrinterConversation::preflight_tool: finding and adding belong to an
+        # Add session.
+        if name in ADDING:
+            return {"error": {"code": "not_in_this_conversation",
+                              "message": f"This conversation is about {self.printer['name']}, which is already set up; "
+                                         "printers are not found or added here. Tell the person that another printer is "
+                                         "added with + Add printer on Home."}}, False
         if name == "printer_change":
             return self.change(arguments), False
         if name == "printer_connection_status":
@@ -714,11 +725,13 @@ class SavedPrinterCase:
         return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
 
     def change(self, arguments):
-        """PrinterConversation::change."""
+        """PrinterConversation::preflight_tool, then ::change. The case's
+        printer is the only one saved."""
         name, nozzle = arguments.get("printerName", ""), arguments.get("nozzle")
         if name != self.printer["name"]:
-            return {"error": {"code": "unknown_printer", "message": f'No saved printer is named "{name}". The saved printer '
-                                                                  f'this conversation is about is "{self.printer["name"]}".'}}
+            return {"error": {"code": "unknown_printer",
+                              "message": f'This conversation can change only "{self.printer["name"]}". Another saved '
+                                         "printer is changed from Printer settings… in its menu on Home."}}
         if not isinstance(nozzle, (int, float)) or nozzle <= 0:
             return {"error": {"code": "nothing_to_change", "message": "Name the nozzle size that changed."}}
         if nozzle not in self.printer["nozzles"]:
@@ -839,6 +852,26 @@ class ChangeUnshippedNozzle(SavedPrinterCase):
                         f"SAVED {self.printer['nozzle']}" if saved else ""] +
                        refused_nozzle_problems(conversation, reply, KOBRA["nozzles"]),
                        "saved nothing; named the sizes and asked")
+
+
+class ChangeAddAnother(SavedPrinterCase):
+    """Another printer, asked for in a Change session. The app refuses adding
+    there (PrinterConversation::preflight_tool), so a try is not a failure;
+    the reply is. Passes when nothing is saved and the reply says where
+    another printer is added, and does not say it was added."""
+
+    name = "change-add-another"
+
+    def run(self, conversation):
+        last_reply(conversation, "I also have a Prusa MK4S, can you add it too?")
+        yes, why = judge(conversation.log, "Does the assistant's last message tell the person that another printer is "
+                                           "added from Home, for example with + Add printer?")
+        return verdict([self.forbidden(("printer_change", "printer_connect", "printer_setup_finish")),
+                        "" if yes else "DID NOT SAY WHERE: " + why,
+                        judged(conversation, "Does the assistant's last message say or imply that the Prusa MK4S has been "
+                                             "added or set up?")],
+                       "said where to add it" + ("; tried " + ", ".join(sorted({n for n, _ in self.called(*ADDING)}))
+                                                 if self.called(*ADDING) else ""))
 
 
 class ChangeThenConnect(SavedPrinterCase):
@@ -1092,14 +1125,14 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
 
 
 # Session payloads for the saved-printer cases.
-for _case in (ChangeAskStartGcode, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate, ChangeUnshippedNozzle,
+for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate, ChangeUnshippedNozzle,
               ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectBambuNotFound, ConnectAskWhy,
               ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin):
     _case.session = _case.session_for()
 
 CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowDone,
                                       ConnectVerifiedDone, ConnectLeaveDone, ConnectAfterQuestion, ChangeNozzleDone,
-                                      ChangeAskStartGcode, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate,
+                                      ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate,
                                       ChangeUnshippedNozzle, ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress,
                                       ConnectBambuNotFound, ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
                                       AddManyFit, AddNameStartsTwo, AddUnshippedNozzle, AddFullList,

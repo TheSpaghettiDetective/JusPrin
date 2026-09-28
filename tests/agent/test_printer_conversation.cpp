@@ -590,13 +590,64 @@ TEST_CASE("printer_change refuses what it cannot change, before saving anything"
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Change, "Lab Printer");
 
-    CHECK(refused(conversation, "printer_change", json{{"printerName", "Garage"}, {"nozzle", 0.6}}) == "unknown_printer");
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", nullptr}}) == "nothing_to_change");
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.4}}) == "nothing_to_change");
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.3}}) == "unknown_nozzle");
     CHECK(backend.changed.empty());
     backend.refusal = "The profile is read-only.";
     CHECK(refused(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}) == "change_failed");
+}
+
+// What the app refuses before a call runs, as the host asks it; empty when
+// the call may go ahead.
+std::string preflight_refusal(PrinterConversation& conversation, const char* tool, const json& arguments)
+{
+    const Agent::ToolDefinition* definition = Agent::ToolRegistry::instance().find(tool);
+    REQUIRE(definition != nullptr);
+    Agent::ToolActivity activity = call(tool, arguments);
+    const auto problem = conversation.preflight_tool(definition->handler, activity);
+    return problem ? problem->code : std::string();
+}
+
+TEST_CASE("a session about a saved printer finds and adds none, and changes only that printer", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    SavedPrinter   garage = lab_printer();
+    garage.name           = "Garage";
+    backend.saved         = {lab_printer(), garage};
+    for (const ConversationMode mode : {ConversationMode::Change, ConversationMode::Connect}) {
+        PrinterConversation conversation(backend, panel);
+        conversation.start(mode, "Lab Printer");
+        // Every tool is still offered: the refusal says where adding happens.
+        CHECK(preflight_refusal(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}}) ==
+              "not_in_this_conversation");
+        CHECK(preflight_refusal(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}) == "not_in_this_conversation");
+        CHECK(preflight_refusal(conversation, "printer_manual_setup", json::object()) == "not_in_this_conversation");
+        CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Garage"}, {"nozzle", 0.6}}) == "other_printer");
+        CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Workshop"}, {"nozzle", 0.6}}) ==
+              "unknown_printer");
+        CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}).empty());
+        CHECK(preflight_refusal(conversation, "printer_setup_finish", json::object()).empty());
+    }
+    CHECK(backend.added.empty());
+    CHECK(backend.changed.empty());
+}
+
+TEST_CASE("an Add session changes only the printer it added, once it has added one", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved = {lab_printer()};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+
+    CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}) == "no_printer");
+    CHECK(preflight_refusal(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}).empty());
+    ran(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}});
+    // Correcting the nozzle it was added with is the same conversation's.
+    CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Prusa MK3S"}, {"nozzle", 0.6}}).empty());
+    CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}) == "other_printer");
 }
 
 // -- Connecting ---------------------------------------------------------------
@@ -1372,25 +1423,29 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
     CHECK_FALSE(output.contains("workspace"));
     CHECK_FALSE(harness.agent->requests.front().session.include_workspace);
 
-    harness.agent->call = Agent::ToolRequest{"printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}.dump()};
-    harness.say("yes, add it");
-    harness.pump();
-    activities = harness.activities();
-    REQUIRE(activities.size() == 2);
+    // Adding is an Add session's.
+    PrinterHost adding(ConversationMode::Add);
+    adding.say("a prusa mk3s");
+    adding.pump();
+    adding.agent->call = Agent::ToolRequest{"printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}.dump()};
+    adding.say("yes, add it");
+    adding.pump();
+    activities = adding.activities();
+    REQUIRE(activities.size() == 1);
     CHECK_FALSE(activities.back().requires_approval);
-    CHECK(harness.backend.added.size() == 1);
+    CHECK(adding.backend.added.size() == 1);
 
     // The receipt reaches the page after the reply that added the printer...
-    const json receipt = harness.conversation.state_json().at("blocks").back();
+    const json receipt = adding.conversation.state_json().at("blocks").back();
     CHECK(receipt.at("kind") == "added");
     CHECK(receipt.at("afterMessageId") == activities.back().correlation_id);
     CHECK_FALSE(activities.back().correlation_id.empty());
     // ...and never the model: the next request carries the thread's words,
     // and the receipt is not one of them.
-    harness.agent->call.reset();
-    harness.say("thanks");
-    harness.pump();
-    const Agent::AgentRequest& next = harness.agent->requests.back();
+    adding.agent->call.reset();
+    adding.say("thanks");
+    adding.pump();
+    const Agent::AgentRequest& next = adding.agent->requests.back();
     CHECK(next.user_text == "thanks");
     CHECK(next.conversation.size() >= 4);
     for (const Agent::AgentConversationContext& message : next.conversation) {
@@ -1398,6 +1453,24 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
         CHECK(message.text.find("added") == std::string::npos);
         CHECK(message.text.find("Prusa MK3S") == std::string::npos);
     }
+}
+
+TEST_CASE("adding from a Change session reaches the model as a refusal that says where adding is", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Change);
+    harness.agent->call = Agent::ToolRequest{"printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}.dump()};
+    harness.say("add my prusa mk3s too");
+    harness.pump();
+
+    const auto activities = harness.activities();
+    REQUIRE(activities.size() == 1);
+    CHECK(activities.front().state == Agent::ToolState::Failed);
+    CHECK(harness.backend.added.empty());
+    CHECK(harness.conversation.printer_name() == "Lab Printer");
+    REQUIRE(harness.agent->results.size() == 1);
+    const json error = json::parse(harness.agent->results.front().output_json).at("error");
+    CHECK(error.at("code") == "not_in_this_conversation");
+    CHECK_THAT(error.at("message").get<std::string>(), ContainsSubstring("+ Add printer on Home"));
 }
 
 TEST_CASE("a refused printer tool reaches the model as its error, with nothing saved", "[printer-conversation][host]")
