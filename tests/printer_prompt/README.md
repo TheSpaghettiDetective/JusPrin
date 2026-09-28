@@ -38,7 +38,8 @@ alone. Run both at the same time, so both meet the same hosts and the same
 day. A baseline recorded earlier is a guide, not a control: the same prompt
 scored 76, 76 and 74 of 84 on the default model in three runs, and 80 and 78
 with `--app`, so compare against a before run made alongside the after run.
-Paired this way, a real effect shows plainly.
+Paired this way, a real effect shows plainly: on 2026-09-28 a two-line edit
+took `add-not-now-done` from 19 to 3 of 20 while its own case improved.
 
 Run every case, not only the one the edit is for. The three sessions share one
 prompt, so a line written for one of them reaches the other two; a fix is one
@@ -139,7 +140,8 @@ closes when that is not what was asked.
     the setting needs a network connection (it is on this computer), or asks
     which printer this is. Reported 2026-09-28: a reply offered to add the
     printer, and another, about a Bambu Lab A1's z offset, asked "Which printer
-    is it?".
+    is it?". That z-offset conversation passed 10 of 10 on both models with the
+    split prompt, so it has no case of its own.
   - `change-ask-nozzle`: "what nozzle size is it set up for?" Passes when the
     reply says 0.4.
   - `change-loaded-filament`, `change-plate`: a spool loaded, a plate swapped.
@@ -241,21 +243,27 @@ model's hosts with a note as the last message before trusting its counts.
 
 ## Baseline
 
-The prompt at a9ec0277f5, 2026-09-28, three runs per case. Every case not
-listed passed 3 of 3 on both models.
+The prompt with its sessions split (the Change and Connect sessions get their
+own goal and the scope rule, and no finding rules; Add is unchanged from
+a9ec0277f5), run alongside the prompt before it, 2026-09-28, three runs per
+case. Every case not listed passed 3 of 3 in all four runs.
 
-| Case | Default model | `--app` |
-|---|---|---|
-| `add-many-fit` | 1 | 3 |
-| `add-name-starts-two` | 0 | 0 |
-| `add-then-undo` | 2 | 3 |
-| `add-vague-description` | 3 | 1 |
-| `change-ask-start-gcode` | 3 | 2 |
-| `change-then-connect` | 2 | 3 |
-| `connect-after-question` | 1 | 3 |
-| `connect-failed-ways-forward` | 2 | 3 |
-| **Total** | **74/84** | **78/84** |
+| Case | Default, before | Default, after | `--app`, before | `--app`, after |
+|---|---|---|---|---|
+| `add-full-list` | 3 | 3 | 3 | 2 |
+| `add-many-fit` | 1 | 1 | 3 | 3 |
+| `add-name-starts-two` | 0 | 1 | 0 | 0 |
+| `add-named-model` | 3 | 2 | 3 | 2 |
+| `add-then-undo` | 2 | 3 | 3 | 3 |
+| `add-vague-description` | 3 | 3 | 1 | 3 |
+| `change-ask-start-gcode` | 3 | 3 | 2 | 3 |
+| `change-then-connect` | 2 | 3 | 3 | 3 |
+| `connect-after-question` | 1 | 1 | 3 | 3 |
+| `connect-failed-ways-forward` | 2 | 3 | 3 | 3 |
+| **Total** | **74/84** | **77/84** | **78/84** | **79/84** |
 
-`change-ask-start-gcode` alone, 20 runs: 18 on the default model, 19 with
-`--app`. `add-name-starts-two` fails nearly every run on both models: on
-"bambu a1" the model picks the A1 without asking about the A1 mini.
+The Add rows differ by noise alone: the Add prompt is the same on both sides.
+`change-ask-start-gcode` alone, 20 runs: 18 before and 20 after on the default
+model, 19 and 20 with `--app`. `add-name-starts-two` still fails nearly every
+run on both models: on "bambu a1" the model picks the A1 without asking about
+the A1 mini.

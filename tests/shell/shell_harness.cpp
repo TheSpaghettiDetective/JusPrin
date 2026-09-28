@@ -1456,6 +1456,13 @@ private:
             live_print_calls();
             check(parent_is(kSetupFixturePrinter), "live_0_3_is_never_saved");
         });
+        // A setting no tool reads, about a printer the person already has: the
+        // reply once offered to add it first (2026-09-28). Its words are
+        // printed; what is checked is that nothing is added or looked up.
+        live_say("what's the current start g-code?", [this] {
+            check(live_calls("printer_add").empty() && live_calls("printer_identify").empty(),
+                  "live_a_question_about_a_saved_printer_adds_nothing");
+        });
 
         // Connecting the printer added above, to the in-process fake Bambu
         // Lab printer: the code goes in on the card, never in the thread.
