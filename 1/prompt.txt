@@ -1,0 +1,204 @@
+do 1 and 2.
+then:
+
+<pasted_content id="04fb">
+this is our sidechat:
+what do you mean? what panel? what tool? what mode?
+I was being too terse. Here's what each word refers to.
+The panel: the printer conversation on Home. It's the chat that opens when someone adds a printer, changes one (the Kobra 3 chat in your screenshot), or connects one.
+The modes: those three kinds of conversation. The code calls them `ConversationMode`: Add, Change and Connect. They're what I've been calling the three sessions or conversations.
+The tools: the functions the model can call in that chat. There are eight:
+
+* `printer_identify` and `printer_add`, which find a printer and save it;
+* `printer_manual_setup`, which opens OrcaSlicer's full printer list;
+* `printer_change`, which saves a new nozzle size;
+* `printer_connection_status`, `printer_connect` and `printer_manual_connection`, for connecting;
+* `printer_setup_finish`, which closes the chat.
+
+The mismatch: agent-docs/jusprin/mcp-tool-extension-guide.md, around line 95 and in its tool table, says the panel offers exactly one tool per mode: `printer_identify` in an Add conversation, `printer_change` in a Change conversation. The code does something else. `PrinterConversation::session_tools()` returns all eight tools in every mode, and the header comment in `printerInstructions.ts` says the same ("offers every printer tool in every session"). So the guide is out of date. I don't know when the code changed.
+Why it matters today: a Change conversation about the Kobra 3 can still call `printer_add` and `printer_identify`. In one test run, "I put a 0.3 nozzle on it" in a Change conversation led the model to call `printer_add`. The prompt change keeps the adding rules out of Change conversations, but the adding tools are still there. Offering only the tools each mode needs would be the next layer of the same fix. That's an app change in C++, not a prompt change.
+
+ Check to see if there are any rationale for the guide to allow only one tool per mode. check agent-docs, git log and/or entire sessions. 
+
+also evaluate if the printers set up tools are consistent with the guide?  If not, don't assume the guide is correct. Check online for the best practices and evaluate and come up with your own conclusion and recommendations.
+</pasted_content id="04fb">
+
+---
+
+do you think the test cases you added  will have a good chance of covering this case?
+
+
+This is the Bambu Lab A1. Tell me what changed on it, or ask anything about it.
+I want to change z offset on this printer
+I can help with that, but I need to know the printer model, since z offset is set in the printer’s own settings. Which printer is it?
+
+ This is based on the old prompt so I don't want to add duplicate test cases as long as it's covered. But I don't want to forget about this one if we don't have a good test case for this just yet.
+
+---
+
+<task-notification>
+<task-id>aee4707d17da9e7ab</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\50d5527e-64d5-4a8c-a3c1-5370fb831020\tasks\aee4707d17da9e7ab.output</output-file>
+<status>completed</status>
+<summary>Agent "Research tool exposure best practices" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I recommend scoping the tools to each conversation state and keeping a refusal in code behind it. With 8 tools, the number of tools is not what goes wrong. Your Change conversations call Add tools because those tools are offered in a state where they are invalid. That is a state-machine problem, and the prompt cannot enforce it. The one thing that decides how you implement the scoping is which API you call, because of prompt caching.
+
+## What the sources say
+
+**Tool count alone is not your problem**
+- Anthropic's tool search docs say plain tool calling is "a better fit when you have fewer than 10 tools". They put the drop in selection accuracy at "30–50 available tools". Vendor claim, measured on their own evals, raw numbers not published. https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool
+- OpenAI's function calling guide says "Aim for fewer than 20 functions available at the start of a turn", and calls it "just a soft suggestion". Vendor opinion. https://developers.openai.com/api/docs/guides/function-calling
+- OpenAI's practical guide to agents says the issue "isn't solely the number of tools, but their similarity or overlap". Some teams manage more than 15 distinct tools, while others struggle with fewer than 10 overlapping ones. Vendor observation from customer work, not a benchmark. https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf (text copy: https://gist.github.com/testy-cool/86cafd426ba22e3e8c1d6d2c853506c4)
+
+**Overlapping or ambiguous tools are the known failure**
+- Anthropic's "Writing tools for agents": when tools overlap or have a vague purpose, "agents can get confused about which ones to use". Vendor opinion. https://www.anthropic.com/engineering/writing-tools-for-agents
+- Anthropic's context engineering post calls bloated tool sets "one of the most common failure modes". It adds that if a human engineer cannot say which tool fits a situation, an agent can't either. It recommends a "minimal viable set of tools". Vendor opinion. https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+- OpenAI recommends enums and object structure "to prevent invalid states", plus "use code where possible" and "Don't make the model fill arguments you already know". Vendor opinion. https://developers.openai.com/api/docs/guides/function-calling
+
+**Research on showing fewer tools (measured, but at much larger tool counts than yours)**
+- RAG-MCP, arXiv 2505.03275: retrieving only the relevant tools raised selection accuracy from 13.62% to 43.13% and cut prompt tokens by more than half. Preprint, run on hundreds of MCP tools. https://arxiv.org/abs/2505.03275
+- "Less is More", arXiv 2411.15399: cutting 46 tools to 19 improved function selection on small edge models. https://arxiv.org/abs/2411.15399
+- "How Many Tools Should an LLM Agent See?", arXiv 2605.24660: shorter adaptive shortlists gave Claude Sonnet 4.6 93.1% selection accuracy versus 87.1% with a fixed 5 tools. Preprint, May 2026. https://arxiv.org/abs/2605.24660
+- Anthropic reports its tool search took Opus 4 from 49% to 74% on large MCP libraries. Vendor measured. https://www.anthropic.com/engineering/advanced-tool-use
+- None of this measures an 8-tool set. It shows the direction (fewer, relevant tools help), not how big the effect would be for you.
+
+**Workflows vs agents, and state-dependent tools**
+- "Building effective agents": workflows suit "well-defined tasks" where you can hardcode the path. The routing pattern "classifies an input and directs it to a specialized followup task". It also recommends "poka-yoke" tool design: change the arguments so mistakes are harder to make. https://www.anthropic.com/engineering/building-effective-agents
+- OpenAI Agents SDK: `is_enabled` on a tool can be a function of the run's context and state. Disabled tools are "completely hidden from the LLM". The docs also say this "does not replace authorization" that depends on the arguments or the resource. https://openai.github.io/openai-agents-python/tools/
+  - A related SDK issue describes one tool being offered before a workflow step and a different one after it, e.g. `draft_invoice` then `send_invoice`. This is the pattern for your Add→Connect flow. https://github.com/openai/openai-agents-python/issues/4626
+- OpenAI's guide says to split into separate agents when prompts collect many if/then branches, or when clearer tool descriptions don't fix the errors. Guardrails should be "a layered defense", with each tool rated by risk. Vendor opinion.
+
+**Prompt caching (documented behaviour)**
+- **OpenAI (confirmed).** `tool_choice: {"type":"allowed_tools","mode":"auto"|"required","tools":[...]}` restricts which tools can be called while you keep passing the full list, "so you can maximize savings from prompt caching". The caching guide also says to keep tool definitions, order and schemas unchanged, and to use `tool_choice: "none"` rather than removing tools. https://developers.openai.com/api/docs/guides/function-calling and https://developers.openai.com/api/docs/guides/prompt-caching
+- **Anthropic.**
+  - The cache prefix order is tools, then system, then messages. Changing the tool definitions invalidates the entire cache, including the conversation history. Changing `tool_choice` invalidates only the messages part.
+  - `tool_choice` accepts only auto, any, tool or none. There is no allowed-subset option.
+  - Opus 5.5, Sonnet 5.5, Fable 5.1 and Mythos 5.1 reject `any` and `tool` with a 400 error.
+  - `defer_loading` with tool search keeps the cache intact, but it lets the model find tools; it does not stop it calling them. Anthropic also says it is not worth it under 10 tools.
+  - Sources: https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-use-with-prompt-caching and https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
+- **Gemini** has `function_calling_config.allowed_function_names`, which works like OpenAI's `allowed_tools`. https://ai.google.dev/gemini-api/docs/function-calling. A figure of "~50 tools" came up only on third-party pages; I could not confirm it in Google's docs.
+
+## Synthesis (my recommendation)
+
+- **Scope the tools, but compute the allowed set from state, not from the conversation's label.**
+  - Change conversation: allow change nozzle, open printer settings, check connection status, connect, finish.
+  - Add conversation: allow identify/add and the full printer list. Once a printer has been added, also allow check connection status, connect and finish. That covers Add→Connect→Done.
+  - Change→Connect already works, because the connect tools are in the Change set.
+  - Each state's allowed set should include the tools for the transitions it may take next. This is the `draft_invoice`→`send_invoice` pattern above.
+- **Keep the tool list identical on every turn and restrict through `tool_choice` where the API allows it.**
+  - On OpenAI, use `allowed_tools`. On Gemini, use `allowed_function_names`.
+  - On Anthropic, the only way to hide tools is to change the `tools` array, which invalidates the whole cache.
+  - A new conversation starts with an empty cache anyway, so you lose nothing by choosing the tool set once when the conversation starts.
+  - Changing it mid-conversation (for example when Add finishes adding a printer) costs one uncached re-read of the history. For short setup chats that is cheap. If it isn't acceptable, keep all 8 tools and rely on the refusal below plus clear descriptions.
+- **Always refuse in code, whatever the model is shown.**
+  - The layer that owns the conversation state should reject an out-of-state call and return an explicit error as the tool result. For example: "printer_add is not available while changing an existing printer's settings; to add a different printer, finish this conversation first."
+  - Don't silently ignore the call. A visible error lets the model correct itself, and it matches the repo's AGENTS.md rule that invariants are enforced by the layer that owns the decision.
+  - OpenAI's own SDK docs say hiding a tool does not replace authorization, so scoping and refusal are complementary, not alternatives.
+- **Reduce the overlap as well.**
+  - Say in each description when not to use the tool, e.g. "Only for adding a printer that is not yet set up; never while changing an existing printer."
+  - Fill in the printer you are acting on from state rather than asking the model for it.
+  - Consider letting the finish tool carry the outcome so there are fewer exits to choose between.
+- **Add the observed failures as regression tests.**
+  - Replay the confused Change transcripts and assert that the Add tools are either not offered or refused with the guiding error.
+  - Add a test that Add→Connect→Done and Change→Connect still complete.</result>
+<usage><subagent_tokens>105917</subagent_tokens><tool_uses>29</tool_uses><duration_ms>158532</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8b71a5c3299c7921</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\50d5527e-64d5-4a8c-a3c1-5370fb831020\tasks\a8b71a5c3299c7921.output</output-file>
+<status>completed</status>
+<summary>Agent "Find rationale for one tool per mode" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The guide's "one tool per mode" statement is stale. It was a deliberate design for a panel that no longer exists: the design was reversed on purpose on 2026-09-23, the guide was never updated, and nothing today says the old constraint should come back. There is one live pressure in its direction, described under "What's left of the old intent".
+
+## Timeline
+
+| Date | Commit | What `session_tools()` offered |
+|---|---|---|
+| 09-17 | `0e55c4f9be` | All four tools of that time (`printer_catalog_search`, `printer_propose`, `printer_suggest`, `printer_change`) in every mode. |
+| 09-18 | `7f66e75b07` | One tool per mode: Add got `printer_identify`, Change got `printer_change`. This commit added the guide lines at ~95, ~289 and the two table rows. |
+| 09-22 | `67577ad993` | Connect mode got no tools at all. |
+| 09-22 | `4d4f9e466b` | "Replace printer summary card…": the pinned card was removed from the page. |
+| 09-23 | `8334b3395b` | All eight tools in every mode. The code comment and the per-mode test were replaced by "every session offers every printer tool…". The guide was not touched. |
+| 09-27 | `492fdb5531` | Edited the guide's `printer_change` table row but left "Change mode only". |
+
+`bd81401da2` and `dae85d7970` (both 09-18) and `a9ec0277f5` (09-27) also edited the guide and left the one-per-mode text as it was.
+
+## Why one tool per mode (`7f66e75b07`)
+
+- **Commit message:** "the model decides and one tool per mode checks and carries out". The problem it was fixing was the app ordering the model around, plus a keyword search that misidentified printers. It gives no separate argument for restricting the tools.
+- **Code comment and guide:** "A Change session that could identify a printer could also clear the card of the printer it is about."
+- **What "the card" meant:** the pinned facts header (Printer, Nozzle, Plate, Filament). At `7f66e75b07`, `identify()` called `clear_proposal()`, which wiped those facts, so an identify call in Change mode would have blanked the header for the saved printer.
+- **Is that reason still valid?** No. The pinned card was dropped from the page on 09-22 and its last C++ traces were deleted in `8334b3395b`. Today `identify()` only appends a picture-card block and clears nothing.
+- **Other supporting text:** the guide's cache and size measurements for one definition per session. That is evidence about cost, not a reason for the rule.
+- **Other docs:** `product-definition.md` has nothing on this. `architecture.md:137` says "The app decides which one tool each mode offers", which is equally stale.
+
+## Why all tools in every mode (`8334b3395b` and its sessions)
+
+- **Commit message:** "one assistant tool per phase" is listed among the problems of the old three-phase flow. The new panel is "only a conversation: the assistant adds, changes and connects printers through eight tools".
+- **Where it came from:** the untracked handoff doc `printer-setup-chat-handoff.md`, recorded in Entire checkpoint `01M385D8DNVF1S28Q960NWJVH5`. Its design came from session `5f00eae1-…` (checkpoint session index 2); session `54c192d0-…` (index 1) implemented it.
+  - Its diagnosis: the panel had "a different single tool for the assistant in each phase. The assistant is not told when phases change." Also, `profile()` "removes all tools once a printer is added".
+  - Its prescription: "Every one of them is available for the whole session: `profile().tool_names` lists all of them, always." It also says to delete "`ConversationMode` gating of tools (keep the mode only to choose the opening line and which printer the session is about)".
+  - The earlier UX-review reply in that session describes the same root cause: "exactly one tool the model may call, and after the add the model gets no tools at all."
+  - Kenneth's own prompts that day ask for the assistant to guide the whole process instead of phase-by-phase UI. He never discussed tool gating directly.
+- **Stated need for crossing modes:**
+  - Add needs the connect tools: the worked Add example goes identify → add → "Connect it" → connect → finish in one conversation.
+  - Connect is described as "the same as the Add conversation from 'Connect it' onward".
+  - "Put it back to 0.4" is handled by the same change tool.
+  - Nothing anywhere says Change or Connect needs `printer_identify` or `printer_add`. No-one argued it; it followed from "all tools, always".
+- **Entire search:** `entire search` fails with "no matching repositories found for [TheSpaghettiDetective/JusPrin]", and `--all-repos` returns 0 hits. The findings above come from grepping the transcripts stored locally under `refs/entire/checkpoints/*`. Later checkpoints that mention the phrase (`01M3GKE71E…`, `01M3HGGA28…`, `01M3JCF2Z2…`) only quote the guide or code. None revisits the decision.
+
+## What the code enforces per mode today (`PrinterConversation.cpp`)
+
+**Mode checks.** Nothing in `preflight_tool`, `execute_tool` or the registry checks `m_mode`. Mode only sets the opening, which printer the session is about, whether the catalog and network are in `context`, and whether a Bambu session opens on the plug-in notice. Guards are keyed to whether a saved printer exists:
+
+- **Connect tools:** `preflight_tool` covers only `printer_connect`. It returns `no_printer` when `m_printer_name` isn't saved, then does device/address checks. `connection_status` and `printer_manual_connection` return the same `no_printer` refusal. In practice these fail in an Add session until something has been added.
+- **`printer_add` in a Change or Connect session:** not refused. It saves a new printer and sets `m_printer_name` to it, so the session is now about the new printer. The mode stays Change or Connect.
+  - The only refusal is `already_added`, for the same catalog id twice in one conversation.
+  - `printer_manual_setup` behaves the same way when the wizard adds printers.
+- **`printer_change`:** takes a `printerName` and changes any saved printer, not only the one the session is about. That also works in Add mode before anything is added. The guide's table row ("the one saved printer the panel is about… Change mode only", "checked before its card… Undo reverses it") is wrong on all counts: there is no card and no Undo now.
+- **`printer_identify` in Change or Connect:** harmless. It adds a picture block.
+- **`printer_setup_finish`:** closes the panel in every mode.
+- **Tests that pin today's behaviour:**
+  - `tests/agent/test_printer_conversation.cpp:297` "every session offers every printer tool…"
+  - `test_printer_conversation.cpp:1781` "the model is offered every printer tool…"
+  - `tests/agent/test_openai_responses_agent.cpp:157`
+
+## What's left of the old intent
+
+The uncommitted work in this worktree steers per mode through the prompt, not the tool list. `printerInstructions.ts` sends the finding/adding rules "only while adding one, so a conversation about a printer the person already has is not steered toward adding it". A new `shell_harness` check asserts that a Change-session question ("what's the current start g-code?") calls neither `printer_add` nor `printer_identify`. It was added because the reply "once offered to add it first" (2026-09-28).
+
+That is the only evidence I found of add tools causing trouble outside Add. The guide's own principles name "transcripts showing the model choosing the wrong tool" as the thing that would change its "every tool loads" reading. Whether this bug counts as that is unclear: the transcript shows an offer to add, not a wrong call.
+
+## Relevant general principles in the guide (~86–95)
+
+- "Every registered tool loads on every turn", which keeps the tools array byte-identical and cacheable.
+- The 20-definition budget is "a measured trigger, not a gate".
+- A tool-set switcher that rewrites the tools array breaks the cache and "is not to be built".
+
+Eight fixed tools per session fits these principles. The line-95 bullet presents the panel as "the exception to 'every tool loads'", which is no longer true.
+
+## Stale text to fix
+
+- `agent-docs/jusprin/mcp-tool-extension-guide.md:95` — the one-per-mode claim, the "clear the card" reason, and the one-definition measurements.
+- `mcp-tool-extension-guide.md:289` — "offers one of them per mode", "two tools".
+- `mcp-tool-extension-guide.md:354-355` — the table rows. Six of the eight tools are missing from the table entirely.
+- `agent-docs/jusprin/architecture.md:137` — "which one tool each mode offers", plus its tap/undo wording.</result>
+<usage><subagent_tokens>165026</subagent_tokens><tool_uses>50</tool_uses><duration_ms>784316</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0k5dx6j5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\50d5527e-64d5-4a8c-a3c1-5370fb831020\tasks\b0k5dx6j5.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the shell harness incrementally" completed (exit code 0)</summary>
+</task-notification>
