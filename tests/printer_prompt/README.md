@@ -10,14 +10,15 @@ a fixed printer, then checks what the model did. The app does not run.
 OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/printer_prompt/run_prompt_tests.py
 ```
 
-Prompts are judged on DeepSeek V4 Flash through OpenRouter, served only by the
-hosts that answer the app's notes (decided 2026-09-28; see "Which model").
-`OPENROUTER_API_KEY` is for that model, `OPENAI_API_KEY` for the judge.
+Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, served
+only by the hosts that answer the app's notes, and on no other model (decided
+2026-09-28; see "Which model"). `OPENROUTER_API_KEY` is for that model,
+`OPENAI_API_KEY` for the judge.
 
 A run is one sample of a model that answers differently each time, so each case
 runs several times, in parallel, and reports a count. By default one invocation
 runs at most 100 conversations (`RUN_BUDGET`), shared by the cases it runs: 3
-each for the 28 cases, and at most 20 for a case run alone. `--runs N` sets
+each for the 29 cases, and at most 20 for a case run alone. `--runs N` sets
 the count per case instead; use it to look closer at one case. By default
 every run must pass; `--must-pass N` lowers the bar. `--verbose` prints every
 conversation, not only the failed ones.
@@ -36,18 +37,14 @@ Run the prompt before the edit with `--prompt-rev HEAD` (any git revision
 works): the page's source is read as it was there, and the checkout is left
 alone. Run both at the same time, so both meet the same hosts and the same
 day. A baseline recorded earlier is a guide, not a control: the same prompt
-scored 76, 76 and 74 of 84 on the default model in three runs, and 80 and 78
-with `--app`, so compare against a before run made alongside the after run.
+scored 76, 76 and 74 of 84 in three runs, so compare against a before run made
+alongside the after run.
 Paired this way, a real effect shows plainly: on 2026-09-28 a two-line edit
 took `add-not-now-done` from 19 to 3 of 20 while its own case improved.
 
 Run every case, not only the one the edit is for. The three sessions share one
 prompt, so a line written for one of them reaches the other two; a fix is one
 whose own case improves while no other case drops.
-
-Before a prompt change ships, run it once more with `--app`: the app's own
-model, gpt-5.4-mini on OpenAI. The two models fail in different places, and
-people talk to the app's.
 
 Every reply in every case is also held to the rules the prompt sets for all
 replies: a `Choices:` line the page draws as intended (on the last line, two
@@ -79,8 +76,9 @@ worded too broadly fails good replies.
 - **Tool answers** are what the app returned for the in-process fake Bambu
   printer, recorded from a real run.
 
-The app streams its requests and this script does not. By default a different
-model answers them (see "Which model"); `--app` sends them to the app's own.
+The app streams its requests and this script does not, and the model that
+answers them is the one prompts are evaluated on, not necessarily the one the
+app is configured with (see "Which model").
 
 ## Cases
 
@@ -147,7 +145,7 @@ asked.
     the setting needs a network connection (it is on this computer), or asks
     which printer this is. Reported 2026-09-28: a reply offered to add the
     printer, and another, about a Bambu Lab A1's z offset, asked "Which printer
-    is it?". That z-offset conversation passed 10 of 10 on both models with the
+    is it?". That z-offset conversation passed 10 of 10 on DeepSeek with the
     split prompt, so it has no case of its own.
   - `change-ask-nozzle`: "what nozzle size is it set up for?" Passes when the
     reply says 0.4.
@@ -226,9 +224,10 @@ judged by the same `JUDGE_MODEL`:
 | deepseek/deepseek-v4-flash, pinned hosts | 79/87 |
 | minimax/minimax-m3, hosts AtlasCloud and DeepInfra | 72/87 |
 
-The app only talks to OpenAI, so this measures the prompt, not a feature.
-`--app` runs the app's model; `--model`, `--endpoint`, `--key-env` and
-`--provider` try any other model through a Responses API endpoint, such as:
+This measures the prompt, not the provider a person's app is set up with.
+`--model`, `--endpoint`, `--key-env` and `--provider` try another model through
+a Responses API endpoint, to compare models rather than to judge a prompt
+change, such as:
 
 ```bash
 OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/printer_prompt/run_prompt_tests.py \
@@ -254,29 +253,23 @@ The current prompt, run alongside the one before it (`--prompt-rev HEAD`),
 2026-09-28, three runs per case, with the app's refusals in place
 (`PrinterConversation::preflight_tool`). The edit adds one sentence to the
 Change and Connect scope rule: another printer is added with + Add printer on
-Home. Every case not listed passed 3 of 3 in all four runs.
+Home. Every case not listed passed 3 of 3 in both runs.
 
-| Case | Default, before | Default, after | `--app`, before | `--app`, after |
-|---|---|---|---|---|
-| `add-many-fit` | 0 | 1 | 2 | 3 |
-| `add-name-starts-two` | 2 | 2 | 0 | 0 |
-| `add-not-now-done` | 3 | 1 | 3 | 3 |
-| `add-then-undo` | 2 | 2 | 3 | 3 |
-| `add-unsupported-printer` | 2 | 3 | 3 | 3 |
-| `change-add-another` | 1 | 3 | 3 | 3 |
-| `change-nozzle-done` | 3 | 2 | 3 | 3 |
-| `connect-after-question` | 2 | 2 | 3 | 3 |
-| `connect-ask-why` | 3 | 3 | 3 | 2 |
-| `connect-bambu-no-plugin` | 3 | 3 | 3 | 2 |
-| `connect-failed-ways-forward` | 3 | 3 | 2 | 3 |
-| **Total** | **78/87** | **79/87** | **82/87** | **82/87** |
+| Case | Before | After |
+|---|---|---|
+| `add-many-fit` | 0 | 1 |
+| `add-name-starts-two` | 2 | 2 |
+| `add-not-now-done` | 3 | 1 |
+| `add-then-undo` | 2 | 2 |
+| `add-unsupported-printer` | 2 | 3 |
+| `change-add-another` | 1 | 3 |
+| `change-nozzle-done` | 3 | 2 |
+| `connect-after-question` | 2 | 2 |
+| **Total** | **78/87** | **79/87** |
 
 The Add rows differ by noise alone: the Add prompt is the same on both sides.
-The Change and Connect drops of one run are failures seen before the edit,
-not about adding. `change-add-another` alone, 20 runs: 15 before and 20 after
-on the default model, 15 and 17 with `--app` (an earlier `--app` run of the
-prompt before scored 9); the failures left answer "Yes, I can add it" or ask
-about the other printer's nozzle, calling no tool, so the app's refusal never
-sees them. `change-ask-start-gcode` alone, 20 runs, before this edit: 20 on
-both models. `add-name-starts-two` still fails nearly every run: on "bambu a1"
-the model picks the A1 without asking about the A1 mini.
+The `change-nozzle-done` drop is a Done offered beside another choice, seen
+before the edit. `change-add-another` alone, 20 runs: 15 before and 20 after.
+`change-ask-start-gcode` alone, 20 runs, before this edit: 20.
+`add-name-starts-two` still fails in most runs: on "bambu a1" the model picks
+the A1 without asking about the A1 mini.

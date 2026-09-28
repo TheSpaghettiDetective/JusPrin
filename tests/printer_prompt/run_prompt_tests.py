@@ -25,13 +25,13 @@ except which model answers them.
 Usage:
   OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/printer_prompt/run_prompt_tests.py
       [--runs N] [--must-pass N] [--case NAME] [--jobs 5] [--verbose]
-      [--app | --model NAME [--endpoint URL] [--key-env NAME] [--provider HOST]...]
+      [--model NAME [--endpoint URL] [--key-env NAME] [--provider HOST]...]
 
-Prompts are judged on DeepSeek V4 Flash through OpenRouter, pinned to the hosts
-that answer an app note (MODEL, PROVIDERS; decided 2026-09-28). --app runs the
-app's own model instead, gpt-5.4-mini on OpenAI: a last check before a prompt
-change ships. --model tries any other model through a Responses API endpoint,
-with its key in the variable --key-env names. The judge stays on OpenAI
+Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
+the hosts that answer an app note (MODEL, PROVIDERS; decided 2026-09-28), and
+on nothing else. --model tries another model through a Responses API endpoint,
+with its key in the variable --key-env names, for comparing models, not for
+judging a prompt change. The judge stays on OpenAI
 (OPENAI_API_KEY) whichever model answers, so counts are judged alike.
 
 Without --runs, the cases run share RUN_BUDGET conversations: 5 runs each for
@@ -64,9 +64,6 @@ MODEL = "deepseek/deepseek-v4-flash"
 ENDPOINT = "https://openrouter.ai/api/v1/responses"
 KEY_ENV = "OPENROUTER_API_KEY"
 PROVIDERS = ["Alibaba", "Novita", "Baidu", "AtlasCloud"]
-# The app's own model, for --app.
-APP_MODEL = "gpt-5.4-mini"  # OpenAIResponsesConfig's default model
-APP_ENDPOINT = os.environ.get("JUSPRIN_OPENAI_ENDPOINT", "https://api.openai.com/v1/responses")
 # The judge stays on OpenAI whichever model answers, so counts are judged alike.
 JUDGE_ENDPOINT = "https://api.openai.com/v1/responses"
 JUDGE_MODEL = "gpt-5.5-2026-04-23"  # pinned, so a count moves only when the prompt does
@@ -1165,7 +1162,6 @@ def main():
                                                  f"at most {MAX_RUNS} each)")
     parser.add_argument("--must-pass", type=int, help="runs per case that must pass (default: all)")
     parser.add_argument("--jobs", type=int, default=5, help="runs in parallel (default 5)")
-    parser.add_argument("--app", action="store_true", help=f"run the app's own model, {APP_MODEL} on OpenAI")
     parser.add_argument("--model", help=f"the model under test (default {MODEL})")
     parser.add_argument("--endpoint", help=f"its Responses API endpoint (default {ENDPOINT})")
     parser.add_argument("--key-env", help=f"environment variable holding that endpoint's key (default {KEY_ENV})")
@@ -1177,12 +1173,9 @@ def main():
                              "an uncommitted edit with the one before it")
     parser.add_argument("--verbose", action="store_true", help="print every run's conversation, not only failures")
     args = parser.parse_args()
-    if args.app:
-        model, endpoint, key_env, providers = APP_MODEL, APP_ENDPOINT, "OPENAI_API_KEY", None
-    else:
-        # Hosts are pinned per model: another model starts unpinned.
-        model, endpoint, key_env = args.model or MODEL, args.endpoint or ENDPOINT, args.key_env or KEY_ENV
-        providers = args.provider or (PROVIDERS if model == MODEL else None)
+    # Hosts are pinned per model: another model starts unpinned.
+    model, endpoint, key_env = args.model or MODEL, args.endpoint or ENDPOINT, args.key_env or KEY_ENV
+    providers = args.provider or (PROVIDERS if model == MODEL else None)
     args.key_env = key_env
     key = os.environ.get(args.key_env)
     if not key or not os.environ.get("OPENAI_API_KEY"):
