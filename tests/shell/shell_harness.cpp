@@ -1011,10 +1011,8 @@ private:
     void live_send(const std::string& type, const nlohmann::json& payload)
     {
         static int next = 0;
-        // The model can close the panel (printer_setup_finish) before the
-        // script is done with it. The step then fails by name, and the run
-        // goes on: live_settled() counts a closed panel as settled, and the
-        // next open starts a fresh session.
+        // The person can close the panel before the script is done with it.
+        // The step then fails by name, and the next open starts a fresh session.
         Agent::AgentHost* host = live_panel()->host();
         if (host == nullptr) {
             std::string step;
@@ -1234,31 +1232,26 @@ private:
         m_live_steps.push_back({"say: " + words, [this, words] { say(words); }, {}, std::move(check)});
     }
 
-    // Whether the page draws Done as a reply's one choice: "Choices:" starting
-    // a word on its last line, after something said, as splitChoices reads it.
-    static bool offers_only_done(const std::string& text)
+    // Once nothing is left to decide, the assistant says the person can close
+    // the chat. The person then uses the panel's close action.
+    void live_close(const std::string& after)
     {
-        const std::string trimmed = text.substr(0, text.find_last_not_of(" \t\r\n") + 1);
-        const std::size_t cut  = trimmed.find_last_of('\n');
-        const std::string line = cut == std::string::npos ? trimmed : trimmed.substr(cut + 1);
-        std::smatch       found;
-        if (!std::regex_search(line, found, std::regex(R"((^|\s)Choices:\s*(.*?)\s*$)")))
-            return false;
-        return found[2] == "Done" && (cut != std::string::npos || found.position(0) > 0);
-    }
-
-    // Once nothing is left to decide the reply offers Done alone, and the
-    // person's "Done", as its chip sends it, closes the panel through
-    // printer_setup_finish.
-    void live_done(const std::string& after)
-    {
-        m_live_steps.push_back({"check: Done is offered", [] {}, [] { return true; }, [this, after] {
+        m_live_steps.push_back({"check: safe to close", [] {}, [] { return true; }, [this, after] {
                                     const auto messages = live_messages();
+                                    std::string reply = messages.empty() ? "" : messages.back().text;
+                                    std::transform(reply.begin(), reply.end(), reply.begin(),
+                                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
                                     check(!messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
-                                              offers_only_done(messages.back().text),
-                                          "live_" + after + "_offers_done");
+                                              (reply.find("can close") != std::string::npos ||
+                                               reply.find("safe to close") != std::string::npos) &&
+                                              reply.find("chat") != std::string::npos &&
+                                              reply.find("choices:") == std::string::npos,
+                                          "live_" + after + "_says_the_chat_can_close");
                                 }});
-        live_say("Done", [this, after] { check(!live_panel()->IsShown(), "live_done_after_" + after + "_closes_the_panel"); });
+        m_live_steps.push_back({"person closes the chat",
+                                [this] { live_send("printer_action", {{"action", "close"}}); },
+                                [this] { return !live_panel()->IsShown(); },
+                                [this, after] { check(!live_panel()->IsShown(), "live_person_closes_after_" + after); }});
     }
 
     bool live_identified(const std::string& id) const
@@ -1336,7 +1329,7 @@ private:
             live_capture("add-a1-mini-second-yes");
         });
         live_say("Not now", [this] { live_print_calls(); });
-        live_done("not_now");
+        live_close("not_now");
 
         live_open(Mode::Add);
         live_say("prusa mk4", [this] {
@@ -1411,16 +1404,24 @@ private:
         live_say("my elegoo mars", [this] {
             live_print_calls();
             check(live_calls("printer_identify").empty() && live_calls("printer_add").empty(), "live_elegoo_mars_draws_no_card");
+            const auto messages = live_messages();
+            std::string reply = messages.empty() ? "" : messages.back().text;
+            std::transform(reply.begin(), reply.end(), reply.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            check(!messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
+                      reply.find("manual") != std::string::npos,
+                  "live_elegoo_mars_suggests_manual_setup");
         });
 
-        // The full list is OrcaSlicer's own window, opened from inside the
-        // tool while the chat keeps pumping behind it. Closed here as a person
-        // would close it; the tool must run once and the chat carry on.
+        // The person's menu action opens OrcaSlicer's own window. The model
+        // has no tool to open it. Close it here as a person would.
         live_open(Mode::Add);
-        m_live_steps.push_back({"say: show me the full printer list",
+        m_live_steps.push_back({"menu: browse the full printer list",
                                 [this] {
                                     m_live_wizard_seen = false;
-                                    say("show me the full printer list");
+                                    wxGetApp().CallAfter([self = shared_from_this()] {
+                                        self->live_send("printer_action", {{"action", "manual_setup"}});
+                                    });
                                 },
                                 [this] {
                                     // Closed only once its page has loaded: the window installs
@@ -1450,15 +1451,8 @@ private:
                                 },
                                 [this] {
                                     live_print_calls();
-                                    const auto calls = live_calls("printer_manual_setup");
                                     check(m_live_wizard_seen, "live_full_list_opens_orcas_window");
-                                    const auto messages = live_messages();
-                                    check(calls.size() == 1 && calls.front()->state == Agent::ToolState::Succeeded &&
-                                              nlohmann::json::parse(calls.front()->result_json).value("applied", true) == false,
-                                          "live_full_list_runs_once_and_reports_nothing_added");
-                                    check(!messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
-                                              !messages.back().text.empty(),
-                                          "live_the_chat_carries_on_after_the_window");
+                                    check(live_activities().empty(), "live_full_list_needs_no_model_tool");
                                 }});
 
         // Changing: a printer to change, the fixture's own profile under a
@@ -1689,7 +1683,7 @@ private:
                                                  activity.result_json.find(kCode) != std::string::npos;
                                     check(!leaked, "live_the_code_is_nowhere_in_the_conversation");
                                 }});
-        live_done("verified_connection");
+        live_close("verified_connection");
         run_live_steps();
     }
 
@@ -1948,7 +1942,7 @@ private:
         });
         live_say("where do I get it?", [app_says_the_plugin_is_needed] { app_says_the_plugin_is_needed("no_plugin_where_to_get_it"); });
         live_say("I'd rather not install anything right now. Leave it.", [this] { live_print_calls(); });
-        live_done("no_plugin_add_flow");
+        live_close("no_plugin_add_flow");
 
         // From Home's Connect…: the conversation opens on the saved printer.
         m_live_steps.push_back({"open: Connect… on the added printer",
@@ -1981,7 +1975,7 @@ private:
         live_say("Its serial number is 0309DA123456789. Just connect to that one.",
                  [app_says_the_plugin_is_needed] { app_says_the_plugin_is_needed("no_plugin_a_serial"); });
         live_say("Leave it for now", [] {});
-        live_done("no_plugin_connect_flow");
+        live_close("no_plugin_connect_flow");
     }
 
     void finish_printer_live()

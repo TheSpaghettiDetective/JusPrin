@@ -1,14 +1,22 @@
 # Printer panel prompt tests
 
 The printer panel's assistant is a system prompt
-(`src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts`), eight printer
+(`src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts`), five printer
 tools, and the chat. `run_prompt_tests.py` sends the live model the same
 requests the app sends. It answers the tools the way the app answers them for
 a fixed printer, then checks what the model did. The app does not run.
 
+On Kenneth's local machine, the keys are in
+`~/.config/jusprin/prompt-test.env` (outside the repository, mode `600`). An
+agent running this suite can load them for that command in a subshell:
+
 ```bash
-OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/printer_prompt/run_prompt_tests.py
+( . "$HOME/.config/jusprin/prompt-test.env"; tests/printer_prompt/run_prompt_tests.py )
 ```
+
+Do not print, copy into the repository, or include the key values in a command
+or test log. The file exports `OPENROUTER_API_KEY` and `OPENAI_API_KEY`; the
+runner reads them from its environment.
 
 Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, served
 only by the hosts that answer the app's notes, and on no other model (decided
@@ -33,10 +41,13 @@ time in twenty; when a case fails, or to judge the edit it was written for,
 run that case alone, where it gets 20 runs.
 Differences of a few runs out of 20 are noise; look for a clear gap.
 
-Run the prompt before the edit with `--prompt-rev HEAD` (any git revision
-works): the page's source is read as it was there, and the checkout is left
-alone. Run both at the same time, so both meet the same hosts and the same
-day. A baseline recorded earlier is a guide, not a control: the same prompt
+For a prompt-only edit, run the previous prompt with `--prompt-rev HEAD` (any
+git revision works): the page's source is read as it was there, and the checkout
+is left alone. The current change also removes three tools, so the earlier
+prompt and tool list are no longer a valid control for the affected cases.
+Run both versions at the same time when their tools and case expectations match,
+so both meet the same hosts and the same day. A baseline recorded earlier is a
+guide, not a control: the same prompt
 scored 76, 76 and 74 of 84 in three runs, so compare against a before run made
 alongside the after run.
 Paired this way, a real effect shows plainly: on 2026-09-28 a two-line edit
@@ -48,7 +59,7 @@ whose own case improves while no other case drops.
 
 Every reply in every case is also held to the rules the prompt sets for all
 replies: a `Choices:` line the page draws as intended (on the last line, two
-to four choices under 30 characters, or Done alone; read as
+to four choices under 30 characters; read as
 `replyChoices.ts` reads it), and none of the internal words the prompt rules
 out (profile, preset, catalog, a tool's name). A reply that breaks one fails
 its run, whatever the case checks.
@@ -105,24 +116,19 @@ app is configured with (see "Which model").
   printer they have. Without the prompt's rule about undone adds it passed 3 of
   20 (2026-09-24): the model mostly said "Okay, it's removed" and stopped, and
   some replies said "I removed" as if it had.
-- `add-not-now-done`, `connect-verified-done`, `connect-leave-done`,
-  `change-nozzle-done`: the four places the prompt says nothing is left to
+- `add-not-now-close`, `connect-verified-close`, `connect-leave-close`,
+  `change-nozzle-close`: the four places the prompt says nothing is left to
   decide -- the person turns down connecting, the app's note says the
   connection is verified, they leave a failed connection for now, a nozzle
-  change is saved. Each passes when that reply offers Done as its one choice,
-  read as the page reads it, and the person's "Done" then calls
-  `printer_setup_finish`, which it must not call before. The connect cases tap
+  change is saved. Each passes when that reply says the person can close the
+  chat and offers no reply choices. The connect cases tap
   Connect on the card and deliver the app's note as the app does: a developer
-  message and no user message. Before the finishing rule, 0 of 20 offered Done
-  in each; stated only as a general rule, the leave and change replies, whose
-  own rules say how they end, offered it in 11 and 15 of 20.
+  message and no user message.
 - `connect-after-question`: the person writes while the credential card waits,
   as `--printer-live` does. The app cancels the card and the waiting turn goes
   on with `{"state": "cancelled"}`, then the question is a turn of its own.
-  Passes when neither reply offers Done and "connect it" then opens a fresh
-  card. The finishing rule first made the cancelled reply read as leaving
-  connecting for now, with Done, in 11 of 20; the rule's own exception for a
-  cancelled card brought that to 1 of 40.
+  Passes when neither reply says to close the chat and "connect it" then opens
+  a fresh card.
 
 The cases above follow the main paths. The ones below are the rest of what
 people say in each session -- questions the tools cannot answer, facts that
@@ -131,8 +137,7 @@ what must not happen as well as what should. The Change and Connect ones
 answer the tools as `PrinterConversation` does for one saved printer
 (`SavedPrinterCase`), including its refusals (`preflight_tool`: no finding or
 adding outside an Add conversation, no change to another printer), and fail
-on any call that adds, changes, connects or closes when that is not what was
-asked.
+on any call that adds, changes or connects when that is not what was asked.
 
 - Change, about a saved Anycubic Kobra 3 (a print host, not connected):
   - `change-add-another`: "I also have a Prusa MK4S, can you add it too?" The
@@ -188,8 +193,10 @@ cannot quietly undo it.
   does not ship (3633478c0e: the model listed the sizes and stopped). Passes
   when nothing is saved and the reply names the sizes and asks the person to
   check the nozzle.
-- `add-full-list`: "show me the full printer list" (0f382d4098, 9089d6fee7:
-  answered in words in 2 to 9 runs of 20). Passes when the list is opened.
+- `add-full-list`: "show me the full printer list". Passes when the assistant
+  says the person can browse it manually in the app, without claiming to open
+  it or adding a printer. The earlier test required a tool to open the list;
+  that result is not comparable after removing the tool.
 - `change-ask-loaded-not-connected`: what is loaded on a printer that is not
   connected (492fdb5531). Passes when no filament is claimed as loaded.
 - `connect-failed-ways-forward`: a print host that does not respond
@@ -247,10 +254,10 @@ empty 3 of 3, DeepInfra junk; Alibaba, Novita, Baidu and AtlasCloud correct).
 Unpinned, those cases measure which host a request landed on. Check a new
 model's hosts with a note as the last message before trusting its counts.
 
-## Baseline
+## Historical baseline before removing the dialog and finish tools
 
-The current prompt, run alongside the one before it (`--prompt-rev HEAD`),
-2026-09-28, three runs per case, with the app's refusals in place
+The prompt before this tool removal, recorded in `dd7ca1b8ef`, run alongside
+the one before it on 2026-09-28, three runs per case, with the app's refusals in place
 (`PrinterConversation::preflight_tool`). The edit adds one sentence to the
 Change and Connect scope rule: another printer is added with + Add printer on
 Home. Every case not listed passed 3 of 3 in both runs.

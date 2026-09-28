@@ -602,8 +602,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return arguments.contains("printerName") && arguments["printerName"].is_string() && optional_text(arguments, "printerName") &&
                !arguments["printerName"].get_ref<const std::string&>().empty();
     };
-    if (definition.handler == ToolHandler::PrinterManualSetup || definition.handler == ToolHandler::PrinterSetupFinish ||
-        definition.handler == ToolHandler::PrinterConnectionStatus || definition.handler == ToolHandler::PrinterManualConnection)
+    if (definition.handler == ToolHandler::PrinterConnectionStatus)
         return arguments.empty();
     if (definition.handler == ToolHandler::PrinterAdd)
         return has_only(arguments, {"catalogId", "nozzle"}) && arguments.contains("catalogId") && optional_text(arguments, "catalogId") &&
@@ -1553,43 +1552,6 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::PrinterConnect},
-        {"printer_manual_setup",
-         "Browse the full printer list",
-         "Opens OrcaSlicer's own list of every printer, where the person picks and sets one up themselves. Use it when the "
-         "person asks for the full list, or when no model or more than three fit. Returns the printers they added there, "
-         "possibly none.",
-         object_schema(json::object()),
-         object_schema(json{{"applied", boolean_schema()}, {"added", string_array_schema()}}, json::array({"applied", "added"})),
-         ActionClass::Mutation,
-         ToolExposure::Printer,
-         ToolAvailability::Always,
-         ToolHandler::PrinterManualSetup,
-         false,
-         true},
-        {"printer_manual_connection",
-         "Open printer settings",
-         "Opens OrcaSlicer's printer settings for the printer this conversation is about, in a window beside this one, where "
-         "the person enters connection details themselves. Ask them to say when they are done, then check with "
-         "printer_connection_status.",
-         object_schema(json::object()),
-         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"opened"})}}}}, json::array({"state"})),
-         ActionClass::Mutation,
-         ToolExposure::Printer,
-         ToolAvailability::Always,
-         ToolHandler::PrinterManualConnection,
-         false,
-         true},
-        {"printer_setup_finish",
-         "Close printer setup",
-         "Closes this panel and returns the person to Home. Call it when the person says they are done.",
-         object_schema(json::object()),
-         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"closed"})}}}}, json::array({"state"})),
-         ActionClass::Mutation,
-         ToolExposure::Printer,
-         ToolAvailability::Always,
-         ToolHandler::PrinterSetupFinish,
-         false,
-         true},
     };
     // A conversation is the confirmation only where the conversation is about
     // the one machine the tool changes; anywhere else a card still decides.

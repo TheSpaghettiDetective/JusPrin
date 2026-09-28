@@ -137,8 +137,7 @@ PrinterConversation::PrinterConversation(IPrinterBackend& backend, IConversation
 
 std::vector<std::string> PrinterConversation::session_tools()
 {
-    return {"printer_add",      "printer_change",            "printer_connect",      "printer_connection_status",
-            "printer_identify", "printer_manual_connection", "printer_manual_setup", "printer_setup_finish"};
+    return {"printer_add", "printer_change", "printer_connect", "printer_connection_status", "printer_identify"};
 }
 
 void PrinterConversation::start(ConversationMode mode, const std::string& printer_name)
@@ -302,8 +301,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     // Finding and adding a printer belongs to an Add session: a Change or
     // Connect session is about a printer the person already has, and an add
     // there would save another printer and move the session onto it.
-    if (m_mode != ConversationMode::Add && (handler == ToolHandler::PrinterIdentify || handler == ToolHandler::PrinterAdd ||
-                                            handler == ToolHandler::PrinterManualSetup))
+    if (m_mode != ConversationMode::Add && (handler == ToolHandler::PrinterIdentify || handler == ToolHandler::PrinterAdd))
         return ToolError{"not_in_this_conversation",
                          "This conversation is about " + m_printer_name + ", which is already set up; printers are not "
                          "found or added here. Tell the person that another printer is added with + Add printer on Home."};
@@ -375,21 +373,6 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
     case ToolHandler::PrinterChange: return change(arguments);
     case ToolHandler::PrinterConnectionStatus: return connection_status(m_printer_name, activity.correlation_id);
     case ToolHandler::PrinterConnect: return connect(arguments, activity.action_id);
-    case ToolHandler::PrinterManualSetup: return manual_setup();
-    case ToolHandler::PrinterManualConnection: {
-        const std::string name = m_printer_name;
-        if (saved(name).name.empty())
-            return refuse("no_printer", "There is no saved printer yet: add one first.");
-        // A window beside the app, not a modal one: the person edits and
-        // closes it in their own time.
-        m_backend.open_printer_settings(name);
-        m_host.printers_changed();
-        m_host.session_changed();
-        return ok(json{{"state", "opened"}});
-    }
-    case ToolHandler::PrinterSetupFinish:
-        m_host.close_panel();
-        return ok(json{{"state", "closed"}});
     default: return {};
     }
 }
@@ -571,20 +554,6 @@ void PrinterConversation::abandon_connection()
     m_connections[m_connecting_action]["state"] = "cancelled";
     m_connecting.clear();
     m_connecting_action.clear();
-}
-
-Result PrinterConversation::manual_setup()
-{
-    const ManualPrinterResult result = m_backend.run_manual_setup();
-    json                      names  = json::array();
-    for (const SavedPrinter& printer : result.added)
-        names.push_back(printer.name);
-    if (!result.added.empty()) {
-        m_printer_name = result.added.front().name;
-        m_host.printers_changed(m_printer_name);
-        m_host.session_changed();
-    }
-    return ok(json{{"applied", result.applied}, {"added", std::move(names)}});
 }
 
 void PrinterConversation::tick(std::chrono::steady_clock::time_point now)

@@ -616,6 +616,9 @@ TEST_CASE("a session about a saved printer finds and adds none, and changes only
     SavedPrinter   garage = lab_printer();
     garage.name           = "Garage";
     backend.saved         = {lab_printer(), garage};
+    CHECK(PrinterConversation::session_tools().size() == 5);
+    for (const char* removed : {"printer_manual_setup", "printer_manual_connection", "printer_setup_finish"})
+        CHECK(Agent::ToolRegistry::instance().find(removed) == nullptr);
     for (const ConversationMode mode : {ConversationMode::Change, ConversationMode::Connect}) {
         PrinterConversation conversation(backend, panel);
         conversation.start(mode, "Lab Printer");
@@ -623,12 +626,10 @@ TEST_CASE("a session about a saved printer finds and adds none, and changes only
         CHECK(preflight_refusal(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}}) ==
               "not_in_this_conversation");
         CHECK(preflight_refusal(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}) == "not_in_this_conversation");
-        CHECK(preflight_refusal(conversation, "printer_manual_setup", json::object()) == "not_in_this_conversation");
         CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Garage"}, {"nozzle", 0.6}}) == "other_printer");
         CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Workshop"}, {"nozzle", 0.6}}) ==
               "unknown_printer");
         CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}).empty());
-        CHECK(preflight_refusal(conversation, "printer_setup_finish", json::object()).empty());
     }
     CHECK(backend.added.empty());
     CHECK(backend.changed.empty());
@@ -1152,7 +1153,7 @@ TEST_CASE("Undo while the added printer is connecting drops the attempt", "[prin
     CHECK(panel.turns == 1);
 }
 
-TEST_CASE("the full printer list reports what it added, as a tool and from the menu", "[printer-conversation]")
+TEST_CASE("the full printer list reports what the person added from the menu", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -1160,19 +1161,17 @@ TEST_CASE("the full printer list reports what it added, as a tool and from the m
     conversation.start(ConversationMode::Add);
 
     // Closed without adding anything.
-    CHECK(ran(conversation, "printer_manual_setup", json::object()) == json{{"applied", false}, {"added", json::array()}});
     conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
     CHECK(panel.notes.empty());
     CHECK(panel.turns == 0);
 
     backend.manual_result = ManualPrinterResult{true, {lab_printer()}};
-    CHECK(ran(conversation, "printer_manual_setup", json::object()).at("added") == json::array({"Lab Printer"}));
-    CHECK(conversation.printer_name() == "Lab Printer");
     conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    CHECK(conversation.printer_name() == "Lab Printer");
     REQUIRE(panel.notes == std::vector<std::string>{"The person added Lab Printer from OrcaSlicer's printer list."});
     check_is_a_statement(panel.notes.front());
     CHECK(panel.turns == 1);
-    CHECK(backend.manual_setups == 4);
+    CHECK(backend.manual_setups == 2);
 }
 
 TEST_CASE("printer settings open for the printer the conversation is about", "[printer-conversation]")
@@ -1189,18 +1188,7 @@ TEST_CASE("printer settings open for the printer the conversation is about", "[p
 
     conversation.start(ConversationMode::Change, "Lab Printer");
     conversation.handle_page_message("printer_action", json{{"action", "open_printer_settings"}});
-    CHECK(ran(conversation, "printer_manual_connection", json::object()) == json{{"state", "opened"}});
-    CHECK(backend.settings_opened == std::vector<std::string>{"Lab Printer", "Lab Printer"});
-}
-
-TEST_CASE("printer_setup_finish closes the panel", "[printer-conversation]")
-{
-    FakeBackend         backend;
-    RecordingPanel      panel;
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Add);
-    CHECK(ran(conversation, "printer_setup_finish", json::object()) == json{{"state", "closed"}});
-    CHECK(panel.closes == 1);
+    CHECK(backend.settings_opened == std::vector<std::string>{"Lab Printer"});
 }
 
 TEST_CASE("a printer conversation writes nothing into the project", "[printer-conversation]")

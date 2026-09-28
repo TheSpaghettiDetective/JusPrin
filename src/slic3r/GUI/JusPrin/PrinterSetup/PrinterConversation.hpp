@@ -108,7 +108,6 @@ private:
     Result change(const nlohmann::json& arguments);
     Result connection_status(const std::string& name, const std::string& message_id);
     Result connect(const nlohmann::json& arguments, const std::string& action_id);
-    Result manual_setup();
     // The notice that Bambu's network plug-in is missing, under this message:
     // drawn by the app, once a session, whatever the model says around it.
     void show_plugin_needed(const std::string& message_id);

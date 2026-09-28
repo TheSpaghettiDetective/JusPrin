@@ -112,41 +112,5 @@
     },
     "strict": false,
     "type": "function"
-  },
-  {
-    "description": "Opens OrcaSlicer's printer settings for the printer this conversation is about, in a window beside this one, where the person enters connection details themselves. Ask them to say when they are done, then check with printer_connection_status.",
-    "name": "printer_manual_connection",
-    "parameters": {
-      "additionalProperties": false,
-      "properties": {},
-      "required": [],
-      "type": "object"
-    },
-    "strict": true,
-    "type": "function"
-  },
-  {
-    "description": "Opens OrcaSlicer's own list of every printer, where the person picks and sets one up themselves. Use it when the person asks for the full list, or when no model or more than three fit. Returns the printers they added there, possibly none.",
-    "name": "printer_manual_setup",
-    "parameters": {
-      "additionalProperties": false,
-      "properties": {},
-      "required": [],
-      "type": "object"
-    },
-    "strict": true,
-    "type": "function"
-  },
-  {
-    "description": "Closes this panel and returns the person to Home. Call it when the person says they are done.",
-    "name": "printer_setup_finish",
-    "parameters": {
-      "additionalProperties": false,
-      "properties": {},
-      "required": [],
-      "type": "object"
-    },
-    "strict": true,
-    "type": "function"
   }
 ]

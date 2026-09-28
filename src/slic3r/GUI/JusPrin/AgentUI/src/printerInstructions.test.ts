@@ -105,29 +105,35 @@ describe('the instructions', () => {
       'answer anything the person says meanwhile',
       'name the three ways forward:',
       'try again with the same address',
-      '(printer_manual_connection)',
+      'set up the connection manually in the app',
+      'Do not claim to open settings for them',
+      'browse the full list manually in the app',
+      'If the person asks to see the full printer list',
+      'do not recite the list in chat or claim to open it for them',
       'leave it for now, as the printer can prepare prints without a connection',
       'nozzle mismatch reported by the printer',
       'when someone says what they loaded there is nothing to save',
-      'call printer_setup_finish only when the person says they are done',
       'call the tool without asking again',
       'ask first and stop: that reply calls no tool',
       // Measured: without the exact words, the offer came in 27-77% of replies
       // and its choices were mostly a bare "Yes | No".
       'end the reply to a successful printer_add with exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"',
-      // Measured: as a general rule alone, Done came in as few as 11 of 20
-      // replies after leaving connecting and 15 of 20 after a change, whose
-      // own rules said how those replies end; pinned there too, 20 of 20.
-      'Done, below, is the only one offered alone',
-      'end the reply with the line "Choices: Done", the one choice offered alone',
+      'Do not add a Choices line',
+      'it is safe to close this chat now',
       'after the person turns down connecting, after the app says the connection is verified, after they leave connecting for now, and after a successful printer_change',
-      'is there for later, and end with "Choices: Done"',
-      'now slices for 0.6 mm.") and end with "Choices: Done"',
-      // Measured: without it, the reply to a card cancelled by writing
-      // offered Done in 11 of 20; with it, 1 of 40.
+      'they can close this chat now',
+      'now slices for 0.6 mm.") and say they can close this chat now',
       'Never after printer_connect comes back cancelled: nothing failed and nothing was declined',
     ])
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
+  });
+
+  it('offer no dialog or finish tool in any printer conversation', () => {
+    for (const mode of ['add', 'change', 'connect'] as const) {
+      const text = printerInstructions(session({ ...change, mode }));
+      for (const removed of ['printer_manual_setup', 'printer_manual_connection', 'printer_setup_finish', 'Choices: Done'])
+        expect(text).not.toContain(removed);
+    }
   });
 
   it('send the rules for finding and adding a printer only while adding one', () => {
@@ -160,7 +166,8 @@ describe('the instructions', () => {
   it('say where the settings no tool reaches are, for a printer the person has', () => {
     const connect = session({ ...change, mode: 'connect' });
     for (const text of [printerInstructions(change), printerInstructions(connect)]) {
-      expect(text).toContain('is in its printer settings on this computer, which printer_manual_connection opens');
+      expect(text).toContain('is in its printer settings on this computer');
+      expect(text).toContain('they can change those settings manually in the app; do not claim to open them');
       expect(text).toContain('Never give a reason you cannot help that the tools and the facts below do not state');
       expect(text).toContain('Their printer is already set up so they can prepare prints for it');
       // Measured: without it, "add my other printer too" got "Yes, I can add
@@ -190,7 +197,6 @@ describe('the instructions', () => {
     expect(examples.map((line) => splitChoices(`Question?\n${line}`).choices)).toEqual([
       ['Yes, that is it', 'Different printer'],
       ['Prusa MK4', 'Prusa MK4S', 'Prusa MK4S HF'],
-      ['Done'],
     ]);
   });
 });

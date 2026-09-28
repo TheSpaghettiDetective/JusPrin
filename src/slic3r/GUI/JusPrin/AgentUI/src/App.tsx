@@ -399,8 +399,6 @@ export function App({
     const printerAction = (action: string) => client.send('printer_action', { action });
     const menu: MenuItem[] = [{ label: 'Browse the full printer list', onSelect: () => printerAction('manual_setup') }];
     if (session?.printerName) menu.push({ label: 'Open printer settings', onSelect: () => printerAction('open_printer_settings') });
-    // Done never comes here: the model's printer_setup_finish closes the
-    // panel from the app.
     const back = () => {
       const started = state.messages.some((message) => message.role === 'user') ||
         state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';

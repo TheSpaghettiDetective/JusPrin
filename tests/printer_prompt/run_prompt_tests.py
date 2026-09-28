@@ -2,7 +2,7 @@
 """Printer panel conversations against the live model, without the app.
 
 The printer panel's assistant is a system prompt (printerInstructions.ts),
-eight printer tools and the chat. This script sends the model the same
+five printer tools and the chat. This script sends the model the same
 requests the app sends, answers the tools the way the app answers them for a
 fixed printer, and checks what the model does. A case is a short scripted
 conversation; each run of it is one sample of a model that answers
@@ -135,7 +135,7 @@ def reply_problems(reply):
         problems.append("CHOICES NOT ON THE LAST LINE")
     if found is not None:
         choices = [choice.strip() for choice in found.group(2).split("|") if choice.strip()]
-        if choices != ["Done"] and not 2 <= len(choices) <= 4:
+        if not 2 <= len(choices) <= 4:
             problems.append(f"{len(choices)} CHOICES")
         if any(len(choice) >= 30 for choice in choices):
             problems.append("LONG CHOICE")
@@ -298,8 +298,6 @@ class ConnectBambu:
             return {"error": {"code": "unknown_device",
                               "message": "Pass the deviceId of one of these printers in LAN mode: FAKE001 (JusPrin Fake A1 mini)."}}, False
         self.other.append(name)
-        if name == "printer_manual_connection":
-            return {"state": "opened"}, False
         return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
 
     def run(self, conversation):
@@ -347,7 +345,6 @@ class AddCase:
         self.added = []
         self.lookups = []  # printer_identify calls that drew cards, by turn
         self.identify_calls = []  # every printer_identify call, drawn or refused
-        self.manual_setup = 0
         self.turn = 0
         self.untested = []
 
@@ -388,10 +385,6 @@ class AddCase:
             # PrinterConversation::preflight_tool, before anything is added.
             return {"error": {"code": "no_printer",
                               "message": "No printer is set up in this conversation yet: add one first."}}, False
-        if name == "printer_manual_setup":
-            # The person closes OrcaSlicer's list without adding anything.
-            self.manual_setup += 1
-            return {"applied": False, "added": []}, False
         self.untested.append(name)
         return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
 
@@ -506,53 +499,39 @@ def offers_done(reply):
     return [choice.strip() for choice in found.group(2).split("|") if choice.strip()] == ["Done"] and said.strip() != ""
 
 
+def says_can_close(reply):
+    return re.search(r"\b(?:can|may|safe to|okay to|ok to|feel free to)\s+close\s+(?:this\s+|the\s+|your\s+)?"
+                     r"(?:chat|conversation)\b", reply, re.IGNORECASE) is not None
+
+
 class Finishing:
-    """The end of a case: once nothing is left to decide, the reply ends with
-    Done alone, and "Done", as its chip sends it, closes the panel. Closing
-    before that is a failure, whatever else happened."""
+    """When nothing is left to decide, tell the person they can close the chat."""
 
-    finished = 0  # printer_setup_finish calls
-
-    def finish(self, name):
-        if name == "printer_setup_finish":
-            self.finished += 1
-            return {"state": "closed"}, False
-        return None
-
-    def end(self, conversation, reply, detail):
-        offered = offers_done(reply)
-        early = self.finished
-        last_reply(conversation, "Done")
-        closed = self.finished > early
-        detail += "; offered Done" if offered else "; NO DONE OFFER: " + repr(reply[-120:])
-        if early:
-            detail += "; CLOSED BEFORE DONE"
-        detail += "; closed on Done" if closed else "; NOT CLOSED ON DONE"
-        return offered and not early and closed, detail
+    def end(self, reply, detail):
+        close = says_can_close(reply)
+        choices = "Choices:" in reply
+        detail += "; says to close" if close else "; NO CLOSE INSTRUCTION: " + repr(reply[-120:])
+        if choices:
+            detail += "; CHOICES OFFERED"
+        return close and not choices, detail
 
 
-class AddNotNowDone(Finishing, AddCase):
+class AddNotNowClose(Finishing, AddCase):
     """The person adds a printer and turns down connecting it. Passes when the
-    reply to "Not now" offers Done alone and Done closes the panel."""
+    reply to "Not now" says they can close the chat."""
 
-    name = "add-not-now-done"
-
-    def tool(self, name, arguments):
-        return self.finish(name) or AddCase.tool(self, name, arguments)
+    name = "add-not-now-close"
 
     def run(self, conversation):
         self.say(conversation, "bambu lab a1 mini")
         reply = self.say(conversation, "Not now")
         detail = "added" if self.added == ["BBL/Bambu Lab A1 mini"] else f"added {self.added or 'nothing'}"
-        return self.end(conversation, reply, detail)
+        return self.end(reply, detail)
 
 
 class ConnectOutcome(Finishing, ConnectBambu):
     """Connect the saved A1 mini, as connect-bambu does, then the person taps
     Connect on the card and the app reports the outcome in a note."""
-
-    def tool(self, name, arguments):
-        return self.finish(name) or ConnectBambu.tool(self, name, arguments)
 
     def connect(self, conversation, outcome):
         """The model's reply to the app's note, or None when no card came."""
@@ -563,44 +542,40 @@ class ConnectOutcome(Finishing, ConnectBambu):
         return last_reply(conversation, note="Connection to Bambu Lab A1 mini " + outcome)
 
 
-class ConnectVerifiedDone(ConnectOutcome):
-    """Passes when the reply to a verified connection offers Done alone and
-    Done closes the panel."""
+class ConnectVerifiedClose(ConnectOutcome):
+    """Passes when the reply to a verified connection says they can close the chat."""
 
-    name = "connect-verified-done"
+    name = "connect-verified-close"
 
     def run(self, conversation):
         reply = self.connect(conversation, "verified.")
         if reply is None:
             return False, "NO CARD"
-        return self.end(conversation, reply, "verified")
+        return self.end(reply, "verified")
 
 
-class ConnectLeaveDone(ConnectOutcome):
+class ConnectLeaveClose(ConnectOutcome):
     """The connection fails and the person leaves it for now. Passes when the
-    reply to that offers Done alone and Done closes the panel."""
+    reply to that says they can close the chat."""
 
-    name = "connect-leave-done"
+    name = "connect-leave-close"
 
     def run(self, conversation):
         reply = self.connect(conversation, "failed: The printer did not respond. Check that it is on the network and try again.")
         if reply is None:
             return False, "NO CARD"
         reply = last_reply(conversation, "Leave it for now")
-        return self.end(conversation, reply, "failed, left")
+        return self.end(reply, "failed, left")
 
 
-class ConnectAfterQuestion(Finishing, ConnectBambu):
+class ConnectAfterQuestion(ConnectBambu):
     """The person writes while the card waits, as --printer-live does: the app
     cancels the card and the waiting turn goes on with that, then the question
     is a turn of its own. A cancelled card is not a failed connection. Passes
-    when neither reply offers Done or closes the panel, and "connect it" then
+    when neither reply says to close the chat, and "connect it" then
     opens a fresh card."""
 
     name = "connect-after-question"
-
-    def tool(self, name, arguments):
-        return self.finish(name) or ConnectBambu.tool(self, name, arguments)
 
     def run(self, conversation):
         ConnectBambu.run(self, conversation)
@@ -612,20 +587,19 @@ class ConnectAfterQuestion(Finishing, ConnectBambu):
         answered = last_reply(conversation, "where do I find the access code?")
         self.card = False
         last_reply(conversation, "ok, I have the code now. Connect it")
-        offered = [reply for reply in cancelled + ["assistant: " + answered] if offers_done(reply[len("assistant: "):])]
+        premature = [reply for reply in cancelled + ["assistant: " + answered]
+                     if says_can_close(reply[len("assistant: "):]) or offers_done(reply[len("assistant: "):])]
         detail = "fresh card" if self.card else "NO FRESH CARD"
-        if offered:
-            detail += "; DONE OFFERED: " + repr(offered[0][-120:])
-        if self.finished:
-            detail += "; CLOSED"
-        return self.card and not offered and not self.finished, detail
+        if premature:
+            detail += "; PREMATURE FINISH: " + repr(premature[0][-120:])
+        return self.card and not premature, detail
 
 
-class ChangeNozzleDone(Finishing):
+class ChangeNozzleClose(Finishing):
     """The person says the nozzle changed. Passes when it is changed to that
-    size alone, and the reply offers Done alone and Done closes the panel."""
+    size alone, and the reply says they can close the chat."""
 
-    name = "change-nozzle-done"
+    name = "change-nozzle-close"
     printer = {"name": "Bambu Lab A1 mini", "model": "Bambu Lab A1 mini", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
                "spools": [], "connected": False}
     session = {"mode": "change", "printerName": printer["name"], "blocks": [],
@@ -636,8 +610,6 @@ class ChangeNozzleDone(Finishing):
         self.other = []
 
     def tool(self, name, arguments):
-        if name == "printer_setup_finish":
-            return self.finish(name)
         if name == "printer_change":
             self.changes.append(arguments)
             after = {**self.printer, "nozzle": arguments.get("nozzle", self.printer["nozzle"])}
@@ -651,7 +623,7 @@ class ChangeNozzleDone(Finishing):
         detail = "changed to 0.6" if changed else f"CHANGES {self.changes}"
         if self.other:
             detail += "; also called " + ", ".join(self.other)
-        passed, detail = self.end(conversation, reply, detail)
+        passed, detail = self.end(reply, detail)
         return passed and changed, detail
 
 
@@ -664,8 +636,8 @@ class ChangeNozzleDone(Finishing):
 # session is measured against the others.
 
 # What the model must never do while talking about a printer it already has.
-ADDING = ("printer_identify", "printer_add", "printer_manual_setup")
-MUTATIONS = ADDING + ("printer_change", "printer_connect", "printer_setup_finish")
+ADDING = ("printer_identify", "printer_add")
+MUTATIONS = ADDING + ("printer_change", "printer_connect")
 
 KOBRA = {"name": "Anycubic Kobra 3", "model": "Anycubic Kobra 3", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
          "spools": [], "connected": False}
@@ -715,10 +687,6 @@ class SavedPrinterCase:
             return self.status, False
         if name == "printer_connect":
             return self.connect(arguments)
-        if name == "printer_manual_connection":
-            return {"state": "opened"}, False
-        if name == "printer_setup_finish":
-            return {"state": "closed"}, False
         return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
 
     def change(self, arguments):
@@ -845,7 +813,7 @@ class ChangeUnshippedNozzle(SavedPrinterCase):
     def run(self, conversation):
         reply = last_reply(conversation, "I put a 0.3 nozzle on it")
         saved = self.printer["nozzle"] != KOBRA["nozzle"]
-        return verdict([self.forbidden(ADDING + ("printer_connect", "printer_setup_finish")),
+        return verdict([self.forbidden(ADDING + ("printer_connect",)),
                         f"SAVED {self.printer['nozzle']}" if saved else ""] +
                        refused_nozzle_problems(conversation, reply, KOBRA["nozzles"]),
                        "saved nothing; named the sizes and asked")
@@ -863,7 +831,7 @@ class ChangeAddAnother(SavedPrinterCase):
         last_reply(conversation, "I also have a Prusa MK4S, can you add it too?")
         yes, why = judge(conversation.log, "Does the assistant's last message tell the person that another printer is "
                                            "added from Home, for example with + Add printer?")
-        return verdict([self.forbidden(("printer_change", "printer_connect", "printer_setup_finish")),
+        return verdict([self.forbidden(("printer_change", "printer_connect")),
                         "" if yes else "DID NOT SAY WHERE: " + why,
                         judged(conversation, "Does the assistant's last message say or imply that the Prusa MK4S has been "
                                              "added or set up?")],
@@ -885,7 +853,7 @@ class ChangeThenConnect(SavedPrinterCase):
         if not self.called("printer_connect"):
             last_reply(conversation, "it runs Moonraker")  # as --printer-live answers, if still asked
         cards = [a for _, a in self.called("printer_connect") if "192.168.1.42" in a.get("address", "") and "hostType" in a]
-        return verdict([self.forbidden(ADDING + ("printer_change", "printer_setup_finish")),
+        return verdict([self.forbidden(ADDING + ("printer_change",)),
                         f"CONNECT BEFORE THE ADDRESS {early}" if early else "",
                         "" if cards else f"NO CARD FOR THE ADDRESS {self.called('printer_connect')}"],
                        "asked, then opened the card")
@@ -922,7 +890,7 @@ class ConnectHostAddress(SavedPrinterCase):
             last_reply(conversation, "yes, connect it")
         cards = [a for _, a in self.called("printer_connect")
                  if a.get("hostType") == "moonraker" and "voron.local" in a.get("address", "")]
-        return verdict([self.forbidden(ADDING + ("printer_change", "printer_setup_finish")),
+        return verdict([self.forbidden(ADDING + ("printer_change",)),
                         "" if cards else f"NO MOONRAKER CARD {self.called('printer_connect')}"], "card for voron.local")
 
 
@@ -1040,16 +1008,17 @@ class AddUnshippedNozzle(AddCase):
 
 
 class AddFullList(AddCase):
-    """The person asks for the whole list (0f382d4098 and 9089d6fee7 saw it
-    answered in words instead in 2 to 9 runs of 20). Passes when the list is
-    opened, and nothing is added."""
+    """The person asks for the whole list. The assistant tells them they can
+    browse it manually in the app, without adding another printer."""
 
     name = "add-full-list"
 
     def run(self, conversation):
         self.say(conversation, "show me the full printer list")
-        return verdict([f"ADDED {self.added}" if self.added else "", "" if self.manual_setup else "LIST NOT OPENED"],
-                       "opened the list")
+        yes, why = judge(conversation.log, "Does the assistant's last message tell the person they can browse the full "
+                                           "printer list manually in the app, without claiming to open it for them?")
+        return verdict([f"ADDED {self.added}" if self.added else "", "" if yes else "NO MANUAL ROUTE: " + why],
+                       "suggested browsing the list manually")
 
 
 class ChangeAskLoadedNotConnected(SavedPrinterCase):
@@ -1088,9 +1057,9 @@ class ConnectFailedWaysForward(SavedPrinterCase):
         last_reply(conversation, note="Connection to Voron 2.4 350 failed: The printer did not respond. Check that it is on "
                                       "the network and try again.")
         yes, why = judge(conversation.log, "Does the assistant's last message offer all three of these: trying again with the "
-                                           "same address; entering the connection details in the printer settings; and "
-                                           "leaving it for now because the printer can still prepare prints?")
-        return verdict([self.forbidden(ADDING + ("printer_change", "printer_setup_finish")),
+                                           "same address; setting up the connection manually in the app; and leaving "
+                                           "it for now because the printer can still prepare prints?")
+        return verdict([self.forbidden(ADDING + ("printer_change",)),
                         "" if "30" in waiting else "WAIT NOT SAID: " + repr(waiting[-120:]),
                         "" if yes else "NOT THE THREE WAYS: " + why], "said the wait; named the three ways")
 
@@ -1116,7 +1085,7 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
         last_reply(conversation, "ok, connect it")
         yes, why = judge(conversation.log, "Does the assistant's last message give Bambu's network plug-in, missing from "
                                            "this computer, as the reason the printer cannot be connected yet?")
-        return verdict([self.forbidden(ADDING + ("printer_change", "printer_setup_finish")),
+        return verdict([self.forbidden(ADDING + ("printer_change",)),
                         "OPENED A CARD" if conversation.waiting is not None else "",
                         "" if yes else "PLUG-IN NOT NAMED: " + why], "named the plug-in")
 
@@ -1127,8 +1096,8 @@ for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoad
               ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin):
     _case.session = _case.session_for()
 
-CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowDone,
-                                      ConnectVerifiedDone, ConnectLeaveDone, ConnectAfterQuestion, ChangeNozzleDone,
+CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowClose,
+                                      ConnectVerifiedClose, ConnectLeaveClose, ConnectAfterQuestion, ChangeNozzleClose,
                                       ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate,
                                       ChangeUnshippedNozzle, ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress,
                                       ConnectBambuNotFound, ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,

@@ -10,17 +10,17 @@
 // finding and adding a printer only while adding one, so a conversation about
 // a printer the person already has is not steered toward adding it; changing,
 // connecting and finishing in every session, since each can lead to them.
-// Adding a printer is sent exactly what it was measured with; the sessions
-// about a printer the person has get their own goal and scope. Words meant for
-// one session reach the others when they share a section, so check every case
+// Adding a printer has its own goal; sessions about a printer the person
+// already has get a different goal and scope. Words meant for one session
+// reach the others when they share a section, so check every case
 // in tests/printer_prompt, not only the one an edit is for.
 
 import type { PrinterSessionPayload } from './bridge/protocol';
 import { numberText, sizesText } from './printerWords';
 
-// Adding a printer is sent the words it was measured with, unchanged: each of
-// two lines meant for the other sessions -- a goal naming all three, and the
-// scope rule below -- made the model ask "Is that yours?" about a printer
+// Keep this goal separate: each of two lines meant for the other sessions --
+// a goal naming all three, and the scope rule below -- made the model ask
+// "Is that yours?" about a printer
 // named plainly instead of adding it (20 runs each: 13 added, 9 and 8 with one
 // line, 4 with both; 2026-09-28).
 const GOAL_ADDING =
@@ -39,8 +39,8 @@ const GOAL_THEIRS =
 const SCOPE =
   'What you can do here: save the nozzle size on this printer, and connect it. Another printer is not added here: ' +
   'say it is added with + Add printer on Home. Everything else about this one -- its other ' +
-  'settings, such as start g-code, bed size or speeds -- is in its printer settings on this computer, which ' +
-  'printer_manual_connection opens: say so, and offer to open them. Never give a reason you cannot help that the tools ' +
+  'settings, such as start g-code, bed size or speeds -- is in its printer settings on this computer. Tell the person ' +
+  'they can change those settings manually in the app; do not claim to open them. Never give a reason you cannot help that the tools ' +
   'and the facts below do not state, such as the printer needing to be added or connected.\n';
 
 const CONDUCT =
@@ -57,9 +57,10 @@ const CONDUCT =
 const CHOICES =
   'Answers to tap: whenever your message asks a yes-or-no question, asks the person to confirm something, or asks ' +
   'them to pick from a few options, its last line must be "Choices: first | second | third" -- two to four short ' +
-  'answers (Done, below, is the only one offered alone), each under 30 characters, written as the person would say ' +
-  'them. The person taps one instead of typing, and it reaches you as their own message. Leave the line out only ' +
-  'when you need free text, such as an address or a model name, and never write anything after it.';
+  'answers, each under 30 characters, written as the person would say ' +
+  'them. The person taps one instead of typing, and it reaches you as their own message. Leave the line out ' +
+  'when you need free text, such as an address or a model name, or when you are not asking a question. Never write ' +
+  'anything after a Choices line.';
 
 // Where they stand matters: moved from here to the end of the finding rules,
 // the example of asking "Is that it?" followed the rule to add a model named
@@ -81,12 +82,19 @@ const FINDING =
   '- Start with just the printer model. Do not ask for nozzle, plate or filament first; the plate and filament are ' +
   'chosen when preparing a print.\n' +
   '- The person names one model plainly: call printer_identify with it, then add it with printer_add, with the nozzle ' +
-  'it ships with unless they said another. Then say which nozzle it was set up with and that you can change it if ' +
+  'it ships with unless they said another. A name the person selects from choices you just offered confirms that ' +
+  'model. Otherwise, a single exact catalog match confirms a plainly named model only if the person\'s name does ' +
+  'not also begin another model name in the list. When confirmed or unambiguous, do not ask ' +
+  'whether it is theirs or whether the default nozzle is right before calling printer_add. Then say which nozzle it ' +
+  'was set up with and that you can change it if ' +
   'theirs is different. One model fits a photo or a vague description: show it with printer_identify and ask if that ' +
   'is it. ' +
   'Two or three genuinely fit: call it with all of them and ask which, one choice each. More than three fit: do not ' +
-  'call it; ask one question that narrows it down, or offer to browse the full list (printer_manual_setup). Nothing ' +
-  "fits, or it isn't a filament printer: say so, offer the full list, and never offer a closest substitute.\n" +
+  'call it; ask which model as free text, with no Choices line, or tell them they can browse the full list manually ' +
+  'in the app. Nothing ' +
+  "fits, or it isn't a filament printer: say so, offer manual browsing, and never offer a closest substitute. " +
+  'If the person asks to see the full printer list, tell them they can browse it in the app themselves; do not recite ' +
+  'the list in chat or claim to open it for them.\n' +
   '- A name that is the start of more than one model is not one model, even when it equals one of them: "prusa mk4" ' +
   'begins Prusa MK4, MK4S and MK4S HF, so it is three printers.\n' +
   '- A photo names a model only from a readable name or printed size; going by shape alone, ask for a photo of the ' +
@@ -106,7 +114,7 @@ const OFFER_AFTER_ADDING =
 const changing = (adding: boolean) =>
   'Rules for changing a printer:\n' +
   '- Work out what physically changed and change only that with printer_change; afterwards say what that means ("Every ' +
-  'project that uses the K1 now slices for 0.6 mm.") and end with "Choices: Done". If what changed is unclear, ask. ' +
+  'project that uses the K1 now slices for 0.6 mm.") and say they can close this chat now. If what changed is unclear, ask. ' +
   'Putting it back is the same tool.\n' +
   (adding ? '' : NOZZLE_SIZES) +
   "- The plate belongs to each project, not the printer. Nozzle material, such as hardened steel, isn't tracked.\n" +
@@ -124,27 +132,27 @@ const connecting = (adding: boolean) =>
   'than invent a menu). For Moonraker or OctoPrint, ask for the address they open it with in a browser, including its ' +
   'port when there is one, then call printer_connect.\n' +
   '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect shows a card where ' +
-  'the person types it. If printer_connect comes back cancelled, say at most a few words; if the person wrote a message ' +
-  'instead, answer that.\n' +
+  'the person types it. A cancelled credential card can mean the person sent a question while it was open; it does ' +
+  'not mean they declined to connect. After printer_connect comes back cancelled, say at most a few words, without ' +
+  'suggesting they close the chat or connect later; if the person wrote a message, answer that.\n' +
   '- "connecting" means the app is still waiting for the printer; its message says for how long. Say in one short ' +
   "line that you are checking and how long it can take, and answer anything the person says meanwhile; the app's " +
   'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
   '- After a failed connection, say what went wrong in one sentence, then name the three ways forward: ' +
-  'try again with the same address; enter the connection details in the printer settings ' +
-  '(printer_manual_connection); or leave it for now, as the printer can prepare prints without a connection. If they ' +
-  'leave it, say again that it can prepare prints, and that Connect… in its menu on Home is there for later, and end ' +
-  'with "Choices: Done".\n';
+  'try again with the same address; set up the connection manually in the app; or leave it for now, ' +
+  'as the printer can prepare prints without a connection. Do not claim to open settings for them. If they ' +
+  'leave it, say again that it can prepare prints, that Connect… in its menu on Home is there for later, and that ' +
+  'they can close this chat now.\n';
 
 const FINISHING =
   'Rules for finishing:\n' +
-  '- Once nothing is left to decide, say what that leaves them with, then end the reply with the line "Choices: Done", ' +
-  'the one choice offered alone. That is after the person turns down connecting, after the app says the connection ' +
+  '- Once nothing is left to decide, say what that leaves them with and that it is safe to close this chat now. ' +
+  'Do not add a Choices line. That is after the person turns down connecting, after the app says the connection ' +
   'is verified, after they leave connecting for now, and after a successful printer_change. Never after printer_connect ' +
   'comes back cancelled: nothing failed and nothing was declined, so that reply is those few words with no choices. ' +
+  'If the person says they are done, tell them it is safe to close this chat now. ' +
   'For example:\n' +
-  'It is connected, so you can send prints straight to it.\nChoices: Done\n' +
-  '- Call printer_setup_finish only when the person says they are done, such as tapping Done; it closes this ' +
-  'conversation, so never call it on your own.\n';
+  'It is connected, so you can send prints straight to it. You can close this chat now.\n';
 
 export function printerInstructions(session: PrinterSessionPayload): string {
   const { context } = session;

@@ -91,10 +91,7 @@ enum class ToolHandler : std::uint8_t {
     PrinterAdd,
     PrinterChange,
     PrinterConnectionStatus,
-    PrinterConnect,
-    PrinterManualSetup,
-    PrinterManualConnection,
-    PrinterSetupFinish
+    PrinterConnect
 };
 
 struct ToolDefinition
