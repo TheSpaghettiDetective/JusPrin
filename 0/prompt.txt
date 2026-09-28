@@ -1,0 +1,37 @@
+check your recommandation to seee if it's consistenbt with bvest practices recommended by major llm providers.
+
+---
+
+<!-- reply -->
+> Yes, for OpenAI, which the app uses
+
+we will support other apis soon. is this universally supported? if not, we can't use it. also, if you come up with a universally applicable solution, will it cause the cached prompts to be invalidated?
+
+---
+
+does it mean the remaining steps that you previjously suggested are now no longer applicable? do we still wantt o finish these steps before tackling this new problem?
+
+---
+
+<!-- reply -->
+> During a chat: never, because the list is fixed for the whole chat. Every request after the first reuses the cache, as today.
+
+but didnh you say taht the tools will depend on the chat state? if so, does it mean it'll chagne midchat unless chat state never changes (if so, it doesn't really have states, right?)
+
+---
+
+so chats will have both states and modes? good job at complicating things. also have you check if having all 8 tools is consistent iwth the design guide? if not, is the design guide more correct or the real impl more correct?
+
+---
+
+go ahead with the refusals and fix the guide
+
+---
+
+<task-notification>
+<task-id>bmb4hq2a9</task-id>
+<tool-use-id>toolu_01SwSWP8ShYLU8C58TTjfgSD</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-printer-conversation-panel-af11cb\50d5527e-64d5-4a8c-a3c1-5370fb831020\tasks\bmb4hq2a9.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the agent test target" completed (exit code 0)</summary>
+</task-notification>
