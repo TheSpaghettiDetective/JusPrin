@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M3MW95RATWDE5HSF09E5DR3C",
+  "strategy": "manual-commit",
+  "branch": "claude/kobra3-gcode-prompt-bug-9d731f",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "tests/printer_prompt/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 2611,
+    "cache_read_tokens": 1270924,
+    "output_tokens": 2280,
+    "api_call_count": 2
+  }
+}
