@@ -3,7 +3,7 @@
   "checkpoint_id": "01M3MNEXZMFZQGAHSQTTBV6XQF",
   "strategy": "manual-commit",
   "branch": "claude/kobra3-gcode-prompt-bug-9d731f",
-  "checkpoints_count": 26,
+  "checkpoints_count": 29,
   "files_touched": [
     "tests/printer_prompt/README.md",
     "tests/printer_prompt/render_prompt.mjs",
@@ -23,14 +23,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 994,
-    "cache_creation_tokens": 2896234,
-    "cache_read_tokens": 148645244,
-    "output_tokens": 409693,
-    "api_call_count": 472,
+    "input_tokens": 1148,
+    "cache_creation_tokens": 3092167,
+    "cache_read_tokens": 160793373,
+    "output_tokens": 466171,
+    "api_call_count": 548,
     "subagent_tokens": {
       "input_tokens": 252,
       "cache_creation_tokens": 561939,
