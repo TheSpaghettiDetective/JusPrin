@@ -1,0 +1,23 @@
+check the recent commits for refusal of tools when llm model attempts to switch from channge printer mode to add printer mode
+
+---
+
+fix the docs and comment. 
+
+I started the app 'open /Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app'. I opened ~/Downloads/Tape_4_3MF.3mf file. the prearnet screen shows "bambu lab a1 mini". is it contained in this .3mf file instead of my local settings? this is what happened when I went from the "printer settings" of that bambu lab a1 mini printer:
+
+
+Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it.
+Tip: a photo is the fastest way. Use Photo below, or drop a picture of the printer, its nameplate or the box into this panel.
+a qidi plus 4
+
+Qidi X-Plus 4
+305 × 305 × 280 mm
+Printer added
+Qidi X-Plus 4 (2) · 0.4 mm nozzle
+Undo
+I set up your Qidi X-Plus 4 with a 0.4 mm nozzle. Want to connect it so you can send prints straight to it?
+Connect it
+Not now
+
+check why it didn't refuse to switch
