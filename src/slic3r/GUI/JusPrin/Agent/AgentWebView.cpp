@@ -209,12 +209,14 @@ void AgentWebView::reload()
 }
 
 void AgentWebView::set_error_fallback_actions(const wxString& return_label,
+                                              const wxString& manual_label,
                                               std::function<void()> on_return,
                                               std::function<void()> on_manual)
 {
     m_on_error_return = std::move(on_return);
     m_on_error_manual = std::move(on_manual);
     m_return_button->SetLabel(return_label);
+    m_manual_button->SetLabel(manual_label);
     m_return_button->Show(static_cast<bool>(m_on_error_return));
     m_manual_button->Show(static_cast<bool>(m_on_error_manual));
     m_error_panel->Layout();

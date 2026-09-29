@@ -55,7 +55,7 @@ public:
     virtual void session_changed() = 0;
     // The page sent new instructions for the model.
     virtual void profile_changed() = 0;
-    // The panel is done: back to Home.
+    // The panel is done: restore its originating workspace.
     virtual void close_panel() = 0;
     // Home's printer list is out of date. `added` names a printer this
     // session just added, which Home leads with; empty for any other change.

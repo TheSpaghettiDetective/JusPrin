@@ -9,6 +9,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 
 #include <wx/sizer.h>
 
@@ -60,8 +61,7 @@ PrinterPanel::~PrinterPanel()
 
 void PrinterPanel::build_runtime()
 {
-    // Its own document, never the project's: a printer conversation is not
-    // part of the project it happens to be opened over, and is gone when the
+    // Its own document, never the project's: task help is gone when the
     // panel closes.
     Agent::ProjectPersistence::Config storage;
     storage.in_memory = true;
@@ -71,31 +71,58 @@ void PrinterPanel::build_runtime()
     // the docked panel's belongs to the project's conversation.
     Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
     m_web_view = std::make_unique<AgentWebView>(this, m_theme, m_workspace, *m_persistence, runtime.availability,
-                                                std::move(runtime.service), runtime.setup, AgentPageMode::PrinterPanel);
+                                                std::move(runtime.service), runtime.setup,
+                                                m_task == Task::Printer ? AgentPageMode::PrinterPanel : AgentPageMode::Conversation);
     m_web_view->apply_appearance(m_dark);
-    m_web_view->SetName(_L("Printer conversation"));
+    m_web_view->SetName(m_task == Task::Printer ? _L("Printer conversation") : _L("Filament conversation"));
     GetSizer()->Add(m_web_view.get(), 1, wxEXPAND);
     Layout();
 
     Agent::AgentHost& host = m_web_view->host();
-    host.set_session_profile(m_conversation->profile());
-    host.set_session_state_provider([this] { return m_conversation->state_json(); });
-    host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
-        return m_conversation->handle_page_message(type, payload);
-    });
-    host.set_session_tool_executor([this](Agent::ToolHandler handler, const Agent::ToolActivity& activity) {
-        return m_conversation->execute_tool(handler, activity);
-    });
-    host.set_session_tool_preflight([this](Agent::ToolHandler handler, Agent::ToolActivity& activity) {
-        return m_conversation->preflight_tool(handler, activity);
-    });
-    host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
+    if (m_task == Task::Printer) {
+        host.set_session_profile(m_conversation->profile());
+        host.set_session_state_provider([this] { return m_conversation->state_json(); });
+        host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
+            return handle_printer_page_message(type, payload);
+        });
+        host.set_session_tool_executor([this](Agent::ToolHandler handler, const Agent::ToolActivity& activity) {
+            return m_conversation->execute_tool(handler, activity);
+        });
+        host.set_session_tool_preflight([this](Agent::ToolHandler handler, Agent::ToolActivity& activity) {
+            return m_conversation->preflight_tool(handler, activity);
+        });
+        host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
+        m_web_view->set_error_fallback_actions(
+            _L("Back"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),
+            [this] { close(); },
+            [this] {
+                if (m_conversation->printer_name().empty())
+                    m_conversation->handle_page_message(Agent::Protocol::kPrinterAction, {{"action", "manual_setup"}});
+                else
+                    close_to_printer_settings();
+            });
+    } else {
+        Agent::AgentSessionProfile profile;
+        profile.notes_in_context = true;
+        host.set_session_profile(std::move(profile));
+        host.set_navigation_state_provider([this] {
+            return nlohmann::json{{"focused", true}, {"returnLabel", m_return_label.ToStdString()}};
+        });
+        host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
+            return handle_filament_page_message(type, payload);
+        });
+        m_web_view->set_error_fallback_actions(m_return_label, _L("Open filament settings"),
+                                               [this] { close(); }, [this] { close_to_filament_settings(); });
+        host.post_note("The person opened filament settings help for slot " + std::to_string(m_filament_slot + 1) +
+                       (m_filament_name.empty() ? "." : " (" + m_filament_name + ").") +
+                       " The current workspace state is authoritative if the preset changes.");
+    }
     // Setting the agent up in here is the same act as setting it up anywhere
     // else; the rest of the shell has to look again afterwards.
     host.set_setup_completed_listener([this] {
         if (m_callbacks.agent_configured)
             m_callbacks.agent_configured();
-        if (m_web_view)
+        if (m_web_view && m_task == Task::Printer)
             m_web_view->host().set_session_profile(m_conversation->profile());
     });
     m_pump.Start(kPumpIntervalMs);
@@ -150,6 +177,9 @@ void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
     // Every opening is a new session: no history carries over, so the runtime
     // that held the last one goes first.
     tear_down_runtime();
+    m_task = Task::Printer;
+    m_closing = false;
+    m_after_close = {};
     m_conversation->start(mode, printer_name);
     // The page writes the opening line and asks for it to be posted once it
     // has loaded (printer_opening).
@@ -157,8 +187,24 @@ void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
     Show();
 }
 
+void PrinterPanel::open_filament(std::size_t slot, const std::string& filament_name, const wxString& return_label)
+{
+    tear_down_runtime();
+    m_task = Task::Filament;
+    m_closing = false;
+    m_after_close = {};
+    m_filament_slot = slot;
+    m_filament_name = filament_name;
+    m_return_label = return_label;
+    build_runtime();
+    Show();
+}
+
 void PrinterPanel::close()
 {
+    if (m_closing)
+        return;
+    m_closing = true;
     Hide();
     // The runtime is closed from the page's own message handler or from a
     // tool its host is running, so it cannot be torn down inside a call its
@@ -168,7 +214,59 @@ void PrinterPanel::close()
         tear_down_runtime();
         if (m_callbacks.closed)
             m_callbacks.closed();
+        auto after_close = std::move(m_after_close);
+        if (after_close)
+            after_close();
     });
+}
+
+bool PrinterPanel::handle_printer_page_message(const std::string& type, const nlohmann::json& payload)
+{
+    if (type == Agent::Protocol::kPrinterAction && payload.is_object() &&
+        payload.value("action", "") == "open_printer_settings" && !m_conversation->printer_name().empty()) {
+        close_to_printer_settings();
+        return true;
+    }
+    return m_conversation->handle_page_message(type, payload);
+}
+
+bool PrinterPanel::handle_filament_page_message(const std::string& type, const nlohmann::json& payload)
+{
+    if (type != Agent::Protocol::kShellAction || !payload.is_object())
+        return false;
+    const std::string action = payload.value("action", "");
+    if (action == "return_to_workspace")
+        close();
+    else if (action == "open_filament_settings")
+        close_to_filament_settings();
+    else
+        return false;
+    return true;
+}
+
+void PrinterPanel::close_to_printer_settings()
+{
+    if (m_closing)
+        return;
+    const std::string name = m_conversation->printer_name();
+    m_after_close = [this, name] {
+        m_backend->open_printer_settings(name);
+        if (m_callbacks.printers_changed)
+            m_callbacks.printers_changed({});
+    };
+    close();
+}
+
+void PrinterPanel::close_to_filament_settings()
+{
+    if (m_closing)
+        return;
+    const std::size_t slot = m_filament_slot;
+    m_after_close = [this, slot] {
+        if (m_callbacks.open_filament_settings)
+            m_callbacks.open_filament_settings(slot);
+    };
+    close();
 }
 
 Agent::AgentHost* PrinterPanel::host() { return m_web_view ? &m_web_view->host() : nullptr; }
@@ -188,7 +286,8 @@ void PrinterPanel::on_pump(wxTimerEvent&)
     host.pump_stream();
     host.pump_tools();
     host.pump_setup();
-    m_conversation->tick(std::chrono::steady_clock::now());
+    if (m_task == Task::Printer)
+        m_conversation->tick(std::chrono::steady_clock::now());
 }
 
 // -- What the conversation asks of its panel ---------------------------------

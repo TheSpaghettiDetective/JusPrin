@@ -97,14 +97,11 @@ public:
     // its column with that printer and say what it assumed; every other
     // caller passes none.
 
-    // Opens Add in Home's workspace; a named printer uses its side panel.
-    // An empty name adds a printer, a name changes that one. From the Prepare
-    // header's printer menu it goes to Home first, since that is where the
-    // panel lives. Every opening is a new session.
+    // Opens a fresh temporary task chat over the current workspace. The
+    // Notebook keeps its selection, so Back restores the same Home, Prepare,
+    // or Preview screen without rebuilding it.
     void open_printer_conversation(const std::string& printer_name = {}, bool connect = false);
     void open_filament_help(std::size_t slot, const std::string& filament_name);
-    void close_focused_chat();
-    void open_focused_filament_settings();
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);
@@ -113,6 +110,8 @@ private:
     void on_page_changed();
     void on_notebook_page_changed(wxBookCtrlEvent& event);
     void on_frame_size(wxSizeEvent& event);
+    void show_task_panel();
+    void restore_task_panel();
     // The width the pane may hold right now: at least its own minimum, and no
     // more than what the frame can spare beside a usable workspace.
     int  agent_pane_width_within(int width) const;
@@ -131,8 +130,7 @@ private:
     AgentPane* m_agent_pane{nullptr};
     // Shown in the Notebook's slot while the Notebook's selection is tpHome.
     Home::HomeWebView* m_home{nullptr};
-    // The printer conversation, beside Home's page in the column its printers
-    // list otherwise holds. Built with the shell, shown on demand.
+    // Fresh in-memory printer or filament task chat, shown over the workspace.
     PrinterSetup::PrinterPanel* m_printer_panel{nullptr};
     wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
@@ -144,9 +142,8 @@ private:
     bool m_agent_pane_user_collapsed{false};
     // Set by mark_agent_config_possibly_changed(), consumed by on_page_changed().
     bool m_agent_config_possibly_changed{false};
-    bool m_focused_chat{false};
-    std::size_t m_focused_filament_slot{0};
-    int m_printer_return_tab{-1};
+    bool m_task_open{false};
+    int  m_task_origin_tab{-1};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

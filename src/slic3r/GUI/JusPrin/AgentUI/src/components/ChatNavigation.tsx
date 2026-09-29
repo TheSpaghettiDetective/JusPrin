@@ -91,16 +91,12 @@ interface HeaderProps {
   title: string;
   busy: boolean;
   onBack: () => void;
-  backLabel?: string;
-  backText?: boolean;
-  onChats?: () => void;
-  manualAction?: { label: string; onSelect: () => void };
   onCreate: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
 }
 
-export function ChatHeader({ title, busy, onBack, backLabel = 'Back to chats', backText, onChats, manualAction, onCreate, onRename, onDelete }: HeaderProps) {
+export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete }: HeaderProps) {
   const [editing, setEditing] = useState<'rename' | 'delete' | null>(null);
   const [name, setName] = useState(title);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -115,15 +111,12 @@ export function ChatHeader({ title, busy, onBack, backLabel = 'Back to chats', b
 
   return <>
     <header className="chat-header">
-      {backText ? <button className="printer-link-button" aria-label={backLabel} title={backLabel} onClick={onBack}>‹ Back</button>
-        : <button className="chat-back chat-icon" aria-label={backLabel} title={backLabel} onClick={onBack}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-8 7 8 7" /></svg>
-        </button>}
+      <button className="chat-back chat-icon" aria-label="Back to chats" title="Back to chats" onClick={onBack}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-8 7 8 7" /></svg>
+      </button>
       <h1 title={title}>{title}</h1>
-      {manualAction && <button type="button" className="printer-link-button" onClick={manualAction.onSelect}>{manualAction.label}</button>}
       <NewChat busy={busy} onCreate={onCreate} />
       <ActionMenu label="Chat actions" buttonRef={menuButton} items={[
-        ...(onChats ? [{ label: 'Chats', onSelect: onChats }] : []),
         { label: 'Rename', onSelect: () => { setName(title); setEditing('rename'); } },
         { label: 'Delete', danger: true, disabled: busy, onSelect: () => setEditing('delete') },
       ]} />
@@ -160,23 +153,18 @@ export function chatTimestamp(timestamp: string, now = new Date()): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }
 
-export function ChatList({ conversations, activeId, busy, onSwitch, onCreate, onConfigure, onLeave, leaveLabel = 'Back to Prepare' }: {
+export function ChatList({ conversations, activeId, busy, onSwitch, onCreate, onConfigure }: {
   conversations: ConversationInfo[];
   activeId: string;
   busy: boolean;
   onSwitch: (id: string) => void;
   onCreate: () => void;
   onConfigure: () => void;
-  onLeave?: () => void;
-  leaveLabel?: string;
 }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60000); return () => clearInterval(timer); }, []);
   return <section className="chat-list-pane" aria-label="Project chats">
-    <header className="chat-list-header">
-      {onLeave && <button className="printer-link-button" aria-label={leaveLabel} title={leaveLabel} onClick={onLeave}>‹ Back</button>}
-      <h1>Chats</h1><NewChat busy={busy} onCreate={onCreate} />
-    </header>
+    <header className="chat-list-header"><h1>Chats</h1><NewChat busy={busy} onCreate={onCreate} /></header>
     <div className="chat-list-scroll">
       {conversations.length === 0 && <p className="chat-list-empty">No chats yet. Start a new chat about this project.</p>}
       {conversations.map((chat) => {

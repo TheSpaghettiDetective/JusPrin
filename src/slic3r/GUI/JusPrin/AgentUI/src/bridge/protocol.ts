@@ -375,7 +375,7 @@ export interface PhysicalPrintInfo {
 }
 
 // -- The printer panel ------------------------------------------------------
-// One session of the printer panel on Home: the picture cards the thread
+// One session of the temporary printer task chat: the picture cards the thread
 // draws, and the facts the model's instructions state. Every word the panel
 // shows is made on the page. Absent on every host that is showing the
 // project's own conversation.

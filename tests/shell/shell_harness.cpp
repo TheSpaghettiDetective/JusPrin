@@ -21,6 +21,9 @@
 //              checks the saved-printer rows and selection in the header menu
 //   --printer-menu-capture <output-directory>
 //              runs the same checks and captures the open menu
+//   --task-chat
+//              exercises printer and filament help from Prepare, Back, each
+//              manual settings escape, and saved-chat isolation
 //   --live-agent
 //              uses OPENAI_API_KEY and verifies live context/attachment use,
 //              reload recovery, rejection, native approval/mutation, and the
@@ -80,13 +83,12 @@
 //              model tries anyway is refused for the plug-in; and Done ends
 //              it. The model's own words are printed for reading
 //   --printer-connect-capture <output-directory>
-//              needs OPENAI_API_KEY and macOS: connects a Klipper printer
+//              needs OPENAI_API_KEY: connects a Klipper printer
 //              through the real printer panel and the live model, against
 //              print hosts on loopback ports, and writes a PNG of the panel
 //              at each state of the connect card (waiting, a question asked
 //              meanwhile, failed, cancelled, connected) and of Home after.
-//              The pictures are WebKit's own snapshots, which need no Screen
-//              Recording permission
+//              The pictures come from the embedded browser's own snapshot.
 //   --manual-tool-strip
 //              leaves the shell open on the two-plate fixture with an object
 //              selected, for hands-on testing of the canvas tool strip
@@ -115,6 +117,15 @@
 
 // First: on Windows asio needs winsock2.h ahead of any windows.h.
 #include <boost/asio.hpp>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#include <objbase.h>
+#include <WebView2.h>
+#include <wrl.h>
+#include <wrl/client.h>
+#endif
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Geometry.hpp"
@@ -211,17 +222,58 @@
 #include <thread>
 #include <vector>
 
-#ifdef _WIN32
-// For reading this process's real command line as UTF-16; see utf8_argument.
-#include <windows.h>
-#include <shellapi.h>
-#endif
-
 namespace fs = boost::filesystem;
 
 #ifdef __APPLE__
 void set_harness_appearance(bool dark);
 bool snapshot_web_view(void* native_web_view, const char* path);
+#endif
+
+#ifdef _WIN32
+// WebView2 can snapshot its page while the desktop is disconnected. The
+// screen blit below remains for native controls, but task chats are web views.
+bool snapshot_web_view(void* native_web_view, const char* path)
+{
+    auto* view = static_cast<ICoreWebView2*>(native_web_view);
+    if (view == nullptr)
+        return false;
+    Microsoft::WRL::ComPtr<IStream> stream;
+    if (FAILED(::CreateStreamOnHGlobal(nullptr, TRUE, stream.GetAddressOf())))
+        return false;
+    struct Result { bool done{false}; HRESULT status{E_FAIL}; };
+    auto result = std::make_shared<Result>();
+    auto handler = Microsoft::WRL::Callback<ICoreWebView2CapturePreviewCompletedHandler>(
+        [result](HRESULT status) -> HRESULT {
+            result->status = status;
+            result->done = true;
+            return S_OK;
+        });
+    if (FAILED(view->CapturePreview(COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG, stream.Get(), handler.Get())))
+        return false;
+    for (int attempt = 0; attempt < 100 && !result->done; ++attempt) {
+        wxYield();
+        wxMilliSleep(20);
+    }
+    if (!result->done || FAILED(result->status))
+        return false;
+    STATSTG stat{};
+    LARGE_INTEGER beginning{};
+    if (FAILED(stream->Stat(&stat, STATFLAG_NONAME)) || stat.cbSize.QuadPart == 0 ||
+        FAILED(stream->Seek(beginning, STREAM_SEEK_SET, nullptr)))
+        return false;
+    std::ofstream out(path, std::ios::binary);
+    std::vector<char> buffer(64 * 1024);
+    auto remaining = stat.cbSize.QuadPart;
+    while (out && remaining > 0) {
+        const ULONG requested = static_cast<ULONG>(std::min<ULONGLONG>(remaining, buffer.size()));
+        ULONG read = 0;
+        if (FAILED(stream->Read(buffer.data(), requested, &read)) || read == 0)
+            return false;
+        out.write(buffer.data(), read);
+        remaining -= read;
+    }
+    return out.good() && remaining == 0;
+}
 #endif
 
 namespace Slic3r::GUI::JusPrin {
@@ -492,6 +544,7 @@ struct HarnessState
         ToolStripCapture,
         ManualToolStrip,
         PrinterMenu,
+        TaskChat,
         PrinterSetup,
         PrinterLive,
         HomeLive
@@ -614,6 +667,15 @@ public:
                 return;
             }
             load_multi_plate_fixture();
+            if (m_state->mode == HarnessState::Mode::TaskChat) {
+                m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                wait_until([this] {
+                    return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_notebook->IsShownOnScreen();
+                }, "task_chat_starts_on_prepare", [self = shared_from_this()] {
+                    self->verify_header_setup(Preset::TYPE_PRINTER);
+                });
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::ManualMcp) {
                 verify_canvas_interaction();
                 prepare_mcp_slice([self = shared_from_this()] {
@@ -1714,11 +1776,12 @@ private:
         if (ok)
             std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
 #elif defined(_WIN32)
-        // WebView2 has no synchronous snapshot, so the window is copied from
-        // the screen, whole, as the tool-strip captures are. That needs a
-        // desktop: an RDP session that is disconnected captures nothing.
-        (void) view;
-        write_screen_capture(m_frame->GetScreenRect(), name);
+        fs::create_directories(m_state->capture_dir);
+        const std::string file = (m_state->capture_dir / (name + ".png")).string();
+        const bool ok = view != nullptr && snapshot_web_view(view->GetNativeBackend(), file.c_str());
+        check(ok, "captured_" + name);
+        if (ok)
+            std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
 #else
         fail("--printer-connect-capture pictures web views on macOS and Windows only");
 #endif
@@ -3417,8 +3480,8 @@ private:
         // The printer half opens the printer menu; the filament half's menu
         // carries Filament settings….
         if (type == Preset::TYPE_PRINTER) {
-            // Printer settings… talks about the selected printer in the
-            // printer conversation on Home. Only a printer saved under a name
+            // Printer settings… talks about the selected printer in a
+            // temporary task chat over Prepare. Only a printer saved under a name
             // can be changed there, so one is saved from the fixture's own
             // profile and selected for the length of the check.
             m_header_setup_restore_printer = wxGetApp().preset_bundle->printers.get_selected_preset_name();
@@ -3430,6 +3493,8 @@ private:
                 [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
             return;
         }
+        const auto& document = installed_shell()->persistence()->document();
+        m_header_project_chat_count = document.messages(document.active_conversation_id()).size();
         installed_shell()->status_row()->open_filament_menu();
         // Filament settings… is a plain row of the filament menu.
         m_frame->CallAfter([self=shared_from_this(),type] {
@@ -3993,50 +4058,142 @@ private:
         check(chip->filament_half().decoration().slot_dots.size() == 1, "the_chip_follows_back_to_one_slot");
     }
 
-    // Since 0e55c4f9be the header's Printer settings… opens the printer
-    // conversation on Home, not Orca's settings window.
+    // The header's Printer settings… covers Prepare with a temporary chat.
     void verify_header_printer_settings_open()
     {
         wait_until([this] {
                 PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
-                return panel != nullptr && panel->IsShown() && m_notebook->GetSelection() == MainFrame::tpHome;
-            }, "header_printer_settings_opens_printer_conversation_on_home",
+                return panel != nullptr && panel->IsShownOnScreen() && panel->host() != nullptr &&
+                       panel->host()->handshake_complete() && m_notebook->GetSelection() == MainFrame::tp3DEditor;
+            }, "header_printer_settings_covers_prepare",
             [self=shared_from_this()] {
                 PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
                 const nlohmann::json session = panel->session_json();
                 self->check(session.value("mode", "") == "change" &&
                                 session.value("printerName", "") == self->m_header_setup_printer,
                             "header_printer_settings_is_about_the_selected_printer");
+                self->check(panel->GetParent() == self->m_frame && !self->m_notebook->IsShownOnScreen(),
+                            "header_printer_chat_hides_prepare_without_switching_tabs");
+                self->check(panel->GetSize().x == self->m_frame->GetClientSize().x,
+                            "header_printer_chat_fills_the_workspace");
                 self->check(!wxGetApp().params_dialog()->IsShown(), "header_printer_settings_leaves_settings_window_closed");
+                self->live_capture_themed("prepare_printer_chat");
                 panel->close();
-                self->wait_until([panel] { return !panel->IsShown(); }, "header_printer_conversation_closes",
+                self->wait_until([self,panel] { return !panel->IsShown() && self->m_notebook->IsShownOnScreen(); },
+                    "header_printer_conversation_restores_prepare",
                     [self] {
-                        installed_shell()->status_row()->request_prepare();
-                        self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor &&
-                                                         !self->m_plater->is_preview_shown(); },
-                            "header_printer_settings_returns_to_prepare", [self] {
-                                self->check(Printers::remove_named_printer(*self->m_plater, self->m_header_setup_printer).empty(),
-                                            "header_setup_named_printer_removed");
-                                SetupCommands::select_printer_preset(*self->m_plater, self->m_header_setup_restore_printer);
-                                self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() ==
-                                                self->m_header_setup_restore_printer,
-                                            "header_setup_fixture_printer_restored");
-                                self->verify_header_setup(Preset::TYPE_FILAMENT);
+                        self->check(self->m_notebook->GetSelection() == MainFrame::tp3DEditor &&
+                                        !self->m_plater->is_preview_shown(),
+                                    "header_printer_settings_returns_to_prepare");
+                        installed_shell()->open_printer_conversation(self->m_header_setup_printer);
+                        self->wait_until([self] {
+                                auto* panel = installed_shell()->printer_panel();
+                                return panel->IsShownOnScreen() && panel->host() != nullptr && panel->host()->handshake_complete();
+                            }, "header_printer_manual_chat_reopens", [self] {
+                                self->live_send("printer_action", {{"action", "open_printer_settings"}});
+                                self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
+                                    "header_printer_manual_settings_open", [self] {
+                                        self->check(self->m_notebook->IsShownOnScreen() &&
+                                                        self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                                                    "header_printer_manual_action_restores_prepare");
+                                        wxGetApp().params_dialog()->Close();
+                                        self->check(Printers::remove_named_printer(*self->m_plater,
+                                                             self->m_header_setup_printer).empty(),
+                                                    "header_setup_named_printer_removed");
+                                        SetupCommands::select_printer_preset(*self->m_plater,
+                                                                             self->m_header_setup_restore_printer);
+                                        self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() ==
+                                                        self->m_header_setup_restore_printer,
+                                                    "header_setup_fixture_printer_restored");
+                                        self->verify_header_setup(Preset::TYPE_FILAMENT);
+                                    });
                             });
                     });
             });
     }
 
-    // Filament settings… still opens Orca's settings window on its tab.
+    // Filament settings… opens a fresh temporary chat. Its manual action then
+    // restores Prepare and opens Orca's material settings window.
     void verify_header_setup_open(Preset::Type type)
     {
         const std::string kind = "filament";
-        wait_until([] { return wxGetApp().params_dialog()->IsShown(); },"header_setup_opens_" + kind + "_editor",
+        wait_until([this] {
+                auto* panel = installed_shell()->printer_panel();
+                return panel != nullptr && panel->IsShownOnScreen() && panel->host() != nullptr &&
+                       panel->host()->handshake_complete() && m_notebook->GetSelection() == MainFrame::tp3DEditor;
+            }, "header_setup_opens_temporary_" + kind + "_chat",
             [self=shared_from_this(),type,kind] {
-                self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
-                            "header_setup_selects_" + kind + "_tab");
-                wxGetApp().params_dialog()->Close();
-                self->verify_header_overflow();
+                auto* panel = installed_shell()->printer_panel();
+                self->check(panel->GetParent() == self->m_frame && !self->m_notebook->IsShownOnScreen() &&
+                                panel->GetSize().x == self->m_frame->GetClientSize().x,
+                            "header_filament_chat_hides_prepare_and_fills_workspace");
+                const auto& document = installed_shell()->persistence()->document();
+                self->check(document.messages(document.active_conversation_id()).size() == self->m_header_project_chat_count,
+                            "header_filament_chat_does_not_change_saved_project_chat");
+                self->live_capture_themed("prepare_filament_chat");
+                self->live_send("shell_action", {{"action", "open_filament_settings"}});
+                self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
+                    "header_setup_opens_" + kind + "_editor", [self,type,kind] {
+                        self->check(self->m_notebook->IsShownOnScreen() &&
+                                        self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                                    "header_filament_manual_action_restores_prepare");
+                        self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
+                                    "header_setup_selects_" + kind + "_tab");
+                        wxGetApp().params_dialog()->Close();
+                        if (self->m_state->mode == HarnessState::Mode::TaskChat)
+                            self->verify_home_task_routes();
+                        else
+                            self->verify_header_overflow();
+                });
+            });
+    }
+
+    void verify_home_task_route(const std::string& name, const std::string& mode,
+                                std::function<void()> open, std::function<void()> next)
+    {
+        open();
+        wait_until([this] {
+                auto* panel = installed_shell()->printer_panel();
+                return panel->IsShownOnScreen() && panel->host() != nullptr &&
+                       panel->host()->handshake_complete() && m_notebook->GetSelection() == MainFrame::tpHome;
+            }, "home_" + name + "_opens_task_chat", [self = shared_from_this(),name,mode,next = std::move(next)] {
+                auto* panel = installed_shell()->printer_panel();
+                self->check(panel->session_json().value("mode", "") == mode &&
+                                !installed_shell()->home_view()->IsShownOnScreen() &&
+                                panel->GetSize().x == self->m_frame->GetClientSize().x,
+                            "home_" + name + "_covers_home_with_correct_context");
+                self->live_capture_themed("home_" + name + "_chat");
+                panel->close();
+                self->wait_until([panel] {
+                        return !panel->IsShown() && installed_shell()->home_view()->IsShownOnScreen();
+                    }, "home_" + name + "_restores_home", next);
+            });
+    }
+
+    void verify_home_task_routes()
+    {
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        wait_until([this] { return installed_shell()->home_view()->IsShownOnScreen(); },
+            "home_task_routes_start_on_home", [self = shared_from_this()] {
+                auto& backend = installed_shell()->home_view()->backend();
+                self->verify_home_task_route("add", "add", [&backend] { backend.add_printer(); }, [self] {
+                    const std::string name = Printers::add_named_printer(*self->m_plater, "Home Task Printer", {});
+                    self->check(!name.empty(), "home_task_named_printer_saved");
+                    const std::string id = "named:" + name;
+                    auto& backend = installed_shell()->home_view()->backend();
+                    self->verify_home_task_route("settings", "change", [&backend,id] {
+                            backend.open_printer_settings(id);
+                        }, [self,name,id] {
+                            auto& backend = installed_shell()->home_view()->backend();
+                            self->verify_home_task_route("connect", "connect", [&backend,id] {
+                                    backend.connect_printer(id);
+                                }, [self,name] {
+                                    self->check(Printers::remove_named_printer(*self->m_plater, name).empty(),
+                                                "home_task_named_printer_removed");
+                                    self->finish();
+                                });
+                        });
+                });
             });
     }
 
@@ -7159,6 +7316,7 @@ private:
     double                        m_save_ms{0.0};
     std::string                   m_header_setup_printer;
     std::string                   m_header_setup_restore_printer;
+    std::size_t                   m_header_project_chat_count{0};
     Selection::IndicesList        m_tool_strip_selection;
     bool                          m_capture_typing{true};
 
@@ -7366,6 +7524,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PrinterSetup;
         else if (argument == "--printer-menu")
             state->mode = HarnessState::Mode::PrinterMenu;
+        else if (argument == "--task-chat")
+            state->mode = HarnessState::Mode::TaskChat;
         else if (argument == "--printer-menu-capture") {
             if (++index == argc) {
                 std::cerr << "--printer-menu-capture requires an output directory\n";

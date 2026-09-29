@@ -68,7 +68,7 @@ export function AgentNotConfiguredHeader() {
   );
 }
 
-export function AgentNotConfiguredPane({ onSetUp, onManualSetup }: { onSetUp: () => void; onManualSetup?: () => void }) {
+export function AgentNotConfiguredPane({ onSetUp }: { onSetUp: () => void }) {
   return (
     <div className="pane-state" data-testid="agent-not-configured">
       <h1>No agent connected</h1>
@@ -81,14 +81,6 @@ export function AgentNotConfiguredPane({ onSetUp, onManualSetup }: { onSetUp: ()
         Set up the agent
       </button>
       <p className="footnote">Registered JusPrin account, your own key, or an AI tool you already use.</p>
-      {onManualSetup && (
-        <div className="printer-setup-alternative">
-          <p>Not ready to set up the agent?</p>
-          <button type="button" className="printer-link-button" onClick={onManualSetup}>
-            Add your printer manually
-          </button>
-        </div>
-      )}
     </div>
   );
 }

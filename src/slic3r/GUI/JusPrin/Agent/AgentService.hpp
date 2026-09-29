@@ -46,7 +46,7 @@ struct AgentConversationContext
 
 // What one conversation is for. The project conversation leaves this at its
 // defaults and gets the app's own assistant, the project workspace and every
-// in-app tool; a session with its own subject (the printer panel on Home)
+// in-app tool; a session with its own subject (the temporary printer task chat)
 // states its instructions and names the tools that belong to it.
 struct AgentSessionProfile
 {

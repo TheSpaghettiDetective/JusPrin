@@ -13,7 +13,7 @@ applyAppearance('light');
 // sub-component instead of the full conversation chrome. See App.tsx.
 const query = new URLSearchParams(window.location.search);
 const embedded = query.get('embedded') === '1';
-// The printer panel on Home loads the same page with ?panel=printer: the same
+// The temporary printer task chat loads the same page with ?panel=printer: the same
 // thread and composer, with the printer session's card pinned above them
 // instead of the project's setup card. See App.tsx.
 const panel = query.get('panel') === 'printer';

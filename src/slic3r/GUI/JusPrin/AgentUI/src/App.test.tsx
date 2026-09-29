@@ -127,17 +127,24 @@ describe('App', () => {
     host = new MockHost();
   });
 
-  it('offers Prepare and filament settings from a focused project chat', async () => {
+  it('offers only Back and manual settings from a temporary filament chat', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ navigation: { focused: true } }));
     expect(screen.getByRole('button', { name: 'Back to Prepare' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Chat actions' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Open filament settings' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_filament_settings' });
-    await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Chats' }));
-    expect(screen.getByRole('button', { name: 'Back to Prepare' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Back to Prepare' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'return_to_workspace' });
+  });
+
+  it('keeps the unconfigured temporary chat focused on setup and manual settings', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' }, navigation: { focused: true } }));
+    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open filament settings' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
   it('keeps the focused chat escape visible while the Agent needs setup', () => {

@@ -49,6 +49,7 @@ public:
     // When the shell temporarily gives this view the whole workspace, keep
     // its native error surface navigable even if the web bridge never loads.
     void set_error_fallback_actions(const wxString& return_label,
+                                    const wxString& manual_label,
                                     std::function<void()> on_return,
                                     std::function<void()> on_manual);
 

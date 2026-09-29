@@ -17,6 +17,9 @@ if (SLIC3R_GUI)
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/src/slic3r/GUI
     )
+    if (WIN32)
+        target_include_directories(shell_integration_harness PRIVATE ${CMAKE_SOURCE_DIR}/deps/WebView2/include)
+    endif()
     target_link_libraries(shell_integration_harness PRIVATE libslic3r_gui)
 
     # The tree compiles with /Zi but only RelWithDebInfo links with /DEBUG, so

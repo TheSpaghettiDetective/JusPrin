@@ -208,25 +208,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
-        Agent::AgentHost& project_host = m_agent_pane->web_view().host();
-        project_host.set_navigation_state_provider([this] {
-            return nlohmann::json{{"focused", m_focused_chat},
-                                  {"returnLabel", m_tabpanel->GetSelection() == MainFrame::tpPreview ? "Back to Preview" : "Back to Prepare"}};
-        });
-        project_host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
-            if (type != Agent::Protocol::kShellAction)
-                return false;
-            if (!payload.is_object())
-                return false;
-            const std::string action = payload.value("action", "");
-            if (action == "return_to_workspace")
-                m_frame->CallAfter([this] { close_focused_chat(); });
-            else if (action == "open_filament_settings")
-                m_frame->CallAfter([this] { open_focused_filament_settings(); });
-            else
-                return false;
-            return true;
-        });
         m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.min_width);
         m_agent_resize_handle = new AgentPaneResizeHandle(
             &frame, *m_theme,
@@ -262,23 +243,15 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_home = new Home::HomeWebView(&frame, *m_theme, frame);
         m_home->Hide();
 
-        // The printer conversation lives beside Home's page, in the column
-        // the printers list otherwise holds, and Home's own actions open it.
+        // One temporary task chat serves printer and filament help from any
+        // screen. Its in-memory runtime is rebuilt for every opening.
         m_printer_panel = new PrinterSetup::PrinterPanel(
-            m_home, *m_theme, GUI_App::dark_mode(), *m_workspace, *plater,
+            &frame, *m_theme, GUI_App::dark_mode(), *m_workspace, *plater,
             PrinterSetup::PrinterPanel::Callbacks{
-                [this] {
-                    m_home->show_side_panel(false);
-                    m_home->refresh();
-                    if (m_printer_return_tab >= 0) {
-                        const int return_tab = m_printer_return_tab;
-                        m_printer_return_tab = -1;
-                        m_frame->select_tab(size_t(return_tab));
-                    }
-                },
+                [this] { restore_task_panel(); },
                 [this](const std::string& added) { m_home->refresh(added); },
-                [this] { mark_agent_config_possibly_changed(); }});
-        m_home->attach_side_panel(m_printer_panel);
+                [this] { mark_agent_config_possibly_changed(); },
+                [](std::size_t slot) { SetupCommands::open_filament_settings(slot); }});
         m_home->backend().set_conversation_opener(
             [this](const std::string& printer_name, bool connect) { open_printer_conversation(printer_name, connect); });
 
@@ -290,6 +263,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_agent_resize_handle, 0, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
+        m_center_sizer->Add(m_printer_panel, 1, wxEXPAND);
+        m_printer_panel->Hide();
         main_sizer.Insert(0, m_status_row, 0, wxEXPAND);
         main_sizer.Add(m_center_sizer, 1, wxEXPAND);
 
@@ -483,6 +458,8 @@ void ShellController::uninstall()
             m_center_sizer->Detach(m_agent_resize_handle);
         if (m_agent_pane != nullptr)
             m_center_sizer->Detach(m_agent_pane);
+        if (m_printer_panel != nullptr)
+            m_center_sizer->Detach(m_printer_panel);
         m_main_sizer->Detach(m_center_sizer);
         delete m_center_sizer;
         m_center_sizer = nullptr;
@@ -555,88 +532,59 @@ void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
 
 void ShellController::open_printer_conversation(const std::string& printer_name, bool connect)
 {
-    if (m_printer_panel == nullptr || m_home == nullptr || m_tabpanel == nullptr)
+    if (m_task_open || m_printer_panel == nullptr || m_tabpanel == nullptr)
         return;
-    const int origin = m_tabpanel->GetSelection();
-    m_printer_return_tab = origin == MainFrame::tpHome ? -1 : origin;
-    // The panel lives on Home, so the printer menu's own entries come here
-    // first. Selecting the tab refreshes the gallery on its way in.
-    if (m_tabpanel->GetSelection() != MainFrame::tpHome)
-        m_frame->select_tab(size_t(MainFrame::tpHome));
     m_printer_panel->open(connect ? PrinterSetup::ConversationMode::Connect : printer_name.empty() ? PrinterSetup::ConversationMode::Add :
                                                  PrinterSetup::ConversationMode::Change,
                           printer_name);
-    m_home->show_side_panel(true);
+    show_task_panel();
 }
 
 void ShellController::open_filament_help(std::size_t slot, const std::string& filament_name)
 {
-    if (m_focused_chat || m_agent_pane == nullptr || m_center_sizer == nullptr || m_workspace_sizer == nullptr)
+    if (m_task_open || m_printer_panel == nullptr || m_tabpanel == nullptr)
         return;
-    // Keep the Notebook and its GL canvas constructed at the same selection.
-    // Only its sizer item is hidden while the existing project chat fills the
-    // workspace; returning to Prepare needs no re-created screen or model.
-    m_focused_chat = true;
-    m_focused_filament_slot = slot;
-    m_workspace_sizer->Show(false);
-    m_tabpanel->Hide();
-    m_home->Hide();
-    m_status_row->Hide();
-    m_agent_pane->Show();
-    m_agent_resize_handle->Hide();
-    wxSizerItem* pane_item = m_center_sizer->GetItem(m_agent_pane);
-    pane_item->SetProportion(1);
-    pane_item->SetMinSize(0, -1);
-    m_frame->Layout();
-
-    m_agent_pane->web_view().set_error_fallback_actions(
-        m_tabpanel->GetSelection() == MainFrame::tpPreview ? _L("Back to Preview") : _L("Back to Prepare"),
-        [this] { m_frame->CallAfter([this] { close_focused_chat(); }); },
-        [this] { m_frame->CallAfter([this] { open_focused_filament_settings(); }); });
-
-    Agent::AgentHost& host = m_agent_pane->web_view().host();
-    const std::string note = "Opened filament settings help for slot " + std::to_string(slot + 1) +
-                             (filament_name.empty() ? "." : " (" + filament_name + ").");
-    const auto messages = m_persistence->document().messages(m_persistence->document().active_conversation_id());
-    if (messages.empty() || messages.back().role != Agent::MessageRole::Note || messages.back().text != note)
-        host.post_note(note);
-    host.refresh_page_state();
+    m_printer_panel->open_filament(slot, filament_name,
+        m_tabpanel->GetSelection() == MainFrame::tpPreview ? _L("Back to Preview") : _L("Back to Prepare"));
+    show_task_panel();
 }
 
-void ShellController::close_focused_chat()
+void ShellController::show_task_panel()
 {
-    if (!m_focused_chat)
+    // Keep the stock page constructed and selected. Hiding its sizer item
+    // gives the task chat the workspace without changing Orca's tab indices.
+    m_task_open = true;
+    m_task_origin_tab = m_tabpanel->GetSelection();
+    m_home->set_live(false);
+    m_workspace_sizer->Show(false);
+    m_status_row->Hide();
+    m_agent_pane->Hide();
+    m_agent_resize_handle->Hide();
+    m_printer_panel->Show();
+    m_frame->Layout();
+}
+
+void ShellController::restore_task_panel()
+{
+    if (!m_task_open)
         return;
-    m_focused_chat = false;
-    m_agent_pane->web_view().set_error_fallback_actions({}, {}, {});
+    m_task_open = false;
+    m_task_origin_tab = -1;
+    m_printer_panel->Hide();
     m_workspace_sizer->Show(true);
-    wxSizerItem* pane_item = m_center_sizer->GetItem(m_agent_pane);
-    pane_item->SetProportion(0);
-    pane_item->SetMinSize(m_agent_pane_preferred_width, -1);
-    m_agent_pane_collapsed = m_agent_pane_user_collapsed;
     m_agent_pane->Show(!m_agent_pane_collapsed);
     m_agent_resize_handle->Show(!m_agent_pane_collapsed);
-    m_status_row->set_agent_pane_collapsed(m_agent_pane_collapsed);
     on_page_changed();
     apply_agent_pane_width();
-    m_agent_pane->web_view().host().refresh_page_state();
-}
-
-void ShellController::open_focused_filament_settings()
-{
-    if (!m_focused_chat)
-        return;
-    const std::size_t slot = m_focused_filament_slot;
-    close_focused_chat();
-    SetupCommands::open_filament_settings(slot);
 }
 
 void ShellController::on_page_changed()
 {
     if (!m_installed || m_home == nullptr || m_tabpanel == nullptr)
         return;
-    if (m_focused_chat) {
-        close_focused_chat();
+    if (m_task_open) {
+        if (m_tabpanel->GetSelection() != m_task_origin_tab)
+            m_printer_panel->close();
         return;
     }
     const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;

@@ -364,7 +364,7 @@ body {
 .chat-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .chat-content[hidden] { display: none; }
 
-/* The printer panel takes Home's whole workspace; its conversation keeps a
+/* A temporary task chat takes the current workspace; its conversation keeps a
    reading width. */
 .app--printer-setup, .app--focused-chat {
   background: var(--surface-canvas);
@@ -375,10 +375,10 @@ body {
   max-width: var(--printer-setup-width);
   margin-inline: auto;
 }
-/* Its dialog is Home's printer-dialog kind, over the whole window. */
+/* Its dialog uses the existing printer-dialog tokens. */
 .app--printer-setup .chat-dialog-shade { background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); }
 .app--printer-setup .chat-dialog { max-width: var(--printer-dialog-width); border-radius: var(--printer-dialog-radius); box-shadow: var(--elevation-strong); }
-.app--printer-setup .printer-header {
+.app--printer-setup .printer-header, .app--focused-chat .printer-header {
   height: auto;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -1915,7 +1915,7 @@ button.wide {
   margin-top: -8px;
 }
 
-/* -- The printer panel on Home ------------------------------------------ */
+/* -- The temporary printer task chat ------------------------------------ */
 /* The Prepare panel's shape, with a printer's four facts pinned above the
    thread instead of the project's setup card, and the cards the agent draws
    inside it. Every value here resolves through the token variables. */
@@ -2179,21 +2179,6 @@ button.wide {
   font: var(--font-label-bold);
   color: var(--action-primary);
   text-decoration: underline;
-}
-
-.printer-setup-alternative {
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.printer-setup-alternative .printer-link-button {
-  font: var(--font-body-bold);
 }
 
 /* Labelled, because a picture is a primary way to name a printer. */

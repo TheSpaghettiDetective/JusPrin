@@ -474,8 +474,7 @@ OrcaHomeBackend::~OrcaHomeBackend()
 
 void OrcaHomeBackend::add_printer()
 {
-    // The conversation replaces the printers column in place; the shell draws
-    // it and owns the session.
+    // The shell shows the temporary task chat over Home and owns its session.
     if (m_open_conversation)
         m_open_conversation({}, false);
 }
@@ -485,8 +484,8 @@ std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id
     const auto name = strip(printer_id, kNamedPrefix);
     if (!name)
         return gone();
-    // "Printer settings…" opens that printer's own conversation, where "Set
-    // it up myself" still leads to OrcaSlicer's settings window.
+    // "Printer settings…" opens that printer's temporary conversation, with
+    // Orca's own settings window available from its manual action.
     if (m_open_conversation)
         m_open_conversation(*name, false);
     return {};

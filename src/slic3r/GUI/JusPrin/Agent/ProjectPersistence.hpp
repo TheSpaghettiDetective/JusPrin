@@ -39,7 +39,7 @@ public:
         std::function<std::string()> clock; // ISO-8601 UTC timestamp
         std::function<std::string()> uuid;  // opaque unique identifier
         // A conversation about something other than the open project -- the
-        // printer panel on Home -- keeps everything in memory: nothing it
+        // temporary task chat -- keeps everything in memory: nothing it
         // says belongs in this project's archive, and the session is gone
         // when the panel closes. Such an instance follows no project
         // boundary, writes no state.json and no recovery mirror, and holds

@@ -75,8 +75,8 @@ export interface AppProps {
   // dialog rather than the docked panel): show only the setup sub-component,
   // never the conversation header, chat list, or composer around it.
   embedded?: boolean;
-  // The printer panel on Home: the same thread and composer, with the printer
-  // session's own header and cards instead of the project's.
+  // Temporary printer task chat: the same thread and composer, with the
+  // printer session's own header and cards instead of the project's.
   printerPanel?: boolean;
 }
 
@@ -336,15 +336,14 @@ export function App({
         if (conversationId !== state.activeConversationId) client.send('switch_conversation', { conversationId });
         setView('chat');
         collapseSetup();
-      }} onCreate={createChat} onLeave={state.navigation.focused ? returnToWorkspace : undefined}
-      leaveLabel={state.navigation.returnLabel} onConfigure={() => {
+      }} onCreate={createChat} onConfigure={() => {
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} />;
 
   // The dock body is one of three things: the conversation, the offer, or a
   // setup screen. Setup replaces the body rather than covering it, so backing
   // out returns to exactly what was there before.
-  const body = (onManualSetup?: () => void) => {
+  const body = () => {
     // An embedded, setup-only instance never has a conversation to show, so
     // it always renders one of the setup screens below regardless of view.
     if (!embedded && !notConfigured && view !== 'setup')
@@ -394,7 +393,7 @@ export function App({
           }}
         />
       );
-    return <AgentNotConfiguredPane onSetUp={openSetup} onManualSetup={onManualSetup} />;
+    return <AgentNotConfiguredPane onSetUp={openSetup} />;
   };
 
   if (printerPanel) {
@@ -443,7 +442,7 @@ export function App({
             </Dialog>
           )}
           {notConfigured ? (
-            body(session?.mode === 'add' && view === 'chat' ? () => printerAction('manual_setup') : undefined)
+            body()
           ) : (
             <MessageList
               messages={state.messages}
@@ -526,18 +525,21 @@ export function App({
                 onDecision={sendToolDecision} onCancel={sendToolCancel} />;
         })}
       </section>}
-      {view === 'list' && chatList}
+      {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'setup' && !state.navigation.focused ? (
         <AgentNotConfiguredHeader />
+      ) : state.navigation.focused ? (
+        <header className="chat-header printer-header">
+          <button type="button" className="printer-link-button" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
+            onClick={() => { if (view === 'setup') closeSetup(); else returnToWorkspace(); }}>‹ Back</button>
+          {view !== 'setup' && <button type="button" className="printer-link-button"
+            onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>}
+        </header>
       ) : (
         <>
           <ChatHeader key={`header-${state.context?.sessionId}-${state.activeConversationId}`} title={activeChat?.title || 'New chat'} busy={busy || pendingAction}
-            backLabel={state.navigation.focused && view !== 'setup' ? state.navigation.returnLabel ?? 'Back to Prepare' : 'Back to chats'}
-            backText={state.navigation.focused && view !== 'setup'}
-            onChats={state.navigation.focused ? () => { client.send('state_request', {}); setView('list'); } : undefined}
-            manualAction={state.navigation.focused ? { label: 'Open filament settings', onSelect: () => client.send('shell_action', { action: 'open_filament_settings' }) } : undefined}
-            onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else if (state.navigation.focused) returnToWorkspace(); else { client.send('state_request', {}); setView('list'); } }}
+            onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }} />
@@ -560,7 +562,7 @@ export function App({
         />
       )}
       {body()}
-      <div hidden={view === 'setup'}><Composer
+      {!(state.navigation.focused && notConfigured) && <div hidden={view === 'setup'}><Composer
         key={`composer-${state.context?.sessionId}-${state.activeConversationId}`}
         disabled={unavailable}
         disabledReason={notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
@@ -576,7 +578,7 @@ export function App({
         onTyping={collapseSetup}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
-      /></div>
+      /></div>}
       </div>
     </div>
   );

@@ -188,13 +188,15 @@ describe('the printer panel page', () => {
     expect(screen.queryByText('What printer do you have?')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Add your printer manually' }));
+    expect(screen.getAllByRole('button', { name: 'Browse the full printer list' })).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Browse the full printer list' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'manual_setup' });
   });
 
   it('keeps the add-printer fallback out of an existing printer’s settings', () => {
     open(state({ agent: { status: 'unavailable' }, session: session({ mode: 'change', printerName: 'Lab Printer' }) }));
-    expect(screen.queryByRole('button', { name: 'Add your printer manually' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Browse the full printer list' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open printer settings' })).toBeInTheDocument();
   });
 
   it('navigates agent setup and resumes the printer chat when ready', async () => {

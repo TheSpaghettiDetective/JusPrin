@@ -16,7 +16,6 @@
 class wxWebView;
 class wxWebViewEvent;
 class wxStaticText;
-class wxBoxSizer;
 
 namespace Slic3r { namespace GUI {
 class MainFrame;
@@ -52,12 +51,6 @@ public:
     OrcaHomeBackend& backend() { return *m_backend; }
     wxWebView* webview() const { return m_webview; }
 
-    // Puts a panel of the shell's in the page's place. The shell owns the
-    // panel's lifetime; passing nullptr takes it back out.
-    void attach_side_panel(wxWindow* panel);
-    // The panel takes the whole workspace while it is shown.
-    void show_side_panel(bool shown);
-
 private:
     void on_script_message(wxWebViewEvent& event);
     void on_load_error(wxWebViewEvent& event);
@@ -70,9 +63,6 @@ private:
     std::unique_ptr<HomeHost>         m_host;
     wxWebView*                m_webview{nullptr};
     wxStaticText*             m_error{nullptr};
-    // The page, or the shell's panel in its place.
-    wxBoxSizer*               m_row{nullptr};
-    wxWindow*                 m_side_panel{nullptr};
     wxTimer                   m_live_timer;
 };
 

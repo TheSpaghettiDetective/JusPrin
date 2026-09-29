@@ -1,13 +1,10 @@
 #pragma once
 
-// The printer conversation, in place of Home's printers column.
+// A temporary settings conversation covering the shell workspace.
 //
-// It is the Prepare screen's panel in shape -- the same page, thread and
-// composer -- with a printer session behind it instead of the project's: its
-// own AgentHost, its own agent service, and an in-memory document, so nothing
-// said here is written to the open project. Every opening is a new session,
-// so the whole runtime is built when the panel opens and torn down when it
-// closes.
+// Printer tasks bring their own printer tools; filament help uses the regular
+// workspace tools. Both use a fresh in-memory document and agent service, so
+// neither borrows the saved project conversation.
 
 #include "PrinterConversation.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -17,6 +14,7 @@
 #include <wx/timer.h>
 
 #include <functional>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,6 +36,9 @@ public:
         // The person set the agent up in here, so the rest of the shell has
         // to look again at how it is configured.
         std::function<void()> agent_configured;
+        // Called after the temporary filament chat closes, before the native
+        // material settings dialog is shown.
+        std::function<void(std::size_t)> open_filament_settings;
     };
 
     PrinterPanel(wxWindow*              parent,
@@ -51,6 +52,7 @@ public:
     // Opens a fresh session. Opening it again replaces the session: no
     // history carries over, by design.
     void open(ConversationMode mode, const std::string& printer_name = {});
+    void open_filament(std::size_t slot, const std::string& filament_name, const wxString& return_label);
     // Ends the session and tells the owner, as Back does.
     void close();
 
@@ -82,6 +84,10 @@ private:
     void tear_down_runtime();
     void on_pump(wxTimerEvent& event);
     void on_release_retired(wxTimerEvent& event);
+    bool handle_printer_page_message(const std::string& type, const nlohmann::json& payload);
+    bool handle_filament_page_message(const std::string& type, const nlohmann::json& payload);
+    void close_to_printer_settings();
+    void close_to_filament_settings();
 
     // A torn-down runtime whose web view cannot be destroyed yet; see
     // tear_down_runtime. The view goes first: its host holds the document.
@@ -93,6 +99,13 @@ private:
 
     const ShellTheme&      m_theme;
     bool                   m_dark{false};
+    enum class Task { Printer, Filament };
+    Task                   m_task{Task::Printer};
+    bool                   m_closing{false};
+    std::size_t            m_filament_slot{0};
+    std::string            m_filament_name;
+    wxString               m_return_label;
+    std::function<void()>  m_after_close;
     Workspace::IWorkspace& m_workspace;
     Callbacks              m_callbacks;
 
