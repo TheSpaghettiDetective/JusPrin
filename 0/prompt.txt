@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b9mbp00x3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-modest-wozniak-151655/7d479942-ea8d-47a8-9d75-0300b55f2562/tasks/b9mbp00x3.output</output-file>
+<status>completed</status>
+<summary>Background command "for i in $(seq 1 115); do pgrep -f "cmake --build /Users/kenneth/Projects/JusPrin/build/arm64" &gt;/dev/null || break; /bin/sleep 5; done; tail -c 200 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c010e3ef-b8f1-4138-9978-f6571caf4665/scratchpad/build_final.log; echo; tail -1 /Users/kenneth/Projects/JusPrin/.claude/worktrees/mw-build.log | cut -c1-100" completed (exit code 0)</summary>
+</task-notification>
