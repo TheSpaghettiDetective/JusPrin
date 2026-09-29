@@ -400,8 +400,8 @@ export function App({
   if (printerPanel) {
     const session = state.session;
     const printerAction = (action: string) => client.send('printer_action', { action });
-    // Done never comes here: the model's printer_setup_finish closes the
-    // panel from the app.
+    // Back is the only way the panel closes: no tool closes it for the
+    // model, so the person decides when they are done.
     const back = () => {
       const started = state.messages.some((message) => message.role === 'user') ||
         state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';
