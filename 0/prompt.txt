@@ -1,0 +1,37 @@
+saved facts and print records don't mater. the app is not live yet. 
+
+make sure all presets are looked up using the key as they are in upstream orcaslicer in all places. 
+
+The correct behavior for the change printer/filament preset chat should be:
+
+* If a preset is found by the name, continue 
+* if the preset is changed later in the chat, and user asks to change the preset, call tool to do so. 
+* if the tool reports failure because the preset is a readonly system preset, make a copy as user preset, and then save again.
+* if the preset can't be found, report a generic error (do we have a way to report generic error? if not, what is upstream orcaslicer's way of reporting a generic error?)
+
+
+do you still have any open questions for me before you can implmenet the fix?
+
+---
+
+1. you should add tools. There should be a recent commit about using the scope enum in the setting tools for such a purpose. Let me know if you couldn't find it or don't understand it. 2. yes and yes. 3. yes that's what I mean. Basically, the save is deferred. 4. Yes, use upstream show error dialogue. 
+
+ if you have correctly implemented it, the chagne chat should never silently switch to add mode. check your code to make sure this is true.
+
+---
+
+check again.
+
+---
+
+<task-notification>
+<task-id>badkk2a78</task-id>
+<tool-use-id>toolu_019wd3rGaY41B3Q6NdBcQMu1</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/c010e3ef-b8f1-4138-9978-f6571caf4665/tasks/badkk2a78.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the live printer and filament scenarios" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+yes, give the filament chat its own instructions
