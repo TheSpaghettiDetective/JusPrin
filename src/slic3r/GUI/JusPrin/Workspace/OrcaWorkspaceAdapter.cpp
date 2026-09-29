@@ -36,7 +36,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/nowide/fstream.hpp>
 
 #include <wx/thread.h>
 
@@ -439,16 +438,6 @@ CommandResult OrcaWorkspaceAdapter::redo()
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to redo");
     return CommandResult::success();
 }
-
-namespace {
-// A step the person would recognise in Orca's own undo list. Project
-// separators mark where the history starts, not an edit.
-bool is_history_step(const UndoRedo::Snapshot& snapshot)
-{
-    return !snapshot.is_topmost() && snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
-           UndoRedo::snapshot_modifies_project(snapshot);
-}
-} // namespace
 
 namespace {
 // Preset::get_printer_type answers for the edited printer whatever preset it
@@ -1380,53 +1369,6 @@ ConfiguredPrinter OrcaWorkspaceAdapter::configured_printer() const
     return result;
 }
 
-WorkspaceHistory OrcaWorkspaceAdapter::history() const
-{
-    const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
-    const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
-    WorkspaceHistory result;
-    result.restorable = m_plater.can_restore_project_history();
-    // A snapshot is taken before its edit, so the step is in force once the
-    // active position has moved past it.
-    for (const UndoRedo::Snapshot& snapshot : snapshots)
-        if (is_history_step(snapshot))
-            result.steps.push_back({snapshot.timestamp, snapshot.name, snapshot.timestamp < stack.active_snapshot_time()});
-    if (result.steps.size() > kHistoryLimit) {
-        result.steps.erase(result.steps.begin(), result.steps.end() - kHistoryLimit);
-        result.truncated = true;
-    }
-    return result;
-}
-
-CommandResult OrcaWorkspaceAdapter::restore_history(std::uint64_t step, HistoryPoint point)
-{
-    wxASSERT(wxIsMainThread());
-    if (!m_plater.can_restore_project_history())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation,
-                                      "Another tool is open with its own undo history. Close it first.");
-    const std::vector<UndoRedo::Snapshot>& snapshots = m_plater.undo_redo_stack_main().snapshots();
-    const auto found = std::find_if(snapshots.begin(), snapshots.end(), [step](const UndoRedo::Snapshot& snapshot) {
-        return snapshot.timestamp == step && is_history_step(snapshot);
-    });
-    if (found == snapshots.end())
-        return CommandResult::failure(WorkspaceError::StaleId, "That step is no longer in the history. Read it again.");
-    // Before the step is the snapshot taken for it. After it is the next
-    // snapshot that changed the project, or the present: the same place
-    // Orca's redo lands.
-    auto target = found;
-    if (point == HistoryPoint::After)
-        target = std::find_if(std::next(found), snapshots.end(), [](const UndoRedo::Snapshot& snapshot) {
-            return snapshot.is_topmost() || UndoRedo::snapshot_modifies_project(snapshot);
-        });
-    if (target == snapshots.end())
-        return CommandResult::failure(WorkspaceError::StaleId, "That step is no longer in the history. Read it again.");
-    if (target->timestamp == m_plater.undo_redo_stack_main().active_snapshot_time())
-        return CommandResult::failure(WorkspaceError::NoChange, "The project is already there");
-    if (!m_plater.restore_project_history(target->timestamp))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not move the history");
-    return CommandResult::success();
-}
-
 CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bool preempt)
 {
     wxASSERT(wxIsMainThread());
@@ -1663,52 +1605,6 @@ SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate, const SliceReportR
         report.toolpath_outside = !m_plater.build_volume().all_paths_inside(result, paths);
     check_slice(*target, request, report);
     return report;
-}
-
-CommandResult OrcaWorkspaceAdapter::save_project(const std::string& file_path)
-{
-    wxASSERT(wxIsMainThread());
-    // The same gates as the File menu's Save: a G-code preview or an exported
-    // file is not a project that can be saved.
-    if (m_plater.only_gcode_mode() || m_plater.using_exported_file())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation,
-                                      "The open file is a preview, not a project that can be saved");
-    // Save renders plate thumbnails, which crash before the canvas has its GL
-    // state; the same guard as export_project_archive.
-    const GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
-    if (canvas == nullptr || !canvas->is_initialized())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project cannot be saved until the view is ready");
-
-    const boost::filesystem::path target(file_path);
-    if (!target.is_absolute() || boost::algorithm::to_lower_copy(target.extension().string()) != ".3mf")
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "Save to an absolute path ending in .3mf");
-    boost::system::error_code error;
-    if (!boost::filesystem::is_directory(target.parent_path(), error))
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "The folder to save into does not exist");
-    // Save reports a failed write with a modal dialog. A write that would fail
-    // for want of permission fails here instead, where it can be reported.
-    {
-        const boost::filesystem::path probe = target.parent_path() / (".jusprin-write-check-" + std::to_string(m_session.value()));
-        boost::nowide::ofstream out(probe.string(), std::ios::binary | std::ios::trunc);
-        const bool writable = out.is_open();
-        out.close();
-        boost::filesystem::remove(probe, error);
-        if (!writable)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "That folder cannot be written to");
-    }
-
-    // Orca's own Save, not a copy of it. Save only asks where to save when the
-    // project has no file, so naming the file first is the whole difference:
-    // the export, the backup removal, the saved and dirty bookkeeping, and the
-    // recent-projects entry all stay upstream's.
-    const wxString previous = m_plater.get_project_filename(".3mf");
-    m_plater.set_project_filename(from_u8(file_path));
-    if (m_plater.save_project(false) != wxID_YES) {
-        if (!previous.IsEmpty())
-            m_plater.set_project_filename(previous);
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project could not be saved");
-    }
-    return CommandResult::success();
 }
 
 ProjectDetails OrcaWorkspaceAdapter::project_details() const

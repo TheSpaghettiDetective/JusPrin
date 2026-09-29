@@ -39,8 +39,6 @@ public:
     std::string current_process_preset() const override;
     PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const override;
     CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) override;
-    WorkspaceHistory history() const override;
-    CommandResult restore_history(std::uint64_t step, HistoryPoint point) override;
     CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override;
     SliceReport   slice_report(PlateId plate, const SliceReportRequest& request = {}) const override;
     PresetListResult list_presets(const PresetQuery& query) const override;
@@ -52,7 +50,6 @@ public:
                                  SettingsPreview& applied) override;
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;
-    CommandResult save_project(const std::string& file_path) override;
     ProjectDetails project_details() const override;
     CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) override;
     CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,

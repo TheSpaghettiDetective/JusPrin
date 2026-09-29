@@ -417,25 +417,6 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     }
     stored.title = m_registry.approval_title(*definition, stored.arguments_json);
 
-    if (definition->handler == ToolHandler::HistoryRestore) {
-        const auto arguments = json::parse(stored.arguments_json);
-        if (arguments["sessionId"] != std::to_string(snapshot.session.value())) {
-            fail(stored, "stale_id", "That history belongs to a project that is no longer open. Read it again.");
-            return stored;
-        }
-        const auto history = m_workspace.history();
-        const auto step    = std::find_if(history.steps.begin(), history.steps.end(), [&arguments](const Workspace::HistoryStep& candidate) {
-            return std::to_string(candidate.id) == arguments["stepId"];
-        });
-        if (step == history.steps.end()) {
-            fail(stored, "stale_id", "That step is no longer in the history. Read it again.");
-            return stored;
-        }
-        const std::string name = step->label.empty() ? "an unnamed step" : "\xe2\x80\x9c" + step->label + "\xe2\x80\x9d";
-        stored.title = (arguments["point"] == "before" ? "Go back to before " : "Go to just after ") + name;
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
-    }
-
     if (definition->handler == ToolHandler::ObjectImportFile) {
         const auto arguments = json::parse(stored.arguments_json);
         // Only the name is looked at before approval; the file is read after it.
@@ -730,31 +711,6 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
-    if (definition->handler == ToolHandler::ProjectSave) {
-        auto arguments = json::parse(stored.arguments_json);
-        const std::string path = arguments.value("path", snapshot.setup.project_path);
-        if (path.empty()) {
-            fail(stored, "unavailable_operation", "This project has never been saved. Give the path to save it to.");
-            return stored;
-        }
-        // Said before the card, not after approval: the adapter writes only a
-        // project file.
-        std::string extension = std::filesystem::u8path(path).extension().u8string();
-        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return char(std::tolower(c)); });
-        if (extension != ".3mf") {
-            fail(stored, "invalid_argument", "project_save writes a .3mf project. Write G-code, STL or presets with export_file.");
-            return stored;
-        }
-        // The path is bound here, before approval, so the card names exactly
-        // the file that will be written and a rename in between cannot move it.
-        arguments["resolvedPath"] = path;
-        stored.arguments_json     = arguments.dump();
-        std::error_code error;
-        const bool      replaces = std::filesystem::exists(std::filesystem::u8path(path), error);
-        stored.title = std::string(replaces ? "Save the project, replacing " : "Save the project to ") + path;
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
-    }
-
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         auto arguments = json::parse(stored.arguments_json);
         if (!settings_revision_holds(arguments, snapshot, m_last_settings_revision)) {
@@ -1033,7 +989,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("history"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
+            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
         }
         if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
@@ -1053,7 +1009,6 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         }
         if (sections.objects) result["objects"] = objects_section_result(m_workspace.object_details());
         if (sections.project) result["project"] = project_section_result(m_workspace.snapshot(), m_workspace.project_details());
-        if (sections.history) result["history"] = history_section_result(m_workspace.snapshot(), m_workspace.history());
         if (sections.activities) {
             // The latest calls of either adapter, oldest first: how a queued
             // plan's members ended, after the turn that proposed them.
@@ -1072,34 +1027,6 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         }
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
-        notify(activity);
-        return;
-    }
-
-    if (definition->handler == ToolHandler::HistoryRestore) {
-        const auto arguments = json::parse(activity.arguments_json);
-        const auto restored  = m_workspace.restore_history(std::stoull(arguments["stepId"].get<std::string>()),
-                                                           arguments["point"] == "before" ? Workspace::HistoryPoint::Before :
-                                                                                            Workspace::HistoryPoint::After);
-        if (!restored.succeeded()) {
-            fail(activity, workspace_error_code(restored.error), restored.message);
-            return;
-        }
-        const auto snapshot = m_workspace.snapshot();
-        // What Orca's history does not carry, so the agent can say it stayed.
-        json kept = json::array();
-        if (!snapshot.preset_deltas.empty())
-            kept.push_back(std::to_string(snapshot.preset_deltas.size()) + " edited process settings");
-        if (m_product_state != nullptr && !m_product_state->print_intent().empty())
-            kept.push_back("the print intent");
-        if (m_product_state != nullptr && !m_product_state->plan().headline.empty())
-            kept.push_back("the plan");
-        activity.result_json = json{{"history", history_section_result(snapshot, m_workspace.history())},
-                                    {"notReversed", {{"items", std::move(kept)}, {"truncated", false}}},
-                                    {"sessionId", std::to_string(snapshot.session.value())},
-                                    {"revision", snapshot.revision}}
-                                   .dump();
-        activity.state = ToolState::Succeeded;
         notify(activity);
         return;
     }
@@ -1145,27 +1072,6 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         current.state = ToolState::Succeeded;
         notify(current);
         forget_if_closed(action_id);
-        return;
-    }
-
-    if (definition->handler == ToolHandler::ProjectSave) {
-        const std::string path = json::parse(activity.arguments_json).at("resolvedPath").get<std::string>();
-        // The conversation and the rest of the product state travel inside the
-        // project file, so what is still pending goes to disk first.
-        if (m_product_state != nullptr)
-            m_product_state->flush_to_project();
-        const auto saved = m_workspace.save_project(path);
-        if (!saved.succeeded()) {
-            fail(activity, workspace_error_code(saved.error), saved.message);
-            return;
-        }
-        const auto snapshot  = m_workspace.snapshot();
-        activity.result_json = json{{"path", path}, {"saved", true}, {"projectDirty", snapshot.setup.project_dirty},
-                                    {"sessionId", std::to_string(snapshot.session.value())},
-                                    {"revision", snapshot.revision}}
-                                   .dump();
-        activity.state = ToolState::Succeeded;
-        notify(activity);
         return;
     }
 

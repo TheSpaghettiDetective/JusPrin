@@ -20,7 +20,6 @@ struct InspectSections
     bool intent{false};
     bool plan{false};
     bool slicing{false};
-    bool history{false};
     bool printer{false};
     bool project{false};
     bool objects{false};
@@ -57,8 +56,6 @@ nlohmann::json region_result(const Workspace::RegionRecord& record, const Worksp
 nlohmann::json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,
                                       const Workspace::WorkspaceSnapshot& snapshot);
 
-// The summary's undo flags with the steps themselves.
-nlohmann::json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history);
 nlohmann::json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle);
 
 // Which parts of a sliced plate's report a call asked for. Summary is what a

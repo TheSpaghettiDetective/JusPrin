@@ -94,7 +94,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    REQUIRE(body["tools"].size() == 30);
+    REQUIRE(body["tools"].size() == 28);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
@@ -110,7 +110,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "history_restore", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "project_save", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -228,7 +228,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "history_restore", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "project_save", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},

@@ -78,8 +78,6 @@ enum class ToolHandler : std::uint8_t {
     ExportFile,
     PrinterSetupPreview,
     PrinterSetup,
-    HistoryRestore,
-    ProjectSave,
     ProjectOpen,
     PrinterList,
     SliceStart,

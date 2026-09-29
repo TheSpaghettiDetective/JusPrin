@@ -735,30 +735,6 @@ struct LoadDecision
     std::string answer; // yes, no, ok, or cancel
 };
 
-// One real step in the project's undo history. `id` is stable while the
-// project stays open; a project replacement starts a new history, which is
-// why a restore also names the session.
-struct HistoryStep
-{
-    std::uint64_t id{0};
-    std::string   label; // OrcaSlicer's own step name, which may be empty
-    bool          applied{false};
-};
-
-struct WorkspaceHistory
-{
-    std::vector<HistoryStep> steps; // oldest first; the newest kHistoryLimit
-    bool                     truncated{false};
-    // False while a tool such as a gizmo keeps its own undo history, during
-    // which the project history cannot be moved.
-    bool                     restorable{false};
-};
-
-inline constexpr std::size_t kHistoryLimit = 32;
-
-// Where a restore leaves a step: undone (before) or done (after).
-enum class HistoryPoint : std::uint8_t { Before, After };
-
 // The three preset families a print is chosen from. SLA has no place here
 // until the product has one.
 enum class PresetKind : std::uint8_t { Printer, Filament, Process };
@@ -1385,9 +1361,6 @@ public:
     // Applies in Orca's order -- printer, plate, process, filaments -- and
     // reads the result back into `applied`, substitutions included.
     virtual CommandResult apply_printer_setup(const PrinterSetupRequest& request, PrinterSetupPreview& applied) = 0;
-    virtual WorkspaceHistory history() const = 0;
-    // Undo or redo until `step` is undone (Before) or done (After).
-    virtual CommandResult restore_history(std::uint64_t step, HistoryPoint point) = 0;
     virtual CommandResult start_slice(std::optional<PlateId> plate, bool preempt) = 0;
 
     // What one plate's current slice says about itself. Returns a report whose
@@ -1421,12 +1394,6 @@ public:
     // portable project archive at file_path, excluding auxiliary data — so a
     // clean copy carries no consumer files along.
     virtual CommandResult export_project_archive(const std::string& file_path) = 0;
-
-    // Saves the open project to file_path (UTF-8, absolute, ".3mf"), the way
-    // the person's own Save does: the file becomes the project's file, the
-    // project is marked saved, and auxiliary data travels with it. Unlike
-    // export_project_archive this is the project, not a copy of it.
-    virtual CommandResult save_project(const std::string& file_path) = 0;
     virtual ProjectDetails project_details() const = 0;
 
     // Seeing and exporting. `render_view` draws one plate offscreen;

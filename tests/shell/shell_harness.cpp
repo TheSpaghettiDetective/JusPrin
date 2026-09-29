@@ -198,6 +198,7 @@
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
+#include "slic3r/Utils/UndoRedo.hpp"
 
 #include <wx/app.h>
 #include <wx/dcmemory.h>
@@ -6595,7 +6596,7 @@ private:
         cut.normal = {0, 0, 1};
         Workspace::DivideResult preview;
         const auto revision = workspace->snapshot().revision;
-        const auto steps    = workspace->history().steps.size();
+        const auto steps    = m_plater->undo_redo_stack_main().snapshots().size();
         const bool dirty    = m_plater->is_project_dirty();
         {
             DialogCounter counter;
@@ -6607,7 +6608,7 @@ private:
                       << " overhang " << piece.overhang_area << std::endl;
         std::cout << "overhang before " << preview.overhang_area_before << std::endl;
         check(count() == objects_before && workspace->snapshot().revision == revision &&
-                  workspace->history().steps.size() == steps && m_plater->is_project_dirty() == dirty,
+                  m_plater->undo_redo_stack_main().snapshots().size() == steps && m_plater->is_project_dirty() == dirty,
               "reshape_preview_changes_nothing");
         check(preview.overhang_area_before > 500 && preview.pieces.size() == 2 &&
                   std::abs(preview.pieces[0].size[2] + preview.pieces[1].size[2] - 36) < 0.2,

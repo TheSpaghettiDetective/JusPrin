@@ -481,16 +481,6 @@ json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnaly
     return result;
 }
 
-json history_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::WorkspaceHistory& history)
-{
-    bool truncated = false;
-    json steps = json::array();
-    for (const auto& step : history.steps)
-        steps.push_back({{"stepId", std::to_string(step.id)}, {"label", label(step.label, truncated)}, {"applied", step.applied}});
-    return {{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}, {"restorable", history.restorable},
-            {"steps", {{"items", std::move(steps)}, {"truncated", history.truncated || truncated}}}};
-}
-
 json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)
 {
     bool truncated = false;
