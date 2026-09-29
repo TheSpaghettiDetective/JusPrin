@@ -3824,10 +3824,22 @@ private:
         const wxString colour_before = SetupCommands::current_colour();
         const auto     filaments     = SetupCommands::compatible_filaments();
 
-        row->open_filament_menu();
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(wxWindow::FindWindowByName("Printer and filament", row));
+        check(chip != nullptr, "filament_chip_present_for_keyboard_menu");
+        if (chip == nullptr) return;
+        // A real pointer activation resets the trigger's keyboard-open flag;
+        // calling StatusRow directly leaves the previous visit's flag behind.
+        auto& trigger = chip->filament_half();
+        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
+            wxMouseEvent mouse(type);
+            mouse.SetPosition({trigger.GetSize().x / 2, trigger.GetSize().y / 2});
+            mouse.SetEventObject(&trigger);
+            trigger.GetEventHandler()->ProcessEvent(mouse);
+        }
         HeaderMenu* menu = visible_header_menu();
         check(menu != nullptr, "filament_menu_opens_for_the_keyboard");
         if (menu == nullptr || filaments.empty()) return;
+        check(menu->selected_item() == nullptr, "mouse_opened_filament_menu_starts_unselected");
         const auto key = [&](int code) {
             wxKeyEvent event(wxEVT_CHAR_HOOK);
             event.m_keyCode = code;
