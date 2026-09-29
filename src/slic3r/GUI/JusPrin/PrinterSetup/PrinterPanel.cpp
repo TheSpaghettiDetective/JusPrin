@@ -102,9 +102,6 @@ void PrinterPanel::build_runtime()
                     close_to_printer_settings();
             });
     } else {
-        Agent::AgentSessionProfile profile;
-        profile.notes_in_context = true;
-        host.set_session_profile(std::move(profile));
         host.set_navigation_state_provider([this] {
             return nlohmann::json{{"focused", true}, {"returnLabel", m_return_label.ToStdString()}};
         });
@@ -113,9 +110,10 @@ void PrinterPanel::build_runtime()
         });
         m_web_view->set_error_fallback_actions(m_return_label, _L("Open filament settings"),
                                                [this] { close(); }, [this] { close_to_filament_settings(); });
-        host.post_note("The person opened filament settings help for slot " + std::to_string(m_filament_slot + 1) +
-                       (m_filament_name.empty() ? "." : " (" + m_filament_name + ").") +
-                       " The current workspace state is authoritative if the preset changes.");
+        host.post_assistant_message("I can help with settings for " +
+                                    (m_filament_name.empty() ? "the filament" : m_filament_name) +
+                                    " in slot " + std::to_string(m_filament_slot + 1) +
+                                    ". What would you like to change?");
     }
     // Setting the agent up in here is the same act as setting it up anywhere
     // else; the rest of the shell has to look again afterwards.

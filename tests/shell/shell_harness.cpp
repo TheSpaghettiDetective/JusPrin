@@ -560,6 +560,7 @@ struct HarnessState
     Mode mode{Mode::Shell};
     bool mcp_bridge{false};
     bool header_visual{false};
+    bool task_chat_configured{false};
     std::optional<bool> dark_appearance;
     fs::path capture_dir;
     // --printer-connect-capture: the connect flow only, pictured.
@@ -4130,6 +4131,11 @@ private:
                 const auto& document = installed_shell()->persistence()->document();
                 self->check(document.messages(document.active_conversation_id()).size() == self->m_header_project_chat_count,
                             "header_filament_chat_does_not_change_saved_project_chat");
+                const auto& task_document = panel->persistence()->document();
+                const auto& task_messages = task_document.messages(task_document.active_conversation_id());
+                self->check(task_messages.size() == 1 && task_messages.front().role == Agent::MessageRole::Assistant &&
+                                task_messages.front().text.find("slot 1") != std::string::npos,
+                            "header_filament_chat_opens_with_filament_context");
                 self->live_capture_themed("prepare_filament_chat");
                 self->live_send("shell_action", {{"action", "open_filament_settings"}});
                 self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
@@ -7526,6 +7532,10 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PrinterMenu;
         else if (argument == "--task-chat")
             state->mode = HarnessState::Mode::TaskChat;
+        else if (argument == "--task-chat-configured") {
+            state->mode = HarnessState::Mode::TaskChat;
+            state->task_chat_configured = true;
+        }
         else if (argument == "--printer-menu-capture") {
             if (++index == argc) {
                 std::cerr << "--printer-menu-capture requires an output directory\n";
@@ -7582,10 +7592,10 @@ int main(int argc, char** argv)
     if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
     fs::create_directories(data_directory / "log");
-    if (state->mode == HarnessState::Mode::LiveAgentUnavailable) {
-        // The setup key check in this scenario must exercise the real host,
-        // page, and HTTP transport without reaching a real provider. A closed
-        // local port gives a genuine connection failure to surface.
+    if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured) {
+        // The unavailable setup check exercises a connection failure. The
+        // configured task-chat capture never sends a turn, but also uses the
+        // closed port so its placeholder key cannot reach a provider.
         wxSetEnv("JUSPRIN_OPENAI_ENDPOINT", "http://127.0.0.1:1/v1/responses");
     }
 
@@ -7610,16 +7620,19 @@ int main(int argc, char** argv)
 #endif
         if (state->mode == HarnessState::Mode::LiveAgent ||
             state->mode == HarnessState::Mode::ManualLiveAgent || state->mode == HarnessState::Mode::PrinterLive ||
-            state->mode == HarnessState::Mode::LiveAgentUnavailable) {
-            // The base config has the Agent off: no provider, no key, no
-            // consent, exactly what a fresh install looks like.
+            state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured) {
+            // The base config has the Agent off, like a fresh install. Only
+            // the configured task-chat visual run adds a placeholder key.
             const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
                                       state->mode == HarnessState::Mode::ManualLiveAgent ||
-                                      state->mode == HarnessState::Mode::PrinterLive;
+                                      state->mode == HarnessState::Mode::PrinterLive || state->task_chat_configured;
             const std::string consent = live_enabled ? "true" : "false";
+            const std::string placeholder = state->task_chat_configured ?
+                ",\n    \"openai_api_key\": \"visual-test-placeholder\"" : "";
             const std::string to = "\"jusprin_agent\": {\n    \"cloud_consent\": " + consent +
-                                   ",\n    \"enabled\": true,\n    \"model\": \"gpt-5.4-mini\",\n    \"provider\": \"openai\"\n  }";
+                                   ",\n    \"enabled\": true,\n    \"model\": \"gpt-5.4-mini\"" + placeholder +
+                                   ",\n    \"provider\": \"openai\"\n  }";
             const std::size_t pos = config.find(from);
             if (pos != std::string::npos)
                 config.replace(pos, from.size(), to);

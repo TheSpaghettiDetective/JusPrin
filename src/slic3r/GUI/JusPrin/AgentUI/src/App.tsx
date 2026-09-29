@@ -359,6 +359,7 @@ export function App({
           exportedCopies={state.exportedCopies}
           physicalPrints={state.physicalPrints}
           changes={state.changes.filter((change) => change.conversationId === state.activeConversationId)}
+          answeredState={!state.navigation.focused}
           onRetry={(messageId) => client.send('retry_message', { messageId })}
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
@@ -566,6 +567,7 @@ export function App({
         key={`composer-${state.context?.sessionId}-${state.activeConversationId}`}
         disabled={unavailable}
         disabledReason={notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
+        placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
         streaming={streaming}
         initialText={state.draft}
         attachments={stagedAttachments}
