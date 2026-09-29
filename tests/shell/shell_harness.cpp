@@ -894,7 +894,7 @@ private:
         // "+ Add printer" on Home, as the page sends it.
         home->backend().add_printer();
         check(panel->IsShown(), "panel_opens_from_add_printer");
-        check(home->IsShown(), "panel_opens_on_home");
+        check(!home->IsShownOnScreen(), "panel_covers_home");
         const nlohmann::json add = panel->session_json();
         check(add.value("mode", "") == "add" && add.value("printerName", "x").empty(), "panel_adds_with_no_printer_yet");
         check(add["context"].contains("printers") && !add["context"].contains("printer"), "panel_sends_the_printer_list");
@@ -906,6 +906,10 @@ private:
         check(tip, "panel_offers_the_photo_path_in_words");
 
         // A printer to change: the fixture's own profile saved under a name.
+        // Back restores Home before its next printer action can be chosen.
+        panel->close();
+        wxYield();
+        check(!panel->IsShown() && home->IsShownOnScreen(), "panel_add_returns_to_home_before_change");
         const std::string named = Printers::add_named_printer(*m_plater, "Lab Printer", {});
         home->backend().open_printer_settings("named:" + named);
         check(panel->IsShown(), "panel_opens_from_printer_settings");
@@ -3994,10 +3998,22 @@ private:
         const wxString colour_before = SetupCommands::current_colour();
         const auto     filaments     = SetupCommands::compatible_filaments();
 
-        row->open_filament_menu();
+        auto* chip = dynamic_cast<PrinterFilamentChip*>(wxWindow::FindWindowByName("Printer and filament", row));
+        check(chip != nullptr, "filament_chip_present_for_keyboard_menu");
+        if (chip == nullptr) return;
+        // A real pointer activation resets the trigger's keyboard-open flag;
+        // calling StatusRow directly leaves the previous visit's flag behind.
+        auto& trigger = chip->filament_half();
+        for (auto type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
+            wxMouseEvent mouse(type);
+            mouse.SetPosition({trigger.GetSize().x / 2, trigger.GetSize().y / 2});
+            mouse.SetEventObject(&trigger);
+            trigger.GetEventHandler()->ProcessEvent(mouse);
+        }
         HeaderMenu* menu = visible_header_menu();
         check(menu != nullptr, "filament_menu_opens_for_the_keyboard");
         if (menu == nullptr || filaments.empty()) return;
+        check(menu->selected_item() == nullptr, "mouse_opened_filament_menu_starts_unselected");
         const auto key = [&](int code) {
             wxKeyEvent event(wxEVT_CHAR_HOOK);
             event.m_keyCode = code;
@@ -4392,7 +4408,8 @@ private:
                     "header_navigation_keeps_project",[self] {
                         self->check(self->m_plater->model().objects.size() >= 2,"header_navigation_preserves_objects");
                         self->verify_unused_slot_fades();
-                        self->verify_print_preflight(PrintAction::Print);
+                        // Adding and removing a filament slot invalidates the
+                        // earlier slice. Check Print after slicing again.
                         self->begin_slice_all_warm();
                     });
             });
@@ -4487,6 +4504,7 @@ private:
                    [self = shared_from_this()] {
                        self->check(!self->m_plater->is_preview_shown(), "slice_all_stays_in_prepare");
                        self->check(!self->m_plater->get_preview_canvas3D()->is_all_plates_selected(), "slice_all_does_not_select_hidden_preview");
+                       self->verify_print_preflight(PrintAction::Print);
                        self->verify_print_preflight(PrintAction::PrintAll);
                        // Restore the deterministic first-plate state for later phases.
                        self->m_plater->select_plate(0);
