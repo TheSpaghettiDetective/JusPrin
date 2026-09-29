@@ -1,0 +1,21 @@
+<pasted_content id="f8db">
+are presets Uniquely identified by the name rather than an id in upstream orcaslcier?
+Yes. Within one preset type, upstream OrcaSlicer identifies a preset by its name, and there is no separate local id.
+
+* Name is the key. Preset.hpp:371 says: "The preset name shall be unique across a single PresetCollection." Each type (printers, filaments, processes) has its own `PresetCollection` (the list of all presets of that type), kept sorted by name. `find_preset(name)` at Preset.hpp:689 does a binary search on that name.
+* Unique per type, not across types. A printer preset and a filament preset can share a name.
+* What else resembles an id:
+   * `setting_id` (Preset.hpp:288) is the preset's id in Bambu's cloud database, used only for cloud sync. Local lookups don't use it.
+   * `alias` (Preset.hpp:266) is a display name shared by a family of stock filament presets. It is not unique.
+   * `renamed_from` (Preset.hpp:270) lets a renamed stock profile still be found under its old name.
+* Project files use names too. A .3mf records `printer_settings_id = "Bambu Lab A1 mini 0.4 nozzle"`, and loading the project looks up that name.
+
+This matters for the bug in one specific way. The fork's `PrinterConversation::saved()` (PrinterConversation.cpp:224) also matches by name. But "Printer settings…" passes it the header's label (PrinterMenu.cpp:174), not necessarily the preset name:
+
+* For one of your saved printers, the label is the preset name, so the lookup works.
+* For a stock profile, the label is `printer_model`, here "Bambu Lab A1 mini". The preset is actually named "Bambu Lab A1 mini 0.4 nozzle".
+
+Even with the full preset name, the lookup would still have missed, because the list it searches only contains your saved printers, never stock profiles. So the name mismatch didn't cause what you saw. It would matter if the menu is changed to pass the preset name so the conversation can recognize the stock profile and point you to your saved "Bambu Lab A1 mini 2".
+</pasted_content id="f8db">
+
+find all the places where similar bug exists. i.e., a label is passed to lookup for a preset, when the name should be used instead
