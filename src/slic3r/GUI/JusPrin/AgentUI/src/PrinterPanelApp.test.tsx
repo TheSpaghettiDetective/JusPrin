@@ -296,6 +296,22 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-connect', decision: 'approve', input: { credential: 'secretcode' } });
   });
 
+  it('draws a settings change as a card to approve, with its title', async () => {
+    const change: ToolActivityInfo = {
+      actionId: 't-settings', correlationId: 'm-1', server: 'jusprin', tool: 'settings_apply_patch',
+      title: 'Change 1 settings of "Lab Printer": machine_start_gcode; save it',
+      arguments: { scope: 'printer', target: { preset: 'Lab Printer' }, changes: { machine_start_gcode: 'G28' }, persistAs: 'Lab Printer' },
+      actionClass: 'mutation', requiresApproval: true, sessionId: '1', expectedRevision: 1, state: 'pending',
+      progress: { current: 0, total: 1 },
+    };
+    const read = { ...change, actionId: 't-read', tool: 'settings_get', title: 'Read settings', requiresApproval: false, state: 'succeeded' as const };
+    const host = open(state({ toolActivities: [read, change] }));
+    expect(screen.queryByText('Read settings')).toBeNull();
+    expect(screen.getByText('Change 1 settings of "Lab Printer": machine_start_gcode; save it')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-settings', decision: 'approve' });
+  });
+
   it('follows the attempt the app reports, and Cancel stops that attempt', async () => {
     const connect: ToolActivityInfo = {
       actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to 192.168.1.42',

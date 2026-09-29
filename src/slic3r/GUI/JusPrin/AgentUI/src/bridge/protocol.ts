@@ -33,6 +33,7 @@ export type PageMessageType =
   | 'printer_action'
   | 'printer_instructions'
   | 'printer_opening'
+  | 'filament_instructions'
   | 'shell_action';
 
 export type HostMessageType =
@@ -423,6 +424,18 @@ export interface AddedPrinterInfo {
   nozzle: number; // mm
 }
 
+// The filament chat's facts, which its instructions state
+// (filamentInstructions.ts): one filament preset, by name.
+export interface FilamentSessionPayload {
+  kind: 'filament';
+  slot: number; // 1-based, as the person reads it
+  preset: string;
+  shown: string; // what the header calls it
+  material: string;
+  stock: boolean; // the settings OrcaSlicer comes with, saved only as a copy
+  copyName?: string; // the copy a change to a stock filament is saved as
+}
+
 export interface PrinterSessionPayload {
   mode: 'add' | 'change' | 'connect';
   // The printer the conversation is about; empty until one is added.
@@ -456,6 +469,11 @@ export interface PrinterContext {
     provider: 'bambu' | 'host';
     // Bambu's network plug-in is missing, so nothing can reach it yet.
     needsNetworkPlugin?: boolean;
+    // One of OrcaSlicer's own printer profiles, selected in the project,
+    // rather than a printer the person added, and the name a copy of it is
+    // saved under.
+    stock?: boolean;
+    copyName?: string;
   };
 }
 
@@ -475,7 +493,7 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
-  session?: PrinterSessionPayload; // only in the printer panel
+  session?: PrinterSessionPayload | FilamentSessionPayload; // only in the printer and filament chats
   navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 

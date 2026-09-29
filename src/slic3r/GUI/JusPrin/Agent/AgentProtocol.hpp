@@ -90,6 +90,9 @@ inline constexpr const char* kPrinterAction       = "printer_action";
 inline constexpr const char* kPrinterInstructions = "printer_instructions";
 // Its opening line, which the page writes and the app posts.
 inline constexpr const char* kPrinterOpening      = "printer_opening";
+// The filament chat's instructions, which the page writes from the facts
+// the app sends as the state's session.
+inline constexpr const char* kFilamentInstructions = "filament_instructions";
 inline constexpr const char* kShellAction          = "shell_action";
 
 } // namespace Protocol

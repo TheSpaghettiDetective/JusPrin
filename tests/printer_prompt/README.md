@@ -2,7 +2,9 @@
 
 The printer panel's assistant is a system prompt
 (`src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts`), five printer
-tools, and the chat. `run_prompt_tests.py` sends the live model the same
+tools and the four settings tools, and the chat. The header's filament chat
+is the same panel with its own prompt (`filamentInstructions.ts`) and the
+settings tools alone; its cases are the `filament-*` ones. `run_prompt_tests.py` sends the live model the same
 requests the app sends. It answers the tools the way the app answers them for
 a fixed printer, then checks what the model did. The app does not run.
 
@@ -25,8 +27,8 @@ only by the hosts that answer the app's notes, and on no other model (decided
 
 A run is one sample of a model that answers differently each time, so each case
 runs several times, in parallel, and reports a count. By default one invocation
-runs at most 100 conversations (`RUN_BUDGET`), shared by the cases it runs: 3
-each for the 29 cases, and at most 20 for a case run alone. `--runs N` sets
+runs at most 100 conversations (`RUN_BUDGET`), shared by the cases it runs: 2
+each for the 36 cases, and at most 20 for a case run alone. `--runs N` sets
 the count per case instead; use it to look closer at one case. By default
 every run must pass; `--must-pass N` lowers the bar. `--verbose` prints every
 conversation, not only the failed ones.
@@ -136,8 +138,14 @@ need nothing saved, requests that belong to another session -- and each checks
 what must not happen as well as what should. The Change and Connect ones
 answer the tools as `PrinterConversation` does for one saved printer
 (`SavedPrinterCase`), including its refusals (`preflight_tool`: no finding or
-adding outside an Add conversation, no change to another printer), and fail
-on any call that adds, changes or connects when that is not what was asked.
+adding outside an Add conversation, no change to another printer, no settings
+but that printer's), and fail on any call that adds, changes, connects or puts
+a settings change on a card when that is not what was asked. The settings
+tools read and check a fixed set of that printer's settings, as
+`OrcaWorkspaceAdapter` answers for them: the printer is not the one the
+project uses, so a change without `persistAs` is `not_selected`; a stock
+profile (`stock`) refuses saving over itself with `read_only_preset`; bed size
+and nozzle size are read-only.
 
 - Change, about a saved Anycubic Kobra 3 (a print host, not connected):
   - `change-add-another`: "I also have a Prusa MK4S, can you add it too?" The
@@ -145,13 +153,20 @@ on any call that adds, changes or connects when that is not what was asked.
     when it says another printer is added from Home and does not say this one
     was added. It measures whether the model recovers from the refusal, which
     is what would justify offering fewer tools in a Change conversation.
-  - `change-ask-start-gcode`: "what's the current start g-code?", a setting no
-    tool reads. Fails when the reply treats the printer as not yet added, says
-    the setting needs a network connection (it is on this computer), or asks
-    which printer this is. Reported 2026-09-28: a reply offered to add the
+  - `change-ask-start-gcode`: "what's the current start g-code?" Passes when
+    it is read with `settings_get` and quoted. Fails when the reply treats the
+    printer as not yet added, says the setting needs a network connection (it
+    is on this computer), or asks which printer this is. Reported 2026-09-28,
+    before the settings tools were offered here: a reply offered to add the
     printer, and another, about a Bambu Lab A1's z offset, asked "Which printer
     is it?". That z-offset conversation passed 10 of 10 on DeepSeek with the
     split prompt, so it has no case of its own.
+  - `change-edit-start-gcode`: "add G29 right after the G28 line in the start
+    g-code". Passes when the change goes on a card saved under the printer's
+    own name, with G29 after G28.
+  - `change-bed-size`: "make the bed 250 by 250", which the settings tools
+    refuse. Passes when nothing is changed and the reply says the person can
+    change it in the app's printer settings, without claiming to open them.
   - `change-ask-nozzle`: "what nozzle size is it set up for?" Passes when the
     reply says 0.4.
   - `change-loaded-filament`, `change-plate`: a spool loaded, a plate swapped.
@@ -160,6 +175,11 @@ on any call that adds, changes or connects when that is not what was asked.
     is saved and the reply names 0.2, 0.4, 0.6 and 0.8.
   - `change-then-connect`: "can you connect it…?", then the address. Passes
     when the card opens for that address and no address was made up first.
+- Change, about the settings OrcaSlicer ships for the Bambu Lab A1 mini,
+  selected in the project (the header's Printer settings… on a project that
+  uses them): `change-stock-copy`, "set the retraction length to 1 mm". Passes
+  when the change goes on a card saved as `Bambu Lab A1 mini 0.4 nozzle - Copy`,
+  the copy `read_only_preset` suggests.
 - Change, about a connected Bambu Lab A1 mini holding PLA and PETG:
   `change-ask-loaded`, "what filament is loaded right now?" Passes when the
   reply names both.
@@ -253,6 +273,65 @@ app note with nothing or with noise (2026-09-28: StreamLake, Parasail and Relace
 empty 3 of 3, DeepInfra junk; Alibaba, Novita, Baidu and AtlasCloud correct).
 Unpinned, those cases measure which host a request landed on. Check a new
 model's hosts with a note as the last message before trusting its counts.
+
+## The filament chat's cases (2026-09-29)
+
+A filament chat about Bambu PLA Basic @BBL X1C, a filament OrcaSlicer ships
+with two nozzle temperatures (one per nozzle kind), in slot 1
+(`FilamentCase`, answered as `PrinterPanel::filament_preflight` and the
+adapter answer): the settings tools alone, and a refusal of any other target
+or of an apply without `persistAs`.
+
+- `filament-hotter`: "make the nozzle 5 degrees hotter". Passes when the
+  temperature is read first and 225,225 goes on a card for every layer, saved
+  as the copy the facts name.
+- `filament-ask-temperature`: "what nozzle temperature does it print at?"
+  Passes when it is read and 220 is said, with no card.
+- `filament-other-settings`: "also make the walls thicker". Passes when no
+  card opens and the reply says the print's settings are changed elsewhere.
+- `filament-own-in-place`: a filament the person saved ("My PLA"), "lower the
+  nozzle temperature to 210". Passes when 210,210 goes on a card for every
+  layer, saved under its own name.
+
+20 runs each: 19, 20, 20 and 20. The miss said "preset" before a tool call.
+Before the rule that a temperature without layers named is every layer's,
+the model asked whether the first layer should change too (6 and 12 of 20);
+before it was told to say "settings", 5 of 20 replies said "preset" or
+"profile". `--prompt-rev` does not apply to these cases before the commit
+that adds `filamentInstructions.ts`.
+
+## Baseline after offering the settings tools (2026-09-29)
+
+The printer panel now also offers `settings_search`, `settings_get`,
+`settings_preview_patch` and `settings_apply_patch`, answered by
+`SavedPrinterCase.settings` as the app answers them. Change and Connect
+sessions get a scope rule that includes a printer's settings and a section of
+settings rules; a stock profile's facts name the copy a change is saved as
+(`copyName`). The Add prompt is unchanged, though Add sessions are offered the
+same tools. Full suite, three runs per case, beside the previous prompt
+(`--prompt-rev HEAD`) with the same tools on the same hosts:
+
+| Case | Previous prompt | This prompt |
+|---|---|---|
+| `change-ask-start-gcode` | 1 | 3 |
+| `change-edit-start-gcode` | 0 | 1 |
+| `change-stock-copy` | 0 | 3 |
+| every other case, together | 82/87 | 83/87 |
+
+The other cases' misses were single runs on both sides, mostly in different
+cases, which is noise at three runs. Each settings case alone, 20 runs:
+`change-ask-start-gcode` 20 and 20, `change-edit-start-gcode` 20 and 19 (the
+miss said "preset"), `change-bed-size` 19 and 20 (the miss was this runner crashing on a string
+`target`, since fixed), `change-stock-copy` 20 and
+20 once the facts named the copy -- 11 before, when the model had to learn the
+name from `read_only_preset` and often invented one.
+
+DeepSeek V4 Flash sometimes sends `target` as a string of JSON. It comes in
+bursts: in one full run both `change-edit-start-gcode` failures were eight
+such calls in a row, while a later batch of 80 conversations had one, which
+the model then sent correctly. The registry now says so when it happens
+("target must be a JSON object, not a string holding one"); too few string
+targets have been seen since to measure whether that ends the bursts.
 
 ## Historical baseline before removing the dialog and finish tools
 

@@ -35,6 +35,68 @@ inline bool writable_setting(const std::string& key)
     return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
 }
 
+// The filament keys the tools may write: temperatures, cooling, flow and
+// custom g-code. Tab::load_config on the filament tab opens no dialog for
+// them except the two OrcaSettings refuses first (volumetric speed below 0.5,
+// and a first-layer temperature too far from the other layers' at save).
+inline bool writable_filament_setting(const std::string& key)
+{
+    constexpr std::string_view keys[] = {
+        "nozzle_temperature", "nozzle_temperature_initial_layer", "nozzle_temperature_range_low",
+        "nozzle_temperature_range_high", "cool_plate_temp", "cool_plate_temp_initial_layer", "eng_plate_temp",
+        "eng_plate_temp_initial_layer", "hot_plate_temp", "hot_plate_temp_initial_layer", "textured_plate_temp",
+        "textured_plate_temp_initial_layer", "supertack_plate_temp", "supertack_plate_temp_initial_layer",
+        "textured_cool_plate_temp", "textured_cool_plate_temp_initial_layer", "fan_min_speed", "fan_max_speed",
+        "fan_cooling_layer_time", "slow_down_layer_time", "slow_down_min_speed", "close_fan_the_first_x_layers",
+        "overhang_fan_speed", "overhang_fan_threshold", "additional_cooling_fan_speed", "filament_flow_ratio",
+        "enable_pressure_advance", "pressure_advance", "filament_max_volumetric_speed", "filament_density",
+        "filament_cost", "filament_start_gcode", "filament_end_gcode", "filament_notes"};
+    return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
+}
+
+// The printer keys the tools may write: custom g-code, height, layer-height
+// limits, retraction and machine limits. Not the keys that decide which
+// filament and process fit the printer or how many extruders it has -- bed
+// shape, nozzle size and type, extruder count, printer model -- which change
+// with a different printer or nozzle, through printer_setup or printer_change.
+inline bool writable_printer_setting(const std::string& key)
+{
+    constexpr std::string_view keys[] = {
+        "machine_start_gcode", "machine_end_gcode", "before_layer_change_gcode", "layer_change_gcode",
+        "change_filament_gcode", "machine_pause_gcode", "printable_height", "max_layer_height", "min_layer_height",
+        "z_offset", "printer_notes", "retraction_length", "retraction_speed", "deretraction_speed", "z_hop",
+        "retract_restart_extra", "wipe", "retract_before_wipe", "wipe_distance", "use_firmware_retraction",
+        "machine_max_acceleration_x", "machine_max_acceleration_y", "machine_max_acceleration_z",
+        "machine_max_acceleration_e", "machine_max_acceleration_extruding", "machine_max_acceleration_retracting",
+        "machine_max_acceleration_travel", "machine_max_speed_x", "machine_max_speed_y", "machine_max_speed_z",
+        "machine_max_speed_e", "machine_max_jerk_x", "machine_max_jerk_y", "machine_max_jerk_z", "machine_max_jerk_e"};
+    return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
+}
+
+// An object's writable keys are the process ones it may override; the caller
+// checks that the key is one an object can hold.
+inline bool writable_setting(const std::string& key, SettingsScope scope)
+{
+    switch (scope) {
+    case SettingsScope::Process:
+    case SettingsScope::Object: return writable_setting(key);
+    case SettingsScope::Filament: return writable_filament_setting(key);
+    case SettingsScope::Printer: return writable_printer_setting(key);
+    }
+    return false;
+}
+
+inline const char* scope_name(SettingsScope scope)
+{
+    switch (scope) {
+    case SettingsScope::Process: return "process";
+    case SettingsScope::Object: return "object";
+    case SettingsScope::Filament: return "filament";
+    case SettingsScope::Printer: return "printer";
+    }
+    return "process";
+}
+
 // Case-folded for a substring search over ASCII keys and labels. Not a
 // locale-aware fold: Orca's setting keys are ASCII, and a preset name that is
 // not still matches on the part that is.

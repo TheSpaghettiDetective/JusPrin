@@ -2,7 +2,7 @@
 """Printer panel conversations against the live model, without the app.
 
 The printer panel's assistant is a system prompt (printerInstructions.ts),
-five printer tools and the chat. This script sends the model the same
+five printer tools and the four settings tools, and the chat. This script sends the model the same
 requests the app sends, answers the tools the way the app answers them for a
 fixed printer, and checks what the model does. A case is a short scripted
 conversation; each run of it is one sample of a model that answers
@@ -174,6 +174,22 @@ def invalid_arguments(tool, arguments):
         return {"code": "invalid_arguments",
                 "message": f"Missing {missing}, unexpected {extra}. Nothing was proposed. "
                            "Check the arguments against this tool's parameters and call it again."}
+    # ToolRegistry's valid_settings_scope and valid_persist_as: each scope
+    # takes exactly its own target, as an object.
+    if tool.startswith("settings_"):
+        scope, target = arguments.get("scope"), arguments.get("target")
+        shapes = {"process": target is None,
+                  "object": isinstance(target, dict) and set(target) == {"objectId"} and isinstance(target["objectId"], str),
+                  "filament": isinstance(target, dict) and set(target) == {"preset"} and isinstance(target["preset"], str) and target["preset"],
+                  "printer": isinstance(target, dict) and set(target) == {"preset"} and isinstance(target["preset"], str) and target["preset"]}
+        persist = arguments.get("persistAs")
+        if not shapes.get(scope, False) or (persist is not None and (scope == "object" or not isinstance(persist, str) or not persist)):
+            message = ("The tool arguments do not match the registered contract. scope process takes no target; object "
+                       "takes target.objectId; filament and printer take target.preset, the preset's name. persistAs is "
+                       "not for object.")
+            if isinstance(target, str):
+                message += ' target must be a JSON object, not a string holding one: "target": {"preset": "<name>"}.'
+            return {"code": "invalid_arguments", "message": message}
     return None
 
 
@@ -225,7 +241,8 @@ class Conversation:
         rejected = 0
         for _ in range(MAX_REQUESTS_PER_TURN):
             response = post({"model": self.model, "store": False, "parallel_tool_calls": False,
-                             "instructions": self.instructions, "tools": TOOLS, "input": turn, **self.routing},
+                             "instructions": self.instructions, "tools": getattr(self.case, "tools", TOOLS), "input": turn,
+                             **self.routing},
                             self.key, self.endpoint)
             output = response.get("output", [])
             turn += output
@@ -637,7 +654,19 @@ class ChangeNozzleClose(Finishing):
 
 # What the model must never do while talking about a printer it already has.
 ADDING = ("printer_identify", "printer_add")
-MUTATIONS = ADDING + ("printer_change", "printer_connect")
+MUTATIONS = ADDING + ("printer_change", "printer_connect", "settings_apply_patch")
+SETTINGS = ("settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch")
+
+# A printer's settings as the settings tools read them: value, writable, type,
+# label. Every Change and Connect case's printer has these.
+PRINTER_SETTINGS = {
+    "machine_start_gcode": ("G28 ; home all axes\nG1 Z5 F5000 ; lift nozzle", True, "string", "Machine start G-code"),
+    "machine_end_gcode": ("M104 S0\nM140 S0\nG28 X0", True, "string", "Machine end G-code"),
+    "retraction_length": ("0.8", True, "float[]", "Length"),
+    "z_hop": ("0.4", True, "float[]", "Z hop height"),
+    "nozzle_diameter": ("0.4", False, "float[]", "Nozzle diameter"),
+    "printable_area": ("0x0,220x0,220x220,0x220", False, "point[]", "Printable area"),
+}
 
 KOBRA = {"name": "Anycubic Kobra 3", "model": "Anycubic Kobra 3", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
          "spools": [], "connected": False}
@@ -672,8 +701,22 @@ class SavedPrinterCase:
             printer["needsNetworkPlugin"] = True
         return {"mode": cls.mode, "printerName": cls.printer["name"], "blocks": [], "context": {"printer": printer}}
 
+    stock = False  # the settings OrcaSlicer ships for the model, selected in the project
+    selected = False  # the printer the project uses, so an unsaved change can live in its edited copy
+
     def tool(self, name, arguments):
         self.calls.append((name, arguments))
+        if name in SETTINGS:
+            return self.settings(name, arguments)
+        # PrinterConversation::preflight_tool: a stock profile holds no nozzle
+        # or connection of the person's own.
+        if self.stock and name in ("printer_change", "printer_connect", "printer_connection_status"):
+            return {"error": {"code": "stock_profile",
+                              "message": f'"{self.printer["name"]}" is the settings OrcaSlicer comes with for this model, not a '
+                                         "printer the person has added, so its nozzle and connection are not saved. Its other "
+                                         "settings are changed by saving a copy, which is then theirs (settings_apply_patch with "
+                                         "persistAs). To keep a nozzle or a connection, they add the printer with + Add printer "
+                                         "on Home."}}, False
         # PrinterConversation::preflight_tool: finding and adding belong to an
         # Add session.
         if name in ADDING:
@@ -688,6 +731,70 @@ class SavedPrinterCase:
         if name == "printer_connect":
             return self.connect(arguments)
         return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
+
+    def settings(self, name, arguments):
+        """PrinterConversation::preflight_tool for the settings tools, then the
+        adapter's answer for this printer (OrcaWorkspaceAdapter)."""
+        own = self.printer["name"]
+        # After two refusals the runner hands a malformed call through; the
+        # registry refuses it every time.
+        if problem := invalid_arguments(name, arguments):
+            return {"error": problem}, False
+        if arguments.get("scope") != "printer":
+            return {"error": {"code": "not_in_this_conversation",
+                              "message": f'Only this printer\'s settings are changed here: pass scope printer and target.preset "{own}".'}}, False
+        if (arguments.get("target") or {}).get("preset") != own:
+            return {"error": {"code": "other_printer", "message": f'This conversation can change only "{own}". Another saved printer '
+                                                                  "is changed from Printer settings… in its menu on Home."}}, False
+        context = {"scope": "printer", "presetName": own, "sessionId": "1", "revision": 7, "truncated": False}
+        if name == "settings_search":
+            words = [w for w in re.split(r"[\s,;]+", str(arguments.get("query", "")).lower()) if w]
+            items = [{"key": key, "type": kind, "label": label, "category": "Machine", "description": label, "unit": "",
+                      "enumValues": [], "enumLabels": [], "writable": writable, "truncated": False}
+                     for key, (_, writable, kind, label) in PRINTER_SETTINGS.items()
+                     if not words or any(w in key or w in label.lower() for w in words)]
+            return {**context, "items": items, "nextCursor": ""}, False
+        if name == "settings_get":
+            items, unknown = [], []
+            for key in arguments.get("keys", []):
+                if key in PRINTER_SETTINGS:
+                    value, writable, kind, label = PRINTER_SETTINGS[key]
+                    items.append({"key": key, "value": value, "type": kind, "label": label, "unit": "",
+                                  "differsFromPreset": False, "differsFromSystem": False, "writable": writable})
+                else:
+                    unknown.append({"key": key, "code": "unknown_setting", "message": "Unknown setting.", "allowed": [],
+                                    "suggestions": [], "truncated": False})
+            return {**context, "items": items, "unknownKeys": unknown}, False
+        issues, changes = [], []
+        for key, value in (arguments.get("changes") or {}).items():
+            if key not in PRINTER_SETTINGS:
+                issues.append({"key": key, "code": "unknown_setting", "message": "Unknown setting."})
+            elif not PRINTER_SETTINGS[key][1]:
+                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "This printer setting is read-only."})
+            else:
+                changes.append({"key": key, "before": PRINTER_SETTINGS[key][0], "after": str(value)})
+        persist = arguments.get("persistAs")
+        if not issues:
+            if persist is None and not self.selected:
+                issues.append({"key": "", "code": "not_selected", "message": f'"{own}" is not the printer preset being edited, '
+                                                                             "so a change to it is saved: pass persistAs."})
+            elif persist == own and self.stock:
+                issues.append({"key": "", "code": "read_only_preset", "suggestions": [own + " - Copy"],
+                               "message": f'"{own}" comes with OrcaSlicer and cannot be overwritten. Save the change as a copy: '
+                                          f'pass persistAs "{own} - Copy".'})
+            elif persist is not None and persist != own and not self.selected:
+                issues.append({"key": "", "code": "not_selected",
+                               "message": f'A copy is saved only of the printer in use; save "{own}" under its own name.'})
+        if name == "settings_preview_patch":
+            return {**context, "valid": not issues, "changes": changes if not issues else [], "dependencies": [],
+                    "issues": issues, "warnings": []}, False
+        if issues:
+            return {"error": {"code": issues[0]["code"], "message": issues[0]["message"]}}, False
+        return {"state": "pending"}, True  # the card waits for the person
+
+    def applied(self):
+        """The settings changes the model asked the person to approve."""
+        return [arguments for _, arguments in self.called("settings_apply_patch")]
 
     def change(self, arguments):
         """PrinterConversation::preflight_tool, then ::change. The case's
@@ -741,18 +848,22 @@ def verdict(problems, fine):
 
 
 class ChangeAskStartGcode(SavedPrinterCase):
-    """The person asks about a setting no tool reads (seen 2026-09-28: the reply
-    offered to add the printer first). Passes when nothing is added or changed
-    and the reply neither treats the printer as not yet added, nor says the
-    setting needs a network connection (it is on this computer), nor asks which
-    printer this is (seen the same day, a Bambu Lab A1 asked about z offset:
-    "Which printer is it?")."""
+    """The person asks about the start g-code (seen 2026-09-28, before the
+    settings tools were offered here: the reply offered to add the printer
+    first). Passes when it is read with the settings tools and quoted, nothing
+    is added or changed, and the reply neither treats the printer as not yet
+    added, nor says the setting needs a network connection (it is on this
+    computer), nor asks which printer this is (seen the same day, a Bambu Lab
+    A1 asked about z offset: "Which printer is it?")."""
 
     name = "change-ask-start-gcode"
 
     def run(self, conversation):
-        last_reply(conversation, "what's the current start g-code?")
+        reply = last_reply(conversation, "what's the current start g-code?")
+        read = [a for _, a in self.called("settings_get") if "machine_start_gcode" in a.get("keys", [])]
         return verdict([self.forbidden(),
+                        "" if read else f"NOT READ {self.called(*SETTINGS)}",
+                        "" if "G28" in reply else "DID NOT QUOTE IT",
                         judged(conversation, "Does the assistant's last message say or imply that this printer has not been "
                                              "added to the app yet, for example by offering to add it?"),
                         judged(conversation, "Does the assistant's last message say or imply that the printer has to be "
@@ -760,6 +871,72 @@ class ChangeAskStartGcode(SavedPrinterCase):
                         judged(conversation, "Does the assistant's last message ask which printer this is, or say it "
                                              "needs to know the printer's model, although the conversation names it?")],
                        "answered without adding or blaming the connection")
+
+
+class ChangeEditStartGcode(SavedPrinterCase):
+    """The person asks for a line in the start g-code. Passes when the change
+    is put to them on a card: this printer's start g-code, keeping G28 and
+    adding G29 after it, saved under the printer's own name; nothing else is
+    changed or added."""
+
+    name = "change-edit-start-gcode"
+
+    def run(self, conversation):
+        last_reply(conversation, "add G29 right after the G28 line in the start g-code")
+        own = self.printer["name"]
+        cards = [a for a in self.applied()
+                 if a.get("persistAs") == own and "G29" in str(a.get("changes", {}).get("machine_start_gcode", "")) and
+                 str(a["changes"]["machine_start_gcode"]).find("G28") < str(a["changes"]["machine_start_gcode"]).find("G29")]
+        return verdict([self.forbidden(ADDING + ("printer_change", "printer_connect")),
+                        "" if cards else f"NO CARD FOR THE CHANGE {self.applied()}"],
+                       "put the change on a card, saved in place")
+
+
+class ChangeStockCopy(SavedPrinterCase):
+    """A change to the settings OrcaSlicer ships for the model, selected in the
+    project (the header's Printer settings… on a project that uses them).
+    Saving over them is refused; passes when the change goes on a card saved
+    as the copy the refusal suggests, and nothing is added."""
+
+    name = "change-stock-copy"
+    printer = {**A1_MINI, "name": "Bambu Lab A1 mini 0.4 nozzle"}
+    provider = "bambu"
+    stock = True
+    selected = True
+
+    @classmethod
+    def session_for(cls):
+        session = super().session_for()
+        session["context"]["printer"]["stock"] = True
+        session["context"]["printer"]["copyName"] = cls.printer["name"] + " - Copy"
+        return session
+
+    def run(self, conversation):
+        last_reply(conversation, "set the retraction length to 1 mm")
+        copy = self.printer["name"] + " - Copy"
+        cards = [a for a in self.applied() if a.get("persistAs") == copy and
+                 str(a.get("changes", {}).get("retraction_length", "")).strip() in ("1", "1.0", "1.00")]
+        return verdict([self.forbidden(ADDING + ("printer_change", "printer_connect")),
+                        "" if cards else f"NO CARD FOR A COPY {self.applied()}"],
+                       "saved as a copy")
+
+
+class ChangeBedSize(SavedPrinterCase):
+    """The bed size, which the settings tools refuse to change. Passes when
+    nothing is changed or added and the reply says the person can change it in
+    the app, without claiming to open it."""
+
+    name = "change-bed-size"
+
+    def run(self, conversation):
+        last_reply(conversation, "make the bed 250 by 250")
+        yes, why = judge(conversation.log, "Does the assistant's last message tell the person they can change the bed size "
+                                           "themselves in the app's printer settings?")
+        return verdict([self.forbidden(),
+                        "" if yes else "DID NOT SAY WHERE: " + why,
+                        judged(conversation, "Does the assistant's last message say it has opened the settings, or will open "
+                                             "them, for the person?")],
+                       "said where to change it")
 
 
 class ChangeAskNozzle(SavedPrinterCase):
@@ -1093,7 +1270,8 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
 # Session payloads for the saved-printer cases.
 for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate, ChangeUnshippedNozzle,
               ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectBambuNotFound, ConnectAskWhy,
-              ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin):
+              ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin, ChangeEditStartGcode,
+              ChangeStockCopy, ChangeBedSize):
     _case.session = _case.session_for()
 
 CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowClose,
@@ -1102,7 +1280,180 @@ CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFrom
                                       ChangeUnshippedNozzle, ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress,
                                       ConnectBambuNotFound, ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
                                       AddManyFit, AddNameStartsTwo, AddUnshippedNozzle, AddFullList,
-                                      ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin)}
+                                      ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin,
+                                      ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize)}
+
+
+# --- The filament chat ---------------------------------------------------------
+#
+# The header's Filament settings… opens a chat about one filament preset with
+# its own instructions (filamentInstructions.ts) and the settings tools alone,
+# which PrinterPanel::filament_preflight holds to that preset and to saving.
+
+FILAMENT_SETTINGS = {
+    "nozzle_temperature": ("220,220", True, "integer[]", "Nozzle temperature"),
+    "nozzle_temperature_initial_layer": ("220,220", True, "integer[]", "Nozzle temperature, first layer"),
+    "textured_plate_temp": ("65", True, "integer[]", "Textured PEI plate temperature"),
+    "fan_max_speed": ("100", True, "integer[]", "Fan max speed"),
+    "filament_type": ("PLA", False, "string[]", "Type"),
+    "filament_diameter": ("1.75", False, "float[]", "Diameter"),
+}
+
+
+class FilamentCase:
+    """A filament chat about one preset, its settings tools answered as the app
+    answers them: PrinterPanel::filament_preflight, then OrcaWorkspaceAdapter.
+    The preset is the one open in its settings tab, and in slot 1."""
+
+    preset = "Bambu PLA Basic @BBL X1C"
+    shown = "Bambu PLA Basic"
+    stock = True
+    tools = [tool for tool in TOOLS if tool["name"] in SETTINGS]
+
+    def __init__(self):
+        self.calls = []
+
+    @classmethod
+    def session_for(cls):
+        session = {"kind": "filament", "slot": 1, "preset": cls.preset, "shown": cls.shown, "material": "PLA",
+                   "stock": cls.stock}
+        if cls.stock:
+            session["copyName"] = cls.preset + " - Copy"
+        return session
+
+    def tool(self, name, arguments):
+        self.calls.append((name, arguments))
+        own = self.preset
+        if problem := invalid_arguments(name, arguments):
+            return {"error": problem}, False
+        if arguments.get("scope") != "filament" or (arguments.get("target") or {}).get("preset") != own:
+            return {"error": {"code": "not_in_this_conversation", "message": "This chat changes the settings of one filament: "
+                                                                             f'pass scope filament and target.preset "{own}".'}}, False
+        if name == "settings_apply_patch" and "persistAs" not in arguments:
+            return {"error": {"code": "not_saved", "message": f'Every change in this chat is saved: pass persistAs "{own}", or '
+                                                              "the copy's name a read_only_preset issue gives."}}, False
+        context = {"scope": "filament", "presetName": own, "sessionId": "1", "revision": 7, "truncated": False}
+        if name == "settings_search":
+            words = [w for w in re.split(r"[\s,;]+", str(arguments.get("query", "")).lower()) if w]
+            items = [{"key": key, "type": kind, "label": label, "category": "Filament", "description": label, "unit": "",
+                      "enumValues": [], "enumLabels": [], "writable": writable, "truncated": False}
+                     for key, (_, writable, kind, label) in FILAMENT_SETTINGS.items()
+                     if not words or any(w in key or w in label.lower() for w in words)]
+            return {**context, "items": items, "nextCursor": ""}, False
+        if name == "settings_get":
+            items, unknown = [], []
+            for key in arguments.get("keys", []):
+                if key in FILAMENT_SETTINGS:
+                    value, writable, kind, label = FILAMENT_SETTINGS[key]
+                    items.append({"key": key, "value": value, "type": kind, "label": label, "unit": "",
+                                  "differsFromPreset": False, "differsFromSystem": False, "writable": writable})
+                else:
+                    unknown.append({"key": key, "code": "unknown_setting", "message": "Unknown setting.", "allowed": [],
+                                    "suggestions": [], "truncated": False})
+            return {**context, "items": items, "unknownKeys": unknown}, False
+        issues, changes = [], []
+        for key, value in (arguments.get("changes") or {}).items():
+            if key not in FILAMENT_SETTINGS:
+                issues.append({"key": key, "code": "unknown_setting", "message": "Unknown setting."})
+            elif not FILAMENT_SETTINGS[key][1]:
+                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "This filament setting is read-only."})
+            elif len(str(value).split(",")) != len(FILAMENT_SETTINGS[key][0].split(",")):
+                count = len(FILAMENT_SETTINGS[key][0].split(","))
+                issues.append({"key": key, "code": "invalid_setting_value",
+                               "message": f"This setting holds {count} values; give {count}, separated by commas."})
+            else:
+                changes.append({"key": key, "before": FILAMENT_SETTINGS[key][0], "after": str(value)})
+        persist = arguments.get("persistAs")
+        if not issues and persist == own and self.stock:
+            issues.append({"key": "", "code": "read_only_preset", "suggestions": [own + " - Copy"],
+                           "message": f'"{own}" comes with OrcaSlicer and cannot be overwritten. Save the change as a copy: '
+                                      f'pass persistAs "{own} - Copy".'})
+        if name == "settings_preview_patch":
+            return {**context, "valid": not issues, "changes": changes if not issues else [], "dependencies": [],
+                    "issues": issues, "warnings": []}, False
+        if issues:
+            return {"error": {"code": issues[0]["code"], "message": issues[0]["message"]}}, False
+        return {"state": "pending"}, True  # the card waits for the person
+
+    def called(self, *names):
+        return [(name, arguments) for name, arguments in self.calls if name in names]
+
+    def applied(self):
+        return [arguments for _, arguments in self.called("settings_apply_patch")]
+
+
+class FilamentHotter(FilamentCase):
+    """A change relative to the value in force (seen 2026-09-29 on the project
+    assistant's instructions: "5 degrees hotter" set 205 from 220, never
+    read). Passes when the temperature is read first and the change goes on a
+    card as 225 for each nozzle kind, the first layer's too, saved as the copy
+    the facts name."""
+
+    name = "filament-hotter"
+
+    def run(self, conversation):
+        last_reply(conversation, "make the nozzle 5 degrees hotter")
+        read = [a for _, a in self.called("settings_get") if "nozzle_temperature" in a.get("keys", [])]
+        cards = [a for a in self.applied() if a.get("persistAs") == self.preset + " - Copy" and
+                 all(str(a.get("changes", {}).get(key, "")).replace(" ", "") == "225,225"
+                     for key in ("nozzle_temperature", "nozzle_temperature_initial_layer"))]
+        return verdict(["" if read else "NOT READ FIRST",
+                        "" if cards else f"NO CARD FOR 225,225 AS A COPY {self.applied()}"],
+                       "read, then put 225,225 on a card as a copy")
+
+
+class FilamentAskTemperature(FilamentCase):
+    """A question. Passes when the temperature is read and quoted, and nothing
+    goes on a card."""
+
+    name = "filament-ask-temperature"
+
+    def run(self, conversation):
+        reply = last_reply(conversation, "what nozzle temperature does it print at?")
+        read = [a for _, a in self.called("settings_get") if "nozzle_temperature" in a.get("keys", [])]
+        return verdict(["" if read else "NOT READ",
+                        "" if "220" in reply else "DID NOT SAY 220",
+                        f"PUT A CHANGE ON A CARD {self.applied()}" if self.applied() else ""],
+                       "read and answered")
+
+
+class FilamentOtherSettings(FilamentCase):
+    """A print setting asked for in a filament's chat. Passes when nothing goes
+    on a card and the reply says it is changed elsewhere in the app."""
+
+    name = "filament-other-settings"
+
+    def run(self, conversation):
+        last_reply(conversation, "also make the walls thicker")
+        yes, why = judge(conversation.log, "Does the assistant's last message tell the person that the walls, or the print's "
+                                           "own settings, are changed somewhere else than this chat?")
+        return verdict([f"PUT A CHANGE ON A CARD {self.applied()}" if self.applied() else "",
+                        "" if yes else "DID NOT SAY WHERE: " + why,
+                        judged(conversation, "Does the assistant's last message say the walls were made thicker?")],
+                       "said it is changed elsewhere")
+
+
+class FilamentOwnInPlace(FilamentCase):
+    """A filament the person saved. Passes when the change goes on a card saved
+    under its own name, the first layer's too."""
+
+    name = "filament-own-in-place"
+    preset = "My PLA"
+    shown = "My PLA"
+    stock = False
+
+    def run(self, conversation):
+        last_reply(conversation, "lower the nozzle temperature to 210")
+        cards = [a for a in self.applied() if a.get("persistAs") == self.preset and
+                 all(str(a.get("changes", {}).get(key, "")).replace(" ", "") == "210,210"
+                     for key in ("nozzle_temperature", "nozzle_temperature_initial_layer"))]
+        return verdict(["" if cards else f"NO CARD FOR 210,210 IN PLACE {self.applied()}"], "saved in place")
+
+
+for _filament_case in (FilamentHotter, FilamentAskTemperature, FilamentOtherSettings, FilamentOwnInPlace):
+    _filament_case.session = _filament_case.session_for()
+
+CASES.update({case.name: case for case in (FilamentHotter, FilamentAskTemperature, FilamentOtherSettings, FilamentOwnInPlace)})
 
 
 # --- Runner ------------------------------------------------------------------

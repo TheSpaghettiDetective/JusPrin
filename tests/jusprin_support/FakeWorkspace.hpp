@@ -68,7 +68,7 @@ public:
         std::vector<std::string> changed;
         for (const auto& [key, value] : m_settings.values)
             if (m_settings.preset_values.at(key) != value) changed.push_back(key);
-        return search_setting_definitions(m_settings.definitions, query, changed);
+        return m_settings.search(query, changed);
     }
 
     SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const override
@@ -102,8 +102,10 @@ public:
         if (result.succeeded()) {
             for (auto& plate : m_snapshot.plates)
                 plate.sliced = false;
-            for (const SettingChange& change : applied.changes)
-                publish_setting_edit(change.key, change.before, change.after);
+            // The edits the project records are its process values'.
+            if (!FakeSettings::preset_scope(patch.target))
+                for (const SettingChange& change : applied.changes)
+                    publish_setting_edit(change.key, change.before, change.after);
             publish(WorkspaceChangeReasons::Settings);
         }
         return result;
@@ -120,6 +122,8 @@ public:
         }
     }
     void set_settings_available_for_testing(bool available) { m_settings_available = available; }
+    // The fixture's filament and printer presets, to arrange what a test needs.
+    FakeSettings& settings_for_testing() { return m_settings; }
     // Switching presets moves the baseline the deltas are measured from, which
     // a fixture can only say outright.
     void set_process_preset_for_testing(std::string name)

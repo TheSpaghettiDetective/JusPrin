@@ -70,6 +70,11 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name);
 // not be done, empty when it was.
 wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset);
 
+// Writes `changes` into a named printer the open project does not use, in
+// place, as Orca's Save writes the selected one. Nothing is selected and no
+// dialog is shown; the caller has checked the values.
+void write_unselected_printer(const std::string& name, const DynamicPrintConfig& changes);
+
 // After OrcaSlicer's own printer wizard has run: a named printer for each
 // model it newly enabled, given the app config's vendor map from before it
 // ran. The wizard's own selection stays selected, under its new name.

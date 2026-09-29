@@ -1273,12 +1273,19 @@ struct SettingValue
     std::optional<bool> overridden;
 };
 
-// What a settings call reads or writes: the process preset, or one object's
-// overrides on top of it (Orca's per-object settings, in its ModelConfig).
-// The caller checks that the object is in the open project.
+// Whose settings a call reads or writes: the process preset in use, one
+// object's overrides on top of it (Orca's per-object settings, in its
+// ModelConfig), or a filament or printer preset.
+enum class SettingsScope : std::uint8_t { Process, Object, Filament, Printer };
+
+// The caller checks that an object is in the open project. A filament or
+// printer preset is named the way Orca keys it, by its name in its own
+// collection; the adapter looks it up.
 struct SettingsTarget
 {
+    SettingsScope           scope{SettingsScope::Process};
     std::optional<ObjectId> object;
+    std::string             preset;
 };
 
 struct SettingIssue
@@ -1290,17 +1297,19 @@ struct SettingIssue
 
 struct SettingsQuery
 {
-    std::string text;
-    std::size_t limit{10};
-    std::string cursor;
-    bool        writable_only{false};
-    bool        changed_only{false}; // only settings that differ from the saved preset
+    std::string    text;
+    std::size_t    limit{10};
+    std::string    cursor;
+    bool           writable_only{false};
+    bool           changed_only{false}; // only settings that differ from the saved preset
+    SettingsTarget target;
 };
 struct SettingsSearchResult
 {
     std::vector<SettingDefinition> items;
     std::string next_cursor;
     bool truncated{false};
+    std::string preset; // the preset the settings belong to
     std::optional<SettingIssue> error;
 };
 struct SettingsReadResult
@@ -1308,12 +1317,16 @@ struct SettingsReadResult
     std::vector<SettingValue> items;
     std::vector<std::string> unknown_keys;
     std::vector<SettingIssue> issues;
+    std::string preset;
     std::optional<SettingIssue> error;
 };
 struct SettingsPatch
 {
     std::map<std::string, std::string> changes;
     SettingsTarget                     target;
+    // Save the changed preset under this name: its own name overwrites it,
+    // another creates a copy, as Orca's Save does. Not for an object.
+    std::optional<std::string> persist_as;
 };
 struct SettingChange { std::string key, before, after; };
 struct SettingsPreview
@@ -1321,10 +1334,15 @@ struct SettingsPreview
     bool valid{false};
     std::vector<SettingChange> changes;
     std::vector<SettingIssue> issues, warnings;
-    std::string process_preset;
+    // The preset the settings belong to: the process preset for an object.
+    std::string preset;
     // Predicted secondary changes are approved and read back alongside the
     // explicit patch. They are never accepted as extra writable input keys.
     std::vector<SettingChange> dependencies;
+    // After an apply: the name the preset was saved under, empty when it
+    // was not saved, and whether the preset in use still has unsaved edits.
+    std::string saved_as;
+    bool        preset_dirty{false};
 };
 
 class IWorkspace

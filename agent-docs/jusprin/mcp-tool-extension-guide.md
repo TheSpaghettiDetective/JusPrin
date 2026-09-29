@@ -1,6 +1,6 @@
 # Guide for adding JusPrin tools
 
-**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The MCP catalog includes workspace inspection, slice-review reporting, and the verified process/object-settings workflow. A [candidate catalog](#candidate-catalog) derived from the product surfaces follows the implemented catalog record; nothing in it exists unless the catalog record says so.
+**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The MCP catalog includes workspace inspection, slice-review reporting, and the settings workflow over the process, one object, and filament and printer presets. A [candidate catalog](#candidate-catalog) derived from the product surfaces follows the implemented catalog record; nothing in it exists unless the catalog record says so.
 
 JusPrin has one tool system with multiple adapters. New capabilities are added to the shared registry, executed by `ToolExecutionCoordinator`, and implemented through the typed live-workspace boundary; the OpenAI and MCP adapters only translate that contract to their wire formats. This guide keeps the catalog small, honest, safe to evolve, and driven by real printing tasks rather than an abstract feature inventory.
 
@@ -92,7 +92,7 @@ Tool count is bounded by what a turn loads, not by what the app can do. The evid
   The `--live-agent` regression at both points says what that costs. The first request of a conversation caches nothing and pays for the whole catalog: 803 tokens at M0, 1,733 at M1, so four more definitions cost about 930 tokens, once. Every later request in the same conversation came back 77 to 92 per cent cached (5,864 in, 5,376 cached at M1), because the tools array is byte-identical across a chat and that is what the cache keys on. At M2 the same regression's eleven requests took 2,875 to 6,763 input tokens with 42 to 91 per cent cached; none started cold, because an earlier run of the same day had warmed the cache for the shared prefix, so the M2 cold cost is not measured by that run.
 
   So the cost of a definition is what it adds to the *first* request of each conversation, not to every turn, and the budget stays a trigger rather than a gate. What would change that reading: a catalog large enough to make the first request of every conversation expensive on its own, or transcripts showing the model choosing the wrong tool. Watch both; neither has appeared yet.
-- **The printer panel follows the same rule with its own set.** Home's printer panel runs its own conversation (`PrinterConversation`), offered the five printer tools and no others, the same list in every mode, so the list stays byte-identical across a conversation and across conversations of the same mode. What a call may do depends on the conversation, and `PrinterConversation::preflight_tool` refuses the rest before any card, with an error that says where to go instead: finding and adding a printer (`printer_identify`, `printer_add`) only in an Add conversation, since a Change or Connect conversation is about a printer the person already has and an add there would save another printer and move the conversation onto it; `printer_change` only on the printer the conversation is about, once there is one; the connection tools only once there is a saved printer. A list that differs by mode is not used: the conversation's own refusal is needed whatever the model is shown, and a restricted-but-stable list (`tool_choice` with `allowed_tools`) exists only on some providers. What would change that: transcripts of the model reaching for a refused tool and not recovering, which `tests/printer_prompt` measures (`change-add-another`). Until 2026-09-23 the panel offered one tool per mode (7f66e75b07), to keep a lookup from clearing the pinned card of the printer a Change session was about; that card is gone (4d4f9e466b), and one tool per step left an Add conversation with no tool to connect the printer it had just added (8334b3395b). On 2026-09-28 the three tools that opened a window or closed the panel -- `printer_manual_setup`, `printer_manual_connection` and `printer_setup_finish` -- were removed (b60fc2d8e6): OrcaSlicer's full printer list and a printer's settings stay reachable from the panel's own buttons, and the person closes the panel. The app decides the tools; the words are the page's (`AgentUI/src/printerInstructions.ts` for the instructions, `AgentUI/src/printerWords.ts` for the notes the model reads after a tap), and a turn the page has not yet written them for is refused rather than sent with the project assistant's prompt. The Add instructions carry the whole printer list, about 28 KB, which caches as a fixed prefix. No printer conversation carries the project: no workspace in the turn, none in a tool result.
+- **The printer panel follows the same rule with its own set.** Home's printer panel runs its own conversation (`PrinterConversation`), offered the five printer tools and the four settings tools, the same list in every mode, so the list stays byte-identical across a conversation and across conversations of the same mode. What a call may do depends on the conversation, and `PrinterConversation::preflight_tool` refuses the rest before any card, with an error that says where to go instead: finding and adding a printer (`printer_identify`, `printer_add`) only in an Add conversation, since a Change or Connect conversation is about a printer the person already has and an add there would save another printer and move the conversation onto it; `printer_change` only on the printer the conversation is about, once there is one; the connection tools only once there is a saved printer; the settings tools only with `scope: "printer"` on the printer the conversation is about. A Change conversation may be about the stock profile the project has selected (the header's Printer settings… on a project that uses one); its nozzle and connection are refused with `stock_profile`, and its settings are saved as a copy that the conversation then follows (`PrinterConversation::tool_settled`). A Change conversation is never turned into an Add one: its opener checks that the printer is there and shows Orca's error dialog when it is not. The header's filament chat (the same panel, `PrinterPanel::open_filament`) is offered the four settings tools and nothing else, with no project state, and its own instructions, which the page writes (`AgentUI/src/filamentInstructions.ts`, sent with `filament_instructions`) from the facts the app sends as the state's session (`PrinterPanel::filament_session_json`: the preset by name, its slot and material, and for a stock filament the copy a change is saved as). Its preflight holds the settings tools to `scope: "filament"` on that preset and refuses an apply without `persistAs` (`not_saved`), since the chat is gone when it closes; a copy saved in the preset's place is the preset it is about from then on, and the page writes the instructions again for it. Until 2026-09-29 it ran on the project assistant's instructions and tools, which read "make the nozzle 5 degrees hotter" as a print request, and in another run set 205 °C from 220 °C without reading it. A list that differs by mode is not used: the conversation's own refusal is needed whatever the model is shown, and a restricted-but-stable list (`tool_choice` with `allowed_tools`) exists only on some providers. What would change that: transcripts of the model reaching for a refused tool and not recovering, which `tests/printer_prompt` measures (`change-add-another`). Until 2026-09-23 the panel offered one tool per mode (7f66e75b07), to keep a lookup from clearing the pinned card of the printer a Change session was about; that card is gone (4d4f9e466b), and one tool per step left an Add conversation with no tool to connect the printer it had just added (8334b3395b). On 2026-09-28 the three tools that opened a window or closed the panel -- `printer_manual_setup`, `printer_manual_connection` and `printer_setup_finish` -- were removed (b60fc2d8e6): OrcaSlicer's full printer list and a printer's settings stay reachable from the panel's own buttons, and the person closes the panel. The app decides the tools; the words are the page's (`AgentUI/src/printerInstructions.ts` for the instructions, `AgentUI/src/printerWords.ts` for the notes the model reads after a tap), and a turn the page has not yet written them for is refused rather than sent with the project assistant's prompt. The Add instructions carry the whole printer list, about 28 KB, which caches as a fixed prefix. No printer conversation carries the project: no workspace in the turn, none in a tool result.
 - **Deferral, when the measurements say so.** Use the platform's own deferral, never a hand-rolled switcher. On the in-app side that is OpenAI's `tool_search` with `defer_loading: true` on the Responses API, documented for `gpt-5.4` and later; support on the pinned `gpt-5.4-mini` is unverified. On the MCP side clients defer on their own, as Claude Code does. Toolsets are the deferral unit, and OpenAI recommends fewer than ten functions per namespace. An enable-toolset tool that rewrites the tools array breaks the prompt cache on every switch and is not to be built.
 - **Shape each tool as a domain operation.** A tool does one thing a slicer user would name: place an object, lay out the plates, mark a region, set up the printer. Not a wrapper per Orca function, and not an interpreter for a list of unrelated commands. Optional facets of one operation are fine when each is independently typed and conflicting facets are rejected.
 - **Batch only where items share a shape.** A list of setting changes, a list of intent fields, a list of annotations, a list of per-object layout rows. A list that mixes transforms, imports, and deletes is the god tool and is refused.
@@ -286,7 +286,7 @@ Default to both adapters when both can satisfy the same input contract. A delibe
 - `workspace_inspect` is exposed to both adapters so either can obtain a fresh completed slice identity after slicing, independently of the initial turn context;
 - attachment-based import (`object_import`) is in-app-only, and path-based `object_import_file` is MCP-only, because a file reaches the app through the conversation in one case and through an approved path in the other; that is two honest definitions over one workspace command, not one tool with forked behavior; and
 - a future MCP diagnostics tool may be MCP-only if it exists to establish the external connection; and
-- the printer panel's five tools carry only the `Printer` exposure: neither adapter lists them, and the panel's conversation offers all of them in every mode and refuses what does not fit it (see "Tool budget and tool shape"). They take no `planId` (`joins_plans` excludes them), and what the model reads back from them is the tool's own result, not the host's workspace envelope.
+- the printer panel's five own tools carry only the `Printer` exposure: neither adapter lists them, and the panel's conversation offers all of them in every mode and refuses what does not fit it (see "Tool budget and tool shape"). They take no `planId` (`joins_plans` excludes them), and what the model reads back from them is the tool's own result, not the host's workspace envelope.
 
 Document the reason beside the registry definition and test it. Exposure is not a place to fork behavior: if two adapters need different semantics, they need a better shared command or honestly separate definitions.
 
@@ -367,10 +367,10 @@ Current registry, in deterministic name order. `Internal` entries are native man
 | `record_export_copy` | Record a verified G-code export | destructive | Internal | manufacturing history | coordinator's history recorder | exported-copy ID and build ID |
 | `record_physical_print` | Record a completed print fact | destructive | Internal | manufacturing history; does not start a printer | coordinator's history recorder | physical-print ID, build ID and recorded flag |
 | `region_annotate` | Say what parts of an object mean and have Orca print them that way | mutation | both | 32 regions per call; artifacts in one undo step | `TriangleSelector` paint, modifier and blocker volumes, object overrides; records in `IProductState` | each region's kind, binding and what it generated |
-| `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | currently process or object; required printer/filament expansion is specified below | `IWorkspace::apply_settings` through the owning config and `Tab::load_config` paths | bounded actual changes/normalization, revision, dirty flag and truthful `projectUndo` |
-| `settings_get` | Read current values and preset origin | read-only | both | currently process or object; required printer/filament expansion is specified below | `IWorkspace::read_settings` using the scoped owner | at most 32 values and unknown-key issues; canonical values are preserved |
-| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | currently process or object; required printer/filament expansion is specified below | `IWorkspace::preview_settings` using a clone and scope-specific validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
-| `settings_search` | Find a setting without loading the full catalog | read-only | both | currently process; required scope expansion is specified below | `IWorkspace::search_settings` using Orca definitions filtered by scope | 1–25 matches; deterministic cursor paging and bounded metadata |
+| `settings_apply_patch` | Apply the approved batch without overwriting a newer edit | mutation | both | required `scope`: process, one object, or a filament or printer preset by name | `IWorkspace::apply_settings` through the owning config and `Tab::load_config` paths | bounded actual changes/normalization, revision, dirty flag and truthful `projectUndo` |
+| `settings_get` | Read current values and preset origin | read-only | both | required `scope`: process, one object, or a filament or printer preset by name | `IWorkspace::read_settings` using the scoped owner | at most 32 values and unknown-key issues; canonical values are preserved |
+| `settings_preview_patch` | Check a batch before requesting approval | read-only | both | required `scope`: process, one object, or a filament or printer preset by name | `IWorkspace::preview_settings` using a clone and scope-specific validation/normalization | at most 32 input keys; bounded changes, dependencies, issues and warnings |
+| `settings_search` | Find a setting without loading the full catalog | read-only | both | required `scope`: process, one object, or a filament or printer preset by name | `IWorkspace::search_settings` using Orca definitions filtered by scope | 1–25 matches; deterministic cursor paging and bounded metadata |
 | `slice_inspect` | Look inside a slice: layers or G-code | read-only | both | one plate's current slice | `GCodeProcessorResult::moves` and the plate's G-code file | 100 layers per page (index, z, height, time, 16 roles, speed, fan, temperature and flow ranges) or 64 KB of G-code, with `next` |
 | `slice_report` | Check a sliced plate before committing to it | read-only | both | one plate's current slice | `Print` statistics and the plate's `GCodeProcessorResult`; `BuildVolume` for the bed check | 16 filaments, 32 findings, critical first; Orca's send-dialog advisories only as Orca shows them (`appliesWhen: timelapse`, the bed-temperature one never); 32 support contacts, seam regions, first-layer objects and islands; intent checks |
 | `slice_start` | Slice without leaving the conversation | mutation (computation-only; `preempt` restores the card) | both | one plate, or every plate | `Plater`'s own toolbar slice events | handle plus the slicing section |
@@ -471,7 +471,7 @@ Every catalog tool is visible over MCP except `object_import`, which takes a cha
 
 The three fixtures are retired, each in the change that landed its replacement: `duplicate_object` with `plate_layout` (the tests that used it as their canonical mutation now propose one more copy through `plate_layout` and count instances, and so do the deterministic mock agent and the live regression), `import_model` with `object_import` (the import tests, the mock agent's attachment reply and the bridge test now use it), and `inspect_selection` with the summary's selection ids (the canonical read-only action in the tests is now `workspace_inspect`). `tests/agent/test_tool_registry.cpp` pins the exact exposed-name lists, so every retirement is visible in that test's diff.
 
-The implemented baseline covers the active FFF process preset and one object's overrides. The next settings milestone replaces that schema with the required four-scope contract in [Settings tools: contract and hazards](#settings-tools-contract-and-hazards); there is deliberately no compatibility mode for calls that omit `scope`. The process write allowlist is `writable_setting` in `SettingsSupport.hpp`: layers, walls, shells and infill (`layer_height`, `wall_loops`, `wall_generator`, `detect_thin_wall`, `only_one_wall_top`, the shell layer counts and thicknesses, infill density, direction and the three surface or infill patterns); the support family (`enable_support`, `support_type`, `support_style`, `support_threshold_angle`, `support_on_build_plate_only`, the interface layer counts and pattern, and the top and bottom contact distances); adhesion and seam (`brim_type`, `brim_width`, `skirt_loops`, `skirt_distance`, `seam_position`); and ten speed keys. `settings_search` takes `writable` to list only the requested scope's allowlist and `changedOnly` to list only keys that differ from that scope's saved preset or inherited value. Apply takes `scope`, the scope's exact target when required, `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use the owning preset's revert control or a previewed inverse patch to restore preset values; ordinary project Undo reverses object overrides but not process, filament, or printer preset edits.
+The settings tools implement the four-scope contract in [Settings tools: contract and hazards](#settings-tools-contract-and-hazards); there is deliberately no compatibility mode for calls that omit `scope`. The process write allowlist is `writable_setting` in `SettingsSupport.hpp`: layers, walls, shells and infill (`layer_height`, `wall_loops`, `wall_generator`, `detect_thin_wall`, `only_one_wall_top`, the shell layer counts and thicknesses, infill density, direction and the three surface or infill patterns); the support family (`enable_support`, `support_type`, `support_style`, `support_threshold_angle`, `support_on_build_plate_only`, the interface layer counts and pattern, and the top and bottom contact distances); adhesion and seam (`brim_type`, `brim_width`, `skirt_loops`, `skirt_distance`, `seam_position`); and ten speed keys. `settings_search` takes `writable` to list only the requested scope's allowlist and `changedOnly` to list only keys that differ from that scope's saved preset or inherited value. Apply takes `scope`, the scope's exact target when required, `changes`, `expectedSessionId`, and `expectedRevision` from a fresh preview. Native approval captures the exact before/after values, including normalization dependencies, then revalidates before applying. It publishes one `Settings` revision, updates native fields and dirty state, and invalidates slicing. Use the owning preset's revert control or a previewed inverse patch to restore preset values; ordinary project Undo reverses object overrides but not process, filament, or printer preset edits.
 
 The OpenAI adapter preserves the registry schemas and uses non-strict function calling for optional arguments or dynamic patch maps, which OpenAI strict mode cannot express. Native registry validation remains authoritative. Stateless Responses continuations retain user context and all prior tool results; the live multi-tool regression covers this path.
 
@@ -506,10 +506,10 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 |---|---|---|---|---|
 | `workspace_inspect` | R | The one read for current state. `sections` selects any of: `summary` (default: project identity and saved state, printer pointer, intent line, selection ids, plate and object counts, plan headline, top unresolved warning); `project` (description, designer, license, safety and usage notes, assembly, bill of materials, profile notes, attachment list, versions and recovery state, each with provenance); `intent` (the intent record with provenance and an `unanswered` list); `printer` (the selected printer: configured versus observed nozzle, plate, and filaments with timestamps, computed `mismatches`, `confirmedFacts`, job progress, temperatures, alerts, monitoring policy); `objects` (plates, objects, parts, instances, enabled, extruder, quantity, bounding box, override and region counts, print order); `plan` (the pinned plan, deviations from the profile, estimates when a slice is valid); `slicing` (state and action handle per plate, progress, invalidation); `history` (undo and redo snapshots). `level` concise or detail. | workspace snapshot; `MachineObject`; `PresetBundle`; JusPrin stores; `UndoRedo` | per section: 4 KB text fields, 64 attachments, 16 slots and alerts, 64 objects with cursor, 32 history entries |
 | `object_analyze` | R | Geometry facts for one object. `include` any of: `mesh` (dimensions, volume, health, units suspicion); `features` (planar face groups and cylindrical holes with revision-scoped handles); `orientations` (score each entry of `candidates`, or Orca's auto-orient candidates, for overhang area, support volume, bed contact, and which handles face down); `fit` (plate fit, overlaps, likely duplicates); `regions` (annotations and their `bindingLost` or `artifactsMissing` flags); `measure` (distances between two handles). | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` evaluation; `PartPlate` checks; JusPrin annotation store | 32 faces and holes by area; 8 candidates; 16 overlaps, duplicates, measurements; 32 regions |
-| `settings_search` | R | Required `scope`; required `target` for `object` and `filament`, forbidden otherwise; `writable` and `changedOnly` filters. `changedOnly` answers what differs from the owning preset or inherited value. | `print_config_def`; scoped edited preset or `ModelConfig`; dirty options | 25 per page |
+| `settings_search` | R | Required `scope`; required `target` for `object`, `filament` and `printer`, forbidden for `process`; `writable` and `changedOnly` filters. `changedOnly` answers what differs from the owning preset or inherited value. | `print_config_def`; scoped edited preset or `ModelConfig`; dirty options | 25 per page |
 | `settings_get` | R | Required `scope` and its exact target; origin reported as system, user preset, project edit, filament preset, printer preset, or object override. | scoped edited presets; `PresetBundle::filament_presets`; `ModelConfig` | 32 keys |
 | `settings_preview_patch` | R | Required `scope` and its exact target; applies the scope-specific writable allowlist, dependencies, validation, persistence and undo semantics. | scope-specific config clone; `ConfigManipulation` where applicable; `Slic3r::validate` | 32 keys |
-| `settings_apply_patch` | M | Required `scope` and the same target as preview. Optional `persistAs` is valid only for preset scopes, saves the result as a named user preset in the same approval, and makes the call destructive. | owning `Tab` and `PresetCollection`; `ModelConfig` for object | 32 keys |
+| `settings_apply_patch` | M | Required `scope` and the same target as preview. Optional `persistAs` is valid only for preset scopes and saves the result as a named user preset in the same approval, which the card names. | owning `Tab` and `PresetCollection`; `ModelConfig` for object | 32 keys |
 | `intent_update` | M | Record what the user said about the print: a same-shape list of `{field, value}` over the intent record. The card shows the interpreted answer so the user confirms the agent's understanding; provenance becomes `user_confirmed` only through this card. | JusPrin intent store | 32 fields |
 | `plan_set` | M\* | The agent's own statement: orientation rationale, strategy per concern, unverified assumptions, compromises and risks, confidence per decision, alternatives. Computation-only. | JusPrin plan store | 2 KB per field, 16 decisions |
 | `slice_start` | M\* | Slice one plate or all; returns an action handle. Refuses to pre-empt a GUI-started slice unless `preempt: true`, which brings the card. | `Plater` reslice; `BackgroundSlicingProcess` | |
@@ -637,17 +637,30 @@ before expanding the write allowlist or adding a tool that changes a preset.
    |---|---|---|
    | `process` | forbidden | the active edited FFF process preset |
    | `object` | required `{objectId}` | that object's `ModelConfig` overrides |
-   | `filament` | required `{filamentIndex}` | the preset used by that 1-based project filament index |
-   | `printer` | forbidden | the active edited FFF printer preset |
+   | `filament` | required `{preset}` | that filament preset, by name |
+   | `printer` | required `{preset}` | that printer preset, by name |
 
    These rules apply to `settings_search`, `settings_get`,
    `settings_preview_patch`, and `settings_apply_patch`. Reject an extra,
-   missing, zero-based, or wrong-shaped target as `invalid_arguments`.
-4. Scope identifies the settings owner; it does not select a preset.
-   `printer_setup` remains the only tool that switches printer, process, or
-   filament presets. Settings tools edit the already selected owner and must
-   never switch a preset, discard dirty edits, change nozzle topology, or
-   substitute a compatible profile as a side effect.
+   missing, empty, or wrong-shaped target as `invalid_arguments`.
+   A preset is named the way Orca keys it: by its name, unique within its
+   own collection (`Preset.hpp`: "The preset name shall be unique across a
+   single PresetCollection"). Never by the label a menu shows -- the header
+   shows a stock printer's model, and `Preset::label` puts `"* "` in front of
+   a preset with unsaved edits -- and never by an alias. A name no visible
+   preset has is `unknown_preset`, whose suggestions are the project's
+   filaments or the printer in use. (The first draft of this contract named a
+   filament by its 1-based project slot and edited only the selected printer;
+   on 2026-09-29 Kenneth chose the preset's name for both, so a chat opened
+   for one preset, and a saved printer the project does not use, can be
+   changed without selecting anything first.)
+4. Scope identifies the settings owner; `printer_setup` remains the only tool
+   that picks the project's printer, process, or filament. A settings call
+   never discards dirty edits, changes nozzle topology, or substitutes a
+   compatible profile. It selects a preset only where Orca's own Save or edit
+   path does: a copy saved with `persistAs` takes the original's place, and a
+   filament that is not the one open in its tab is opened there the way the
+   sidebar's edit button opens it (`PlaterPresetComboBox::switch_to_tab`).
 5. Metadata, parsing, and serialization come from Orca's own
    `print_config_def` and config option machinery. There is no parallel table
    of types, enum values, ranges, units, or aliases.
@@ -664,10 +677,9 @@ before expanding the write allowlist or adding a tool that changes a preset.
    Results say `projectUndo: false` and return previous values so a caller can
    propose an inverse. Object overrides use one Orca snapshot and return
    `projectUndo: true`.
-9. Every result echoes the validated `scope`, normalized `target`, owning
-   `presetName` when there is one, `sessionId`, and `revision`. Filament
-   results also return `affectedFilamentIndices`, because several project
-   filament indices may use the same preset.
+9. Every result echoes the validated `scope`, the owning `presetName` (the
+   process preset for an object), `sessionId`, and `revision`. An apply also
+   returns `savedAs`, the name it saved under or empty, and `presetDirty`.
 10. A preview that finds invalid settings is a successful call with
    `valid: false`. Malformed input is a tool error.
 11. All values cross JSON as strings in their canonical Orca serialization;
@@ -689,26 +701,51 @@ caller must send the new contract.
 - **Object:** the selected `ModelObject`'s `ModelConfig`, identified only by
   `target.objectId`. The implemented project-Undo behavior below continues to
   apply.
-- **Filament:** `target.filamentIndex` is 1-based and resolves through
-  `PresetBundle::filament_presets` to a named filament preset. Search, get and
-  preview resolve it without changing the selected filament tab. Preview and
-  apply bind that index, resolved preset name, every before value, and the set
-  of other project filament indices that use the same preset. A changed
-  mapping or preset is `stale_workspace`. Apply must use the filament preset
-  owner and `Tab(Preset::TYPE_FILAMENT)` without silently switching away from
-  or discarding another dirty edited preset; if Orca cannot do that safely,
-  return `unsaved_edits`. The result names every affected index.
-- **Printer:** the active `printers.get_edited_preset()` and
-  `Tab(Preset::TYPE_PRINTER)`. Generic settings mutation does not select a
-  printer or change hardware identity. The initial writable allowlist excludes
-  topology and compatibility keys such as extruder count, nozzle layout, and
-  printer technology until their substitutions are modeled and tested; those
-  setup changes stay in `printer_setup`.
+- **Filament and printer, the preset being edited** (the one selected in its
+  collection): its edited copy and its `Tab`, as for the process. Reads
+  include its unsaved edits.
+- **Filament, another preset:** must be in one of the project's slots
+  (`not_in_project`), and changes only by being saved (`not_selected` without
+  `persistAs`). Apply opens it in the filament tab as the sidebar's edit
+  button does -- `Tab::select_preset`, then `set_filament_idx` for its slot --
+  then loads and saves through the tab. If the filament open in the tab has
+  unsaved edits, that switch would discard or prompt, so preview refuses with
+  `unsaved_edits`.
+- **Printer, another preset:** a saved printer the project does not use,
+  saved in place only (`Printers::write_unselected_printer`, the write
+  `change_named_printer_nozzle` already makes: the difference from its parent,
+  queued for the cloud). A copy of it would be a second printer made behind
+  the project's back, so a different `persistAs` is `not_selected`.
+- The printer allowlist (`writable_printer_setting`) is custom g-code,
+  printable height, layer-height limits, Z offset, retraction and machine
+  limits. It excludes the keys that decide which filament and process fit, or
+  how many extruders there are -- bed shape, nozzle size and type, extruder
+  count, printer model -- which change with `printer_setup` or
+  `printer_change`. The filament allowlist (`writable_filament_setting`) is
+  temperatures, cooling, flow, pressure advance, volumetric speed, density,
+  cost and custom g-code.
+- A setting that holds one value per extruder or per nozzle kind keeps its
+  length: a patch with a different number of values is
+  `invalid_setting_value`, since a shorter list would drop the rest.
 
-`persistAs` is invalid for `object`. For `process`, `filament`, or `printer`,
-it saves the post-patch config as a named user preset only after preview and
-approval show the destination and overwrite behavior. Without `persistAs`,
-the tool changes only the edited preset and leaves it dirty.
+`persistAs` is invalid for `object`. It is Orca's Save with the name typed
+in: the preset's own name overwrites it (`read_only_preset` for one Orca
+ships, with `"<name> - Copy"`, the name SavePresetDialog offers, as the
+suggestion); another name that no preset has saves a copy that takes the
+original's place, in every project slot that used it for a filament
+(`Sidebar::update_presets_from_to`); a name another preset has is
+`name_taken`; a name SavePresetDialog would refuse is `invalid_preset_name`.
+Saving the preset being edited also saves its other unsaved edits, as Save
+does; preview warns with `saves_unsaved_edits` and lists them. The card's
+title says where it saves ("; save it", or "; save as \"<name>\""). Without
+`persistAs`, the tool changes only the edited preset and leaves it dirty.
+
+Dialogs the filament and printer tabs would open are refused in preview:
+a max volumetric speed below 0.5 (`ConfigManipulation::
+check_filament_max_volumetric_speed`), a first-layer temperature further
+from the other layers' than `Tab::validate_filament_temperature_pairs`
+allows when saving, and firmware retraction with a wipe that retracts less
+than 100% first (`TabPrinter::toggle_options`).
 
 ### Scope expansion acceptance criteria
 
@@ -718,9 +755,9 @@ the tool changes only the edited preset and leaves it dirty.
   zero-based, mixed, or malformed target. No test accepts the old call shape.
 - Search, get, preview, and apply each have fake- and real-adapter coverage for
   all four scopes, including a readable but unwritable key.
-- Filament tests cover index-to-preset resolution, two indices sharing one
-  preset, a mapping that becomes stale, and a dirty preset that cannot be
-  changed without an implicit switch or discard.
+- Filament tests cover a preset in a slot that is not open in its tab, a copy
+  taking its slot, and a dirty preset that cannot be changed without an
+  implicit switch or discard.
 - Printer tests prove that a normal writable value updates the native field,
   dirty marker, slice invalidation, and read-back value, while topology and
   compatibility keys remain unwritable.
@@ -733,12 +770,18 @@ the tool changes only the edited preset and leaves it dirty.
 
 | Condition | Code |
 |---|---|
-| missing or unknown `scope`; forbidden, missing, or malformed `target` | `invalid_arguments` |
+| missing or unknown `scope`; forbidden, missing, or malformed `target`; `persistAs` for an object | `invalid_arguments` |
+| no visible preset of that scope has the target's name | `unknown_preset` with suggestions |
+| a filament or printer preset that is not being edited, without `persistAs`, or a copy of a printer not in use | `not_selected` |
+| a filament that is in none of the project's slots, changed by name | `not_in_project` |
+| `persistAs` overwriting a preset Orca ships | `read_only_preset`, suggesting `"<name> - Copy"` |
+| `persistAs` naming another existing preset | `name_taken` |
+| `persistAs` SavePresetDialog would refuse | `invalid_preset_name` |
 | key not in the definition table | `unknown_setting` with suggestions |
 | known key not applicable to the requested scope | `unsupported_scope` |
 | readable key outside that scope's allowlist | `unsupported_setting_mutation` |
-| requested object, filament index, or owning preset is gone | `workspace_unavailable` |
-| applying a filament target would discard another dirty edited preset | `unsaved_edits` |
+| requested object is gone, or no FFF printer or process is selected | `workspace_unavailable` |
+| opening a filament in its tab would discard another dirty edited preset | `unsaved_edits` |
 | parse failure, bound violation, or layer height outside the printer's range | `invalid_setting_value` with `allowed` or bounds |
 | a scope-specific dependency or validator rule conflicts | `incompatible_settings` with the conflicting keys |
 | session, revision, target mapping, preset, or before value changed since preview | `stale_workspace` with expected and current |

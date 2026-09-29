@@ -35,11 +35,11 @@ inline std::string setting_type(ConfigOptionType type)
     return std::string(name) + (vector ? "[]" : "");
 }
 
-inline SettingDefinition setting_definition(const std::string& key)
+inline SettingDefinition setting_definition(const std::string& key, SettingsScope scope = SettingsScope::Process)
 {
     const auto& def = *print_config_def.get(key);
     SettingDefinition result{key, setting_type(def.type), def.full_label.empty() ? def.label : def.full_label,
-        def.category, def.tooltip, def.sidetext, {}, {}, def.enum_values, def.enum_labels, writable_setting(key) && !def.readonly};
+        def.category, def.tooltip, def.sidetext, {}, {}, def.enum_values, def.enum_labels, writable_setting(key, scope) && !def.readonly};
     // An open enum (the interface layer counts) takes any number; its list is
     // a set of shortcuts, not the allowed values.
     if (def.gui_type == ConfigOptionDef::GUIType::i_enum_open || def.gui_type == ConfigOptionDef::GUIType::f_enum_open) {
@@ -51,20 +51,6 @@ inline SettingDefinition setting_definition(const std::string& key)
     return result;
 }
 
-inline std::vector<SettingDefinition> process_definitions()
-{
-    std::vector<SettingDefinition> result;
-    for (const auto& key : Preset::print_options())
-        if (print_config_def.get(key)) result.push_back(setting_definition(key));
-    return result;
-}
-
-inline SettingIssue missing_process_setting(const std::string& key)
-{
-    return print_config_def.get(key) ? SettingIssue{key, "unsupported_scope", "This key is not a process setting."} :
-        SettingIssue{key, "unknown_setting", "Unknown setting.", {}, setting_suggestions(key, process_definitions())};
-}
-
 // The keys an object can override: ObjectList's get_options for a whole
 // object, region options plus object options.
 inline bool object_setting(const std::string& key)
@@ -74,15 +60,37 @@ inline bool object_setting(const std::string& key)
     return region.optptr(key) != nullptr || object.optptr(key) != nullptr;
 }
 
-inline SettingIssue print_scope_setting(const std::string& key)
+// The keys a scope's preset holds, as Orca lists them for that preset type.
+inline const std::vector<std::string>& scope_options(SettingsScope scope)
 {
-    return {key, "unsupported_scope", "This setting applies to the whole print and cannot differ per object."};
+    return scope == SettingsScope::Filament ? Preset::filament_options() :
+           scope == SettingsScope::Printer  ? Preset::printer_options() :
+                                              Preset::print_options();
 }
 
-inline bool has_process_setting(const std::string& key)
+inline bool has_scope_setting(const std::string& key, SettingsScope scope)
 {
-    const auto& keys = Preset::print_options();
-    return print_config_def.get(key) && std::find(keys.begin(), keys.end(), key) != keys.end();
+    const auto& keys = scope_options(scope);
+    return print_config_def.get(key) && std::find(keys.begin(), keys.end(), key) != keys.end() &&
+           (scope != SettingsScope::Object || object_setting(key));
+}
+
+inline std::vector<SettingDefinition> scope_definitions(SettingsScope scope)
+{
+    std::vector<SettingDefinition> result;
+    for (const auto& key : scope_options(scope))
+        if (has_scope_setting(key, scope)) result.push_back(setting_definition(key, scope));
+    return result;
+}
+
+inline SettingIssue missing_scope_setting(const std::string& key, SettingsScope scope)
+{
+    if (scope == SettingsScope::Object)
+        return has_scope_setting(key, SettingsScope::Process) ?
+                   SettingIssue{key, "unsupported_scope", "This setting applies to the whole print and cannot differ per object."} :
+                   missing_scope_setting(key, SettingsScope::Process);
+    return print_config_def.get(key) ? SettingIssue{key, "unsupported_scope", std::string("This key is not a ") + scope_name(scope) + " setting."} :
+        SettingIssue{key, "unknown_setting", "Unknown setting.", {}, setting_suggestions(key, scope_definitions(scope))};
 }
 
 inline bool process_settings_available()
@@ -120,6 +128,35 @@ inline bool complete_setting_number(const std::string& text, ConfigOptionType ty
 inline std::optional<std::string> set_setting_value(DynamicPrintConfig& config, const std::string& key, const std::string& text)
 {
     const ConfigOptionDef* definition = print_config_def.get(key);
+    // A list holds one value per extruder, or per filament and nozzle kind,
+    // and a patch keeps that shape: a shorter list would drop the rest.
+    if ((definition->type & coVectorType) != 0) {
+        const auto* before = dynamic_cast<const ConfigOptionVectorBase*>(config.option(key));
+        const std::size_t count = before != nullptr ? before->size() : 1;
+        try {
+            config.set_deserialize_strict(key, text);
+        } catch (const BadOptionValueException& error) {
+            return std::string(error.what());
+        }
+        const auto* after = static_cast<const ConfigOptionVectorBase*>(config.option(key));
+        if (after->size() != count)
+            return "This setting holds " + std::to_string(count) + " values; give " + std::to_string(count) +
+                   ", separated by commas.";
+        const ConfigOptionType element = ConfigOptionType(definition->type & ~coVectorType);
+        if (element == coInt || element == coFloat || element == coPercent)
+            for (std::size_t index = 0; index < after->size(); ++index) {
+                if (after->is_nil(index))
+                    continue;
+                double value;
+                if (const auto* ints = dynamic_cast<const ConfigOptionInts*>(after)) value = ints->get_at(index);
+                else if (const auto* nullable_ints = dynamic_cast<const ConfigOptionIntsNullable*>(after)) value = nullable_ints->get_at(index);
+                else if (const auto* floats = dynamic_cast<const ConfigOptionFloats*>(after)) value = floats->get_at(index);
+                else value = dynamic_cast<const ConfigOptionFloatsNullable&>(*after).get_at(index);
+                if (!std::isfinite(value) || !definition->is_value_valid(value))
+                    return std::string("A value is outside the setting's bounds.");
+            }
+        return std::nullopt;
+    }
     if (!complete_setting_number(text, definition->type))
         return "Expected a complete finite " + setting_type(definition->type) + " value.";
     try {
@@ -230,6 +267,69 @@ inline void predict_process_normalization(DynamicPrintConfig& config)
     normalizer.update_print_fff_config(&config, true, false);
     if (process_tab_toggles_options(*wxGetApp().get_tab(Preset::TYPE_PRINT)))
         normalizer.toggle_print_fff_options(&config, true);
+}
+
+// The filament tab's dialogs, refused before they could open.
+// ConfigManipulation::check_filament_max_volumetric_speed resets a speed
+// below 0.5 behind a warning on every load; Tab::save_preset asks to continue
+// when a first-layer temperature is further than Tab::
+// validate_filament_temperature_pairs allows from the other layers' (30 °C
+// on the nozzle, 15 °C on a plate), both above zero.
+inline void check_filament_dialogs(const DynamicPrintConfig& config, bool saving, SettingsPreview& result)
+{
+    if (config.has("filament_max_volumetric_speed") && config.opt_float("filament_max_volumetric_speed", 0) < 0.5)
+        result.issues.push_back({"filament_max_volumetric_speed", "invalid_setting_value",
+                                 "Orca resets a max volumetric speed below 0.5 to 0.5.", {}, {}, 0.5, {}});
+    if (!saving)
+        return;
+    std::vector<std::tuple<std::string, std::string, int>> pairs{{"nozzle_temperature_initial_layer", "nozzle_temperature", 30}};
+    for (int bed = int(btPC); bed < int(btCount); ++bed) {
+        const std::string first = get_bed_temp_1st_layer_key(BedType(bed)), other = get_bed_temp_key(BedType(bed));
+        if (!first.empty() && !other.empty())
+            pairs.emplace_back(first, other, 15);
+    }
+    for (const auto& [first_key, other_key, limit] : pairs) {
+        const auto* first = config.option<ConfigOptionInts>(first_key);
+        const auto* other = config.option<ConfigOptionInts>(other_key);
+        if (first == nullptr || other == nullptr || first->values.empty() || other->values.empty())
+            continue;
+        const int a = first->get_at(0), b = other->get_at(0);
+        if (a > 0 && b > 0 && std::abs(a - b) > limit)
+            result.issues.push_back({first_key, "incompatible_settings",
+                                     first_key + " and " + other_key + " may differ by at most " + std::to_string(limit) +
+                                         " °C; Orca asks before saving a larger difference."});
+    }
+}
+
+// TabPrinter::toggle_options asks to turn wipe off, or firmware retraction
+// off, when firmware retraction meets a wipe that retracts less than 100%
+// first, on any extruder.
+inline void check_printer_dialogs(const DynamicPrintConfig& config, SettingsPreview& result)
+{
+    if (!config.opt_bool("use_firmware_retraction"))
+        return;
+    const auto* wipe   = config.option<ConfigOptionBools>("wipe");
+    const auto* before = config.option<ConfigOptionPercents>("retract_before_wipe");
+    for (std::size_t index = 0; wipe != nullptr && before != nullptr && index < wipe->values.size(); ++index)
+        if (wipe->get_at(index) && before->get_at(index) < 100.)
+            return result.issues.push_back({"use_firmware_retraction", "incompatible_settings",
+                                            "Firmware retraction with wipe needs retract_before_wipe at 100%; Orca asks to change one of them."});
+}
+
+inline PresetCollection& scope_collection(SettingsScope scope)
+{
+    PresetBundle& bundle = *wxGetApp().preset_bundle;
+    return scope == SettingsScope::Filament ? static_cast<PresetCollection&>(bundle.filaments) :
+           scope == SettingsScope::Printer  ? static_cast<PresetCollection&>(bundle.printers) :
+                                              static_cast<PresetCollection&>(bundle.prints);
+}
+
+// A filament or printer preset named by a settings call, by the name Orca
+// keys it by. Null when no preset a person could pick has that name.
+inline const Preset* scope_preset(SettingsScope scope, const std::string& name)
+{
+    const Preset* preset = scope_collection(scope).find_preset(name, false);
+    return preset != nullptr && preset->is_visible && !preset->is_default && preset->name == name ? preset : nullptr;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

@@ -34,7 +34,7 @@ struct RuntimeHarness
     json settings_patch() const {
         const auto snapshot = workspace.snapshot();
         return request("tools/call", {{"name", "settings_apply_patch"},
-            {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+            {"arguments", {{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
                            {"changes", {{"wall_loops", "4"}}}}}});
     }
     void pump() { runtime.poll(); coordinator.pump(); }
@@ -250,7 +250,7 @@ TEST_CASE("MCP runtime shutdown cancels pending and approved work before destruc
     auto runtime = std::make_unique<Mcp::McpRuntime>(workspace, coordinator, directory.path());
     const auto snapshot = workspace.snapshot();
     Client client(runtime->server(), request("tools/call", {{"name", "settings_apply_patch"},
-        {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+        {"arguments", {{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
                        {"changes", {{"wall_loops", "4"}}}}}}));
     REQUIRE(wait_for([&] { return !coordinator.activities().empty(); }, [&] { runtime->poll(); }));
     const auto id = coordinator.activities().back().action_id;
@@ -289,7 +289,7 @@ TEST_CASE("MCP host survives page reset and persists the same activity", "[mcp][
     McpDirectory directory;
     host.start_mcp(directory.path().u8string());
     host.reset_page();
-    Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_get"}, {"arguments", {{"keys", {"wall_loops"}}}}}));
+    Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_get"}, {"arguments", {{"scope", "process"}, {"keys", {"wall_loops"}}}}}));
     REQUIRE(wait_for([&] { return client.done(); }, [&] { host.pump_tools(); }));
     CHECK_FALSE(host.handshake_complete());
     CHECK(client.messages()[0]["result"]["isError"] == false);
@@ -331,7 +331,7 @@ TEST_CASE("MCP project replacement completes the request before records are clea
     host.start_mcp(directory.path().u8string());
     const auto snapshot = workspace.snapshot();
     Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_apply_patch"},
-        {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+        {"arguments", {{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
                        {"changes", {{"wall_loops", "4"}}}}}}));
     REQUIRE(wait_for([&] { return !host.tools().activities().empty(); }, [&] { host.pump_tools(); }));
     workspace.replace_project(fixture());

@@ -4,6 +4,8 @@
 #include "StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 
+#include "libslic3r/PresetBundle.hpp"
+#include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
@@ -165,15 +167,16 @@ void PrinterMenu::show_root(const Ptr& self)
     if (has_other_printers)
         rows.push_back(separator());
 
-    // Both of these open the printer conversation, which lives on Home, so
-    // the shell goes there first. The nickname is the saved printer's own
-    // name when there is one; without it the conversation starts on adding a
-    // printer, which is what there is to do.
+    // Both of these open the printer conversation. Settings are about the
+    // selected preset, named as Orca keys it: the header shows a stock
+    // profile's model instead, which names no preset. Orca's placeholder is
+    // no printer at all, so its settings are adding one.
+    const bool placeholder = wxGetApp().preset_bundle->printers.get_selected_preset().is_default;
     HeaderMenuItem settings;
     settings.label  = _L("Printer settings…");
-    settings.invoke = [nickname = printer.nickname.ToStdString()] {
+    settings.invoke = [preset = placeholder ? std::string() : printer.preset_name] {
         if (ShellController* shell = installed_shell())
-            shell->open_printer_conversation(nickname);
+            shell->open_printer_conversation(preset);
     };
     rows.push_back(std::move(settings));
 

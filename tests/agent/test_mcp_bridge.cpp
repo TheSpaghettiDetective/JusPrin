@@ -58,7 +58,7 @@ struct Harness
     json settings_patch(int id, bool modern = false) {
         const auto snapshot = workspace.snapshot();
         auto call = rpc(id, "tools/call", {{"name", "settings_apply_patch"},
-            {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+            {"arguments", {{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
                            {"changes", {{"wall_loops", "4"}}}}},
             {"_meta", {{"progressToken", id}}}});
         if (modern) {

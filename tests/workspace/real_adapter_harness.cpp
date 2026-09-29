@@ -255,6 +255,114 @@ private:
         check(dialogs.count == 0, "settings_no_modal_dialog_reached");
     }
 
+    // Filament and printer settings, by preset name: an unsaved change to the
+    // preset being edited, a save in place, a copy of a preset Orca ships
+    // that takes its place, and a saved printer the project does not use,
+    // all through Orca's own tabs and files, with no dialog.
+    void verify_preset_settings()
+    {
+        struct DialogProbe : wxModalDialogHook {
+            int count{0};
+            int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
+        } dialogs;
+        dialogs.Register();
+        PresetBundle&     bundle   = *m_app.preset_bundle;
+        PresetCollection& printers = bundle.printers;
+        PresetCollection& filaments = bundle.filaments;
+        SettingsPreview   applied;
+        const auto confirm = [this](const SettingsPatch& patch) { return settings_confirmation(m_workspace->preview_settings(patch)); };
+        const auto refused = [this](const SettingsPatch& patch, const std::string& code) {
+            const auto issues = m_workspace->preview_settings(patch).issues;
+            return std::any_of(issues.begin(), issues.end(), [&code](const SettingIssue& issue) { return issue.code == code; });
+        };
+
+        const std::string printer = printers.get_selected_preset_name();
+        const SettingsTarget in_use{SettingsScope::Printer, {}, printer};
+        const auto read = m_workspace->read_settings({"machine_start_gcode", "nozzle_diameter"}, in_use);
+        check(!read.error && read.preset == printer && read.items.size() == 2 &&
+                  read.items[0].value == printers.get_edited_preset().config.opt_serialize("machine_start_gcode") &&
+                  read.items[0].definition.writable && !read.items[1].definition.writable,
+              "preset_settings_read_printer_by_name");
+        const auto label = m_workspace->read_settings({"machine_start_gcode"}, {SettingsScope::Printer, {}, printer + " (label)"});
+        check(label.error && label.error->code == "unknown_preset", "preset_settings_label_is_not_a_name");
+
+        // The gcode goes through Tab::load_config, unsaved, as a process edit does.
+        const std::string gcode = "G28 ; jusprin harness";
+        SettingsPatch unsaved{{{"machine_start_gcode", gcode}}, in_use};
+        check(m_workspace->apply_settings(unsaved, confirm(unsaved), applied).succeeded() && applied.preset_dirty &&
+                  printers.current_is_dirty() && printers.get_edited_preset().config.opt_string("machine_start_gcode") == gcode,
+              "preset_settings_printer_unsaved_change");
+        const auto* retraction = printers.get_edited_preset().config.option<ConfigOptionFloats>("retraction_length");
+        const std::string two_values = retraction->values.size() == 1 ? "0.8,0.8" : "0.8";
+        check(refused({{{"retraction_length", two_values}}, in_use}, "invalid_setting_value"), "preset_settings_list_keeps_its_length");
+        const SettingsPatch firmware{{{"use_firmware_retraction", "1"}, {"wipe", std::string(retraction->values.size() == 1 ? "1" : "1,1")},
+                                      {"retract_before_wipe", std::string(retraction->values.size() == 1 ? "50%" : "50%,50%")}}, in_use};
+        check(refused(firmware, "incompatible_settings"), "preset_settings_printer_dialog_refused");
+
+        // Saved: in place for the person's own printer, as a copy of one Orca
+        // ships, which is then the printer in use.
+        const bool shipped = printers.get_selected_preset().is_system;
+        SettingsPatch own{{{"machine_start_gcode", gcode + " 2"}}, in_use, printer};
+        const auto own_preview = m_workspace->preview_settings(own);
+        check(shipped ? !own_preview.issues.empty() && own_preview.issues.front().code == "read_only_preset" &&
+                            own_preview.issues.front().suggestions == std::vector<std::string>{printer + " - Copy"} :
+                        own_preview.valid,
+              "preset_settings_save_in_place_only_for_a_user_preset");
+        const std::string saved_name = shipped ? printer + " - Copy" : printer;
+        SettingsPatch save{{{"machine_start_gcode", gcode + " 2"}}, in_use, saved_name};
+        check(m_workspace->apply_settings(save, confirm(save), applied).succeeded() && applied.saved_as == saved_name && !applied.preset_dirty,
+              "preset_settings_printer_saved");
+        const Preset* copy = printers.find_preset(saved_name, false);
+        check(copy != nullptr && !copy->is_system && printers.get_selected_preset_name() == saved_name &&
+                  copy->config.opt_string("machine_start_gcode") == gcode + " 2" && !printers.current_is_dirty(),
+              "preset_settings_printer_saved_is_selected");
+        if (shipped)
+            check(printers.find_preset(printer, false)->config.opt_string("machine_start_gcode") != gcode + " 2",
+                  "preset_settings_shipped_printer_unchanged");
+        check(m_workspace->snapshot().setup.printer_preset == saved_name, "workspace_names_the_printer_by_preset_name");
+
+        // A saved printer the project does not use is written in place, and
+        // stays unselected.
+        if (shipped) {
+            check(m_app.get_tab(Preset::TYPE_PRINTER)->select_preset(printer) && printers.get_selected_preset_name() == printer,
+                  "preset_settings_printer_reselected");
+            const SettingsTarget other{SettingsScope::Printer, {}, saved_name};
+            check(refused({{{"machine_start_gcode", "G28 ; other"}}, other}, "not_selected"), "preset_settings_unselected_needs_persist");
+            SettingsPatch in_place{{{"machine_start_gcode", "G28 ; other"}}, other, saved_name};
+            check(m_workspace->apply_settings(in_place, confirm(in_place), applied).succeeded() && applied.saved_as == saved_name,
+                  "preset_settings_unselected_printer_saved");
+            check(printers.get_selected_preset_name() == printer &&
+                      printers.find_preset(saved_name, false)->config.opt_string("machine_start_gcode") == "G28 ; other",
+                  "preset_settings_unselected_printer_written_not_selected");
+        }
+
+        // A filament in the project: opened in its slot as the sidebar's edit
+        // button opens it, then saved; a copy of one Orca ships takes its slot.
+        const std::string filament = bundle.filament_presets.front();
+        const SettingsTarget slot{SettingsScope::Filament, {}, filament};
+        // One temperature per nozzle kind the filament knows: a list keeps
+        // its length (Bambu's X1C filaments hold two).
+        const auto* temperatures = filaments.find_preset(filament, false)->config.option<ConfigOptionInts>("nozzle_temperature");
+        std::string hotter;
+        for (const int temperature : temperatures->values)
+            hotter += (hotter.empty() ? "" : ",") + std::to_string(temperature + 5);
+        const bool        shipped_filament = filaments.find_preset(filament, false)->is_system;
+        const std::string filament_name    = shipped_filament ? filament + " - Copy" : filament;
+        check(refused({{{"filament_max_volumetric_speed", "0.2"}}, slot, filament_name}, "invalid_setting_value"),
+              "preset_settings_filament_dialog_refused");
+        SettingsPatch     warmer{{{"nozzle_temperature", hotter}, {"nozzle_temperature_initial_layer", hotter}}, slot, filament_name};
+        const auto warmer_preview = m_workspace->preview_settings(warmer);
+        check(warmer_preview.valid, "preset_settings_filament_preview_valid");
+        check(m_workspace->apply_settings(warmer, settings_confirmation(warmer_preview), applied).succeeded() &&
+                  applied.saved_as == filament_name,
+              "preset_settings_filament_saved");
+        check(bundle.filament_presets.front() == filament_name &&
+                  filaments.find_preset(filament_name, false)->config.opt_serialize("nozzle_temperature") == hotter &&
+                  !filaments.current_is_dirty(),
+              "preset_settings_filament_in_its_slot");
+        check(dialogs.count == 0, "preset_settings_no_modal_dialog_reached");
+    }
+
     static bool current_values_equal(const DynamicPrintConfig& a, const DynamicPrintConfig& b) { return a.diff(b).empty(); }
 
     void check(bool condition, const std::string& name)
@@ -321,6 +429,7 @@ private:
                   return edit.kind == EditKind::Setting && !edit.label.empty() && edit.before != edit.after;
               }),
               "change_log_records_setting_edits");
+        verify_preset_settings();
         check(initial.plates.size() >= 2, "initial_snapshot_has_multiple_plates");
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");
         check(object_count(initial) == 2, "initial_snapshot_has_two_objects");

@@ -36,9 +36,10 @@ json strings(const std::vector<std::string>& values, bool& truncated)
     return items;
 }
 
-json settings_context(const Workspace::WorkspaceSnapshot& snapshot, bool& truncated)
+json settings_context(Workspace::SettingsScope scope, const std::string& preset, const Workspace::WorkspaceSnapshot& snapshot,
+                      bool& truncated)
 {
-    return {{"processPreset", label(snapshot.setup.process_preset, truncated)},
+    return {{"scope", Workspace::scope_name(scope)}, {"presetName", label(preset, truncated)},
             {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
 }
 
@@ -76,10 +77,11 @@ json setting_issue_result(const Workspace::SettingIssue& issue)
     return result;
 }
 
-json settings_search_result(const Workspace::SettingsSearchResult& search, const Workspace::WorkspaceSnapshot& snapshot)
+json settings_search_result(const Workspace::SettingsSearchResult& search, Workspace::SettingsScope scope,
+                            const Workspace::WorkspaceSnapshot& snapshot)
 {
     bool truncated = search.truncated;
-    auto result = settings_context(snapshot, truncated);
+    auto result = settings_context(scope, search.preset, snapshot, truncated);
     result["items"] = json::array();
     for (const auto& def : search.items) {
         if (result["items"].size() == 25) { truncated = true; break; }
@@ -99,10 +101,11 @@ json settings_search_result(const Workspace::SettingsSearchResult& search, const
     return result;
 }
 
-json settings_read_result(const Workspace::SettingsReadResult& read, const Workspace::WorkspaceSnapshot& snapshot)
+json settings_read_result(const Workspace::SettingsReadResult& read, Workspace::SettingsScope scope,
+                          const Workspace::WorkspaceSnapshot& snapshot)
 {
     bool truncated = false;
-    auto result = settings_context(snapshot, truncated);
+    auto result = settings_context(scope, read.preset, snapshot, truncated);
     result["items"] = json::array();
     for (const auto& value : read.items) {
         if (result["items"].size() == 32) { truncated = true; break; }
@@ -120,10 +123,11 @@ json settings_read_result(const Workspace::SettingsReadResult& read, const Works
     return result;
 }
 
-json settings_preview_result(const Workspace::SettingsPreview& preview, const Workspace::WorkspaceSnapshot& snapshot)
+json settings_preview_result(const Workspace::SettingsPreview& preview, Workspace::SettingsScope scope,
+                             const Workspace::WorkspaceSnapshot& snapshot)
 {
     bool truncated = false;
-    auto result = settings_context(snapshot, truncated);
+    auto result = settings_context(scope, preview.preset, snapshot, truncated);
     result["valid"] = preview.valid;
     result["changes"] = changes_result(preview.changes, truncated);
     result["dependencies"] = changes_result(preview.dependencies, truncated);
@@ -133,11 +137,11 @@ json settings_preview_result(const Workspace::SettingsPreview& preview, const Wo
     return result;
 }
 
-json settings_apply_result(const Workspace::SettingsPreview& applied, const Workspace::WorkspaceSnapshot& snapshot, bool changed,
-                           bool object_target)
+json settings_apply_result(const Workspace::SettingsPreview& applied, Workspace::SettingsScope scope,
+                           const Workspace::WorkspaceSnapshot& snapshot, bool changed)
 {
     bool truncated = false;
-    auto result = settings_context(snapshot, truncated);
+    auto result = settings_context(scope, applied.preset, snapshot, truncated);
     auto changes = applied.changes;
     changes.insert(changes.end(), applied.dependencies.begin(), applied.dependencies.end());
     result["applied"] = changed;
@@ -148,8 +152,9 @@ json settings_apply_result(const Workspace::SettingsPreview& applied, const Work
             if (result["normalized"].size() == kToolListLimit) { truncated = true; break; }
             result["normalized"].push_back(issue.key);
         }
-    result["processPresetDirty"] = snapshot.setup.process_preset_dirty;
-    result["projectUndo"] = object_target;
+    result["savedAs"] = label(applied.saved_as, truncated);
+    result["presetDirty"] = applied.preset_dirty;
+    result["projectUndo"] = scope == Workspace::SettingsScope::Object;
     result["truncated"] = truncated;
     return result;
 }

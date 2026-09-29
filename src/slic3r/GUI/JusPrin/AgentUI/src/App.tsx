@@ -11,6 +11,7 @@ import { PlanActivityCard, planHeadline, planKey, planMembers } from './componen
 import { Composer } from './components/Composer';
 import { PrinterCredentialCard } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
+import { filamentInstructions } from './filamentInstructions';
 import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
@@ -170,6 +171,17 @@ export function App({
     sentInstructions.current = text;
     client.send('printer_instructions', { text });
   }, [printerPanel, state.session, state.connection, client]);
+
+  // The filament chat's instructions, likewise: written from the facts the
+  // app sends, sent again when they change, such as after a save as a copy.
+  const sentFilamentInstructions = useRef<string | null>(null);
+  useEffect(() => {
+    if (!state.filamentSession || state.connection !== 'connected') return;
+    const text = filamentInstructions(state.filamentSession);
+    if (text === sentFilamentInstructions.current) return;
+    sentFilamentInstructions.current = text;
+    client.send('filament_instructions', { text });
+  }, [state.filamentSession, state.connection, client]);
 
   // The printer panel's Back asks first once leaving would lose something:
   // what the person said, or what they are about to send. The composer's
@@ -400,8 +412,8 @@ export function App({
   if (printerPanel) {
     const session = state.session;
     const printerAction = (action: string) => client.send('printer_action', { action });
-    // Back is the only way the panel closes: no tool closes it for the
-    // model, so the person decides when they are done.
+    // No tool closes the panel for the model: the person decides when they
+    // are done, with Back or by opening the printer's own settings.
     const back = () => {
       const started = state.messages.some((message) => message.role === 'user') ||
         state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';
@@ -450,10 +462,11 @@ export function App({
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
               onSend={sendMessage}
-              // The one card the person decides on is the credential's; every
-              // other tool is what the model then says it did.
-              toolActivities={state.toolActivities.filter((activity) => activity.tool === 'printer_connect')}
-              renderActivity={(activity) => (
+              // The person decides on the credential's card and on a settings
+              // change's; every other tool is what the model then says it did.
+              toolActivities={state.toolActivities.filter((activity) =>
+                activity.tool === 'printer_connect' || activity.tool === 'settings_apply_patch')}
+              renderActivity={(activity) => activity.tool !== 'printer_connect' ? undefined : (
                 <PrinterCredentialCard
                   activity={activity}
                   connection={session?.connections?.[activity.actionId]}

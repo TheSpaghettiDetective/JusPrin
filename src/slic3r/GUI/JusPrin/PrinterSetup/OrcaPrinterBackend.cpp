@@ -14,12 +14,15 @@
 #include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
 #include "slic3r/Utils/PrintHost.hpp"
 #include "slic3r/Utils/NetworkAgentFactory.hpp"
+
+#include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
 #include <thread>
@@ -117,6 +120,32 @@ std::vector<SavedPrinter> OrcaPrinterBackend::saved_printers() const
         printers.push_back(std::move(saved));
     }
     return printers;
+}
+
+SavedPrinter OrcaPrinterBackend::stock_printer(const std::string& name) const
+{
+    SavedPrinter stock;
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    const Preset*       preset  = presets != nullptr ? presets->printers.find_preset(name, false) : nullptr;
+    if (preset == nullptr || preset->name != name || !preset->is_system || !preset->is_visible)
+        return stock;
+    stock.name      = preset->name;
+    stock.stock     = true;
+    stock.copy_name = Printers::copy_name(name, [presets](const std::string& candidate) {
+        return std::any_of(presets->printers.begin(), presets->printers.end(),
+                           [&candidate](const Preset& preset) { return boost::iequals(preset.name, candidate); });
+    });
+    if (const auto* nozzle = preset->config.option<ConfigOptionFloats>("nozzle_diameter"); nozzle && !nozzle->values.empty())
+        stock.nozzle = nozzle->values.front();
+    if (const CatalogPrinter* model = model_of(name)) {
+        stock.model     = model->display_name();
+        stock.model_id  = model->model_id;
+        stock.vendor_id = model->vendor_id;
+        stock.picture   = model->picture;
+        stock.nozzles   = model->nozzles;
+        stock.plate     = model->default_plate;
+    }
+    return stock;
 }
 
 std::string OrcaPrinterBackend::add_printer(const AddPrinterRequest& request, SavedPrinter& added)
@@ -493,6 +522,12 @@ void OrcaPrinterBackend::cancel_connection(const std::string& name)
 
 void OrcaPrinterBackend::open_printer_settings(const std::string& name)
 {
+    // A stock profile is in a conversation only as the project's selected
+    // printer, so its settings are the printer tab as it stands.
+    if (!stock_printer(name).name.empty() && wxGetApp().preset_bundle->printers.get_selected_preset_name() == name) {
+        SetupCommands::open_settings_tab(Preset::TYPE_PRINTER);
+        return;
+    }
     Printers::open_named_printer_settings(m_plater, name);
 }
 

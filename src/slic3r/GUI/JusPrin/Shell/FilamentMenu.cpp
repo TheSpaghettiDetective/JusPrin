@@ -459,9 +459,9 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
 
     HeaderMenuItem settings;
     settings.label  = _L("Filament settings…");
-    settings.invoke = [slot, name = current.filament.alias.ToStdString()] {
+    settings.invoke = [slot, preset = current.filament.preset_name, shown = current.filament.alias.ToStdString()] {
         if (ShellController* shell = installed_shell())
-            shell->open_filament_help(slot, name);
+            shell->open_filament_help(slot, preset, shown);
     };
     rows.push_back(std::move(settings));
 

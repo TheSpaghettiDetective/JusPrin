@@ -42,6 +42,11 @@ struct SavedPrinter
     std::vector<PrinterSpool> spools;
     std::string               activity;     // offline, idle, printing, or empty
     bool                      connected{false};
+    // One of OrcaSlicer's own printer profiles, selected in the project, not
+    // a printer the person saved: nothing is saved on it, and a change to its
+    // settings is saved as a copy under `copy_name`, which is then theirs.
+    bool                      stock{false};
+    std::string               copy_name;
 };
 
 // What the packaged profiles offer, one entry per model.
@@ -134,6 +139,9 @@ public:
     virtual const std::vector<CatalogPrinter>& catalog() const = 0;
     virtual std::vector<DiscoveredPrinter> network_printers() const = 0;
     virtual std::vector<SavedPrinter>     saved_printers() const = 0;
+    // A printer profile OrcaSlicer ships, by its preset name, as a person
+    // could pick it; `stock` is set. An empty name when there is none.
+    virtual SavedPrinter                  stock_printer(const std::string& name) const = 0;
 
     // Writes. Each returns an empty string on success, or a message written
     // for the person explaining what stopped it.

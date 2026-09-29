@@ -99,24 +99,78 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     const auto& registry = ToolRegistry::instance();
     FakeWorkspace workspace;
     auto snapshot = workspace.snapshot();
-    CHECK(registry.validate_output(*registry.find("settings_search"), settings_search_result(workspace.search_settings({""}), snapshot)));
-    CHECK(registry.validate_output(*registry.find("settings_get"), settings_read_result(workspace.read_settings({"layer_height", "bad"}), snapshot)));
+    CHECK(registry.validate_output(*registry.find("settings_search"),
+                                   settings_search_result(workspace.search_settings({""}), SettingsScope::Process, snapshot)));
+    CHECK(registry.validate_output(*registry.find("settings_get"),
+                                   settings_read_result(workspace.read_settings({"layer_height", "bad"}), SettingsScope::Process, snapshot)));
     for (auto value : {"0.25", "invalid"}) {
         auto preview = workspace.preview_settings({{{"layer_height", value}}});
-        CHECK(registry.validate_output(*registry.find("settings_preview_patch"), settings_preview_result(preview, snapshot)));
-        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, snapshot, false, false)));
+        CHECK(registry.validate_output(*registry.find("settings_preview_patch"), settings_preview_result(preview, SettingsScope::Process, snapshot)));
+        CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, SettingsScope::Process, snapshot, false)));
     }
+    const SettingsTarget printer{SettingsScope::Printer, {}, "Fixture printer"};
+    const auto printer_read = settings_read_result(workspace.read_settings({"machine_start_gcode"}, printer), SettingsScope::Printer, snapshot);
+    CHECK(registry.validate_output(*registry.find("settings_get"), printer_read));
+    CHECK(printer_read["scope"] == "printer");
+    CHECK(printer_read["presetName"] == "Fixture printer");
+
     const auto& preview_tool = *registry.find("settings_preview_patch");
-    const auto decoded = registry.validate_call(preview_tool, R"({"changes":{"unknown":true,"wall_loops":4,"layer_height":0.25}})");
+    const auto decoded = registry.validate_call(preview_tool, R"({"scope":"process","changes":{"unknown":true,"wall_loops":4,"layer_height":0.25}})");
     REQUIRE(decoded.valid());
     CHECK(json::parse(decoded.arguments_json)["changes"] == json{{"unknown", "1"}, {"wall_loops", "4"}, {"layer_height", "0.25"}});
-    CHECK_FALSE(registry.validate_call(preview_tool, R"({"changes":{}})").valid());
-    CHECK_FALSE(registry.validate_call(preview_tool, R"({"changes":{"wall_loops":null}})").valid());
-    CHECK_FALSE(registry.validate_call(*registry.find("settings_apply_patch"), R"({"changes":{"wall_loops":4}})").valid());
+    CHECK_FALSE(registry.validate_call(preview_tool, R"({"scope":"process","changes":{}})").valid());
+    CHECK_FALSE(registry.validate_call(preview_tool, R"({"scope":"process","changes":{"wall_loops":null}})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("settings_apply_patch"), R"({"scope":"process","changes":{"wall_loops":4}})").valid());
     auto unsupported = preview_tool;
     unsupported.output_schema["maximum"] = 1;
-    CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, snapshot)), std::logic_error);
+    CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, SettingsScope::Process, snapshot)), std::logic_error);
     CHECK(registry.approval_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
+}
+
+TEST_CASE("every settings call names its scope, and each scope takes exactly its own target", "[tools][settings]")
+{
+    const auto& registry = ToolRegistry::instance();
+    const auto  valid    = [&](const char* tool, const json& arguments) { return registry.validate_call(*registry.find(tool), arguments.dump()).valid(); };
+    const json  changes{{"wall_loops", 3}};
+
+    // No default scope, and no inference from the target.
+    CHECK_FALSE(valid("settings_preview_patch", json{{"changes", changes}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"changes", changes}, {"target", {{"objectId", "1"}}}}));
+    CHECK_FALSE(valid("settings_get", json{{"keys", {"wall_loops"}}}));
+    CHECK_FALSE(valid("settings_search", json{{"query", "wall"}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"scope", "project"}, {"changes", changes}}));
+
+    CHECK(valid("settings_preview_patch", json{{"scope", "process"}, {"changes", changes}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"scope", "process"}, {"target", {{"objectId", "1"}}}, {"changes", changes}}));
+
+    CHECK(valid("settings_preview_patch", json{{"scope", "object"}, {"target", {{"objectId", "1"}}}, {"changes", changes}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"scope", "object"}, {"changes", changes}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"scope", "object"}, {"target", {{"preset", "x"}}}, {"changes", changes}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"scope", "object"}, {"target", {{"objectId", 1}}}, {"changes", changes}}));
+    CHECK_FALSE(valid("settings_preview_patch", json{{"scope", "object"}, {"target", {{"objectId", "1"}}}, {"changes", changes}, {"persistAs", "x"}}));
+
+    for (const char* scope : {"filament", "printer"}) {
+        CHECK(valid("settings_get", json{{"scope", scope}, {"target", {{"preset", "Fixture"}}}, {"keys", {"x"}}}));
+        CHECK(valid("settings_search", json{{"scope", scope}, {"target", {{"preset", "Fixture"}}}, {"query", ""}}));
+        CHECK(valid("settings_preview_patch", json{{"scope", scope}, {"target", {{"preset", "Fixture"}}}, {"changes", changes}, {"persistAs", "Fixture - Copy"}}));
+        CHECK_FALSE(valid("settings_get", json{{"scope", scope}, {"keys", {"x"}}}));
+        CHECK_FALSE(valid("settings_get", json{{"scope", scope}, {"target", {{"preset", ""}}}, {"keys", {"x"}}}));
+        CHECK_FALSE(valid("settings_get", json{{"scope", scope}, {"target", {{"preset", "Fixture"}, {"objectId", "1"}}}, {"keys", {"x"}}}));
+        CHECK_FALSE(valid("settings_preview_patch", json{{"scope", scope}, {"target", {{"preset", "Fixture"}}}, {"changes", changes}, {"persistAs", ""}}));
+    }
+    // A search takes no persistAs: it saves nothing.
+    CHECK_FALSE(valid("settings_search", json{{"scope", "printer"}, {"target", {{"preset", "Fixture"}}}, {"query", ""}, {"persistAs", "x"}}));
+
+    const auto refused = registry.validate_call(*registry.find("settings_get"), json{{"scope", "printer"}, {"keys", {"x"}}}.dump());
+    REQUIRE(refused.error);
+    CHECK(refused.error->message.find("target.preset") != std::string::npos);
+    CHECK(refused.error->message.find("not a string") == std::string::npos);
+    // DeepSeek V4 Flash sends the object as JSON text, and sent it again after
+    // the message only named its fields.
+    const auto text = registry.validate_call(*registry.find("settings_get"),
+                                             json{{"scope", "printer"}, {"target", R"({"preset":"Fixture"})"}, {"keys", {"x"}}}.dump());
+    REQUIRE(text.error);
+    CHECK(text.error->message.find("target must be a JSON object, not a string holding one") != std::string::npos);
 }
 
 TEST_CASE("output validation understands closed vocabularies and string bounds", "[tools][registry][validation]")

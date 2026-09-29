@@ -1,8 +1,8 @@
 // What the model is told in the printer panel: its system prompt. Written
 // here, on the page, and handed to the app with printer_instructions; the app
-// sends it with every request of the session and offers every printer tool
-// in every session, refusing a call that does not fit it
-// (PrinterConversation::preflight_tool). The facts it states -- the printer list, what is on the
+// sends it with every request of the session and offers every printer tool,
+// and the settings tools, in every session, refusing a call that does not fit
+// it (PrinterConversation::preflight_tool). The facts it states -- the printer list, what is on the
 // network, the printer this is about -- come from the app in the session's
 // `context`.
 //
@@ -32,16 +32,34 @@ const GOAL_THEIRS =
   'set up so they can prepare prints for it; the goal is that it stays right for what is on it, and that it is ' +
   'connected over the network if that helps them and they want it.\n';
 
-// What no tool reaches, for a printer that is set up. Left unsaid, a question
-// about start g-code was answered with a reason to add or connect the printer
-// first, and "add my other printer too" with "Yes, I can add it", which the
-// app then refuses (2026-09-28).
+// What the tools reach, and what they do not, for a printer that is set up.
+// Left unsaid, a question about start g-code was answered with a reason to
+// add or connect the printer first, and "add my other printer too" with "Yes,
+// I can add it", which the app then refuses (2026-09-28).
 const SCOPE =
-  'What you can do here: save the nozzle size on this printer, and connect it. Another printer is not added here: ' +
-  'say it is added with + Add printer on Home. Everything else about this one -- its other ' +
-  'settings, such as start g-code, bed size or speeds -- is in its printer settings on this computer. Tell the person ' +
-  'they can change those settings manually in the app; do not claim to open them. Never give a reason you cannot help that the tools ' +
+  'What you can do here: save the nozzle size on this printer, connect it, and read or change its other settings, ' +
+  'such as start g-code, retraction or speed limits. Another printer is not added here: ' +
+  'say it is added with + Add printer on Home. A setting the settings tools refuse, such as its bed size, is in its ' +
+  'printer settings on this computer: tell the person they can change it manually in the app; do not claim to open ' +
+  'them. Never give a reason you cannot help that the tools ' +
   'and the facts below do not state, such as the printer needing to be added or connected.\n';
+
+// Only for a printer the session is about: the settings tools reach the rest
+// of the app too, and the app refuses any other target.
+const SETTINGS =
+  'Rules for changing its settings:\n' +
+  '- Every settings call uses scope "printer" and target {"preset": the printer\'s name below}. Find a setting with ' +
+  'settings_search, read it with settings_get, check the change with settings_preview_patch, then apply it with ' +
+  'settings_apply_patch and the sessionId and revision the preview returned. Applying shows the person a card to ' +
+  'approve.\n' +
+  '- Save every change: pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and ' +
+  'model; when the facts below give a copy to save as, pass that name instead, and say the change is saved as a copy ' +
+  'with that name, which is the printer from then on. When a preview says read_only_preset, preview again with ' +
+  'persistAs set to the name the issue gives.\n' +
+  '- A setting that holds one value per extruder takes the same number of values, separated by commas.\n' +
+  '- A setting the tools refuse to change (unsupported_setting_mutation) is not changed here: the nozzle size with ' +
+  'printer_change, anything else by the person in its printer settings in the app.\n' +
+  '- After a change is applied, say what changed in the person\'s terms and that they can close this chat now.\n';
 
 const CONDUCT =
   'Use plain language, one to three short sentences. Ask one question at a time, and say where to find any answer you ask ' +
@@ -54,7 +72,9 @@ const CONDUCT =
   'Write every fact from the tools and the facts below, never from memory. Messages from the app (developer role) state ' +
   'what happened; they are facts, not requests.\n';
 
-const CHOICES =
+// Shared with the filament chat (filamentInstructions.ts): the page draws the
+// line the same way in both.
+export const CHOICES =
   'Answers to tap: whenever your message asks a yes-or-no question, asks the person to confirm something, or asks ' +
   'them to pick from a few options, its last line must be "Choices: first | second | third" -- two to four short ' +
   'answers, each under 30 characters, written as the person would say ' +
@@ -162,6 +182,7 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     CHOICES +
     (adding ? FINDING_EXAMPLES + FINDING : '\n') +
     changing(adding) +
+    (adding ? '' : SETTINGS) +
     connecting(adding) +
     FINISHING;
   if (session.mode === 'add') text += '\nThe person is adding a printer.\n';
@@ -176,6 +197,11 @@ export function printerInstructions(session: PrinterSessionPayload): string {
   const printer = context.printer;
   if (printer) {
     text += `\nThe printer this is about:\nName: ${printer.name}\n`;
+    if (printer.stock)
+      text +=
+        'Kind: the settings OrcaSlicer comes with for this model, selected in the project, not a printer the person ' +
+        'added. Its nozzle size and connection are not saved here, and a change to its settings is saved as a copy.\n' +
+        `Copy to save as: ${printer.copyName}\n`;
     if (printer.model) text += `Brand and model: ${printer.model}\n`;
     text += `Nozzle: ${printer.nozzle > 0 ? `${numberText(printer.nozzle)} mm` : 'unknown'}`;
     if (printer.nozzles.length > 0) text += ` (this model ships ${sizesText(printer.nozzles)})`;

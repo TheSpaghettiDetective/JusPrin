@@ -60,14 +60,14 @@ def main():
     workspace = call(endpoint, "tools/call", {"name": "workspace_inspect"})
     print(json.dumps(workspace, indent=2))
     print(json.dumps(call(endpoint, "tools/call", {
-        "name": "settings_search", "arguments": {"query": "infill"},
+        "name": "settings_search", "arguments": {"scope": "process", "query": "infill"},
     }), indent=2))
     print(json.dumps(call(endpoint, "tools/call", {
-        "name": "settings_get", "arguments": {"keys": ["layer_height", "sparse_infill_density"]},
+        "name": "settings_get", "arguments": {"scope": "process", "keys": ["layer_height", "sparse_infill_density"]},
     }), indent=2))
     if args.changes:
         changes = json.loads(args.changes)
-        preview = call(endpoint, "tools/call", {"name": "settings_preview_patch", "arguments": {"changes": changes}})
+        preview = call(endpoint, "tools/call", {"name": "settings_preview_patch", "arguments": {"scope": "process", "changes": changes}})
         print(json.dumps(preview, indent=2))
         content = preview["result"]["structuredContent"]
         if not content.get("valid"):
@@ -75,7 +75,7 @@ def main():
         print("Approve or reject the process-settings patch in the JusPrin Agent panel.")
         print(json.dumps(call(endpoint, "tools/call", {
             "name": "settings_apply_patch",
-            "arguments": {"changes": changes, "expectedSessionId": content["sessionId"], "expectedRevision": content["revision"]},
+            "arguments": {"scope": "process", "changes": changes, "expectedSessionId": content["sessionId"], "expectedRevision": content["revision"]},
         }), indent=2))
 
 

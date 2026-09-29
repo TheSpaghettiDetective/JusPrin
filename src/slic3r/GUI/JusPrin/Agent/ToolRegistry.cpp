@@ -113,13 +113,32 @@ bool optional_text(const json& arguments, const char* key)
            (arguments[key].is_string() && arguments[key].get_ref<const std::string&>().size() <= kToolTextLimit);
 }
 
-// A settings call's optional target: one object, by id.
-bool optional_settings_target(const json& arguments)
+// A settings call's scope and the target that scope takes: none for the
+// process, one object by id, or a filament or printer preset by its name.
+bool valid_settings_scope(const json& arguments)
 {
-    if (!arguments.contains("target"))
-        return true;
-    const json& target = arguments["target"];
-    return target.is_object() && has_only(target, {"objectId"}) && target.contains("objectId") && is_unsigned_string(target["objectId"]);
+    if (!arguments.contains("scope") || !arguments["scope"].is_string())
+        return false;
+    const std::string& scope  = arguments["scope"].get_ref<const std::string&>();
+    const json*        target = arguments.contains("target") ? &arguments["target"] : nullptr;
+    if (scope == "process")
+        return target == nullptr;
+    if (target == nullptr || !target->is_object())
+        return false;
+    if (scope == "object")
+        return has_only(*target, {"objectId"}) && target->contains("objectId") && is_unsigned_string((*target)["objectId"]);
+    if (scope == "filament" || scope == "printer")
+        return has_only(*target, {"preset"}) && target->contains("preset") && (*target)["preset"].is_string() &&
+               !(*target)["preset"].get_ref<const std::string&>().empty() && optional_text(*target, "preset");
+    return false;
+}
+
+// The name a preset is saved under; an object's overrides are not a preset.
+bool valid_persist_as(const json& arguments)
+{
+    return !arguments.contains("persistAs") ||
+           (arguments["scope"] != "object" && arguments["persistAs"].is_string() &&
+            !arguments["persistAs"].get_ref<const std::string&>().empty() && optional_text(arguments, "persistAs"));
 }
 
 bool valid_arguments(const ToolDefinition& definition, const json& arguments)
@@ -128,14 +147,15 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return false;
 
     if (definition.handler == ToolHandler::SettingsSearch)
-        return has_only(arguments, {"query", "limit", "cursor", "writable", "changedOnly"}) && arguments.contains("query") &&
+        return has_only(arguments, {"scope", "target", "query", "limit", "cursor", "writable", "changedOnly"}) &&
+               valid_settings_scope(arguments) && arguments.contains("query") &&
                arguments["query"].is_string() && optional_string(arguments, "cursor") &&
                (!arguments.contains("writable") || arguments["writable"].is_boolean()) &&
                (!arguments.contains("changedOnly") || arguments["changedOnly"].is_boolean()) &&
                (!arguments.contains("limit") || (arguments["limit"].is_number_unsigned() &&
                  arguments["limit"].get<std::uint64_t>() >= 1 && arguments["limit"].get<std::uint64_t>() <= 25));
     if (definition.handler == ToolHandler::SettingsGet) {
-        if (!has_only(arguments, {"keys", "target"}) || !optional_settings_target(arguments) || !arguments.contains("keys") ||
+        if (!has_only(arguments, {"scope", "target", "keys"}) || !valid_settings_scope(arguments) || !arguments.contains("keys") ||
             !arguments["keys"].is_array() ||
             arguments["keys"].empty() || arguments["keys"].size() > 32)
             return false;
@@ -143,9 +163,9 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     }
     if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
         const bool apply = definition.handler == ToolHandler::SettingsApplyPatch;
-        if (!(apply ? has_only(arguments, {"changes", "target", "expectedSessionId", "expectedRevision", "intent"}) :
-                      has_only(arguments, {"changes", "target"})) ||
-            !optional_settings_target(arguments) ||
+        if (!(apply ? has_only(arguments, {"scope", "target", "changes", "persistAs", "expectedSessionId", "expectedRevision", "intent"}) :
+                      has_only(arguments, {"scope", "target", "changes", "persistAs"})) ||
+            !valid_settings_scope(arguments) || !valid_persist_as(arguments) ||
             !arguments.contains("changes") || !arguments["changes"].is_object() || arguments["changes"].empty() ||
             arguments["changes"].size() > 32)
             return false;
@@ -846,11 +866,12 @@ std::vector<ToolDefinition> make_definitions()
         return json{{"type", "array"}, {"items", std::move(item)}, {"maxItems", limit}};
     };
     const auto settings_output = [&](json fields, json required) {
-        fields["processPreset"] = string_schema();
+        fields["scope"] = string_schema();
+        fields["presetName"] = string_schema();
         fields["sessionId"] = id;
         fields["revision"] = revision;
         fields["truncated"] = boolean_schema();
-        for (const auto* key : {"processPreset", "sessionId", "revision", "truncated"}) required.push_back(key);
+        for (const auto* key : {"scope", "presetName", "sessionId", "revision", "truncated"}) required.push_back(key);
         return object_schema(std::move(fields), std::move(required));
     };
     const json setting_def = object_schema({{"key", id}, {"type", id}, {"label", id}, {"category", id},
@@ -864,9 +885,19 @@ std::vector<ToolDefinition> make_definitions()
     const json change = object_schema({{"key", id}, {"before", id}, {"after", id}}, {"key", "before", "after"});
     const json changes_input{{"type", "object"}, {"minProperties", 1}, {"maxProperties", 32},
         {"additionalProperties", {{"type", json::array({"string", "number", "boolean"})}}}};
-    json settings_target = object_schema({{"objectId", id}}, {"objectId"});
-    settings_target["description"] = "Omit for the print's own settings, which every object uses. Only when the user asks for "
-                                     "one particular object to be printed differently from the others.";
+    const json settings_scope{{"type", "string"}, {"enum", json::array({"process", "object", "filament", "printer"})},
+        {"description", "Whose settings. process: the print's own settings, which every object uses; that is what a request "
+                        "about the print means. object: one object's overrides, only when the user asks for one object to "
+                        "be printed differently from the others. filament or printer: that preset's own settings."}};
+    json settings_target = object_schema({{"objectId", id}, {"preset", id}});
+    settings_target["description"] = "Leave out for process. object: objectId, from workspace_inspect. filament and printer: "
+                                     "preset, the preset's exact name as workspace_inspect or the conversation gives it.";
+    const json persist_as{{"type", "string"}, {"maxLength", kToolTextLimit},
+        {"description", "Not for object. Save the changed preset under this name, as OrcaSlicer's Save does: its own name "
+                        "overwrites it; another name saves a copy, which is used in its place from then on. A preset that "
+                        "comes with OrcaSlicer cannot be overwritten (read_only_preset): save a copy, under the name the "
+                        "issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the "
+                        "preset being edited can be."}};
     const json patch_output = settings_output({{"valid", boolean_schema()}, {"changes", array_schema(change)},
         {"dependencies", array_schema(change)}, {"issues", array_schema(issue)}, {"warnings", array_schema(issue)}},
         {"valid", "changes", "dependencies", "issues", "warnings"});
@@ -920,36 +951,41 @@ std::vector<ToolDefinition> make_definitions()
                                                {"running", "plates", "jobs", "truncated"});
 
     std::vector<ToolDefinition> definitions{
-        {"settings_search", "Search process settings",
-         "Find a page of process settings by key, label, or description. The query may hold several words or keys, and settings matching more of them come first. Requires an active FFF process preset. writable keeps only the settings the patch tools may change; changedOnly keeps only settings that differ from the saved preset, which with an empty query lists every unsaved change. A page is not the full list; read known keys directly with settings_get or follow nextCursor.",
-         object_schema({{"query", id}, {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id},
-                        {"writable", boolean_schema()}, {"changedOnly", boolean_schema()}}, {"query"}),
+        {"settings_search", "Search settings",
+         "Find a page of process, object, filament or printer settings by key, label, or description. The query may hold several words or keys, and settings matching more of them come first. writable keeps only the settings the patch tools may change; changedOnly keeps only settings with unsaved changes (for object, the object's own overrides), which with an empty query lists every one. A page is not the full list; read known keys directly with settings_get or follow nextCursor.",
+         object_schema({{"scope", settings_scope}, {"target", settings_target}, {"query", id},
+                        {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id},
+                        {"writable", boolean_schema()}, {"changedOnly", boolean_schema()}}, {"scope", "query"}),
          settings_output({{"items", array_schema(setting_def, 25)}, {"nextCursor", id}}, {"items", "nextCursor"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsSearch},
-        {"settings_get", "Read process settings",
-         "Read current process values and their preset origin. Requires an active FFF process preset; read before proposing a patch. Leave target out to read the process values every object prints with. With target.objectId (an id from workspace_inspect), reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value.",
-         object_schema({{"keys", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 32}}}, {"target", settings_target}}, {"keys"}),
+        {"settings_get", "Read settings",
+         "Read current values and their preset origin; read before proposing a patch. process reads the values every object prints with. object reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value. filament and printer read that preset: with its unsaved changes when it is the one being edited (differsFromPreset), otherwise as saved.",
+         object_schema({{"scope", settings_scope}, {"target", settings_target},
+                        {"keys", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 32}}}}, {"scope", "keys"}),
          settings_output({{"items", array_schema(object_schema({{"key", id}, {"value", id}, {"type", id}, {"label", id},
              {"unit", id}, {"differsFromPreset", boolean_schema()}, {"differsFromSystem", boolean_schema()}, {"writable", boolean_schema()},
              {"overridden", boolean_schema()}},
              {"key", "value", "type", "label", "unit", "differsFromPreset", "differsFromSystem", "writable"}), 32)},
              {"unknownKeys", array_schema(issue, 32)}}, {"items", "unknownKeys"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsGet},
-        {"settings_preview_patch", "Preview process settings",
-         "Validate an atomic process-settings patch without changing the workspace. Requires an active FFF process preset; use the returned sessionId and revision when applying. Leave target out to change the process, which every object on every plate prints with; that is what a request about the print means. Use target.objectId (an id from workspace_inspect) only when the user asks for one object to differ from the others; a selected object, or a project with a single object, is not such a request; the patch is then checked as overrides on that object: settings that apply to the whole print (skirt, travel speed, spiral vase and the like) are refused with unsupported_scope, and no dependencies are predicted because OrcaSlicer keeps object overrides as written.",
-         object_schema({{"changes", changes_input}, {"target", settings_target}}, {"changes"}), patch_output,
+        {"settings_preview_patch", "Preview settings",
+         "Validate an atomic settings patch, and persistAs, without changing anything; use the returned sessionId and revision when applying. A setting that holds one value per extruder or nozzle takes the same number of values, separated by commas. object checks the patch as overrides on that object: settings that apply to the whole print (skirt, travel speed, spiral vase and the like) are refused with unsupported_scope, and no dependencies are predicted because OrcaSlicer keeps object overrides as written. A filament or printer preset that is not the one being edited changes only by being saved (not_selected without persistAs).",
+         object_schema({{"scope", settings_scope}, {"target", settings_target}, {"changes", changes_input}, {"persistAs", persist_as}},
+                       {"scope", "changes"}),
+         patch_output,
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
-        {"settings_apply_patch", "Change process settings",
-         "Apply an atomic process-settings patch. Requires an active FFF process preset and the sessionId and revision from a preview of the same changes and target; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. Leave target out, as in the preview, unless the user asked for one object to differ. A process change is not undone by project Undo; with target.objectId the change becomes that object's own override, and project Undo does undo it.",
-         object_schema({{"changes", changes_input}, {"target", settings_target}, {"expectedSessionId", id}, {"expectedRevision", revision},
+        {"settings_apply_patch", "Change settings",
+         "Apply an atomic settings patch. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
+         object_schema({{"scope", settings_scope}, {"target", settings_target}, {"changes", changes_input}, {"persistAs", persist_as},
+                        {"expectedSessionId", id}, {"expectedRevision", revision},
                         {"intent", json{{"type", "string"}, {"maxLength", 40},
                                         {"description", "What the user asked this setup to be, in their own words, as "
                                          "one line of at most 40 characters. Not a description of the settings you "
                                          "changed. Send it whenever the change came from something the user asked for."}}}},
-                       {"changes", "expectedSessionId", "expectedRevision"}),
+                       {"scope", "changes", "expectedSessionId", "expectedRevision"}),
          settings_output({{"applied", boolean_schema()}, {"changes", array_schema(change)}, {"normalized", array_schema(id)},
-             {"processPresetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},
-             {"applied", "changes", "normalized", "processPresetDirty", "projectUndo"}),
+             {"savedAs", string_schema()}, {"presetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},
+             {"applied", "changes", "normalized", "savedAs", "presetDirty", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
         {"intent_update", "Record what this print is for",
          "Record what the user said they want out of this print, as named answers you choose (only what they said or clearly implied, not your own plan; that belongs in plan_set): what it is for, how it will be used, what matters about it, how long it may take. Send question without value for something you have asked and do not know yet; the unanswered ones come back as openQuestions. Calling it shows the user an approval card in JusPrin and waits for their decision, because the card is where the user confirms you understood them. Project Undo does not undo this.",
@@ -1705,6 +1741,15 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                 message += " " + outside + ".";
             if (definition.handler == ToolHandler::ProjectOpen && arguments.contains("path") == arguments.contains("new"))
                 message += " Give exactly one of path and new.";
+            if (definition.handler == ToolHandler::SettingsSearch || definition.handler == ToolHandler::SettingsGet ||
+                definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
+                message += " scope process takes no target; object takes target.objectId; filament and printer take "
+                           "target.preset, the preset's name. persistAs is not for object.";
+                // Seen on DeepSeek V4 Flash: the object sent as JSON text, again
+                // and again, while the message above only named its fields.
+                if (arguments.is_object() && arguments.contains("target") && arguments["target"].is_string())
+                    message += " target must be a JSON object, not a string holding one: \"target\": {\"preset\": \"<name>\"}.";
+            }
             if (definition.handler == ToolHandler::PrinterConnect)
                 message += " Give deviceId alone, or hostType with the address the person gave. Without an address, ask the "
                            "person for the one they open the printer with in a browser, and call this once they give it.";
@@ -1761,8 +1806,10 @@ std::string ToolRegistry::approval_title(const ToolDefinition& definition, const
         return definition.title;
     }
     if (definition.handler == ToolHandler::SettingsApplyPatch) {
+        // The coordinator replaces this with the previewed outcome.
         const auto arguments = json::parse(arguments_json);
-        std::string title = "Change " + std::to_string(arguments.at("changes").size()) + " process settings: ";
+        std::string title = "Change " + std::to_string(arguments.at("changes").size()) + " " +
+                            arguments.at("scope").get<std::string>() + " settings: ";
         bool first = true;
         for (const auto& item : arguments.at("changes").items()) {
             if (!first) title += ", ";

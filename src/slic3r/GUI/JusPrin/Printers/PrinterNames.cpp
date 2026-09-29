@@ -28,4 +28,9 @@ std::string first_free_printer_name(const std::string& base, const NamePredicate
     }
 }
 
+std::string copy_name(const std::string& preset, const NamePredicate& taken)
+{
+    return first_free_printer_name(preset + " - Copy", taken);
+}
+
 } // namespace Slic3r::GUI::JusPrin::Printers

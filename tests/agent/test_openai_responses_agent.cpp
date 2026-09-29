@@ -154,7 +154,10 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
     AgentRequest request;
     request.request_id                = "printer-1";
     request.user_text                 = "Yes, it is";
-    request.session.tool_names        = Slic3r::GUI::JusPrin::PrinterSetup::PrinterConversation::session_tools();
+    using Slic3r::GUI::JusPrin::PrinterSetup::PrinterConversation;
+    request.session.tool_names = PrinterConversation::session_tools();
+    for (const std::string& name : PrinterConversation::settings_tools())
+        request.session.tool_names.push_back(name);
     request.session.include_workspace = false;
     REQUIRE(agent.start(request));
     const json sent = json::parse(fake->requests.front().body)["tools"];
@@ -287,7 +290,7 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     CHECK(continuation.back()["call_id"] == "call-9");
 
     const json next_call{{"type", "function_call"}, {"call_id", "call-10"}, {"name", "settings_get"},
-                         {"arguments", R"({"keys":["wall_loops"]})"}};
+                         {"arguments", R"({"scope":"process","keys":["wall_loops"]})"}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", {{"output", json::array({next_call})}}}}));
     const auto next_event = poll_until(agent, AgentEventKind::ToolCall);
     REQUIRE(next_event);

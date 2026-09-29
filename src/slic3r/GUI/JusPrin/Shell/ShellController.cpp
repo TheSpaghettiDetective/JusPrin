@@ -5,12 +5,14 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "StatusRow.hpp"
 
+#include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
+#include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
@@ -31,6 +33,18 @@
 namespace Slic3r::GUI::JusPrin {
 
 namespace {
+
+// A preset a person could pick, by the name Orca keys it.
+bool preset_exists(Preset::Type type, const std::string& name)
+{
+    const PresetBundle* bundle = wxGetApp().preset_bundle;
+    if (bundle == nullptr)
+        return false;
+    const PresetCollection& presets = type == Preset::TYPE_FILAMENT ? static_cast<const PresetCollection&>(bundle->filaments) :
+                                                                      static_cast<const PresetCollection&>(bundle->printers);
+    const Preset* preset = presets.find_preset(name, false);
+    return preset != nullptr && preset->name == name && preset->is_visible && !preset->is_default;
+}
 
 class AgentPaneResizeHandle final : public wxPanel
 {
@@ -534,17 +548,28 @@ void ShellController::open_printer_conversation(const std::string& printer_name,
 {
     if (m_task_open || m_printer_panel == nullptr || m_tabpanel == nullptr)
         return;
+    // Every caller names a preset it has just read, so a miss means it went
+    // between the menu and the click: say so as Orca does, never open a
+    // conversation about another printer.
+    if (!printer_name.empty() && !preset_exists(Preset::TYPE_PRINTER, printer_name)) {
+        show_error(m_frame, wxString::Format(_L("The printer preset \"%s\" was not found."), from_u8(printer_name)));
+        return;
+    }
     m_printer_panel->open(connect ? PrinterSetup::ConversationMode::Connect : printer_name.empty() ? PrinterSetup::ConversationMode::Add :
                                                  PrinterSetup::ConversationMode::Change,
                           printer_name);
     show_task_panel();
 }
 
-void ShellController::open_filament_help(std::size_t slot, const std::string& filament_name)
+void ShellController::open_filament_help(std::size_t slot, const std::string& preset, const std::string& shown)
 {
     if (m_task_open || m_printer_panel == nullptr || m_tabpanel == nullptr)
         return;
-    m_printer_panel->open_filament(slot, filament_name,
+    if (!preset_exists(Preset::TYPE_FILAMENT, preset)) {
+        show_error(m_frame, wxString::Format(_L("The filament preset \"%s\" was not found."), from_u8(preset)));
+        return;
+    }
+    m_printer_panel->open_filament(slot, preset, shown,
         m_tabpanel->GetSelection() == MainFrame::tpPreview ? _L("Back to Preview") : _L("Back to Prepare"));
     show_task_panel();
 }

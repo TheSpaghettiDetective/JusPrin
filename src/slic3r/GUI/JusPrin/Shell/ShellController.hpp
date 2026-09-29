@@ -101,7 +101,9 @@ public:
     // Notebook keeps its selection, so Back restores the same Home, Prepare,
     // or Preview screen without rebuilding it.
     void open_printer_conversation(const std::string& printer_name = {}, bool connect = false);
-    void open_filament_help(std::size_t slot, const std::string& filament_name);
+    // Opens a filament's chat for one slot. `preset` is the slot's filament
+    // preset by name; `shown` is what the header calls it.
+    void open_filament_help(std::size_t slot, const std::string& preset, const std::string& shown);
 
 private:
     void on_frame_destroy(wxWindowDestroyEvent& event);

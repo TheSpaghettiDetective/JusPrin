@@ -1834,8 +1834,10 @@ bool AgentHost::remember_setup_intent(const ToolActivity& activity)
 bool AgentHost::remember_agent_authored(const ToolActivity& activity)
 {
     const json result = json::parse(activity.result_json, nullptr, false);
-    // A patch that changed nothing wrote nothing, so it authored nothing.
-    if (result.is_discarded() || !result.is_object() || !result.value("applied", false))
+    // A patch that changed nothing wrote nothing, so it authored nothing. The
+    // record is of process values; a filament or printer preset's are not.
+    if (result.is_discarded() || !result.is_object() || !result.value("applied", false) ||
+        (result.value("scope", "") != "process" && result.value("scope", "") != "object"))
         return false;
     const auto changes = result.find("changes");
     if (changes == result.end() || !changes->is_array())

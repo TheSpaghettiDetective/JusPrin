@@ -133,7 +133,7 @@ TEST_CASE("Settings approval captures the preview and rejects invalid or stale p
     Harness h;
     auto request = [&](json changes) {
         const auto snapshot = h.workspace.snapshot();
-        return ToolRequest{"settings_apply_patch", json{{"changes", changes}, {"expectedSessionId", std::to_string(snapshot.session.value())},
+        return ToolRequest{"settings_apply_patch", json{{"scope", "process"}, {"changes", changes}, {"expectedSessionId", std::to_string(snapshot.session.value())},
                                                        {"expectedRevision", snapshot.revision}}.dump()};
     };
     auto bad = h.coordinator.propose(request({{"wall_loops", 4}, {"brim_width", -1}}), "bad");
@@ -146,7 +146,7 @@ TEST_CASE("Settings approval captures the preview and rejects invalid or stale p
     auto pending = h.coordinator.propose(request({{"wall_loops", 4}}), "pending");
     REQUIRE(pending.state == ToolState::Pending);
     REQUIRE(json::parse(pending.arguments_json)["confirmedChanges"][0] == json{{"key", "wall_loops"}, {"before", "2"}, {"after", "4"}});
-    REQUIRE(pending.title == "Change 1 process settings: wall_loops");
+    REQUIRE(pending.title == "Change 1 settings of \"Fixture process\": wall_loops");
     SECTION("reject") { REQUIRE(h.coordinator.reject(pending.action_id)); }
     SECTION("cancel") { REQUIRE(h.coordinator.cancel(pending.action_id)); }
     SECTION("setting event") {
@@ -174,10 +174,10 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
     std::vector<ToolActivity> external;
     auto sub = h.coordinator.subscribe([&](const auto& a) { if (tool_state_terminal(a.state)) external.push_back(a); });
     const auto initial = h.workspace.snapshot();
-    const auto read_id = h.coordinator.propose({"settings_get", R"({"keys":["wall_loops","sparse_infill_density"]})"}, "read").action_id;
+    const auto read_id = h.coordinator.propose({"settings_get", R"({"scope":"process","keys":["wall_loops","sparse_infill_density"]})"}, "read").action_id;
     h.pump_to_completion(read_id);
     REQUIRE(h.coordinator.find(read_id)->state == ToolState::Succeeded);
-    const auto apply_id = h.coordinator.propose({"settings_apply_patch", json{{"changes", {{"wall_loops", 4}, {"sparse_infill_density", "25%"}}},
+    const auto apply_id = h.coordinator.propose({"settings_apply_patch", json{{"scope", "process"}, {"changes", {{"wall_loops", 4}, {"sparse_infill_density", "25%"}}},
         {"expectedSessionId", std::to_string(initial.session.value())}, {"expectedRevision", initial.revision}}.dump()}, "mcp", {}, ToolSource::Mcp).action_id;
     REQUIRE(h.coordinator.approve(apply_id));
     h.pump_to_completion(apply_id);
@@ -187,7 +187,10 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
     REQUIRE(result["applied"] == true);
     REQUIRE(result["changes"].size() == 2);
     REQUIRE(result["projectUndo"] == false);
-    REQUIRE(result["processPresetDirty"] == true);
+    REQUIRE(result["presetDirty"] == true);
+    REQUIRE(result["scope"] == "process");
+    REQUIRE(result["presetName"] == "Fixture process");
+    REQUIRE(result["savedAs"] == "");
     REQUIRE(result["revision"] == initial.revision + 1);
     REQUIRE(external.back().result_json == h.events.back().result_json);
     REQUIRE(Mcp::activity_result(activity, h.workspace.snapshot())["structuredContent"] == result);
@@ -1560,11 +1563,11 @@ TEST_CASE("settings search can keep only writable or unsaved settings", "[tools]
         for (const auto& item : result["items"]) keys.push_back(item["key"]);
         return keys;
     };
-    CHECK(search(json{{"query", ""}, {"changedOnly", true}}) == std::vector<std::string>{"brim_width"});
-    const auto writable = search(json{{"query", ""}, {"writable", true}, {"limit", 25}});
+    CHECK(search(json{{"scope", "process"}, {"query", ""}, {"changedOnly", true}}) == std::vector<std::string>{"brim_width"});
+    const auto writable = search(json{{"scope", "process"}, {"query", ""}, {"writable", true}, {"limit", 25}});
     CHECK(std::find(writable.begin(), writable.end(), "notes") == writable.end());
     CHECK(std::find(writable.begin(), writable.end(), "layer_height") != writable.end());
-    CHECK_FALSE(registry.validate_call(*registry.find("settings_search"), R"({"query":"","writable":"yes"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("settings_search"), R"({"scope":"process","query":"","writable":"yes"})").valid());
 }
 
 TEST_CASE("settings tools read and write one object's overrides", "[tools][settings]")
@@ -1584,16 +1587,16 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
         return result["items"][0];
     };
 
-    CHECK(read_walls(json{{"keys", {"wall_loops"}}, {"target", target}}) ==
+    CHECK(read_walls(json{{"scope", "object"}, {"keys", {"wall_loops"}}, {"target", target}}) ==
           json{{"key", "wall_loops"}, {"value", "2"}, {"type", "integer"}, {"label", "Wall loops"}, {"unit", ""},
                {"differsFromPreset", false}, {"differsFromSystem", false}, {"writable", true}, {"overridden", false}});
 
-    const auto scope = json::parse(run("settings_preview_patch", json{{"changes", {{"skirt_loops", 2}}}, {"target", target}}).result_json);
+    const auto scope = json::parse(run("settings_preview_patch", json{{"scope", "object"}, {"changes", {{"skirt_loops", 2}}}, {"target", target}}).result_json);
     CHECK_FALSE(scope["valid"].get<bool>());
     CHECK(scope["issues"][0]["code"] == "unsupported_scope");
 
     const auto snapshot = h.workspace.snapshot();
-    json apply{{"changes", {{"wall_loops", 4}}}, {"target", target},
+    json apply{{"scope", "object"}, {"changes", {{"wall_loops", 4}}}, {"target", target},
                {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
     const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Pending);
@@ -1606,19 +1609,124 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
     CHECK(applied["changes"][0] == json{{"key", "wall_loops"}, {"before", "2"}, {"after", "4"}});
     CHECK(h.workspace.snapshot().can_undo);
 
-    CHECK(read_walls(json{{"keys", {"wall_loops"}}, {"target", target}})["overridden"] == true);
-    CHECK(read_walls(json{{"keys", {"wall_loops"}}, {"target", target}})["value"] == "4");
-    CHECK_FALSE(read_walls(json{{"keys", {"wall_loops"}}}).contains("overridden"));
-    CHECK(read_walls(json{{"keys", {"wall_loops"}}})["value"] == "2");
+    CHECK(read_walls(json{{"scope", "object"}, {"keys", {"wall_loops"}}, {"target", target}})["overridden"] == true);
+    CHECK(read_walls(json{{"scope", "object"}, {"keys", {"wall_loops"}}, {"target", target}})["value"] == "4");
+    CHECK_FALSE(read_walls(json{{"scope", "process"}, {"keys", {"wall_loops"}}}).contains("overridden"));
+    CHECK(read_walls(json{{"scope", "process"}, {"keys", {"wall_loops"}}})["value"] == "2");
 
-    const auto missing = run("settings_get", json{{"keys", {"wall_loops"}}, {"target", {{"objectId", "987654"}}}});
+    const auto missing = run("settings_get", json{{"scope", "object"}, {"keys", {"wall_loops"}}, {"target", {{"objectId", "987654"}}}});
     CHECK(missing.state == ToolState::Failed);
     CHECK(missing.error->code == "missing_object");
 
-    for (const char* bad : {R"({"keys":["wall_loops"],"target":{"objectId":5}})",
-                            R"({"keys":["wall_loops"],"target":{"objectId":"5","plate":"1"}})",
-                            R"({"changes":{"wall_loops":3},"target":{}})"})
+    for (const char* bad : {R"({"scope":"object","keys":["wall_loops"],"target":{"objectId":5}})",
+                            R"({"scope":"object","keys":["wall_loops"],"target":{"objectId":"5","plate":"1"}})",
+                            R"({"scope":"object","changes":{"wall_loops":3},"target":{}})"})
         CHECK_FALSE(registry.validate_call(*registry.find(std::string(bad).find("keys") != std::string::npos ? "settings_get" : "settings_preview_patch"), bad).valid());
+}
+
+TEST_CASE("a printer preset OrcaSlicer ships is saved as a copy, which is used in its place", "[tools][settings]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    auto run = [&h](const std::string& tool, const json& arguments) {
+        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        return *h.coordinator.find(id);
+    };
+    const json printer{{"preset", "Fixture printer"}};
+    const json changes{{"machine_start_gcode", "G28\nG29"}};
+
+    // Saving over the shipped preset is refused, and the refusal names the
+    // copy Orca's own Save would offer.
+    const auto own = json::parse(run("settings_preview_patch", json{{"scope", "printer"}, {"target", printer}, {"changes", changes},
+                                                                    {"persistAs", "Fixture printer"}}).result_json);
+    CHECK(registry.validate_output(*registry.find("settings_preview_patch"), own));
+    CHECK_FALSE(own["valid"].get<bool>());
+    CHECK(own["issues"][0]["code"] == "read_only_preset");
+    CHECK(own["issues"][0]["suggestions"] == json::array({"Fixture printer - Copy"}));
+    CHECK(own["presetName"] == "Fixture printer");
+
+    const auto snapshot = h.workspace.snapshot();
+    const json apply{{"scope", "printer"}, {"target", printer}, {"changes", changes}, {"persistAs", "Fixture printer - Copy"},
+                     {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
+    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
+    REQUIRE(pending.state == ToolState::Pending);
+    CHECK(pending.title == "Change 1 settings of \"Fixture printer\": machine_start_gcode; save as \"Fixture printer - Copy\"");
+    REQUIRE(h.coordinator.approve(pending.action_id));
+    h.pump_to_completion(pending.action_id);
+    const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
+    CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
+    CHECK(applied["savedAs"] == "Fixture printer - Copy");
+    CHECK(applied["presetDirty"] == false);
+    CHECK(applied["projectUndo"] == false);
+
+    auto& fixture = h.workspace.settings_for_testing();
+    CHECK(fixture.selected_printer == "Fixture printer - Copy");
+    CHECK(fixture.printers.at("Fixture printer - Copy").saved.at("machine_start_gcode") == "G28\nG29");
+    CHECK(fixture.printers.at("Fixture printer").saved.at("machine_start_gcode") == "G28");
+}
+
+TEST_CASE("a preset that is not being edited changes only by being saved", "[tools][settings]")
+{
+    Harness h;
+    auto preview = [&h](const json& arguments) {
+        const std::string id = h.coordinator.propose({"settings_preview_patch", arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        return json::parse(h.coordinator.find(id)->result_json);
+    };
+    const json garage{{"preset", "Garage printer"}};
+    const json changes{{"machine_start_gcode", "G28 ; mine"}};
+    CHECK(preview(json{{"scope", "printer"}, {"target", garage}, {"changes", changes}})["issues"][0]["code"] == "not_selected");
+    // In place, as a nozzle change is; a copy would be a second printer.
+    CHECK(preview(json{{"scope", "printer"}, {"target", garage}, {"changes", changes}, {"persistAs", "Garage printer"}})["valid"] == true);
+    CHECK(preview(json{{"scope", "printer"}, {"target", garage}, {"changes", changes}, {"persistAs", "Garage two"}})["issues"][0]["code"] ==
+          "not_selected");
+    CHECK(preview(json{{"scope", "printer"}, {"target", garage}, {"changes", changes}, {"persistAs", "Fixture printer"}})["issues"][0]["code"] ==
+          "name_taken");
+
+    // A filament in the project is opened where the sidebar opens it, which
+    // must not lose the unsaved edits of the one being edited.
+    const json petg{{"preset", "Fixture PETG"}};
+    const json hotter{{"nozzle_temperature", "250"}};
+    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", hotter}, {"persistAs", "Fixture PETG - Copy"}})["valid"] == true);
+    auto& fixture = h.workspace.settings_for_testing();
+    fixture.filaments.at("Fixture PLA").values["nozzle_temperature"] = "215";
+    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", hotter}, {"persistAs", "Fixture PETG - Copy"}})["issues"][0]["code"] ==
+          "unsaved_edits");
+    fixture.filaments.at("Fixture PLA").values["nozzle_temperature"] = "210";
+
+    // The filament Orca is editing takes an unsaved change, as the process does.
+    const auto unsaved = preview(json{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", hotter}});
+    CHECK(unsaved["valid"] == true);
+    CHECK(unsaved["changes"][0] == json{{"key", "nozzle_temperature"}, {"before", "210"}, {"after", "250"}});
+    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"filament_type", "PLA"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
+          "unsupported_setting_mutation");
+
+    const std::string id = h.coordinator.propose({"settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Nope"}}},
+                                                                      {"keys", {"machine_start_gcode"}}}.dump()}, "m-2").action_id;
+    h.coordinator.pump();
+    CHECK(h.coordinator.find(id)->state == ToolState::Failed);
+    CHECK(h.coordinator.find(id)->error->code == "unknown_preset");
+}
+
+TEST_CASE("saving a copy of a project filament puts the copy in its slot", "[tools][settings]")
+{
+    Harness h;
+    const auto snapshot = h.workspace.snapshot();
+    const json apply{{"scope", "filament"}, {"target", {{"preset", "Fixture PETG"}}}, {"changes", {{"nozzle_temperature", "250"}}},
+                     {"persistAs", "Fixture PETG - Copy"}, {"expectedSessionId", std::to_string(snapshot.session.value())},
+                     {"expectedRevision", snapshot.revision}};
+    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-1");
+    REQUIRE(pending.state == ToolState::Pending);
+    REQUIRE(h.coordinator.approve(pending.action_id));
+    h.pump_to_completion(pending.action_id);
+    REQUIRE(h.coordinator.find(pending.action_id)->state == ToolState::Succeeded);
+    auto& fixture = h.workspace.settings_for_testing();
+    CHECK(fixture.filament_slots == std::vector<std::string>{"Fixture PLA", "Fixture PETG - Copy"});
+    CHECK(fixture.selected_filament == "Fixture PETG - Copy");
+    CHECK(fixture.filaments.at("Fixture PETG").saved.at("nozzle_temperature") == "240");
+    // Filament values are not the project's process edits.
+    CHECK(h.workspace.snapshot().preset_deltas.empty());
 }
 
 TEST_CASE("region annotations are approved, read back with their status, regenerated and deleted", "[tools][regions]")
@@ -1864,7 +1972,7 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     Harness h;
     const auto& registry = ToolRegistry::instance();
     const auto preview = h.workspace.snapshot();
-    const json patch{{"changes", {{"wall_loops", 4}}}, {"expectedSessionId", std::to_string(preview.session.value())},
+    const json patch{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}, {"expectedSessionId", std::to_string(preview.session.value())},
                      {"expectedRevision", preview.revision}};
     // A copy is added after the preview; the patch still proposes and applies.
     const ToolActivity copy = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
@@ -1884,7 +1992,7 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
 
     // A settings edit after the preview is stale, pending or not.
     const auto second = h.workspace.snapshot();
-    const json again{{"changes", {{"wall_loops", 5}}}, {"expectedSessionId", std::to_string(second.session.value())},
+    const json again{{"scope", "process"}, {"changes", {{"wall_loops", 5}}}, {"expectedSessionId", std::to_string(second.session.value())},
                      {"expectedRevision", second.revision}};
     const ToolActivity waiting = h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-4");
     REQUIRE(waiting.state == ToolState::Pending);
@@ -1893,10 +2001,10 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     CHECK(h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-5").error->code == "stale_workspace");
 
     // A refused call says what is wrong with it.
-    const auto refused = registry.validate_call(*registry.find("settings_preview_patch"), json{{"changes", {{"wall_loops", 3}}}, {"intent", "x"}}.dump());
+    const auto refused = registry.validate_call(*registry.find("settings_preview_patch"), json{{"scope", "process"}, {"changes", {{"wall_loops", 3}}}, {"intent", "x"}}.dump());
     REQUIRE_FALSE(refused.valid());
     CHECK(refused.error->message.find("Not a parameter of this tool: intent.") != std::string::npos);
-    CHECK(registry.validate_call(*registry.find("settings_preview_patch"), "{}").error->message.find("Missing: changes.") != std::string::npos);
+    CHECK(registry.validate_call(*registry.find("settings_preview_patch"), "{}").error->message.find("Missing: scope, changes.") != std::string::npos);
     const auto opening = registry.validate_call(*registry.find("project_open"), R"({"path":"C:/a.stl","new":true,"oversized":"shrink"})");
     CHECK(opening.error->message.find(R"(oversized must be one of ["keep","scaleToFit"].)") != std::string::npos);
     CHECK(opening.error->message.find("Give exactly one of path and new.") != std::string::npos);

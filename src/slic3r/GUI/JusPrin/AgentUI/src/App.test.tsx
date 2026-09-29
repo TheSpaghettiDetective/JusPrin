@@ -139,6 +139,29 @@ describe('App', () => {
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'return_to_workspace' });
   });
 
+  it('writes a filament chat its instructions from the filament it is about, and again when that changes', () => {
+    render(<App getTransport={() => host.transport} />);
+    const filament = { kind: 'filament' as const, slot: 1, preset: 'Bambu PLA Basic @BBL X1C', shown: 'Bambu PLA Basic',
+                       material: 'PLA', stock: true, copyName: 'Bambu PLA Basic @BBL X1C - Copy' };
+    connect(host, emptyState({ navigation: { focused: true }, session: filament }));
+    const sent = () => host.received.filter((envelope) => envelope.type === 'filament_instructions');
+    expect(sent()).toHaveLength(1);
+    expect((sent()[0].payload as { text: string }).text).toContain('Name: Bambu PLA Basic @BBL X1C\n');
+    expect((sent()[0].payload as { text: string }).text).toContain('Copy to save as: Bambu PLA Basic @BBL X1C - Copy\n');
+    // Saved as a copy: the chat is about the copy.
+    connect(host, emptyState({ navigation: { focused: true },
+                               session: { ...filament, preset: 'Bambu PLA Basic @BBL X1C - Copy', stock: false, copyName: undefined } }));
+    expect(sent()).toHaveLength(2);
+    expect((sent()[1].payload as { text: string }).text).toContain('Name: Bambu PLA Basic @BBL X1C - Copy\n');
+    expect(host.received.some((envelope) => envelope.type === 'printer_instructions')).toBe(false);
+  });
+
+  it('writes no filament instructions for the project chat', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({}));
+    expect(host.received.some((envelope) => envelope.type === 'filament_instructions')).toBe(false);
+  });
+
   it('keeps the unconfigured temporary chat focused on setup and manual settings', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' }, navigation: { focused: true } }));

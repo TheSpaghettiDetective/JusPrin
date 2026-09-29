@@ -41,4 +41,9 @@ NameProblem check_printer_name(const std::string& name, const NamePredicate& res
 // sees when the name is chosen for them.
 std::string first_free_printer_name(const std::string& base, const NamePredicate& taken);
 
+// The name a copy of `preset` is saved under: "<preset> - Copy", the name
+// SavePresetDialog offers for a copy of a preset Orca ships, or the first free
+// one after it.
+std::string copy_name(const std::string& preset, const NamePredicate& taken);
+
 } // namespace Slic3r::GUI::JusPrin::Printers

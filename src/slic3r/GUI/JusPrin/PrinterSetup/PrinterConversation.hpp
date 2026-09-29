@@ -70,7 +70,9 @@ public:
     PrinterConversation(IPrinterBackend& backend, IConversationHost& host);
 
     // Starts a session. `printer_name` names the printer a Change or Connect
-    // session is about and is ignored when adding.
+    // session is about and is ignored when adding: a saved printer, or for a
+    // change also the stock profile the project has selected. The caller has
+    // checked that it is there.
     void start(ConversationMode mode, const std::string& printer_name = {});
 
     ConversationMode   mode() const { return m_mode; }
@@ -99,7 +101,14 @@ public:
     // the model answer.
     void tick(std::chrono::steady_clock::time_point now);
 
+    // A settings tool this session ran has settled. A copy of the printer
+    // saved in place of a stock profile is the printer from then on.
+    void tool_settled(const Agent::ToolActivity& activity);
+
+    // The printer panel's own tools, and the settings tools a session also
+    // offers for the printer it is about.
     static std::vector<std::string> session_tools();
+    static std::vector<std::string> settings_tools();
 
 private:
     using Result = Agent::ToolExecutionCoordinator::ExtensionResult;
@@ -121,6 +130,9 @@ private:
     void undo_add(const std::string& block_id);
 
     SavedPrinter          saved(const std::string& name) const;
+    // The printer the session is about: a saved one, or the stock profile a
+    // change was opened for.
+    SavedPrinter          about() const;
     const CatalogPrinter* catalog_entry(const std::string& id) const;
     nlohmann::json        printer_json(const SavedPrinter& printer) const;
     nlohmann::json        context_json() const;

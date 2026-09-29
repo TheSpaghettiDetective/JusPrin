@@ -73,6 +73,18 @@
 //              checked (cards drawn or not, the change card, the saved
 //              nozzle, Undo). The key is written to this run's throwaway
 //              app config, where the panel reads it.
+//   --printer-settings-live
+//              needs OPENAI_API_KEY: the header's Printer settings… on the
+//              printer OrcaSlicer ships, as the fixture selects it, through
+//              the live model: a retraction change goes on a card saved as
+//              "<preset> - Copy", and once approved the copy holds it, is
+//              selected, and is what the conversation is about
+//   --filament-settings-live
+//              needs OPENAI_API_KEY: the header's Filament settings… for slot
+//              1, which holds a filament OrcaSlicer ships, through the live
+//              model: a nozzle temperature change goes on a card saved as
+//              "<preset> - Copy", and once approved the copy holds it and
+//              takes the slot
 //   --printer-live-no-plugin
 //              needs OPENAI_API_KEY and a machine without the Bambu network
 //              plug-in: adds a Bambu Lab printer through the live model and
@@ -568,6 +580,10 @@ struct HarnessState
     // --printer-live-no-plugin: connecting a Bambu Lab printer without the
     // network plug-in, and without the fake printer standing in for it.
     bool no_plugin{false};
+    // --printer-settings-live, --filament-settings-live: a settings change to
+    // the printer, or slot 1's filament, OrcaSlicer ships, from the header.
+    bool settings_live{false};
+    bool filament_settings_live{false};
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
@@ -1361,6 +1377,16 @@ private:
             run_live_steps();
             return;
         }
+        if (m_state->settings_live) {
+            queue_settings_live();
+            run_live_steps();
+            return;
+        }
+        if (m_state->filament_settings_live) {
+            queue_filament_settings_live();
+            run_live_steps();
+            return;
+        }
         using Mode = PrinterSetup::ConversationMode;
 
         // Adding: nothing is saved until the person says yes.
@@ -1823,6 +1849,119 @@ private:
                                     return card != nullptr && card->state == Agent::ToolState::Succeeded && live_settled();
                                 },
                                 {}});
+    }
+
+    // The header's Printer settings… on a project that uses the printer
+    // OrcaSlicer ships (reported 2026-09-28: it opened a conversation about
+    // adding a printer). A change is saved as a copy, which the project then
+    // uses and the conversation is then about.
+    void queue_settings_live()
+    {
+        using Mode = PrinterSetup::ConversationMode;
+        const Preset& selected = wxGetApp().preset_bundle->printers.get_selected_preset();
+        const std::string stock = selected.name;
+        const std::string copy  = stock + " - Copy";
+        check(selected.is_system, "live_settings_fixture_printer_is_stock");
+        const auto card = [this]() -> const Agent::ToolActivity* {
+            const auto calls = live_calls("settings_apply_patch");
+            return calls.empty() ? nullptr : calls.back();
+        };
+        live_open(Mode::Change, stock);
+        live_say("set the retraction length to 1 mm", [this, card, copy] {
+            live_print_calls();
+            check(live_panel()->session_json().value("mode", "") == "change", "live_settings_conversation_is_a_change");
+            check(card() != nullptr && card()->state == Agent::ToolState::Pending &&
+                      nlohmann::json::parse(card()->arguments_json).value("persistAs", "") == copy,
+                  "live_settings_change_goes_on_a_card_as_a_copy");
+        });
+        m_live_steps.push_back({"approve the settings card",
+                                [this, card] {
+                                    if (card() != nullptr && card()->state == Agent::ToolState::Pending)
+                                        live_send("tool_decision", {{"actionId", card()->action_id}, {"decision", "approve"}});
+                                },
+                                [this, card] { return card() != nullptr && Agent::tool_state_terminal(card()->state) && live_settled(); },
+                                [this, card, copy, stock] {
+                                    live_print_calls();
+                                    const PresetCollection& printers = wxGetApp().preset_bundle->printers;
+                                    const Preset*           saved    = printers.find_preset(copy, false);
+                                    check(card() != nullptr && card()->state == Agent::ToolState::Succeeded, "live_settings_card_applies");
+                                    check(saved != nullptr && !saved->is_system && printers.get_selected_preset_name() == copy &&
+                                              !printers.current_is_dirty(),
+                                          "live_settings_copy_is_saved_and_selected");
+                                    const auto* length = saved != nullptr ? saved->config.option<ConfigOptionFloats>("retraction_length") : nullptr;
+                                    check(length != nullptr && std::all_of(length->values.begin(), length->values.end(),
+                                                                           [](double value) { return std::abs(value - 1.0) < 1e-6; }),
+                                          "live_settings_copy_holds_the_change");
+                                    const auto* shipped = printers.find_preset(stock, false)->config.option<ConfigOptionFloats>("retraction_length");
+                                    check(shipped != nullptr && std::abs(shipped->get_at(0) - 1.0) > 1e-6, "live_settings_shipped_printer_unchanged");
+                                    check(live_panel()->session_json().value("printerName", "") == copy,
+                                          "live_settings_conversation_follows_the_copy");
+                                    live_capture("settings-saved-as-copy");
+                                }});
+    }
+
+    // The header's Filament settings… for slot 1, which holds a filament
+    // OrcaSlicer ships: the change is saved as a copy, which takes the slot.
+    void queue_filament_settings_live()
+    {
+        const auto card = [this]() -> const Agent::ToolActivity* {
+            const auto calls = live_calls("settings_apply_patch");
+            return calls.empty() ? nullptr : calls.back();
+        };
+        auto before = std::make_shared<std::pair<std::string, std::string>>(); // the preset, its temperatures
+        m_live_steps.push_back({"open: filament settings for slot 1",
+                                [this, before] {
+                                    m_frame->CallAfter([this, before] {
+                                        const auto& bundle = *wxGetApp().preset_bundle;
+                                        before->first      = bundle.filament_presets.front();
+                                        before->second     = bundle.filaments.find_preset(before->first, false)->config.opt_serialize("nozzle_temperature");
+                                        installed_shell()->open_filament_help(0, before->first, SetupCommands::current_filament().alias.ToStdString());
+                                        m_live_printed = 0;
+                                    });
+                                },
+                                [this] {
+                                    return live_panel()->IsShown() && live_panel()->host() != nullptr &&
+                                           live_panel()->host()->handshake_complete() && live_panel()->instructions_ready();
+                                },
+                                [this, before] {
+                                    check(wxGetApp().preset_bundle->filaments.find_preset(before->first, false)->is_system,
+                                          "live_filament_fixture_is_stock");
+                                }});
+        live_say("make the nozzle 5 degrees hotter", [this, card, before] {
+            live_print_calls();
+            const auto arguments = card() != nullptr ? nlohmann::json::parse(card()->arguments_json) : nlohmann::json::object();
+            check(card() != nullptr && card()->state == Agent::ToolState::Pending && arguments.value("scope", "") == "filament" &&
+                      arguments["target"].value("preset", "") == before->first &&
+                      arguments.value("persistAs", "") == before->first + " - Copy",
+                  "live_filament_change_goes_on_a_card_as_a_copy");
+        });
+        m_live_steps.push_back({"approve the filament card",
+                                [this, card] {
+                                    if (card() != nullptr && card()->state == Agent::ToolState::Pending)
+                                        live_send("tool_decision", {{"actionId", card()->action_id}, {"decision", "approve"}});
+                                },
+                                // No card at all is a failure below, not a wait.
+                                [this, card] { return (card() == nullptr || Agent::tool_state_terminal(card()->state)) && live_settled(); },
+                                [this, card, before] {
+                                    live_print_calls();
+                                    const auto&   bundle = *wxGetApp().preset_bundle;
+                                    const std::string copy = before->first + " - Copy";
+                                    const Preset* saved  = bundle.filaments.find_preset(copy, false);
+                                    check(card() != nullptr && card()->state == Agent::ToolState::Succeeded, "live_filament_card_applies");
+                                    check(saved != nullptr && !saved->is_system && bundle.filament_presets.front() == copy &&
+                                              !bundle.filaments.current_is_dirty(),
+                                          "live_filament_copy_takes_the_slot");
+                                    std::string hotter;
+                                    std::istringstream temperatures(before->second);
+                                    for (std::string value; std::getline(temperatures, value, ',');)
+                                        hotter += (hotter.empty() ? "" : ",") + std::to_string(std::stoi(value) + 5);
+                                    check(saved != nullptr && saved->config.opt_serialize("nozzle_temperature") == hotter,
+                                          "live_filament_copy_holds_the_change");
+                                    check(bundle.filaments.find_preset(before->first, false)->config.opt_serialize("nozzle_temperature") ==
+                                              before->second,
+                                          "live_filament_shipped_preset_unchanged");
+                                    live_capture("filament-saved-as-copy");
+                                }});
     }
 
     void queue_connect_capture()
@@ -3481,17 +3620,12 @@ private:
         // The printer half opens the printer menu; the filament half's menu
         // carries Filament settings….
         if (type == Preset::TYPE_PRINTER) {
-            // Printer settings… talks about the selected printer in a
-            // temporary task chat over Prepare. Only a printer saved under a name
-            // can be changed there, so one is saved from the fixture's own
-            // profile and selected for the length of the check.
-            m_header_setup_restore_printer = wxGetApp().preset_bundle->printers.get_selected_preset_name();
-            m_header_setup_printer         = Printers::add_named_printer(*m_plater, "Header Printer", {});
-            check(SetupCommands::current_printer().nickname.ToStdString() == m_header_setup_printer,
-                  "header_setup_named_printer_selected");
+            // First the fixture's own printer, which Orca ships: the chat is a
+            // change about that preset, by its name, never one about adding a
+            // printer (as it was when the header passed its display name).
             installed_shell()->status_row()->open_printer_menu();
             choose_header_item(ui_name("Printer settings…"),
-                [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
+                [self=shared_from_this()] { self->verify_header_stock_printer_settings(); });
             return;
         }
         const auto& document = installed_shell()->persistence()->document();
@@ -3502,6 +3636,46 @@ private:
             self->choose_header_item(ui_name("Filament settings…"),
                 [self,type] { self->verify_header_setup_open(type); });
         });
+    }
+
+    void verify_header_stock_printer_settings()
+    {
+        const Preset& selected = wxGetApp().preset_bundle->printers.get_selected_preset();
+        const std::string preset = selected.name;
+        const bool        stock  = selected.is_system;
+        wait_until([this] {
+                PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+                return panel != nullptr && panel->IsShownOnScreen() && panel->host() != nullptr && panel->host()->handshake_complete();
+            }, "header_stock_printer_settings_opens",
+            [self=shared_from_this(), preset, stock] {
+                PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+                const nlohmann::json session = panel->session_json();
+                self->check(session.value("mode", "") == "change" && session.value("printerName", "") == preset,
+                            "header_printer_settings_is_about_the_selected_preset_by_name");
+                self->check(session["context"]["printer"].value("stock", false) == stock, "header_printer_settings_says_it_is_stock");
+                // Its settings are the printer tab as it stands.
+                self->live_send("printer_action", {{"action", "open_printer_settings"}});
+                self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); }, "header_stock_printer_settings_window_opens",
+                    [self, preset] {
+                        self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() == preset,
+                                    "header_stock_printer_settings_keeps_the_printer");
+                        wxGetApp().params_dialog()->Close();
+                        self->verify_header_named_printer_settings();
+                    });
+            });
+    }
+
+    // Then a printer saved under a name, which this check saves from the
+    // fixture's own profile and selects for its length.
+    void verify_header_named_printer_settings()
+    {
+        m_header_setup_restore_printer = wxGetApp().preset_bundle->printers.get_selected_preset_name();
+        m_header_setup_printer         = Printers::add_named_printer(*m_plater, "Header Printer", {});
+        check(SetupCommands::current_printer().nickname.ToStdString() == m_header_setup_printer,
+              "header_setup_named_printer_selected");
+        installed_shell()->status_row()->open_printer_menu();
+        choose_header_item(ui_name("Printer settings…"),
+            [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
     }
 
     // Writes the chip as it actually renders, in both appearance modes and in
@@ -5481,7 +5655,7 @@ private:
                     const auto result = nlohmann::json::parse(action->result_json);
                     self->check(result["applied"] == true && result["changes"].size() == 2 && result["projectUndo"] == false,
                                 "live_settings_structured_batch_result");
-                    self->check(result["processPresetDirty"] == (stage == 1), "live_settings_dirty_and_inverse");
+                    self->check(result["presetDirty"] == (stage == 1), "live_settings_dirty_and_inverse");
                 }
                 const auto expected = stage == 1 ? self->m_settings_patch : self->m_settings_original;
                 for (const auto& item : installed_shell()->workspace()->read_settings({"layer_height", "sparse_infill_density"}).items)
@@ -5648,11 +5822,11 @@ private:
 
     void mcp_settings_reads()
     {
-        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_search"}, {"arguments", {{"query", "infill"}}}}));
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_search"}, {"arguments", {{"scope", "process"}, {"query", "infill"}}}}));
         mcp_wait([self = shared_from_this()] {
             self->check(!self->mcp_result()["structuredContent"]["items"].empty(), "mcp_settings_search_results");
             self->mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_get"},
-                {"arguments", {{"keys", {"layer_height", "sparse_infill_density"}}}}}));
+                {"arguments", {{"scope", "process"}, {"keys", {"layer_height", "sparse_infill_density"}}}}}));
             self->mcp_wait([self] {
                 const auto result = self->mcp_result()["structuredContent"];
                 self->m_settings_original = nlohmann::json::object();
@@ -5661,7 +5835,7 @@ private:
                 self->check(self->m_settings_original.size() == 2, "mcp_settings_get_two_values");
                 self->m_settings_patch = {{"layer_height", "0.16"}, {"sparse_infill_density", "25%"}};
                 self->mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_preview_patch"},
-                    {"arguments", {{"changes", self->m_settings_patch}}}}));
+                    {"arguments", {{"scope", "process"}, {"changes", self->m_settings_patch}}}}));
                 self->mcp_wait([self] {
                     const auto preview = self->mcp_result()["structuredContent"];
                     self->check(preview["valid"] == true && preview["changes"].size() == 2, "mcp_settings_preview_two_changes");
@@ -5675,7 +5849,7 @@ private:
     {
         const auto snapshot = installed_shell()->workspace()->snapshot();
         mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_apply_patch"},
-            {"arguments", {{"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
+            {"arguments", {{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
                            {"changes", scenario == 2 ? m_settings_original : m_settings_patch}}}}));
         wait_until([this] {
             m_mcp_client->poll();
@@ -5733,7 +5907,7 @@ private:
                             "mcp_approved_settings_batch_succeeded");
                 self->check(content["projectUndo"] == false, "mcp_settings_explain_project_undo");
                 if (scenario == 1) {
-                    self->check(content["processPresetDirty"] == true, "mcp_settings_mark_preset_dirty");
+                    self->check(content["presetDirty"] == true && content["scope"] == "process", "mcp_settings_mark_preset_dirty");
                     self->wait_until([self] { return !self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid(); },
                         "mcp_settings_invalidate_real_slice", [self] {
                             self->check(primary_print_action(installed_shell()->status_row()->action_state()).primary.action == PrintAction::Slice,
@@ -5759,7 +5933,7 @@ private:
         // Hold one approved action across a page reset with no handshake.
         auto& view = installed_shell()->agent_pane()->web_view();
         view.host().reset_page();
-        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_get"}, {"arguments", {{"keys", {"wall_loops"}}}}}));
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_get"}, {"arguments", {{"scope", "process"}, {"keys", {"wall_loops"}}}}}));
         mcp_wait([self = shared_from_this()] {
             self->check(self->mcp_result()["isError"] == false, "mcp_read_during_missing_handshake");
             self->m_mcp_client.reset();
@@ -6200,7 +6374,7 @@ private:
         const auto snapshot = workspace->snapshot();
         check(!snapshot.plates.empty() && !snapshot.plates[0].objects.empty(), "settings_object_present");
         if (snapshot.plates.empty() || snapshot.plates[0].objects.empty()) return;
-        Workspace::SettingsTarget target{snapshot.plates[0].objects[0].id};
+        Workspace::SettingsTarget target{Workspace::SettingsScope::Object, snapshot.plates[0].objects[0].id};
         const ModelObject* object = m_plater->model().objects.front();
         const Workspace::SettingsPatch walls{{{"wall_loops", "5"}}, target};
         {
@@ -7551,6 +7725,14 @@ int main(int argc, char** argv)
         else if (argument == "--printer-live-no-plugin") {
             state->mode      = HarnessState::Mode::PrinterLive;
             state->no_plugin = true;
+        }
+        else if (argument == "--printer-settings-live") {
+            state->mode          = HarnessState::Mode::PrinterLive;
+            state->settings_live = true;
+        }
+        else if (argument == "--filament-settings-live") {
+            state->mode                   = HarnessState::Mode::PrinterLive;
+            state->filament_settings_live = true;
         }
         else if (argument == "--printer-connect-capture") {
             if (++index == argc) {

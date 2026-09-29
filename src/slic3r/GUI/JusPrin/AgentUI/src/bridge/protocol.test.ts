@@ -44,6 +44,7 @@ describe('protocol constants', () => {
       'printer_action',
       'printer_instructions',
       'printer_opening',
+      'filament_instructions',
       'shell_action',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');

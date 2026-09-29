@@ -68,6 +68,17 @@ void relink_device(const std::string& from, const std::string& to)
 // selected one.
 Preset* saved_preset(const std::string& name) { return bundle().printers.find_preset(name, false, true); }
 
+// What PresetCollection::save_current_preset and Tab::save_preset do for the
+// selected profile, for one that is not: store the difference from the
+// parent, and queue the update for the cloud.
+void store_unselected(Preset& saved, DynamicPrintConfig config, Preset* parent)
+{
+    saved.config = std::move(config);
+    saved.save(parent != nullptr ? &parent->config : nullptr);
+    saved.sync_info = "update";
+    saved.save_info();
+}
+
 bool is_selected(const std::string& name) { return bundle().printers.get_selected_preset_name() == name; }
 
 // Profile files share a directory, so names that differ only in case are the
@@ -409,14 +420,8 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
     config.option<ConfigOptionString>("printer_settings_id", true)->value = name;
     Preset::normalize_inherits(config, new_parent);
 
-    // What PresetCollection::save_current_preset and Tab::save_preset do for
-    // the selected profile: store the difference from the parent, and queue
-    // the update for the cloud.
-    saved->config  = std::move(config);
     saved->base_id = new_parent->setting_id;
-    saved->save(&new_parent->config);
-    saved->sync_info = "update";
-    saved->save_info();
+    store_unselected(*saved, std::move(config), new_parent);
 
     if (in_use) {
         // The same printer, under the same name: only its settings moved.
@@ -435,6 +440,16 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
         plater.sidebar().update_presets(Preset::TYPE_FILAMENT);
     }
     return {};
+}
+
+void write_unselected_printer(const std::string& name, const DynamicPrintConfig& changes)
+{
+    Preset* saved = saved_preset(name);
+    if (saved == nullptr || !is_named_printer(*saved) || is_selected(name))
+        throw std::logic_error("write_unselected_printer called for a missing or selected printer");
+    DynamicPrintConfig config = saved->config;
+    config.apply(changes);
+    store_unselected(*saved, std::move(config), saved->inherits().empty() ? nullptr : saved_preset(saved->inherits()));
 }
 
 } // namespace Slic3r::GUI::JusPrin::Printers

@@ -135,6 +135,11 @@ PrinterConversation::PrinterConversation(IPrinterBackend& backend, IConversation
     : m_backend(backend), m_host(host)
 {}
 
+std::vector<std::string> PrinterConversation::settings_tools()
+{
+    return {"settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"};
+}
+
 std::vector<std::string> PrinterConversation::session_tools()
 {
     return {"printer_add", "printer_change", "printer_connect", "printer_connection_status", "printer_identify"};
@@ -158,13 +163,12 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_added.clear();
     m_needs_plugin = false;
 
-    // A printer this app has not saved cannot be changed, and the header's
-    // menu can name one: a system profile is selected until the person adds
-    // a printer of their own. Adding one is what there is to do.
-    if (m_mode == ConversationMode::Change && saved(m_printer_name).name.empty()) {
-        m_mode = ConversationMode::Add;
-        m_printer_name.clear();
-    }
+    // The session is the one it was opened for. Its opener names a printer
+    // it has just read -- a saved one, or for a change the stock profile the
+    // project has selected -- so a name that finds neither is its bug.
+    if ((m_mode == ConversationMode::Change && about().name.empty()) ||
+        (m_mode == ConversationMode::Connect && saved(m_printer_name).name.empty()))
+        throw std::logic_error("A printer conversation was opened for a printer that is not there: " + m_printer_name);
 
     if (m_mode == ConversationMode::Add) {
         m_network = m_backend.network_printers();
@@ -229,6 +233,12 @@ SavedPrinter PrinterConversation::saved(const std::string& name) const
     return {};
 }
 
+SavedPrinter PrinterConversation::about() const
+{
+    const SavedPrinter printer = saved(m_printer_name);
+    return !printer.name.empty() || m_printer_name.empty() ? printer : m_backend.stock_printer(m_printer_name);
+}
+
 const CatalogPrinter* PrinterConversation::catalog_entry(const std::string& id) const
 {
     const std::vector<CatalogPrinter>& catalog = m_backend.catalog();
@@ -259,9 +269,13 @@ json PrinterConversation::context_json() const
         context["printers"] = std::move(printers);
         context["network"]  = std::move(network);
     }
-    if (const SavedPrinter printer = saved(m_printer_name); !printer.name.empty()) {
+    if (const SavedPrinter printer = about(); !printer.name.empty()) {
         context["printer"]             = printer_json(printer);
         context["printer"]["provider"] = printer.vendor_id == "BBL" ? "bambu" : "host";
+        if (printer.stock) {
+            context["printer"]["stock"]    = true;
+            context["printer"]["copyName"] = printer.copy_name;
+        }
         if (m_needs_plugin)
             context["printer"]["needsNetworkPlugin"] = true;
     }
@@ -273,7 +287,9 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     Agent::AgentSessionProfile profile;
     // The tools are the app's to decide; the words are the page's
     // (printerInstructions.ts), sent with printer_instructions.
-    profile.tool_names   = session_tools();
+    profile.tool_names = session_tools();
+    const std::vector<std::string> settings = settings_tools();
+    profile.tool_names.insert(profile.tool_names.end(), settings.begin(), settings.end());
     profile.instructions = m_instructions;
     // This conversation is about a machine, not about the open project, and
     // what the app does on its own reaches the model as notes.
@@ -305,6 +321,30 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         return ToolError{"not_in_this_conversation",
                          "This conversation is about " + m_printer_name + ", which is already set up; printers are not "
                          "found or added here. Tell the person that another printer is added with + Add printer on Home."};
+    // The settings tools reach the project too; here they reach this
+    // printer's own settings, and nothing else.
+    if (handler == ToolHandler::SettingsSearch || handler == ToolHandler::SettingsGet ||
+        handler == ToolHandler::SettingsPreviewPatch || handler == ToolHandler::SettingsApplyPatch) {
+        if (m_printer_name.empty())
+            return ToolError{"no_printer", "No printer is set up in this conversation yet: add one first."};
+        const json arguments = json::parse(activity.arguments_json);
+        if (arguments.value("scope", std::string()) != "printer")
+            return ToolError{"not_in_this_conversation", "Only this printer's settings are changed here: pass scope printer and "
+                                                         "target.preset \"" + m_printer_name + "\"."};
+        if (arguments.at("target").value("preset", std::string()) != m_printer_name)
+            return ToolError{"other_printer", "This conversation can change only \"" + m_printer_name + "\". Another saved printer is "
+                                              "changed from Printer settings… in its menu on Home."};
+        return std::nullopt;
+    }
+    // A stock profile holds nothing of the person's own: a nozzle size or a
+    // connection is saved on a printer they have added.
+    if (about().stock && (handler == ToolHandler::PrinterChange || handler == ToolHandler::PrinterConnect ||
+                          handler == ToolHandler::PrinterConnectionStatus))
+        return ToolError{"stock_profile", "\"" + m_printer_name + "\" is the settings OrcaSlicer comes with for this model, not a "
+                                          "printer the person has added, so its nozzle and connection are not saved. Its other "
+                                          "settings are changed by saving a copy, which is then theirs (settings_apply_patch with "
+                                          "persistAs). To keep a nozzle or a connection, they add the printer with + Add printer "
+                                          "on Home."};
     // A change is to the printer this session is about, and only once there
     // is one. The model sometimes names a printer on the network instead.
     if (handler == ToolHandler::PrinterChange) {
@@ -390,6 +430,20 @@ std::optional<json> PrinterConversation::tool_output(const ToolActivity& activit
     if (activity.state == Agent::ToolState::Rejected)
         return json{{"state", "cancelled"}};
     return std::nullopt;
+}
+
+void PrinterConversation::tool_settled(const ToolActivity& activity)
+{
+    if (activity.tool != "settings_apply_patch" || activity.state != Agent::ToolState::Succeeded)
+        return;
+    const std::string saved_as = json::parse(activity.result_json).value("savedAs", std::string());
+    if (saved_as.empty() || saved_as == m_printer_name)
+        return;
+    // Saved as a copy, which Orca selected in the preset's place: the
+    // printer the person now has, and Home lists it.
+    m_printer_name = saved_as;
+    m_host.printers_changed(saved_as);
+    m_host.session_changed();
 }
 
 Result PrinterConversation::identify(const json& arguments, const std::string& message_id)

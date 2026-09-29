@@ -23,6 +23,7 @@ public:
     const std::vector<CatalogPrinter>& catalog() const override { return m_models; }
     std::vector<DiscoveredPrinter> network_printers() const override;
     std::vector<SavedPrinter>      saved_printers() const override;
+    SavedPrinter                   stock_printer(const std::string& name) const override;
 
     std::string add_printer(const AddPrinterRequest& request, SavedPrinter& added) override;
     std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& changed) override;

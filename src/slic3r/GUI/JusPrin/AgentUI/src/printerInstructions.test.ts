@@ -163,17 +163,36 @@ describe('the instructions', () => {
     expect(printerInstructions(add)).not.toContain('already set up in this app');
   });
 
-  it('say where the settings no tool reaches are, for a printer the person has', () => {
+  it('say which settings the tools change and where the rest are, for a printer the person has', () => {
     const connect = session({ ...change, mode: 'connect' });
     for (const text of [printerInstructions(change), printerInstructions(connect)]) {
+      expect(text).toContain('read or change its other settings, such as start g-code');
       expect(text).toContain('is in its printer settings on this computer');
-      expect(text).toContain('they can change those settings manually in the app; do not claim to open them');
+      expect(text).toContain('they can change it manually in the app; do not claim to open them');
       expect(text).toContain('Never give a reason you cannot help that the tools and the facts below do not state');
       expect(text).toContain('Their printer is already set up so they can prepare prints for it');
       // Measured: without it, "add my other printer too" got "Yes, I can add
       // it", which the app then refuses.
       expect(text).toContain('Another printer is not added here: say it is added with + Add printer on Home.');
     }
+  });
+
+  it('send the settings rules only to a session about a printer, and say a shipped profile is saved as a copy', () => {
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(change), printerInstructions(connect)]) {
+      expect(text).toContain('Rules for changing its settings');
+      expect(text).toContain('scope "printer" and target {"preset": the printer\'s name below}');
+      expect(text).toContain('pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and model');
+      expect(text).toContain('when the facts below give a copy to save as, pass that name instead');
+      expect(text).toContain('When a preview says read_only_preset');
+      expect(text).not.toContain('Kind: the settings OrcaSlicer comes with');
+    }
+    expect(printerInstructions(add)).not.toContain('Rules for changing its settings');
+    const stock = session({ ...change, context: { printer: { ...change.context.printer!, stock: true, copyName: 'Lab Printer - Copy' } } });
+    expect(printerInstructions(stock)).toContain(
+      'Kind: the settings OrcaSlicer comes with for this model, selected in the project, not a printer the person added.');
+    expect(printerInstructions(stock)).toContain('Copy to save as: Lab Printer - Copy\n');
+    expect(printerInstructions(change)).not.toContain('Copy to save as');
   });
 
   it('send adding a printer the goal it was measured with, and none of the other sessions\' words', () => {

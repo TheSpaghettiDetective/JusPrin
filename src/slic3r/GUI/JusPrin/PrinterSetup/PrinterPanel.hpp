@@ -52,7 +52,9 @@ public:
     // Opens a fresh session. Opening it again replaces the session: no
     // history carries over, by design.
     void open(ConversationMode mode, const std::string& printer_name = {});
-    void open_filament(std::size_t slot, const std::string& filament_name, const wxString& return_label);
+    // A filament's chat, about the preset `preset` in `slot`; `shown` is what
+    // the header calls it.
+    void open_filament(std::size_t slot, const std::string& preset, const std::string& shown, const wxString& return_label);
     // Ends the session and tells the owner, as Back does.
     void close();
 
@@ -67,7 +69,10 @@ public:
     // The page itself, so the harness can tap what the person would.
     AgentWebView* web_view() const { return m_web_view.get(); }
     // Whether the page has written the model's instructions for this session.
-    bool instructions_ready() const { return !m_conversation->profile().instructions.empty(); }
+    bool instructions_ready() const
+    {
+        return m_task == Task::Printer ? !m_conversation->profile().instructions.empty() : !m_filament_instructions.empty();
+    }
 
 private:
     // IConversationHost
@@ -86,6 +91,9 @@ private:
     void on_release_retired(wxTimerEvent& event);
     bool handle_printer_page_message(const std::string& type, const nlohmann::json& payload);
     bool handle_filament_page_message(const std::string& type, const nlohmann::json& payload);
+    std::optional<Agent::ToolError> filament_preflight(Agent::ToolHandler handler, const Agent::ToolActivity& activity) const;
+    Agent::AgentSessionProfile      filament_profile() const;
+    nlohmann::json                  filament_session_json() const;
     void close_to_printer_settings();
     void close_to_filament_settings();
 
@@ -104,6 +112,11 @@ private:
     bool                   m_closing{false};
     std::size_t            m_filament_slot{0};
     std::string            m_filament_name;
+    // The filament preset the chat is about, by name; a copy saved in its
+    // place from then on.
+    std::string            m_filament_preset;
+    // The filament chat's instructions, as its page wrote them.
+    std::string            m_filament_instructions;
     wxString               m_return_label;
     std::function<void()>  m_after_close;
     Workspace::IWorkspace& m_workspace;
@@ -113,6 +126,9 @@ private:
     std::unique_ptr<PrinterConversation>      m_conversation;
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     std::unique_ptr<AgentWebView>             m_web_view;
+    // How the session's settings calls settle, for the conversation to follow
+    // a printer saved as a copy. Dropped before the runtime it listens to.
+    Agent::ToolActivitySubscription           m_settled;
     std::vector<RetiredRuntime>               m_retired;
     wxTimer                                   m_pump;
     wxTimer                                   m_release_timer;

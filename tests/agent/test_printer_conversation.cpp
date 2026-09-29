@@ -91,9 +91,21 @@ public:
     int                               manual_setups{0};
     std::vector<std::string>          settings_opened;
 
+    // OrcaSlicer's own printer profiles a person could select.
+    std::vector<SavedPrinter>      stock;
+
     const std::vector<CatalogPrinter>& catalog() const override { return catalogue; }
     std::vector<DiscoveredPrinter>     network_printers() const override { return network; }
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
+    SavedPrinter                       stock_printer(const std::string& name) const override
+    {
+        for (SavedPrinter printer : stock)
+            if (printer.name == name) {
+                printer.stock = true;
+                return printer;
+            }
+        return {};
+    }
 
     // Saves the printer into `saved`, as the Orca backend does.
     std::string add_printer(const AddPrinterRequest& request, SavedPrinter& result) override
@@ -294,14 +306,18 @@ void check_is_a_statement(const std::string& note)
 
 // -- What the model is told --------------------------------------------------
 
-TEST_CASE("every session offers every printer tool and nothing of the project", "[printer-conversation]")
+TEST_CASE("every session offers every printer tool and the settings tools, and nothing of the project", "[printer-conversation]")
 {
+    // The settings tools could reach the project's own settings; the
+    // session's preflight refuses every scope but its printer's.
     FakeBackend    backend;
     RecordingPanel panel;
     backend.saved = {lab_printer()};
     std::vector<std::string> printer_tools;
     for (const Agent::ToolDefinition& definition : Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Printer))
         printer_tools.push_back(definition.name);
+    for (const std::string& name : PrinterConversation::settings_tools())
+        printer_tools.push_back(name);
 
     for (const ConversationMode mode : {ConversationMode::Add, ConversationMode::Change, ConversationMode::Connect}) {
         PrinterConversation conversation(backend, panel);
@@ -373,14 +389,34 @@ TEST_CASE("a Change session sends the page the printer as it is now", "[printer-
     CHECK(printer.at("provider") == "bambu");
 }
 
-TEST_CASE("a printer this app has not saved is one to add", "[printer-conversation]")
+TEST_CASE("a change to the stock profile the project has selected stays a change about that profile", "[printer-conversation]")
+{
+    // The header's Printer settings… on a project that uses one of Orca's
+    // own profiles once opened a conversation about adding a printer.
+    FakeBackend backend;
+    SavedPrinter shipped = lab_printer();
+    shipped.name         = "Bambu Lab A1 mini 0.4 nozzle";
+    shipped.copy_name    = "Bambu Lab A1 mini 0.4 nozzle - Copy";
+    backend.stock        = {shipped};
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, "Bambu Lab A1 mini 0.4 nozzle");
+    CHECK(conversation.mode() == ConversationMode::Change);
+    CHECK(conversation.printer_name() == "Bambu Lab A1 mini 0.4 nozzle");
+    const json printer = conversation.state_json().at("context").at("printer");
+    CHECK(printer.at("name") == "Bambu Lab A1 mini 0.4 nozzle");
+    CHECK(printer.at("stock") == true);
+    // The copy a change is saved as, named for the model up front.
+    CHECK(printer.at("copyName") == "Bambu Lab A1 mini 0.4 nozzle - Copy");
+}
+
+TEST_CASE("a change for a printer that is not there is its opener's bug, never a conversation about adding one", "[printer-conversation]")
 {
     FakeBackend         backend;
     RecordingPanel      panel;
     PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Change, "Bambu Lab A1 mini 0.4 nozzle");
-    CHECK(conversation.mode() == ConversationMode::Add);
-    CHECK(conversation.printer_name().empty());
+    CHECK_THROWS_AS(conversation.start(ConversationMode::Change, "Bambu Lab A1 mini 0.4 nozzle"), std::logic_error);
+    CHECK_THROWS_AS(conversation.start(ConversationMode::Connect, "Lab Printer"), std::logic_error);
 }
 
 TEST_CASE("the model's instructions are the page's words, and a new session waits for new ones", "[printer-conversation]")
@@ -607,6 +643,77 @@ std::string preflight_refusal(PrinterConversation& conversation, const char* too
     Agent::ToolActivity activity = call(tool, arguments);
     const auto problem = conversation.preflight_tool(definition->handler, activity);
     return problem ? problem->code : std::string();
+}
+
+TEST_CASE("a session changes the settings of its own printer, and of nothing else", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    SavedPrinter   garage = lab_printer();
+    garage.name           = "Garage";
+    backend.saved         = {lab_printer(), garage};
+    PrinterConversation conversation(backend, panel);
+    CHECK(conversation.profile().tool_names ==
+          std::vector<std::string>{"printer_add", "printer_change", "printer_connect", "printer_connection_status", "printer_identify",
+                                   "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
+
+    conversation.start(ConversationMode::Add);
+    CHECK(preflight_refusal(conversation, "settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Lab Printer"}}}, {"keys", {"z_hop"}}}) ==
+          "no_printer");
+
+    conversation.start(ConversationMode::Change, "Lab Printer");
+    const json own{{"preset", "Lab Printer"}};
+    CHECK(preflight_refusal(conversation, "settings_get", json{{"scope", "printer"}, {"target", own}, {"keys", {"z_hop"}}}).empty());
+    CHECK(preflight_refusal(conversation, "settings_search", json{{"scope", "printer"}, {"target", own}, {"query", "g-code"}}).empty());
+    CHECK(preflight_refusal(conversation, "settings_preview_patch",
+                            json{{"scope", "printer"}, {"target", own}, {"changes", {{"z_hop", "0.4"}}}, {"persistAs", "Lab Printer"}})
+              .empty());
+    // The project's own settings are not this conversation's.
+    CHECK(preflight_refusal(conversation, "settings_preview_patch", json{{"scope", "process"}, {"changes", {{"wall_loops", "3"}}}}) ==
+          "not_in_this_conversation");
+    CHECK(preflight_refusal(conversation, "settings_get",
+                            json{{"scope", "filament"}, {"target", {{"preset", "Generic PLA"}}}, {"keys", {"nozzle_temperature"}}}) ==
+          "not_in_this_conversation");
+    CHECK(preflight_refusal(conversation, "settings_apply_patch",
+                            json{{"scope", "printer"}, {"target", {{"preset", "Garage"}}}, {"changes", {{"z_hop", "0.4"}}}}) ==
+          "other_printer");
+}
+
+TEST_CASE("a stock profile's nozzle and connection are not saved, and its copy is the printer from then on", "[printer-conversation]")
+{
+    FakeBackend  backend;
+    SavedPrinter shipped = lab_printer();
+    shipped.name         = "Bambu Lab A1 mini 0.4 nozzle";
+    backend.stock        = {shipped};
+    RecordingPanel      panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Change, shipped.name);
+    CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", shipped.name}, {"nozzle", 0.6}}) == "stock_profile");
+    CHECK(preflight_refusal(conversation, "printer_connection_status", json::object()) == "stock_profile");
+    CHECK(preflight_refusal(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}}) == "not_in_this_conversation");
+
+    // Saved as a copy: Orca selected the copy, which is a printer of the
+    // person's own, so the conversation is about it and Home lists it.
+    Agent::ToolActivity applied = call("settings_apply_patch", json{{"scope", "printer"}, {"target", {{"preset", shipped.name}}}});
+    applied.state       = Agent::ToolState::Succeeded;
+    applied.result_json = json{{"savedAs", "Bambu Lab A1 mini 0.4 nozzle - Copy"}}.dump();
+    SavedPrinter copy   = lab_printer();
+    copy.name           = "Bambu Lab A1 mini 0.4 nozzle - Copy";
+    backend.saved       = {copy};
+    const int states    = panel.states;
+    conversation.tool_settled(applied);
+    CHECK(conversation.printer_name() == "Bambu Lab A1 mini 0.4 nozzle - Copy");
+    CHECK(panel.added_printers == std::vector<std::string>{"Bambu Lab A1 mini 0.4 nozzle - Copy"});
+    CHECK(panel.states == states + 1);
+    CHECK_FALSE(conversation.state_json().at("context").at("printer").contains("stock"));
+    CHECK(preflight_refusal(conversation, "printer_change", json{{"printerName", copy.name}, {"nozzle", 0.6}}).empty());
+
+    // Saved in place, or not saved: still the same printer.
+    applied.result_json = json{{"savedAs", copy.name}}.dump();
+    conversation.tool_settled(applied);
+    applied.result_json = json{{"savedAs", ""}}.dump();
+    conversation.tool_settled(applied);
+    CHECK(panel.added_printers.size() == 1);
 }
 
 TEST_CASE("a session about a saved printer finds and adds none, and changes only that printer", "[printer-conversation]")
@@ -1763,6 +1870,7 @@ public:
     const std::vector<CatalogPrinter>& catalog() const override { return printers; }
     std::vector<DiscoveredPrinter>     network_printers() const override { return {}; }
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
+    SavedPrinter                       stock_printer(const std::string&) const override { return {}; }
     std::string add_printer(const AddPrinterRequest&, SavedPrinter&) override { return {}; }
     std::string change_printer(const ChangePrinterRequest&, SavedPrinter&) override { return {}; }
     std::string remove_printer(const std::string&) override { return {}; }
@@ -1839,7 +1947,7 @@ TEST_CASE("the shipped profiles give the panel the printers people name", "[prin
         CHECK(ids.insert(printer.id).second);
 }
 
-TEST_CASE("the model is offered every printer tool and no project", "[printer-conversation][openai]")
+TEST_CASE("the model is offered every printer tool, the settings tools, and no project", "[printer-conversation][openai]")
 {
     CatalogBackend backend;
     backend.saved = {lab_printer()};
@@ -1850,15 +1958,21 @@ TEST_CASE("the model is offered every printer tool and no project", "[printer-co
     adding.handle_page_message("printer_instructions", json{{"text", "You add printers."}});
     const json body = request_body(adding.profile(), "the small bambu one");
     std::vector<std::string> names;
+    const std::vector<std::string> settings = PrinterConversation::settings_tools();
     for (const json& tool : body.at("tools")) {
         names.push_back(tool.at("name"));
-        CHECK_FALSE(tool.at("parameters").at("properties").contains("planId"));
+        // A settings change is a change like any in the app, and can join a
+        // plan; the printer's own tools are decided in the conversation.
+        if (std::find(settings.begin(), settings.end(), tool.at("name")) == settings.end())
+            CHECK_FALSE(tool.at("parameters").at("properties").contains("planId"));
         // No tool takes a credential from the model.
         for (const char* secret : {"accessCode", "apiKey", "credential", "password"})
             CHECK_FALSE(tool.at("parameters").at("properties").contains(secret));
     }
     std::sort(names.begin(), names.end());
-    CHECK(names == PrinterConversation::session_tools());
+    std::vector<std::string> offered = PrinterConversation::session_tools();
+    offered.insert(offered.end(), settings.begin(), settings.end());
+    CHECK(names == offered);
     CHECK(body.at("instructions") == "You add printers.");
     const json& user = body.at("input").back();
     CHECK(user.at("role") == "user");

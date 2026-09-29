@@ -199,7 +199,7 @@ public:
         if (stale_patch) {
             // Refused at proposal: the revision is not the workspace's.
             tool.tool           = "settings_apply_patch";
-            tool.arguments_json = json{{"changes", {{"wall_loops", "4"}}},
+            tool.arguments_json = json{{"scope", "process"}, {"changes", {{"wall_loops", "4"}}},
                                        {"expectedSessionId", std::to_string(request.workspace.session.value())},
                                        {"expectedRevision", request.workspace.revision + 100}}.dump();
         } else {
@@ -300,7 +300,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
                                               Protocol::kPrinterAction, Protocol::kPrinterInstructions,
-                                              Protocol::kPrinterOpening});
+                                              Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
+                                              Protocol::kShellAction});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -699,7 +700,7 @@ TEST_CASE("an applied settings change records its intent on the chat it came fro
 
     SECTION("the agent's restatement reaches the page")
     {
-        const std::string action = propose(json{{"changes", {{"wall_loops", 4}}}, {"intent", "Strong - it'll bear weight"}});
+        const std::string action = propose(json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}, {"intent", "Strong - it'll bear weight"}});
         harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
         for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
             harness.host.pump_tools();
@@ -710,7 +711,7 @@ TEST_CASE("an applied settings change records its intent on the chat it came fro
 
     SECTION("a change with nothing to restate leaves the title row empty rather than inventing one")
     {
-        const std::string action = propose(json{{"changes", {{"wall_loops", 4}}}});
+        const std::string action = propose(json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}});
         harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
         for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
             harness.host.pump_tools();
@@ -730,7 +731,7 @@ TEST_CASE("the card counts your hand edits apart from the agent's changes", "[ag
     harness.pump_all();
 
     auto apply = [&](json changes) {
-        json arguments{{"changes", std::move(changes)}};
+        json arguments{{"scope", "process"}, {"changes", std::move(changes)}};
         arguments["expectedSessionId"] = std::to_string(harness.workspace.snapshot().session.value());
         arguments["expectedRevision"]  = harness.workspace.snapshot().revision;
         const std::string action =

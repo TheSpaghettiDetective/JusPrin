@@ -22,8 +22,11 @@
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "libslic3r_version.h"
 #include "slic3r/GUI/PartPlate.hpp"
+#include "slic3r/GUI/PresetComboBoxes.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
+#include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Selection.hpp"
@@ -31,6 +34,7 @@
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/nowide/fstream.hpp>
 
@@ -270,7 +274,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
     result.setup.presets_dirty = m_plater.is_presets_dirty();
     result.setup.project_path  = into_u8(m_plater.get_project_filename(".3mf"));
     if (const PresetBundle* presets = wxGetApp().preset_bundle; presets != nullptr) {
-        result.setup.printer_preset = presets->printers.get_selected_preset().label(false);
+        result.setup.printer_preset = presets->printers.get_selected_preset().name;
         if (presets->printers.get_edited_preset().printer_technology() == ptFFF) {
             result.setup.process_preset = presets->prints.get_edited_preset().name;
             // One diff, used twice: snapshot() runs on every selection change.
@@ -527,7 +531,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
     const auto compatible = [&](const PresetCollection& collection, const Preset& preset) {
         return is_compatible_with_printer(collection.get_preset_with_vendor_profile(preset), printer_profile, &extra);
     };
-    const std::string printer_label = printer->label(false);
+    const std::string printer_name = printer->name;
 
     const PresetCollection& prints = bundle->prints;
     const Preset*           print  = &prints.get_edited_preset();
@@ -536,11 +540,11 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
         if (found == nullptr || !found->is_visible || found->is_default)
             issue("unknown_preset", "No installed process preset is named \"" + *request.process_preset + "\".");
         else if (!compatible(prints, *found))
-            issue("incompatible_preset", "\"" + found->name + "\" is not made for " + printer_label + ".");
+            issue("incompatible_preset", "\"" + found->name + "\" is not made for " + printer_name + ".");
         else
             print = found;
     } else if (printer_changes && !compatible(prints, *print)) {
-        result.substitutions.push_back({"process", print->name, "not made for " + printer_label + "; OrcaSlicer picks another"});
+        result.substitutions.push_back({"process", print->name, "not made for " + printer_name + "; OrcaSlicer picks another"});
     }
     if (request.process_preset && print->name == *request.process_preset) {
         // The same refusal settings_apply_patch makes: a process that would
@@ -562,7 +566,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
             if (found == nullptr || !found->is_visible || found->is_default)
                 issue("unknown_preset", "No installed filament preset is named \"" + name + "\".");
             else if (!compatible(filaments, *found))
-                issue("incompatible_preset", "\"" + name + "\" is not made for " + printer_label + ".");
+                issue("incompatible_preset", "\"" + name + "\" is not made for " + printer_name + ".");
             else
                 filament_names[slot] = name;
         }
@@ -572,7 +576,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
             const bool requested = request.filament_presets && slot < request.filament_presets->size();
             const Preset* current = filaments.find_preset(filament_names[slot], false);
             if (!requested && current != nullptr && !compatible(filaments, *current))
-                result.substitutions.push_back({"filament", filament_names[slot], "not made for " + printer_label + "; OrcaSlicer picks another"});
+                result.substitutions.push_back({"filament", filament_names[slot], "not made for " + printer_name + "; OrcaSlicer picks another"});
         }
 
     const std::vector<std::string> plates  = supported_plates(printers, *printer);
@@ -585,12 +589,12 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
         if (found == plates.end()) {
             std::string offered;
             for (const std::string& label : plates) offered += (offered.empty() ? "" : ", ") + label;
-            issue("unsupported_plate", printer_label + " offers these plates: " + offered + ".");
+            issue("unsupported_plate", printer_name + " offers these plates: " + offered + ".");
         } else {
             plate = *found;
         }
     } else if (printer_changes && !current.empty() && std::find(plates.begin(), plates.end(), current) == plates.end()) {
-        result.substitutions.push_back({"plate", current, printer_label + " does not offer it; OrcaSlicer picks another"});
+        result.substitutions.push_back({"plate", current, printer_name + " does not offer it; OrcaSlicer picks another"});
     }
 
     // What a switch would throw away. A printer switch can replace any of the
@@ -611,7 +615,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
             count_edits(filaments, "filament");
     }
 
-    result.resulting.preset = printer_label;
+    result.resulting.preset = printer_name;
     result.resulting.model  = printer_model_id(*bundle, *printer);
     if (nozzles != nullptr)
         result.resulting.nozzle_diameters = nozzles->values;
@@ -1358,7 +1362,7 @@ ConfiguredPrinter OrcaWorkspaceAdapter::configured_printer() const
     if (presets == nullptr)
         return result;
     Preset& printer = presets->printers.get_edited_preset();
-    result.preset = presets->printers.get_selected_preset().label(false);
+    result.preset = presets->printers.get_selected_preset().name;
     result.model  = printer_model_id(*presets, printer);
     if (const auto* nozzles = printer.config.option<ConfigOptionFloats>("nozzle_diameter"))
         result.nozzle_diameters = nozzles->values;
@@ -2171,15 +2175,190 @@ void OrcaWorkspaceAdapter::remember_current_ids() const
         m_known_object_ids.insert(object->id().id);
 }
 
+namespace {
+
+bool fff_printer()
+{
+    const PresetBundle* bundle = wxGetApp().preset_bundle;
+    return bundle != nullptr && bundle->printers.get_edited_preset().printer_technology() == ptFFF;
+}
+
+bool preset_scope(SettingsScope scope) { return scope == SettingsScope::Filament || scope == SettingsScope::Printer; }
+
+// The preset a settings call reads and writes. `selected` is the one Orca is
+// editing now: its values include unsaved edits, and its tab is where a change
+// goes. The process preset in use is always that one.
+struct PresetOwner
+{
+    PresetCollection* collection{nullptr};
+    const Preset*     preset{nullptr};
+    bool              selected{false};
+};
+
+PresetOwner preset_owner(const SettingsTarget& target)
+{
+    PresetOwner owner;
+    owner.collection = &scope_collection(target.scope);
+    if (!preset_scope(target.scope)) {
+        owner.preset   = &owner.collection->get_selected_preset();
+        owner.selected = true;
+        return owner;
+    }
+    owner.preset   = scope_preset(target.scope, target.preset);
+    owner.selected = owner.preset != nullptr && owner.collection->get_selected_preset_name() == owner.preset->name;
+    return owner;
+}
+
+// The values a call reads: the edited copy of the preset Orca is editing, or
+// the preset as saved.
+const DynamicPrintConfig& owner_config(const PresetOwner& owner)
+{
+    return owner.selected ? owner.collection->get_edited_preset().config : owner.preset->config;
+}
+
+SettingIssue unavailable(SettingsScope scope)
+{
+    return preset_scope(scope) ? SettingIssue{"", "workspace_unavailable", "No FFF printer is selected."} :
+                                 SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+}
+
+// A preset the call named that is not there. The names that are: the
+// project's filaments, or the printer in use.
+SettingIssue unknown_preset(const SettingsTarget& target)
+{
+    SettingIssue issue{"", "unknown_preset", std::string("No ") + scope_name(target.scope) + " preset is named \"" + target.preset + "\"."};
+    const PresetBundle& bundle = *wxGetApp().preset_bundle;
+    if (target.scope == SettingsScope::Printer)
+        issue.suggestions.push_back(bundle.printers.get_selected_preset_name());
+    else
+        for (const std::string& name : bundle.filament_presets)
+            if (std::find(issue.suggestions.begin(), issue.suggestions.end(), name) == issue.suggestions.end())
+                issue.suggestions.push_back(name);
+    return issue;
+}
+
+// Profile files share a directory, so names that differ only in case are the
+// same file on Windows and macOS.
+bool preset_name_in_use(const PresetCollection& collection, const std::string& name)
+{
+    return std::any_of(collection.begin(), collection.end(), [&name](const Preset& preset) { return boost::iequals(preset.name, name); });
+}
+
+// SavePresetDialog::Item::update's reserved names.
+bool preset_name_reserved(const PresetCollection& collection, const std::string& name)
+{
+    return name.find(PresetCollection::get_suffix_modified()) != std::string::npos || name == "Default Setting" ||
+           name == PresetBundle::ORCA_DEFAULT_FILAMENT_PLACEHOLDER || name == "Default Printer" ||
+           collection.get_preset_name_by_alias(name) != name;
+}
+
+std::string copy_name(const PresetCollection& collection, const Preset& preset)
+{
+    return Printers::copy_name(preset.name, [&collection](const std::string& name) { return preset_name_in_use(collection, name); });
+}
+
+// The project slot a filament preset is used in, to edit it there as the
+// sidebar's edit button does.
+std::optional<std::size_t> filament_slot(const std::string& name)
+{
+    const auto& slots = wxGetApp().preset_bundle->filament_presets;
+    const auto  found = std::find(slots.begin(), slots.end(), name);
+    return found == slots.end() ? std::nullopt : std::optional<std::size_t>(std::size_t(found - slots.begin()));
+}
+
+// persistAs, checked where Orca's Save would check it, and against what the
+// save would have to do on the way.
+void check_persist(const SettingsPatch& patch, const PresetOwner& owner, SettingsPreview& result)
+{
+    const SettingsScope scope = patch.target.scope;
+    const Preset&       preset = *owner.preset;
+    if (!patch.persist_as) {
+        // An unsaved change lives in the edited copy of the preset Orca is
+        // editing; any other preset changes only by being saved.
+        if (!owner.selected)
+            result.issues.push_back({"", "not_selected", "\"" + preset.name + "\" is not the " + scope_name(scope) +
+                                                             " preset being edited, so a change to it is saved: pass persistAs."});
+        return;
+    }
+    const std::string&      name       = *patch.persist_as;
+    const PresetCollection& collection = *owner.collection;
+    if (name == preset.name) {
+        if (!preset.can_overwrite()) {
+            const std::string copy = copy_name(collection, preset);
+            result.issues.push_back({"", "read_only_preset",
+                                     "\"" + preset.name + "\" comes with OrcaSlicer and cannot be overwritten. Save the change "
+                                     "as a copy: pass persistAs \"" + copy + "\".", {}, {copy}});
+        }
+    } else if (preset_name_in_use(collection, name)) {
+        result.issues.push_back({"", "name_taken", "Another " + std::string(scope_name(scope)) + " preset is already named \"" + name + "\".",
+                                 {}, {copy_name(collection, preset)}});
+    } else if (const auto problem = Printers::check_printer_name(
+                   name, [&collection](const std::string& candidate) { return preset_name_reserved(collection, candidate); },
+                   [](const std::string&) { return false; });
+               problem != Printers::NameProblem::None) {
+        result.issues.push_back({"", "invalid_preset_name",
+                                 problem == Printers::NameProblem::Empty ? "A preset name cannot be empty." :
+                                 problem == Printers::NameProblem::EdgeSpace ? "A preset name cannot start or end with a space." :
+                                 problem == Printers::NameProblem::IllegalCharacter ?
+                                     std::string("A preset name cannot contain any of ") + Printers::kIllegalNameCharacters :
+                                     "That name is reserved.",
+                                 {}, {copy_name(collection, preset)}});
+    }
+    if (!owner.selected) {
+        // A printer that is not in use is saved in place, as a nozzle change
+        // is. A copy of it would be a second printer made behind the project's
+        // back.
+        if (scope == SettingsScope::Printer && name != preset.name)
+            result.issues.push_back({"", "not_selected", "A copy is saved only of the printer in use; save \"" + preset.name +
+                                                             "\" under its own name."});
+        // Another filament is edited where the sidebar's edit button edits
+        // it, in its slot, which must not throw away unsaved edits.
+        if (scope == SettingsScope::Filament) {
+            if (!filament_slot(preset.name))
+                result.issues.push_back({"", "not_in_project", "\"" + preset.name + "\" is not one of the project's filaments."});
+            else if (collection.current_is_dirty())
+                result.issues.push_back({"", "unsaved_edits", "The filament being edited, \"" + collection.get_selected_preset_name() +
+                                                                  "\", has unsaved changes. Save or discard them in its settings first."});
+        }
+    }
+    if (owner.selected && result.issues.empty()) {
+        std::vector<std::string> others;
+        for (const std::string& key : collection.current_dirty_options())
+            if (!patch.changes.count(key))
+                others.push_back(key);
+        if (!others.empty())
+            result.warnings.push_back({"", "saves_unsaved_edits",
+                                       "Saving also saves " + std::to_string(others.size()) + " unsaved changes already made to \"" +
+                                           preset.name + "\".", others});
+    }
+}
+
+} // namespace
+
 SettingsSearchResult OrcaWorkspaceAdapter::search_settings(const SettingsQuery& query) const
 {
     wxASSERT(wxIsMainThread());
-    if (!process_settings_available()) {
-        SettingsSearchResult result;
-        result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+    const SettingsScope scope = query.target.scope;
+    SettingsSearchResult result;
+    if (preset_scope(scope) ? !fff_printer() : !process_settings_available()) {
+        result.error = unavailable(scope);
         return result;
     }
-    return search_setting_definitions(process_definitions(), query, wxGetApp().preset_bundle->prints.current_dirty_options());
+    const PresetOwner owner = preset_owner(query.target);
+    if (owner.preset == nullptr) {
+        result.error = unknown_preset(query.target);
+        return result;
+    }
+    // What differs: an object's own overrides, or the unsaved edits of the
+    // preset Orca is editing. A saved preset has none.
+    std::vector<std::string> changed;
+    if (const ModelObject* object = settings_object(query.target))
+        changed = object->config.keys();
+    else if (owner.selected)
+        changed = owner.collection->current_dirty_options();
+    result        = search_setting_definitions(scope_definitions(scope), query, changed);
+    result.preset = owner.preset->name;
+    return result;
 }
 
 ModelObject* OrcaWorkspaceAdapter::settings_object(const SettingsTarget& target) const
@@ -2200,26 +2379,38 @@ SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::st
         result.error = SettingIssue{"", "invalid_arguments", "Read 1 to 32 setting keys."};
         return result;
     }
-    if (!process_settings_available()) {
-        result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+    if (preset_scope(target.scope) ? !fff_printer() : !process_settings_available()) {
+        result.error = unavailable(target.scope);
         return result;
     }
-    auto& prints = wxGetApp().preset_bundle->prints;
-    const auto& config = prints.get_edited_preset().config;
-    const ModelObject* object = settings_object(target);
-    const auto dirty = prints.current_dirty_options();
-    const auto system = prints.current_different_from_parent_options();
+    const PresetOwner owner = preset_owner(target);
+    if (owner.preset == nullptr) {
+        result.error = unknown_preset(target);
+        return result;
+    }
+    result.preset = owner.preset->name;
+    const DynamicPrintConfig& config = owner_config(owner);
+    const ModelObject*        object = settings_object(target);
+    std::vector<std::string>  dirty, system;
+    if (owner.selected) {
+        dirty  = owner.collection->current_dirty_options();
+        system = owner.collection->current_different_from_parent_options();
+    } else if (const Preset* base = owner.collection->get_preset_base(*owner.preset); base != nullptr && base != owner.preset) {
+        system = PresetCollection::dirty_options(owner.preset, base);
+    }
+    // An object reads every process value: the one it prints with.
+    const SettingsScope scope = target.scope == SettingsScope::Object ? SettingsScope::Process : target.scope;
     for (const auto& key : keys) {
-        if (!has_process_setting(key)) {
+        if (!has_scope_setting(key, scope)) {
             result.unknown_keys.push_back(key);
-            result.issues.push_back(missing_process_setting(key));
+            result.issues.push_back(missing_scope_setting(key, scope));
             continue;
         }
         const bool overridden = object && object->config.has(key);
         const auto* value = overridden ? object->config.option(key) : config.option(key);
-        if (!value) throw std::logic_error("Process preset is missing its defined option: " + key);
+        if (!value) throw std::logic_error("A preset is missing its defined option: " + key);
         result.items.push_back({key, value->serialize(), std::find(dirty.begin(), dirty.end(), key) != dirty.end(),
-            std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key)});
+            std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key, target.scope)});
         if (object)
             result.items.back().overridden = overridden;
     }
@@ -2229,63 +2420,78 @@ SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::st
 SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patch) const
 {
     wxASSERT(wxIsMainThread());
+    const SettingsScope scope = patch.target.scope;
     SettingsPreview result;
-    if (!process_settings_available()) {
-        result.issues.push_back({"", "workspace_unavailable", "No active FFF process preset."});
+    if (preset_scope(scope) ? !fff_printer() : !process_settings_available()) {
+        result.issues.push_back(unavailable(scope));
         return result;
     }
-    const auto& preset = wxGetApp().preset_bundle->prints.get_edited_preset();
+    const PresetOwner owner = preset_owner(patch.target);
+    if (owner.preset == nullptr) {
+        result.issues.push_back(unknown_preset(patch.target));
+        return result;
+    }
     // An object's values are its overrides on top of the process preset.
     const ModelObject* object = settings_object(patch.target);
-    DynamicPrintConfig current = preset.config;
+    DynamicPrintConfig current = owner_config(owner);
     if (object)
         current.apply(object->config.get());
-    result.process_preset = preset.name;
+    result.preset = owner.preset->name;
     if (patch.changes.empty() || patch.changes.size() > 32) {
         result.issues.push_back({"", "invalid_arguments", "A patch must contain 1 to 32 settings."});
         return result;
     }
     DynamicPrintConfig next = current;
     for (const auto& [key, text] : patch.changes) {
-        if (!has_process_setting(key)) {
-            result.issues.push_back(missing_process_setting(key));
+        if (!has_scope_setting(key, scope)) {
+            result.issues.push_back(missing_scope_setting(key, scope));
             continue;
         }
-        const auto def = setting_definition(key);
+        const auto def = setting_definition(key, scope);
         if (!def.writable) {
-            result.issues.push_back({key, "unsupported_setting_mutation", "This process setting is read-only."});
-            continue;
-        }
-        if (object && !object_setting(key)) {
-            result.issues.push_back(print_scope_setting(key));
+            result.issues.push_back({key, "unsupported_setting_mutation", std::string("This ") + scope_name(scope) + " setting is read-only."});
             continue;
         }
         if (auto refused = set_setting_value(next, key, text))
             result.issues.push_back({key, "invalid_setting_value", std::move(*refused), def.enum_values, {}, def.min, def.max});
     }
     if (!result.issues.empty()) return result;
-    check_process_dialogs(next, result);
-    check_support_style(next, patch.changes, result);
+    if (!object)
+        check_persist(patch, owner, result);
+    if (scope == SettingsScope::Filament)
+        check_filament_dialogs(next, patch.persist_as.has_value(), result);
+    else if (scope == SettingsScope::Printer)
+        check_printer_dialogs(next, result);
+    else {
+        check_process_dialogs(next, result);
+        check_support_style(next, patch.changes, result);
+    }
     if (!result.issues.empty()) return result;
 
     const DynamicPrintConfig requested = next;
     // Object overrides are written to the ModelConfig as they are; Orca's
     // normalizer runs only on the process preset and on the object settings
-    // panel's own edits.
-    if (!object)
+    // panel's own edits. Filament and printer tabs have none.
+    if (scope == SettingsScope::Process)
         predict_process_normalization(next);
     for (const auto& key : requested.diff(next)) {
         result.dependencies.push_back({key, current.option(key)->serialize(), next.option(key)->serialize()});
         result.warnings.push_back({key, "normalized_dependency", "Orca will normalize " + key + " to " + next.option(key)->serialize() + "."});
     }
 
-    auto full = wxGetApp().preset_bundle->full_config();
-    full.apply(next);
-    FullPrintConfig validation_config;
-    validation_config.apply(full, true);
-    for (const auto& [key, message] : Slic3r::validate(validation_config)) {
-        auto& issues = patch.changes.count(key) ? result.issues : result.warnings;
-        issues.push_back({key, "incompatible_settings", message});
+    // The print is validated with the process or the printer in use. A
+    // filament's values are not what Slic3r::validate checks, and a printer
+    // that is not in use prints nothing here.
+    if (scope == SettingsScope::Process || scope == SettingsScope::Object ||
+        (scope == SettingsScope::Printer && owner.selected)) {
+        auto full = wxGetApp().preset_bundle->full_config();
+        full.apply(next);
+        FullPrintConfig validation_config;
+        validation_config.apply(full, true);
+        for (const auto& [key, message] : Slic3r::validate(validation_config)) {
+            auto& issues = patch.changes.count(key) ? result.issues : result.warnings;
+            issues.push_back({key, "incompatible_settings", message});
+        }
     }
     for (const auto& [key, text] : patch.changes) {
         const std::string before = current.option(key)->serialize(), after = next.option(key)->serialize();
@@ -2307,12 +2513,15 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
                                                   SettingsPreview& applied)
 {
     wxASSERT(wxIsMainThread());
-    if (!process_settings_available())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
+    const SettingsScope scope = patch.target.scope;
+    if (preset_scope(scope) ? !fff_printer() : !process_settings_available())
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, unavailable(scope).message);
+    const PresetOwner owner = preset_owner(patch.target);
+    if (owner.preset == nullptr)
+        return CommandResult::failure(WorkspaceError::StaleSettings, "The preset is gone. Read and preview again.");
     auto transaction = m_plater.project_state_transaction();
-    const auto& config = wxGetApp().preset_bundle->prints.get_edited_preset().config;
     ModelObject* object = settings_object(patch.target);
-    DynamicPrintConfig effective = config;
+    DynamicPrintConfig effective = owner_config(owner);
     if (object)
         effective.apply(object->config.get());
     for (const auto& change : confirmed)
@@ -2343,15 +2552,38 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings | ProjectStateChangeReason::Objects);
         for (auto& change : applied.changes)
             change.after = object->config.option(change.key)->serialize();
+        applied.preset_dirty = owner.collection->current_is_dirty();
         return CommandResult::success();
     }
     DynamicPrintConfig diff;
     for (const auto& change : applied.changes)
         diff.set_deserialize_strict(change.key, change.after);
-    const DynamicPrintConfig before = config;
+
+    PresetCollection& collection = *owner.collection;
+    const std::string name       = owner.preset->name;
+    if (!owner.selected && scope == SettingsScope::Printer) {
+        // A saved printer the project does not use, saved in place: preview
+        // allowed nothing else.
+        Printers::write_unselected_printer(name, diff);
+        applied.saved_as = name;
+        return CommandResult::success();
+    }
+    Tab* tab = wxGetApp().get_tab(owner.preset->type);
+    if (!owner.selected) {
+        // PlaterPresetComboBox::switch_to_tab: the filament tab loads the
+        // slot's preset and remembers the slot, so a save lands on it. Preview
+        // checked that nothing unsaved is dropped on the way.
+        const std::size_t slot = *filament_slot(name);
+        if (!tab->select_preset(name) || collection.get_selected_preset_name() != name)
+            throw std::runtime_error("Orca did not open filament preset " + name + " for editing");
+        if (auto* combo = tab->get_combo_box())
+            combo->set_filament_idx(int(slot));
+    }
+    const DynamicPrintConfig& config = collection.get_edited_preset().config;
+    const DynamicPrintConfig  before = config;
     // The existing owner updates the preset, its controls, dirty state and
     // slicing. Never imitate this path with direct writes or notifications.
-    wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff);
+    tab->load_config(diff);
     // Preserve an honest result if a future Orca normalizer introduces a
     // secondary rewrite not yet covered by the prediction audit.
     for (const auto& key : before.diff(config)) {
@@ -2368,6 +2600,15 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
                 applied.warnings.push_back({change.key, "normalized", "Orca normalized this setting to " + actual_value + "."});
             change.after = actual_value;
         }
+    if (patch.persist_as) {
+        // Orca's Save with the name typed in: a copy is selected in place of
+        // the preset it was made from, as the dialog's save does.
+        tab->save_preset(*patch.persist_as);
+        if (collection.get_selected_preset_name() != *patch.persist_as || collection.current_is_dirty())
+            throw std::runtime_error("Orca did not save " + name + " as " + *patch.persist_as);
+        applied.saved_as = *patch.persist_as;
+    }
+    applied.preset_dirty = collection.current_is_dirty();
     return CommandResult::success();
 }
 

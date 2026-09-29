@@ -10,6 +10,10 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
+#include "libslic3r/PresetBundle.hpp"
+
+#include <boost/algorithm/string/predicate.hpp>
 
 #include <wx/sizer.h>
 
@@ -21,6 +25,9 @@ namespace {
 
 // The same pacing the shell gives the docked panel's host.
 constexpr int kPumpIntervalMs = 33;
+// The filament chat's instructions are a few kilobytes; far more is not a
+// prompt the page meant to send.
+constexpr std::size_t kFilamentInstructionsLimit = 64 * 1024;
 constexpr int kPumpTimerId    = wxID_HIGHEST + 1803;
 
 // How often a torn-down web view that could not be destroyed yet is looked at
@@ -92,6 +99,7 @@ void PrinterPanel::build_runtime()
             return m_conversation->preflight_tool(handler, activity);
         });
         host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
+        m_settled = host.tools().subscribe([this](const Agent::ToolActivity& activity) { m_conversation->tool_settled(activity); });
         m_web_view->set_error_fallback_actions(
             _L("Back"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),
             [this] { close(); },
@@ -102,6 +110,11 @@ void PrinterPanel::build_runtime()
                     close_to_printer_settings();
             });
     } else {
+        // Its own instructions and the settings tools alone: the chat is
+        // about one filament preset, not about the open project, which the
+        // project assistant's instructions would steer it toward.
+        host.set_session_profile(filament_profile());
+        host.set_session_state_provider([this] { return filament_session_json(); });
         host.set_navigation_state_provider([this] {
             return nlohmann::json{{"focused", true}, {"returnLabel", m_return_label.ToStdString()}};
         });
@@ -110,6 +123,24 @@ void PrinterPanel::build_runtime()
         });
         m_web_view->set_error_fallback_actions(m_return_label, _L("Open filament settings"),
                                                [this] { close(); }, [this] { close_to_filament_settings(); });
+        host.set_session_tool_preflight([this](Agent::ToolHandler handler, Agent::ToolActivity& activity) {
+            return filament_preflight(handler, activity);
+        });
+        // A copy saved in the preset's place takes its slot; the chat is
+        // about the copy from then on.
+        m_settled = host.tools().subscribe([this](const Agent::ToolActivity& activity) {
+            if (activity.tool != "settings_apply_patch" || activity.state != Agent::ToolState::Succeeded)
+                return;
+            const std::string saved_as = nlohmann::json::parse(activity.result_json).value("savedAs", std::string());
+            if (saved_as.empty() || saved_as == m_filament_preset)
+                return;
+            m_filament_preset = saved_as;
+            // The page writes the instructions again for the copy.
+            CallAfter([this] {
+                if (m_web_view)
+                    m_web_view->host().refresh_page_state();
+            });
+        });
         host.post_assistant_message("I can help with settings for " +
                                     (m_filament_name.empty() ? "the filament" : m_filament_name) +
                                     " in slot " + std::to_string(m_filament_slot + 1) +
@@ -120,8 +151,8 @@ void PrinterPanel::build_runtime()
     host.set_setup_completed_listener([this] {
         if (m_callbacks.agent_configured)
             m_callbacks.agent_configured();
-        if (m_web_view && m_task == Task::Printer)
-            m_web_view->host().set_session_profile(m_conversation->profile());
+        if (m_web_view)
+            m_web_view->host().set_session_profile(m_task == Task::Printer ? m_conversation->profile() : filament_profile());
     });
     m_pump.Start(kPumpIntervalMs);
 }
@@ -129,6 +160,7 @@ void PrinterPanel::build_runtime()
 void PrinterPanel::tear_down_runtime()
 {
     m_pump.Stop();
+    m_settled.reset();
     if (!m_web_view)
         return;
     GetSizer()->Detach(m_web_view.get());
@@ -185,14 +217,16 @@ void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
     Show();
 }
 
-void PrinterPanel::open_filament(std::size_t slot, const std::string& filament_name, const wxString& return_label)
+void PrinterPanel::open_filament(std::size_t slot, const std::string& preset, const std::string& shown, const wxString& return_label)
 {
     tear_down_runtime();
     m_task = Task::Filament;
     m_closing = false;
     m_after_close = {};
-    m_filament_slot = slot;
-    m_filament_name = filament_name;
+    m_filament_slot   = slot;
+    m_filament_name   = shown;
+    m_filament_preset = preset;
+    m_filament_instructions.clear();
     m_return_label = return_label;
     build_runtime();
     Show();
@@ -228,8 +262,73 @@ bool PrinterPanel::handle_printer_page_message(const std::string& type, const nl
     return m_conversation->handle_page_message(type, payload);
 }
 
+// A filament's chat changes that filament's settings, as a printer's chat
+// changes its printer's, and saves every change it makes: the chat is gone
+// when the panel closes, and an unsaved edit would outlive it unexplained.
+// Its other tools are the project assistant's.
+std::optional<Agent::ToolError> PrinterPanel::filament_preflight(Agent::ToolHandler handler, const Agent::ToolActivity& activity) const
+{
+    using Agent::ToolHandler;
+    if (handler != ToolHandler::SettingsSearch && handler != ToolHandler::SettingsGet &&
+        handler != ToolHandler::SettingsPreviewPatch && handler != ToolHandler::SettingsApplyPatch)
+        return std::nullopt;
+    const nlohmann::json arguments = nlohmann::json::parse(activity.arguments_json);
+    if (arguments.value("scope", std::string()) != "filament" ||
+        arguments.at("target").value("preset", std::string()) != m_filament_preset)
+        return Agent::ToolError{"not_in_this_conversation", "This chat changes the settings of one filament: pass scope filament "
+                                                            "and target.preset \"" + m_filament_preset + "\"."};
+    if (handler == ToolHandler::SettingsApplyPatch && !arguments.contains("persistAs"))
+        return Agent::ToolError{"not_saved", "Every change in this chat is saved: pass persistAs \"" + m_filament_preset +
+                                             "\", or the copy's name a read_only_preset issue gives."};
+    return std::nullopt;
+}
+
+Agent::AgentSessionProfile PrinterPanel::filament_profile() const
+{
+    Agent::AgentSessionProfile profile;
+    profile.tool_names                 = PrinterConversation::settings_tools();
+    profile.instructions               = m_filament_instructions;
+    profile.include_workspace          = false;
+    profile.notes_in_context           = true;
+    profile.reply_cancels_pending_card = true;
+    return profile;
+}
+
+// The facts the page writes the instructions from: the preset as it is now,
+// by its name, and for one OrcaSlicer ships, the copy a change is saved as.
+nlohmann::json PrinterPanel::filament_session_json() const
+{
+    const PresetCollection& filaments = wxGetApp().preset_bundle->filaments;
+    const Preset*           preset    = filaments.find_preset(m_filament_preset, false);
+
+    if (preset == nullptr)
+        throw std::logic_error("The filament chat is about a preset that is not there: " + m_filament_preset);
+    const auto*    types   = preset->config.option<ConfigOptionStrings>("filament_type");
+    nlohmann::json session = {{"kind", "filament"},
+                              {"slot", m_filament_slot + 1},
+                              {"preset", preset->name},
+                              {"shown", m_filament_name},
+                              {"material", types != nullptr && !types->values.empty() ? types->values.front() : std::string()},
+                              {"stock", preset->is_system}};
+    if (preset->is_system)
+        session["copyName"] = Printers::copy_name(preset->name, [&filaments](const std::string& candidate) {
+            return std::any_of(filaments.begin(), filaments.end(),
+                               [&candidate](const Preset& other) { return boost::iequals(other.name, candidate); });
+        });
+    return session;
+}
+
 bool PrinterPanel::handle_filament_page_message(const std::string& type, const nlohmann::json& payload)
 {
+    if (type == Agent::Protocol::kFilamentInstructions && payload.is_object()) {
+        // Bounded: the page's words become every request's system prompt.
+        const std::string text = payload.value("text", std::string());
+        if (text.size() <= kFilamentInstructionsLimit && text != m_filament_instructions) {
+            m_filament_instructions = text;
+            m_web_view->host().set_session_profile(filament_profile());
+        }
+        return true;
+    }
     if (type != Agent::Protocol::kShellAction || !payload.is_object())
         return false;
     const std::string action = payload.value("action", "");

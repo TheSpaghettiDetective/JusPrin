@@ -112,5 +112,243 @@
     },
     "strict": false,
     "type": "function"
+  },
+  {
+    "description": "Apply an atomic settings patch. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
+    "name": "settings_apply_patch",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "changes": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "maxProperties": 32,
+          "minProperties": 1,
+          "type": "object"
+        },
+        "expectedRevision": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expectedSessionId": {
+          "type": "string"
+        },
+        "intent": {
+          "description": "What the user asked this setup to be, in their own words, as one line of at most 40 characters. Not a description of the settings you changed. Send it whenever the change came from something the user asked for.",
+          "maxLength": 40,
+          "type": "string"
+        },
+        "persistAs": {
+          "description": "Not for object. Save the changed preset under this name, as OrcaSlicer's Save does: its own name overwrites it; another name saves a copy, which is used in its place from then on. A preset that comes with OrcaSlicer cannot be overwritten (read_only_preset): save a copy, under the name the issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the preset being edited can be.",
+          "maxLength": 2048,
+          "type": "string"
+        },
+        "planId": {
+          "description": "Only to group two or more changes; leave it out for a single change. Calls with the same planId share one approval card and run in order; each returns queued, and you do not hear how they end.",
+          "maxLength": 64,
+          "type": "string"
+        },
+        "scope": {
+          "description": "Whose settings. process: the print's own settings, which every object uses; that is what a request about the print means. object: one object's overrides, only when the user asks for one object to be printed differently from the others. filament or printer: that preset's own settings.",
+          "enum": [
+            "process",
+            "object",
+            "filament",
+            "printer"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "additionalProperties": false,
+          "description": "Leave out for process. object: objectId, from workspace_inspect. filament and printer: preset, the preset's exact name as workspace_inspect or the conversation gives it.",
+          "properties": {
+            "objectId": {
+              "type": "string"
+            },
+            "preset": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "required": [
+        "scope",
+        "changes",
+        "expectedSessionId",
+        "expectedRevision"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Read current values and their preset origin; read before proposing a patch. process reads the values every object prints with. object reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value. filament and printer read that preset: with its unsaved changes when it is the one being edited (differsFromPreset), otherwise as saved.",
+    "name": "settings_get",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "keys": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "type": "array"
+        },
+        "scope": {
+          "description": "Whose settings. process: the print's own settings, which every object uses; that is what a request about the print means. object: one object's overrides, only when the user asks for one object to be printed differently from the others. filament or printer: that preset's own settings.",
+          "enum": [
+            "process",
+            "object",
+            "filament",
+            "printer"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "additionalProperties": false,
+          "description": "Leave out for process. object: objectId, from workspace_inspect. filament and printer: preset, the preset's exact name as workspace_inspect or the conversation gives it.",
+          "properties": {
+            "objectId": {
+              "type": "string"
+            },
+            "preset": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "required": [
+        "scope",
+        "keys"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Validate an atomic settings patch, and persistAs, without changing anything; use the returned sessionId and revision when applying. A setting that holds one value per extruder or nozzle takes the same number of values, separated by commas. object checks the patch as overrides on that object: settings that apply to the whole print (skirt, travel speed, spiral vase and the like) are refused with unsupported_scope, and no dependencies are predicted because OrcaSlicer keeps object overrides as written. A filament or printer preset that is not the one being edited changes only by being saved (not_selected without persistAs).",
+    "name": "settings_preview_patch",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "changes": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "maxProperties": 32,
+          "minProperties": 1,
+          "type": "object"
+        },
+        "persistAs": {
+          "description": "Not for object. Save the changed preset under this name, as OrcaSlicer's Save does: its own name overwrites it; another name saves a copy, which is used in its place from then on. A preset that comes with OrcaSlicer cannot be overwritten (read_only_preset): save a copy, under the name the issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the preset being edited can be.",
+          "maxLength": 2048,
+          "type": "string"
+        },
+        "scope": {
+          "description": "Whose settings. process: the print's own settings, which every object uses; that is what a request about the print means. object: one object's overrides, only when the user asks for one object to be printed differently from the others. filament or printer: that preset's own settings.",
+          "enum": [
+            "process",
+            "object",
+            "filament",
+            "printer"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "additionalProperties": false,
+          "description": "Leave out for process. object: objectId, from workspace_inspect. filament and printer: preset, the preset's exact name as workspace_inspect or the conversation gives it.",
+          "properties": {
+            "objectId": {
+              "type": "string"
+            },
+            "preset": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "required": [
+        "scope",
+        "changes"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Find a page of process, object, filament or printer settings by key, label, or description. The query may hold several words or keys, and settings matching more of them come first. writable keeps only the settings the patch tools may change; changedOnly keeps only settings with unsaved changes (for object, the object's own overrides), which with an empty query lists every one. A page is not the full list; read known keys directly with settings_get or follow nextCursor.",
+    "name": "settings_search",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "changedOnly": {
+          "type": "boolean"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "limit": {
+          "maximum": 25,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "type": "string"
+        },
+        "scope": {
+          "description": "Whose settings. process: the print's own settings, which every object uses; that is what a request about the print means. object: one object's overrides, only when the user asks for one object to be printed differently from the others. filament or printer: that preset's own settings.",
+          "enum": [
+            "process",
+            "object",
+            "filament",
+            "printer"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "additionalProperties": false,
+          "description": "Leave out for process. object: objectId, from workspace_inspect. filament and printer: preset, the preset's exact name as workspace_inspect or the conversation gives it.",
+          "properties": {
+            "objectId": {
+              "type": "string"
+            },
+            "preset": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "writable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scope",
+        "query"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
   }
 ]

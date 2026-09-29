@@ -43,6 +43,7 @@
     "printer_action",
     "printer_instructions",
     "printer_opening",
+    "filament_instructions",
     "shell_action"
   ],
   "hostMessageTypes": [
