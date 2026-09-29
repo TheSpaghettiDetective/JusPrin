@@ -455,7 +455,7 @@ void OrcaHomeBackend::open_printer_window(const std::string& name)
         return; // the card changed under the click; the refreshed rail says so
     // One window per printer: a second click brings it back rather than
     // opening another beside it.
-    if (auto open = m_printer_windows.find(name); open != m_printer_windows.end() && open->second) {
+    if (auto open = m_printer_windows.find(name); open != m_printer_windows.end() && open->second && !open->second->closing()) {
         open->second->Iconize(false);
         open->second->Raise();
         return;
@@ -469,7 +469,7 @@ OrcaHomeBackend::~OrcaHomeBackend()
     // window; they go with it, as the Device tab they stand in for does.
     for (auto& [name, window] : m_printer_windows)
         if (window)
-            window->Destroy();
+            window->close();
 }
 
 void OrcaHomeBackend::add_printer()

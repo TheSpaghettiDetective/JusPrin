@@ -2325,6 +2325,31 @@ private:
         // Home's backend closes its windows when it goes, as the app's main
         // window taking Home with it does.
         check(wait_for([] { return printer_windows().empty(); }, 5s), "printer_window_closes_with_home");
+
+        // Closed from its title bar before its page has installed its script
+        // handler, as a quick click can: WebKit must not answer a view that is
+        // gone (on macOS that crashed the app once the answer came), and the
+        // next click opens a new window rather than raising the closing one.
+        {
+            Home::OrcaHomeBackend home(*m_frame);
+            home.launch_monitor(std::string("named:") + kAddedPrinter);
+            const auto first = printer_windows();
+            if (first.size() == 1)
+                first.front()->Close();
+            home.launch_monitor(std::string("named:") + kAddedPrinter);
+            // A closed window waits, hidden, while any web view is installing
+            // its script handler; the person sees only the new one.
+            std::vector<Home::PrinterWindow*> open;
+            for (Home::PrinterWindow* window : printer_windows())
+                if (!window->closing())
+                    open.push_back(window);
+            check(first.size() == 1 && first.front()->closing() && open.size() == 1 && open.front() != first.front() &&
+                      open.front()->IsShown(),
+                  "printer_window_reopens_after_a_quick_close");
+        }
+        check(wait_for([] { return printer_windows().empty(); }, 5s), "printer_window_quick_close_closes");
+        wait_for([] { return false; }, 3000ms);
+        check(true, "printer_window_quick_close_survives_the_late_answer");
     }
 
     // Testing a print host takes as long as the host takes to answer, and

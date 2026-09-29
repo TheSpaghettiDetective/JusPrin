@@ -10,6 +10,7 @@
 // page the person is on changes.
 
 #include <wx/frame.h>
+#include <wx/timer.h>
 
 #include <string>
 
@@ -30,12 +31,22 @@ public:
 
     PrinterWebView* view() const { return m_view; }
 
+    // Destroys the window, or hides it and destroys it once no web view is
+    // installing its script handler (see release()). The title bar's close
+    // comes here too.
+    void close();
+    bool closing() const { return m_closing; }
+
     // The page `config` names for its print host, as Orca's Device tab
     // computes it; empty when the profile has no print host.
     static std::string page_url(const DynamicPrintConfig& config);
 
 private:
+    void release();
+
     PrinterWebView* m_view{nullptr};
+    wxTimer         m_release_timer;
+    bool            m_closing{false};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home
