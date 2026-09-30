@@ -1,0 +1,5 @@
+read @/Users/kenneth/Projects/JusPrin/agent-docs/jusprin/autosave-checkpoint-storage-handoff.md and let me know if you understand this task, and if You have everything to work on this task.
+
+---
+
+another agent is working on /Users/kenneth/Projects/JusPrin/agent-docs/jusprin/autosave-save-cost-spike-handoff.md. related but different. Do you think it's better uh for that agents to r run your task after it's done with his because these 2 spikes are related?
