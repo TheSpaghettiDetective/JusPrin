@@ -8,6 +8,7 @@
 #include "OrcaSettings.hpp"
 #include "Regions.hpp"
 
+#include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Measure.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -368,6 +369,8 @@ CommandResult OrcaWorkspaceAdapter::change_regions(const std::vector<RegionRecor
             list->update_info_items(index);
         }
         m_plater.changed_object(static_cast<int>(index));
+        // Paint lives in the crash backup's per-object mesh file, as in Orca's paint tools.
+        Slic3r::save_object_mesh(*model.objects[index]);
     }
     m_plater.notify_project_state_changed(ProjectStateChangeReason::Objects);
     return CommandResult::success();

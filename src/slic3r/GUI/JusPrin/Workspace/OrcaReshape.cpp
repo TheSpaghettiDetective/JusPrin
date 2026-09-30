@@ -7,6 +7,7 @@
 #include "OrcaGeometry.hpp"
 
 #include "libslic3r/CutUtils.hpp"
+#include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/MeshBoolean.hpp"
 #include "libslic3r/Model.hpp"
@@ -356,6 +357,7 @@ CommandResult OrcaWorkspaceAdapter::repair_object(ObjectId id, RepairResult& res
     object.invalidate_bounding_box();
     object.ensure_on_bed();
     m_plater.changed_mesh(static_cast<int>(resolved->index));
+    Slic3r::save_object_mesh(object);
     if (ObjectList* list = wxGetApp().obj_list()) {
         list->update_info_items(resolved->index);
         list->add_volumes_to_object_in_list(resolved->index);

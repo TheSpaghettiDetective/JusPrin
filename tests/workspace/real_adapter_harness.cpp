@@ -25,9 +25,11 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -734,12 +736,108 @@ private:
             m_plater->get_partplate_list().create_plate(true);
             check(teardown_called && !*teardown_workspace, "adapter_teardown_during_native_dispatch_is_safe");
 
-            finish();
+            verify_backup_mesh_rewrites();
         } catch (const std::exception& error) {
             fail(std::string("transform verification exception: ") + error.what());
         } catch (...) {
             fail("unknown transform verification exception");
         }
+    }
+
+    // Orca's crash backup keeps each object's meshes and paint in a file of its
+    // own, rewritten a few seconds after something queues it. Region paint and
+    // repair change that file's contents, so each must queue it, as Orca's
+    // paint tools do, or a crash restores the object without the change. The
+    // file is deleted before each edit and must come back.
+    void verify_backup_mesh_rewrites()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "backup_mesh_new_project");
+        // A cube with its first triangle gone, so repair has a hole to close.
+        const fs::path open_cube = fs::path(data_dir()) / "open-cube.stl";
+        {
+            std::ifstream     in(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl", std::ios::binary);
+            std::stringstream stl;
+            stl << in.rdbuf();
+            std::string       text  = stl.str();
+            const std::size_t first = text.find("  facet");
+            const std::size_t last  = text.find('\n', text.find("endfacet", first));
+            text.erase(first, last + 1 - first);
+            std::ofstream(open_cube.string(), std::ios::binary) << text;
+        }
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{open_cube.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "backup_mesh_open_cube_loaded");
+        if (loaded.size() != 1) {
+            finish();
+            return;
+        }
+        Model&             model  = m_plater->model();
+        ModelObject&       object = *model.objects.front();
+        const std::string  file   = model.get_backup_path() + "/3D/Objects/" + object.name + "_" +
+                                 std::to_string(model.get_object_backup_id(object)) + ".model";
+        const auto written = [file] { return fs::exists(file) && !fs::exists(file + ".tmp"); };
+
+        RegionRecord region;
+        region.id          = "r1";
+        region.kind        = "support";
+        region.session     = m_workspace->snapshot().session.value();
+        region.object      = object.id().id;
+        region.object_name = object.name;
+        region.part_facets = {object.volumes.front()->mesh().facets_count()};
+        region.artifacts.push_back({"paint", "support", "enforcer", {}, 0, {1, 2, 3}});
+
+        auto self = shared_from_this();
+        // Each edit starts from a deleted file and passes when the backup
+        // writes it again.
+        const auto expect_rewrite = [self, file, written](const std::string& name, std::function<bool()> edit, std::function<void()> next) {
+            fs::remove(file);
+            const auto start = std::chrono::steady_clock::now();
+            self->check(edit(), name + "_succeeds");
+            self->wait_until(written, 20000, [self, name, start, next](bool ok) {
+                std::cerr << "HARNESS BACKUP " << name << " rewritten=" << ok << " ms="
+                          << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() << '\n';
+                self->check(ok, name + "_rewrites_backup_mesh");
+                next();
+            });
+        };
+        wait_until(written, 60000, [self, file, written, region, expect_rewrite](bool ok) {
+            self->check(ok, "backup_mesh_written_after_load");
+            // Nothing else is queued for the object: without an edit the
+            // file stays gone.
+            fs::remove(file);
+            self->wait_until([file] { return fs::exists(file); }, 5000, [self, region, expect_rewrite](bool rewritten) {
+                self->check(!rewritten, "backup_mesh_quiet_without_an_edit");
+                expect_rewrite("region_paint", [self, region] {
+                    std::vector<RegionRecord> applied;
+                    return self->m_workspace->apply_regions({region}, {}, applied).succeeded();
+                }, [self, region, expect_rewrite] {
+                    expect_rewrite("region_removal", [self, region] { return self->m_workspace->remove_regions({region}).succeeded(); },
+                                   [self, expect_rewrite] {
+                        expect_rewrite("repair", [self] {
+                            RepairResult repaired;
+                            const ObjectId id = self->m_workspace->snapshot().plates.front().objects.front().id;
+                            return self->m_workspace->repair_object(id, repaired).succeeded() && repaired.changed;
+                        }, [self] { self->finish(); });
+                    });
+                });
+            });
+        });
+    }
+
+    // Polls on a timer so the event loop, and the backup's hand-offs to it,
+    // keep running.
+    void wait_until(std::function<bool()> ready, int timeout_ms, std::function<void(bool)> then)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+        m_poll              = std::make_unique<wxTimer>();
+        m_poll->Bind(wxEVT_TIMER, [this, ready, then, deadline](wxTimerEvent&) {
+            const bool ok = ready();
+            if (!ok && std::chrono::steady_clock::now() < deadline)
+                return;
+            m_poll->Stop();
+            m_app.CallAfter([then, ok] { then(ok); });
+        });
+        m_poll->Start(50);
     }
 
     std::size_t model_index(ObjectId id) const
@@ -813,6 +911,7 @@ private:
     int                                   m_failures{0};
     bool                                  m_finished{false};
     std::unique_ptr<CanvasPresentationController> m_manual_controller;
+    std::unique_ptr<wxTimer>              m_poll;
 };
 
 void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
