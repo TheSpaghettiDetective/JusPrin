@@ -3,9 +3,13 @@
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include <memory>
+#include <functional>
+#include <string>
 #include <wx/event.h>
+#include <wx/string.h>
 #include <wx/timer.h>
 
 class wxSizer;
@@ -40,6 +44,7 @@ class PrinterPanel;
 class ShellController : public wxEvtHandler
 {
 public:
+    enum class ReimportDecision { OpenExisting, CreateNew, Cancel };
     ShellController();
     ~ShellController();
 
@@ -61,6 +66,9 @@ public:
     const CanvasPresentationController& prepare_canvas_presentation() const { return m_prepare_canvas_presentation; }
     Workspace::IWorkspace* workspace() const { return m_workspace.get(); }
     Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
+    Workspace::ProjectAutosave* autosave() const { return m_autosave.get(); }
+    void set_reimport_confirmation(std::function<ReimportDecision()> confirmation)
+        { m_reimport_confirmation = std::move(confirmation); }
 
     void apply_current_appearance();
 
@@ -127,6 +135,7 @@ private:
     Notebook*  m_tabpanel{nullptr};
     wxSizer*   m_main_sizer{nullptr};
     Plater*    m_plater{nullptr};
+    std::function<ReimportDecision()> m_reimport_confirmation;
 
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
@@ -153,6 +162,9 @@ private:
     // Project-owned conversation state; constructed
     // after the workspace and before the pane, destroyed in reverse.
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
+    std::unique_ptr<Workspace::ProjectAutosave> m_autosave;
+    std::string m_autosave_status_key;
+    wxString m_saved_frame_title;
 
     bool m_installed{false};
     bool m_saved_collapse_toolbar_enabled{false};

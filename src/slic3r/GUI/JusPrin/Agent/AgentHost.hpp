@@ -120,6 +120,8 @@ public:
     // Invoked after every successful hello handshake (initial load and every
     // reload); the owner uses it to cancel its connection deadline.
     void set_handshake_listener(std::function<void()> listener) { m_handshake_listener = std::move(listener); }
+    // A completed, failed, or stopped reply is a document durability boundary.
+    void set_turn_boundary_callback(std::function<void()> callback) { m_turn_boundary_callback = std::move(callback); }
 
     // Invoked once, right after pump_setup() persists a verified credential
     // and installs the newly connected agent. A throwaway setup-only host
@@ -364,6 +366,7 @@ private:
 
     SendFn                m_send;
     std::function<void()> m_handshake_listener;
+    std::function<void()> m_turn_boundary_callback;
     std::function<void()> m_setup_completed_listener;
 
     AgentSessionProfile             m_session_profile;

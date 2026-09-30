@@ -8625,6 +8625,10 @@ public:
     }
 
     void add_object_mesh(ModelObject& object) {
+        {
+            boost::lock_guard lock(m_mutex);
+            if (m_suspended) return;
+        }
         for (auto& g : m_gaurd_objects) {
             if (g.first == &object) {
                 ++g.second;
@@ -8644,6 +8648,7 @@ public:
 
     void backup_soon() {
         boost::lock_guard lock(m_mutex);
+        if (m_suspended) return;
         m_other_changes_backup = true;
         m_tasks.push_back({ Backup, 0, std::string(), nullptr, ++m_task_seq });
         m_cond.notify_all();
@@ -8684,6 +8689,16 @@ public:
         m_next_backup += boost::posix_time::seconds(m_interval);
         m_cond.notify_all();
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " exit, and new interval is: " << m_interval;
+    }
+
+    void set_suspended(bool suspended) {
+        // Rebase note: retain the guards at task creation, worker execution,
+        // UI backup callback, and timer wakeup if upstream changes this queue.
+        boost::lock_guard lock(m_mutex);
+        m_suspended = suspended;
+        if (!suspended)
+            m_next_backup = boost::get_system_time() + boost::posix_time::seconds(m_interval);
+        m_cond.notify_all();
     }
 
     void put_other_changes()
@@ -8797,6 +8812,8 @@ private:
                     break;
                 std::function<void(int)> callback;
                 boost::unique_lock lock(m_mutex);
+                if (m_suspended)
+                    break;
                 if (m_task_seq != t.sequence) {
                     if (find(m_tasks.begin(), m_tasks.end(), Task{ Backup }) == m_tasks.end()) {
                         t.sequence = ++m_task_seq; // may has pending tasks, retry later
@@ -8841,6 +8858,10 @@ private:
                 break;
             case AddObject: {
                 {
+                    boost::lock_guard lock(m_mutex);
+                    if (m_suspended) break;
+                }
+                {
                     CNumericLocalesSetter locales_setter;
                     _BBS_3MF_Exporter     e;
                     e.save_object_mesh(t.path, *t.object, (int) t.id);
@@ -8873,10 +8894,15 @@ public:
         while (true)
         {
             while (m_tasks.empty()) {
+                if (m_suspended) {
+                    m_cond.wait(lock);
+                    continue;
+                }
                 if (m_interval > 0)
                     m_cond.timed_wait(lock, m_next_backup);
                 else
                     m_cond.wait(lock);
+                if (m_suspended) continue;
                 if (m_interval > 0 && boost::get_system_time() > m_next_backup) {
                     m_tasks.push_back({ Backup, 0, std::string(), nullptr, ++m_task_seq });
                     m_next_backup += boost::posix_time::seconds(m_interval);
@@ -8939,6 +8965,7 @@ private:
     // param 1: should backup current project
     std::function<void(int)> m_post_callback;
     long m_interval = 1 * 60;
+    bool m_suspended = false;
     boost::system_time m_next_backup;
     Model m_temp_model; // visit only in main thread
     bool m_other_changes = false; // visit only in main thread
@@ -9042,6 +9069,11 @@ void remove_backup(Model& model, bool removeAll)
 void set_backup_interval(long interval)
 {
     _BBS_Backup_Manager::get().set_interval(interval);
+}
+
+void set_backup_suspended(bool suspended)
+{
+    _BBS_Backup_Manager::get().set_suspended(suspended);
 }
 
 void set_backup_callback(std::function<void(int)> callback)

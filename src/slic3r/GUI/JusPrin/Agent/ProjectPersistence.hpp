@@ -1,17 +1,12 @@
 #pragma once
 
-// Binds the semantic project document to its storage and to the workspace:
-//
-//  - state.json and attachment blobs live under <auxiliary_data_dir>/
-//    JusPrin/, which Orca embeds in the project archive on save and extracts
-//    on open — so an explicit save carries the conversation state saved so
-//    far, exactly as of that save;
-//  - a local recovery store (keyed by project identity, outside the project)
-//    mirrors newer working state — the current draft and everything written
-//    since the last explicit save — and wins at adoption when it is newer.
-//
-// JusPrin never saves or restores project state of its own: Orca's project
-// file is the only copy of the model.
+// Binds the semantic project document to the current workspace. In managed
+// mode the local store commits this document independently of Orca's model;
+// attachment bytes live under the same stable project ID. External 3MF files
+// are imports/exports and do not carry the managed conversation. The old
+// auxiliary state and newer recovery mirror are read once during migration.
+// A configuration without managed_root retains the legacy contract for older
+// hosts and its focused tests.
 //
 // Project boundaries follow the auxiliary directory: it changes whenever the
 // authoritative project is replaced by a load or a new project, and stays
@@ -33,6 +28,10 @@ class ProjectPersistence
 public:
     struct Config
     {
+        // Managed projects keep semantic state beside their version store.
+        // Empty preserves the legacy auxiliary/recovery behavior for tests
+        // and older hosts that have not installed the local version store.
+        std::string managed_root;
         // Root directory of the local recovery store; empty disables it.
         std::string recovery_root;
         // Injectable for deterministic tests.
@@ -63,6 +62,9 @@ public:
     // calls this from its pacing timer; later workspace events and flushes
     // resolve it too.
     void resolve_pending_boundary();
+    // Orca emits project-boundary events while loading a historical model.
+    // The caller restores the existing managed identity when the load ends.
+    void during_managed_restore(const std::function<void()>& operation);
 
     ProjectStateDocument&       document() { return m_document; }
     const ProjectStateDocument& document() const { return m_document; }
@@ -87,15 +89,17 @@ public:
             m_ledger_changed();
     }
 
-    // Marks the document changed; flush() writes state.json to the project's
-    // auxiliary dir and the recovery mirror. The owner calls flush_if_dirty()
-    // from its pacing timer so streaming deltas coalesce.
+    // Marks the document changed. In managed mode ProjectAutosave coalesces
+    // document writes between model versions; legacy mode flushes auxiliary files.
     void commit() { m_dirty = true; }
     void flush();
     void flush_if_dirty();
+    void record_managed_restore(const std::string& current_state, const std::string& from_version,
+                                const std::string& selected_version);
+    void adopt_managed_state(const std::string& state);
 
-    // The composer draft lives only in the recovery store: it is working
-    // state, not saved conversation history.
+    // The composer draft is a document field in managed mode; legacy mode
+    // continues to keep it in the recovery mirror.
     void               set_draft(const std::string& text);
     const std::string& draft() const { return m_draft; }
 
@@ -117,8 +121,7 @@ public:
     // auxiliary content.
     Workspace::CommandResult export_clean_copy(const std::string& file_path);
 
-    // Storage locations (resolved fresh; the auxiliary dir moves with the
-    // project).
+    // Storage locations resolved for the active managed or legacy project.
     std::string jusprin_data_dir() const;
     std::string state_file_path() const;
     std::string recovery_dir() const; // empty when disabled or no identity
@@ -153,6 +156,7 @@ private:
     bool        m_dirty{false};
     bool        m_attached{false};
     bool        m_boundary_pending{false};
+    bool        m_managed_restore_active{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

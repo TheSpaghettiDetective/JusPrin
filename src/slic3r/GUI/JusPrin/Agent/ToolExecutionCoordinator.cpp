@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cctype>
 #include <filesystem>
+#include <iostream>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -247,6 +248,57 @@ Workspace::PrinterSetupRequest setup_request(const json& arguments)
     if (arguments.contains("filamentPresets")) request.filament_presets = arguments["filamentPresets"].get<std::vector<std::string>>();
     request.discard_unsaved_edits = arguments.value("unsavedEdits", "") == "discard";
     return request;
+}
+
+// Only actions that can change the printable scene need a pinned before
+// checkpoint and a before/after model-version link. The other mutations are
+// durable document records or external printer/file actions.
+bool changes_printable_project(const ToolDefinition& definition, const ToolActivity& activity)
+{
+    switch (definition.handler) {
+    case ToolHandler::SettingsApplyPatch:
+    case ToolHandler::ObjectImport:
+    case ToolHandler::ObjectImportFile:
+    case ToolHandler::ProjectDeleteItems:
+    case ToolHandler::PlateLayout:
+    case ToolHandler::ObjectPlace:
+    case ToolHandler::RegionAnnotate:
+    case ToolHandler::ObjectDivide:
+    case ToolHandler::ObjectMerge:
+    case ToolHandler::ObjectRepair:
+        return true;
+    case ToolHandler::PrinterSetup:
+        return !setup_request(json::parse(activity.arguments_json)).empty();
+    case ToolHandler::WorkspaceInspect:
+    case ToolHandler::SettingsSearch:
+    case ToolHandler::SettingsGet:
+    case ToolHandler::SettingsPreviewPatch:
+    case ToolHandler::IntentUpdate:
+    case ToolHandler::PlanSet:
+    case ToolHandler::PresetsList:
+    case ToolHandler::ObjectAnalyze:
+    case ToolHandler::ObjectDividePreview:
+    case ToolHandler::ViewRender:
+    case ToolHandler::AttachmentRead:
+    case ToolHandler::SliceInspect:
+    case ToolHandler::ActivityCancel:
+    case ToolHandler::ExportFile:
+    case ToolHandler::PrinterSetupPreview:
+    case ToolHandler::ProjectOpen:
+    case ToolHandler::PrinterList:
+    case ToolHandler::SliceStart:
+    case ToolHandler::SliceReportRead:
+    case ToolHandler::RecordBuild:
+    case ToolHandler::RecordExportCopy:
+    case ToolHandler::RecordPhysicalPrint:
+    case ToolHandler::PrinterIdentify:
+    case ToolHandler::PrinterAdd:
+    case ToolHandler::PrinterChange:
+    case ToolHandler::PrinterConnectionStatus:
+    case ToolHandler::PrinterConnect:
+        return false;
+    }
+    throw std::logic_error("tool handler has no checkpoint classification");
 }
 
 // What a setup would do, as the card and the staleness check compare it.
@@ -900,7 +952,38 @@ void ToolExecutionCoordinator::pump()
             notify(activity);
         } else {
             activity.progress_current = activity.progress_total;
+            const ToolDefinition* definition = m_registry.find(activity.tool);
+            const bool versioned = m_version_before && m_version_after && definition != nullptr &&
+                                   changes_printable_project(*definition, activity);
+            std::string before;
+            if (versioned) {
+                try {
+                    before = m_version_before(activity);
+                    if (before.empty())
+                        throw std::runtime_error("the current project could not be saved");
+                } catch (const std::exception& error) {
+                    std::clog << "Could not save before Agent action: " << error.what() << '\n';
+                    fail(activity, "local_save_failed", "Couldn't save the project. The action was not run.");
+                    return;
+                }
+            }
             execute(activity);
+            if (versioned) {
+                try {
+                    m_version_after(activity, before);
+                } catch (const std::exception& error) {
+                    std::clog << "Could not save after Agent action: " << error.what() << '\n';
+                    fail(activity, "local_save_failed", "The action ran, but its changes couldn't be saved. Check the project before trying again.");
+                }
+            } else if (m_document_boundary && activity.action_class != ActionClass::ReadOnly && definition != nullptr &&
+                       definition->handler != ToolHandler::ProjectOpen && definition->handler != ToolHandler::SliceStart) {
+                try {
+                    m_document_boundary(activity);
+                } catch (const std::exception& error) {
+                    std::clog << "Could not save Agent document: " << error.what() << '\n';
+                    fail(activity, "local_save_failed", "The action ran, but its changes couldn't be saved. Check the project before trying again.");
+                }
+            }
         }
         // One activity per tick keeps event ordering deterministic.
         return;

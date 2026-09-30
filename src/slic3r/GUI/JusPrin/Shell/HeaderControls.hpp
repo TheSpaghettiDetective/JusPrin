@@ -87,7 +87,9 @@ public:
     // raises wxEVT_MENU instead of wxEVT_BUTTON, so one row can carry a
     // secondary action without a second focusable control.
     void set_row_action(HeaderIcon icon);
-    bool has_row_action() const { return m_row_action != HeaderIcon::None; }
+    void set_row_action_label(const wxString& label);
+    const wxString& row_action_label() const { return m_row_action_label; }
+    bool has_row_action() const { return m_row_action != HeaderIcon::None || !m_row_action_label.empty(); }
     // Raises the row action as though its glyph had been clicked.
     void invoke_row_action();
     const HeaderRowDecoration& decoration() const { return m_decoration; }
@@ -134,6 +136,7 @@ private:
     HeaderIcon m_icon;
     HeaderRowDecoration m_decoration;
     HeaderIcon m_row_action{HeaderIcon::None};
+    wxString m_row_action_label;
     int m_label_cap{0};
     bool m_dark{false}, m_hover{false}, m_pressed{false}, m_status{false}, m_warning{false};
     bool m_menu_selected{false};
@@ -155,8 +158,8 @@ struct HeaderMenuItem {
     // Keeps the popup open when invoked -- for a row that swaps the menu's own
     // contents (a sub-list, a back step) rather than finishing a task.
     bool keeps_open{false};
-    // Secondary action revealed at the row's right end on hover, right-click,
-    // or Right arrow. Always keeps the popup open: it opens a nested step.
+    // Secondary action at the row's right end. Icon actions appear on hover
+    // and keep the popup open for a nested step; text actions can dismiss it.
     HeaderIcon row_action{HeaderIcon::None};
     std::function<void()> invoke_row_action;
     HeaderRowDecoration decoration;
@@ -165,6 +168,10 @@ struct HeaderMenuItem {
     // outside the label, as a slot row draws its number. Last, so rows
     // written positionally elsewhere stay as they are.
     wxString name;
+    // A visible compact text button at the row's right edge. The row itself
+    // can remain non-invokable; keyboard activation invokes the text action.
+    wxString row_action_label;
+    bool dismisses_on_row_action{false};
 };
 
 // A custom view among a menu's rows that takes part in the menu's keyboard

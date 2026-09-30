@@ -169,6 +169,7 @@ enum class LoadStrategy
     LoadAuxiliary = 16,
     Silence = 32,
     ImperialUnits = 64,
+    AllowEmpty = 128,
 
     Restore = 0x10000 | LoadModel | LoadConfig | LoadAuxiliary | Silence,
 };
@@ -292,6 +293,9 @@ extern void backup_soon();
 extern void remove_backup(Model& model, bool removeAll);
 
 extern void set_backup_interval(long interval);
+// Temporarily suppress automatic archive and object-mesh backups. The saved
+// interval remains intact and takes effect again when suspension ends.
+extern void set_backup_suspended(bool suspended);
 
 extern void set_backup_callback(std::function<void(int)> callback);
 

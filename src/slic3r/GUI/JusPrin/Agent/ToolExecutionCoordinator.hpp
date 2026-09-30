@@ -115,6 +115,20 @@ public:
     {
         m_attachment_path_resolver = std::move(resolver);
     }
+    // The host can durably bracket each printable-project mutation. Empty callbacks
+    // preserve GUI-free coordinator behavior in unit tests and task chats.
+    void set_version_callbacks(std::function<std::string(const ToolActivity&)> before,
+                               std::function<void(const ToolActivity&, const std::string&)> after)
+    {
+        m_version_before = std::move(before);
+        m_version_after = std::move(after);
+    }
+    // Document-only mutations have a durability boundary without pinning or
+    // publishing a model version.
+    void set_document_boundary_callback(std::function<void(const ToolActivity&)> callback)
+    {
+        m_document_boundary = std::move(callback);
+    }
 
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
@@ -188,6 +202,9 @@ private:
     ExtensionPreflight               m_extension_preflight;
     std::function<std::string()>     m_action_id_allocator;
     std::function<std::string(const std::string&)> m_attachment_path_resolver;
+    std::function<std::string(const ToolActivity&)> m_version_before;
+    std::function<void(const ToolActivity&, const std::string&)> m_version_after;
+    std::function<void(const ToolActivity&)> m_document_boundary;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
     std::uint64_t                    m_last_invalidating_revision{0};

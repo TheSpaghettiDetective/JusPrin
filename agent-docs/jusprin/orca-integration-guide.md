@@ -76,15 +76,17 @@ own snapshots, restoration order, selection restoration, and object identity.
 
 The Agent panel's timeline rows come from a change log: one saved entry per
 real edit, with a kind, OrcaSlicer's own raw name, an actor, and the
-conversation item it follows. JusPrin never saves or restores project state for
-it. `OrcaWorkspaceAdapter` detects edits from state OrcaSlicer already
+conversation item it follows. The local project store commits this semantic
+log with the corresponding Orca model version. `OrcaWorkspaceAdapter` detects edits from state OrcaSlicer already
 maintains, not from which code path ran, so a new OrcaSlicer feature that
 records an undo step is covered with no fork code.
 
 - **Model edits are undo steps.** A step counts when OrcaSlicer's own
   `snapshot_modifies_project` accepts it (Action, GizmoAction, or
   ProjectSeparator, and a name not ending in "!"). The same rule drives the
-  unsaved-changes asterisk and the auto-backup. Selection steps and plate
+  unsaved-changes asterisk and Orca's auto-backup while it is enabled. The
+  managed JusPrin shell suspends that backup in favor of local versions.
+  Selection steps and plate
   switching ("select partplate!") are excluded by it, and slicing never
   records a step. ProjectSeparator steps are project boundaries, not edits.
 - **Every step reaches the adapter.** `take_snapshot` notifies with

@@ -1151,6 +1151,7 @@ void AgentHost::handle_stop(const std::string& payload_json)
     stream.message.state = MessageState::Stopped;
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
+    if (m_turn_boundary_callback) m_turn_boundary_callback();
     send_envelope(Protocol::kAssistantStopped, json{{"messageId", stream.message.id}}.dump());
     start_next_queued_reply();
     send_conversations();
@@ -1754,6 +1755,7 @@ void AgentHost::complete_stream()
     stream.message.state = MessageState::Complete;
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
+    if (m_turn_boundary_callback) m_turn_boundary_callback();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
     start_next_queued_reply();
     send_conversations();
@@ -1770,6 +1772,7 @@ void AgentHost::fail_stream(AgentError error)
     stream.message.error = std::move(error);
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
+    if (m_turn_boundary_callback) m_turn_boundary_callback();
     send_envelope(Protocol::kAssistantFailed,
                   json{{"messageId", stream.message.id}, {"error", error_json(*stream.message.error)}}.dump());
     start_next_queued_reply();
@@ -1786,6 +1789,7 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     stream.message.state = MessageState::Complete;
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
+    if (m_turn_boundary_callback) m_turn_boundary_callback();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
     const ToolActivity& proposed =

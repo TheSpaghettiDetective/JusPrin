@@ -514,6 +514,44 @@ TEST_CASE("saved state is adopted on reopen and merged with newer recovery", "[p
     }
 }
 
+TEST_CASE("managed import moves semantic state and attachments into the local store", "[persistence][managed]")
+{
+    const std::string root = unique_temp_dir("managed-projects");
+    const std::string recovery = unique_temp_dir("legacy-recovery");
+    ProjectStateDocument legacy;
+    legacy.initialize_identity("p-imported", "l-imported", kT);
+    const std::string conversation = legacy.active_conversation_id();
+    legacy.append_message(conversation, user_message(legacy.allocate_message_id(), "old conversation", "c-1"), kT);
+    const std::string saved = legacy.dump();
+    legacy.set_draft("unfinished draft");
+    write_text(fs::path(recovery) / "p-imported" / "state.json", legacy.dump());
+
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    const fs::path auxiliary = fs::path(workspace.auxiliary_data_dir()) / "JusPrin";
+    write_text(auxiliary / "state.json", saved);
+    write_text(auxiliary / "attachments" / "a-1" / "note.txt", "attached");
+    ProjectPersistence::Config config = config_with_recovery(recovery);
+    config.managed_root = root;
+    ProjectPersistence imported(workspace, config);
+    imported.attach();
+    CHECK(imported.document().project_id() == "p-imported");
+    CHECK(imported.document().messages(conversation).size() == 1);
+    CHECK(imported.draft() == "unfinished draft");
+    CHECK(read_text(fs::path(imported.attachments_dir()) / "a-1" / "note.txt") == "attached");
+    CHECK_FALSE(fs::exists(fs::path(root) / "p-imported" / "state.json"));
+    CHECK(read_text(auxiliary / "state.json") == saved);
+
+    // Importing the old archive again creates a distinct managed draft.
+    write_text(fs::path(root) / "p-imported" / "HEAD", "committed-version\n");
+    Workspace::FakeWorkspace copy_workspace(small_snapshot());
+    write_text(fs::path(copy_workspace.auxiliary_data_dir()) / "JusPrin" / "state.json", saved);
+    ProjectPersistence copied(copy_workspace, config);
+    copied.attach();
+    CHECK(copied.document().project_id() != "p-imported");
+    CHECK(copied.document().lineage_id() == "l-imported");
+    CHECK(copied.document().messages(conversation).size() == 1);
+}
+
 TEST_CASE("a corrupt state file is preserved for inspection and replaced", "[persistence][recovery]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());

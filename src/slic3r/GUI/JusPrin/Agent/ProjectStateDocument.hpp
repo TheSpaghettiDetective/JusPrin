@@ -1,10 +1,10 @@
 #pragma once
 
-// The portable, versioned semantic state of a JusPrin project: conversations,
+// The current semantic document of a JusPrin project: conversations,
 // their messages and tool activity records, attachments, and the
 // manufacturing history (builds, exported copies, physical prints).
-// Serialized as Auxiliaries/JusPrin/state.json inside the project archive and
-// mirrored to the local recovery store.
+// Managed projects save it independently of model checkpoints in
+// current-state.json. Legacy imports can still read auxiliary state.json.
 //
 // The document is backed by one JSON tree that is edited in place, so
 // optional fields written by other (newer) builds survive a load-edit-save
@@ -161,6 +161,8 @@ public:
     // to adopt a new identity); an older schema is migrated in place.
     LoadResult load(const std::string& json_text);
     std::string dump() const;
+    // These fields follow a model version when the person restores history.
+    // Conversation, audit, drafts, and print facts remain current instead.
 
     // Monotonic per-document change counter, bumped by every mutating call.
     // The recovery mirror with the higher value is the newer state.
@@ -172,6 +174,11 @@ public:
 
     // Creates the identity and the first conversation.
     void initialize_identity(const std::string& project_id, const std::string& lineage_id, const std::string& timestamp);
+    // An imported copy starts a distinct managed project while preserving its
+    // migrated conversation and manufacturing history.
+    void fork_identity(const std::string& project_id, const std::string& timestamp);
+    void set_draft(const std::string& draft);
+    std::string draft() const;
 
     // -- Conversations ------------------------------------------------------
     std::vector<ConversationInfo> conversations() const;
@@ -255,6 +262,8 @@ public:
     // new or changed and is stamped on the way in.
     std::vector<Workspace::RegionRecord> regions() const;
     std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records, const std::string& timestamp);
+    // Version restore keeps the current conversation and manufacturing audit
+    // while taking the earlier version's project-specific intent and plan.
 
     // -- Change log -----------------------------------------------------------
     // Appends with the next seq, placed in the active conversation after its

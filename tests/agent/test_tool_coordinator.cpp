@@ -98,6 +98,41 @@ struct Harness
 
 } // namespace
 
+TEST_CASE("project mutations are bracketed by durable version callbacks", "[tools][versions]")
+{
+    Harness harness;
+    std::vector<std::string> boundaries;
+    harness.coordinator.set_version_callbacks(
+        [&boundaries](const ToolActivity& activity) {
+            boundaries.push_back("before:" + activity.action_id);
+            return std::string("v-before");
+        },
+        [&boundaries](const ToolActivity& activity, const std::string& before) {
+            boundaries.push_back("after:" + before + ":" +
+                                 std::string(activity.state == ToolState::Succeeded ? "succeeded" : "failed"));
+        });
+    harness.coordinator.set_document_boundary_callback([](const ToolActivity&) {
+        FAIL("model edits must use version callbacks instead of the document-only boundary");
+    });
+    const std::string id = harness.coordinator.propose(harness.duplicate_cube_request(), "versioned").action_id;
+    REQUIRE(harness.coordinator.approve(id));
+    harness.pump_to_completion(id);
+    CHECK(harness.coordinator.find(id)->state == ToolState::Succeeded);
+    const std::vector<std::string> expected{"before:" + id, "after:v-before:succeeded"};
+    CHECK(boundaries == expected);
+    CHECK(harness.object_count() == 2);
+
+    Harness refused;
+    refused.coordinator.set_version_callbacks(
+        [](const ToolActivity&) -> std::string { throw std::runtime_error("disk full"); },
+        [](const ToolActivity&, const std::string&) { FAIL("no after-version follows a refused before-version"); });
+    const std::string refused_id = refused.coordinator.propose(refused.duplicate_cube_request(), "version-refused").action_id;
+    REQUIRE(refused.coordinator.approve(refused_id));
+    refused.pump_to_completion(refused_id);
+    CHECK(refused.coordinator.find(refused_id)->state == ToolState::Failed);
+    CHECK(refused.object_count() == 1);
+}
+
 TEST_CASE("approval policy follows the handoff", "[tools][policy]")
 {
     // Read-only actions run without approval; every durable mutation asks
@@ -573,6 +608,18 @@ TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][in
     Harness h;
     FakeProductState store;
     h.coordinator.set_product_state(&store);
+    h.coordinator.set_version_callbacks(
+        [](const ToolActivity&) -> std::string {
+            FAIL("document-only actions must not pin a model checkpoint");
+            return {};
+        },
+        [](const ToolActivity&, const std::string&) {
+            FAIL("document-only actions must not record a model-version operation");
+        });
+    std::vector<std::string> document_boundaries;
+    h.coordinator.set_document_boundary_callback([&document_boundaries](const ToolActivity& activity) {
+        document_boundaries.push_back(activity.action_id);
+    });
     const auto& registry = ToolRegistry::instance();
 
     auto call = [&h](const char* tool, json arguments) -> const ToolActivity& {
@@ -643,6 +690,7 @@ TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][in
     CHECK(sections["plan"]["assumptions"] == json::array({"PLA on a smooth plate"}));
     CHECK_FALSE(sections.contains("projectName")); // the summary was not asked for
     CHECK(h.workspace.snapshot().revision == before_revision);
+    CHECK(document_boundaries == std::vector<std::string>{plan_action, intent_action, assumed});
 }
 
 TEST_CASE("workspace_inspect without sections is what it always was", "[tools][inspect]")

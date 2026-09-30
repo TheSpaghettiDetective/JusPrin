@@ -20,6 +20,7 @@
 namespace Slic3r { namespace GUI {
 class MainFrame;
 }} // namespace Slic3r::GUI
+namespace Slic3r::GUI::JusPrin::Workspace { class ProjectAutosave; }
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -34,6 +35,7 @@ public:
     // shell owns the panel; Home only says what the person asked about.
     using OpenConversation = std::function<void(const std::string& printer_name, bool connect)>;
     void set_conversation_opener(OpenConversation open) { m_open_conversation = std::move(open); }
+    void set_autosave(Workspace::ProjectAutosave* autosave) { m_autosave = autosave; }
 
     bool                      dark() const override;
     std::vector<ProjectEntry> recent_projects() const override;
@@ -56,6 +58,7 @@ private:
     void open_printer_window(const std::string& name);
 
     MainFrame&                                         m_frame;
+    Workspace::ProjectAutosave*                       m_autosave{nullptr};
     OpenConversation                                   m_open_conversation;
     std::map<std::string, wxWeakRef<PrinterWindow>>    m_printer_windows; // by printer name
 };

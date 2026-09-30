@@ -1771,7 +1771,7 @@ CommandResult OrcaWorkspaceAdapter::export_project_archive(const std::string& fi
     // strategy matches an ordinary project save.
     const SaveStrategy strategy = SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh |
                                   SaveStrategy::SkipAuxiliary;
-    if (m_plater.export_3mf(boost::filesystem::path(file_path), strategy) < 0)
+    if (m_plater.export_3mf(into_path(from_u8(file_path)), strategy) < 0)
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project archive could not be written");
     return CommandResult::success();
 }

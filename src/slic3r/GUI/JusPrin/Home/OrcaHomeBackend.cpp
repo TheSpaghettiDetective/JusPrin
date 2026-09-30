@@ -16,11 +16,10 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
-#include <wx/filename.h>
-
-#include <boost/property_tree/ptree.hpp>
+#include <wx/msgdlg.h>
 
 #include <algorithm>
 #include <cctype>
@@ -31,22 +30,6 @@
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
 namespace {
-
-// Thumbnails travel as base64 data: URLs, so the whole gallery's images sit in
-// one envelope. The cap bounds that payload; projects past it keep their card
-// and its frame, without an image.
-constexpr int kThumbnailCap = 30;
-
-std::string utf8(const std::wstring& text) { return std::string(wxString(text).ToUTF8()); }
-
-// "C:/models/garage bracket.3mf" -> "garage bracket", the form a print job on
-// a device carries, and the form a card is titled by.
-std::string file_stem(const std::wstring& path)
-{
-    const std::wstring name = path.substr(path.find_last_of(L"/\\") + 1);
-    const size_t       dot  = name.find_last_of(L'.');
-    return utf8(dot == std::wstring::npos ? name : name.substr(0, dot));
-}
 
 // Upstream's own predicate, not a copy of it. The first version of this listed
 // RUNNING, PAUSE and SLICING and left out PREPARE, so a printer that was
@@ -190,9 +173,10 @@ bool OrcaHomeBackend::dark() const { return wxGetApp().dark_mode(); }
 
 std::vector<ProjectEntry> OrcaHomeBackend::recent_projects() const
 {
-    // Which project each printing machine is running, so a card can say so.
-    // This is the only per-project status the codebase can answer today; the
-    // rest is the file's own modified time until a project-state store exists.
+    if (m_autosave == nullptr)
+        return {};
+    // Match printing jobs by the project's display name, which is what Orca
+    // uses for a job. The source file may have been deleted after import.
     std::map<std::string, std::string> printing_by_stem;
     if (DeviceManager* devices = wxGetApp().getDeviceManager()) {
         for (const auto& entry : devices->get_my_machine_list()) {
@@ -204,37 +188,23 @@ std::vector<ProjectEntry> OrcaHomeBackend::recent_projects() const
         }
     }
 
-    std::vector<ProjectEntry>    projects;
-    boost::property_tree::wptree recent;
-    m_frame.get_recent_projects(recent, kThumbnailCap);
-    size_t index = 0;
-    for (const auto& node : recent) {
-        const auto&  item = node.second;
+    std::vector<ProjectEntry> projects;
+    for (const auto& saved : m_autosave->projects()) {
         ProjectEntry project;
-        project.id              = std::to_string(index++);
-        const std::wstring path = item.get<std::wstring>(L"path", L"");
-        project.name            = file_stem(path);
-        project.path            = utf8(path);
-        project.thumbnail_url   = utf8(item.get<std::wstring>(L"image", L""));
+        project.id = saved.id;
+        project.name = saved.name.empty() || saved.name == utf8(_L("Untitled")) ?
+            utf8(_L("Untitled project")) : saved.name;
+        project.path = saved.store_path;
+        project.thumbnail_url = saved.thumbnail_url;
 
-        const auto printing = printing_by_stem.find(file_stem(path));
+        const auto printing = printing_by_stem.find(project.name);
         if (printing != printing_by_stem.end()) {
             project.status_kind = ProjectStatusKind::Printing;
             project.status_text = std::string(
                 wxString::Format(_L("Printing on %s"), wxString::FromUTF8(printing->second)).ToUTF8());
         } else {
-            // Honest about what is known: nothing records whether this project
-            // is sliced, so the card shows when it was last written, and says
-            // which fact it is showing rather than dropping a bare timestamp
-            // where the design puts a state.
             project.status_kind = ProjectStatusKind::Unknown;
-            // The recent list stamps "YYYY-MM-DD HH:MM:SS"; a status line does
-            // not need the second.
-            wxString when = wxString(item.get<std::wstring>(L"time", L""));
-            if (when.length() == 19 && when[16] == ':')
-                when = when.Left(16);
-            if (!when.empty())
-                project.status_text = std::string(wxString::Format(_L("Edited %s"), when).ToUTF8());
+            project.status_text = utf8(_L("Saved"));
         }
         projects.push_back(std::move(project));
     }
@@ -372,31 +342,14 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
 
 void OrcaHomeBackend::open_project(const std::string& project_id)
 {
-    if (project_id.empty())
+    if (project_id.empty() || m_autosave == nullptr)
         return;
-    const size_t                 wanted = static_cast<size_t>(std::stoul(project_id));
-    boost::property_tree::wptree recent;
-    m_frame.get_recent_projects(recent, 0);
-    size_t at = 0;
-    for (const auto& node : recent) {
-        if (at++ != wanted)
-            continue;
-        const wxString path(node.second.get<std::wstring>(L"path", L""));
-        m_frame.open_recent_project(wanted, path);
-        // Opening a project is a move to the workspace, but only if it opens.
-        // open_recent_project queues the load behind can_load_project(), which
-        // asks about unsaved changes and abandons the load when the answer is
-        // Cancel. Queueing the move behind that lambda -- CallAfter is FIFO --
-        // and confirming the project that is now open is the one that was
-        // asked for keeps a cancelled open on Home instead of navigating out
-        // from under it.
-        m_frame.CallAfter([this, path] {
-            Plater* plater = wxGetApp().plater();
-            if (plater != nullptr && wxFileName(plater->get_project_filename()).SameAs(wxFileName(path)))
-                m_frame.select_tab(size_t(MainFrame::tp3DEditor));
-        });
+    if (!m_autosave->open_managed_project(project_id)) {
+        wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
+                     wxOK | wxICON_ERROR, &m_frame);
         return;
     }
+    m_frame.select_tab(size_t(MainFrame::tp3DEditor));
 }
 
 void OrcaHomeBackend::new_project()

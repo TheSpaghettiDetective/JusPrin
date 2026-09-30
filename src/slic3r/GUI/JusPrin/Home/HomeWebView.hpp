@@ -34,7 +34,7 @@ public:
     ~HomeWebView() override;
 
     void apply_appearance(bool dark);
-    // Re-reads the recent-project list and the device state. The shell calls
+    // Re-reads the local-project list and the device state. The shell calls
     // this when Home becomes visible: the gallery is a view of state that
     // changes while another screen is in front. `added` leads the column
     // with a successful Add and sends its receipt, for this one refresh.

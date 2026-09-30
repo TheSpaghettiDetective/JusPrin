@@ -137,7 +137,7 @@ HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyl
     });
     Bind(wxEVT_LEFT_UP, [this](wxMouseEvent& e) {
         const bool invoke = m_pressed && GetClientRect().Contains(e.GetPosition());
-        const bool on_action = m_row_action != HeaderIcon::None && row_action_rect().Contains(e.GetPosition());
+        const bool on_action = has_row_action() && row_action_rect().Contains(e.GetPosition());
         m_pressed = false;
         if (HasCapture()) ReleaseMouse();
         Refresh();
@@ -145,10 +145,10 @@ HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyl
         if (on_action) invoke_row_action();
         else activate(false);
     });
-    // Right-clicking anywhere on the row is the pointer equivalent of the
-    // row action, for people who do not aim at a glyph that appears on hover.
+    // Icon row actions also respond to a right-click anywhere on the row.
+    // A visible text action requires a click on its button.
     Bind(wxEVT_RIGHT_UP, [this](wxMouseEvent& e) {
-        if (m_row_action == HeaderIcon::None) { e.Skip(); return; }
+        if (!m_row_action_label.empty() || !has_row_action()) { e.Skip(); return; }
         SetFocus();
         invoke_row_action();
     });
@@ -167,6 +167,10 @@ HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyl
 void HeaderButton::activate(bool from_keyboard)
 {
     if (!IsEnabled()) return;
+    if (from_keyboard && !m_row_action_label.empty()) {
+        invoke_row_action();
+        return;
+    }
     m_keyboard_activated = from_keyboard;
     wxCommandEvent event(wxEVT_BUTTON, GetId());
     event.SetEventObject(this);
@@ -179,17 +183,32 @@ void HeaderButton::set_icon(HeaderIcon icon) { m_icon = icon; InvalidateBestSize
 void HeaderButton::set_status(bool visible, bool warning) { m_status = visible; m_warning = warning; InvalidateBestSize(); Refresh(); }
 void HeaderButton::set_detail(const wxString& detail) { m_decoration.detail = detail; InvalidateBestSize(); Refresh(); }
 void HeaderButton::set_row_action(HeaderIcon icon) { m_row_action = icon; InvalidateBestSize(); Refresh(); }
+void HeaderButton::set_row_action_label(const wxString& label)
+{
+    m_row_action_label = label;
+    InvalidateBestSize();
+    Refresh();
+}
 
 wxRect HeaderButton::row_action_rect() const
 {
-    if (m_row_action == HeaderIcon::None) return {};
+    if (!has_row_action()) return {};
+    if (!m_row_action_label.empty()) {
+        const ButtonRecipe& recipe = m_theme.metrics().button.compact;
+        wxClientDC dc(const_cast<HeaderButton*>(this));
+        dc.SetFont(m_theme.font(recipe.text_role.value_or(TextRole::Metadata)));
+        const wxSize text = dc.GetTextExtent(m_row_action_label);
+        const wxSize size(text.x + 2 * FromDIP(recipe.padding_x), text.y + 2 * FromDIP(recipe.padding_y));
+        return {GetClientSize().x - FromDIP(m_theme.metrics().space_2) - size.x,
+                (GetClientSize().y - size.y) / 2, size.x, size.y};
+    }
     const int size = FromDIP(20);
     return {GetClientSize().x - FromDIP(6) - size, (GetClientSize().y - size) / 2, size, size};
 }
 
 void HeaderButton::invoke_row_action()
 {
-    if (m_row_action == HeaderIcon::None || !IsEnabled()) return;
+    if (!has_row_action() || !IsEnabled()) return;
     wxCommandEvent event(wxEVT_MENU, GetId());
     event.SetEventObject(this);
     ProcessWindowEvent(event);
@@ -225,7 +244,8 @@ const wxFont& HeaderButton::detail_font() const
 int HeaderButton::trailing_reserve() const
 {
     int reserve = FromDIP(12);
-    if (m_row_action != HeaderIcon::None) reserve += FromDIP(20);
+    if (!m_row_action_label.empty()) reserve += row_action_rect().width + FromDIP(m_theme.metrics().space_2);
+    else if (m_row_action != HeaderIcon::None) reserve += FromDIP(20);
     if (m_status) reserve += FromDIP(16);
     if (m_decoration.check) reserve += FromDIP(20);
     if (m_decoration.trailing != HeaderIcon::None) reserve += FromDIP(20);
@@ -431,7 +451,18 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     // Right edge inward: trailing glyph, check, status, detail. Each consumes
     // its slot so the label knows exactly how much room is left.
     double right = w - FromDIP(12);
-    if (m_row_action != HeaderIcon::None) {
+    if (!m_row_action_label.empty()) {
+        const wxRect rect = row_action_rect();
+        const ButtonRecipe& recipe = m.button.compact;
+        gc->SetPen(wxPen(p.action_secondary_border));
+        gc->SetBrush(wxBrush(m_pressed ? p.action_secondary_pressed : highlighted ? p.action_secondary_hover : p.action_secondary));
+        gc->DrawRoundedRectangle(rect.x, rect.y, rect.width, rect.height, FromDIP(recipe.radius));
+        gc->SetFont(m_theme.font(recipe.text_role.value_or(TextRole::Metadata)), p.action_secondary_text);
+        double tw, th;
+        gc->GetTextExtent(m_row_action_label, &tw, &th);
+        gc->DrawText(m_row_action_label, rect.x + (rect.width - tw) / 2, rect.y + (rect.height - th) / 2);
+        right -= rect.width + FromDIP(m.space_2);
+    } else if (m_row_action != HeaderIcon::None) {
         // Revealed on hover or keyboard selection; the slot is always
         // reserved, so rows do not shift when the pointer crosses them.
         if (highlighted) {
@@ -610,9 +641,17 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         button->set_decoration(item.decoration);
         button->set_dark(m_dark);
         button->set_row_action(item.row_action);
+        button->set_row_action_label(item.row_action_label);
         button->Enable(item.enabled);
         if (item.invoke_row_action)
-            button->Bind(wxEVT_MENU,[this,action=std::move(item.invoke_row_action)](wxCommandEvent&) {
+            button->Bind(wxEVT_MENU,[this,action=std::move(item.invoke_row_action),
+                                     dismisses=item.dismisses_on_row_action,
+                                     owner=wxWeakRef<wxWindow>(GetParent())](wxCommandEvent&) {
+                if (dismisses) {
+                    close();
+                    if (owner) owner->CallAfter([owner,action] { if (owner) action(); });
+                    return;
+                }
                 // Like keeps_open rows, this rebuilds the popup's own contents.
                 // MSVC binds 'this' in a nested lambda's init-capture to the
                 // enclosing closure, not to HeaderMenu, so name the menu first.
@@ -735,6 +774,10 @@ void HeaderMenu::on_key(wxKeyEvent& e)
     }
     if (key == WXK_RETURN || key == WXK_NUMPAD_ENTER || key == WXK_SPACE) {
         if (auto* button = selected_item()) {
+            if (!button->row_action_label().empty()) {
+                button->invoke_row_action();
+                return;
+            }
             wxCommandEvent click(wxEVT_BUTTON,button->GetId());
             click.SetEventObject(button);
             button->ProcessWindowEvent(click);

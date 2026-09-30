@@ -126,9 +126,10 @@ describe('Home', () => {
         ],
       }),
     );
-    const idle = screen.getByTitle('C:/projects/garage.3mf');
+    const idle = screen.getByText('Garage bracket').closest('button')!;
     const printing = screen.getByText('Vent grille').closest('button')!;
     expect(idle.className).not.toContain('printing');
+    expect(idle).not.toHaveAttribute('title');
     expect(printing.className).toContain('printing');
     expect(within(printing).getByText('Printing on X1 Carbon')).toBeInTheDocument();
     expect(printing.querySelectorAll('.status-dot.printing')).toHaveLength(1);

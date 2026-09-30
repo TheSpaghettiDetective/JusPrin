@@ -65,6 +65,9 @@
 //              setting by hand, asserts the thread's change rows and the
 //              "Answered · nothing changed" marker, and writes
 //              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
+//   --external-project-history [--external-project-history-capture <output-directory>]
+//              checks the repeated external 3MF choice and explicit,
+//              confirmed version restore; optionally captures a history row
 //   --printer-live
 //              needs OPENAI_API_KEY: the printer-agent-tools handoff's worked
 //              examples through the real printer panel and the live model --
@@ -201,12 +204,15 @@
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include <wx/app.h>
+#include <wx/base64.h>
 #include <wx/dcmemory.h>
 #include <wx/dcscreen.h>
 #include <wx/glcanvas.h>
 #include <wx/dialog.h>
 #include <wx/dnd.h>
 #include <wx/hyperlink.h>
+#include <wx/image.h>
+#include <wx/mstream.h>
 #include <wx/webview.h>
 #include <wx/process.h>
 #include <wx/stdpaths.h>
@@ -291,6 +297,26 @@ bool snapshot_web_view(void* native_web_view, const char* path)
 
 namespace Slic3r::GUI::JusPrin {
 namespace {
+
+bool preview_has_subject(const std::string& url)
+{
+    constexpr const char* prefix = "data:image/png;base64,";
+    if (url.rfind(prefix, 0) != 0)
+        return false;
+    const auto bytes = wxBase64Decode(url.c_str() + std::strlen(prefix));
+    if (bytes.IsEmpty())
+        return false;
+    wxMemoryInputStream stream(bytes.GetData(), bytes.GetDataLen());
+    wxImage image;
+    if (!image.LoadFile(stream, wxBITMAP_TYPE_PNG) || !image.IsOk())
+        return false;
+    const auto* alpha = image.GetAlpha();
+    if (alpha == nullptr)
+        return true;
+    return std::any_of(alpha, alpha + image.GetWidth() * image.GetHeight(), [](unsigned char value) {
+        return value != 0;
+    });
+}
 
 // Labels reach the widgets through _L, which decodes its narrow literal as
 // UTF-8 explicitly (I18N.hpp). wxString's own narrow constructor instead
@@ -560,7 +586,10 @@ struct HarnessState
         TaskChat,
         PrinterSetup,
         PrinterLive,
-        HomeLive
+        HomeLive,
+        AutosaveSeed,
+        AutosaveReopen,
+        ExternalProjectHistory
     };
 
     std::atomic<int>  result{-1};
@@ -585,6 +614,7 @@ struct HarnessState
     // the printer, or slot 1's filament, OrcaSlicer ships, from the header.
     bool settings_live{false};
     bool filament_settings_live{false};
+    bool keep_data{false};
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
@@ -661,6 +691,155 @@ public:
     void run_shell_mode()
     {
         try {
+            if (m_state->mode == HarnessState::Mode::AutosaveSeed) {
+                check(!installed_shell()->autosave()->pin_current().empty(),
+                      "restart_blank_agent_before_state_pinned");
+                const fs::path source = fs::path(data_dir()) / "restart-source.stl";
+                fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
+                              source, fs::copy_option::overwrite_if_exists);
+                check(m_plater->load_files(std::vector<std::string>{source.string()},
+                      LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+                      "restart_seed_model_loaded");
+                auto& document = persistence().document();
+                document.create_conversation("Restart proof", persistence().timestamp());
+                persistence().set_draft("unfinished restart draft");
+                persistence().commit();
+                check(installed_shell()->autosave()->save_now(), "restart_seed_committed");
+                Slic3r::set_backup_interval(1);
+                Slic3r::backup_soon();
+                const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
+                check(std::any_of(home_projects.begin(), home_projects.end(), [id = document.project_id()](const auto& project) {
+                    return project.id == id;
+                }), "home_lists_saved_local_project");
+                const auto home_entry = std::find_if(home_projects.begin(), home_projects.end(),
+                    [id = document.project_id()](const auto& project) { return project.id == id; });
+                check(home_entry != home_projects.end() && home_entry->name == "restart-source" &&
+                          home_entry->status_text == "Saved" &&
+                          home_entry->path.find("/jusprin/projects/") != std::string::npos,
+                      "home_describes_managed_project");
+                check(home_entry != home_projects.end() &&
+                          preview_has_subject(home_entry->thumbnail_url),
+                      "home_saved_project_has_visible_preview");
+                const auto preview_file = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                          document.project_id() / "preview.json";
+                const auto preview_time = std::filesystem::last_write_time(preview_file);
+                installed_shell()->home_view()->backend().recent_projects();
+                check(std::filesystem::last_write_time(preview_file) == preview_time,
+                      "home_preview_cache_avoids_repeat_writes");
+                Agent::ConversationMessage reply;
+                reply.id = document.allocate_message_id();
+                reply.role = Agent::MessageRole::Assistant;
+                reply.state = Agent::MessageState::Streaming;
+                const std::string conversation = document.active_conversation_id();
+                document.append_message(conversation, reply, persistence().timestamp());
+                persistence().commit();
+                const auto exports_before_reply = installed_shell()->autosave()->capture_attempts();
+                for (int word = 0; word < 4; ++word) {
+                    reply.text += " word";
+                    check(document.update_message(conversation, reply), "stream_reply_message_updated");
+                    persistence().commit();
+                    installed_shell()->autosave()->tick();
+                    wxMilliSleep(900);
+                }
+                reply.state = Agent::MessageState::Complete;
+                check(document.update_message(conversation, reply), "stream_reply_completed");
+                persistence().commit();
+                check(installed_shell()->autosave()->save_now(), "stream_reply_durable");
+                check(installed_shell()->autosave()->capture_attempts() == exports_before_reply,
+                      "stream_reply_does_not_export_model_per_word");
+                const auto before_plan = installed_shell()->autosave()->current_version();
+                const auto exports_before_plan = installed_shell()->autosave()->capture_attempts();
+                Agent::PlanRecord plan;
+                plan.headline = "Check the first layer";
+                document.set_plan(plan, persistence().timestamp());
+                persistence().commit();
+                check(installed_shell()->autosave()->save_now(), "document_plan_durable");
+                check(installed_shell()->autosave()->current_version() == before_plan &&
+                          installed_shell()->autosave()->capture_attempts() == exports_before_plan,
+                      "document_plan_does_not_create_model_checkpoint");
+                const auto before_rename = installed_shell()->autosave()->current_version();
+                m_plater->get_partplate_list().get_plate(0)->set_plate_name("Quiet plate rename");
+                wait_until([before_rename] {
+                    return installed_shell()->autosave()->current_version() != before_rename;
+                }, "restart_plate_rename_saved_without_workspace_event", [self = shared_from_this(), source] {
+                    const auto& document = self->persistence().document();
+                    std::ofstream expected((fs::path(data_dir()) / "restart-expected.json").string());
+                    expected << nlohmann::json{{"projectId", document.project_id()},
+                                               {"versionId", installed_shell()->autosave()->current_version()},
+                                               {"backupPath", self->m_plater->model().get_backup_path()}}.dump();
+                    expected.close();
+                    fs::remove(source);
+                    const auto attempts = installed_shell()->autosave()->capture_attempts();
+                    const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+                    self->wait_until([until] { return std::chrono::steady_clock::now() >= until; },
+                                     "restart_idle_observation_window", [self, attempts] {
+                        self->check(installed_shell()->autosave()->capture_attempts() == attempts,
+                                    "restart_idle_does_not_export_metadata_again");
+                        const fs::path backup = self->m_plater->model().get_backup_path();
+                        self->check(!fs::exists(backup / ".3mf"), "managed_project_skips_orca_backup_archive");
+                        bool object_cache = false;
+                        const fs::path objects = backup / "3D" / "Objects";
+                        if (fs::is_directory(objects))
+                            for (fs::directory_iterator it(objects), end; it != end; ++it)
+                                object_cache |= it->path().extension() == ".model";
+                        self->check(!object_cache, "managed_project_skips_orca_backup_mesh_cache");
+                        const std::string saved_id = self->persistence().document().project_id();
+                        self->check(self->m_plater->new_project(true, true) != wxID_CANCEL,
+                                    "home_local_open_starts_from_another_project");
+                        self->wait_until([self, saved_id] {
+                            return self->persistence().document().project_id() != saved_id;
+                        }, "home_new_project_identity_settled", [self, saved_id] {
+                            installed_shell()->home_view()->backend().open_project(saved_id);
+                            self->check(self->persistence().document().project_id() == saved_id &&
+                                            self->m_plater->model().objects.size() == 1 &&
+                                            self->m_plater->get_partplate_list().get_plate(0)->get_plate_name() == "Quiet plate rename",
+                                        "home_opens_saved_local_project");
+                            self->finish();
+                        });
+                    });
+                });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::AutosaveReopen) {
+                std::ifstream expected((fs::path(data_dir()) / "restart-expected.json").string());
+                nlohmann::json saved;
+                expected >> saved;
+                wait_until([this, id = saved.at("projectId").get<std::string>()] {
+                    return persistence().document().project_id() == id && m_plater->model().objects.size() == 1;
+                }, "restart_project_resumed", [self = shared_from_this(), saved] {
+                    self->check(installed_shell()->autosave()->current_version() == saved.at("versionId").get<std::string>(),
+                                "restart_head_preserved");
+                    self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n') ==
+                                    wxString::FromUTF8("restart-source \xE2\x80\x94 ") + wxGetTranslation("Saved"),
+                                "restart_title_uses_local_project_name_and_save_state");
+                    const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
+                    self->check(std::any_of(home_projects.begin(), home_projects.end(),
+                        [id = saved.at("projectId").get<std::string>()](const auto& project) {
+                            return project.id == id && project.name == "restart-source" &&
+                                   preview_has_subject(project.thumbnail_url);
+                        }), "restart_home_lists_local_project_with_preview");
+                    self->check(self->persistence().draft() == "unfinished restart draft" &&
+                                self->persistence().document().conversations().size() == 2,
+                                "restart_semantic_state_preserved");
+                    const auto replies = self->persistence().document().messages(
+                        self->persistence().document().active_conversation_id());
+                    self->check(std::any_of(replies.begin(), replies.end(), [](const auto& message) {
+                        return message.role == Agent::MessageRole::Assistant &&
+                               message.state == Agent::MessageState::Complete &&
+                               message.text == " word word word word";
+                    }), "restart_streamed_reply_preserved");
+                    self->check(self->persistence().document().plan().headline == "Check the first layer",
+                                "restart_document_plan_preserved");
+                    self->check(self->m_plater->get_partplate_list().get_plate(0)->get_plate_name() == "Quiet plate rename",
+                                "restart_quiet_plate_rename_restored");
+                    self->finish();
+                });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
+                verify_external_project_history();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::PrinterMenu) {
                 check(selected_printer() == kSetupFixturePrinter, "printer_menu_fixture_starts_on_system_profile");
                 verify_other_printers_menu();
@@ -6241,17 +6420,18 @@ private:
     {
         m_saved_project_id  = persistence().document().project_id();
         m_saved_project_file = (fs::temp_directory_path() / fs::unique_path("jusprin-phase4-%%%%.3mf")).string();
-        // The same strategy Plater::save_project uses, silenced; the
-        // auxiliary dir (with state.json) is included.
+        // An explicit archive export carries Orca model/settings. Managed
+        // conversation history remains in the local version store.
         const auto save_started = std::chrono::steady_clock::now();
         check(m_plater->export_3mf(boost::filesystem::path(m_saved_project_file),
                                    SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence) >= 0,
-              "project_saved_with_state");
+              "project_exported");
         m_save_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - save_started).count();
         std::ifstream saved(m_saved_project_file, std::ios::binary);
         const std::string saved_bytes((std::istreambuf_iterator<char>(saved)), std::istreambuf_iterator<char>());
+        m_saved_project_original_bytes = saved_bytes;
         m_saved_project_bytes = saved_bytes.size();
-        check(saved_bytes.find("JusPrin/state.json") != std::string::npos, "saved_archive_contains_state_json");
+        check(saved_bytes.find("JusPrin/state.json") == std::string::npos, "exported_archive_excludes_managed_state");
         // JusPrin keeps no project copies of its own inside the project.
         check(saved_bytes.find(".snapshot") == std::string::npos, "saved_archive_has_no_project_copies");
 
@@ -6267,6 +6447,8 @@ private:
                 self->verify_regions();
                 self->verify_reshape();
                 self->verify_slice_checks([self] {
+                    self->check(installed_shell()->autosave()->open_managed_project(self->m_saved_project_id),
+                                "prior_local_project_reopened");
                     self->wait_until(
                         [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
                         "saved_state_adopted_on_reopen", [self] {
@@ -6281,6 +6463,118 @@ private:
                         });
                 });
             });
+    }
+
+    void verify_external_project_history()
+    {
+        auto* autosave = installed_shell()->autosave();
+        const fs::path source = fs::path(data_dir()) / "previously-imported.3mf";
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+              LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "external_3mf_fixture_loaded");
+        check(m_plater->export_3mf(source, SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence) >= 0,
+              "external_3mf_fixture_exported");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "external_3mf_first_draft_created");
+        m_plater->load_project(wxString::FromUTF8(source.string()), "<loadall>");
+        check(autosave->has_local_project_for_source(std::filesystem::path(source.string())),
+              "external_3mf_live_source_found_before_save");
+        check(autosave->save_now() && m_plater->model().objects.size() == 1,
+              "external_3mf_first_import_saved");
+        const std::string original_id = persistence().document().project_id();
+        check(autosave->has_local_project_for_source(std::filesystem::path(source.string())),
+              "external_3mf_source_index_found");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "external_3mf_second_draft_created");
+        const std::string draft_id = persistence().document().project_id();
+        wxGetApp().app_config->set(SETTING_PROJECT_LOAD_BEHAVIOUR, OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL);
+        int prompt_count = 0;
+        auto decision = ShellController::ReimportDecision::Cancel;
+        installed_shell()->set_reimport_confirmation([&] {
+            ++prompt_count;
+            return decision;
+        });
+        const bool cancelled = m_plater->open_3mf_file(source);
+        check(cancelled && prompt_count == 1 && persistence().document().project_id() == draft_id,
+              "external_3mf_reopen_cancel_keeps_draft");
+        decision = ShellController::ReimportDecision::OpenExisting;
+        const bool deferred = m_plater->open_3mf_file(source);
+        check(deferred && prompt_count == 2 && persistence().document().project_id() == original_id &&
+                  m_plater->model().objects.size() == 1 && m_notebook->GetSelection() == MainFrame::tp3DEditor,
+              "external_3mf_reopen_opens_existing_project_directly");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "external_3mf_new_draft_after_reopen");
+        const std::string next_draft_id = persistence().document().project_id();
+        decision = ShellController::ReimportDecision::CreateNew;
+        const bool opened = m_plater->open_3mf_file(source);
+        check(opened && prompt_count == 3 && persistence().document().project_id() != original_id &&
+                  persistence().document().project_id() != draft_id &&
+                  persistence().document().project_id() != next_draft_id,
+              "external_3mf_new_project_requires_confirmation");
+
+        check(autosave->save_now(), "history_fixture_baseline_saved");
+        const std::string newest_id = persistence().document().project_id();
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "external_3mf_third_draft_created");
+        decision = ShellController::ReimportDecision::OpenExisting;
+        const bool reopened = m_plater->open_3mf_file(source);
+        installed_shell()->set_reimport_confirmation({});
+        check(reopened && prompt_count == 4 && persistence().document().project_id() == newest_id,
+              "external_3mf_multiple_matches_open_most_recent_project");
+        check(m_plater->duplicate_object(0) >= 0 && autosave->save_now(),
+              "history_fixture_second_model_version_saved");
+        const auto versions = autosave->history();
+        check(versions.size() >= 2, "history_fixture_has_older_version");
+        if (versions.size() >= 2) {
+            const std::string latest = autosave->current_version();
+            const std::size_t objects = m_plater->model().objects.size();
+            installed_shell()->status_row()->show_version_history();
+            HeaderMenu* menu = visible_header_menu();
+            auto* older = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(
+                wxString::FromUTF8(versions[versions.size() - 2].created_at), menu)) : nullptr;
+            check(older != nullptr, "history_older_timestamp_visible");
+            if (older) {
+                if (!m_state->capture_dir.empty()) {
+                    fs::create_directories(m_state->capture_dir);
+                    check(older->snapshot().SaveFile(wxString::FromUTF8(
+                        (m_state->capture_dir / "version-history-row.png").string()), wxBITMAP_TYPE_PNG),
+                        "history_restore_row_capture_saved");
+                }
+                click_row(menu, older);
+                wxYield();
+                check(autosave->current_version() == latest && m_plater->model().objects.size() == objects,
+                      "history_timestamp_click_does_not_restore");
+                check(older->row_action_label() == wxGetTranslation("Restore"),
+                      "history_older_version_has_restore_button");
+                int restore_prompt_count = 0;
+                bool restore_answer = false;
+                installed_shell()->status_row()->set_restore_confirmation([&] {
+                    ++restore_prompt_count;
+                    return restore_answer;
+                });
+                older->invoke_row_action();
+                wxYield();
+                check(restore_prompt_count == 1 && autosave->current_version() == latest &&
+                          m_plater->model().objects.size() == objects,
+                      "history_restore_cancel_keeps_model");
+                installed_shell()->status_row()->show_version_history();
+                menu = visible_header_menu();
+                older = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(
+                    wxString::FromUTF8(versions[versions.size() - 2].created_at), menu)) : nullptr;
+                const bool restore_button_found = older != nullptr;
+                if (restore_button_found) {
+                    restore_answer = true;
+                    older->invoke_row_action();
+                    wxYield();
+                }
+                installed_shell()->status_row()->set_restore_confirmation({});
+                check(restore_button_found && restore_prompt_count == 2 &&
+                          m_plater->model().objects.size() == versions[versions.size() - 2].objects.size(),
+                      "history_restore_confirm_reloads_older_model");
+            }
+        }
+        const wxString expected_title = wxString::FromUTF8("previously-imported \xE2\x80\x94 ") +
+                                        wxGetTranslation("Saved");
+        wait_until([this, expected_title] { return m_frame->GetTitle() == expected_title; },
+                   "external_3mf_window_title_shows_local_save_state",
+                   [self = shared_from_this()] { self->finish(); });
     }
 
     // Counts every dialog that becomes visible, other than the load progress
@@ -7075,8 +7369,58 @@ private:
         check(clean_bytes.find("3D/3dmodel.model") != std::string::npos, "clean_copy_is_a_project_archive");
         check(clean_bytes.find("JusPrin/state.json") == std::string::npos, "clean_copy_has_no_conversation_state");
 
+        check(m_plater->rename_object(0, "Unsaved failure fixture"), "failed_autosave_edit_applied");
+        const std::string project_id = persistence().document().project_id();
+        const std::filesystem::path pending = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                               project_id / "pending";
+        const auto original_permissions = std::filesystem::status(pending).permissions();
+        std::filesystem::permissions(pending, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
+                                     std::filesystem::perm_options::replace);
+        const bool refused = !installed_shell()->autosave()->save_now();
+        check(refused && installed_shell()->autosave()->state() == Workspace::ProjectAutosave::State::Failed,
+              "failed_autosave_is_visible");
+        check(installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Couldn't save")),
+              "failed_autosave_has_plain_status_text");
+        check(m_plater->new_project(true, true) == wxID_CANCEL && persistence().document().project_id() == project_id,
+              "failed_autosave_blocks_project_release");
+        std::filesystem::permissions(pending, original_permissions, std::filesystem::perm_options::replace);
+        check(installed_shell()->autosave()->save_now() &&
+              installed_shell()->autosave()->state() == Workspace::ProjectAutosave::State::Saved,
+              "failed_autosave_retries_after_storage_recovers");
+
+        auto* autosave = installed_shell()->autosave();
+        Agent::PlanRecord retained_plan;
+        retained_plan.headline = "Keep this plan after model restore";
+        persistence().document().set_plan(retained_plan, persistence().timestamp());
+        persistence().commit();
+        check(autosave->save_now(), "restore_fixture_document_saved");
+        const std::string before_restore = autosave->current_version();
+        const std::size_t conversations_before = persistence().document().conversations().size();
+        const auto history = autosave->history();
+        const auto earlier = std::find_if(history.begin(), history.end(), [&before_restore](const auto& version) {
+            return version.id != before_restore && !version.objects.empty();
+        });
+        check(earlier != history.end(), "earlier_model_version_available");
+        if (earlier != history.end()) {
+            check(autosave->restore(earlier->id), "earlier_model_version_restored");
+            check(m_plater->model().objects.size() == earlier->objects.size(),
+                  "restore_reloads_selected_model");
+            check(persistence().document().conversations().size() == conversations_before &&
+                  persistence().document().plan().headline == retained_plan.headline,
+                  "restore_preserves_current_document");
+            const bool reopened = autosave->restore(before_restore);
+            if (!reopened)
+                std::cerr << "HARNESS RESTORE ERROR " << autosave->error() << '\n';
+            check(reopened, "pre_restore_version_can_be_reopened");
+        }
+
         std::cerr << "HARNESS BENCH saved_project_bytes=" << m_saved_project_bytes << " save_ms=" << m_save_ms << '\n';
         boost::system::error_code ec;
+        if (!m_saved_project_file.empty()) {
+            std::ifstream source(m_saved_project_file, std::ios::binary);
+            const std::string current((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+            check(current == m_saved_project_original_bytes, "autosave_does_not_overwrite_imported_3mf");
+        }
         fs::remove(m_saved_project_file, ec);
         fs::remove(clean_path, ec);
         after_agent();
@@ -7399,6 +7743,16 @@ private:
               "prepare_legacy_overlays_restored");
         m_frame->Layout();
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "stock_canvas_usable_after_restore");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+                  LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "stock_backup_fixture_loaded");
+        const fs::path backup = m_plater->model().get_backup_path();
+        Slic3r::set_backup_interval(1);
+        Slic3r::backup_soon();
+        check(wait_for([backup] { return fs::exists(backup / ".3mf"); }, std::chrono::seconds(10)),
+              "stock_backup_resumes_after_shell_detach");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "stock_backup_fixture_cleared");
     }
 
     // Polls through a one-shot wxTimer rather than a self-reposting
@@ -7537,6 +7891,7 @@ private:
     bool                          m_live_rejection_done{false};
     std::unique_ptr<JusPrinTest::NativeMcpClient> m_mcp_client;
     std::size_t                   m_saved_project_bytes{0};
+    std::string                   m_saved_project_original_bytes;
     double                        m_save_ms{0.0};
     std::string                   m_header_setup_printer;
     std::string                   m_header_setup_restore_printer;
@@ -7713,6 +8068,22 @@ int main(int argc, char** argv)
         }
         else if (argument == "--stock")
             state->mode = HarnessState::Mode::Stock;
+        else if (argument == "--external-project-history")
+            state->mode = HarnessState::Mode::ExternalProjectHistory;
+        else if (argument == "--external-project-history-capture") {
+            if (++index == argc) return 2;
+            state->mode = HarnessState::Mode::ExternalProjectHistory;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--autosave-seed" || argument == "--autosave-reopen") {
+            if (++index == argc) {
+                std::cerr << argument << " requires a dedicated fixture directory\n";
+                return 2;
+            }
+            state->mode = argument == "--autosave-seed" ? HarnessState::Mode::AutosaveSeed : HarnessState::Mode::AutosaveReopen;
+            state->keep_data = true;
+            data_directory = fs::absolute(argv[index]);
+        }
         else if (argument == "--manual")
             state->mode = HarnessState::Mode::Manual;
         else if (argument == "--manual-live-agent")
@@ -7915,7 +8286,7 @@ int main(int argc, char** argv)
     }
 
     fs::current_path(original_directory);
-    if (state->result == 0) {
+    if (state->result == 0 && !state->keep_data) {
         // The boost::log sink keeps log/debug_*.log.0 open until static
         // destruction, so on Windows this cannot delete everything, and an
         // uncaught filesystem_error here would end a PASS run with

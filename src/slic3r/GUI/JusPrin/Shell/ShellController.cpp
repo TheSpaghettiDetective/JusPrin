@@ -6,6 +6,7 @@
 #include "StatusRow.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -22,10 +23,12 @@
 #include <boost/log/trivial.hpp>
 
 #include <wx/dcbuffer.h>
+#include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <sstream>
 #include <stdexcept>
@@ -160,6 +163,24 @@ std::unique_ptr<ShellController>& shell_slot()
 ShellController::ShellController()
 {
     Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+        if (m_autosave) {
+            m_autosave->tick();
+            const std::string key = std::to_string(int(m_autosave->state())) + m_autosave->error();
+            if (key != m_autosave_status_key && m_status_row != nullptr) {
+                m_autosave_status_key = key;
+                m_status_row->refresh();
+                if (m_autosave->state() == Workspace::ProjectAutosave::State::Saved &&
+                    m_home != nullptr && m_home->IsShownOnScreen())
+                    m_home->refresh();
+            }
+        }
+        if (m_status_row != nullptr && m_frame != nullptr) {
+            const wxString title = m_status_row->project_summary().BeforeFirst('\n');
+            if (m_frame->GetTitle() != title) {
+                m_frame->SetTitle(title);
+                m_frame->update_title_colour_after_set_title();
+            }
+        }
         if (!m_agent_pane) return;
         auto& host = m_agent_pane->web_view().host();
         host.pump_stream();
@@ -196,6 +217,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         throw std::runtime_error("the JusPrin design tokens did not load; the brand palette logged why");
 
     m_frame     = &frame;
+    m_saved_frame_title = frame.GetTitle();
     m_tabpanel  = &tabpanel;
     m_main_sizer = &main_sizer;
     m_plater    = plater;
@@ -214,6 +236,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // store under the application data dir.
         Agent::ProjectPersistence::Config persistence_config;
         persistence_config.recovery_root = (boost::filesystem::path(data_dir()) / "jusprin" / "recovery").string();
+        persistence_config.managed_root = (boost::filesystem::path(data_dir()) / "jusprin" / "projects").string();
         m_persistence = std::make_unique<Agent::ProjectPersistence>(*m_workspace, std::move(persistence_config));
 
         Agent::AgentRuntime agent = Agent::load_agent_runtime(wxGetApp().app_config);
@@ -243,6 +266,74 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // Adopt the currently open project once the host has registered its
         // listeners, so the initial document reaches the pane too.
         m_persistence->attach();
+        m_autosave = std::make_unique<Workspace::ProjectAutosave>(
+            *plater, *m_persistence, *m_workspace,
+            std::filesystem::path(data_dir()) / "jusprin" / "projects");
+        m_agent_pane->web_view().host().set_turn_boundary_callback([this] { m_autosave->save_now(); });
+        Slic3r::set_backup_suspended(true);
+        m_status_row->set_autosave(m_autosave.get());
+        plater->set_before_project_release([this] {
+            if (!m_autosave || !m_autosave->save_now())
+                return false;
+            m_autosave->ensure_current_preview();
+            return true;
+        });
+        plater->set_external_project_open_handler([this](const Plater::fs_path& path) {
+#ifdef _WIN32
+            const std::filesystem::path source(path.wstring());
+#else
+            const std::filesystem::path source(path.string());
+#endif
+            if (!m_autosave)
+                return false;
+            const auto matches = m_autosave->projects_for_source(source);
+            if (matches.empty())
+                return false;
+            const bool current = matches.front() == m_persistence->document().project_id();
+            const ReimportDecision decision = m_reimport_confirmation ? m_reimport_confirmation() : [this, &matches, current] {
+                const wxString message = current ?
+                    _L("This file is already open as a project. Continue working in it, or create a new project from this file.") :
+                    matches.size() > 1 ?
+                    _L("You've opened this file before. Open the most recently updated project or create another project from this file.") :
+                    _L("You've opened this file before. Open the existing project to continue where you left off, "
+                       "or create a new project from this file.");
+                wxMessageDialog dialog(m_frame,
+                    message, _L("Previously opened file"), wxYES_NO | wxCANCEL | wxICON_QUESTION);
+                dialog.SetYesNoLabels(current ? _L("Continue current project") :
+                                      matches.size() > 1 ? _L("Open most recent project") : _L("Open existing project"),
+                                      _L("Create new project"));
+                const int answer = dialog.ShowModal();
+                return answer == wxID_YES ? ReimportDecision::OpenExisting :
+                       answer == wxID_NO ? ReimportDecision::CreateNew : ReimportDecision::Cancel;
+            }();
+            if (decision == ReimportDecision::CreateNew)
+                return false;
+            if (decision == ReimportDecision::OpenExisting) {
+                if (!m_autosave->open_managed_project(matches.front()))
+                    wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
+                                 wxOK | wxICON_ERROR, m_frame);
+                else
+                    m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+            }
+            return true;
+        });
+        m_agent_pane->web_view().host().tools().set_version_callbacks(
+            [this](const Agent::ToolActivity&) {
+                const std::string before = m_autosave->pin_current();
+                if (before.empty())
+                    throw std::runtime_error("Couldn't save the project. The action was not run.");
+                return before;
+            },
+            [this](const Agent::ToolActivity& activity, const std::string& before) {
+                const char* outcome = activity.state == Agent::ToolState::Succeeded ? "succeeded" :
+                                      activity.state == Agent::ToolState::Cancelled ? "cancelled" : "failed";
+                m_autosave->record_agent_operation(activity.action_id, activity.tool, outcome, before);
+            });
+        m_agent_pane->web_view().host().tools().set_document_boundary_callback(
+            [this](const Agent::ToolActivity&) {
+                if (!m_autosave->save_now())
+                    throw std::runtime_error("The action ran, but its changes couldn't be saved.");
+            });
 
         // One shell-owned pump continues throughout WebView page reloads.
         // The page handshake gates delivery, not native MCP execution.
@@ -255,6 +346,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // page all still find the window they expect. The shell owns only
         // which of the two is on screen for tpHome.
         m_home = new Home::HomeWebView(&frame, *m_theme, frame);
+        m_home->backend().set_autosave(m_autosave.get());
         m_home->Hide();
 
         // One temporary task chat serves printer and filament help from any
@@ -344,6 +436,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         // their destructors talk to persistence and the workspace, then
         // those two. The remaining children die with the frame.
         if (m_agent_pane != nullptr) {
+            m_agent_pane->web_view().host().tools().set_version_callbacks({}, {});
             m_agent_pane->Destroy();
             m_agent_pane = nullptr;
         }
@@ -357,6 +450,13 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
             m_status_row->Destroy();
             m_status_row = nullptr;
         }
+        if (m_home != nullptr) {
+            m_home->set_live(false);
+            m_home->backend().set_autosave(nullptr);
+        }
+        m_plater->set_before_project_release({});
+        m_plater->set_external_project_open_handler({});
+        m_autosave.reset();
         m_persistence.reset();
         m_workspace.reset();
     }
@@ -493,6 +593,7 @@ void ShellController::uninstall()
         m_agent_resize_handle = nullptr;
     }
     if (m_agent_pane != nullptr) {
+        m_agent_pane->web_view().host().tools().set_version_callbacks({}, {});
         m_agent_pane->Destroy();
         m_agent_pane = nullptr;
     }
@@ -508,6 +609,14 @@ void ShellController::uninstall()
     // gets it back shown.
     m_tabpanel->Show();
     // After the pane (and with it the Agent host) is gone.
+    m_plater->set_before_project_release({});
+    m_plater->set_external_project_open_handler({});
+    m_autosave.reset();
+    if (m_plater->get_project_name().empty())
+        m_frame->SetTitle(m_saved_frame_title);
+    else
+        m_plater->update_title_dirty_status();
+    Slic3r::set_backup_suspended(false);
     m_persistence.reset();
     m_workspace.reset();
 

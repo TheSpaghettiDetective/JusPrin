@@ -336,6 +336,14 @@ public:
     void set_auto_preview_after_slice(bool enabled) { m_auto_preview_after_slice = enabled; }
     bool cancel_slicing();
 
+    // Optional owner of the current project's durable state may guard a
+    // replacement or close. An empty callback keeps stock save prompts.
+    void set_before_project_release(std::function<bool()> callback) { m_before_project_release = std::move(callback); }
+    // An optional GUI owner may handle an external 3MF project open before
+    // Orca replaces the current project. true means the request was handled.
+    void set_external_project_open_handler(std::function<bool(const fs::path&)> callback)
+        { m_external_project_open_handler = std::move(callback); }
+
     // Behavior-oriented object commands for the workspace adapter; they run
     // through Orca's own selection, snapshot, and history paths.
     bool select_object(size_t obj_idx);
@@ -974,6 +982,8 @@ private:
     std::unique_ptr<PlaterProjectState> m_project_state;
     bool m_sidebar_available { true };
     bool m_auto_preview_after_slice { true };
+    std::function<bool()> m_before_project_release;
+    std::function<bool(const fs::path&)> m_external_project_open_handler;
     std::unique_ptr<priv> p;
     std::string           m_3mf_path;
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.

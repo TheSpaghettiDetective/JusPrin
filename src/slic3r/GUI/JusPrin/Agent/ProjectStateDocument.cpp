@@ -375,6 +375,7 @@ json fresh_document()
                                   {"nextAttachment", std::uint64_t(1)}, {"nextBuild", std::uint64_t(1)},
                                   {"nextExport", std::uint64_t(1)}, {"nextPrint", std::uint64_t(1)}}},
                 {"activeConversationId", ""},
+                {"draft", ""},
                 {"conversations", json::array()},
                 {"toolActivities", json::array()},
                 {"attachments", json::array()},
@@ -460,6 +461,25 @@ void ProjectStateDocument::initialize_identity(const std::string& project_id,
     m_doc["project"]["createdAt"] = timestamp;
     create_conversation({}, timestamp);
 }
+
+void ProjectStateDocument::fork_identity(const std::string& project_id, const std::string& timestamp)
+{
+    if (!has_identity() || project_id.empty())
+        throw std::logic_error("cannot fork a project without an identity");
+    m_doc["project"]["projectId"] = project_id;
+    m_doc["project"]["createdAt"] = timestamp;
+    touch();
+}
+
+void ProjectStateDocument::set_draft(const std::string& draft)
+{
+    if (m_doc.value("draft", "") == draft)
+        return;
+    m_doc["draft"] = draft;
+    touch();
+}
+
+std::string ProjectStateDocument::draft() const { return m_doc.value("draft", ""); }
 
 std::vector<ConversationInfo> ProjectStateDocument::conversations() const
 {

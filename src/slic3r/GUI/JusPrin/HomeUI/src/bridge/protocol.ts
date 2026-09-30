@@ -43,10 +43,7 @@ export type Appearance = 'light' | 'dark';
 // 'printing' earns a colored dot; every other state takes the plain line, so
 // an idle project cannot be mistaken for a running one.
 //
-// 'unknown' is honest about the current state of the codebase: nothing records
-// per-project slice state yet, so the host sends what it can derive (the
-// recent-file modified time) under this kind. When a real store exists, the
-// host starts sending the other kinds and this page needs no change.
+// 'unknown' means the local project store has no current slice state to report.
 export type ProjectStatusKind = 'unknown' | 'draft' | 'sliced' | 'printing' | 'completed';
 
 export interface ProjectStatus {
@@ -60,8 +57,7 @@ export interface ProjectInfo {
   name: string;
   // Shown only as a tooltip: the card is titled by name.
   path: string;
-  // A file: URL the host resolved from the .3mf thumbnail, absent when the
-  // project carries none.
+  // A preview URL, absent when the project carries none.
   thumbnailUrl?: string;
   status: ProjectStatus;
 }

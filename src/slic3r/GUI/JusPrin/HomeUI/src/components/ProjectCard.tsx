@@ -9,15 +9,13 @@ export function ProjectCard({ project, onOpen }: { project: ProjectInfo; onOpen:
     <button
       type="button"
       className={printing ? 'project-card printing' : 'project-card'}
-      title={project.path}
       onClick={() => onOpen(project.id)}
     >
       <span className="project-thumbnail">
         {project.thumbnailUrl ? (
           <img src={project.thumbnailUrl} alt="" />
         ) : (
-          // A project whose .3mf carries no thumbnail keeps the same frame, so
-          // one missing image cannot change the height of its row.
+          // A project without a preview keeps the same card height.
           <span className="project-thumbnail-empty" />
         )}
       </span>

@@ -128,6 +128,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/PrinterFactsStore.hpp
     GUI/JusPrin/Workspace/PlaterProjectState.cpp
     GUI/JusPrin/Workspace/PlaterProjectState.hpp
+    GUI/JusPrin/Workspace/ProjectAutosave.cpp
+    GUI/JusPrin/Workspace/ProjectAutosave.hpp
+    GUI/JusPrin/Workspace/ProjectVersionStore.cpp
+    GUI/JusPrin/Workspace/ProjectVersionStore.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
     GUI/JusPrin/Workspace/UtcTime.hpp

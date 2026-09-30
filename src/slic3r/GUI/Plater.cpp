@@ -7033,7 +7033,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
 
     if (tolal_model_count <= 0 && !q->m_exported_file) {
         dlg.Hide();
-        if (!is_user_cancel) {
+        if (!is_user_cancel && !(strategy & LoadStrategy::AllowEmpty)) {
             MessageDialog msg(wxGetApp().mainframe, _L("The file does not contain any geometry data."), _L("Warning"), wxYES | wxICON_WARNING);
             if (msg.ShowModal() == wxID_YES) {}
         }
@@ -12054,9 +12054,6 @@ SLAPrint&       Plater::sla_print()         { return p->sla_print; }
 
 int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_name)
 {
-    model().calib_pa_pattern.reset(nullptr);
-    model().plates_custom_gcodes.clear();
-
     bool transfer_preset_changes = false;
     // BBS: save confirm
     auto check = [this,&transfer_preset_changes](bool yes_or_no) {
@@ -12075,8 +12072,15 @@ int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_
         return result;
     };
     int result;
-    if (!skip_confirm && (result = close_with_confirm(check)) == wxID_CANCEL)
+    if ((!skip_confirm && (result = close_with_confirm(m_before_project_release ? std::function<bool(bool)>{} : check)) == wxID_CANCEL) ||
+        (skip_confirm && m_before_project_release && !m_before_project_release()))
         return wxID_CANCEL;
+
+    // Rebase note: keep these two upstream resets after the release guard.
+    // They used to run at function entry, which mutated the old project even
+    // when a failed durable save canceled replacement.
+    model().calib_pa_pattern.reset(nullptr);
+    model().plates_custom_gcodes.clear();
 
     ProjectStateTransaction project_change = project_state_transaction();
 
@@ -12135,9 +12139,6 @@ LoadType determine_load_type(std::string filename, std::string override_setting 
 void Plater::load_project(wxString const& filename2,
     wxString const& originfile)
 {
-    model().calib_pa_pattern.reset(nullptr);
-    model().plates_custom_gcodes.clear();
-
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "filename is: " << filename2 << "and originfile is: " << originfile;
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__;
     auto filename = filename2;
@@ -12154,9 +12155,17 @@ void Plater::load_project(wxString const& filename2,
 
     // BSS: save project, force close
     int result;
-    if ((result = close_with_confirm(check)) == wxID_CANCEL) {
+    if (m_before_project_release && filename.empty())
+        wxGetApp().load_project(this, filename);
+    if ((m_before_project_release && (filename.empty() || close_with_confirm() == wxID_CANCEL)) ||
+        (!m_before_project_release && (result = close_with_confirm(check)) == wxID_CANCEL)) {
         return;
     }
+
+    // Rebase note: preserve both upstream resets after the release guard for
+    // the same reason as new_project(): a canceled open keeps the old model.
+    model().calib_pa_pattern.reset(nullptr);
+    model().plates_custom_gcodes.clear();
 
     // BBS
     if (m_loading_project) {
@@ -14392,6 +14401,8 @@ bool Plater::open_3mf_file(const fs::path &file_path)
 
     switch (load_type) {
         case LoadType::OpenProject: {
+            if (m_external_project_open_handler && m_external_project_open_handler(file_path))
+                break;
             if (wxGetApp().can_load_project())
                 load_project(from_path(file_path), "<loadall>");
             break;
@@ -14723,6 +14734,12 @@ void Plater::reset_with_confirm()
 // BBS: save logic
 int GUI::Plater::close_with_confirm(std::function<bool(bool)> second_check)
 {
+    if (m_before_project_release) {
+        if (second_check && !second_check(false)) return wxID_CANCEL;
+        if (!m_before_project_release()) return wxID_CANCEL;
+        model().set_backup_path("");
+        return wxID_NO;
+    }
     if (up_to_date(false, false)) {
         if (second_check && !second_check(false)) return wxID_CANCEL;
         model().set_backup_path("");
@@ -14987,6 +15004,7 @@ void Plater::convert_unit(ConversionType conv_type)
 void Plater::apply_cut_object_to_model(size_t obj_idx, const ModelObjectPtrs& new_objects)
 {
     model().delete_object(obj_idx);
+    p->partplate_list.notify_instance_removed(obj_idx, -1);
     sidebar().obj_list()->delete_object_from_list(obj_idx);
 
     // suppress to call selection update for Object List to avoid call of early Gizmos on/off update

@@ -30,7 +30,7 @@ struct ProjectEntry
     std::string        id;
     std::string        name;
     std::string        path;
-    std::string        thumbnail_url; // empty when the .3mf carries none
+    std::string        thumbnail_url; // empty when no preview is available
     ProjectStatusKind  status_kind{ProjectStatusKind::Unknown};
     std::string        status_text;
 };

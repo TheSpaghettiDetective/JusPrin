@@ -428,6 +428,8 @@ TEST_CASE("a payload missing a required field is a broken page", "[agent][protoc
 TEST_CASE("a user message streams a deterministic reply to completion", "[agent][conversation]")
 {
     Harness harness;
+    int document_boundaries = 0;
+    harness.host.set_turn_boundary_callback([&document_boundaries] { ++document_boundaries; });
     harness.handshake();
 
     const std::string user_id = harness.send_user_message("what am I printing?", "c-1");
@@ -440,6 +442,7 @@ TEST_CASE("a user message streams a deterministic reply to completion", "[agent]
 
     REQUIRE_FALSE(harness.host.stream_active());
     REQUIRE(harness.last_of_type("assistant_completed") != nullptr);
+    CHECK(document_boundaries == 1);
 
     // Deltas are sequenced from zero without gaps.
     const std::vector<json> deltas = harness.of_type("assistant_delta");

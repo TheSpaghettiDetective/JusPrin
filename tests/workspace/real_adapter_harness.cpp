@@ -1,5 +1,7 @@
 #include "libslic3r/Format/bbs_3mf.hpp"
+#include "libslic3r/miniz_extension.hpp"
 #include "libslic3r/Thread.hpp"
+#include "libslic3r/TriangleSelector.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -9,6 +11,8 @@
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/Tab.hpp"
@@ -25,6 +29,8 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -43,13 +49,15 @@ using ::Slic3r::GUI::JusPrin::CanvasPresentationController;
 
 struct HarnessState
 {
-    enum class Mode { Automated, ManualStock, ManualJusPrin };
+    enum class Mode { Automated, ManualStock, ManualJusPrin, CrashWrite, CrashVerify };
 
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
     std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(180)};
     Mode mode{Mode::Automated};
+    std::filesystem::path crash_root;
+    std::string crash_stage;
 };
 
 std::size_t object_count(const WorkspaceSnapshot& snapshot)
@@ -94,6 +102,10 @@ public:
     void start()
     {
         try {
+            if (m_state->mode == HarnessState::Mode::CrashWrite || m_state->mode == HarnessState::Mode::CrashVerify) {
+                verify_crash_publication();
+                return;
+            }
             if (m_state->mode != HarnessState::Mode::Automated) {
                 setup_manual_canvas();
                 return;
@@ -109,6 +121,80 @@ public:
         } catch (...) {
             fail("unknown exception");
         }
+    }
+
+    void verify_crash_publication()
+    {
+        m_plater = m_app.plater();
+        check(m_plater != nullptr, "crash_plater_ready");
+        if (!m_plater) return;
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "crash_new_project");
+        if (m_state->mode == HarnessState::Mode::CrashWrite) {
+            const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+            check(m_plater->load_files(std::vector<std::string>{cube},
+                  LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+                  "crash_cube_loaded");
+            if (!m_plater->canvas3D()->is_initialized()) {
+                fail("crash fixture canvas did not initialize OpenGL");
+                return;
+            }
+            ProjectVersionStore store(m_state->crash_root, "p-crash");
+            const auto capture = [this, &store](std::uint64_t revision) {
+                const std::string id = ProjectVersionStore::new_id();
+                const auto metadata = store.pending_metadata_path(id);
+                check(m_plater->export_3mf(fs::path(metadata.string()), SaveStrategy::Backup | SaveStrategy::Silence) >= 0,
+                      "crash_metadata_captured");
+                return store.freeze(m_plater->model(), id, revision,
+                    nlohmann::json{{"project", {{"projectId", "p-crash"}}}, {"attachments", nlohmann::json::array()},
+                                   {"draft", revision == 2 ? "after" : "before"}}.dump(), "", "crash-test");
+            };
+            store.publish(capture(1));
+            check(m_plater->duplicate_object(0) == 1, "crash_second_object_created");
+            auto second = capture(2);
+            const auto stage = m_state->crash_stage;
+            store.set_publish_stage_hook([stage](ProjectVersionStore::PublishStage reached) {
+                const bool selected = (stage == "resources" && reached == ProjectVersionStore::PublishStage::ResourcesDurable) ||
+                    (stage == "version" && reached == ProjectVersionStore::PublishStage::VersionPublished) ||
+                    (stage == "head" && reached == ProjectVersionStore::PublishStage::HeadPublished);
+                if (selected) std::_Exit(93);
+            });
+            store.publish(std::move(second));
+            fail("publication did not reach the selected crash stage");
+            return;
+        }
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+              LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1 &&
+              m_plater->canvas3D()->is_initialized(), "crash_verifier_canvas_ready");
+        m_plater->reset();
+        ProjectVersionStore reopened(m_state->crash_root, "p-crash");
+        const auto history = reopened.history();
+        const bool committed = m_state->crash_stage == "head";
+        check(history.size() == (committed ? 2u : 1u), "crash_committed_history_visible");
+        if (!history.empty()) {
+            check(reopened.head_id() == history.back().id, "crash_head_matches_history");
+            const auto materialized = reopened.materialize(reopened.head_id());
+            check(nlohmann::json::parse(materialized.semantic_state).value("draft", "") == "after",
+                  "crash_current_document_independent_of_model_head");
+            m_plater->reset();
+            const auto loaded = m_plater->load_files({fs::path(materialized.metadata.string()),
+                                                      fs::path(materialized.absent_original.string())},
+                                                     LoadStrategy::Restore, false);
+            check(loaded.size() == (committed ? 2u : 1u) &&
+                  m_plater->model().objects.size() == (committed ? 2u : 1u), "crash_recovered_model_complete");
+            const int released = m_plater->new_project(true, true);
+            if (released == wxID_CANCEL)
+                if (auto* shell = Slic3r::GUI::JusPrin::installed_shell(); shell && shell->autosave())
+                    std::cerr << "HARNESS RECOVERY CLOSE ERROR " << shell->autosave()->error() << '\n';
+            check(released != wxID_CANCEL, "crash_recovered_project_released");
+            reopened.remove_materialization(materialized);
+        }
+        const auto root = m_state->crash_root / "p-crash";
+        check(std::filesystem::is_empty(root / "pending"), "crash_pending_work_removed");
+        check(std::distance(std::filesystem::directory_iterator(root / "resources"),
+                            std::filesystem::directory_iterator()) == (committed ? 2 : 1),
+              "crash_orphan_resource_removed");
+        finish();
     }
 
 private:
@@ -395,6 +481,11 @@ private:
             return;
         }
         verify_cross_plate_duplicate();
+        verify_plate_membership_after_cut();
+        verify_local_versions();
+        verify_reopened_local_versions();
+        verify_paint_version_resources();
+        verify_attachment_retention();
         verify_legacy_delete_history();
         verify_disabled_gizmo_wheel();
 
@@ -585,6 +676,309 @@ private:
               "duplicate_plate_uses_current_plate");
     }
 
+    void verify_plate_membership_after_cut()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "cut_plate_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const auto loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "cut_plate_cube_loaded");
+        check(m_plater->duplicate_object(0) == 1, "cut_plate_second_object_created");
+        PartPlateList& plates = m_plater->get_partplate_list();
+        check(plates.create_plate(true) == 1, "cut_plate_second_plate_created");
+        check(plates.add_to_plate(1, 0, 1) == 0, "cut_plate_second_object_moved");
+        check(plates.get_plate(0)->add_instance(0, 0, true) == 0, "cut_plate_first_object_centered");
+        m_plater->canvas3D()->reload_scene(true, true);
+        OrcaWorkspaceAdapter adapter(*m_plater);
+        const auto snapshot = adapter.snapshot();
+        const ObjectId first = snapshot.plates[0].objects.front().id;
+        const auto survivor_id = m_plater->model().objects[1]->id().id;
+        const Vec3d center = m_plater->model().objects[0]->instance_bounding_box(0).center();
+        DivideRequest request;
+        request.point = Vec3{center.x(), center.y(), center.z()};
+        DivideResult divided;
+        check(adapter.divide_object(first, request, divided).succeeded(), "cut_plate_divide_succeeds");
+        const auto check_membership = [this, &plates](const std::string& label) {
+            std::vector<int> live;
+            for (std::size_t index = 0; index < m_plater->model().objects.size(); ++index)
+                live.push_back(plates.find_instance(static_cast<int>(index), 0));
+            plates.reload_all_objects();
+            bool equal = true;
+            for (std::size_t index = 0; index < live.size(); ++index)
+                equal &= live[index] == plates.find_instance(static_cast<int>(index), 0);
+            check(equal, label + "_membership_matches_rebuild");
+        };
+        const auto& objects = m_plater->model().objects;
+        const auto survivor = std::find_if(objects.begin(), objects.end(), [survivor_id](const ModelObject* object) {
+            return object->id().id == survivor_id;
+        });
+        check(survivor != objects.end(), "cut_plate_survivor_exists");
+        if (survivor != objects.end()) {
+            const int index = static_cast<int>(std::distance(objects.begin(), survivor));
+            check(plates.find_instance(index, 0) == 1, "cut_plate_survivor_stays_on_second_plate");
+        }
+        check_membership("cut_plate");
+        check(adapter.undo().succeeded(), "cut_plate_undo_succeeds");
+        check_membership("cut_plate_undo");
+        check(adapter.redo().succeeded(), "cut_plate_redo_succeeds");
+        check_membership("cut_plate_redo");
+    }
+
+    void verify_local_versions()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "versions_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const auto loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "versions_cube_loaded");
+        ProjectVersionStore store(std::filesystem::path(data_dir()) / "version-test", "p-harness");
+        std::string document_state = "{\"project\":{\"projectId\":\"p-harness\"},\"attachments\":[]}";
+        const auto capture = [this, &store, &document_state](const std::string& label) {
+            const std::string id = ProjectVersionStore::new_id();
+            const std::filesystem::path metadata = store.pending_metadata_path(id);
+            check(m_plater->export_3mf(fs::path(metadata.string()), SaveStrategy::Backup | SaveStrategy::Silence) >= 0,
+                  "versions_metadata_" + label);
+            auto frozen = store.freeze(m_plater->model(), id, 1, document_state, "", label);
+            const std::size_t changed = frozen.changed_objects.size();
+            store.publish(std::move(frozen));
+            return std::make_pair(id, changed);
+        };
+        const auto initial = capture("initial");
+        check(initial.second == 1, "versions_initial_writes_one_resource");
+        const auto version_root = std::filesystem::path(data_dir()) / "version-test" / "p-harness" / "versions";
+        check(!std::filesystem::exists(version_root / initial.first / "state.json"),
+              "versions_do_not_copy_current_document");
+        const std::string live_state = "{\"project\":{\"projectId\":\"p-harness\"},\"attachments\":[],\"draft\":\"partial reply\"}";
+        store.publish_document(live_state);
+        document_state = live_state;
+        const auto current_document = store.materialize(initial.first);
+        check(store.history().size() == 1 && current_document.semantic_state == live_state,
+              "versions_current_document_advances_without_model_version");
+        store.remove_materialization(current_document);
+        const std::string unchanged_id = ProjectVersionStore::new_id();
+        const auto unchanged_metadata = store.pending_metadata_path(unchanged_id);
+        check(m_plater->export_3mf(fs::path(unchanged_metadata.string()), SaveStrategy::Backup | SaveStrategy::Silence) >= 0,
+              "versions_unchanged_model_metadata_captured");
+        const auto unchanged = store.freeze(m_plater->model(), unchanged_id, 2, document_state, "", "semantic-only");
+        check(store.unchanged(unchanged), "versions_document_update_does_not_change_checkpoint_equality");
+        store.discard(unchanged);
+        check(m_plater->rename_object(0, "Renamed cube"), "versions_rename");
+        const auto renamed = capture("renamed");
+        check(renamed.second == 0, "versions_rename_reuses_resource");
+        check(!std::filesystem::exists(version_root / renamed.first / "state.json"),
+              "versions_renamed_checkpoint_has_no_document_copy");
+        const auto historical_document = store.materialize(initial.first);
+        check(historical_document.semantic_state == live_state,
+              "versions_history_uses_current_document_after_model_publish");
+        store.remove_materialization(historical_document);
+        const auto versions = store.history();
+        check(versions.size() == 2 && versions[0].objects[0].resource.id == versions[1].objects[0].resource.id,
+              "versions_share_immutable_resource");
+        bool second_writer_refused = false;
+        try {
+            ProjectVersionStore second(std::filesystem::path(data_dir()) / "version-test", "p-harness");
+        } catch (const std::exception&) {
+            second_writer_refused = true;
+        }
+        check(second_writer_refused, "versions_concurrent_writer_refused");
+        const auto resource = std::filesystem::path(data_dir()) / "version-test" / "p-harness" / "resources" /
+                              (versions[0].objects[0].resource.id + ".zip");
+        const auto original_resource = resource.string() + ".original";
+        std::filesystem::copy_file(resource, original_resource);
+        const auto rejects_resource = [&store, &initial] {
+            try {
+                store.materialize(initial.first);
+                return false;
+            } catch (const std::exception&) {
+                return true;
+            }
+        };
+        {
+            std::ofstream broken(resource, std::ios::binary | std::ios::trunc);
+            broken << "invalid zip";
+        }
+        check(rejects_resource(), "versions_corrupt_resource_refused");
+        std::filesystem::remove(resource);
+        check(rejects_resource(), "versions_missing_resource_refused");
+        mz_zip_archive incomplete;
+        mz_zip_zero_struct(&incomplete);
+        check(open_zip_writer(&incomplete, resource.u8string()), "versions_meshless_zip_created");
+        const std::string meshless = "<model xmlns=\"http://schemas.microsoft.com/3dmanufacturing/core/2015/02\"/>";
+        const bool meshless_written = mz_zip_writer_add_mem(&incomplete,
+            versions[0].objects[0].resource.entry.c_str(), meshless.data(), meshless.size(), MZ_DEFAULT_COMPRESSION) &&
+            mz_zip_writer_finalize_archive(&incomplete);
+        close_zip_writer(&incomplete);
+        check(meshless_written && rejects_resource(), "versions_valid_zip_without_mesh_refused");
+        std::filesystem::copy_file(original_resource, resource, std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::remove(original_resource);
+        store.pin(initial.first);
+        store.prune(1, 1024 * 1024);
+        check(store.history().size() == 2, "versions_pin_survives_prune");
+        const auto restored = store.materialize(initial.first);
+        check(restored.semantic_state == live_state,
+              "versions_restore_keeps_current_document");
+        m_plater->reset();
+        const auto reloaded = m_plater->load_files({fs::path(restored.metadata.string()), fs::path(restored.absent_original.string())},
+            LoadStrategy::LoadModel | LoadStrategy::LoadConfig | LoadStrategy::Restore, false);
+        check(!reloaded.empty() && m_plater->model().objects.size() == 1 &&
+              m_plater->model().objects[0]->name != "Renamed cube", "versions_restore_original_model");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "versions_release_restored_project");
+        store.remove_materialization(restored);
+        const auto empty = capture("empty");
+        check(empty.second == 0, "versions_empty_writes_no_resources");
+        store.publish_document(live_state);
+        store.record_operation("a-harness", "object_edit", "succeeded", renamed.first, empty.first);
+        store.prune(1, 1024 * 1024);
+        check(store.history().size() == 3, "versions_operation_references_survive_prune");
+        const auto empty_restore = store.materialize(empty.first);
+        struct Dialogs : wxModalDialogHook {
+            int count{0};
+            int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
+        } dialogs;
+        dialogs.Register();
+        m_plater->reset();
+        m_plater->load_files({fs::path(empty_restore.metadata.string()), fs::path(empty_restore.absent_original.string())},
+            LoadStrategy::Restore | LoadStrategy::AllowEmpty, false);
+        dialogs.Unregister();
+        check(m_plater->model().objects.empty() && dialogs.count == 0, "versions_empty_restores_without_warning");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "versions_release_empty_project");
+        store.remove_materialization(empty_restore);
+    }
+
+    void verify_reopened_local_versions()
+    {
+        const auto root = std::filesystem::path(data_dir()) / "version-test" / "p-harness";
+        nlohmann::json head, current;
+        std::ifstream head_file(root / "HEAD");
+        head_file >> head;
+        std::ifstream current_file(root / "current-state.json");
+        current_file >> current;
+        const std::string legacy_head = head.at("current").get<std::string>();
+        std::ofstream(root / "versions" / legacy_head / "state.json") << current.at("state").dump(2);
+        std::ofstream(root / "current-state.json") <<
+            nlohmann::json{{"schema", 1}, {"baseVersion", legacy_head}, {"state", current.at("state")}}.dump();
+        std::filesystem::create_directories(root / "pending" / "interrupted-write");
+        std::filesystem::create_directories(root / "versions" / "uncommitted-version");
+        std::filesystem::create_directories(root / "materialized" / "stale-restore");
+        std::ofstream(root / "current-state.pending") << "interrupted state write";
+        ProjectVersionStore reopened(root.parent_path(), "p-harness");
+        const auto versions = reopened.history();
+        check(!std::filesystem::exists(root / "pending" / "interrupted-write") &&
+              !std::filesystem::exists(root / "versions" / "uncommitted-version") &&
+              !std::filesystem::exists(root / "materialized" / "stale-restore") &&
+              !std::filesystem::exists(root / "current-state.pending"),
+              "versions_restart_removes_uncommitted_work");
+        check(versions.size() == 3 && reopened.head_id() == versions.back().id,
+              "versions_restart_reads_committed_history");
+        reopened.publish_document(current.at("state").dump(2));
+        nlohmann::json upgraded;
+        std::ifstream upgraded_file(root / "current-state.json");
+        upgraded_file >> upgraded;
+        check(upgraded.value("schema", 0) == 2 && !upgraded.contains("baseVersion"),
+              "versions_legacy_document_upgrades_without_model_checkpoint");
+        const auto current_document = reopened.materialize(reopened.head_id());
+        check(current_document.semantic_state.find("partial reply") != std::string::npos,
+              "versions_restart_reads_current_document_overlay");
+        reopened.remove_materialization(current_document);
+        if (!versions.empty()) {
+            const auto earlier = reopened.materialize(versions.front().id);
+            check(!earlier.empty && std::filesystem::is_regular_file(earlier.metadata),
+                  "versions_restart_keeps_earlier_resource");
+            reopened.remove_materialization(earlier);
+        }
+    }
+
+    void verify_paint_version_resources()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "paint_versions_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+              LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "paint_versions_cube_loaded");
+        ProjectVersionStore store(std::filesystem::path(data_dir()) / "version-test", "p-paints");
+        const auto capture = [this, &store](const std::string& label) {
+            const std::string id = ProjectVersionStore::new_id();
+            const auto metadata = store.pending_metadata_path(id);
+            check(m_plater->export_3mf(fs::path(metadata.string()), SaveStrategy::Backup | SaveStrategy::Silence) >= 0,
+                  "paint_versions_metadata_" + label);
+            auto frozen = store.freeze(m_plater->model(), id, store.history().size() + 1,
+                                       "{\"project\":{\"projectId\":\"p-paints\"},\"attachments\":[]}", "", label);
+            const auto changed = frozen.changed_objects.size();
+            store.publish(std::move(frozen));
+            return changed;
+        };
+        check(capture("initial") == 1, "paint_versions_initial_resource");
+        ModelVolume& volume = *m_plater->model().objects[0]->volumes[0];
+        std::array<FacetsAnnotation*, 4> layers{
+            &volume.supported_facets, &volume.seam_facets,
+            &volume.mmu_segmentation_facets, &volume.fuzzy_skin_facets};
+        const std::array<std::string, 4> names{"support", "seam", "material", "fuzzy"};
+        for (std::size_t index = 0; index < layers.size(); ++index) {
+            TriangleSelector selector(volume.mesh());
+            selector.set_facet(0, EnforcerBlockerType::ENFORCER);
+            check(layers[index]->set(selector), "paint_versions_" + names[index] + "_applied");
+            check(capture(names[index]) == 1, "paint_versions_" + names[index] + "_rewrites_resource");
+        }
+        std::array<std::string, 4> expected;
+        for (std::size_t index = 0; index < layers.size(); ++index)
+            expected[index] = layers[index]->get_triangle_as_string(0);
+        const auto export_dir = std::filesystem::path(data_dir()) / "version-test";
+        const auto staged_export = export_dir / "verified-export.pending.3mf";
+        const auto final_export = export_dir / "verified-export.3mf";
+        {
+            std::ofstream old(final_export, std::ios::binary);
+            old << "old output";
+        }
+        check(m_plater->export_3mf(fs::path(staged_export.string()),
+                                  SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::SkipAuxiliary) >= 0,
+              "paint_versions_export_staged");
+        ProjectVersionStore::publish_export_archive(staged_export, final_export);
+        check(std::filesystem::is_regular_file(final_export) && !std::filesystem::exists(staged_export),
+              "paint_versions_export_verified_and_replaced");
+        const auto restored = store.materialize(store.head_id());
+        m_plater->reset();
+        const auto loaded = m_plater->load_files({fs::path(restored.metadata.string()), fs::path(restored.absent_original.string())},
+            LoadStrategy::Restore, false);
+        check(!loaded.empty() && m_plater->model().objects.size() == 1, "paint_versions_reloaded");
+        if (!m_plater->model().objects.empty()) {
+            const ModelVolume& actual = *m_plater->model().objects[0]->volumes[0];
+            const std::array<const FacetsAnnotation*, 4> reloaded{
+                &actual.supported_facets, &actual.seam_facets,
+                &actual.mmu_segmentation_facets, &actual.fuzzy_skin_facets};
+            for (std::size_t index = 0; index < reloaded.size(); ++index)
+                check(reloaded[index]->get_triangle_as_string(0) == expected[index],
+                      "paint_versions_" + names[index] + "_restored");
+        }
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "paint_versions_release_project");
+        store.remove_materialization(restored);
+    }
+
+    void verify_attachment_retention()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "attachment_versions_new_project");
+        const auto root = std::filesystem::path(data_dir()) / "version-test";
+        ProjectVersionStore store(root, "p-attachments");
+        const auto blob = root / "p-attachments" / "attachments" / "a-1" / "note.txt";
+        std::filesystem::create_directories(blob.parent_path());
+        {
+            std::ofstream out(blob, std::ios::binary);
+            out << "note";
+        }
+        const auto capture = [this, &store](const std::string& state, std::uint64_t revision) {
+            const std::string id = ProjectVersionStore::new_id();
+            const auto metadata = store.pending_metadata_path(id);
+            check(m_plater->export_3mf(fs::path(metadata.string()), SaveStrategy::Backup | SaveStrategy::Silence) >= 0,
+                  "attachment_versions_metadata_captured");
+            store.publish(store.freeze(m_plater->model(), id, revision, state, "", "attachment-test"));
+        };
+        capture("{\"project\":{\"projectId\":\"p-attachments\"},\"attachments\":[{\"id\":\"a-1\",\"storedName\":\"note.txt\",\"sizeBytes\":4}]}", 1);
+        check(std::filesystem::is_regular_file(blob), "attachment_versions_blob_committed");
+        capture("{\"project\":{\"projectId\":\"p-attachments\"},\"attachments\":[]}", 2);
+        store.prune(1, 1024 * 1024);
+        check(store.history().size() == 1 && !std::filesystem::exists(blob),
+              "attachment_versions_unreferenced_blob_pruned");
+    }
+
     void verify_legacy_delete_history()
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, "legacy_delete_new_project");
@@ -736,7 +1130,7 @@ private:
             m_plater->get_partplate_list().create_plate(true);
             check(teardown_called && !*teardown_workspace, "adapter_teardown_during_native_dispatch_is_safe");
 
-            verify_backup_mesh_rewrites();
+            verify_managed_mesh_versions();
         } catch (const std::exception& error) {
             fail(std::string("transform verification exception: ") + error.what());
         } catch (...) {
@@ -744,84 +1138,69 @@ private:
         }
     }
 
-    // Orca's crash backup keeps each object's meshes and paint in a file of its
-    // own, rewritten a few seconds after something queues it. Region paint and
-    // repair change that file's contents, so each must queue it, as Orca's
-    // paint tools do, or a crash restores the object without the change. The
-    // file is deleted before each edit and must come back.
-    void verify_backup_mesh_rewrites()
+    // Managed projects retain changed meshes in the version store. Region
+    // paint and repair must advance that resource without Orca's backup cache.
+    void verify_managed_mesh_versions()
     {
-        check(m_plater->new_project(true, true) != wxID_CANCEL, "backup_mesh_new_project");
-        // A cube with its first triangle gone, so repair has a hole to close.
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "managed_mesh_new_project");
         const fs::path open_cube = fs::path(data_dir()) / "open-cube.stl";
         {
-            std::ifstream     in(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl", std::ios::binary);
+            std::ifstream in(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl", std::ios::binary);
             std::stringstream stl;
             stl << in.rdbuf();
-            std::string       text  = stl.str();
+            std::string text = stl.str();
             const std::size_t first = text.find("  facet");
-            const std::size_t last  = text.find('\n', text.find("endfacet", first));
+            const std::size_t last = text.find('\n', text.find("endfacet", first));
             text.erase(first, last + 1 - first);
             std::ofstream(open_cube.string(), std::ios::binary) << text;
         }
-        const std::vector<size_t> loaded = m_plater->load_files(
+        const auto loaded = m_plater->load_files(
             std::vector<std::string>{open_cube.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
-        check(loaded.size() == 1, "backup_mesh_open_cube_loaded");
-        if (loaded.size() != 1) {
+        check(loaded.size() == 1, "managed_mesh_open_cube_loaded");
+        auto* shell = Slic3r::GUI::JusPrin::installed_shell();
+        auto* autosave = shell ? shell->autosave() : nullptr;
+        check(autosave != nullptr, "managed_mesh_autosave_available");
+        if (loaded.size() != 1 || autosave == nullptr) {
             finish();
             return;
         }
-        Model&             model  = m_plater->model();
-        ModelObject&       object = *model.objects.front();
-        const std::string  file   = model.get_backup_path() + "/3D/Objects/" + object.name + "_" +
-                                 std::to_string(model.get_object_backup_id(object)) + ".model";
-        const auto written = [file] { return fs::exists(file) && !fs::exists(file + ".tmp"); };
-
+        Model& model = m_plater->model();
+        ModelObject& object = *model.objects.front();
+        const fs::path backup_file = model.get_backup_path() + "/3D/Objects/" + object.name + "_" +
+                                     std::to_string(model.get_object_backup_id(object)) + ".model";
+        auto saved_resource = [this, autosave](const std::string& label) {
+            check(autosave->save_now(), label + "_saved");
+            const auto versions = autosave->history();
+            check(!versions.empty() && !versions.back().objects.empty(), label + "_version_has_mesh");
+            return versions.empty() || versions.back().objects.empty() ? std::string() :
+                versions.back().objects.front().resource.id;
+        };
+        std::string resource = saved_resource("managed_mesh_loaded");
         RegionRecord region;
-        region.id          = "r1";
-        region.kind        = "support";
-        region.session     = m_workspace->snapshot().session.value();
-        region.object      = object.id().id;
+        region.id = "r1";
+        region.kind = "support";
+        region.session = m_workspace->snapshot().session.value();
+        region.object = object.id().id;
         region.object_name = object.name;
         region.part_facets = {object.volumes.front()->mesh().facets_count()};
         region.artifacts.push_back({"paint", "support", "enforcer", {}, 0, {1, 2, 3}});
-
-        auto self = shared_from_this();
-        // Each edit starts from a deleted file and passes when the backup
-        // writes it again.
-        const auto expect_rewrite = [self, file, written](const std::string& name, std::function<bool()> edit, std::function<void()> next) {
-            fs::remove(file);
-            const auto start = std::chrono::steady_clock::now();
-            self->check(edit(), name + "_succeeds");
-            self->wait_until(written, 20000, [self, name, start, next](bool ok) {
-                std::cerr << "HARNESS BACKUP " << name << " rewritten=" << ok << " ms="
-                          << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() << '\n';
-                self->check(ok, name + "_rewrites_backup_mesh");
-                next();
-            });
-        };
-        wait_until(written, 60000, [self, file, written, region, expect_rewrite](bool ok) {
-            self->check(ok, "backup_mesh_written_after_load");
-            // Nothing else is queued for the object: without an edit the
-            // file stays gone.
-            fs::remove(file);
-            self->wait_until([file] { return fs::exists(file); }, 5000, [self, region, expect_rewrite](bool rewritten) {
-                self->check(!rewritten, "backup_mesh_quiet_without_an_edit");
-                expect_rewrite("region_paint", [self, region] {
-                    std::vector<RegionRecord> applied;
-                    return self->m_workspace->apply_regions({region}, {}, applied).succeeded();
-                }, [self, region, expect_rewrite] {
-                    expect_rewrite("region_removal", [self, region] { return self->m_workspace->remove_regions({region}).succeeded(); },
-                                   [self, expect_rewrite] {
-                        expect_rewrite("repair", [self] {
-                            RepairResult repaired;
-                            const ObjectId id = self->m_workspace->snapshot().plates.front().objects.front().id;
-                            return self->m_workspace->repair_object(id, repaired).succeeded() && repaired.changed;
-                        }, [self] { self->finish(); });
-                    });
-                });
-            });
-        });
+        std::vector<RegionRecord> applied;
+        check(m_workspace->apply_regions({region}, {}, applied).succeeded(), "managed_mesh_region_paint_succeeds");
+        std::string next = saved_resource("managed_mesh_region_paint");
+        check(!next.empty() && next != resource, "managed_mesh_region_paint_changes_resource");
+        resource = next;
+        check(m_workspace->remove_regions({region}).succeeded(), "managed_mesh_region_removal_succeeds");
+        next = saved_resource("managed_mesh_region_removal");
+        check(!next.empty() && next != resource, "managed_mesh_region_removal_changes_resource");
+        resource = next;
+        RepairResult repaired;
+        const ObjectId id = m_workspace->snapshot().plates.front().objects.front().id;
+        check(m_workspace->repair_object(id, repaired).succeeded() && repaired.changed,
+              "managed_mesh_repair_succeeds");
+        next = saved_resource("managed_mesh_repair");
+        check(!next.empty() && next != resource, "managed_mesh_repair_changes_resource");
+        check(!fs::exists(backup_file), "managed_mesh_skips_orca_backup_cache");
+        finish();
     }
 
     // Polls on a timer so the event loop, and the backup's hand-offs to it,
@@ -879,11 +1258,12 @@ private:
         // which does its work in one synchronous run, the first one has not
         // returned by now, so Orca has not run post_init. Closing the frame
         // ends that wait, and the web view setup and post_init it held back
-        // then run against destroyed windows. Leave by ending the loop, as
-        // this harness always did there.
+        // then run against destroyed windows. This harness cannot use Orca's
+        // normal shutdown until post_init completes; the shell harness covers
+        // normal shutdown separately. End this process with the check result.
         if (m_app.mainframe == nullptr || !m_app.post_initialized()) {
-            m_app.ExitMainLoop();
-            return;
+            std::cerr.flush();
+            std::_Exit(result);
         }
         // Leave the way the application leaves, as the shell harness does: a
         // forced close runs MainFrame::shutdown(), which clears the backup
@@ -969,6 +1349,17 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::ManualStock;
         else if (argument == "--manual-jusprin")
             state->mode = HarnessState::Mode::ManualJusPrin;
+        else if (argument == "--crash-write" || argument == "--crash-verify") {
+            if (index + 2 >= argc) {
+                std::cerr << argument << " requires a store root and publication stage\n";
+                return 2;
+            }
+            state->mode = argument == "--crash-write" ? HarnessState::Mode::CrashWrite : HarnessState::Mode::CrashVerify;
+            state->crash_root = std::filesystem::absolute(argv[++index]);
+            state->crash_stage = argv[++index];
+            if (state->crash_stage != "resources" && state->crash_stage != "version" && state->crash_stage != "head")
+                return 2;
+        }
         else
             gui_arguments.emplace_back(argv[index]);
     }
