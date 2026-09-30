@@ -30,6 +30,18 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Agent/ToolResults.cpp
     GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Project/ZipFile.cpp
+    GUI/JusPrin/Project/ZipFile.hpp
+    GUI/JusPrin/Project/MeshEntry.cpp
+    GUI/JusPrin/Project/MeshEntry.hpp
+    GUI/JusPrin/Project/ModelReferences.cpp
+    GUI/JusPrin/Project/ModelReferences.hpp
+    GUI/JusPrin/Project/ArchiveCheck.cpp
+    GUI/JusPrin/Project/ArchiveCheck.hpp
+    GUI/JusPrin/Project/CheckpointStore.cpp
+    GUI/JusPrin/Project/CheckpointStore.hpp
+    GUI/JusPrin/Project/AutosavePolicy.cpp
+    GUI/JusPrin/Project/AutosavePolicy.hpp
     GUI/JusPrin/Support/Base64.hpp
     GUI/JusPrin/PrinterSetup/PrinterSetupTypes.hpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp

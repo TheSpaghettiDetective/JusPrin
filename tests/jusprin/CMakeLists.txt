@@ -36,6 +36,29 @@ target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_
 
 orcaslicer_discover_tests(jusprin_tests)
 
+# The project store: checkpoints, mesh entry keys, archive verification, and
+# the autosave policy. Plain C++ over miniz, OpenSSL and nlohmann; the sources
+# under test are compiled in, so nothing links libslic3r.
+add_executable(jusprin_project_tests
+    test_mesh_entry.cpp
+    test_archive_check.cpp
+    test_checkpoint_store.cpp
+    test_autosave_policy.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Project/ZipFile.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Project/MeshEntry.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Project/ModelReferences.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Project/ArchiveCheck.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Project/CheckpointStore.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Project/AutosavePolicy.cpp
+)
+target_include_directories(jusprin_project_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/deps_src
+)
+target_link_libraries(jusprin_project_tests PRIVATE test_common Catch2WithMain miniz nlohmann_json OpenSSL::Crypto)
+
+orcaslicer_discover_tests(jusprin_project_tests)
+
 # ShellTheme reads the same token file but hands out wxColour and wxFont, and
 # its fonts go through OrcaSlicer's Label::sysFont, so its tests link the GUI
 # library and initialise wx themselves.
