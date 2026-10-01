@@ -306,6 +306,7 @@ export interface ChangeInfo {
   kind: ChangeKind;
   actor: 'person' | 'agent';
   label: string;
+  location?: string;
   from?: string;
   to?: string;
   preset?: string;
@@ -341,6 +342,9 @@ export interface BuildInfo {
   outputHash: string;
   slicerVersion: string;
   configurationProvenance: string;
+  sentAt?: string;
+  deliveryConfirmedAt?: string;
+  deliveryLocation?: string;
   statistics: SliceStatisticsInfo;
   warnings: string[];
   stale: boolean; // derived by the host from the current same-plate input hash
@@ -378,6 +382,7 @@ export interface PhysicalPrintInfo {
   manufacturingInputHash: string;
   outputHash: string;
   gcodeHash: string;
+  stoppedPercent?: number;
   statistics: SliceStatisticsInfo;
 }
 

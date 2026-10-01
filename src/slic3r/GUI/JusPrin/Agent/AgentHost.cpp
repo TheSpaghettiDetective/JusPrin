@@ -145,6 +145,9 @@ json build_json(const BuildRecord& record, const WorkspaceSnapshot& snapshot)
                 {"outputHash", record.output_hash},
                 {"slicerVersion", record.slicer_version},
                 {"configurationProvenance", record.configuration_provenance},
+                {"sentAt", record.sent_at},
+                {"deliveryConfirmedAt", record.delivery_confirmed_at},
+                {"deliveryLocation", record.delivery_location},
                 {"statistics", statistics_json(record.statistics)},
                 {"warnings", record.warnings},
                 {"stale", stale}};
@@ -175,6 +178,7 @@ json change_json(const ChangeEntry& change)
                 {"kind", change.kind},
                 {"actor", change.actor},
                 {"label", change.label},
+                {"location", change.location},
                 {"conversationId", change.conversation_id},
                 {"afterId", change.after_id}};
     if (change.kind == "setting") {
@@ -187,7 +191,7 @@ json change_json(const ChangeEntry& change)
 
 json physical_print_json(const PhysicalPrintRecord& record)
 {
-    return json{{"id", record.id},
+    json entry{{"id", record.id},
                 {"seq", record.seq},
                 {"startedAt", record.started_at},
                 {"endedAt", record.ended_at},
@@ -205,6 +209,9 @@ json physical_print_json(const PhysicalPrintRecord& record)
                 {"outputHash", record.output_hash},
                 {"gcodeHash", record.gcode_hash},
                 {"statistics", statistics_json(record.statistics)}};
+    if (record.stopped_percent)
+        entry["stoppedPercent"] = *record.stopped_percent;
+    return entry;
 }
 
 // --- Attachments ---------------------------------------------------------
@@ -1421,6 +1428,14 @@ ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(
     record.manufacturing_input_hash = build->manufacturing_input_hash;
     record.output_hash              = build->output_hash;
     record.gcode_hash               = arguments.value("gcodeHash", build->output_hash);
+    if (arguments.contains("stoppedPercent")) {
+        const int percent = arguments["stoppedPercent"].get<int>();
+        if (percent < 0 || percent > 100) {
+            result.error = ToolError{"invalid_progress", "Print progress must be between 0 and 100 percent."};
+            return result;
+        }
+        record.stopped_percent = percent;
+    }
     record.statistics               = build->statistics;
     const std::string id = document.add_physical_print(std::move(record), m_persistence.timestamp());
     m_persistence.flush();

@@ -16,10 +16,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
-import { applyStaticTokens } from '../tokens';
+import { applyAppearance, applyStaticTokens } from '../tokens';
 import { Message } from '../state/store';
 import { BuildInfo, ExportedCopyInfo, PhysicalPrintInfo } from '../bridge/protocol';
-import tokens from '../../../../../../../resources/jusprin/ui/design-tokens.json';
 
 const message = (id: string, role: Message['role'], text: string): Message =>
   ({ id, role, state: 'complete', text, attempt: 1, lastSeq: 0 });
@@ -121,12 +120,10 @@ describe('chat panel preview', () => {
     // The type, radius and padding variables, from the same code the page runs
     // at startup, so the preview shows the real fonts rather than a fallback.
     applyStaticTokens();
-    const staticVars = document.documentElement.style.cssText;
-    const semantic = (tokens as { semantic: Record<string, Record<string, Record<string, string>>> }).semantic;
-    const varsFor = (mode: string) =>
-      Object.entries(semantic[mode])
-        .flatMap(([group, values]) => Object.entries(values).map(([name, value]) => `--${group}-${name}: ${value};`))
-        .join('\n  ');
+    applyAppearance('light');
+    const lightVars = document.documentElement.style.cssText;
+    applyAppearance('dark');
+    const darkVars = document.documentElement.style.cssText;
 
     const panels = (mode: string) => cases
       .map((entry) => `<figure>
@@ -141,9 +138,9 @@ describe('chat panel preview', () => {
 
     writeFileSync(out, `<!doctype html><meta charset="utf-8"><title>Chat panel</title>
 <style>
-:root { ${varsFor('light')} ${staticVars} }
+:root { ${lightVars} }
 ${css}
-.dark { ${varsFor('dark')} }
+.dark { ${darkVars} }
 body { background: #f2f2f2; font-family: system-ui, sans-serif; padding: 16px; margin: 0; }
 .grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 figure { margin: 0; }

@@ -16,7 +16,6 @@ import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
-  AgentUnavailableNotice,
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
@@ -206,10 +205,12 @@ export function App({
     (attachment) => attachment.state === 'staged' || attachment.state === 'error',
   );
 
-  const sendMessage = (text: string) => {
+  const sendMessage = (text: string, includeStagedAttachments = true) => {
     // From the ref, not this render: the test hook keeps the first render's
     // sendMessage, which would otherwise never see a later attachment.
-    const attachmentIds = stateRef.current.attachments.filter((a) => a.state === 'staged').map((a) => a.id);
+    const attachmentIds = includeStagedAttachments
+      ? stateRef.current.attachments.filter((a) => a.state === 'staged').map((a) => a.id)
+      : [];
     client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds });
   };
 
@@ -348,7 +349,7 @@ export function App({
         if (conversationId !== state.activeConversationId) client.send('switch_conversation', { conversationId });
         setView('chat');
         collapseSetup();
-      }} onCreate={createChat} onConfigure={() => {
+      }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} />;
 
@@ -378,6 +379,7 @@ export function App({
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
           onSend={sendMessage}
+          onDiscussFailure={(text) => sendMessage(text, false)}
         />
       );
     if (setupScreen === 'chooser')
@@ -569,7 +571,6 @@ export function App({
           )}
         </>
       )}
-      {unavailable && !notConfigured && <AgentUnavailableNotice />}
       {!notConfigured && connected && (
         <ConnectedBanner
           provider={connected.provider}

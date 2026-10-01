@@ -124,6 +124,32 @@ TEST_CASE("action text is readable on the action fill in every state", "[brand]"
     }
 }
 
+TEST_CASE("failed print card uses the paired Figma semantic roles", "[brand]")
+{
+    const json tokens = load_tokens();
+    const std::map<std::string, std::map<std::string, std::string>> expected = {
+        {"light", {{"surface.failureInverse", "#261F37"}, {"status.dangerOnInverse", "#FF7868"},
+                   {"text.onFailurePrimary", "#FFFFFF"}, {"text.onFailureSecondary", "#C8C1D2"},
+                   {"text.onFailureTertiary", "#A29AAA"}, {"border.onFailure", "#746A86"}}},
+        {"dark", {{"surface.failureInverse", "#342C3B"}, {"status.dangerOnInverse", "#FF8E80"},
+                  {"text.onFailurePrimary", "#FFFFFF"}, {"text.onFailureSecondary", "#D7D0DF"},
+                  {"text.onFailureTertiary", "#B8AFBF"}, {"border.onFailure", "#8E829D"}}},
+    };
+    for (const auto& [mode, roles] : expected) {
+        const json& semantic = tokens.at("semantic").at(mode);
+        for (const auto& [role, value] : roles) {
+            const size_t dot = role.find('.');
+            INFO(mode << '.' << role);
+            CHECK(semantic.at(role.substr(0, dot)).at(role.substr(dot + 1)) == value);
+        }
+        const std::string bg = semantic.at("surface").at("failureInverse");
+        for (const char* role : {"onFailurePrimary", "onFailureSecondary", "onFailureTertiary"})
+            CHECK(contrast(semantic.at("text").at(role), bg) >= 4.5);
+        CHECK(contrast(semantic.at("status").at("dangerOnInverse"), bg) >= 3.0);
+        CHECK(contrast(semantic.at("border").at("onFailure"), bg) >= 3.0);
+    }
+}
+
 TEST_CASE("dark mode is a remapping, not a copy of light mode", "[brand]")
 {
     const json tokens = load_tokens();
@@ -283,10 +309,12 @@ TEST_CASE("the Agent pane resize geometry is explicit", "[brand]")
 // A thread row (a hand edit, a G-code destination) stacks its title over its
 // metadata line with this gap. It is an internal size of the row, like button
 // padding, so it lives here rather than on the spacing scale.
-TEST_CASE("the thread row's line gap is explicit", "[brand]")
+TEST_CASE("the thread row's geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
-    require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}}, "component.threadRow");
+    require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}, {"avatarSize", 20}}, "component.threadRow");
+    require_exact_table<int>(tokens.at("component").at("timelineSummary"),
+        {{"paddingX", 8}, {"paddingY", 8}, {"iconGap", 4}}, "component.timelineSummary");
 }
 
 // Home's gallery sizes its own cards: as many columns as fit between these

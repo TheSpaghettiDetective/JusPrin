@@ -341,6 +341,9 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
     build.output_hash = sha256_hex("gcode");
     build.slicer_version = "JusPrin deterministic";
     build.configuration_provenance = "printer + process + filament presets";
+    build.sent_at = kT;
+    build.delivery_confirmed_at = kT;
+    build.delivery_location = "the printer's SD";
     build.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
     build.warnings = {"Long warning text remains semantic and serializable."};
     const std::string build_id = document.add_build(build, kT);
@@ -364,6 +367,7 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
     print.manufacturing_input_hash = build.manufacturing_input_hash;
     print.output_hash = build.output_hash;
     print.gcode_hash = build.output_hash;
+    print.stopped_percent = 41;
     print.statistics = build.statistics;
     document.add_physical_print(print, kT);
 
@@ -374,9 +378,11 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
     REQUIRE(reloaded.physical_prints().size() == 1);
     CHECK(reloaded.builds()[0].manufacturing_input_hash == build.manufacturing_input_hash);
     CHECK(reloaded.builds()[0].statistics.layer_count == 88);
+    CHECK(reloaded.builds()[0].delivery_location == "the printer's SD");
     CHECK(reloaded.exported_copies()[0].expected_output_hash == build.output_hash);
     CHECK(reloaded.physical_prints()[0].printer == "JusPrin One");
     CHECK(reloaded.physical_prints()[0].gcode_hash == build.output_hash);
+    CHECK(reloaded.physical_prints()[0].stopped_percent == 41);
     const json persisted = json::parse(reloaded.dump());
     CHECK_FALSE(persisted["builds"][0].contains("stale"));
 }

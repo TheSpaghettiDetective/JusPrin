@@ -261,7 +261,8 @@ describe('App', () => {
     );
 
     expect(screen.getByLabelText('Build b-1')).toHaveTextContent('Stale');
-    expect(screen.getByLabelText('Exported copy e-1')).toHaveTextContent('Checksum verified');
+    expect(screen.getByLabelText('Build b-1')).toHaveTextContent('phase-six-demo.gcode · Checksum verified');
+    expect(screen.queryByLabelText('Exported copy e-1')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Test Printer 0.4');
     expect(screen.getAllByTitle(hash).length).toBeGreaterThanOrEqual(6);
   });
@@ -352,7 +353,7 @@ describe('App', () => {
     expect((retry!.payload as { messageId: string }).messageId).toBe('m-2');
   });
 
-  it('shows the clean unavailable state and keeps history when the Agent service is not configured', () => {
+  it('keeps history clear and provides setup from the chat list when the Agent is not configured', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(
       host,
@@ -362,11 +363,12 @@ describe('App', () => {
       }),
     );
 
-    expect(screen.getByTestId('agent-unavailable')).toBeInTheDocument();
-    expect(screen.getByText(/requires your consent to send your message/)).toBeInTheDocument();
-    expect(screen.getByText(/only the attachments you include/)).toBeInTheDocument();
+    expect(screen.queryByText('The Agent isn’t set up yet')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
     expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    await userEvent.click(screen.getByRole('button', { name: /Set up the agent/ }));
+    expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
   });
 
   it('offers the one setup action and nothing else when no Agent is configured and the chat is empty', () => {
@@ -377,8 +379,7 @@ describe('App', () => {
     expect(screen.getByText('No agent connected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeEnabled();
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
-    // The conversation chrome and the consent banner give way to the offer.
-    expect(screen.queryByTestId('agent-unavailable')).not.toBeInTheDocument();
+    // The conversation chrome gives way to the offer.
     expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
     // The ask box stays in place, inert.
     const composer = screen.getByLabelText('Message the Agent');
@@ -771,6 +772,24 @@ describe('App attachments', () => {
     const sent = host.lastOfType('user_message');
     expect(sent).toBeTruthy();
     expect((sent!.payload as { attachmentIds: string[] }).attachmentIds).toEqual(['a-1']);
+  });
+
+  it('discusses a failed print without sending a staged attachment', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ physicalPrints: [{
+      id: 'p-1', seq: 1, startedAt: '2026-10-01T13:09:00Z', endedAt: '2026-10-01T14:13:00Z',
+      outcome: 'failed', failure: 'Layer shift reported near layer 62.', buildId: 'b-1', projectId: 'project-1',
+      conversationId: 'conv-1', afterMessageId: '', plateIndex: 0, plateName: 'Plate 1',
+      printer: 'Bambu X1C', material: 'Gray PETG', manufacturingInputHash: 'a'.repeat(64),
+      outputHash: 'b'.repeat(64), gcodeHash: 'c'.repeat(64),
+      statistics: { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 },
+    }] }));
+    host.deliver('attachment_updated', { attachment: stagedText });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Discuss this failure' }));
+    const sent = host.lastOfType('user_message');
+    expect(sent?.payload).toMatchObject({ attachmentIds: [], text: 'Help me understand why this print failed: Layer shift reported near layer 62.' });
+    expect(screen.getByText('notes.txt')).toBeInTheDocument();
   });
 
   it('shows a rejected attachment error', () => {

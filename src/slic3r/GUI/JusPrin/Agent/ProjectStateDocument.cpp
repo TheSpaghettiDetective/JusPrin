@@ -249,6 +249,9 @@ BuildRecord read_build(const json& entry)
     record.output_hash              = entry.value("outputHash", "");
     record.slicer_version          = entry.value("slicerVersion", "");
     record.configuration_provenance = entry.value("configurationProvenance", "");
+    record.sent_at                  = entry.value("sentAt", "");
+    record.delivery_confirmed_at    = entry.value("deliveryConfirmedAt", "");
+    record.delivery_location        = entry.value("deliveryLocation", "");
     if (entry.contains("statistics"))
         record.statistics = read_statistics(entry["statistics"]);
     if (entry.contains("warnings") && entry["warnings"].is_array())
@@ -293,6 +296,8 @@ PhysicalPrintRecord read_physical_print(const json& entry)
     record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
     record.output_hash              = entry.value("outputHash", "");
     record.gcode_hash              = entry.value("gcodeHash", "");
+    if (entry.contains("stoppedPercent") && entry["stoppedPercent"].is_number_integer())
+        record.stopped_percent = entry["stoppedPercent"].get<int>();
     if (entry.contains("statistics"))
         record.statistics = read_statistics(entry["statistics"]);
     return record;
@@ -396,6 +401,7 @@ ChangeEntry read_change(const json& entry)
     change.kind            = entry.value("kind", "");
     change.actor           = entry.value("actor", "");
     change.label           = entry.value("label", "");
+    change.location        = entry.value("location", "");
     change.from            = entry.value("from", "");
     change.to              = entry.value("to", "");
     change.preset          = entry.value("preset", "");
@@ -859,6 +865,9 @@ std::string ProjectStateDocument::add_build(BuildRecord record, const std::strin
                {"outputHash", record.output_hash},
                {"slicerVersion", record.slicer_version},
                {"configurationProvenance", record.configuration_provenance},
+               {"sentAt", record.sent_at},
+               {"deliveryConfirmedAt", record.delivery_confirmed_at},
+               {"deliveryLocation", record.delivery_location},
                {"statistics", statistics_json(record.statistics)},
                {"warnings", record.warnings}};
     m_doc["builds"].push_back(std::move(entry));
@@ -911,6 +920,8 @@ std::string ProjectStateDocument::add_physical_print(PhysicalPrintRecord record,
                                            {"outputHash", record.output_hash},
                                            {"gcodeHash", record.gcode_hash},
                                            {"statistics", statistics_json(record.statistics)}});
+    if (record.stopped_percent)
+        m_doc["physicalPrints"].back()["stoppedPercent"] = *record.stopped_percent;
     touch();
     return record.id;
 }
@@ -1075,6 +1086,7 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
                 {"kind", entry.kind},
                 {"actor", entry.actor},
                 {"label", entry.label},
+                {"location", entry.location},
                 {"conversationId", entry.conversation_id},
                 {"afterId", entry.after_id}};
     if (entry.kind == "setting") {

@@ -1,7 +1,5 @@
-// Full-pane and banner states. The Agent-unavailable state and bridge errors
-// are deliberately different surfaces: the first is a clean product state for
-// an unconfigured service, the second an internal connection failure with
-// Retry and diagnostics.
+// Full-pane states. An unconfigured Agent offers setup in the conversation
+// body; a bridge error is an internal connection failure with diagnostics.
 
 interface BridgeErrorProps {
   title: string;
@@ -36,29 +34,12 @@ export function BridgeErrorPane({ title, detail, diagnostics, onRetry }: BridgeE
   );
 }
 
-export function AgentUnavailableNotice() {
-  return (
-    <div className="notice" data-testid="agent-unavailable">
-      <h2>The Agent isn’t set up yet</h2>
-      <p>
-        This build does not include a configured Agent service. Your conversation and project stay saved, and you can
-        keep preparing, slicing, and checking prints with the canvas and the controls above.
-      </p>
-      <p>
-        Enabling a cloud Agent requires your consent to send your message, the current project summary—including the
-        printer, plates, objects, and selection—and only the attachments you include. The API key is stored in
-        JusPrin’s settings on this computer.
-      </p>
-    </div>
-  );
-}
-
 // The dock before any Agent service is configured. Connecting an Agent
 // changes nothing about the print, so this state offers exactly one thing and
 // leaves the ask box where it always is, inert — the dock keeps its shape
 // whether or not an Agent is ever set up. It replaces the conversation
 // chrome only while the conversation is empty; history carried in from a
-// previously configured session stays visible behind the banner above.
+// previously configured session stays visible in the ordinary chat.
 export function AgentNotConfiguredHeader() {
   return (
     <div className="agent-header" data-testid="agent-not-configured-header">

@@ -72,7 +72,7 @@ body {
 /* Current setup card. Measured from the Figma "Current Setup Card" page:
    a 405px card inset 12px inside a 429px dock, tinted surface/subtle with a
    2px action/primary edge, container radius, 16/12 padding and a 4px row gap.
-   The three rows are eyebrow, title and cost; the expansion grows the same
+   The compact rows keep settings and print facts readable; expansion grows the same
    card rather than floating a second panel under it. */
 .pinned-setup {
   flex: 0 0 auto;
@@ -84,8 +84,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 16px;
-  border: 2px solid var(--action-primary);
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
   background: var(--surface-subtle);
 }
@@ -187,7 +187,7 @@ body {
    agent, and all the card can do is stop a long one from breaking the layout
    -- the full sentence lives in the expansion. */
 .current-setup-title {
-  font: var(--font-body-bold);
+  font: var(--font-label);
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -196,8 +196,19 @@ body {
 
 /* The preset name standing in for a title it does not have. */
 .current-setup-identity {
-  font: var(--font-body);
+  font: var(--font-body-small-bold);
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.current-setup-summary,
+.current-setup-intent {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+.current-setup-summary {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -521,15 +532,25 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   min-width: 0;
 }
 
-/* 20px, action/primary. No nudge: the disc and the Body line box are both
-   20px, so top-aligning them puts the disc on the first line exactly as the
-   component has it. */
+/* The avatar establishes the shared content rail for assistant replies,
+   change summaries, hand edits, and manufacturing events. */
 .agent-avatar {
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  width: var(--thread-row-avatar-size);
+  height: var(--thread-row-avatar-size);
   border-radius: var(--radius-pill);
   background: var(--action-primary);
+  display: grid;
+  place-items: center;
+}
+
+.agent-avatar::after {
+  content: '';
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: var(--text-on-action);
+  -webkit-mask: url('@resources/jusprin/ui/icons/agent-bot.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/agent-bot.svg') center / contain no-repeat;
 }
 
 /* What stands in for a tool-only turn while it still has no words: the model
@@ -699,16 +720,14 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   gap: 8px;
 }
 
-/* A reply that changed nothing says so beneath itself (Figma "Answered
-   response"): inset by the avatar's width, 4px under the text. The reply's
-   own bottom padding is that 4px, so the pair stacks with no gap. */
+/* The status starts at the same x-position as the assistant's words. */
 .answered-turn {
   display: flex;
   flex-direction: column;
 }
 
 .answered-state {
-  padding-left: 20px;
+  padding-left: calc(var(--thread-row-avatar-size) + 8px);
   color: var(--text-secondary);
   font: var(--font-label);
 }
@@ -722,7 +741,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   align-self: stretch;
   padding: 12px 0;
   border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .change-row {
@@ -733,7 +751,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .change-icon {
-  flex: 0 0 auto;
+  flex: 0 0 var(--thread-row-avatar-size);
   color: var(--action-primary);
   font: var(--font-label);
 }
@@ -760,6 +778,92 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   color: var(--text-secondary);
   font: var(--font-label);
 }
+
+.settings-changes {
+  align-self: stretch;
+  min-width: 0;
+  margin-left: calc(var(--thread-row-avatar-size) + 8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  overflow: hidden;
+  background: var(--surface-canvas);
+}
+
+.agent-change-summary {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+.agent-change-summary > button {
+  display: flex;
+  align-items: center;
+  gap: var(--timeline-summary-icon-gap);
+  width: 100%;
+  padding: var(--timeline-summary-padding);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font: var(--font-label);
+}
+.agent-change-summary-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-change-summary > button > .settings-changes-icon { flex: 0 0 var(--button-icon-icon-size); }
+.agent-change-summary-more { color: var(--action-primary); font: var(--font-label-bold); white-space: nowrap; }
+.agent-change-summary-details {
+  border-top: 1px solid var(--border-subtle);
+}
+.agent-change-summary-details .settings-change-row {
+  padding-left: calc(var(--timeline-summary-padding-x) + var(--button-icon-icon-size) + var(--timeline-summary-icon-gap));
+}
+.agent-change-summary-details .settings-change-row:first-child { border-top: 0; }
+.settings-changes-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font: var(--font-metadata-bold);
+  text-transform: uppercase;
+}
+.settings-changes-icon {
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/sliders.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/sliders.svg') center / contain no-repeat;
+}
+.settings-change-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  font: var(--font-label);
+}
+.settings-change-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.settings-change-from { color: var(--text-secondary); }
+.settings-change-arrow { color: var(--text-secondary); }
+.settings-change-row strong { font: var(--font-label-bold); }
+.settings-changes-more {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--action-primary);
+  font: var(--font-label-bold);
+}
+.settings-changes-more:hover:enabled { background: var(--surface-subtle); }
 
 .change-revert-action { position: relative; flex: 0 0 auto; }
 .change-revert-button {
@@ -800,15 +904,15 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .change-revert-popover {
   position: fixed;
   z-index: 10;
-  width: min(var(--timeline-revert-width), calc(100vw - 32px));
-  padding: 16px;
+  width: min(var(--timeline-revert-width), calc(100vw - 24px));
+  padding: 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
   background: var(--surface-raised);
   box-shadow: var(--elevation-strong);
   color: var(--text-primary);
 }
-.change-revert-popover strong { display: block; font: var(--font-section); }
+.change-revert-popover strong { display: block; font: var(--font-body-bold); }
 .change-revert-popover p { margin: 8px 0 0; font: var(--font-body-small); color: var(--text-secondary); }
 .change-revert-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .change-revert-buttons button { padding: var(--button-expanded-padding); font: var(--font-body); border: 1px solid var(--border-subtle); }
@@ -900,6 +1004,98 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-card.build-card { border-left-color: var(--action-primary); }
 .history-card.copy-card { border-left-color: var(--border-focus); }
 .history-card.print-card { border-left-color: var(--status-success); }
+
+.history-card.build-card,
+.history-card.copy-card {
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+}
+.build-card .history-summary,
+.build-card .history-detail {
+  padding-left: calc(var(--thread-row-avatar-size) + 8px);
+}
+.build-card .history-title { align-items: center; }
+.build-card .history-title code { color: var(--text-primary); font: var(--font-code); }
+.build-stats-line { font: var(--font-body-small-bold); }
+.build-target { font: var(--font-label-bold); }
+.build-delivery,
+.build-export {
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+.build-delivery { color: var(--status-success); }
+.history-reprint {
+  align-self: flex-start;
+  color: var(--action-primary);
+  font: var(--font-label-bold);
+}
+
+.history-card.print-failed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-on-failure);
+  background: var(--surface-failure-inverse);
+  color: var(--text-on-failure-primary);
+}
+
+.print-failed .history-summary { gap: 8px; }
+.failure-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.failure-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--status-danger-on-inverse);
+  font: var(--font-metadata-bold);
+  text-transform: uppercase;
+}
+.failure-dot {
+  width: var(--status-dot-size);
+  height: var(--status-dot-size);
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+.failure-time {
+  margin-left: auto;
+  color: var(--text-on-failure-tertiary);
+  font: var(--font-metadata);
+  white-space: nowrap;
+}
+.failure-title {
+  color: var(--text-on-failure-primary);
+  font: var(--font-body-small-bold);
+}
+.failure-reason {
+  color: var(--text-on-failure-secondary);
+  font: var(--font-label);
+}
+.print-failed .history-disclosure { color: var(--text-on-failure-tertiary); }
+.print-failed .history-detail { border-top-color: var(--border-on-failure); }
+.print-failed dt { color: var(--text-on-failure-tertiary); }
+.print-failed dd,
+.print-failed .history-provenance { color: var(--text-on-failure-secondary); }
+.print-failed .history-hash code {
+  color: var(--text-on-failure-primary);
+  background: transparent;
+  border: 1px solid var(--border-on-failure);
+}
+.failure-action {
+  align-self: flex-start;
+  padding: var(--button-expanded-padding);
+  border: 1px solid var(--border-on-failure);
+  border-radius: var(--radius-standard);
+  color: var(--text-on-failure-primary);
+  font: var(--font-label-bold);
+}
+.failure-action:hover:enabled { border-color: var(--text-on-failure-secondary); }
 
 /* The card rests as its <summary>; the forensic detail stays mounted in the
    sibling block that the disclosure reveals. */

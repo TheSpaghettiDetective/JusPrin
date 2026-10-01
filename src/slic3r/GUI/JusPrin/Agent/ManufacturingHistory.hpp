@@ -37,6 +37,11 @@ struct BuildRecord
     std::string   output_hash;
     std::string   slicer_version;
     std::string   configuration_provenance;
+    // Present only after a printer transfer is confirmed. A build alone does
+    // not imply that its G-code was sent to a machine.
+    std::string   sent_at;
+    std::string   delivery_confirmed_at;
+    std::string   delivery_location;
     SliceStatistics statistics;
     std::vector<std::string> warnings;
 };
@@ -76,6 +81,7 @@ struct PhysicalPrintRecord
     std::string   manufacturing_input_hash;
     std::string   output_hash;
     std::string   gcode_hash;
+    std::optional<int> stopped_percent;
     SliceStatistics statistics;
 };
 

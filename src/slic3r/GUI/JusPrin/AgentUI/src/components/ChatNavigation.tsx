@@ -153,10 +153,11 @@ export function chatTimestamp(timestamp: string, now = new Date()): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }
 
-export function ChatList({ conversations, activeId, busy, onSwitch, onCreate, onConfigure }: {
+export function ChatList({ conversations, activeId, busy, agentUnavailable, onSwitch, onCreate, onConfigure }: {
   conversations: ConversationInfo[];
   activeId: string;
   busy: boolean;
+  agentUnavailable: boolean;
   onSwitch: (id: string) => void;
   onCreate: () => void;
   onConfigure: () => void;
@@ -181,7 +182,10 @@ export function ChatList({ conversations, activeId, busy, onSwitch, onCreate, on
     <footer className="chat-list-footer">
       <button className="configure-agent" onClick={onConfigure} disabled={busy}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.5 3-2 1-2.5-1-2 3 2 2v2l-2 2 2 3 2.5-1 2 1 .5 3h4l.5-3 2-1 2.5 1 2-3-2-2v-2l2-2-2-3-2.5 1-2-1L13 3Z" /><circle cx="11" cy="12" r="3" /></svg>
-        <span><strong>Configure Agent</strong><small>Adjust defaults, models, and slice preferences</small></span>
+        <span>
+          <strong>{agentUnavailable ? 'Set up the agent' : 'Configure Agent'}</strong>
+          <small>{agentUnavailable ? 'Connect an Agent to continue this conversation' : 'Adjust defaults, models, and slice preferences'}</small>
+        </span>
       </button>
     </footer>
   </section>;

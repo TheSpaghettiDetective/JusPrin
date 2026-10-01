@@ -43,6 +43,7 @@ interface Props {
   onToolCancel: (actionId: string) => void;
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
+  onDiscussFailure?: (text: string) => void;
   // The setup card's expansion is a layer over this thread; the thread dims
   // rather than being covered, so the conversation stays legibly there.
   dimmed?: boolean;
@@ -83,12 +84,19 @@ function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[]): 
   return blocks;
 }
 
-function TimelineBlocks({ blocks, restorePoints, onRevert }: { blocks: TimelineBlock[]; restorePoints: RestorePointInfo[]; onRevert?: (versionId: string) => void }) {
+function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, discussDisabled }: {
+  blocks: TimelineBlock[];
+  restorePoints: RestorePointInfo[];
+  onRevert?: (versionId: string) => void;
+  onDiscussFailure: (print: PhysicalPrintInfo) => void;
+  discussDisabled: boolean;
+}) {
   return (
     <>
       {blocks.map((block) =>
         block.kind === 'history' ? (
-          <ManufacturingHistoryCard key={`${block.entry.kind}-${block.entry.record.id}`} entry={block.entry} />
+          <ManufacturingHistoryCard key={`${block.entry.kind}-${block.entry.record.id}`} entry={block.entry}
+            onDiscussFailure={onDiscussFailure} discussDisabled={discussDisabled} />
         ) : (
           <ChangeRows key={`changes-${block.seq}`} changes={block.changes} restorePoints={restorePoints} onRevert={onRevert} />
         ),
@@ -114,6 +122,7 @@ export function MessageList({
   onToolDecision,
   onToolCancel,
   onSend,
+  onDiscussFailure,
   dimmed,
   printerBlocks,
   onUndoAdd,
@@ -138,9 +147,17 @@ export function MessageList({
   }, [messages, toolActivities, builds, exportedCopies, physicalPrints, changes, printerBlocks, followBottom]);
   const printerPanel = printerBlocks !== undefined;
 
+  // A copy made immediately from a build is one G-code event in the thread.
+  // Keep later copies separate so an intervening edit never moves in history.
+  const pairedCopies = new Set<string>();
   const history: ManufacturingHistoryEntry[] = [
-    ...builds.map((record) => ({ kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
-    ...exportedCopies.map((record) => ({ kind: 'copy' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
+    ...builds.map((record) => {
+      const copy = exportedCopies.find((item) => item.buildId === record.id && item.seq === record.seq + 1);
+      if (copy) pairedCopies.add(copy.id);
+      return { kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record, copy };
+    }),
+    ...exportedCopies.filter((record) => !pairedCopies.has(record.id))
+      .map((record) => ({ kind: 'copy' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
     ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
   ];
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
@@ -164,6 +181,8 @@ export function MessageList({
   const leadingHistory = history.filter(
     (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
   );
+  const discussFailure = (print: PhysicalPrintInfo) =>
+    (onDiscussFailure ?? onSend)(`Help me understand why this print failed: ${print.failure || 'The print stopped unexpectedly.'}`);
 
   // A finished reply that changed nothing says so (Figma "Answered
   // response"). Only the Agent's own changes count against it; the person
@@ -179,7 +198,8 @@ export function MessageList({
   return (
     <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={restorePoints} onRevert={onRevert} />
+      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={restorePoints} onRevert={onRevert}
+        onDiscussFailure={discussFailure} discussDisabled={streamingMessageId !== null} />
       {messages.length === 0 && (
         <div className="notice">
           <h2>Ask the Agent about your print</h2>
@@ -241,9 +261,8 @@ export function MessageList({
           </div>
         ) : emptyPrinterTurn ? null : (
           <div className={`message ${message.role}`}>
-            {/* The agent does not speak in a bubble: a 20px action/primary
-                disc stands beside plain text, as the Figma "Chat Bubble"
-                component's Agent variant has it. Purely decorative -- the
+            {/* The agent does not speak in a bubble: its bot mark stands beside
+                plain text, as the Figma Agent variant has it. Decorative -- the
                 author is already carried by the role class and by the
                 bubble the user's turn keeps. */}
             {message.role === 'assistant' && <span className="agent-avatar" aria-hidden="true" />}
@@ -339,7 +358,8 @@ export function MessageList({
               })}
             </div>
             {printerBlockViews(message.id)}
-            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} restorePoints={restorePoints} onRevert={onRevert} />
+            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} restorePoints={restorePoints} onRevert={onRevert}
+              onDiscussFailure={discussFailure} discussDisabled={streamingMessageId !== null} />
           </Fragment>
         );
       })}

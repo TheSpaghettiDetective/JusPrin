@@ -15,14 +15,17 @@ export { applyAppearance } from '@shared/tokens';
 // writes, so a test can check that the stylesheet only asks for variables
 // that exist.
 export function staticVariableNames(): string[] {
-  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-setup-width',
+  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--thread-row-avatar-size',
+    '--timeline-summary-padding', '--timeline-summary-padding-x', '--timeline-summary-icon-gap', '--printer-setup-width',
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
-    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width'];
+    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
 //   --thread-row-line-gap  the space between a thread row's title and its
 //                          metadata line, an internal size of the row
+//   --thread-row-avatar-size  the shared icon column for timeline content
+//   --timeline-summary-*     the compact edit button's insets and icon gap
 //   --printer-dialog-*     the printer panel's own dialog: the same
 //                          component.printerDialog token Home's rename and
 //                          remove dialogs use, so every printer-feature
@@ -33,12 +36,20 @@ export function staticVariableNames(): string[] {
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
   const { component } = tokens as unknown as {
-    component: { threadRow: { lineGap: number }; printerSetup: { contentWidth: number };
+    component: { threadRow: { lineGap: number; avatarSize: number };
+      timelineSummary: { paddingX: number; paddingY: number; iconGap: number };
+      printerSetup: { contentWidth: number };
       printerDialog: { width: number; radius: number; scrimAlpha: number };
       timelineRevert: { width: number };
+      statusDot: { size: number };
       replyChip: { height: number; paddingX: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
+  document.documentElement.style.setProperty('--thread-row-avatar-size', `${component.threadRow.avatarSize}px`);
+  document.documentElement.style.setProperty('--timeline-summary-padding',
+    `${component.timelineSummary.paddingY}px ${component.timelineSummary.paddingX}px`);
+  document.documentElement.style.setProperty('--timeline-summary-padding-x', `${component.timelineSummary.paddingX}px`);
+  document.documentElement.style.setProperty('--timeline-summary-icon-gap', `${component.timelineSummary.iconGap}px`);
   document.documentElement.style.setProperty('--printer-setup-width', `${component.printerSetup.contentWidth}px`);
   document.documentElement.style.setProperty('--printer-dialog-width', `${component.printerDialog.width}px`);
   document.documentElement.style.setProperty('--printer-dialog-radius', `${component.printerDialog.radius}px`);
@@ -50,4 +61,5 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--reply-chip-height', `${component.replyChip.height}px`);
   document.documentElement.style.setProperty('--reply-chip-padding-x', `${component.replyChip.paddingX}px`);
   document.documentElement.style.setProperty('--timeline-revert-width', `${component.timelineRevert.width}px`);
+  document.documentElement.style.setProperty('--status-dot-size', `${component.statusDot.size}px`);
 }

@@ -44,18 +44,23 @@
         "canvas": "#FFFFFF",
         "subtle": "#F6F2F7",
         "raised": "#FFFFFF",
-        "selected": "#EDE7F2"
+        "selected": "#EDE7F2",
+        "failureInverse": "#261F37"
       },
       "text": {
         "primary": "#17131F",
         "secondary": "#5F5767",
         "tertiary": "#6C6374",
-        "onAction": "#FFFFFF"
+        "onAction": "#FFFFFF",
+        "onFailurePrimary": "#FFFFFF",
+        "onFailureSecondary": "#C8C1D2",
+        "onFailureTertiary": "#A29AAA"
       },
       "border": {
         "subtle": "#E8DFEB",
         "strong": "#6F4F84",
-        "focus": "#6F4F84"
+        "focus": "#6F4F84",
+        "onFailure": "#746A86"
       },
       "action": {
         "primary": "#3A2D64",
@@ -77,6 +82,7 @@
         "success": "#2D6A55",
         "successOnAction": "#58B894",
         "danger": "#B44757",
+        "dangerOnInverse": "#FF7868",
         "warning": "#D49A2A"
       },
       "overlay": {
@@ -93,18 +99,23 @@
         "canvas": "#17131F",
         "subtle": "#211B2A",
         "raised": "#2B2336",
-        "selected": "#4B3E57"
+        "selected": "#4B3E57",
+        "failureInverse": "#342C3B"
       },
       "text": {
         "primary": "#F6F2F7",
         "secondary": "#CFC5D3",
         "tertiary": "#A99EAE",
-        "onAction": "#17131F"
+        "onAction": "#17131F",
+        "onFailurePrimary": "#FFFFFF",
+        "onFailureSecondary": "#D7D0DF",
+        "onFailureTertiary": "#B8AFBF"
       },
       "border": {
         "subtle": "#4B3E57",
         "strong": "#7D6A8D",
-        "focus": "#7D6A8D"
+        "focus": "#7D6A8D",
+        "onFailure": "#8E829D"
       },
       "action": {
         "primary": "#CE84B7",
@@ -126,6 +137,7 @@
         "success": "#58B894",
         "successOnAction": "#174735",
         "danger": "#F07A8E",
+        "dangerOnInverse": "#FF8E80",
         "warning": "#E9B960"
       },
       "overlay": {
@@ -347,7 +359,13 @@
       "resizeHandleLineWidth": 2
     },
     "threadRow": {
-      "lineGap": 2
+      "lineGap": 2,
+      "avatarSize": 20
+    },
+    "timelineSummary": {
+      "paddingX": 8,
+      "paddingY": 8,
+      "iconGap": 4
     },
     "swatch": {
       "size": 24,

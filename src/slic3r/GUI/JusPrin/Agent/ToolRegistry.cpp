@@ -1447,6 +1447,7 @@ std::vector<ToolDefinition> make_definitions()
                             {"endedAt", string_schema()},
                             {"outcome", string_schema()},
                             {"failure", string_schema()},
+                            {"stoppedPercent", integer_schema()},
                             {"gcodeHash", string_schema()}}),
          object_schema(json{{"physicalPrintId", id}, {"buildId", id}, {"recorded", boolean_schema()}},
                        json::array({"physicalPrintId", "buildId", "recorded"})),

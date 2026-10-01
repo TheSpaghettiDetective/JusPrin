@@ -78,7 +78,8 @@ function title(run: ChangeRun): ReactNode {
 
 function meta(run: ChangeRun): string {
   const who = run.last.actor === 'agent' ? 'Agent' : 'you';
-  const parts = [run.last.kind === 'setting' && run.last.preset ? `${who}, in ${run.last.preset}` : who];
+  const context = run.last.kind === 'setting' && run.last.preset ? `in ${run.last.preset}` : run.last.location;
+  const parts = [context ? `${who}, ${context}` : who];
   if (run.count > 1) parts.push(`${run.count} steps merged`);
   const time = chatTimestamp(run.last.createdAt);
   if (time) parts.push(time);
@@ -91,21 +92,26 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
   onRevert?: (versionId: string) => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const anchor = useRef<HTMLButtonElement | null>(null);
   const popover = useRef<HTMLDivElement | null>(null);
   const cancel = useRef<HTMLButtonElement | null>(null);
   const points = new Map(restorePoints.map((point) => [point.changeSeq, point.versionId]));
+  const runs = groupChanges(changes);
+  const isAgentSetting = (run: ChangeRun) =>
+    run.last.kind === 'setting' && run.last.actor === 'agent' && !points.has(run.last.seq);
 
   useLayoutEffect(() => {
     if (!open || !anchor.current || !popover.current) return;
     const update = () => {
       const button = anchor.current!.getBoundingClientRect();
       const panel = popover.current!;
-      const left = Math.max(16, Math.min(button.right - panel.offsetWidth, window.innerWidth - panel.offsetWidth - 16));
-      const below = button.bottom + 4;
-      const top = below + panel.offsetHeight <= window.innerHeight - 16
-        ? below : Math.max(16, button.top - panel.offsetHeight - 4);
+      const left = Math.max(12, Math.min(button.right - panel.offsetWidth, window.innerWidth - panel.offsetWidth - 12));
+      const above = button.top - panel.offsetHeight - 4;
+      const top = above >= 12 ? above
+        : Math.min(button.bottom + 4, window.innerHeight - panel.offsetHeight - 12);
       setPosition({ top, left });
     };
     update();
@@ -135,31 +141,107 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
     };
   }, [open]);
 
+  const entries: ReactNode[] = [];
+  for (let index = 0; index < runs.length;) {
+    const step = runs[index];
+    if (step.last.kind === 'step' && step.last.actor === 'agent') {
+      let end = index + 1;
+      while (end < runs.length && isAgentSetting(runs[end])) end += 1;
+      const settings = runs.slice(index + 1, end);
+      if (settings.length >= 2) {
+        const value = (label: string) => settings.find((run) => run.last.label === label)?.last.to;
+        const walls = value('Wall loops');
+        const density = value('Sparse infill density');
+        const pattern = value('Sparse infill pattern') || value('Infill pattern');
+        const summary = [stepName(step.last.label), walls && `${walls} walls`, density && `${density}${pattern ? ` ${pattern}` : ''}`]
+          .filter(Boolean).join(' · ');
+        const more = Math.max(0, settings.length - 2);
+        entries.push(
+          <section className="agent-change-summary" aria-label="Agent changes" key={step.first.seq}>
+            <button type="button" aria-expanded={summaryExpanded} onClick={() => setSummaryExpanded(!summaryExpanded)}>
+              <span className="settings-changes-icon" aria-hidden="true" />
+              <span className="agent-change-summary-label">{summary}</span>
+              <span className="agent-change-summary-more">{more > 0 ? `+${more}` : ''}{summaryExpanded ? '⌃' : '⌄'}</span>
+            </button>
+            {summaryExpanded && <div className="agent-change-summary-details" role="list">
+              {settings.map((run) => <div className="settings-change-row change-row" role="listitem" key={run.first.seq}>
+                <span className="settings-change-name">{run.last.label}</span>
+                <span className="settings-change-from">{run.first.from || 'none'}</span>
+                <span className="settings-change-arrow" aria-hidden="true">→</span>
+                <strong>{run.last.to || 'none'}</strong>
+              </div>)}
+            </div>}
+          </section>,
+        );
+        index = end;
+        continue;
+      }
+    }
+    let end = index;
+    while (end < runs.length && isAgentSetting(runs[end])) end += 1;
+    if (end - index > 1) {
+      const group = runs.slice(index, end);
+      const visible = settingsExpanded ? group : group.slice(0, 4);
+      const remaining = group.length - visible.length;
+      entries.push(
+        <section className="settings-changes" aria-label="Agent setting changes" key={group[0].first.seq}>
+          <div className="settings-changes-heading">
+            <span className="settings-changes-icon" aria-hidden="true" />
+            <span>{visible.length} {remaining > 0 ? `of ${group.length}` : ''} settings</span>
+          </div>
+          <div className="settings-changes-rows" role="list">
+            {visible.map((run) => (
+              <div className="settings-change-row change-row" role="listitem" key={run.first.seq}>
+                <span className="settings-change-name">{run.last.label}</span>
+                <span className="settings-change-from">{run.first.from || 'none'}</span>
+                <span className="settings-change-arrow" aria-hidden="true">→</span>
+                <strong>{run.last.to || 'none'}</strong>
+              </div>
+            ))}
+          </div>
+          {remaining > 0 && (
+            <button type="button" className="settings-changes-more" onClick={() => setSettingsExpanded(true)}>
+              See the other {remaining} →
+            </button>
+          )}
+          {settingsExpanded && group.length > 4 && (
+            <button type="button" className="settings-changes-more" onClick={() => setSettingsExpanded(false)}>Show fewer</button>
+          )}
+        </section>,
+      );
+      index = end;
+      continue;
+    }
+    const run = runs[index];
+    entries.push(
+      <div key={run.first.seq} className="change-row" role="listitem" data-testid={`change-${run.first.seq}`}>
+        <span className="change-icon" aria-hidden="true">✎</span>
+        <div className="change-text">
+          <span className="change-title">{title(run)}</span>
+          <span className="change-meta">{meta(run)}</span>
+        </div>
+        {/* An inner checkpoint cannot represent the entire merged row. */}
+        {onRevert && points.has(run.last.seq) && (
+          <span className="change-revert-action">
+            <button type="button" className="change-revert-button" aria-label="Revert to here"
+              aria-expanded={open === points.get(run.last.seq)}
+              onClick={(event) => {
+                anchor.current = event.currentTarget;
+                setOpen(open === points.get(run.last.seq) ? null : points.get(run.last.seq)!);
+              }}>
+              <span className="change-revert-icon" aria-hidden="true" />
+            </button>
+            <span className="change-revert-tooltip" role="tooltip">Revert to here</span>
+          </span>
+        )}
+      </div>,
+    );
+    index += 1;
+  }
+
   return (
     <div className="change-rows" role="list" aria-label="Changes">
-      {groupChanges(changes).map((run) => (
-        <div key={run.first.seq} className="change-row" role="listitem" data-testid={`change-${run.first.seq}`}>
-          <span className="change-icon" aria-hidden="true">✎</span>
-          <div className="change-text">
-            <span className="change-title">{title(run)}</span>
-            <span className="change-meta">{meta(run)}</span>
-          </div>
-          {/* An inner checkpoint cannot represent the entire merged row. */}
-          {onRevert && points.has(run.last.seq) && (
-            <span className="change-revert-action">
-              <button type="button" className="change-revert-button" aria-label="Revert to here"
-                aria-expanded={open === points.get(run.last.seq)}
-                onClick={(event) => {
-                  anchor.current = event.currentTarget;
-                  setOpen(open === points.get(run.last.seq) ? null : points.get(run.last.seq)!);
-                }}>
-                <span className="change-revert-icon" aria-hidden="true" />
-              </button>
-              <span className="change-revert-tooltip" role="tooltip">Revert to here</span>
-            </span>
-          )}
-        </div>
-      ))}
+      {entries}
       {open && createPortal(
         <div ref={popover} className="change-revert-popover" role="dialog" aria-label="Revert to here?"
           style={{ top: position.top, left: position.left }}>

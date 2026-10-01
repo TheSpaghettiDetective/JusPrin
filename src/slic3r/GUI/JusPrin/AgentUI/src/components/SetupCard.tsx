@@ -67,6 +67,7 @@ interface CardModel {
   yours: number;
   title: string;
   identity: string;
+  summary: string;
   facts: string[];
   deltas: PresetDeltaInfo[];
   deltaLabel: string;
@@ -102,12 +103,13 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // what is left is a label and the caller renders it as one.
   const substantive = Boolean(title) || estimate !== null || deltaLabel !== '';
 
-  // With no intent to restate, the preset name takes the identity slot -- and
-  // it takes a whole row. Sharing the facts line was tried and measured in the
-  // running app: preset names run to "0.08mm Extra Fine @MyKlipper", the dock
-  // is ~310px, and whatever came last was clipped away. A row costs 16px; a
-  // silently truncated cost is worse.
   const identity = !title && preset && substantive ? preset : '';
+  const wall = deltas.find((delta) => delta.label === 'Wall loops')?.value;
+  const density = deltas.find((delta) => delta.label === 'Sparse infill density')?.value;
+  const pattern = deltas.find((delta) => delta.label === 'Sparse infill pattern')?.value;
+  const mainSettings = [wall && `${wall} walls`, density && `${density} ${pattern || 'infill'}`].filter(Boolean);
+  const summary = mainSettings.length > 0 ? mainSettings.join(' · ')
+    : deltas.slice(0, 2).map((delta) => `${delta.label} ${delta.value}`).join(' · ');
 
   const recomputing = estimate !== null && status === 'recomputing';
   const outOfDate = estimate !== null && status === 'stale';
@@ -139,7 +141,7 @@ export function cardModel(context: WorkspaceContext): CardModel {
   // be described as unsliced. With no plate at all there is nothing to say.
   if (substantive && !estimate && active !== null && !active.sliced) facts.push('not sliced yet');
 
-  return { kicker: substantive, title, identity, facts, deltas, deltaLabel, preset, material,
+  return { kicker: substantive, title, identity, summary, facts, deltas, deltaLabel, preset, material,
            struckEstimate, inlineNote, reason, outOfDate, yours };
 }
 
@@ -209,11 +211,9 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
           </button>
         )}
       </p>
-      {/* Clamped to one line: 40 characters is a contract with the agent,
-          enforced in its prompt. All the card can do is keep a long one from
-          breaking the layout -- the full sentence lives in the expansion. */}
       {model.title && <p className="current-setup-title" title={model.title}>{model.title}</p>}
       {model.identity && <p className="current-setup-identity" title={model.identity}>{model.identity}</p>}
+      {model.summary && <p className="current-setup-summary">{model.summary}</p>}
       {/* The row is omitted, not left blank: a sliced plate with no usable
           estimate and an untouched preset has nothing to put on this line. */}
       {(model.facts.length > 0 || model.deltaLabel || model.struckEstimate) && <p className="current-setup-cost">

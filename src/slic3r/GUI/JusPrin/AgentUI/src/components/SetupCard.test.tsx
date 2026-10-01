@@ -64,7 +64,7 @@ function renderCard(context: WorkspaceContext, expanded = false) {
 }
 
 describe('setup card', () => {
-  it('rests at kicker, title and one facts line when everything is present', () => {
+  it('shows settings and print facts on separate compact lines', () => {
     renderCard(makeContext({ setupIntent: "Strong - it'll bear weight", estimate, deltas: deltas(5) }));
     const card = screen.getByTestId('current-setup');
     expect(card).toHaveTextContent('Current setup');
@@ -72,8 +72,8 @@ describe('setup card', () => {
     expect(card).toHaveTextContent('~3h 50');
     expect(card).toHaveTextContent('47 g');
     expect(card).toHaveTextContent('5 changes from preset');
-    // Three lines: the heading, the title, and the facts. Nothing else.
-    expect(card.querySelectorAll('p')).toHaveLength(3);
+    expect(card.querySelector('.current-setup-summary')).toHaveTextContent('Setting 0 2 · Setting 1 2');
+    expect(card.querySelectorAll('p')).toHaveLength(4);
   });
 
   it('keeps a title at its ceiling on one line rather than wrapping to two', () => {
@@ -82,6 +82,18 @@ describe('setup card', () => {
     const line = screen.getByTitle(title);
     expect(line).toHaveClass('current-setup-title');
     expect(line.tagName).toBe('P');
+  });
+
+  it('summarizes wall count and infill together regardless of preset delta order', () => {
+    const changed: PresetDeltaInfo[] = [
+      { key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '45%', origin: 'agent' },
+      { key: 'sparse_infill_pattern', label: 'Sparse infill pattern', preset: 'grid', value: 'gyroid', origin: 'agent' },
+      { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '5', origin: 'agent' },
+    ];
+    renderCard(makeContext({ setupIntent: 'Strong', estimate, deltas: changed }));
+    const card = screen.getByTestId('current-setup');
+    expect(card.querySelector('.current-setup-summary')).toHaveTextContent('5 walls · 45% gyroid');
+    expect(card.querySelector('.current-setup-cost')).toHaveTextContent('~3h 50 · 47 g');
   });
 
   it('gives the identity slot to the preset name when there is no intent to restate', () => {
@@ -140,8 +152,8 @@ describe('setup card', () => {
     }));
     const card = screen.getByTestId('current-setup');
     expect(card).toHaveTextContent('1.12');
-    // Still three lines: a clause joins the facts row, it does not add one.
-    expect(card.querySelectorAll('p')).toHaveLength(3);
+    // Money joins the facts line; settings keep their own line.
+    expect(card.querySelectorAll('p')).toHaveLength(4);
   });
 
   it('writes money the way the regional settings write it', () => {
@@ -181,7 +193,7 @@ describe('setup card', () => {
     const card = screen.getByTestId('current-setup');
     expect(card).toHaveTextContent('not sliced yet');
     expect(card).toHaveTextContent('5 changes from preset');
-    expect(card.querySelectorAll('p')).toHaveLength(3);
+    expect(card.querySelectorAll('p')).toHaveLength(4);
   });
 
   it('keeps the old number struck through while a new slice runs', () => {
@@ -326,10 +338,9 @@ describe('setup card', () => {
   });
 
   it('states the count for many objects rather than concatenating intents', () => {
-    // One title cannot hold three intents, so the agent sends the count and
-    // the card stays the same height as every other case.
+    // One title cannot hold three intents, so the agent sends the count.
     renderCard(makeContext({ setupIntent: '3 objects, different settings', estimate, deltas: deltas(11) }));
-    expect(screen.getByTestId('current-setup').querySelectorAll('p')).toHaveLength(3);
+    expect(screen.getByTestId('current-setup').querySelectorAll('p')).toHaveLength(4);
   });
 
   it('degrades to a bare label, not an empty frame, when everything is missing', () => {

@@ -124,6 +124,52 @@ describe('change rows in the thread', () => {
     expect(rows()[0]).toContain('2 steps merged');
   });
 
+  it('shows the first four agent settings and reveals the rest on request', () => {
+    const settings = ['Brim', 'First-layer speed', 'Plate temp', 'Layer height', 'First-layer line width'];
+    thread(settings.map((label, index) => change(index + 1, {
+      kind: 'setting', actor: 'agent', label, from: 'old', to: 'new', preset: '0.20 mm Standard',
+    })));
+    expect(screen.getByRole('region', { name: 'Agent setting changes' })).toHaveTextContent('4 of 5 settings');
+    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.queryByText('First-layer line width')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'See the other 1 →' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(5);
+    expect(screen.getByText('First-layer line width')).toBeInTheDocument();
+  });
+
+  it('keeps later hand edits after a grouped agent settings card', () => {
+    const settings = ['Brim', 'First-layer speed', 'Plate temp', 'Layer height', 'Brim gap'];
+    const changes = settings.map((label, index) => change(index + 1, {
+      kind: 'setting', actor: 'agent', label, from: 'old', to: 'new',
+    }));
+    changes.push(change(6, { label: 'Rotated bracket to 45°' }));
+    render(<ChangeRows changes={changes} />);
+    expect(screen.getByRole('region', { name: 'Agent setting changes' })).toHaveTextContent('4 of 5 settings');
+    expect(screen.getByText('Rotated bracket to 45°')).toBeInTheDocument();
+    expect(screen.queryByText('Brim gap')).not.toBeInTheDocument();
+  });
+
+  it('summarizes an agent setup turn and keeps its other settings behind the pill', () => {
+    thread([
+      change(1, { actor: 'agent', label: 'Laid flat' }),
+      change(2, { actor: 'agent', kind: 'setting', label: 'Wall loops', from: '2', to: '5' }),
+      change(3, { actor: 'agent', kind: 'setting', label: 'Sparse infill density', from: '15%', to: '35%' }),
+      change(4, { actor: 'agent', kind: 'setting', label: 'Sparse infill pattern', from: 'grid', to: 'gyroid' }),
+      change(5, { actor: 'agent', kind: 'setting', label: 'Top shell layers', from: '3', to: '5' }),
+      change(6, { actor: 'agent', kind: 'setting', label: 'Outer wall speed', from: '200 mm/s', to: '120 mm/s' }),
+    ]);
+    const pill = screen.getByRole('button', { name: /Laid flat · 5 walls · 35% gyroid.*\+3/ });
+    expect(pill).toHaveAttribute('aria-expanded', 'false');
+    expect(pill.querySelector('.settings-changes-icon')).toBeInTheDocument();
+    fireEvent.click(pill);
+    expect(screen.getByRole('list', { name: '' })).toHaveTextContent('Outer wall speed');
+  });
+
+  it('shows a known hand-edit location', () => {
+    thread([change(1, { location: 'on the plate' })]);
+    expect(rows()[0]).toContain('you, on the plate');
+  });
+
   it('interleaves runs with history cards in seq order after the item they follow', () => {
     const build = {
       id: 'b-1', seq: 5, createdAt: now, projectId: 'p', conversationId: 'conv-1', afterMessageId: 'm-2',

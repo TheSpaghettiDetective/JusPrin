@@ -3,7 +3,7 @@ import { BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, SliceStatisticsInfo } f
 import { chatTimestamp } from './ChatNavigation';
 
 export type ManufacturingHistoryEntry =
-  | { kind: 'build'; seq: number; afterMessageId: string; record: BuildInfo }
+  | { kind: 'build'; seq: number; afterMessageId: string; record: BuildInfo; copy?: ExportedCopyInfo }
   | { kind: 'copy'; seq: number; afterMessageId: string; record: ExportedCopyInfo }
   | { kind: 'print'; seq: number; afterMessageId: string; record: PhysicalPrintInfo };
 
@@ -16,7 +16,7 @@ function decimal(value: number, digits: number): string {
 function coarseDuration(seconds: number): string {
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
+  return hours > 0 ? `${hours}h ${String(minutes % 60).padStart(2, '0')}m` : `${minutes}m`;
 }
 
 // The leading eight hex digits in the two groups the timeline reads them as.
@@ -88,24 +88,34 @@ function HistorySummary({ kind, id, status, tone, time, children }: {
   );
 }
 
-export function ManufacturingHistoryCard({ entry }: { entry: ManufacturingHistoryEntry }) {
+export function ManufacturingHistoryCard({ entry, onDiscussFailure, discussDisabled = false }: {
+  entry: ManufacturingHistoryEntry;
+  onDiscussFailure?: (print: PhysicalPrintInfo) => void;
+  discussDisabled?: boolean;
+}) {
   if (entry.kind === 'build') {
     const build = entry.record;
+    const copy = entry.copy;
+    const copyName = copy?.destination.split(/[\\/]/).pop();
     return (
       <article className="history-card build-card" aria-label={`Build ${build.id}`}>
         <details className="history-details">
-          <HistorySummary
-            kind="Build"
-            id={build.id}
-            status={build.stale ? 'Stale' : 'Current inputs'}
-            tone={build.stale ? 'warning' : 'success'}
-            time={chatTimestamp(build.createdAt)}
-          >
-            <span className="history-line">{summaryStats(build.statistics)}</span>
-            {build.outputHash && <span className="history-line"><code title={build.outputHash}>{shortHash(build.outputHash)}</code></span>}
-            {build.stale && <span className="history-line history-note">The project changed after this build — slice again to match the plate.</span>}
-          </HistorySummary>
+          <summary className="history-summary">
+            <span className="history-summary-head">
+              <span className="history-title"><span className="history-kind">G-code</span>
+                <code title={build.outputHash}>{build.outputHash ? shortHash(build.outputHash) : build.id}</code></span>
+              <span className="history-time">{chatTimestamp(build.createdAt)}</span>
+              <span className="history-disclosure" aria-hidden="true" />
+            </span>
+            <strong className="build-stats-line">{summaryStats(build.statistics)}</strong>
+            {build.printer && <span className="build-target">{build.sentAt ? 'Sent to' : 'Sliced for'} {build.printer}</span>}
+            {build.deliveryConfirmedAt && <span className="build-delivery">✓ {chatTimestamp(build.deliveryConfirmedAt)} · on {build.deliveryLocation || 'the printer'}</span>}
+            {copy && <span className="build-export">{copyName || copy.destination} · {copy.verified ? 'Checksum verified' : copy.modified ? 'Checksum differs' : 'Not checked'}</span>}
+            {(build.sentAt || copy?.verified) && <span className="history-reprint" aria-disabled="true"
+              title="This build does not retain a G-code file that the app can resend">Reprint this G-code</span>}
+          </summary>
           <div className="history-detail">
+            {build.stale && <p className="history-note">Stale · The project changed after this G-code was made. Slice again to match the plate.</p>}
             <Facts plate={build.plateName} printer={build.printer} material={build.material} />
             <Statistics statistics={build.statistics} />
             <dl className="history-hashes">
@@ -151,6 +161,44 @@ export function ManufacturingHistoryCard({ entry }: { entry: ManufacturingHistor
   const started = chatTimestamp(print.startedAt);
   const ended = chatTimestamp(print.endedAt);
   const runWindow = started && ended ? `${started} → ${ended}` : started || ended;
+  const elapsedSeconds = (Date.parse(print.endedAt) - Date.parse(print.startedAt)) / 1000;
+  const elapsed = Number.isFinite(elapsedSeconds) && elapsedSeconds >= 0 ? coarseDuration(elapsedSeconds) : '';
+  const details = (
+    <div className="history-detail">
+      <Facts plate={print.plateName} printer={print.printer} material={print.material} />
+      <dl className="history-facts">
+        <div><dt>Started</dt><dd>{print.startedAt}</dd></div>
+        <div><dt>Ended</dt><dd>{print.endedAt}</dd></div>
+        {print.failure && <div><dt>Failure</dt><dd>{print.failure}</dd></div>}
+      </dl>
+      <Statistics statistics={print.statistics} />
+      <dl className="history-hashes">
+        <HashValue label="Input SHA-256" value={print.manufacturingInputHash} />
+        <HashValue label="Build SHA-256" value={print.outputHash} />
+        <HashValue label="Printed G-code SHA-256" value={print.gcodeHash} />
+      </dl>
+    </div>
+  );
+  if (print.outcome === 'failed') {
+    return (
+      <article className="history-card print-card print-failed" aria-label={`Failed physical print ${print.id}`}>
+        <details className="history-details">
+          <summary className="history-summary">
+            <span className="failure-heading">
+              <span className="failure-kicker"><span className="failure-dot" aria-hidden="true" />Print failed</span>
+              {runWindow && <span className="failure-time">{runWindow}</span>}
+              <span className="history-disclosure" aria-hidden="true" />
+            </span>
+            <strong className="failure-title">{print.printer || 'Printer'} · stopped{print.stoppedPercent !== undefined ? ` at ${print.stoppedPercent}%${elapsed ? `, ${elapsed} in` : ''}` : elapsed ? ` after ${elapsed}` : ''}</strong>
+            {print.failure && <span className="failure-reason">{print.failure}{print.gcodeHash && ` · G-code ${shortHash(print.gcodeHash)}`}</span>}
+          </summary>
+          {details}
+        </details>
+        {onDiscussFailure && <button type="button" className="failure-action" disabled={discussDisabled}
+          onClick={() => onDiscussFailure(print)}>Discuss this failure</button>}
+      </article>
+    );
+  }
   return (
     <article className="history-card print-card" aria-label={`Physical print ${print.id}`}>
       <details className="history-details">
@@ -164,20 +212,7 @@ export function ManufacturingHistoryCard({ entry }: { entry: ManufacturingHistor
           {print.printer && <span className="history-line">{print.printer}</span>}
           {print.failure && <span className="history-line history-note">{print.failure}</span>}
         </HistorySummary>
-        <div className="history-detail">
-          <Facts plate={print.plateName} printer={print.printer} material={print.material} />
-          <dl className="history-facts">
-            <div><dt>Started</dt><dd>{print.startedAt}</dd></div>
-            <div><dt>Ended</dt><dd>{print.endedAt}</dd></div>
-            {print.failure && <div><dt>Failure</dt><dd>{print.failure}</dd></div>}
-          </dl>
-          <Statistics statistics={print.statistics} />
-          <dl className="history-hashes">
-            <HashValue label="Input SHA-256" value={print.manufacturingInputHash} />
-            <HashValue label="Build SHA-256" value={print.outputHash} />
-            <HashValue label="Printed G-code SHA-256" value={print.gcodeHash} />
-          </dl>
-        </div>
+        {details}
       </details>
     </article>
   );

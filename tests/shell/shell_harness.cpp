@@ -65,6 +65,13 @@
 //              setting by hand, asserts the thread's change rows and the
 //              "Answered · nothing changed" marker, and writes
 //              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
+//   --figma-timeline-capture <output-directory>
+//              shows the entire First print story from the two Figma timeline
+//              frames in the real Agent WebView, then captures it with the
+//              revert confirmation closed and open. Uses deterministic records
+//              and an isolated project; no OpenAI key or printer is needed.
+//   --figma-timeline-manual
+//              leaves that isolated timeline open for hands-on inspection.
 //   --external-project-history [--external-project-history-capture <output-directory>]
 //              checks the repeated external 3MF choice and explicit,
 //              confirmed version restore; optionally captures a history row
@@ -163,6 +170,7 @@
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
+#include "figma_timeline_fixture.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
@@ -580,6 +588,7 @@ struct HarnessState
         LiveAgentUnavailable,
         RecomputingCapture,
         TimelineCapture,
+        FigmaTimelineCapture,
         ToolStripCapture,
         ManualToolStrip,
         PrinterMenu,
@@ -603,6 +612,7 @@ struct HarnessState
     bool mcp_bridge{false};
     bool header_visual{false};
     bool task_chat_configured{false};
+    bool figma_timeline_manual{false};
     std::optional<bool> dark_appearance;
     fs::path capture_dir;
     // --printer-connect-capture: the connect flow only, pictured.
@@ -692,148 +702,11 @@ public:
     {
         try {
             if (m_state->mode == HarnessState::Mode::AutosaveSeed) {
-                check(!installed_shell()->autosave()->pin_current().empty(),
-                      "restart_blank_agent_before_state_pinned");
-                const fs::path source = fs::path(data_dir()) / "restart-source.stl";
-                fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
-                              source, fs::copy_option::overwrite_if_exists);
-                check(m_plater->load_files(std::vector<std::string>{source.string()},
-                      LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
-                      "restart_seed_model_loaded");
-                auto& document = persistence().document();
-                document.create_conversation("Restart proof", persistence().timestamp());
-                persistence().set_draft("unfinished restart draft");
-                persistence().commit();
-                check(installed_shell()->autosave()->save_now(), "restart_seed_committed");
-                Slic3r::set_backup_interval(1);
-                Slic3r::backup_soon();
-                const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
-                check(std::any_of(home_projects.begin(), home_projects.end(), [id = document.project_id()](const auto& project) {
-                    return project.id == id;
-                }), "home_lists_saved_local_project");
-                const auto home_entry = std::find_if(home_projects.begin(), home_projects.end(),
-                    [id = document.project_id()](const auto& project) { return project.id == id; });
-                check(home_entry != home_projects.end() && home_entry->name == "restart-source" &&
-                          home_entry->status_text == "Saved" &&
-                          home_entry->path.find("/jusprin/projects/") != std::string::npos,
-                      "home_describes_managed_project");
-                check(home_entry != home_projects.end() &&
-                          preview_has_subject(home_entry->thumbnail_url),
-                      "home_saved_project_has_visible_preview");
-                const auto preview_file = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
-                                          document.project_id() / "preview.json";
-                const auto preview_time = std::filesystem::last_write_time(preview_file);
-                installed_shell()->home_view()->backend().recent_projects();
-                check(std::filesystem::last_write_time(preview_file) == preview_time,
-                      "home_preview_cache_avoids_repeat_writes");
-                Agent::ConversationMessage reply;
-                reply.id = document.allocate_message_id();
-                reply.role = Agent::MessageRole::Assistant;
-                reply.state = Agent::MessageState::Streaming;
-                const std::string conversation = document.active_conversation_id();
-                document.append_message(conversation, reply, persistence().timestamp());
-                persistence().commit();
-                const auto exports_before_reply = installed_shell()->autosave()->capture_attempts();
-                for (int word = 0; word < 4; ++word) {
-                    reply.text += " word";
-                    check(document.update_message(conversation, reply), "stream_reply_message_updated");
-                    persistence().commit();
-                    installed_shell()->autosave()->tick();
-                    wxMilliSleep(900);
-                }
-                reply.state = Agent::MessageState::Complete;
-                check(document.update_message(conversation, reply), "stream_reply_completed");
-                persistence().commit();
-                check(installed_shell()->autosave()->save_now(), "stream_reply_durable");
-                check(installed_shell()->autosave()->capture_attempts() == exports_before_reply,
-                      "stream_reply_does_not_export_model_per_word");
-                const auto before_plan = installed_shell()->autosave()->current_version();
-                const auto exports_before_plan = installed_shell()->autosave()->capture_attempts();
-                Agent::PlanRecord plan;
-                plan.headline = "Check the first layer";
-                document.set_plan(plan, persistence().timestamp());
-                persistence().commit();
-                check(installed_shell()->autosave()->save_now(), "document_plan_durable");
-                check(installed_shell()->autosave()->current_version() == before_plan &&
-                          installed_shell()->autosave()->capture_attempts() == exports_before_plan,
-                      "document_plan_does_not_create_model_checkpoint");
-                const auto before_rename = installed_shell()->autosave()->current_version();
-                m_plater->get_partplate_list().get_plate(0)->set_plate_name("Quiet plate rename");
-                wait_until([before_rename] {
-                    return installed_shell()->autosave()->current_version() != before_rename;
-                }, "restart_plate_rename_saved_without_workspace_event", [self = shared_from_this(), source] {
-                    const auto& document = self->persistence().document();
-                    std::ofstream expected((fs::path(data_dir()) / "restart-expected.json").string());
-                    expected << nlohmann::json{{"projectId", document.project_id()},
-                                               {"versionId", installed_shell()->autosave()->current_version()},
-                                               {"backupPath", self->m_plater->model().get_backup_path()}}.dump();
-                    expected.close();
-                    fs::remove(source);
-                    const auto attempts = installed_shell()->autosave()->capture_attempts();
-                    const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-                    self->wait_until([until] { return std::chrono::steady_clock::now() >= until; },
-                                     "restart_idle_observation_window", [self, attempts] {
-                        self->check(installed_shell()->autosave()->capture_attempts() == attempts,
-                                    "restart_idle_does_not_export_metadata_again");
-                        const fs::path backup = self->m_plater->model().get_backup_path();
-                        self->check(!fs::exists(backup / ".3mf"), "managed_project_skips_orca_backup_archive");
-                        bool object_cache = false;
-                        const fs::path objects = backup / "3D" / "Objects";
-                        if (fs::is_directory(objects))
-                            for (fs::directory_iterator it(objects), end; it != end; ++it)
-                                object_cache |= it->path().extension() == ".model";
-                        self->check(!object_cache, "managed_project_skips_orca_backup_mesh_cache");
-                        const std::string saved_id = self->persistence().document().project_id();
-                        self->check(self->m_plater->new_project(true, true) != wxID_CANCEL,
-                                    "home_local_open_starts_from_another_project");
-                        self->wait_until([self, saved_id] {
-                            return self->persistence().document().project_id() != saved_id;
-                        }, "home_new_project_identity_settled", [self, saved_id] {
-                            installed_shell()->home_view()->backend().open_project(saved_id);
-                            self->check(self->persistence().document().project_id() == saved_id &&
-                                            self->m_plater->model().objects.size() == 1 &&
-                                            self->m_plater->get_partplate_list().get_plate(0)->get_plate_name() == "Quiet plate rename",
-                                        "home_opens_saved_local_project");
-                            self->finish();
-                        });
-                    });
-                });
+                verify_autosave_seed();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::AutosaveReopen) {
-                std::ifstream expected((fs::path(data_dir()) / "restart-expected.json").string());
-                nlohmann::json saved;
-                expected >> saved;
-                wait_until([this, id = saved.at("projectId").get<std::string>()] {
-                    return persistence().document().project_id() == id && m_plater->model().objects.size() == 1;
-                }, "restart_project_resumed", [self = shared_from_this(), saved] {
-                    self->check(installed_shell()->autosave()->current_version() == saved.at("versionId").get<std::string>(),
-                                "restart_head_preserved");
-                    self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n') ==
-                                    wxString::FromUTF8("restart-source \xE2\x80\x94 ") + wxGetTranslation("Saved"),
-                                "restart_title_uses_local_project_name_and_save_state");
-                    const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
-                    self->check(std::any_of(home_projects.begin(), home_projects.end(),
-                        [id = saved.at("projectId").get<std::string>()](const auto& project) {
-                            return project.id == id && project.name == "restart-source" &&
-                                   preview_has_subject(project.thumbnail_url);
-                        }), "restart_home_lists_local_project_with_preview");
-                    self->check(self->persistence().draft() == "unfinished restart draft" &&
-                                self->persistence().document().conversations().size() == 2,
-                                "restart_semantic_state_preserved");
-                    const auto replies = self->persistence().document().messages(
-                        self->persistence().document().active_conversation_id());
-                    self->check(std::any_of(replies.begin(), replies.end(), [](const auto& message) {
-                        return message.role == Agent::MessageRole::Assistant &&
-                               message.state == Agent::MessageState::Complete &&
-                               message.text == " word word word word";
-                    }), "restart_streamed_reply_preserved");
-                    self->check(self->persistence().document().plan().headline == "Check the first layer",
-                                "restart_document_plan_preserved");
-                    self->check(self->m_plater->get_partplate_list().get_plate(0)->get_plate_name() == "Quiet plate rename",
-                                "restart_quiet_plate_rename_restored");
-                    self->finish();
-                });
+                verify_autosave_reopen();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -861,6 +734,18 @@ public:
             if (m_state->mode == HarnessState::Mode::McpSetup) {
                 verify_mcp_setup();
                 finish();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::FigmaTimelineCapture) {
+                m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                wait_until([this] {
+                    return m_notebook->GetSelection() == MainFrame::tp3DEditor &&
+                           m_plater->canvas3D()->is_initialized();
+                }, "figma_timeline_canvas_ready", [self = shared_from_this()] {
+                    self->load_multi_plate_fixture();
+                    self->verify_canvas_interaction();
+                    self->wait_for_agent_page("figma_timeline", [self] { self->begin_figma_timeline_capture(); });
+                });
                 return;
             }
             load_multi_plate_fixture();
@@ -956,6 +841,155 @@ public:
     }
 
 private:
+    void verify_autosave_seed()
+    {
+        check(!installed_shell()->autosave()->pin_current().empty(),
+              "restart_blank_agent_before_state_pinned");
+        const fs::path source = fs::path(data_dir()) / "restart-source.stl";
+        fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
+                      source, fs::copy_option::overwrite_if_exists);
+        check(m_plater->load_files(std::vector<std::string>{source.string()},
+              LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "restart_seed_model_loaded");
+        auto& document = persistence().document();
+        document.create_conversation("Restart proof", persistence().timestamp());
+        persistence().set_draft("unfinished restart draft");
+        persistence().commit();
+        check(installed_shell()->autosave()->save_now(), "restart_seed_committed");
+        Slic3r::set_backup_interval(1);
+        Slic3r::backup_soon();
+        const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
+        check(std::any_of(home_projects.begin(), home_projects.end(), [id = document.project_id()](const auto& project) {
+            return project.id == id;
+        }), "home_lists_saved_local_project");
+        const auto home_entry = std::find_if(home_projects.begin(), home_projects.end(),
+            [id = document.project_id()](const auto& project) { return project.id == id; });
+        check(home_entry != home_projects.end() && home_entry->name == "restart-source" &&
+                  home_entry->status_text == "Saved" &&
+                  home_entry->path.find("/jusprin/projects/") != std::string::npos,
+              "home_describes_managed_project");
+        check(home_entry != home_projects.end() &&
+                  preview_has_subject(home_entry->thumbnail_url),
+              "home_saved_project_has_visible_preview");
+        const auto preview_file = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                  document.project_id() / "preview.json";
+        const auto preview_time = std::filesystem::last_write_time(preview_file);
+        installed_shell()->home_view()->backend().recent_projects();
+        check(std::filesystem::last_write_time(preview_file) == preview_time,
+              "home_preview_cache_avoids_repeat_writes");
+        Agent::ConversationMessage reply;
+        reply.id = document.allocate_message_id();
+        reply.role = Agent::MessageRole::Assistant;
+        reply.state = Agent::MessageState::Streaming;
+        const std::string conversation = document.active_conversation_id();
+        document.append_message(conversation, reply, persistence().timestamp());
+        persistence().commit();
+        const auto exports_before_reply = installed_shell()->autosave()->capture_attempts();
+        for (int word = 0; word < 4; ++word) {
+            reply.text += " word";
+            check(document.update_message(conversation, reply), "stream_reply_message_updated");
+            persistence().commit();
+            installed_shell()->autosave()->tick();
+            wxMilliSleep(900);
+        }
+        reply.state = Agent::MessageState::Complete;
+        check(document.update_message(conversation, reply), "stream_reply_completed");
+        persistence().commit();
+        check(installed_shell()->autosave()->save_now(), "stream_reply_durable");
+        check(installed_shell()->autosave()->capture_attempts() == exports_before_reply,
+              "stream_reply_does_not_export_model_per_word");
+        const auto before_plan = installed_shell()->autosave()->current_version();
+        const auto exports_before_plan = installed_shell()->autosave()->capture_attempts();
+        Agent::PlanRecord plan;
+        plan.headline = "Check the first layer";
+        document.set_plan(plan, persistence().timestamp());
+        persistence().commit();
+        check(installed_shell()->autosave()->save_now(), "document_plan_durable");
+        check(installed_shell()->autosave()->current_version() == before_plan &&
+                  installed_shell()->autosave()->capture_attempts() == exports_before_plan,
+              "document_plan_does_not_create_model_checkpoint");
+        const auto before_rename = installed_shell()->autosave()->current_version();
+        m_plater->get_partplate_list().get_plate(0)->set_plate_name("Quiet plate rename");
+        wait_until([before_rename] {
+            return installed_shell()->autosave()->current_version() != before_rename;
+        }, "restart_plate_rename_saved_without_workspace_event", [self = shared_from_this(), source] {
+            const auto& document = self->persistence().document();
+            std::ofstream expected((fs::path(data_dir()) / "restart-expected.json").string());
+            expected << nlohmann::json{{"projectId", document.project_id()},
+                                       {"versionId", installed_shell()->autosave()->current_version()},
+                                       {"backupPath", self->m_plater->model().get_backup_path()}}.dump();
+            expected.close();
+            fs::remove(source);
+            const auto attempts = installed_shell()->autosave()->capture_attempts();
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            self->wait_until([until] { return std::chrono::steady_clock::now() >= until; },
+                             "restart_idle_observation_window", [self, attempts] {
+                self->check(installed_shell()->autosave()->capture_attempts() == attempts,
+                            "restart_idle_does_not_export_metadata_again");
+                const fs::path backup = self->m_plater->model().get_backup_path();
+                self->check(!fs::exists(backup / ".3mf"), "managed_project_skips_orca_backup_archive");
+                bool object_cache = false;
+                const fs::path objects = backup / "3D" / "Objects";
+                if (fs::is_directory(objects))
+                    for (fs::directory_iterator it(objects), end; it != end; ++it)
+                        object_cache |= it->path().extension() == ".model";
+                self->check(!object_cache, "managed_project_skips_orca_backup_mesh_cache");
+                const std::string saved_id = self->persistence().document().project_id();
+                self->check(self->m_plater->new_project(true, true) != wxID_CANCEL,
+                            "home_local_open_starts_from_another_project");
+                self->wait_until([self, saved_id] {
+                    return self->persistence().document().project_id() != saved_id;
+                }, "home_new_project_identity_settled", [self, saved_id] {
+                    installed_shell()->home_view()->backend().open_project(saved_id);
+                    self->check(self->persistence().document().project_id() == saved_id &&
+                                    self->m_plater->model().objects.size() == 1 &&
+                                    self->m_plater->get_partplate_list().get_plate(0)->get_plate_name() == "Quiet plate rename",
+                                "home_opens_saved_local_project");
+                    self->finish();
+                });
+            });
+        });
+    }
+
+    void verify_autosave_reopen()
+    {
+        std::ifstream expected((fs::path(data_dir()) / "restart-expected.json").string());
+        nlohmann::json saved;
+        expected >> saved;
+        const std::string project_id = saved.at("projectId").get<std::string>();
+        const std::string version_id = saved.at("versionId").get<std::string>();
+        wait_until([this, project_id] {
+            return persistence().document().project_id() == project_id && m_plater->model().objects.size() == 1;
+        }, "restart_project_resumed", [self = shared_from_this(), project_id, version_id] {
+            self->check(installed_shell()->autosave()->current_version() == version_id,
+                        "restart_head_preserved");
+            self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n') ==
+                            wxString::FromUTF8("restart-source \xE2\x80\x94 ") + wxGetTranslation("Saved"),
+                        "restart_title_uses_local_project_name_and_save_state");
+            const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
+            self->check(std::any_of(home_projects.begin(), home_projects.end(),
+                [&project_id](const auto& project) {
+                    return project.id == project_id && project.name == "restart-source" &&
+                           preview_has_subject(project.thumbnail_url);
+                }), "restart_home_lists_local_project_with_preview");
+            self->check(self->persistence().draft() == "unfinished restart draft" &&
+                        self->persistence().document().conversations().size() == 2,
+                        "restart_semantic_state_preserved");
+            const auto replies = self->persistence().document().messages(
+                self->persistence().document().active_conversation_id());
+            self->check(std::any_of(replies.begin(), replies.end(), [](const auto& message) {
+                return message.role == Agent::MessageRole::Assistant &&
+                       message.state == Agent::MessageState::Complete &&
+                       message.text == " word word word word";
+            }), "restart_streamed_reply_preserved");
+            self->check(self->persistence().document().plan().headline == "Check the first layer",
+                        "restart_document_plan_preserved");
+            self->check(self->m_plater->get_partplate_list().get_plate(0)->get_plate_name() == "Quiet plate rename",
+                        "restart_quiet_plate_rename_restored");
+            self->finish();
+        });
+    }
+
     void verify_stock_slice()
     {
         verify_stock_mode();
@@ -4868,6 +4902,159 @@ private:
                    });
     }
 
+    // A visual fixture for both full-timeline Figma frames. The conversation
+    // and manufacturing facts are illustrative, but they pass through the
+    // project's real document and the production WebView. Real model edits
+    // back the saved versions; the named change entries reproduce the Figma
+    // story for this visual fixture.
+    void begin_figma_timeline_capture()
+    {
+        DynamicPrintConfig diff;
+        diff.set_deserialize_strict("sparse_infill_density", "35%");
+        diff.set_deserialize_strict("wall_loops", "5");
+        diff.set_deserialize_strict("sparse_infill_pattern", "gyroid");
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff);
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] { return active_plate_sliced_and_idle(); }, "figma_timeline_fixture_sliced",
+                   [self = shared_from_this()] { self->seed_figma_timeline(); });
+    }
+
+    void seed_figma_timeline()
+    {
+        auto& document = persistence().document();
+        const auto fixture = JusPrinTest::seed_figma_timeline_start(document);
+        check(m_plater->select_object(0), "figma_timeline_object_selected");
+        check(document.set_active_conversation(fixture.background_conversation_id),
+              "figma_timeline_background_selected_for_model_edit");
+        m_plater->mirror(Slic3r::X);
+        check(document.set_active_conversation(fixture.conversation_id),
+              "figma_timeline_conversation_restored");
+        for (int step = 0; step < 11; ++step) {
+            Agent::ChangeEntry change;
+            change.kind = "step";
+            change.actor = "user";
+            change.label = "Rotated bracket to 45°";
+            change.location = "on the plate";
+            document.add_change(std::move(change), "2026-10-01T15:02:00Z");
+        }
+        check(document.set_active_conversation(fixture.background_conversation_id),
+              "figma_timeline_background_selected_for_setting_edit");
+        DynamicPrintConfig diff;
+        diff.set_deserialize_strict("sparse_infill_density", "45%");
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff);
+        check(document.set_active_conversation(fixture.conversation_id),
+              "figma_timeline_conversation_restored_after_setting");
+        Agent::ChangeEntry infill;
+        infill.kind = "setting";
+        infill.actor = "user";
+        infill.label = "Infill";
+        infill.from = "35%";
+        infill.to = "45%";
+        infill.preset = "Strong";
+        document.add_change(std::move(infill), "2026-10-01T15:03:00Z");
+        check(installed_shell()->autosave()->save_now(), "figma_timeline_latest_edit_saved");
+        // A subsequent model edit in another conversation makes the infill
+        // checkpoint a meaningful restore target, as in the Figma frame.
+        check(document.set_active_conversation(fixture.background_conversation_id),
+              "figma_timeline_background_selected_for_later_edit");
+        m_plater->mirror(Slic3r::Y);
+        check(document.set_active_conversation(fixture.conversation_id),
+              "figma_timeline_conversation_restored_after_later_edit");
+        check(installed_shell()->autosave()->save_now(), "figma_timeline_later_edit_saved");
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] { return active_plate_sliced_and_idle(); }, "figma_timeline_revised_slice",
+                   [self = shared_from_this(), fixture] { self->finish_figma_timeline_capture(fixture); });
+    }
+
+    void finish_figma_timeline_capture(const JusPrinTest::FigmaTimelineFixture& fixture)
+    {
+        auto& document = persistence().document();
+        JusPrinTest::finish_figma_timeline(document, fixture);
+        persistence().commit();
+        installed_shell()->agent_pane()->web_view().host().refresh_page_state();
+        m_frame->SetSize(m_frame->FromDIP(wxSize(1200, 1850)));
+        auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+        check(divider != nullptr, "figma_timeline_resize_handle_found");
+        if (divider) {
+            const wxPoint start(divider->GetClientSize().x / 2, divider->GetClientSize().y / 2);
+            const int delta = installed_shell()->agent_pane()->GetSize().x - divider->FromDIP(429);
+            for (wxEventType type : {wxEVT_LEFT_DOWN, wxEVT_MOTION, wxEVT_LEFT_UP}) {
+                wxMouseEvent event(type);
+                event.SetPosition(start + (type == wxEVT_LEFT_DOWN ? wxPoint() : wxPoint(delta, 0)));
+                event.SetEventObject(divider);
+                divider->GetEventHandler()->ProcessEvent(event);
+            }
+            wxYield();
+        }
+        wait_until([this] { return persistence().draft().rfind("figma-timeline=", 0) == 0; },
+                   "figma_timeline_rendered", [self = shared_from_this()] { self->capture_figma_timeline(); },
+                   [] { probe_figma_timeline(); });
+    }
+    static void probe_figma_timeline()
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "(function(){ var list = document.querySelector('.message-list');"
+            "  if (!list || !window.__jusprinTest) return;"
+            "  var found = [document.querySelectorAll('.message.user').length,"
+            "    document.querySelectorAll('.message.assistant').length,"
+            "    document.querySelectorAll('.history-card').length,"
+            "    document.querySelectorAll('.change-row').length,"
+            "    document.querySelectorAll('.change-revert-button').length,"
+            "    document.querySelectorAll('.settings-changes .settings-change-row').length,"
+            "    Number(Array.from(document.querySelectorAll('.settings-changes-heading')).some(function(heading) {"
+            "      return (heading.textContent || '').toLowerCase().includes('4 of 12 settings'); })),"
+            "    Number((document.querySelector('.agent-change-summary')?.textContent || '').includes('+3'))];"
+            "  var state = window.__jusprinTest.state();"
+            "  window.__jusprinTest.setDraft('figma-timeline=' + found.join(',') + ';' + list.clientHeight + '/' + list.scrollHeight + ';points=' + JSON.stringify(state.restorePoints));"
+            "})()");
+    }
+
+    void capture_figma_timeline()
+    {
+        const std::string probe = persistence().draft();
+        std::cout << "HARNESS FIGMA TIMELINE PROBE " << probe << std::endl;
+        check(probe.find("figma-timeline=3,3,3,6,1,4,1,1;") == 0, "figma_timeline_has_messages_history_and_revert");
+        persistence().set_draft({});
+        installed_shell()->agent_pane()->web_view().host().refresh_page_state();
+        if (m_state->figma_timeline_manual) {
+            m_frame->SetSize(m_frame->FromDIP(wxSize(1200, 850)));
+            m_frame->CentreOnScreen();
+            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+                               "document.querySelector('.message-list').scrollTop = 0");
+            m_poll_timer.Stop();
+            std::cerr << "HARNESS FIGMA TIMELINE MANUAL READY failures=" << m_failures << '\n';
+            return;
+        }
+        auto* view = installed_shell()->agent_pane()->web_view().webview();
+        WebView::RunScript(view, "(function(){ var input = document.querySelector('.composer textarea');"
+                                 "if (input) { var setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;"
+                                 "setter.call(input, ''); input.dispatchEvent(new Event('input', {bubbles:true})); } })()");
+        auto ticks = std::make_shared<int>(0);
+        wait_until([ticks] { return ++*ticks > 10; }, "figma_timeline_top_settled", [self = shared_from_this()] {
+            auto* view = installed_shell()->agent_pane()->web_view().webview();
+            WebView::RunScript(view, "(function(){ var list = document.querySelector('.message-list');"
+                                     "list.scrollTop = 0; list.dispatchEvent(new Event('scroll', {bubbles:true})); })()");
+            auto top_ticks = std::make_shared<int>(0);
+            self->wait_until([top_ticks] { return ++*top_ticks > 10; }, "figma_timeline_top_scrolled", [self] {
+                auto* view = installed_shell()->agent_pane()->web_view().webview();
+                self->capture_web_view(view, "figma-timeline-top");
+                WebView::RunScript(view, "document.querySelector('.message-list').scrollTop = document.querySelector('.message-list').scrollHeight");
+                auto bottom_ticks = std::make_shared<int>(0);
+                self->wait_until([bottom_ticks] { return ++*bottom_ticks > 10; }, "figma_timeline_bottom_settled", [self] {
+                    auto* view = installed_shell()->agent_pane()->web_view().webview();
+                    self->capture_web_view(view, "figma-timeline-bottom");
+                    WebView::RunScript(view, "if (document.querySelector('.change-revert-button')) document.querySelector('.change-revert-button').click()");
+                    self->wait_until([self] { return self->persistence().draft() == "revert-popover=open"; },
+                        "figma_timeline_revert_open", [self] {
+                            self->capture_web_view(installed_shell()->agent_pane()->web_view().webview(),
+                                                   "figma-timeline-revert-open");
+                            self->finish();
+                        }, [] { probe_revert_popover(); });
+                });
+            });
+        });
+    }
+
     // Revision-timeline handoff B10: the thread the Figma frame
     // "print-timeline-panel-full · no revert" draws, built from real edits so
     // the rows come through the adapter, persistence and the bridge exactly
@@ -8262,6 +8449,18 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::TimelineCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
+        else if (argument == "--figma-timeline-capture") {
+            if (++index == argc) {
+                std::cerr << "--figma-timeline-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::FigmaTimelineCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--figma-timeline-manual") {
+            state->mode = HarnessState::Mode::FigmaTimelineCapture;
+            state->figma_timeline_manual = true;
+        }
         else if (argument == "--tool-strip-capture") {
             if (++index == argc) {
                 std::cerr << "--tool-strip-capture requires an output directory\n";
@@ -8389,7 +8588,7 @@ int main(int argc, char** argv)
     int exit_code = state->result;
     if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
         state->mode == HarnessState::Mode::ManualUnconfigured || state->mode == HarnessState::Mode::ManualMcp ||
-        state->mode == HarnessState::Mode::ManualToolStrip)
+        state->mode == HarnessState::Mode::ManualToolStrip || state->figma_timeline_manual)
         exit_code = gui_result;
     else if (state->result < 0)
         exit_code = gui_result == 0 ? 1 : gui_result;
