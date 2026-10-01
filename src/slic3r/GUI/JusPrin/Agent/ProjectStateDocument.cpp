@@ -106,6 +106,13 @@ void write_message_fields(json& entry, const ConversationMessage& message)
         entry["swatch"] = message.swatch;
     else
         entry.erase("swatch");
+    if (!message.file_report.empty()) {
+        entry["fileReport"]     = message.file_report;
+        entry["fileReportCard"] = message.file_report_card;
+    } else {
+        entry.erase("fileReport");
+        entry.erase("fileReportCard");
+    }
 }
 
 ConversationMessage read_message(const json& entry)
@@ -125,7 +132,9 @@ ConversationMessage read_message(const json& entry)
         for (const json& id : entry["attachments"])
             if (id.is_string())
                 message.attachment_ids.push_back(id.get<std::string>());
-    message.swatch = entry.value("swatch", "");
+    message.swatch           = entry.value("swatch", "");
+    message.file_report      = entry.value("fileReport", "");
+    message.file_report_card = entry.value("fileReportCard", false);
     return message;
 }
 

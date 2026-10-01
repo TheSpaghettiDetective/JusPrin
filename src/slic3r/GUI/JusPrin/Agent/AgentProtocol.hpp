@@ -29,7 +29,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
-                                                 "printer_panel"};
+                                                 "printer_panel", "file_reports"};
     return values;
 }
 
@@ -94,6 +94,9 @@ inline constexpr const char* kPrinterOpening      = "printer_opening";
 // the app sends as the state's session.
 inline constexpr const char* kFilamentInstructions = "filament_instructions";
 inline constexpr const char* kShellAction          = "shell_action";
+// What the model is told when a file report opens a turn, which the page
+// writes.
+inline constexpr const char* kFileReportInstructions = "file_report_instructions";
 
 } // namespace Protocol
 
@@ -128,6 +131,10 @@ struct ConversationMessage
     int                       attempt{1};
     std::vector<std::string>  attachment_ids;    // user messages: sent attachment IDs
     std::string               swatch;            // notes: a colour that leads the line, "#RRGGBB"
+    // Notes: a file's load report (JSON), which the model reads; the page
+    // draws it only as a card, when the Agent could not speak about it.
+    std::string               file_report;
+    bool                      file_report_card{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

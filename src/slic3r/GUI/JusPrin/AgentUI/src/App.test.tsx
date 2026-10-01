@@ -286,6 +286,75 @@ describe('App', () => {
     expect(notes[1].querySelector('.note-swatch')).toBeNull();
   });
 
+  const fileReport = {
+    startedBy: 'user' as const,
+    projectOpened: true,
+    loads: [{ files: ['C:\\models\\bracket.3mf'], withSettings: true }],
+    messages: {
+      items: [
+        { title: 'JusPrin - Load 3MF', text: 'The 3MF is not supported by JusPrin, loading geometry data only.',
+          buttons: ['ok' as const], answer: 'ok' as const },
+        { title: 'JusPrin - Object too small', text: 'The object from file bracket.stl is too small.',
+          buttons: ['yes' as const, 'no' as const], answer: 'no' as const },
+      ],
+      truncated: false,
+    },
+    objects: { items: [], truncated: false },
+    truncated: false,
+  };
+
+  it('tells the project Agent what to say about a file, once per connection', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    const sent = host.received.filter((envelope) => envelope.type === 'file_report_instructions');
+    expect(sent).toHaveLength(1);
+    expect((sent[0].payload as { text: string }).text).toContain('For this response only');
+  });
+
+  it('draws no file report the Agent is speaking about', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('message_added', {
+      message: { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1, fileReport, fileReportCard: false },
+    });
+    expect(screen.queryByLabelText('Notes about this file')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.message.note')).toHaveLength(0);
+  });
+
+  it('places file notes above the original setup offer when no Agent is configured', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' }, conversation: [
+      { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1, fileReport, fileReportCard: true },
+    ] }));
+    const card = screen.getByLabelText('Notes about this file');
+    const offer = screen.getByTestId('agent-not-configured');
+    expect(card.compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByTestId('agent-unavailable')).not.toBeInTheDocument();
+    expect(card).toHaveTextContent('bracket.3mf');
+    // Titled without the app's own name, in OrcaSlicer's words.
+    expect(within(card).getByText('Load 3MF')).toBeInTheDocument();
+    expect(card).toHaveTextContent('loading geometry data only');
+    // A question answered in the person's place says what that left.
+    expect(card).toHaveTextContent('JusPrin answered No to this question.');
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Set up the agent/i })).toHaveLength(1);
+    expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
+    await userEvent.click(within(offer).getByRole('button', { name: 'Set up the agent' }));
+    expect(screen.getByTestId('setup-row-api-key')).toBeInTheDocument();
+  });
+
+  it('keeps file notes in history when the unconfigured chat has a user message', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' }, conversation: [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'older message', attempt: 1 },
+      { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1, fileReport, fileReportCard: true },
+    ] }));
+    expect(screen.getByTestId('agent-unavailable')).toBeInTheDocument();
+    expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
+    expect(screen.getByText('older message')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Notes about this file')).getByRole('button', { name: 'Set up the Agent' })).toBeEnabled();
+  });
+
   it('sends a user message on Enter and streams the reply with stop support', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);

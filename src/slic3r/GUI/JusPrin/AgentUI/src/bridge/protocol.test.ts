@@ -17,6 +17,7 @@ describe('protocol constants', () => {
     expect(PAGE_CAPABILITIES).toContain('agent_setup');
     expect(PAGE_CAPABILITIES).toContain('mcp_setup');
     expect(PAGE_CAPABILITIES).toContain('printer_panel');
+    expect(PAGE_CAPABILITIES).toContain('file_reports');
   });
 
   it('page and host message type unions cover the shared lists', () => {
@@ -46,6 +47,7 @@ describe('protocol constants', () => {
       'printer_opening',
       'filament_instructions',
       'shell_action',
+      'file_report_instructions',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

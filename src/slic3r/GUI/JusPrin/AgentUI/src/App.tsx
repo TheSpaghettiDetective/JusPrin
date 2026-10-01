@@ -12,6 +12,7 @@ import { Composer } from './components/Composer';
 import { PrinterCredentialCard } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
+import { fileReportInstructions } from './fileReportInstructions';
 import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
@@ -172,6 +173,20 @@ export function App({
     client.send('printer_instructions', { text });
   }, [printerPanel, state.session, state.connection, client]);
 
+  // What the project Agent is told about a file the person brings in; the app
+  // holds it for the turn a file report opens. Once per connection: a reload
+  // reconnects, and the words do not change.
+  const sentFileReportInstructions = useRef(false);
+  useEffect(() => {
+    if (printerPanel || embedded || state.connection !== 'connected') {
+      if (state.connection !== 'connected') sentFileReportInstructions.current = false;
+      return;
+    }
+    if (sentFileReportInstructions.current) return;
+    sentFileReportInstructions.current = true;
+    client.send('file_report_instructions', { text: fileReportInstructions() });
+  }, [printerPanel, embedded, state.connection, client]);
+
   // The filament chat's instructions, likewise: written from the facts the
   // app sends, sent again when they change, such as after a save as a copy.
   const sentFilamentInstructions = useRef<string | null>(null);
@@ -325,8 +340,15 @@ export function App({
 
   const unavailable = state.agentStatus === 'unavailable';
   // The printer greeting and a focused filament context note must not hide
-  // setup. The ordinary project dock keeps saved history visible instead.
-  const notConfigured = unavailable && (printerPanel || state.navigation.focused || state.messages.length === 0);
+  // setup. File reports are notes, so they do not turn an otherwise empty
+  // project conversation into history. Other saved history stays visible.
+  const onlyFileReports = state.messages.every((message) => message.role === 'note' && !!message.fileReport);
+  const fileReportNotes = state.messages.flatMap((message) =>
+    message.role === 'note' && message.fileReport && message.fileReportCard
+      ? [{ id: message.id, report: message.fileReport }]
+      : [],
+  );
+  const notConfigured = unavailable && (printerPanel || state.navigation.focused || onlyFileReports);
   const streaming = state.streamingMessageId !== null;
   const busy = streaming || state.conversationBusy;
   const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
@@ -376,6 +398,7 @@ export function App({
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
           onSend={sendMessage}
+          onSetUpAgent={openSetup}
         />
       );
     if (setupScreen === 'chooser')
@@ -406,7 +429,7 @@ export function App({
           }}
         />
       );
-    return <AgentNotConfiguredPane onSetUp={openSetup} />;
+    return <AgentNotConfiguredPane onSetUp={openSetup} fileReports={fileReportNotes} />;
   };
 
   if (printerPanel) {

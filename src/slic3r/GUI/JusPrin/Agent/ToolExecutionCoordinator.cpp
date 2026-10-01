@@ -1037,27 +1037,21 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         request.path                  = arguments.value("path", "");
         request.new_project           = arguments.value("new", false);
         request.load_project_settings = arguments.value("loadProjectSettings", "project") == "project";
-        const std::string units       = arguments.value("unitConversion", "keep");
-        request.units                 = units == "inches"        ? Workspace::UnitChoice::Inches :
-                                        units == "convertIfTiny" ? Workspace::UnitChoice::ConvertIfTiny :
-                                                                   Workspace::UnitChoice::Keep;
-        request.scale_oversized       = arguments.value("oversized", "keep") == "scaleToFit";
+        request.units                 = arguments.value("unitConversion", "keep") == "inches" ? Workspace::UnitChoice::Inches :
+                                                                                               Workspace::UnitChoice::Keep;
         request.discard_unsaved       = arguments.value("unsavedWork", "") == "discard";
         // The conversation belongs to the project being closed; it goes to
         // its recovery state before the project does.
         if (m_product_state != nullptr)
             m_product_state->flush_to_project();
-        std::vector<Workspace::LoadDecision> decisions;
+        Workspace::LoadReport report;
         const std::string action_id = activity.action_id;
-        const auto opened = m_workspace.open_project(request, decisions);
+        const auto opened = m_workspace.open_project(request, report);
         // Replacing the project clears the other activities, which may move
         // this one: find it again rather than trust the reference.
         ToolActivity& current = *find_mutable(action_id);
-        json asked = json::array();
-        for (const auto& decision : decisions)
-            if (asked.size() < 32) asked.push_back({{"question", decision.question}, {"answer", decision.answer}});
         if (!opened.succeeded()) {
-            fail(current, workspace_error_code(opened.error), opened.message, json{{"decisions", asked}}.dump());
+            fail(current, workspace_error_code(opened.error), opened.message, json{{"report", load_report_result(report)}}.dump());
             forget_if_closed(action_id);
             return;
         }
@@ -1066,7 +1060,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         for (const auto& plate : snapshot.plates) objects += plate.objects.size();
         current.result_json = json{{"projectName", snapshot.setup.project_name}, {"path", snapshot.setup.project_path},
                                     {"plateCount", snapshot.plates.size()}, {"objectCount", objects},
-                                    {"decisions", std::move(asked)},
+                                    {"report", load_report_result(report)},
                                     {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
                                    .dump();
         current.state = ToolState::Succeeded;
@@ -1090,34 +1084,29 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         }
         if (arguments.contains("plateId"))
             request.plate = Workspace::PlateId(session, std::stoull(arguments["plateId"].get<std::string>()));
-        const std::string units = arguments.value("unitConversion", "keep");
-        request.units           = units == "inches"        ? Workspace::UnitChoice::Inches :
-                                  units == "convertIfTiny" ? Workspace::UnitChoice::ConvertIfTiny :
-                                                             Workspace::UnitChoice::Keep;
-        request.scale_oversized = arguments.value("oversized", "keep") == "scaleToFit";
+        request.units = arguments.value("unitConversion", "keep") == "inches" ? Workspace::UnitChoice::Inches :
+                                                                               Workspace::UnitChoice::Keep;
         if (session != m_workspace.snapshot().session) {
             fail(activity, "stale_id", "That session is no longer open.");
             return;
         }
-        std::vector<Workspace::LoadDecision> decisions;
-        std::vector<Workspace::ObjectId>     added;
-        const auto imported = m_workspace.import_objects(request, decisions, added);
-        json asked = json::array(), ids = json::array();
-        for (const auto& decision : decisions)
-            if (asked.size() < 32) asked.push_back({{"question", decision.question}, {"answer", decision.answer}});
+        Workspace::LoadReport            report;
+        std::vector<Workspace::ObjectId> added;
+        const auto imported = m_workspace.import_objects(request, report, added);
         if (!imported.succeeded()) {
-            fail(activity, workspace_error_code(imported.error), imported.message, json{{"decisions", asked}}.dump());
+            fail(activity, workspace_error_code(imported.error), imported.message, json{{"report", load_report_result(report)}}.dump());
             return;
         }
+        json ids = json::array();
         for (const auto& id : added)
             if (ids.size() < 64) ids.push_back(std::to_string(id.value()));
-        // The new objects as they are now, sizes included, so a conversion
-        // Orca already made is visible.
+        // The new objects as they are now, sizes included.
         std::vector<Workspace::ObjectDetails> rows;
         for (const auto& row : m_workspace.object_details())
             if (std::find(added.begin(), added.end(), row.id) != added.end()) rows.push_back(row);
         const auto snapshot  = m_workspace.snapshot();
-        activity.result_json = json{{"objectIds", std::move(ids)}, {"objects", objects_section_result(rows)}, {"decisions", std::move(asked)},
+        activity.result_json = json{{"objectIds", std::move(ids)}, {"objects", objects_section_result(rows)},
+                                    {"report", load_report_result(report)},
                                     {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
                                    .dump();
         activity.state = ToolState::Succeeded;

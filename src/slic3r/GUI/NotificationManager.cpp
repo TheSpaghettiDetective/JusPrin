@@ -1,4 +1,5 @@
 #include "NotificationManager.hpp"
+#include "JusPrin/Workspace/FileLoads.hpp"
 
 #include "HintNotification.hpp"
 #include "SlicingProgressNotification.hpp"
@@ -2965,6 +2966,9 @@ bool NotificationManager::push_notification_data(const NotificationData& notific
 }
 bool NotificationManager::push_notification_data(std::unique_ptr<NotificationManager::PopNotification> notification, int timestamp)
 {
+    if (!notification->get_data().text1.empty() &&
+        report_file_load_message(notification->get_data().text1, "notification"))
+        return false;
 	// if timestamped notif, push only new one
 	if (timestamp != 0) {
 		if (m_used_timestamps.find(timestamp) == m_used_timestamps.end()) {
@@ -3260,6 +3264,10 @@ void NotificationManager::bbl_close_3mf_warn_notification()
 
 void NotificationManager::bbl_show_3mf_warn_notification(const std::string &text)
 {
+    // This notification can update an existing item without using push_notification_data.
+    // Keep the load observer before both update and insertion paths on rebases.
+    if (report_file_load_message(text, "notification"))
+        return;
     NotificationData data{NotificationType::BBL3MFInfo, NotificationLevel::ErrorNotificationLevel, BBL_NOTICE_MAX_INTERVAL, text};
 
     for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {

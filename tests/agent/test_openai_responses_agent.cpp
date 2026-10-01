@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
@@ -169,6 +170,38 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
     REQUIRE(file.good());
     INFO("tests/printer_prompt/printer_tools.json is out of date: run this test with JUSPRIN_UPDATE_PRINTER_TOOLS=1");
     CHECK(json::parse(file) == sent);
+}
+
+// The file-report prompt corpus uses the project Agent's tool catalog. Keep
+// its fixture synchronized with the request the app actually sends.
+TEST_CASE("the file-report prompt corpus uses the project Agent's tools", "[agent][openai][file-report]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
+    AgentRequest request;
+    request.request_id = "file-report-1";
+    request.user_text = "Synthetic file-load report";
+    REQUIRE(agent.start(request));
+    const json body = json::parse(fake->requests.front().body);
+    const json& sent = body["tools"];
+
+    const std::string path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/file_report_prompt/project_tools.json";
+    if (const char* update = std::getenv("JUSPRIN_UPDATE_FILE_REPORT_TOOLS"); update != nullptr && std::string(update) == "1")
+        std::ofstream(path) << sent.dump(2) << '\n';
+    std::ifstream file(path);
+    REQUIRE(file.good());
+    INFO("tests/file_report_prompt/project_tools.json is out of date: run this test with JUSPRIN_UPDATE_FILE_REPORT_TOOLS=1");
+    CHECK(json::parse(file) == sent);
+
+    const std::string instructions_path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/file_report_prompt/project_instructions.txt";
+    if (const char* update = std::getenv("JUSPRIN_UPDATE_FILE_REPORT_TOOLS"); update != nullptr && std::string(update) == "1")
+        std::ofstream(instructions_path) << body["instructions"].get<std::string>();
+    std::ifstream instructions_file(instructions_path);
+    REQUIRE(instructions_file.good());
+    INFO("tests/file_report_prompt/project_instructions.txt is out of date: run this test with JUSPRIN_UPDATE_FILE_REPORT_TOOLS=1");
+    CHECK(std::string(std::istreambuf_iterator<char>(instructions_file), std::istreambuf_iterator<char>()) ==
+          body["instructions"].get<std::string>());
 }
 
 TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent][openai]")

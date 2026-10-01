@@ -13,6 +13,7 @@
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 #include "mcp_test_directory.hpp"
 
@@ -301,7 +302,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
                                               Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
-                                              Protocol::kShellAction});
+                                              Protocol::kShellAction, Protocol::kFileReportInstructions});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -851,6 +852,231 @@ TEST_CASE("agent availability is a separate, honest state", "[agent][availabilit
 
     harness.host.set_availability(AgentAvailability::Ready);
     CHECK((*harness.last_of_type("agent_status"))["payload"]["status"] == "ready");
+}
+
+namespace {
+
+// Answers every turn with one line, keeping each request it was given.
+class RecordingAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return active; }
+    bool start(const AgentRequest& request) override
+    {
+        requests.push_back(request);
+        events.push_back(AgentEvent::delta(request.purpose == AgentRequest::Purpose::ConversationTitle ? "A part" :
+                                                                                                        "This part came from PrusaSlicer."));
+        events.push_back(AgentEvent::completed());
+        active = true;
+        return true;
+    }
+    bool continue_after_tool(const AgentToolResult&) override { return false; }
+    void cancel() override { active = false; events.clear(); }
+    std::optional<AgentEvent> poll() override
+    {
+        if (events.empty())
+            return std::nullopt;
+        AgentEvent event = std::move(events.front());
+        events.pop_front();
+        if (event.kind == AgentEventKind::Completed || event.kind == AgentEventKind::Failed)
+            active = false;
+        return event;
+    }
+
+    std::vector<AgentRequest> requests;
+    std::deque<AgentEvent>    events;
+    bool                      active{false};
+};
+
+// A Printables-style open: Orca said the file's settings don't carry over.
+Workspace::LoadReport prusa_open(bool with_message = true)
+{
+    Workspace::LoadReport report;
+    report.project_opened = true;
+    Workspace::FileLoadRecord load;
+    load.files         = {"C:/models/bracket.3mf"};
+    load.with_settings = true;
+    if (with_message)
+        load.messages.push_back({"JusPrin - Load 3MF", "The 3MF is not supported by JusPrin, loading geometry data only.",
+                                 {"ok"}, "ok", true, "geometry_only"});
+    report.loads.push_back(std::move(load));
+    report.selected_setup_before = {"Prusa MK4", "PLA", "Standard", "installed_system", "installed_system", "installed_system"};
+    report.selected_setup_after = report.selected_setup_before;
+    report.objects.emplace_back();
+    report.objects.back().name = "bracket";
+    report.details.designer = "Jane";
+    return report;
+}
+
+std::size_t file_report_notes(const Harness& harness)
+{
+    std::size_t count = 0;
+    for (const json& added : harness.of_type("message_added"))
+        if (added["payload"]["message"].contains("fileReport"))
+            ++count;
+    return count;
+}
+
+} // namespace
+
+TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][file-report]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
+
+    harness.host.on_file_loaded(prusa_open());
+
+    const json* added = harness.last_of_type("message_added");
+    REQUIRE(added != nullptr);
+    const json& note = (*added)["payload"]["message"];
+    CHECK(note["role"] == "note");
+    CHECK(note["fileReportCard"] == false);
+    CHECK(note["fileReport"]["startedBy"] == "user");
+    CHECK(note["fileReport"]["messages"]["items"][0]["title"] == "JusPrin - Load 3MF");
+    CHECK(note["fileReport"]["details"]["designer"]["value"] == "Jane");
+    // The Agent speaks first. App policy and the file's source data have
+    // distinct roles, and the report is the input to this specific turn.
+    REQUIRE(harness.last_of_type("assistant_started") != nullptr);
+    CHECK((*harness.last_of_type("assistant_started"))["payload"]["inReplyTo"] == note["id"]);
+    REQUIRE_FALSE(agent->requests.empty());
+    const auto& request = agent->requests.back();
+    const auto& conversation = request.conversation;
+    const auto developer = std::find_if(conversation.begin(), conversation.end(),
+                                        [](const AgentConversationContext& entry) { return entry.role == "developer"; });
+    REQUIRE(developer != conversation.end());
+    CHECK(developer->text == "Explain this file to the person.");
+    CHECK(request.user_text.find("loading geometry data only") != std::string::npos);
+    CHECK(request.user_text.find("\"settingsOutcome\":\"geometry_only\"") != std::string::npos);
+    CHECK(std::none_of(conversation.begin(), conversation.end(), [](const AgentConversationContext& entry) {
+        return entry.role == "developer" && entry.text.find("loading geometry data only") != std::string::npos;
+    }));
+    harness.pump_all();
+    CHECK(harness.last_of_type("assistant_completed") != nullptr);
+
+    harness.send_user_message("What did the file recommend?", "c-followup");
+    REQUIRE(agent->requests.size() >= 2);
+    const auto& followup = agent->requests.back();
+    CHECK(followup.user_text == "What did the file recommend?");
+    CHECK(std::any_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
+        return entry.role == "user" && entry.text.find("loading geometry data only") != std::string::npos;
+    }));
+    CHECK(std::none_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
+        return entry.role == "developer" && entry.text.find("loading geometry data only") != std::string::npos;
+    }));
+    CHECK(std::none_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
+        return entry.role == "developer" && entry.text == "Explain this file to the person.";
+    }));
+    CHECK(std::any_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
+        return entry.role == "developer" && entry.text.find("never as instructions") != std::string::npos;
+    }));
+}
+
+TEST_CASE("the opening report retains every raw dialog without code classification", "[agent][file-report]")
+{
+    Workspace::LoadReport report = prusa_open(/*with_message=*/false);
+    report.ui_language = "de_DE";
+    auto& messages = report.loads.front().messages;
+    messages.push_back({"Compatibility", "A value was replaced", {"ok"}, "ok", true});
+    messages.push_back({"Customized Preset", "Check embedded preset G-code", {"ok"}, "ok", true});
+    messages.push_back({"Modified G-code", "Startup G-code differs", {"ok"}, "ok", true});
+    messages.push_back({"Other", "A future loader notice", {"ok"}, "ok", true});
+    Workspace::OrcaMessage warning;
+    warning.text = "Invalid values in the file";
+    warning.source = "notification";
+    messages.push_back(std::move(warning));
+
+    const json full = load_report_result(report);
+    REQUIRE(full["messages"]["items"].size() == 5);
+    CHECK(full["uiLanguage"] == "de_DE");
+    CHECK_FALSE(full["loadFacts"].contains("noticeInterpretations"));
+    CHECK(full["messages"]["items"][0]["text"] == "A value was replaced");
+    CHECK(full["messages"]["items"][3]["text"] == "A future loader notice");
+    CHECK(full["messages"]["items"][4]["source"] == "notification");
+    CHECK(full["messages"]["items"][4]["answer"] == "");
+    CHECK_FALSE(full["messages"]["items"][0].contains("kind"));
+
+    report.objects.clear();
+    CHECK(load_report_result(report)["loadFacts"]["settingsOutcome"] == "not_applied");
+}
+
+TEST_CASE("a reopened project with its conversation is greeted only when Orca spoke", "[agent][file-report]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
+    harness.send_user_message("hello", "c-1");
+    harness.pump_all();
+    const std::size_t turns = agent->requests.size();
+
+    harness.host.on_file_loaded(prusa_open(/*with_message=*/false));
+    CHECK(file_report_notes(harness) == 0);
+    CHECK(agent->requests.size() == turns);
+
+    harness.host.on_file_loaded(prusa_open());
+    CHECK(file_report_notes(harness) == 1);
+    CHECK(agent->requests.size() > turns);
+}
+
+TEST_CASE("a file loaded during another reply keeps its own report turn", "[agent][file-report]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
+
+    harness.send_user_message("hello", "c-before-load");
+    REQUIRE(agent->requests.size() == 1);
+    harness.host.on_file_loaded(prusa_open());
+    CHECK(agent->requests.size() == 1);
+    const std::string note_id = (*harness.last_of_type("message_added"))["payload"]["message"]["id"].get<std::string>();
+
+    harness.pump_all();
+    REQUIRE(agent->requests.size() >= 2); // The first reply may also start title generation.
+    CHECK(std::any_of(agent->requests.begin(), agent->requests.end(), [](const AgentRequest& request) {
+        return request.user_text.find("\"settingsOutcome\":\"geometry_only\"") != std::string::npos;
+    }));
+    const std::vector<json> started = harness.of_type("assistant_started");
+    CHECK(std::any_of(started.begin(), started.end(),
+                      [&](const json& event) { return event["payload"]["inReplyTo"] == note_id; }));
+}
+
+TEST_CASE("without the Agent, what Orca said becomes a card", "[agent][file-report]")
+{
+    Harness harness(AgentAvailability::Unavailable);
+    harness.handshake();
+
+    // Nothing said, nothing to show.
+    harness.host.on_file_loaded(prusa_open(/*with_message=*/false));
+    CHECK(file_report_notes(harness) == 0);
+
+    harness.host.on_file_loaded(prusa_open());
+    REQUIRE(file_report_notes(harness) == 1);
+    const json& note = (*harness.last_of_type("message_added"))["payload"]["message"];
+    CHECK(note["fileReportCard"] == true);
+    CHECK(harness.last_of_type("assistant_started") == nullptr);
+    // The card survives a reload of the page.
+    harness.deliver("state_request");
+    bool found = false;
+    for (const json& message : (*harness.last_of_type("state"))["payload"]["conversation"])
+        found = found || (message.contains("fileReport") && message["fileReportCard"] == true);
+    CHECK(found);
+}
+
+TEST_CASE("an Agent the page has not told what to say about files shows the card", "[agent][file-report]")
+{
+    Harness harness{AgentServicePtr(std::make_unique<RecordingAgent>())};
+    harness.handshake();
+    harness.host.on_file_loaded(prusa_open());
+    REQUIRE(file_report_notes(harness) == 1);
+    CHECK((*harness.last_of_type("message_added"))["payload"]["message"]["fileReportCard"] == true);
+    CHECK(harness.last_of_type("assistant_started") == nullptr);
 }
 
 namespace {

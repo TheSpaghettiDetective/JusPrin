@@ -34,7 +34,8 @@ export type PageMessageType =
   | 'printer_instructions'
   | 'printer_opening'
   | 'filament_instructions'
-  | 'shell_action';
+  | 'shell_action'
+  | 'file_report_instructions';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -98,6 +99,53 @@ export interface WireMessage {
   error?: AgentErrorInfo;
   attachments?: string[]; // sent attachment IDs, resolved against StatePayload.attachments
   swatch?: string; // notes: a colour, '#RRGGBB', that leads the line
+  // Notes: what the app knows once a file the person brought in has loaded.
+  // The model reads it; the page draws it only as a card, when the Agent
+  // could not speak about it (fileReportCard).
+  fileReport?: FileReport;
+  fileReportCard?: boolean;
+}
+
+// Raw words shown or scheduled by Orca during opening, and the app's answer
+// when there was a dialog. An empty answer belongs to a notification or error.
+export interface OrcaMessage {
+  source?: 'dialog' | 'notification' | 'error' | 'app';
+  title: string;
+  text: string;
+  buttons: ('ok' | 'yes' | 'no' | 'cancel')[];
+  answer: 'ok' | 'yes' | 'no' | 'cancel' | '';
+  recognized?: false; // present only for a dialog the app did not know how to answer
+}
+
+interface LoadSelectedSetup {
+  printerPreset: string;
+  filamentPreset: string;
+  processPreset: string;
+  printerOrigin: string;
+  filamentOrigin: string;
+  processOrigin: string;
+  materialType?: string;
+}
+
+export interface FileReport {
+  startedBy: 'agent' | 'user';
+  projectOpened: boolean;
+  projectPath?: string;
+  uiLanguage?: string;
+  loads: { files: string[]; withSettings: boolean }[];
+  setupPrinters?: { name: string; model: string; nozzleMm: number }[];
+  setupPrintersTruncated?: boolean;
+  connectedPrinter?: string;
+  messages: { items: OrcaMessage[]; truncated: boolean };
+  loadFacts?: {
+    settingsOutcome: 'applied' | 'geometry_only' | 'not_applied' | 'not_applicable';
+    selectedSetupBefore: LoadSelectedSetup;
+    selectedSetupAfter: LoadSelectedSetup;
+    selectedSetupChange: Partial<Record<'printerPreset' | 'filamentPreset' | 'processPreset', { from: string; to: string }>>;
+  };
+  details?: Record<string, { value: string; provenance: 'project_file' }>;
+  objects: { items: { objectId: string; name: string; sizeMm: [number, number, number] }[]; truncated: boolean };
+  truncated: boolean;
 }
 
 // How a file entered the composer.

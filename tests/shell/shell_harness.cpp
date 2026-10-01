@@ -17,6 +17,9 @@
 //   --manual-unconfigured
 //              leaves the isolated JusPrin shell open with no Agent service
 //              configured at all -- the dock's not-set-up empty state
+//   --file-corpus <manifest.json> <output.json> [--file-corpus-config <config.json>]
+//              loads real files through the native UI path and records each
+//              file-load report beside the selected setup before and after
 //   --printer-menu
 //              checks the saved-printer rows and selection in the header menu
 //   --printer-menu-capture <output-directory>
@@ -149,6 +152,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
@@ -560,7 +564,8 @@ struct HarnessState
         TaskChat,
         PrinterSetup,
         PrinterLive,
-        HomeLive
+        HomeLive,
+        FileCorpus
     };
 
     std::atomic<int>  result{-1};
@@ -576,6 +581,9 @@ struct HarnessState
     bool task_chat_configured{false};
     std::optional<bool> dark_appearance;
     fs::path capture_dir;
+    fs::path file_corpus_manifest;
+    fs::path file_corpus_output;
+    fs::path file_corpus_config;
     // --printer-connect-capture: the connect flow only, pictured.
     bool connect_capture{false};
     // --printer-live-no-plugin: connecting a Bambu Lab printer without the
@@ -661,6 +669,11 @@ public:
     void run_shell_mode()
     {
         try {
+            if (m_state->mode == HarnessState::Mode::FileCorpus) {
+                capture_file_corpus();
+                finish();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::PrinterMenu) {
                 check(selected_printer() == kSetupFixturePrinter, "printer_menu_fixture_starts_on_system_profile");
                 verify_other_printers_menu();
@@ -777,6 +790,74 @@ public:
     }
 
 private:
+    void capture_file_corpus()
+    {
+        using nlohmann::json;
+        std::ifstream input(m_state->file_corpus_manifest.string());
+        json manifest;
+        input >> manifest;
+        auto* workspace = installed_shell()->workspace();
+        json captures = json::array();
+        const auto setup_json = [](const Workspace::WorkspaceSnapshot& snapshot) {
+            json plates = json::array();
+            for (const auto& plate : snapshot.plates) {
+                json objects = json::array();
+                for (const auto& object : plate.objects)
+                    objects.push_back({{"id", std::to_string(object.id.value())},
+                                       {"name", object.name}, {"instances", object.instances.size()}});
+                plates.push_back({{"id", std::to_string(plate.id.value())}, {"name", plate.name},
+                                  {"active", plate.active}, {"sliced", plate.sliced},
+                                  {"objects", std::move(objects)}});
+            }
+            json selected = json::array();
+            for (const auto id : snapshot.selected_objects)
+                selected.push_back(std::to_string(id.value()));
+            return json{{"sessionId", std::to_string(snapshot.session.value())},
+                        {"revision", snapshot.revision},
+                        {"projectName", snapshot.setup.project_name},
+                        {"printerPreset", snapshot.setup.printer_preset},
+                        {"filamentPreset", snapshot.setup.filament_preset},
+                        {"processPreset", snapshot.setup.process_preset},
+                        {"presetsDirty", snapshot.setup.presets_dirty},
+                        {"selectedObjectIds", std::move(selected)},
+                        {"plates", std::move(plates)}};
+        };
+        const auto installed_bundles = [] {
+            json names = json::array();
+            const fs::path directory = fs::path(data_dir()) / PRESET_SYSTEM_DIR;
+            for (const auto& entry : fs::directory_iterator(directory))
+                if (entry.path().extension() == ".json") names.push_back(entry.path().stem().string());
+            return names;
+        };
+        std::optional<Workspace::LoadReport> heard;
+        workspace->set_load_report_listener([&heard](const Workspace::LoadReport& report) { heard = report; });
+        for (const json& item : manifest) {
+            const std::string path = item.at("path").get<std::string>();
+            const std::string method = item.at("method").get<std::string>();
+            check(m_plater->new_project(true, true) != wxID_CANCEL, "file_corpus_starts_clean");
+            heard.reset();
+            const json before = setup_json(workspace->snapshot());
+            const json bundles_before = installed_bundles();
+            if (method == "project")
+                m_plater->load_project(from_u8(path), "-");
+            else if (method == "model")
+                m_plater->add_model(false, path);
+            else
+                throw std::runtime_error("Unknown file corpus method: " + method);
+            wxTheApp->ProcessPendingEvents();
+            const json after = setup_json(workspace->snapshot());
+            check(heard.has_value(), "file_corpus_report_arrived");
+            captures.push_back({{"id", item.at("id")}, {"path", path}, {"method", method},
+                                {"installedBundlesBefore", bundles_before},
+                                {"installedBundlesAfter", installed_bundles()},
+                                {"workspaceBefore", before}, {"workspaceAfter", after},
+                                {"report", heard ? Agent::load_report_result(*heard) : json()}});
+            std::ofstream output(m_state->file_corpus_output.string());
+            output << captures.dump(2) << '\n';
+            check(output.good(), "file_corpus_written");
+        }
+    }
+
     void verify_stock_slice()
     {
         verify_stock_mode();
@@ -6306,9 +6387,12 @@ private:
         }
     };
 
-    // project_open through the real adapter: a model saved in metres asks
-    // "Object too small" and a dirty project asks to be saved; both are
-    // answered from the request and neither may reach the screen.
+    // project_open through the real adapter: a model saved in metres makes
+    // Orca ask "Object too small", which the file listener answers No and
+    // records, and a dirty project is dropped without Orca's save prompt.
+    // The same file brought in the person's own way (Import) reaches the load
+    // report listener instead, with the same message. No dialog may reach
+    // the screen.
     void verify_project_open_answers_dialogs()
     {
         const fs::path tiny = fs::temp_directory_path() / fs::unique_path("jusprin-metres-%%%%.stl");
@@ -6326,45 +6410,162 @@ private:
             }
             out << "endsolid tiny" << std::endl;
         }
+        // Orca's too-small question is the only one here that offers Yes and
+        // No; it is recognised by its buttons, never by its words.
+        const auto asked_yes_no_answered_no = [](const Workspace::LoadReport& report) {
+            for (const auto& load : report.loads)
+                for (const auto& message : load.messages) {
+                    const auto offers = [&message](const char* button) {
+                        return std::find(message.buttons.begin(), message.buttons.end(), button) != message.buttons.end();
+                    };
+                    if (offers("yes") && offers("no") && message.answer == "no")
+                        return true;
+                }
+            return false;
+        };
+        const auto print_messages = [](const char* where, const Workspace::LoadReport& report) {
+            for (const auto& load : report.loads)
+                for (const auto& message : load.messages)
+                    std::cout << where << " message: " << message.title << " | " << message.text << " -> " << message.answer << std::endl;
+        };
+
         auto* workspace = installed_shell()->workspace();
         Workspace::ProjectOpenRequest request;
         request.path            = tiny.string();
-        request.units           = Workspace::UnitChoice::ConvertIfTiny;
         request.discard_unsaved = true;
-        std::vector<Workspace::LoadDecision> decisions;
+        Workspace::LoadReport report;
         {
             DialogCounter counter;
-            check(workspace->open_project(request, decisions).succeeded(), "project_open_model_file");
+            check(workspace->open_project(request, report).succeeded(), "project_open_model_file");
             for (const auto& title : counter.titles) std::cout << "project_open dialog shown: " << title << std::endl;
             check(counter.shown == 0, "project_open_model_shows_no_dialog");
         }
-        check(std::any_of(decisions.begin(), decisions.end(),
-                          [](const Workspace::LoadDecision& d) { return d.answer == "yes"; }),
-              "project_open_answers_object_too_small");
+        print_messages("project_open", report);
+        check(asked_yes_no_answered_no(report), "project_open_records_object_too_small");
+        check(report.started_by_agent && report.project_opened, "project_open_report_belongs_to_the_tool");
         const BoundingBoxf3 box = m_plater->model().objects.empty() ? BoundingBoxf3() : m_plater->model().objects.front()->bounding_box_exact();
-        check(m_plater->model().objects.size() == 1 && std::abs(box.size().x() - 20.) < 0.01,
-              "project_open_converted_metres");
+        check(m_plater->model().objects.size() == 1 && box.size().x() < 1., "project_open_leaves_metres_model_as_it_was");
+
+        // The person's own way in: the same file through Import. Its report
+        // arrives a turn of the event loop after the load.
+        std::optional<Workspace::LoadReport> heard;
+        workspace->set_load_report_listener([&heard](const Workspace::LoadReport& delivered) { heard = delivered; });
+        {
+            DialogCounter counter;
+            m_plater->add_model(false, tiny.string());
+            for (const auto& title : counter.titles) std::cout << "import dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "user_import_shows_no_dialog");
+        }
+        wxTheApp->ProcessPendingEvents();
+        check(heard.has_value(), "user_import_reported");
+        if (heard) {
+            print_messages("user import", *heard);
+            check(!heard->started_by_agent && !heard->project_opened, "user_import_report_is_the_persons");
+            check(asked_yes_no_answered_no(*heard), "user_import_records_object_too_small");
+            check(heard->objects.size() == 1, "user_import_reports_what_arrived");
+        }
+
+        // This refusal happens before Orca enters the inner model loader.
+        // The outer operation must still collect it and deliver a report.
+        heard.reset();
+        wxArrayString mixed;
+        mixed.Add(from_u8(tiny.string()));
+        mixed.Add(from_u8((fs::temp_directory_path() / "sample.gcode").string()));
+        {
+            DialogCounter counter;
+            check(!m_plater->load_files(mixed), "mixed_files_refused");
+            check(counter.shown == 0, "preload_refusal_shows_no_dialog");
+        }
+        wxTheApp->ProcessPendingEvents();
+        check(heard.has_value() && heard->has_messages(), "preload_refusal_reported");
+        if (heard)
+            check(heard->objects.empty(), "preload_refusal_added_nothing");
+
+        // Orca's project-versus-geometry choice is also before the inner
+        // loader. Its automatic Cancel must leave the workspace untouched.
+        const std::string previous_load_behaviour = wxGetApp().app_config->get(SETTING_PROJECT_LOAD_BEHAVIOUR);
+        wxGetApp().app_config->set(SETTING_PROJECT_LOAD_BEHAVIOUR, OPTION_PROJECT_LOAD_BEHAVIOUR_ALWAYS_ASK);
+        heard.reset();
+        const std::size_t objects_before_choice = m_plater->model().objects.size();
+        {
+            DialogCounter counter;
+            check(!m_plater->open_3mf_file(fs::path(std::string(JUSPRIN_SOURCE_DIR) +
+                                                 "/tests/data/jusprin/prusaslicer_cube.3mf")),
+                  "preload_project_choice_cancelled");
+            check(counter.shown == 0, "preload_project_choice_shows_no_dialog");
+        }
+        wxGetApp().app_config->set(SETTING_PROJECT_LOAD_BEHAVIOUR, previous_load_behaviour);
+        wxTheApp->ProcessPendingEvents();
+        check(heard.has_value() && heard->has_messages(), "preload_project_choice_reported");
+        check(m_plater->model().objects.size() == objects_before_choice, "preload_project_choice_kept_workspace");
+
+        // The case people see most: a PrusaSlicer 3MF (a Printables download)
+        // opened the person's way, through the same load_project Home's
+        // recent-project open calls. Orca's "not supported, loading geometry
+        // data only" box is answered OK and reaches the report, not the screen.
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "prusa_open_starts_clean");
+        heard.reset();
+        {
+            DialogCounter counter;
+            m_plater->load_project(from_u8(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/prusaslicer_cube.3mf"), "-");
+            for (const auto& title : counter.titles) std::cout << "prusa open dialog shown: " << title << std::endl;
+            check(counter.shown == 0, "prusa_open_shows_no_dialog");
+        }
+        wxTheApp->ProcessPendingEvents();
+        check(heard.has_value() && heard->project_opened && !heard->started_by_agent, "prusa_open_reported_as_the_persons");
+        if (heard) {
+            print_messages("prusa open", *heard);
+            bool notice = false;
+            for (const auto& load : heard->loads)
+                for (const auto& message : load.messages)
+                    notice = notice || (message.buttons == std::vector<std::string>{"ok"} && message.answer == "ok" &&
+                                        message.recognized && !message.text.empty());
+            check(notice, "prusa_open_records_the_settings_notice");
+            check(!heard->loads.empty() && heard->loads.front().with_settings, "prusa_open_was_asked_for_settings");
+            check(heard->objects.size() == 1, "prusa_open_reports_what_arrived");
+        }
+        // Back to the shell's own wiring.
+        workspace->set_load_report_listener([pane = wxWeakRef<AgentPane>(installed_shell()->agent_pane())](const Workspace::LoadReport& delivered) {
+            if (pane) pane->web_view().host().on_file_loaded(delivered);
+        });
 
         // Make the project dirty, then reopen the saved project over it.
         check(m_plater->duplicate_object(0) >= 0, "project_open_dirty_before_reopen");
+        const auto objects_before_refusal = m_plater->model().objects.size();
+        heard.reset();
+        workspace->set_load_report_listener([&heard](const Workspace::LoadReport& delivered) { heard = delivered; });
+        {
+            DialogCounter counter;
+            m_plater->load_project(from_u8(m_saved_project_file), "-");
+            check(counter.shown == 0, "dirty_user_open_shows_no_dialog");
+        }
+        wxTheApp->ProcessPendingEvents();
+        check(heard.has_value() && heard->has_messages(), "dirty_user_open_reported");
+        check(m_plater->model().objects.size() == objects_before_refusal, "dirty_user_open_kept_existing_model");
+        workspace->set_load_report_listener([pane = wxWeakRef<AgentPane>(installed_shell()->agent_pane())](const Workspace::LoadReport& delivered) {
+            if (pane) pane->web_view().host().on_file_loaded(delivered);
+        });
         request      = {};
         request.path = m_saved_project_file;
-        decisions.clear();
-        check(!workspace->open_project(request, decisions).succeeded(), "project_open_refuses_unsaved_work");
+        report       = {};
+        check(!workspace->open_project(request, report).succeeded(), "project_open_refuses_unsaved_work");
         request.discard_unsaved = true;
         {
             DialogCounter counter;
-            const auto opened = workspace->open_project(request, decisions);
+            const auto opened = workspace->open_project(request, report);
             if (!opened.succeeded()) std::cout << "project_open failed: " << opened.message << std::endl;
             check(opened.succeeded(), "project_open_project_file");
             for (const auto& title : counter.titles) std::cout << "project_open dialog shown: " << title << std::endl;
             check(counter.shown == 0, "project_open_project_shows_no_dialog");
         }
-        // Orca asks to save only when the person has not told it to stop
-        // asking; whatever it asked was declined.
-        for (const auto& decision : decisions) std::cout << "project_open asked: " << decision.question << " -> " << decision.answer << std::endl;
-        check(std::all_of(decisions.begin(), decisions.end(), [](const Workspace::LoadDecision& d) { return d.answer == "no"; }),
-              "project_open_declines_saving");
+        print_messages("reopen", report);
+        // The unsaved work was dropped before the load, so Orca never asked
+        // to save it (its prompt offers Yes, No and Cancel).
+        bool asked_to_save = false;
+        for (const auto& load : report.loads)
+            for (const auto& message : load.messages)
+                asked_to_save = asked_to_save || message.buttons == std::vector<std::string>{"yes", "no", "cancel"};
+        check(!asked_to_save, "project_open_drops_unsaved_work_without_asking");
         fs::remove(tiny);
     }
 
@@ -6450,17 +6651,18 @@ private:
         const std::size_t before = m_plater->model().objects.size();
         Workspace::ImportRequest import;
         import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/box_20x15x10.step";
-        std::vector<Workspace::LoadDecision> decisions;
+        Workspace::LoadReport                 report;
         std::vector<Workspace::ObjectId>     added;
         {
             DialogCounter counter;
-            const auto imported = workspace->import_objects(import, decisions, added);
+            const auto imported = workspace->import_objects(import, report, added);
             if (!imported.succeeded()) std::cout << "step import failed: " << imported.message << std::endl;
             check(imported.succeeded() && added.size() == 1, "step_import_succeeds");
             for (const auto& title : counter.titles) std::cout << "step import dialog shown: " << title << std::endl;
             check(counter.shown == 0, "step_import_shows_no_dialog");
         }
-        for (const auto& decision : decisions) std::cout << "step import asked: " << decision.question << " -> " << decision.answer << std::endl;
+        for (const auto& load : report.loads)
+            for (const auto& message : load.messages) std::cout << "step import message: " << message.title << " -> " << message.answer << std::endl;
         check(m_plater->model().objects.size() == before + 1, "step_import_adds_one_object");
         if (m_plater->model().objects.size() == before + 1) {
             const Vec3d size = m_plater->model().objects.back()->bounding_box_exact().size();
@@ -6477,11 +6679,11 @@ private:
     void verify_regions()
     {
         auto* workspace = installed_shell()->workspace();
-        std::vector<Workspace::LoadDecision> decisions;
+        Workspace::LoadReport                 report;
         std::vector<Workspace::ObjectId>     added;
         Workspace::ImportRequest             import;
         import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl";
-        check(workspace->import_objects(import, decisions, added).succeeded() && added.size() == 1, "regions_fixture_imported");
+        check(workspace->import_objects(import, report, added).succeeded() && added.size() == 1, "regions_fixture_imported");
         if (added.size() != 1) return;
         const Workspace::ObjectId tee = added.front();
         ModelObject* object = nullptr;
@@ -6575,11 +6777,11 @@ private:
     {
         auto* workspace = installed_shell()->workspace();
         auto import_file = [&](const std::string& path) -> std::optional<Workspace::ObjectId> {
-            std::vector<Workspace::LoadDecision> decisions;
+            Workspace::LoadReport                 report;
             std::vector<Workspace::ObjectId>     added;
             Workspace::ImportRequest             import;
             import.path = path;
-            if (!workspace->import_objects(import, decisions, added).succeeded() || added.size() != 1)
+            if (!workspace->import_objects(import, report, added).succeeded() || added.size() != 1)
                 return std::nullopt;
             return added.front();
         };
@@ -6684,11 +6886,11 @@ private:
         auto* workspace = installed_shell()->workspace();
         auto& prints    = wxGetApp().preset_bundle->prints;
         m_slice_check_settings = prints.get_edited_preset().config;
-        std::vector<Workspace::LoadDecision> decisions;
+        Workspace::LoadReport                 load_report;
         std::vector<Workspace::ObjectId>     added;
         Workspace::ImportRequest             import;
         import.path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/tee_with_hole.stl";
-        const bool imported = workspace->import_objects(import, decisions, added).succeeded() && added.size() == 1;
+        const bool imported = workspace->import_objects(import, load_report, added).succeeded() && added.size() == 1;
         check(imported, "slice_checks_fixture_imported");
         const Workspace::SettingsPatch supports{{{"enable_support", "1"}, {"support_type", "normal(auto)"},
                                                  {"support_on_build_plate_only", "0"}}};
@@ -7721,6 +7923,22 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::ManualUnconfigured;
         else if (argument == "--manual-tool-strip")
             state->mode = HarnessState::Mode::ManualToolStrip;
+        else if (argument == "--file-corpus") {
+            if (index + 2 >= argc) {
+                std::cerr << "--file-corpus needs a manifest and output path\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::FileCorpus;
+            state->file_corpus_manifest = utf8_argument(++index, argv);
+            state->file_corpus_output = utf8_argument(++index, argv);
+        }
+        else if (argument == "--file-corpus-config") {
+            if (index + 1 >= argc) {
+                std::cerr << "--file-corpus-config needs a config path\n";
+                return 2;
+            }
+            state->file_corpus_config = utf8_argument(++index, argv);
+        }
         else if (argument == "--slice-all-cold")
             state->mode = HarnessState::Mode::SliceAllCold;
         else if (argument == "--live-agent")
@@ -7826,7 +8044,10 @@ int main(int argc, char** argv)
     }
 
     {
-        std::ifstream base(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/harness.conf");
+        const std::string config_path = state->file_corpus_config.empty()
+            ? std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/harness.conf"
+            : state->file_corpus_config.string();
+        std::ifstream base(config_path);
         std::string   config((std::istreambuf_iterator<char>(base)), std::istreambuf_iterator<char>());
         if (state->mode == HarnessState::Mode::Stock) {
             const std::string anchor = "\"language\": \"en_US\",";

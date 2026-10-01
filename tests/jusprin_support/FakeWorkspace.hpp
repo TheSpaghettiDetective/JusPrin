@@ -273,7 +273,7 @@ public:
                             CommandResult::failure(WorkspaceError::UnavailableOperation, "Writing the archive failed");
     }
 
-    CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+    CommandResult import_objects(const ImportRequest& request, LoadReport& report,
                                  std::vector<ObjectId>& added) override
     {
         const std::string& file_path = request.path;
@@ -313,7 +313,7 @@ public:
         target->objects.push_back(object);
         m_known_object_ids.insert(new_id);
         last_import = request;
-        decisions   = m_open_decisions;
+        report      = scripted_report(request.path, /*opened=*/false);
         added.push_back(new_id);
         publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
         return CommandResult::success(new_id);
@@ -908,8 +908,8 @@ public:
 
     std::set<std::string> m_region_artifacts, m_unbound_regions;
     // A project file becomes a fresh session holding one object named after
-    // it; what Orca would have asked is whatever the test scripted.
-    CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) override
+    // it; what Orca said while loading it is whatever the test scripted.
+    CommandResult open_project(const ProjectOpenRequest& request, LoadReport& report) override
     {
         const std::filesystem::path target = std::filesystem::u8path(request.path);
         if (!request.new_project && (!target.is_absolute() || !std::filesystem::is_regular_file(target)))
@@ -934,14 +934,37 @@ public:
         }
         next.plates       = {plate};
         next.active_plate = plate.id;
-        decisions         = m_open_decisions;
         replace_project(std::move(next));
+        report = scripted_report(request.path, /*opened=*/true);
         if (on_open_for_testing) on_open_for_testing();
         return CommandResult::success();
     }
     ProjectDetails project_details() const override { return m_details; }
     ProjectDetails m_details;
-    std::vector<LoadDecision> m_open_decisions;
+    // What Orca "says" during any load, as the file listener would report it.
+    std::vector<OrcaMessage> m_load_messages;
+    LoadReport scripted_report(const std::string& path, bool opened) const
+    {
+        LoadReport report;
+        report.started_by_agent = true;
+        report.project_opened   = opened;
+        report.project_path     = m_snapshot.setup.project_path;
+        if (!path.empty()) {
+            FileLoadRecord load;
+            load.files         = {path};
+            load.with_settings = opened;
+            load.messages      = m_load_messages;
+            report.loads.push_back(std::move(load));
+        }
+        if (opened)
+            report.details = m_details;
+        return report;
+    }
+    void set_load_report_listener(std::function<void(const LoadReport&)> listener) override
+    {
+        m_load_report_listener = std::move(listener);
+    }
+    std::function<void(const LoadReport&)> m_load_report_listener;
     // What the host does when a project is replaced under it.
     std::function<void()>     on_open_for_testing;
     ProjectOpenRequest        last_open;

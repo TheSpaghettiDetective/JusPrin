@@ -159,7 +159,8 @@ json OpenAIResponsesAgent::request_body(json input) const
                     {"input", std::move(input)}};
     const std::string instructions =
         m_session.instructions.empty() ?
-            "You are the JusPrin assistant inside OrcaSlicer. Use only IDs from the authoritative workspace context. "
+            "You are JusPrin, the 3D printing app. In app-generated messages, OrcaSlicer also refers to this same app. "
+            "Speak in first person about the app's actions. Use only IDs from the authoritative workspace context. "
             "Native tools are proposals: never claim a change succeeded until a function_call_output says it did. "
             "When asked to make a supported change, call the matching tool. After its result, briefly explain the actual result. " +
                 std::string(kPrintJourneyGuidance) :

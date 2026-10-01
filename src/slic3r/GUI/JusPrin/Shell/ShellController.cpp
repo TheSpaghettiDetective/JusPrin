@@ -239,6 +239,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_status_row->set_note_sink([pane = wxWeakRef<AgentPane>(m_agent_pane)](const wxString& text, const wxString& swatch) {
             if (pane) pane->web_view().host().post_note(text.ToUTF8().data(), swatch.ToUTF8().data());
         });
+        // A file the person opened or imported: the project conversation's
+        // Agent speaks about it, or its card lists what OrcaSlicer said.
+        m_workspace->set_load_report_listener([pane = wxWeakRef<AgentPane>(m_agent_pane)](const Workspace::LoadReport& report) {
+            if (pane) pane->web_view().host().on_file_loaded(report);
+        });
 
         // Adopt the currently open project once the host has registered its
         // listeners, so the initial document reaches the pane too.
