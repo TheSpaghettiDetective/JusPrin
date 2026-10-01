@@ -4917,8 +4917,17 @@ private:
     {
         const std::size_t changes_before = persistence().document().changes().size();
         check(m_plater->select_object(0), "timeline_object_selected");
-        for (int mirror = 0; mirror < 3; ++mirror)
+        auto* autosave = installed_shell()->autosave();
+        for (int mirror = 0; mirror < 3; ++mirror) {
             m_plater->mirror(Slic3r::X);
+            if (mirror == 0) {
+                check(autosave->save_now(), "timeline_first_mirror_saved_as_checkpoint");
+                const auto saved = autosave->history();
+                const auto logged = persistence().document().changes();
+                check(!saved.empty() && !logged.empty() && saved.back().change_seq == logged.back().seq,
+                      "timeline_checkpoint_links_first_mirror");
+            }
+        }
         const std::string density =
             wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize("sparse_infill_density") == "35%" ?
                 "45%" : "35%";
@@ -4936,6 +4945,11 @@ private:
         check(std::all_of(changes.begin() + static_cast<std::ptrdiff_t>(changes_before), changes.end(),
                           [](const Agent::ChangeEntry& change) { return change.actor == "person"; }),
               "timeline_hand_edits_are_the_persons");
+        check(autosave->save_now(), "timeline_hand_edits_saved_as_version");
+        const auto versions = autosave->history();
+        check(!versions.empty() && versions.back().change_seq == changes.back().seq,
+              "timeline_version_links_to_last_captured_change");
+        installed_shell()->agent_pane()->web_view().host().refresh_page_state();
 
         persistence().set_draft({});
         wait_until([this] { return persistence().draft().rfind("timeline=", 0) == 0; }, "timeline_rows_rendered",
@@ -4951,8 +4965,16 @@ private:
             "  var rows = Array.prototype.map.call(document.querySelectorAll('.change-row'),"
             "    function (row) { return row.textContent; });"
             "  var answered = document.querySelectorAll('.answered-state').length;"
-            "  if (window.__jusprinTest && rows.join('|').indexOf('3 steps merged') >= 0)"
-            "    window.__jusprinTest.setDraft('timeline=' + answered + '|' + rows.join('|'));"
+            "  var revert = document.querySelectorAll('.change-revert-button').length;"
+            "  var visibleRevert = Array.prototype.filter.call(document.querySelectorAll('.change-revert-button'),"
+            "    function (button) { return getComputedStyle(button).opacity === '1'; }).length;"
+            "  var changeRows = document.querySelectorAll('.change-row');"
+            "  var first = changeRows.length && changeRows[0].querySelector('.change-revert-button');"
+            "  var merged = Array.prototype.filter.call(changeRows, function (row) {"
+            "    return row.textContent.indexOf('3 steps merged') >= 0; })[0];"
+            "  var last = changeRows.length && changeRows[changeRows.length - 1].querySelector('.change-revert-button');"
+            "  if (window.__jusprinTest && merged && first)"
+            "    window.__jusprinTest.setDraft('timeline=' + answered + '|' + rows.join('|') + '|revert-controls=' + revert + '|visible-revert-controls=' + visibleRevert + '|first-revert=' + !!first + '|merged-revert=' + !!merged.querySelector('.change-revert-button') + '|latest-revert=' + !!last);"
             "})()");
     }
 
@@ -4963,6 +4985,35 @@ private:
         check(probe.rfind("timeline=", 0) == 0 && probe.substr(9, 1) != "0", "timeline_reply_says_nothing_changed");
         check(probe.find("3 steps merged") != std::string::npos, "timeline_mirrors_merge_into_one_row");
         check(probe.find("\xE2\x86\x92") != std::string::npos, "timeline_setting_row_reads_from_to");
+        check(probe.find("revert-controls=1") != std::string::npos, "timeline_current_saved_group_has_no_revert_control");
+        check(probe.find("visible-revert-controls=1") != std::string::npos, "timeline_previous_revert_control_visible_without_hover");
+        check(probe.find("first-revert=true") != std::string::npos, "timeline_previous_checkpoint_has_revert_control");
+        check(probe.find("merged-revert=false") != std::string::npos, "timeline_merged_run_skips_inner_checkpoint");
+        check(probe.find("latest-revert=false") != std::string::npos, "timeline_latest_row_has_no_revert_control");
+        persistence().set_draft({});
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "document.querySelector('.change-revert-button').click()");
+        wait_until([this] { return persistence().draft() == "revert-popover=open"; },
+                   "timeline_revert_popover_opened", [self = shared_from_this()] {
+            self->check(self->persistence().draft() == "revert-popover=open", "timeline_revert_explains_restore_before_action");
+            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+                "document.querySelector('.change-revert-popover button').click()");
+            self->persistence().set_draft({});
+            self->wait_until([self] { return self->persistence().draft() == "revert-popover=closed"; },
+                "timeline_revert_cancelled", [self] { self->begin_timeline_spacing(); }, [] { probe_revert_popover(); });
+        }, [] { probe_revert_popover(); });
+    }
+
+    static void probe_revert_popover()
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "if (window.__jusprinTest) window.__jusprinTest.setDraft('revert-popover=' + "
+            "(document.querySelector('.change-revert-popover') ? 'open' : 'closed'));");
+    }
+
+    void begin_timeline_spacing()
+    {
+        check(persistence().draft() == "revert-popover=closed", "timeline_revert_cancel_keeps_timeline");
         persistence().set_draft({});
         wait_until([this] { return persistence().draft().rfind("spacing=", 0) == 0; }, "timeline_spacing_measured",
                    [self = shared_from_this()] { self->check_timeline_spacing(); }, [] { probe_spacing(); });
@@ -5012,8 +5063,42 @@ private:
             const bool dark = self->m_state->dark_appearance.value_or(false);
             self->write_screen_capture(installed_shell()->agent_pane()->GetScreenRect(),
                                        std::string("timeline-agent-pane-") + (dark ? "dark" : "light"));
-            self->timeline_new_project_starts_fresh();
+            self->timeline_revert_previous_group();
         });
+    }
+
+    void timeline_revert_previous_group()
+    {
+        const auto versions = installed_shell()->autosave()->history();
+        const auto first = std::find_if(versions.begin(), versions.end(), [](const auto& version) {
+            return version.change_seq != 0;
+        });
+        check(first != versions.end(), "timeline_previous_saved_group_exists");
+        if (first == versions.end()) {
+            timeline_new_project_starts_fresh();
+            return;
+        }
+        const std::string selected_id = first->id;
+        const std::size_t changes_before = persistence().document().changes().size();
+        const std::size_t conversations_before = persistence().document().conversations().size();
+        persistence().set_draft({});
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "document.querySelectorAll('.change-revert-button')[0].click()");
+        wait_until([this] { return persistence().draft() == "revert-popover=open"; },
+                   "timeline_previous_revert_explained", [self = shared_from_this(), selected_id, changes_before, conversations_before] {
+            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+                "document.querySelector('.change-revert-buttons .confirm').click()");
+            self->wait_until([self, changes_before] {
+                const auto changes = self->persistence().document().changes();
+                return changes.size() > changes_before && changes.back().kind == "restore";
+            }, "timeline_revert_confirmed", [self, selected_id, conversations_before] {
+                const auto changes = self->persistence().document().changes();
+                self->check(changes.back().to == selected_id, "timeline_revert_selected_exact_saved_version");
+                self->check(self->persistence().document().conversations().size() == conversations_before,
+                            "timeline_revert_keeps_conversation");
+                self->timeline_new_project_starts_fresh();
+            });
+        }, [] { probe_revert_popover(); });
     }
 
     // OrcaSlicer's undo timestamps restart with a new project, so the adapter
@@ -6522,6 +6607,9 @@ private:
               "history_fixture_second_model_version_saved");
         const auto versions = autosave->history();
         check(versions.size() >= 2, "history_fixture_has_older_version");
+        if (!versions.empty() && !persistence().document().changes().empty())
+            check(versions.back().change_seq == persistence().document().changes().back().seq,
+                  "history_saved_version_links_to_last_captured_change");
         if (versions.size() >= 2) {
             const std::string latest = autosave->current_version();
             const std::size_t objects = m_plater->model().objects.size();

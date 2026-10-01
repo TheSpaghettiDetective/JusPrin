@@ -22,6 +22,9 @@ interface ButtonRecipe {
   paddingX?: number;
   paddingY?: number;
   iconGap?: number;
+  width?: number;
+  height?: number;
+  iconSize?: number;
 }
 
 interface StaticTokens {
@@ -72,6 +75,7 @@ export function sharedStaticVariableNames(): string[] {
     ...Object.entries(component.button)
       .filter(([, recipe]) => recipe.iconGap !== undefined)
       .map(([name]) => `--button-${kebab(name)}-icon-gap`),
+    '--button-icon-width', '--button-icon-height', '--button-icon-icon-size',
   ];
 }
 
@@ -103,6 +107,10 @@ export function applySharedStaticTokens(): void {
     if (recipe.paddingX === undefined || recipe.paddingY === undefined) continue;
     root.style.setProperty(`--button-${kebab(name)}-padding`, `${recipe.paddingY}px ${recipe.paddingX}px`);
   }
+  const icon = component.button.icon;
+  root.style.setProperty('--button-icon-width', `${icon.width}px`);
+  root.style.setProperty('--button-icon-height', `${icon.height}px`);
+  root.style.setProperty('--button-icon-icon-size', `${icon.iconSize}px`);
 }
 
 interface ElevationTier {

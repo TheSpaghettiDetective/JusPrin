@@ -82,6 +82,10 @@ public:
     {
         m_navigation_state_provider = std::move(provider);
     }
+    void set_restore_points_provider(std::function<nlohmann::json()> provider)
+    {
+        m_restore_points_provider = std::move(provider);
+    }
     void refresh_page_state() { send_state(); }
     // Decodes an image attachment's raw bytes into a small thumbnail data
     // URL, for the composer/thread preview only -- the model still gets the
@@ -371,6 +375,7 @@ private:
 
     AgentSessionProfile             m_session_profile;
     PageMessageHandler              m_page_message_handler;
+    std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;
     std::function<nlohmann::json()> m_session_state_provider;

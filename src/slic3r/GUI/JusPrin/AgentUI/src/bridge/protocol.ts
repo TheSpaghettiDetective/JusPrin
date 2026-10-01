@@ -297,7 +297,8 @@ export interface ConversationInfo {
 //   undo     label is the step undone;  redo: the step redone
 //   setting  label is the setting's name; from/to/preset say the rest
 //   preset   a whole preset was switched; label is the new preset
-export type ChangeKind = 'step' | 'undo' | 'redo' | 'setting' | 'preset';
+//   restore  the model and settings were restored from an earlier saved version
+export type ChangeKind = 'step' | 'undo' | 'redo' | 'setting' | 'preset' | 'restore';
 
 export interface ChangeInfo {
   seq: number;
@@ -310,6 +311,11 @@ export interface ChangeInfo {
   preset?: string;
   conversationId: string;
   afterId: string; // the message or tool activity it follows; '' before the first
+}
+
+export interface RestorePointInfo {
+  changeSeq: number;
+  versionId: string;
 }
 
 export interface SliceStatisticsInfo {
@@ -490,6 +496,7 @@ export interface StatePayload {
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes?: ChangeInfo[]; // absent from hosts without the change_log capability
+  restorePoints?: RestorePointInfo[]; // committed model versions with an exact change boundary
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;

@@ -352,6 +352,7 @@ TEST_CASE("the menu geometry is explicit", "[brand]")
         "component.menuRow");
     require_exact_table<int>(component.at("popover"), {{"paddingY", 4}, {"rowGap", 0}, {"radius", 8}},
         "component.popover");
+    require_exact_table<int>(component.at("timelineRevert"), {{"width", 320}}, "component.timelineRevert");
 }
 
 // The header chip's slot dots and the filament menu's colour cells are drawn

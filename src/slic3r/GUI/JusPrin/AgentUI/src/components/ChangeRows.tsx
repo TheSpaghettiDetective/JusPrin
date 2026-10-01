@@ -1,11 +1,12 @@
 // The change log between the turns: what the person and the Agent changed,
 // drawn as the Figma "Hand edits" frame has it -- one row per run of the same
-// edit, hairlines above and below the group, no bubble, no controls. The
+// edit, hairlines above and below the group, no bubble. The
 // native side records every edit raw; merging and wording happen here only,
 // so either can change without touching saved data.
 
-import { ReactNode } from 'react';
-import { ChangeInfo } from '../bridge/protocol';
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChangeInfo, RestorePointInfo } from '../bridge/protocol';
 import { chatTimestamp } from './ChatNavigation';
 
 export interface ChangeRun {
@@ -70,6 +71,8 @@ function title(run: ChangeRun): ReactNode {
           Switched to <strong>{last.label}</strong>
         </>
       );
+    case 'restore':
+      return last.label;
   }
 }
 
@@ -82,7 +85,56 @@ function meta(run: ChangeRun): string {
   return parts.join(' · ');
 }
 
-export function ChangeRows({ changes }: { changes: ChangeInfo[] }) {
+export function ChangeRows({ changes, restorePoints = [], onRevert }: {
+  changes: ChangeInfo[];
+  restorePoints?: RestorePointInfo[];
+  onRevert?: (versionId: string) => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const anchor = useRef<HTMLButtonElement | null>(null);
+  const popover = useRef<HTMLDivElement | null>(null);
+  const cancel = useRef<HTMLButtonElement | null>(null);
+  const points = new Map(restorePoints.map((point) => [point.changeSeq, point.versionId]));
+
+  useLayoutEffect(() => {
+    if (!open || !anchor.current || !popover.current) return;
+    const update = () => {
+      const button = anchor.current!.getBoundingClientRect();
+      const panel = popover.current!;
+      const left = Math.max(16, Math.min(button.right - panel.offsetWidth, window.innerWidth - panel.offsetWidth - 16));
+      const below = button.bottom + 4;
+      const top = below + panel.offsetHeight <= window.innerHeight - 16
+        ? below : Math.max(16, button.top - panel.offsetHeight - 4);
+      setPosition({ top, left });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    cancel.current?.focus();
+    const dismiss = (event: MouseEvent) => {
+      if (!popover.current?.contains(event.target as Node) && !anchor.current?.contains(event.target as Node))
+        setOpen(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOpen(null); anchor.current?.focus(); }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+
   return (
     <div className="change-rows" role="list" aria-label="Changes">
       {groupChanges(changes).map((run) => (
@@ -92,8 +144,33 @@ export function ChangeRows({ changes }: { changes: ChangeInfo[] }) {
             <span className="change-title">{title(run)}</span>
             <span className="change-meta">{meta(run)}</span>
           </div>
+          {/* An inner checkpoint cannot represent the entire merged row. */}
+          {onRevert && points.has(run.last.seq) && (
+            <span className="change-revert-action">
+              <button type="button" className="change-revert-button" aria-label="Revert to here"
+                aria-expanded={open === points.get(run.last.seq)}
+                onClick={(event) => {
+                  anchor.current = event.currentTarget;
+                  setOpen(open === points.get(run.last.seq) ? null : points.get(run.last.seq)!);
+                }}>
+                <span className="change-revert-icon" aria-hidden="true" />
+              </button>
+              <span className="change-revert-tooltip" role="tooltip">Revert to here</span>
+            </span>
+          )}
         </div>
       ))}
+      {open && createPortal(
+        <div ref={popover} className="change-revert-popover" role="dialog" aria-label="Revert to here?"
+          style={{ top: position.top, left: position.left }}>
+          <strong>Revert to here?</strong>
+          <p>Restore the model and project settings from this saved point. Your current model is saved in Version history first. Conversation, exported files, completed prints, and printer activity stay as they are.</p>
+          <div className="change-revert-buttons">
+            <button ref={cancel} type="button" onClick={() => { setOpen(null); anchor.current?.focus(); }}>Cancel</button>
+            <button type="button" className="confirm" onClick={() => { onRevert?.(open); setOpen(null); }}>Revert to here</button>
+          </div>
+        </div>, document.body,
+      )}
     </div>
   );
 }

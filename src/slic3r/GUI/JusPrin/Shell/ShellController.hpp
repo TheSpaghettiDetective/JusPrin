@@ -164,6 +164,7 @@ private:
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     std::unique_ptr<Workspace::ProjectAutosave> m_autosave;
     std::string m_autosave_status_key;
+    std::string m_timeline_version_head;
     wxString m_saved_frame_title;
 
     bool m_installed{false};

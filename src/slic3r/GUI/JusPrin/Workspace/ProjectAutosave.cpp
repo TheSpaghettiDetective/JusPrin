@@ -406,6 +406,9 @@ bool ProjectAutosave::capture(bool wait_for_commit)
         const wxString source = m_plater.get_project_filename(".3mf");
         auto frozen = m_store->freeze(m_plater.model(), id, ++m_revision, m_persistence.document().dump(),
                                       source.ToUTF8().data(), m_persistence.timestamp());
+        const auto& changes = m_persistence.document().changes();
+        if (!changes.empty())
+            frozen.version.change_seq = changes.back().seq;
         const auto semantic_revision = m_persistence.document().doc_revision();
         m_committed_semantic_revision = semantic_revision;
         if (m_seen_semantic_revision == semantic_revision)

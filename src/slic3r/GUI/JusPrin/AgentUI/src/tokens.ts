@@ -17,7 +17,7 @@ export { applyAppearance } from '@shared/tokens';
 export function staticVariableNames(): string[] {
   return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--printer-setup-width',
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
-    '--reply-chip-height', '--reply-chip-padding-x'];
+    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
@@ -35,6 +35,7 @@ export function applyStaticTokens(): void {
   const { component } = tokens as unknown as {
     component: { threadRow: { lineGap: number }; printerSetup: { contentWidth: number };
       printerDialog: { width: number; radius: number; scrimAlpha: number };
+      timelineRevert: { width: number };
       replyChip: { height: number; paddingX: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
@@ -48,4 +49,5 @@ export function applyStaticTokens(): void {
   );
   document.documentElement.style.setProperty('--reply-chip-height', `${component.replyChip.height}px`);
   document.documentElement.style.setProperty('--reply-chip-padding-x', `${component.replyChip.paddingX}px`);
+  document.documentElement.style.setProperty('--timeline-revert-width', `${component.timelineRevert.width}px`);
 }

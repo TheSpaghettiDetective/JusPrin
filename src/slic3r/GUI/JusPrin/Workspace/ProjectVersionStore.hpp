@@ -39,6 +39,9 @@ public:
     {
         std::string id;
         std::uint64_t revision{0};
+        // Last raw change included in this immutable model snapshot. Zero
+        // means an older manifest without a known timeline boundary.
+        std::uint64_t change_seq{0};
         std::string created_at;
         std::string source_path;
         std::vector<ObjectResource> objects;

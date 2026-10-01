@@ -336,6 +336,7 @@ json version_json(const ProjectVersionStore::Version& version)
         objects.push_back({{"objectId", object.object_id}, {"backupId", object.backup_id}, {"facets", object.facets}, {"entry", object.entry},
                            {"resource", object.resource.id}, {"resourceEntry", object.resource.entry}});
     return {{"schema", 1}, {"id", version.id}, {"revision", version.revision},
+            {"changeSeq", version.change_seq},
             {"createdAt", version.created_at}, {"sourcePath", version.source_path},
             {"projectName", version.project_name}, {"objects", std::move(objects)}};
 }
@@ -348,6 +349,7 @@ ProjectVersionStore::Version parse_version(const std::string& text)
     ProjectVersionStore::Version version;
     version.id = value.at("id").get<std::string>();
     version.revision = value.at("revision").get<std::uint64_t>();
+    version.change_seq = value.value("changeSeq", std::uint64_t{0});
     version.created_at = value.at("createdAt").get<std::string>();
     version.source_path = value.value("sourcePath", "");
     version.project_name = value.value("projectName", "");
@@ -622,7 +624,7 @@ ProjectVersionStore::Capture ProjectVersionStore::freeze(Model& live, const std:
     require(valid_zip_entry(pending / "metadata.3mf", ""), "project metadata archive is invalid");
     publish_document(std::move(semantic_state));
     Capture capture;
-    capture.version = {version_id, revision, std::move(created_at), std::move(source_path), {}};
+    capture.version = {version_id, revision, 0, std::move(created_at), std::move(source_path), {}};
     capture.pending_dir = pending;
     capture.frozen = std::make_shared<Model>(live);
     for (std::size_t index = 0; index < live.objects.size(); ++index) {

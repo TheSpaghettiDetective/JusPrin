@@ -371,6 +371,8 @@ export function App({
           exportedCopies={state.exportedCopies}
           physicalPrints={state.physicalPrints}
           changes={state.changes.filter((change) => change.conversationId === state.activeConversationId)}
+          restorePoints={state.restorePoints}
+          onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
           answeredState={!state.navigation.focused}
           onRetry={(messageId) => client.send('retry_message', { messageId })}
           onToolDecision={sendToolDecision}

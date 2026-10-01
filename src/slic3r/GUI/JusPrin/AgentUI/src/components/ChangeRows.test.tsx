@@ -2,11 +2,11 @@
 // the rows say, where they sit among messages and history cards, and when a
 // reply says it changed nothing.
 
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { BuildInfo, ChangeInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
-import { groupChanges } from './ChangeRows';
+import { ChangeRows, groupChanges } from './ChangeRows';
 import { MessageList } from './MessageList';
 
 const now = new Date().toISOString();
@@ -60,6 +60,31 @@ describe('groupChanges', () => {
     const runs = groupChanges([change(3, { label: 'Move' }), change(1), change(2)]);
     expect(runs.map((run) => [run.first.seq, run.count])).toEqual([[1, 2], [3, 1]]);
   });
+
+  it('merges identical edits across saved versions', () => {
+    const runs = groupChanges([change(1), change(2), change(3)]);
+    expect(runs.map((run) => [run.count, run.last.seq])).toEqual([[3, 3]]);
+  });
+});
+
+it('skips a checkpoint inside a merged run and confirms the endpoint checkpoint', () => {
+  const onRevert = vi.fn();
+  render(<ChangeRows changes={[change(1), change(2), change(3), change(4, { label: 'Move' })]}
+    restorePoints={[{ changeSeq: 2, versionId: 'saved-2' }, { changeSeq: 3, versionId: 'saved-3' }]}
+    onRevert={onRevert} />);
+  expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('3 steps merged');
+  const button = screen.getByRole('button', { name: 'Revert to here' });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  fireEvent.click(button);
+  expect(screen.getByRole('dialog', { name: 'Revert to here?' })).toBeInTheDocument();
+  expect(onRevert).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(onRevert).not.toHaveBeenCalled();
+  fireEvent.click(button);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Revert to here' }));
+  expect(onRevert).toHaveBeenCalledTimes(1);
+  expect(onRevert).toHaveBeenCalledWith('saved-3');
 });
 
 describe('change rows in the thread', () => {

@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 
@@ -165,6 +166,12 @@ ShellController::ShellController()
     Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
         if (m_autosave) {
             m_autosave->tick();
+            const std::string head = m_autosave->current_version();
+            if (head != m_timeline_version_head) {
+                m_timeline_version_head = head;
+                if (m_agent_pane)
+                    m_agent_pane->web_view().host().refresh_page_state();
+            }
             const std::string key = std::to_string(int(m_autosave->state())) + m_autosave->error();
             if (key != m_autosave_status_key && m_status_row != nullptr) {
                 m_autosave_status_key = key;
@@ -269,6 +276,48 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_autosave = std::make_unique<Workspace::ProjectAutosave>(
             *plater, *m_persistence, *m_workspace,
             std::filesystem::path(data_dir()) / "jusprin" / "projects");
+        auto& project_host = m_agent_pane->web_view().host();
+        project_host.set_restore_points_provider([this] {
+            nlohmann::json points = nlohmann::json::array();
+            if (!m_autosave)
+                return points;
+            // Keep the first model saved at a boundary: later model-only saves
+            // with the same change sequence must not move its restore target.
+            std::map<std::uint64_t, std::string> by_change;
+            const auto versions = m_autosave->history();
+            const auto current = m_autosave->current_version();
+            const auto head = std::find_if(versions.begin(), versions.end(), [&current](const auto& version) {
+                return version.id == current;
+            });
+            const auto changes = m_persistence->document().changes();
+            const std::uint64_t latest_change_seq = changes.empty() ? 0 : changes.back().seq;
+            // The head needs no revert action while it still describes the
+            // latest change; once a newer edit is logged it becomes useful.
+            const std::uint64_t current_change_seq = head != versions.end() && head->change_seq == latest_change_seq
+                ? head->change_seq : 0;
+            for (const auto& version : versions)
+                if (version.change_seq != 0 && version.change_seq != current_change_seq)
+                    by_change.emplace(version.change_seq, version.id);
+            for (const auto& [seq, id] : by_change)
+                points.push_back({{"changeSeq", seq}, {"versionId", id}});
+            return points;
+        });
+        project_host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
+            if (type != Agent::Protocol::kShellAction || !payload.is_object() ||
+                payload.value("action", std::string()) != "revert_to_here")
+                return false;
+            const std::string id = payload.value("versionId", std::string());
+            const auto versions = m_autosave->history();
+            const auto found = std::find_if(versions.begin(), versions.end(), [&id](const auto& version) {
+                return version.id == id && version.change_seq != 0;
+            });
+            if (found == versions.end() || !m_autosave->restore(id)) {
+                wxMessageBox(_L("This saved version couldn't be restored. Try again from Version history."),
+                             _L("Revert failed"), wxOK | wxICON_ERROR, m_frame);
+            }
+            m_agent_pane->web_view().host().refresh_page_state();
+            return true;
+        });
         m_agent_pane->web_view().host().set_turn_boundary_callback([this] { m_autosave->save_now(); });
         Slic3r::set_backup_suspended(true);
         m_status_row->set_autosave(m_autosave.get());

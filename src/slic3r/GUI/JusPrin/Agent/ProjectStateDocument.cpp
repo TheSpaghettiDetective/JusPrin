@@ -1081,6 +1081,10 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
         record["from"]   = entry.from;
         record["to"]     = entry.to;
         record["preset"] = entry.preset;
+    } else if (entry.kind == "restore") {
+        // Keep the exact source and target versions in the audit entry.
+        record["from"] = entry.from;
+        record["to"]   = entry.to;
     }
     m_doc["changes"].push_back(std::move(record));
     touch();

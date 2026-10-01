@@ -11,6 +11,7 @@ import {
   AttachmentInfo,
   BuildInfo,
   ChangeInfo,
+  RestorePointInfo,
   ExportedCopyInfo,
   PhysicalPrintInfo,
   PrinterBlock,
@@ -35,6 +36,8 @@ interface Props {
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes: ChangeInfo[]; // already filtered to this conversation
+  restorePoints?: RestorePointInfo[];
+  onRevert?: (versionId: string) => void;
   onRetry: (messageId: string) => void;
   onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
@@ -80,14 +83,14 @@ function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[]): 
   return blocks;
 }
 
-function TimelineBlocks({ blocks }: { blocks: TimelineBlock[] }) {
+function TimelineBlocks({ blocks, restorePoints, onRevert }: { blocks: TimelineBlock[]; restorePoints: RestorePointInfo[]; onRevert?: (versionId: string) => void }) {
   return (
     <>
       {blocks.map((block) =>
         block.kind === 'history' ? (
           <ManufacturingHistoryCard key={`${block.entry.kind}-${block.entry.record.id}`} entry={block.entry} />
         ) : (
-          <ChangeRows key={`changes-${block.seq}`} changes={block.changes} />
+          <ChangeRows key={`changes-${block.seq}`} changes={block.changes} restorePoints={restorePoints} onRevert={onRevert} />
         ),
       )}
     </>
@@ -105,6 +108,8 @@ export function MessageList({
   exportedCopies,
   physicalPrints,
   changes,
+  restorePoints = [],
+  onRevert,
   onRetry,
   onToolDecision,
   onToolCancel,
@@ -174,7 +179,7 @@ export function MessageList({
   return (
     <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} />
+      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={restorePoints} onRevert={onRevert} />
       {messages.length === 0 && (
         <div className="notice">
           <h2>Ask the Agent about your print</h2>
@@ -334,7 +339,7 @@ export function MessageList({
               })}
             </div>
             {printerBlockViews(message.id)}
-            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} />
+            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} restorePoints={restorePoints} onRevert={onRevert} />
           </Fragment>
         );
       })}

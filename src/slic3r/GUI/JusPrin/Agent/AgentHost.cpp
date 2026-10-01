@@ -724,6 +724,8 @@ void AgentHost::send_state(const std::string& correlation_id)
         payload["session"] = m_session_state_provider();
     if (m_navigation_state_provider)
         payload["navigation"] = m_navigation_state_provider();
+    if (m_restore_points_provider)
+        payload["restorePoints"] = m_restore_points_provider();
     send_envelope(Protocol::kState, payload.dump(), correlation_id);
 }
 

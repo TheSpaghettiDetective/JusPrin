@@ -713,9 +713,8 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   font: var(--font-label);
 }
 
-/* The change log between the turns (Figma "Hand edits"). Rows are
-   third-layer content: hairlines above and below the group, no bubble, no
-   controls. */
+/* The change log between the turns (Figma "Hand edits"). A saved version's
+   final row carries one quiet restore action at the trailing edge. */
 .change-rows {
   display: flex;
   flex-direction: column;
@@ -744,6 +743,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   flex-direction: column;
   gap: var(--thread-row-line-gap);
   min-width: 0;
+  flex: 1;
 }
 
 .change-title {
@@ -760,6 +760,59 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   color: var(--text-secondary);
   font: var(--font-label);
 }
+
+.change-revert-action { position: relative; flex: 0 0 auto; }
+.change-revert-button {
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+.change-revert-button:hover,
+.change-revert-button[aria-expanded="true"] { color: var(--action-primary); background: var(--surface-subtle); }
+.change-revert-icon {
+  display: block;
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/undo-dot.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/undo-dot.svg') center / contain no-repeat;
+}
+.change-revert-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: calc(100% + 4px);
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: var(--radius-standard);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  font: var(--font-label);
+}
+.change-revert-button:hover + .change-revert-tooltip,
+.change-revert-button:focus-visible + .change-revert-tooltip { display: block; }
+.change-revert-button[aria-expanded="true"] + .change-revert-tooltip { display: none; }
+
+.change-revert-popover {
+  position: fixed;
+  z-index: 10;
+  width: min(var(--timeline-revert-width), calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-strong);
+  color: var(--text-primary);
+}
+.change-revert-popover strong { display: block; font: var(--font-section); }
+.change-revert-popover p { margin: 8px 0 0; font: var(--font-body-small); color: var(--text-secondary); }
+.change-revert-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.change-revert-buttons button { padding: var(--button-expanded-padding); font: var(--font-body); border: 1px solid var(--border-subtle); }
+.change-revert-buttons .confirm { color: var(--text-on-action); background: var(--action-primary); border-color: var(--action-primary); }
 
 /* Native tool action cards. */
 .tool-card {

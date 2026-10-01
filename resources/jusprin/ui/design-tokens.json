@@ -334,6 +334,9 @@
       "rowGap": 0,
       "radius": 8
     },
+    "timelineRevert": {
+      "width": 320
+    },
     "statusRow": {
       "height": 34
     },

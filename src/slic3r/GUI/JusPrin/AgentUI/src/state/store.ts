@@ -10,6 +10,7 @@ import {
   AttachmentInfo,
   BuildInfo,
   ChangeInfo,
+  RestorePointInfo,
   ConversationInfo,
   Envelope,
   ExportedCopyInfo,
@@ -46,6 +47,7 @@ export interface AgentUiState {
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes: ChangeInfo[];
+  restorePoints: RestorePointInfo[];
   draft: string;
   // Staged (composer) and sent (history) attachments, keyed by id in the UI.
   attachments: AttachmentInfo[];
@@ -84,6 +86,7 @@ export const initialState: AgentUiState = {
   exportedCopies: [],
   physicalPrints: [],
   changes: [],
+  restorePoints: [],
   draft: '',
   attachments: [],
   context: null,
@@ -161,6 +164,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         exportedCopies: full.exportedCopies ?? [],
         physicalPrints: full.physicalPrints ?? [],
         changes: full.changes ?? [],
+        restorePoints: full.restorePoints ?? [],
         draft: full.draft ?? '',
         attachments: full.attachments ?? [],
         context: full.context,
