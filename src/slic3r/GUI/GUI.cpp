@@ -3,6 +3,7 @@
 #include "ICloudServiceAgent.hpp"
 #include "format.hpp"
 #include "I18N.hpp"
+#include "JusPrin/Workspace/FileLoads.hpp"
 
 #include "libslic3r/LocalesUtils.hpp"
 #ifdef __APPLE__
@@ -248,6 +249,8 @@ void change_opt_value(DynamicPrintConfig& config, const t_config_option_key& opt
 
 void show_error(wxWindow* parent, const wxString& message, bool monospaced_font)
 {
+    if (report_file_load_message(std::string(message.ToUTF8()), "error"))
+        return;
     wxGetApp().CallAfter([=] {
         ErrorDialog msg(parent, message, monospaced_font);
         msg.ShowModal();

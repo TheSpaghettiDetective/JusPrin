@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Workspace.hpp"
+#include "FileLoads.hpp"
 #include "ProjectState.hpp"
 
 #include <map>
@@ -14,7 +15,9 @@ class PartPlate;
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
-class OrcaWorkspaceAdapter final : public IWorkspace
+class ScopedLeastChangeAnswers;
+
+class OrcaWorkspaceAdapter final : public IWorkspace, private FileLoadObserver
 {
 public:
     explicit OrcaWorkspaceAdapter(Plater& plater);
@@ -51,9 +54,10 @@ public:
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;
     ProjectDetails project_details() const override;
-    CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) override;
-    CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+    CommandResult open_project(const ProjectOpenRequest& request, LoadReport& report) override;
+    CommandResult import_objects(const ImportRequest& request, LoadReport& report,
                                  std::vector<ObjectId>& added) override;
+    void set_load_report_listener(std::function<void(const LoadReport&)> listener) override;
     CommandResult delete_items(const std::vector<DeleteItem>& items) override;
     CommandResult render_view(const RenderRequest& request, RenderedImage& image) override;
     CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override;
@@ -94,6 +98,20 @@ private:
     CommandResult change_regions(const std::vector<RegionRecord>& removed, const std::vector<RegionRecord>& added,
                                  const char* snapshot_name);
     void on_project_state_changed(const ProjectStateChanged& change);
+    // File loads (FileLoads.hpp). While one runs, every Orca dialog is
+    // answered with the least change and written down; once it ends, it waits
+    // to be reported, to the tool that started it or, a turn of the event loop
+    // later, to the load report listener.
+    void file_load_started(const std::vector<boost::filesystem::path>& files, LoadStrategy strategy) override;
+    void file_settings_applied() override;
+    void file_load_finished() override;
+    void file_open_started() override;
+    void file_open_finished() override;
+    bool file_load_message(const std::string& text, const char* source) override;
+    bool file_open_can_replace_project() override;
+    LoadSelectedSetup selected_load_setup() const;
+    LoadReport take_load_report(bool started_by_agent);
+    void deliver_load_report();
     void on_slice_status_changed(wxCommandEvent& event);
     // Per plate: whether it holds a valid slice, and which result. Compared on
     // every slice-status event so only a real change advances the revision.
@@ -152,6 +170,19 @@ private:
     // restored when that arrange ends.
     std::optional<std::pair<float, bool>> m_arrange_restore;
     std::shared_ptr<bool>     m_alive = std::make_shared<bool>(true);
+
+    struct ActiveLoad;
+    std::unique_ptr<ActiveLoad>            m_active_load;
+    std::unique_ptr<ScopedLeastChangeAnswers> m_open_answers;
+    std::vector<FileLoadRecord>            m_finished_loads;
+    LoadSelectedSetup                      m_setup_before_loads;
+    std::vector<std::uint64_t>             m_arrived_objects; // Orca ids of what the finished loads added
+    std::uint64_t                          m_session_before_loads{0};
+    bool                                   m_report_scheduled{false};
+    void flush_file_open_messages();
+    void schedule_load_report();
+    int                                    m_tool_loads{0}; // a tool's own open or import is running
+    std::function<void(const LoadReport&)> m_load_report_listener;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

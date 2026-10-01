@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;

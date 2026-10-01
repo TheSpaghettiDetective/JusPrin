@@ -50,6 +50,14 @@ nlohmann::json printer_device_result(const Workspace::PrinterDevice& device);
 // attachments, and backup state.
 nlohmann::json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details);
 
+// What Orca said while loading a file, each dialog with the answer JusPrin
+// gave, and the whole report: the loads, those messages, what an opened
+// project's file states, and the objects that arrived.
+nlohmann::json orca_messages_result(const Workspace::LoadReport& report);
+nlohmann::json load_report_result(const Workspace::LoadReport& report);
+// Keep the full report in the transcript and tool result; the opening turn
+// receives the loader's outcomes plus only dialogs without a semantic label.
+
 nlohmann::json objects_section_result(const std::vector<Workspace::ObjectDetails>& objects);
 // One region record as the tools show it, with its status when known.
 nlohmann::json region_result(const Workspace::RegionRecord& record, const Workspace::RegionStatus* status);

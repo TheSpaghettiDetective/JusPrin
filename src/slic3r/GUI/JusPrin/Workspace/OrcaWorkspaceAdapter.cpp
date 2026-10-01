@@ -1,5 +1,5 @@
 #include "OrcaWorkspaceAdapter.hpp"
-#include "ModalAnswers.hpp"
+#include "DialogListeners.hpp"
 #include "OrcaSettings.hpp"
 #include "OrcaGeometry.hpp"
 #include "HostLocale.hpp"
@@ -11,6 +11,7 @@
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -19,7 +20,6 @@
 #include "slic3r/GUI/Jobs/ArrangeJob.hpp"
 #include "slic3r/GUI/Jobs/OrientJob.hpp"
 #include "slic3r/GUI/Jobs/Worker.hpp"
-#include "slic3r/GUI/MsgDialog.hpp"
 #include "libslic3r_version.h"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/PresetComboBoxes.hpp"
@@ -30,12 +30,12 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Selection.hpp"
-#include "slic3r/GUI/StepMeshDialog.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <wx/thread.h>
 
@@ -201,13 +201,233 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
     remember_current_ids();
     remember_history();
     record_settings_edits(/*report=*/false);
+    set_file_load_observer(this);
 }
 
 OrcaWorkspaceAdapter::~OrcaWorkspaceAdapter()
 {
     wxASSERT(wxIsMainThread());
+    set_file_load_observer(nullptr);
+    m_open_answers.reset();
+    m_active_load.reset();
     m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &OrcaWorkspaceAdapter::on_slice_status_changed, this);
     m_project_subscription.reset();
+}
+
+struct OrcaWorkspaceAdapter::ActiveLoad
+{
+    std::vector<std::string> files;
+    bool                     with_settings{false};
+    bool                     settings_applied{false};
+    std::size_t              objects_before{0};
+    ScopedLeastChangeAnswers answers;
+};
+
+namespace {
+std::string load_preset_origin(const Preset* preset)
+{
+    if (preset == nullptr) return "unknown";
+    if (preset->is_project_embedded) return "file_embedded";
+    if (preset->is_system) return "installed_system";
+    if (preset->is_user()) return "user";
+    if (preset->is_default) return "default";
+    return "other";
+}
+} // namespace
+
+LoadSelectedSetup OrcaWorkspaceAdapter::selected_load_setup() const
+{
+    LoadSelectedSetup result;
+    PresetBundle* bundle = wxGetApp().preset_bundle;
+    if (bundle == nullptr)
+        return result;
+    const Preset& printer = bundle->printers.get_selected_preset();
+    result.printer_preset = printer.name;
+    result.printer_origin = load_preset_origin(&printer);
+    const Preset& process = bundle->prints.get_selected_preset();
+    result.process_preset = process.name;
+    result.process_origin = load_preset_origin(&process);
+    if (!bundle->filament_presets.empty()) {
+        result.filament_preset = bundle->filament_presets.front();
+        const Preset* filament = bundle->filaments.find_preset(result.filament_preset, false);
+        result.filament_origin = load_preset_origin(filament);
+        if (filament != nullptr)
+            if (const auto* types = filament->config.option<ConfigOptionStrings>("filament_type");
+                types != nullptr && !types->values.empty())
+                result.material_type = types->values.front();
+    }
+    return result;
+}
+
+void OrcaWorkspaceAdapter::file_load_started(const std::vector<boost::filesystem::path>& files, LoadStrategy strategy)
+{
+    wxASSERT(wxIsMainThread());
+    // A settings file brings no model, and a silent load is one Orca itself
+    // does not treat as the person's (it records neither the folder nor the
+    // project's file name): crash recovery reloading JusPrin's own backup,
+    // and code loading a file for its own purposes. None of them is a file
+    // the person brought in, so Orca's dialogs show as they always have.
+    if (!(strategy & LoadStrategy::LoadModel) || (strategy & LoadStrategy::Silence) || m_active_load)
+        return;
+    flush_file_open_messages();
+    if (m_finished_loads.empty() && !m_open_answers) {
+        m_session_before_loads = m_plater.project_state_session();
+        m_setup_before_loads = selected_load_setup();
+    }
+    m_active_load = std::make_unique<ActiveLoad>();
+    for (const boost::filesystem::path& file : files)
+        m_active_load->files.push_back(file.string());
+    m_active_load->with_settings  = strategy & LoadStrategy::LoadConfig;
+    m_active_load->objects_before = m_plater.model().objects.size();
+}
+
+void OrcaWorkspaceAdapter::file_settings_applied()
+{
+    wxASSERT(wxIsMainThread());
+    if (m_active_load)
+        m_active_load->settings_applied = true;
+}
+
+void OrcaWorkspaceAdapter::file_load_finished()
+{
+    wxASSERT(wxIsMainThread());
+    if (!m_active_load)
+        return;
+    FileLoadRecord record;
+    record.files         = std::move(m_active_load->files);
+    record.with_settings = m_active_load->with_settings;
+    record.settings_applied = m_active_load->settings_applied;
+    record.messages      = m_active_load->answers.take_messages();
+    const ModelObjectPtrs& objects = m_plater.model().objects;
+    for (std::size_t index = m_active_load->objects_before; index < objects.size(); ++index)
+        m_arrived_objects.push_back(objects[index]->id().id);
+    m_active_load.reset();
+    m_finished_loads.push_back(std::move(record));
+    // A tool takes its report as soon as its call returns. Anything else is
+    // reported once the event loop comes round: a project open replaces the
+    // project only after this returns, and one drop can run several loads.
+    if (!m_open_answers)
+        schedule_load_report();
+}
+
+void OrcaWorkspaceAdapter::file_open_started()
+{
+    wxASSERT(wxIsMainThread());
+    if (m_tool_loads != 0)
+        return;
+    if (m_finished_loads.empty()) {
+        m_session_before_loads = m_plater.project_state_session();
+        m_setup_before_loads = selected_load_setup();
+    }
+    m_open_answers = std::make_unique<ScopedLeastChangeAnswers>(/*prefer_cancel=*/true);
+}
+
+void OrcaWorkspaceAdapter::file_open_finished()
+{
+    wxASSERT(wxIsMainThread());
+    if (!m_open_answers)
+        return;
+    flush_file_open_messages();
+    m_open_answers.reset();
+    schedule_load_report();
+}
+
+void OrcaWorkspaceAdapter::flush_file_open_messages()
+{
+    if (!m_open_answers)
+        return;
+    std::vector<OrcaMessage> messages = m_open_answers->take_messages();
+    if (messages.empty())
+        return;
+    FileLoadRecord outside;
+    outside.messages = std::move(messages);
+    m_finished_loads.push_back(std::move(outside));
+}
+
+bool OrcaWorkspaceAdapter::file_load_message(const std::string& text, const char* source)
+{
+    if (!m_active_load && !m_open_answers)
+        return false;
+    OrcaMessage message;
+    message.text = text;
+    message.source = source;
+    if (m_active_load)
+        m_active_load->answers.add_message(std::move(message));
+    else
+        m_open_answers->add_message(std::move(message));
+    return true;
+}
+
+bool OrcaWorkspaceAdapter::file_open_can_replace_project()
+{
+    if (m_tool_loads != 0 || m_plater.up_to_date(false, false))
+        return true;
+    file_load_message("The current project has unsaved changes. Opening another project was stopped; save or discard the current changes first.", "app");
+    return false;
+}
+
+void OrcaWorkspaceAdapter::schedule_load_report()
+{
+    if (m_tool_loads != 0 || m_report_scheduled || m_finished_loads.empty())
+        return;
+    m_report_scheduled = true;
+    wxGetApp().CallAfter([this, alive = std::weak_ptr<bool>(m_alive)] {
+        if (alive.lock())
+            deliver_load_report();
+    });
+}
+
+LoadReport OrcaWorkspaceAdapter::take_load_report(bool started_by_agent)
+{
+    LoadReport report;
+    report.started_by_agent = started_by_agent;
+    report.loads            = std::move(m_finished_loads);
+    report.ui_language      = wxGetApp().app_config->get("language");
+    report.selected_setup_before = std::move(m_setup_before_loads);
+    report.selected_setup_after  = selected_load_setup();
+    for (const Printers::NamedPrinter& named : Printers::named_printers()) {
+        const Preset* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false);
+        report.setup_printers.push_back({named.name, preset != nullptr ? preset->config.opt_string("printer_model") : "",
+                                         named.nozzle});
+    }
+    if (DeviceManager* devices = wxGetApp().getDeviceManager())
+        if (MachineObject* machine = devices->get_selected_machine(); machine != nullptr &&
+            PrinterSetup::has_recent_printer_data(*machine))
+            if (const Preset* preset = get_printer_preset(machine))
+                report.connected_printer = preset->config.opt_string("printer_model");
+    m_finished_loads.clear();
+    report.project_opened = m_plater.project_state_session() != m_session_before_loads;
+    report.project_path   = into_u8(m_plater.get_project_filename(".3mf"));
+    if (report.project_opened)
+        report.details = project_details();
+    const std::set<std::uint64_t> arrived(m_arrived_objects.begin(), m_arrived_objects.end());
+    m_arrived_objects.clear();
+    for (ObjectDetails& row : object_details()) {
+        if (arrived.count(row.id.value()) == 0)
+            continue;
+        if (report.objects.size() == kReportedObjectLimit) {
+            report.objects_truncated = true;
+            break;
+        }
+        report.objects.push_back(std::move(row));
+    }
+    return report;
+}
+
+void OrcaWorkspaceAdapter::deliver_load_report()
+{
+    wxASSERT(wxIsMainThread());
+    m_report_scheduled = false;
+    if (m_finished_loads.empty())
+        return;
+    const LoadReport report = take_load_report(/*started_by_agent=*/false);
+    if (m_load_report_listener)
+        m_load_report_listener(report);
+}
+
+void OrcaWorkspaceAdapter::set_load_report_listener(std::function<void(const LoadReport&)> listener)
+{
+    m_load_report_listener = std::move(listener);
 }
 
 OrcaWorkspaceAdapter::SliceState OrcaWorkspaceAdapter::current_slice_state() const
@@ -979,8 +1199,9 @@ CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementReq
 
         if (!request.units_fix.empty()) {
             // Orca replaces the object with a converted copy at the end of the
-            // list; a too-large question on reload is declined.
-            ScopedModalAnswers answers([](wxWindow&, const wxString&) { return int(wxID_NO); });
+            // list; a too-large question on reload is declined, the least
+            // change, as anything else it might ask would be.
+            ScopedLeastChangeAnswers answers;
             m_plater.convert_unit(request.units_fix == "inches" ? ConversionType::CONV_FROM_INCH : ConversionType::CONV_FROM_METER);
             resolved = ResolvedObject{model.objects.size() - 1};
             select();
@@ -1651,33 +1872,32 @@ ProjectDetails OrcaWorkspaceAdapter::project_details() const
 }
 
 namespace {
-// The questions on Orca's load paths, by the title Orca gives them. Each one
-// the request decides is answered from it; anything else gets the answer
-// that changes least.
-int answer_load_question(wxWindow& dialog, const wxString& title, UnitChoice units, bool scale_oversized, bool discard_unsaved)
+// Marks a tool's own open or import, whose loads it reports itself.
+class ToolLoad
 {
-    if (title == _L("Object too small"))
-        return units == UnitChoice::ConvertIfTiny ? wxID_YES : wxID_NO;
-    if (title == _L("Object too large"))
-        return scale_oversized ? wxID_YES : wxID_NO;
-    if (title == wxString(SLIC3R_APP_FULL_NAME) + " - " + _L("Save"))
-        return discard_unsaved ? wxID_NO : wxID_CANCEL;
-    // Cancelling the STEP meshing question aborts the whole load; ok meshes
-    // with the precision the dialog opened with, Orca's own default.
-    if (dynamic_cast<StepMeshDialog*>(&dialog) != nullptr)
-        return wxID_OK;
-    // Orca's message dialogs read yes or ok; its OBJ colour dialog reads ok,
-    // and cancel keeps its defaults.
-    return dynamic_cast<MsgDialog*>(&dialog) != nullptr ? wxID_NO : wxID_CANCEL;
-}
+public:
+    explicit ToolLoad(int& count) : m_count(count) { ++m_count; }
+    ~ToolLoad() { --m_count; }
+    ToolLoad(const ToolLoad&)            = delete;
+    ToolLoad& operator=(const ToolLoad&) = delete;
 
-const char* describe_answer(int answer)
+private:
+    int& m_count;
+};
+
+// What the tool's own safety net answered outside the load itself, as a
+// record of its own so the Agent reads it with the rest.
+void add_outside_messages(LoadReport& report, std::vector<OrcaMessage> messages)
 {
-    return answer == wxID_YES ? "yes" : answer == wxID_NO ? "no" : answer == wxID_OK ? "ok" : "cancel";
+    if (messages.empty())
+        return;
+    FileLoadRecord outside;
+    outside.messages = std::move(messages);
+    report.loads.push_back(std::move(outside));
 }
 } // namespace
 
-CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions)
+CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& request, LoadReport& report)
 {
     wxASSERT(wxIsMainThread());
     const boost::filesystem::path path(request.path);
@@ -1690,7 +1910,8 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
         if (openable.count(extension) == 0)
             return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer opens .3mf, .stl, .obj, .step, .amf and .drc files");
     }
-    if ((m_plater.is_project_dirty() || m_plater.is_presets_dirty()) && !request.discard_unsaved)
+    const bool unsaved = m_plater.is_project_dirty() || m_plater.is_presets_dirty();
+    if (unsaved && !request.discard_unsaved)
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");
 
     // Orca asks about edited presets in UnsavedChangesDialog, whose answer is
@@ -1703,15 +1924,20 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
                 tab->load_current_preset();
             }
 
-    // Every question on the way is answered from the request and reported.
-    ScopedModalAnswers answers([&](wxWindow& dialog, const wxString& title) {
-        return answer_load_question(dialog, title, request.units, request.scale_oversized, request.discard_unsaved);
-    });
+    const ToolLoad tool_load(m_tool_loads);
+    // Inside the load, the file listener answers and records; this catches
+    // anything Orca asks around it.
+    ScopedLeastChangeAnswers outside;
 
     bool loaded = true;
     if (request.new_project) {
         loaded = m_plater.new_project(true, true) != wxID_CANCEL;
     } else if (extension == ".3mf") {
+        // The person agreed to drop the unsaved work: Orca's own new project
+        // without confirmation drops it, so the open that follows finds
+        // nothing to ask about (and a remembered "save" choice can't save).
+        if (unsaved)
+            m_plater.new_project(true, true);
         // "<loadall>" is Orca's own way to open a project with its settings
         // without asking how ("<silence>" would also leave the project
         // without its file name); geometry only is the answer the person
@@ -1739,8 +1965,10 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
         }
     }
 
-    for (const ModalRecord& record : answers.records())
-        decisions.push_back({record.title, describe_answer(record.answer)});
+    report = take_load_report(/*started_by_agent=*/true);
+    // A model file opens into the new project made just before its load.
+    report.project_opened = true;
+    add_outside_messages(report, outside.take_messages());
     if (!loaded)
         return CommandResult::failure(WorkspaceError::UnavailableOperation,
                                       request.new_project ? "OrcaSlicer did not start a new project" :
@@ -1776,7 +2004,7 @@ CommandResult OrcaWorkspaceAdapter::export_project_archive(const std::string& fi
     return CommandResult::success();
 }
 
-CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request, LoadReport& report,
                                                    std::vector<ObjectId>& added)
 {
     wxASSERT(wxIsMainThread());
@@ -1798,9 +2026,8 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
     }
 
     std::vector<size_t> indices;
-    ScopedModalAnswers answers([&](wxWindow& dialog, const wxString& title) {
-        return answer_load_question(dialog, title, request.units, request.scale_oversized, false);
-    });
+    const ToolLoad tool_load(m_tool_loads);
+    ScopedLeastChangeAnswers outside;
     {
         // One coalesced, undoable change. LoadModel is the additive,
         // geometry-only strategy Import uses; a new object lands on the
@@ -1814,8 +2041,8 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
             strategy = strategy | LoadStrategy::ImperialUnits;
         indices = m_plater.load_files(std::vector<boost::filesystem::path>{path}, strategy);
     }
-    for (const ModalRecord& record : answers.records())
-        decisions.push_back({record.title, describe_answer(record.answer)});
+    report = take_load_report(/*started_by_agent=*/true);
+    add_outside_messages(report, outside.take_messages());
     if (indices.empty())
         return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not import that file");
     for (size_t index : indices) {
@@ -1901,10 +2128,15 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
     {
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
         Plater::TakeSnapshot snapshot(&m_plater, "Delete items");
-        // The card named a cut object's broken correspondence already.
-        ScopedModalAnswers answers([](wxWindow&, const wxString& title) {
-            return title == _L("Delete object which is a part of cut object") ? int(wxID_YES) : int(wxID_NO);
-        });
+        // The card named a cut object's broken correspondence already. Orca
+        // asks before deleting a cut object and, on Delete, invalidates the
+        // cut; doing that first is the same change, with nothing left to ask.
+        for (std::size_t index : objects)
+            if (model.objects[index]->is_cut())
+                wxGetApp().obj_list()->invalidate_cut_info_for_object(int(index));
+        // Nothing else should ask. If Orca does, the least change is taken
+        // and logged, never shown in the middle of a tool call.
+        ScopedLeastChangeAnswers unexpected;
         if (!subitems.empty()) {
             // The object list deletes in reverse order, so it gets them sorted.
             std::sort(subitems.begin(), subitems.end(), [](const ItemForDelete& a, const ItemForDelete& b) {
@@ -1919,6 +2151,9 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
         for (auto index = plate_indices.rbegin(); index != plate_indices.rend(); ++index)
             m_plater.delete_plate(*index);
         m_plater.notify_project_state_changed(ProjectStateChangeReason::Objects | ProjectStateChangeReason::Plates);
+        for (const OrcaMessage& message : unexpected.messages())
+            BOOST_LOG_TRIVIAL(warning) << "delete_items: OrcaSlicer asked \"" << message.title << "\" (" << message.text
+                                       << "), answered " << message.answer;
     }
     return CommandResult::success();
 }

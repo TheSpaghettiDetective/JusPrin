@@ -1,6 +1,9 @@
 // Full-pane states. An unconfigured Agent offers setup in the conversation
 // body; a bridge error is an internal connection failure with diagnostics.
 
+import type { FileReport } from '../bridge/protocol';
+import { FileNotesCard } from './FileNotesCard';
+
 interface BridgeErrorProps {
   title: string;
   detail?: string;
@@ -49,8 +52,11 @@ export function AgentNotConfiguredHeader() {
   );
 }
 
-export function AgentNotConfiguredPane({ onSetUp }: { onSetUp: () => void }) {
-  return (
+export function AgentNotConfiguredPane({ onSetUp, fileReports }: {
+  onSetUp: () => void;
+  fileReports: { id: string; report: FileReport }[];
+}) {
+  const offer = (
     <div className="pane-state" data-testid="agent-not-configured">
       <h1>No agent connected</h1>
       <p>
@@ -62,6 +68,13 @@ export function AgentNotConfiguredPane({ onSetUp }: { onSetUp: () => void }) {
         Set up the agent
       </button>
       <p className="footnote">Registered JusPrin account, your own key, or an AI tool you already use.</p>
+    </div>
+  );
+  if (fileReports.length === 0) return offer;
+  return (
+    <div className="agent-offer-with-notes">
+      {fileReports.map(({ id, report }) => <FileNotesCard key={id} report={report} />)}
+      {offer}
     </div>
   );
 }

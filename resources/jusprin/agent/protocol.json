@@ -17,7 +17,8 @@
     "system_notes",
     "reveal_path",
     "change_log",
-    "printer_panel"
+    "printer_panel",
+    "file_reports"
   ],
   "pageMessageTypes": [
     "hello",
@@ -44,7 +45,8 @@
     "printer_instructions",
     "printer_opening",
     "filament_instructions",
-    "shell_action"
+    "shell_action",
+    "file_report_instructions"
   ],
   "hostMessageTypes": [
     "hello_ack",

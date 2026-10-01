@@ -490,9 +490,9 @@ struct ProjectDetails
 inline constexpr std::size_t kAttachmentLimit = 64;
 
 // Replace the open project: a project file, a model file as a new project,
-// or an empty project. Every question Orca would ask on the way is an input
-// here or answered with the conservative choice and reported.
-enum class UnitChoice : std::uint8_t { Keep, ConvertIfTiny, Inches };
+// or an empty project. What Orca says on the way comes back in the load
+// report, each dialog answered with the choice that changes least.
+enum class UnitChoice : std::uint8_t { Keep, Inches };
 
 struct ProjectOpenRequest
 {
@@ -500,7 +500,6 @@ struct ProjectOpenRequest
     bool        new_project{false};
     bool        load_project_settings{true};
     UnitChoice  units{UnitChoice::Keep};
-    bool        scale_oversized{false};
     bool        discard_unsaved{false};
 };
 
@@ -510,8 +509,80 @@ struct ImportRequest
     std::string            path; // absolute, UTF-8
     std::optional<PlateId> plate;
     UnitChoice             units{UnitChoice::Keep};
-    bool                   scale_oversized{false};
 };
+
+// One Orca dialog that JusPrin answered instead of showing, as read from
+// the dialog window: its words are Orca's, in the interface language, and
+// are passed on, never matched.
+struct OrcaMessage
+{
+    std::string              title;
+    std::string              text;
+    std::vector<std::string> buttons; // of "ok", "yes", "no", "cancel"
+    std::string              answer;  // one of the same
+    // False for a dialog with none of those buttons, which JusPrin cancelled
+    // without knowing what it asked.
+    bool                     recognized{true};
+    std::string              source{"dialog"}; // a dialog, notification or error; never its severity
+};
+
+// One run of Orca's file loading, the function every open and import goes
+// through.
+struct FileLoadRecord
+{
+    std::vector<std::string> files; // UTF-8
+    // The load requested the file's settings. Orca can still choose to load
+    // geometry only, so this is not proof that those settings were applied.
+    bool                     with_settings{false};
+    std::vector<OrcaMessage> messages;
+    bool                     settings_applied{false};
+};
+
+struct LoadSelectedSetup
+{
+    std::string printer_preset;
+    std::string filament_preset;
+    std::string process_preset;
+    std::string printer_origin;
+    std::string filament_origin;
+    std::string process_origin;
+    std::string material_type;
+};
+
+struct LoadSetupPrinter
+{
+    std::string name;  // the person's saved printer name
+    std::string model; // the model its saved preset names
+    double      nozzle_mm{0.};
+};
+
+// What JusPrin knows once a file has been opened or imported: what Orca said
+// while loading it, what the file itself states, and what arrived.
+struct LoadReport
+{
+    bool                        started_by_agent{false};
+    bool                        project_opened{false}; // the project was replaced
+    std::string                 project_path;          // after the load
+    std::string                 ui_language;           // interface language for the Agent's reply
+    std::vector<FileLoadRecord> loads;
+    LoadSelectedSetup           selected_setup_before;
+    LoadSelectedSetup           selected_setup_after;
+    std::vector<LoadSetupPrinter> setup_printers;
+    std::string                 connected_printer; // only when fresh device data confirms a connection
+    ProjectDetails              details;               // filled when project_opened
+    std::vector<ObjectDetails>  objects;               // what arrived, at most kReportedObjectLimit
+    bool                        objects_truncated{false};
+
+    bool has_messages() const
+    {
+        for (const FileLoadRecord& load : loads)
+            if (!load.messages.empty())
+                return true;
+        return false;
+    }
+};
+
+inline constexpr std::size_t kReportedObjectLimit = 32;
 
 // One thing to delete: an object, a part or an instance of one, or a plate.
 struct DeleteItem
@@ -726,13 +797,6 @@ struct RegionStatus
     std::optional<ObjectId> object;            // absent when no object matches any more
     bool                    binding_lost{false};
     bool                    artifacts_missing{false};
-};
-
-// One question Orca asked while opening, and what it was told.
-struct LoadDecision
-{
-    std::string question;
-    std::string answer; // yes, no, ok, or cancel
 };
 
 // The three preset families a print is chosen from. SLA has no place here
@@ -1408,15 +1472,21 @@ public:
     virtual CommandResult export_file(const ExportRequest& request, ExportResult& result) = 0;
     virtual CommandResult cancel_slice(bool& stopped) = 0;
     virtual CommandResult cancel_job(const std::string& handle, bool& stopped) = 0;
-    virtual CommandResult open_project(const ProjectOpenRequest& request, std::vector<LoadDecision>& decisions) = 0;
+    virtual CommandResult open_project(const ProjectOpenRequest& request, LoadReport& report) = 0;
 
     // Imports a model or project file's geometry into the CURRENT project,
     // adding objects rather than replacing the project. It is a single
     // undoable manufacturing change: the session is unchanged, prior IDs stay
     // valid, revision advances, and a Contents change is published. On success
     // object_id is the first added object (when one can be identified).
-    virtual CommandResult import_objects(const ImportRequest& request, std::vector<LoadDecision>& decisions,
+    virtual CommandResult import_objects(const ImportRequest& request, LoadReport& report,
                                          std::vector<ObjectId>& added) = 0;
+
+    // Loads the person started themselves (Home, drag and drop, File menu),
+    // reported once each has finished, a turn of the event loop later so the
+    // project it opened is in place. Loads a tool started come back in that
+    // tool's own report instead. One listener; an empty function removes it.
+    virtual void set_load_report_listener(std::function<void(const LoadReport&)> listener) = 0;
     virtual CommandResult delete_items(const std::vector<DeleteItem>& items) = 0;
 
     // Reshaping. `preview_divide` works on a copy and changes nothing;

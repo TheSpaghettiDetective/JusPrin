@@ -87,9 +87,9 @@ void update_dark_ui(wxWindow* window);
 #endif
 
 extern std::deque<wxDialog*> dialogStack;
-// JusPrin: an operation that must not stop to ask the person answers the
-// dialog instead. False when none is installed. Defined in
-// JusPrin/Workspace/ModalAnswers.cpp.
+// JusPrin: a listener registered for a stretch of work answers the dialog
+// instead of showing it. False when none answers. Defined in
+// JusPrin/Workspace/DialogListeners.cpp.
 bool answer_modal(wxWindow& dialog, int& answer);
 
 template<class P> class DPIAware : public P

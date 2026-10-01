@@ -1096,6 +1096,65 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   font: var(--font-label-bold);
 }
 .failure-action:hover:enabled { border-color: var(--text-on-failure-secondary); }
+/* What OrcaSlicer said while loading a file, when the Agent could not speak
+   about it. Warning-coloured: things the person may need to act on. */
+.history-card.file-notes-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border-left-color: var(--status-warning);
+}
+
+.file-notes-title {
+  margin: 0;
+  color: var(--text-primary);
+  font: var(--font-body-bold);
+}
+
+.file-notes-files,
+.file-notes-more,
+.file-notes-help {
+  margin: 0;
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+
+.file-notes-files {
+  font: var(--font-metadata);
+}
+
+.file-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  align-self: stretch;
+}
+
+.file-notes-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.file-notes-heading {
+  color: var(--text-primary);
+  font: var(--font-label-bold);
+}
+
+.file-notes-text {
+  color: var(--text-primary);
+  font: var(--font-label);
+  white-space: pre-line;
+}
+
+.file-notes-answer {
+  color: var(--text-secondary);
+  font: var(--font-metadata);
+}
 
 /* The card rests as its <summary>; the forensic detail stays mounted in the
    sibling block that the disclosure reveals. */
@@ -1722,6 +1781,25 @@ input[type='radio']:checked {
 
 .pane-state .footnote {
   font: var(--font-metadata);
+}
+
+/* File notes sit above the original setup offer when they are the only
+   conversation items. The combined surface scrolls in a short dock. */
+.agent-offer-with-notes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--surface-canvas);
+}
+
+.agent-offer-with-notes .pane-state {
+  flex: none;
+  justify-content: flex-start;
+  padding: 0;
 }
 
 /* Dock header shown in place of the conversation chrome while no Agent

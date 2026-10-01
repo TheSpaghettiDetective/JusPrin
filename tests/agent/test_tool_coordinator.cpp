@@ -1117,9 +1117,9 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     REQUIRE(h.coordinator.reject(rejected.action_id));
     CHECK(h.workspace.opens == 0);
 
-    h.workspace.m_open_decisions = {{"Object too small", "yes"}};
-    const ToolActivity approved = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "convertIfTiny"},
-                                               {"oversized", "scaleToFit"}});
+    h.workspace.m_load_messages = {{"JusPrin - Object too small", "The object from file bracket.stl is too small.",
+                                    {"yes", "no"}, "no", true}};
+    const ToolActivity approved = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "inches"}});
     REQUIRE(h.coordinator.approve(approved.action_id));
     for (int tick = 0; tick < 10 && h.coordinator.find(approved.action_id) != nullptr; ++tick)
         h.coordinator.pump();
@@ -1134,10 +1134,18 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     CHECK(registry.validate_output(*registry.find("project_open"), result));
     CHECK(result["projectName"] == "bracket");
     CHECK(result["objectCount"] == 1);
-    CHECK(result["decisions"] == json::array({json{{"question", "Object too small"}, {"answer", "yes"}}}));
+    // What Orca said reaches the Agent as Orca worded it, with the answer
+    // that changed least.
+    const json& messages = result["report"]["messages"]["items"];
+    REQUIRE(messages.size() == 1);
+    CHECK(messages[0]["title"] == "JusPrin - Object too small");
+    CHECK(messages[0]["answer"] == "no");
+    CHECK(messages[0]["buttons"] == json::array({"yes", "no"}));
+    CHECK_FALSE(messages[0].contains("recognized"));
+    CHECK(result["report"]["startedBy"] == "agent");
+    CHECK(result["report"]["projectOpened"] == true);
     CHECK(result["sessionId"] != std::to_string(approved.session));
-    CHECK(h.workspace.last_open.units == Workspace::UnitChoice::ConvertIfTiny);
-    CHECK(h.workspace.last_open.scale_oversized);
+    CHECK(h.workspace.last_open.units == Workspace::UnitChoice::Inches);
     CHECK(h.workspace.last_open.discard_unsaved);
     CHECK(store.flushes == 1);
 
@@ -1168,7 +1176,9 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"new", true}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, R"({"new":false})").valid());
     CHECK_FALSE(registry.validate_call(definition, R"({"new":true,"unitConversion":"inches"})").valid());
-    CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"oversized", "shrink"}}.dump()).valid());
+    // The dialog answers are no longer inputs: OrcaSlicer asks nothing.
+    CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"oversized", "scaleToFit"}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"unitConversion", "convertIfTiny"}}.dump()).valid());
     CHECK(propose(json{{"path", (folder / "x.3mf").u8string()}}).error->code == "invalid_argument");
     std::ofstream(folder / "x.3mf") << "x";
     CHECK(propose(json{{"path", (folder / "x.3mf").u8string()}, {"unitConversion", "inches"}}).error->code == "invalid_argument");
@@ -1428,7 +1438,7 @@ TEST_CASE("a file import names its path, reads nothing before approval, and a de
     REQUIRE(h.coordinator.reject(card.action_id));
     CHECK(h.workspace.last_import.path.empty());
 
-    h.workspace.m_open_decisions = {{"Object too small", "no"}};
+    h.workspace.m_load_messages = {{"JusPrin - Object too small", "maybe in meters or inches", {"yes", "no"}, "no", true}};
     const ToolActivity approved = h.coordinator.propose(
         {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-2");
     REQUIRE(h.coordinator.approve(approved.action_id));
@@ -1438,7 +1448,8 @@ TEST_CASE("a file import names its path, reads nothing before approval, and a de
     const auto result = json::parse(imported.result_json);
     CHECK(registry.validate_output(*registry.find("object_import_file"), result));
     CHECK(result["objectIds"].size() == 1);
-    CHECK(result["decisions"][0]["answer"] == "no");
+    CHECK(result["report"]["messages"]["items"][0]["answer"] == "no");
+    CHECK(result["report"]["projectOpened"] == false);
     CHECK(h.workspace.last_import.path == model);
     CHECK(h.workspace.last_import.units == Workspace::UnitChoice::Inches);
     const std::string bracket = result["objectIds"][0];
@@ -1925,8 +1936,8 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     REQUIRE_FALSE(refused.valid());
     CHECK(refused.error->message.find("Not a parameter of this tool: intent.") != std::string::npos);
     CHECK(registry.validate_call(*registry.find("settings_preview_patch"), "{}").error->message.find("Missing: scope, changes.") != std::string::npos);
-    const auto opening = registry.validate_call(*registry.find("project_open"), R"({"path":"C:/a.stl","new":true,"oversized":"shrink"})");
-    CHECK(opening.error->message.find(R"(oversized must be one of ["keep","scaleToFit"].)") != std::string::npos);
+    const auto opening = registry.validate_call(*registry.find("project_open"), R"({"path":"C:/a.stl","new":true,"unitConversion":"feet"})");
+    CHECK(opening.error->message.find(R"(unitConversion must be one of ["keep","inches"].)") != std::string::npos);
     CHECK(opening.error->message.find("Give exactly one of path and new.") != std::string::npos);
 }
 

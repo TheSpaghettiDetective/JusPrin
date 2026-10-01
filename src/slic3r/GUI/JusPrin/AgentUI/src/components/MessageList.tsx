@@ -20,6 +20,7 @@ import {
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
 import { ChangeRows } from './ChangeRows';
+import { FileNotesCard } from './FileNotesCard';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
@@ -61,6 +62,8 @@ interface Props {
   // "Answered · nothing changed" is about the open project, which the printer
   // panel is not having a conversation about.
   answeredState?: boolean;
+  // Set up on the card of a file's notes, when the Agent could not speak.
+  onSetUpAgent?: () => void;
 }
 
 // What follows one conversation item: history cards and runs of changes, in
@@ -129,6 +132,7 @@ export function MessageList({
   onInstallPlugin,
   renderActivity,
   answeredState = true,
+  onSetUpAgent,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
   const listRef = useRef<HTMLDivElement>(null);
@@ -210,6 +214,15 @@ export function MessageList({
         </div>
       )}
       {messages.map((message) => {
+        // A file's load report is for the model. The person sees it only
+        // when the Agent could not speak about it, as the card of what
+        // OrcaSlicer said.
+        if (message.role === 'note' && message.fileReport)
+          return message.fileReportCard ? (
+            <div key={message.id} className="message-group">
+              <FileNotesCard report={message.fileReport} onSetUpAgent={onSetUpAgent} />
+            </div>
+          ) : null;
         if (message.role === 'note')
           return (
             <div key={message.id} className="message-group">

@@ -62,10 +62,10 @@ public:
 
     // Stamped on every request this host makes.
     void set_session_profile(AgentSessionProfile profile) { m_session_profile = std::move(profile); }
-    // The model answers next, from the conversation as it stands, with no
-    // user message: the person tapped something whose result the app has
-    // already recorded in the thread. Queued behind a turn in flight.
-    void start_turn();
+    // The model answers next, from the conversation as it stands. A file
+    // report supplies its note ID so that its data belongs to this turn;
+    // other app-initiated turns have no message of their own.
+    void start_turn(const std::string& source_message_id = {});
     // Answers a page message this host does not know. Returning false leaves
     // it to the host, which reports it as a type outside the protocol.
     using PageMessageHandler = std::function<bool(const std::string& type, const nlohmann::json& payload)>;
@@ -207,6 +207,14 @@ public:
     // sent to the model. `swatch`, when given, is a colour ("#RRGGBB") the
     // line leads with -- the filament a change landed on. Returns the note's ID.
     std::string post_note(const std::string& text, const std::string& swatch = {});
+
+    // A file the person opened or imported has finished loading. The report
+    // joins the conversation as a note the model reads and the page does not
+    // draw, and the Agent speaks first about it. When the Agent can't, the
+    // page draws the report's messages as a card instead. A reopened project
+    // that brought its conversation back is spoken about only when OrcaSlicer
+    // said something while loading it.
+    void on_file_loaded(const Workspace::LoadReport& report);
 
     // Diagnostics for the internal-connection error surface.
     std::uint64_t messages_sent() const { return m_messages_sent; }
@@ -374,6 +382,9 @@ private:
     std::function<void()> m_setup_completed_listener;
 
     AgentSessionProfile             m_session_profile;
+    // What the model is told about a file report, written by the page
+    // (fileReportInstructions.ts) and sent with file_report_instructions.
+    std::string                     m_file_report_instructions;
     PageMessageHandler              m_page_message_handler;
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;

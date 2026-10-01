@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 
@@ -341,11 +342,11 @@ json printer_section_result(const Workspace::ConfiguredPrinter& configured,
     return result;
 }
 
-json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details)
+namespace {
+// Only what the file states; every value came from it.
+json project_details_fields(const Workspace::ProjectDetails& details, bool& truncated)
 {
-    bool truncated = false;
     json fields = json::object();
-    // Only what the file states; every value came from it.
     const auto field = [&](const char* name, const std::string& value) {
         if (!value.empty())
             fields[name] = {{"value", bounded(value, 4096, truncated)}, {"provenance", "project_file"}};
@@ -358,15 +359,139 @@ json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
     field("origin", details.origin);
     field("profileTitle", details.profile_title);
     field("profileDescription", details.profile_description);
+    return fields;
+}
+
+json project_attachments(const Workspace::ProjectDetails& details, bool& truncated)
+{
     json attachments = json::array();
     for (const auto& attachment : details.attachments)
         attachments.push_back({{"attachmentId", label(attachment.id, truncated)}, {"folder", attachment.folder},
                                {"bytes", attachment.bytes}});
+    return {{"items", std::move(attachments)}, {"truncated", details.attachments_truncated}};
+}
+
+constexpr std::size_t kReportedMessageLimit = 32;
+} // namespace
+
+json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const Workspace::ProjectDetails& details)
+{
+    bool truncated = false;
+    json fields      = project_details_fields(details, truncated);
+    json attachments = project_attachments(details, truncated);
     return {{"name", label(snapshot.setup.project_name, truncated)}, {"path", snapshot.setup.project_path},
             {"dirty", snapshot.setup.project_dirty}, {"presetsDirty", snapshot.setup.presets_dirty},
-            {"details", std::move(fields)},
-            {"attachments", {{"items", std::move(attachments)}, {"truncated", details.attachments_truncated}}},
+            {"details", std::move(fields)}, {"attachments", std::move(attachments)},
             {"backupCurrent", details.backup_current}, {"truncated", truncated}};
+}
+
+json orca_messages_result(const Workspace::LoadReport& report)
+{
+    bool truncated = false;
+    json items = json::array();
+    for (const Workspace::FileLoadRecord& load : report.loads)
+        for (const Workspace::OrcaMessage& message : load.messages) {
+            if (items.size() == kReportedMessageLimit) {
+                truncated = true;
+                break;
+            }
+            json row{{"source", message.source}, {"title", label(message.title, truncated)},
+                     {"text", bounded(message.text, 4000, truncated)}, {"buttons", message.buttons},
+                     {"answer", message.answer}};
+            if (!message.recognized)
+                row["recognized"] = false;
+            items.push_back(std::move(row));
+        }
+    return {{"items", std::move(items)}, {"truncated", truncated}};
+}
+
+namespace {
+json selected_load_setup_result(const Workspace::LoadSelectedSetup& setup, bool& truncated)
+{
+    return {{"printerPreset", label(setup.printer_preset, truncated)},
+            {"filamentPreset", label(setup.filament_preset, truncated)},
+            {"processPreset", label(setup.process_preset, truncated)},
+            {"printerOrigin", setup.printer_origin}, {"filamentOrigin", setup.filament_origin},
+            {"processOrigin", setup.process_origin}, {"materialType", setup.material_type}};
+}
+
+json selected_setup_change(const Workspace::LoadSelectedSetup& before,
+                           const Workspace::LoadSelectedSetup& after, bool& truncated)
+{
+    json change = json::object();
+    if (before.printer_preset != after.printer_preset)
+        change["printerPreset"] = {{"from", label(before.printer_preset, truncated)},
+                                   {"to", label(after.printer_preset, truncated)}};
+    if (before.filament_preset != after.filament_preset)
+        change["filamentPreset"] = {{"from", label(before.filament_preset, truncated)},
+                                    {"to", label(after.filament_preset, truncated)}};
+    if (before.process_preset != after.process_preset)
+        change["processPreset"] = {{"from", label(before.process_preset, truncated)},
+                                   {"to", label(after.process_preset, truncated)}};
+    return change;
+}
+
+} // namespace
+
+json load_report_result(const Workspace::LoadReport& report)
+{
+    bool truncated = false;
+    json loads = json::array();
+    for (const Workspace::FileLoadRecord& load : report.loads) {
+        // A tool's safety net records what Orca asked outside any load.
+        if (load.files.empty())
+            continue;
+        json files = json::array();
+        for (const std::string& file : load.files)
+            files.push_back(bounded(file, 1024, truncated));
+        loads.push_back({{"files", std::move(files)}, {"withSettings", load.with_settings}});
+    }
+    json result{{"startedBy", report.started_by_agent ? "agent" : "user"},
+                {"projectOpened", report.project_opened},
+                {"uiLanguage", report.ui_language},
+                {"loads", std::move(loads)},
+                {"messages", orca_messages_result(report)},
+                {"objects", objects_section_result(report.objects)}};
+    json setup_printers = json::array();
+    for (const Workspace::LoadSetupPrinter& printer : report.setup_printers) {
+        if (setup_printers.size() == 32) {
+            truncated = true;
+            break;
+        }
+        setup_printers.push_back({{"name", label(printer.name, truncated)},
+                                  {"model", label(printer.model, truncated)}, {"nozzleMm", printer.nozzle_mm}});
+    }
+    result["setupPrinters"] = std::move(setup_printers);
+    result["setupPrintersTruncated"] = report.setup_printers.size() > 32;
+    if (!report.connected_printer.empty())
+        result["connectedPrinter"] = label(report.connected_printer, truncated);
+    const bool settings_applied = std::any_of(report.loads.begin(), report.loads.end(),
+                                             [](const Workspace::FileLoadRecord& load) { return load.settings_applied; });
+    const bool is_3mf = std::any_of(report.loads.begin(), report.loads.end(), [](const Workspace::FileLoadRecord& load) {
+        return std::any_of(load.files.begin(), load.files.end(), [](const std::string& file) {
+            if (file.size() < 4) return false;
+            std::string extension = file.substr(file.size() - 4);
+            std::transform(extension.begin(), extension.end(), extension.begin(),
+                           [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            return extension == ".3mf";
+        });
+    });
+    result["loadFacts"] = {{"settingsOutcome", settings_applied ? "applied" :
+                                                  is_3mf ? (report.objects.empty() ? "not_applied" : "geometry_only") :
+                                                           "not_applicable"},
+                           {"selectedSetupBefore", selected_load_setup_result(report.selected_setup_before, truncated)},
+                           {"selectedSetupAfter", selected_load_setup_result(report.selected_setup_after, truncated)},
+                           {"selectedSetupChange", selected_setup_change(report.selected_setup_before,
+                                                                           report.selected_setup_after, truncated)}};
+    result["objects"]["truncated"] = result["objects"]["truncated"].get<bool>() || report.objects_truncated;
+    if (!report.project_path.empty())
+        result["projectPath"] = report.project_path;
+    if (report.project_opened) {
+        result["details"]     = project_details_fields(report.details, truncated);
+        result["attachments"] = project_attachments(report.details, truncated);
+    }
+    result["truncated"] = truncated;
+    return result;
 }
 
 namespace {
