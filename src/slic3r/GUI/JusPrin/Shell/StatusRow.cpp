@@ -5,6 +5,7 @@
 #include "PrinterMenu.hpp"
 #include "PrinterFilamentChip.hpp"
 #include "SetupCommands.hpp"
+#include "ShellController.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -446,7 +447,14 @@ void StatusRow::show_overflow_menu()
         {_L("Project details"),HeaderIcon::None,{},true,true,[this] { m_tabpanel.SetSelection(MainFrame::tpProject); }},
         {_L("Back to Prepare"),HeaderIcon::Back,{},true,false,[this] { request_prepare(); }},
         {project_summary().AfterFirst('\n'),HeaderIcon::None,{},false,false,{}},
-        {_L("Preferences…"),HeaderIcon::None,{},true,true,[] { wxGetApp().open_preferences(); }}
+        {_L("Preferences…"),HeaderIcon::None,{},true,true,[] { wxGetApp().open_preferences(); }},
+        {_L("Switch to classic view…"),HeaderIcon::None,{},true,true,
+            [frame = wxWeakRef<wxWindow>(GetParent())] {
+                // The menu invokes this on the header after dismissal. Detach
+                // on the frame's next turn so the header's handler can return
+                // before uninstall destroys it.
+                if (frame) frame->CallAfter([frame] { if (frame) detach_shell(); });
+            }}
     };
     if (m_autosave != nullptr && m_autosave->state() == Workspace::ProjectAutosave::State::Failed)
         menu.insert(menu.begin() + 1, {_L("Changes couldn't be saved. JusPrin will retry."),HeaderIcon::None,{},false,false,{}});

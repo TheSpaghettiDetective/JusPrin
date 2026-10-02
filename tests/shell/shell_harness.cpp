@@ -596,6 +596,7 @@ struct HarnessState
         ToolStripCapture,
         ManualToolStrip,
         PrinterMenu,
+        ClassicSwitch,
         TaskChat,
         PrinterSetup,
         PrinterLive,
@@ -698,6 +699,10 @@ public:
                 return;
             }
             verify_shell_installed();
+            if (m_state->mode == HarnessState::Mode::ClassicSwitch) {
+                verify_uninstall_restores_stock([self = shared_from_this()] { self->finish(); });
+                return;
+            }
             verify_agent_pane_follows_page([self = shared_from_this()] { self->run_shell_mode(); });
         } catch (const std::exception& error) {
             fail(std::string("exception: ") + error.what());
@@ -7907,8 +7912,7 @@ private:
     {
         verify_resize();
         verify_project_replacement();
-        verify_uninstall_restores_stock();
-        finish();
+        verify_uninstall_restores_stock([self = shared_from_this()] { self->finish(); });
     }
 
     void verify_resize()
@@ -8200,7 +8204,7 @@ private:
         check(!wxGetApp().sidebar().IsShown(), "sidebar_still_hidden_after_replacement");
     }
 
-    void verify_uninstall_restores_stock()
+    void verify_uninstall_restores_stock(std::function<void()> next)
     {
         // A printer connection can leave an agent the slicing profile would not
         // pick. Detaching the shell hands the choice back to the profile.
@@ -8211,25 +8215,36 @@ private:
         check(profile_agent != JUSPRIN_FAKE_BAMBU_AGENT_ID &&
                   agent->get_printer_agent()->get_agent_info().id == JUSPRIN_FAKE_BAMBU_AGENT_ID,
               "detach_fixture_installs_an_agent_the_profile_does_not_pick");
-        detach_shell();
-        check(agent->get_printer_agent()->get_agent_info().id == profile_agent, "detach_restores_the_profile_driven_agent");
-        check(installed_shell() == nullptr, "shell_detached");
-        check(m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_restored");
-        check(m_plater->is_sidebar_available(), "sidebar_available_restored");
-        check(!m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(),
-              "prepare_legacy_overlays_restored");
-        m_frame->Layout();
-        check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, "stock_canvas_usable_after_restore");
-        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
-                  LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
-              "stock_backup_fixture_loaded");
-        const fs::path backup = m_plater->model().get_backup_path();
-        Slic3r::set_backup_interval(1);
-        Slic3r::backup_soon();
-        check(wait_for([backup] { return fs::exists(backup / ".3mf"); }, std::chrono::seconds(10)),
-              "stock_backup_resumes_after_shell_detach");
-        check(m_plater->new_project(true, true) != wxID_CANCEL, "stock_backup_fixture_cleared");
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        installed_shell()->status_row()->show_overflow_menu();
+        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), agent, profile_agent, next = std::move(next)] {
+            self->wait_until([] { return installed_shell() == nullptr; }, "menu_switches_to_classic_view",
+                [self, agent, profile_agent, next] {
+                    self->check(agent->get_printer_agent()->get_agent_info().id == profile_agent,
+                                "detach_restores_the_profile_driven_agent");
+                    self->check(self->m_notebook->IsShown() &&
+                                    self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                                "classic_prepare_window_shown");
+                    self->check(self->m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_restored");
+                    self->check(self->m_plater->is_sidebar_available(), "sidebar_available_restored");
+                    self->check(!self->m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(),
+                                "prepare_legacy_overlays_restored");
+                    self->m_frame->Layout();
+                    self->check(self->m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
+                                "stock_canvas_usable_after_restore");
+                    const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+                    self->check(self->m_plater->load_files(std::vector<std::string>{cube},
+                                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+                                "stock_backup_fixture_loaded");
+                    const fs::path backup = self->m_plater->model().get_backup_path();
+                    Slic3r::set_backup_interval(1);
+                    Slic3r::backup_soon();
+                    self->check(wait_for([backup] { return fs::exists(backup / ".3mf"); }, std::chrono::seconds(10)),
+                                "stock_backup_resumes_after_shell_detach");
+                    self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "stock_backup_fixture_cleared");
+                    next();
+                });
+        });
     }
 
     // Polls through a one-shot wxTimer rather than a self-reposting
@@ -8545,6 +8560,8 @@ int main(int argc, char** argv)
         }
         else if (argument == "--stock")
             state->mode = HarnessState::Mode::Stock;
+        else if (argument == "--classic-switch")
+            state->mode = HarnessState::Mode::ClassicSwitch;
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
         else if (argument == "--external-project-history-capture") {
