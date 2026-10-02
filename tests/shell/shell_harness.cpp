@@ -603,6 +603,7 @@ struct HarnessState
         HomeLive,
         AutosaveSeed,
         AutosaveReopen,
+        PresetClose,
         ExternalProjectHistory,
         FileCorpus
     };
@@ -720,6 +721,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::AutosaveReopen) {
                 verify_autosave_reopen();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PresetClose) {
+                verify_preset_close();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -1006,6 +1011,44 @@ private:
                         "restart_quiet_plate_rename_restored");
             self->finish();
         });
+    }
+
+    void verify_preset_close()
+    {
+        int saves = 0;
+        int warnings = 0;
+        m_plater->set_before_project_release([&saves] {
+            ++saves;
+            return true;
+        });
+        const int closed = m_plater->close_with_confirm([&warnings](bool) {
+            ++warnings;
+            return true;
+        });
+        check(closed == wxID_NO && saves == 1, "preset_close_saves_project");
+        check(warnings == 0, "preset_close_skips_reusable_preset_warning");
+
+        saves = 0;
+        warnings = 0;
+        m_plater->set_before_project_release([&saves] {
+            ++saves;
+            return false;
+        });
+        const int refused = m_plater->close_with_confirm([&warnings](bool) {
+            ++warnings;
+            return true;
+        });
+        check(refused == wxID_CANCEL && saves == 1, "preset_close_stops_when_project_save_fails");
+        check(warnings == 0, "failed_preset_close_skips_reusable_preset_warning");
+        m_plater->set_before_project_release({});
+
+        warnings = 0;
+        const int stock_close = m_plater->close_with_confirm([&warnings](bool) {
+            ++warnings;
+            return true;
+        });
+        check(stock_close == wxID_NO && warnings == 1, "preset_close_keeps_stock_warning_check");
+        finish();
     }
 
     void capture_file_corpus()
@@ -8562,6 +8605,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Stock;
         else if (argument == "--classic-switch")
             state->mode = HarnessState::Mode::ClassicSwitch;
+        else if (argument == "--preset-close")
+            state->mode = HarnessState::Mode::PresetClose;
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
         else if (argument == "--external-project-history-capture") {

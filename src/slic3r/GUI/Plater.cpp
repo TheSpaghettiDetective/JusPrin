@@ -14747,7 +14747,6 @@ void Plater::reset_with_confirm()
 int GUI::Plater::close_with_confirm(std::function<bool(bool)> second_check)
 {
     if (m_before_project_release) {
-        if (second_check && !second_check(false)) return wxID_CANCEL;
         if (!m_before_project_release()) return wxID_CANCEL;
         model().set_backup_path("");
         return wxID_NO;
