@@ -1,0 +1,96 @@
+check if 979302ec fixed this problem:
+
+# Fix: the colour-click test clicks the wrong position on macOS
+
+## Summary
+
+Two checks in the shell test harness fail on macOS and pass on Windows. The
+app is correct. The test computes the click position wrongly for a control
+that sits inside a nested panel. This is a test-only fix.
+
+- Branch: `claude/filament-chip`, commit `a74862697e`
+- File: `tests/shell/shell_harness.cpp`
+- Build target: `shell_integration_harness`
+
+## Failing checks
+
+Run the harness with no arguments on macOS. Two checks fail:
+
+| Check | Line |
+|---|---|
+| `a_colour_click_sets_the_slot_colour` | 3302 |
+| `the_line_is_led_by_the_colour` | 3313 |
+
+The second fails only because the first did. The colour never changed, so the
+chat line carries the old colour.
+
+A third check, `print_opens_cancellable_native_preflight`, also fails. It is
+unrelated. Do not touch it in this fix.
+
+## Background
+
+The filament menu is a popup window. On macOS the popup receives every mouse
+event itself and forwards it to the child under the pointer. The code for that
+is `PopupWindow::OnMouseEvent2` in `src/slic3r/GUI/Widgets/PopupWindow.cpp`.
+It finds the child by walking down the window tree and adjusting the position
+at each level.
+
+So on macOS the harness posts its click to the popup, at a position measured
+from the popup's top-left corner. On Windows it posts to the child directly.
+
+## Cause
+
+`click_row`, at line 2919, computes the macOS position like this:
+
+```cpp
+const wxPoint at = row->GetPosition() + wxPoint(row->GetSize().x / 2, row->GetSize().y / 2);
+```
+
+`GetPosition()` is measured from the control's own parent. For a menu row the
+parent is the popup, so the result is right. A colour cell is different:
+
+- The popup holds a panel, built in `FilamentMenu::build_colour_row`
+  (`src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp:322`).
+- The colour cells are children of that panel (`FilamentMenu.cpp:344`).
+
+For a colour cell, `GetPosition()` is measured from the panel, not the popup.
+The click lands near the popup's top-left corner and misses the cell.
+
+The call that goes wrong is at line 3298: `click_row(menu, cell);`
+
+## Evidence
+
+I added a temporary probe that computed the position from screen coordinates:
+
+```cpp
+child->GetScreenPosition() - popup->GetScreenPosition()
+    + wxPoint(child->GetSize().x / 2, child->GetSize().y / 2)
+```
+
+With that position, posted to the popup the same way, the slot's colour
+changed and the menu stayed open. Two macOS runs, both passed.
+
+## Expected fix
+
+Make `click_row` compute the macOS position relative to the popup for any
+descendant, however deeply nested. The screen-coordinate form above does that.
+
+Keep these as they are:
+
+- The Windows and Linux branch of `click_row`.
+- The three other callers, at lines 2522, 2942 and 3139. They pass menu rows,
+  whose parent is the popup, so the new formula gives them the same position.
+
+## How to verify
+
+1. Before the fix, run the harness on macOS and confirm the two checks fail.
+2. After the fix, confirm both pass.
+3. Confirm the count of passing checks rises by two and no other check changes.
+   My run before the fix: 431 passed, 3 failed.
+4. Run on Windows and confirm nothing changes there.
+
+## Build notes for macOS
+
+- A fresh worktree needs the targets `jusprin_web` and `jusprin_catalogs` as
+  well. Without them the harness has no web pages and tests something else.
+- Pass the build directory as an absolute path.
