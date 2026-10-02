@@ -1,0 +1,4 @@
+interface:
+  display_name: "JusPrin Figma Agent Design"
+  short_description: "Design consistent JusPrin UI without library clutter"
+  default_prompt: "Use Figma Agent to create or revise this JusPrin design in meaningful, verifiable steps while following the project design system and keeping feature-specific structures out of the shared component library."
