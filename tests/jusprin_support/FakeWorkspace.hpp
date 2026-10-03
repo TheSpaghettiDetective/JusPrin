@@ -819,6 +819,201 @@ public:
             }
         return result;
     }
+    // The Plates pane's outline is a fixture of its own: a test states the
+    // copies, volumes and flags it needs, and the fake moves only what the
+    // pane's commands can move -- the active plate, the plate count, and the
+    // selection. Plate membership of the snapshot's objects is not derived
+    // from it, so a test that needs both states them both.
+    ProjectOutline outline() const override
+    {
+        ProjectOutline result = m_outline;
+        result.session        = m_session;
+        return result;
+    }
+    // Ids in a fixture outline name raw values; the fake binds them to its own
+    // session, as the real adapter mints every id in the open project.
+    void set_outline_for_testing(ProjectOutline outline)
+    {
+        const auto bind = [this](auto id) { return decltype(id)(m_session, id.value()); };
+        for (OutlinePlate& plate : outline.plates)
+            plate.id = bind(plate.id);
+        for (OutlineObject& object : outline.objects) {
+            object.id = bind(object.id);
+            for (OutlineCopy& copy : object.copies) {
+                copy.id = bind(copy.id);
+                if (copy.plate)
+                    copy.plate = bind(*copy.plate);
+            }
+            for (OutlineVolume& volume : object.volumes)
+                volume.id = bind(volume.id);
+        }
+        for (InstanceId& id : outline.selected_copies)
+            id = bind(id);
+        for (VolumeId& id : outline.selected_volumes)
+            id = bind(id);
+        m_outline = std::move(outline);
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::Selection);
+    }
+    CommandResult select_plate(PlateId id) override
+    {
+        if (!id)
+            return CommandResult::failure(WorkspaceError::InvalidId, "Plate ID is invalid");
+        if (id.session() != m_session)
+            return CommandResult::failure(WorkspaceError::StaleId, "Plate ID belongs to an earlier project session");
+        const auto found = std::find_if(m_outline.plates.begin(), m_outline.plates.end(),
+                                        [id](const OutlinePlate& plate) { return plate.id == id; });
+        if (found == m_outline.plates.end())
+            return CommandResult::failure(WorkspaceError::MissingObject, "Plate does not exist in the current project session");
+        if (found->active)
+            return CommandResult::failure(WorkspaceError::NoChange, "Plate is already active");
+        for (OutlinePlate& plate : m_outline.plates)
+            plate.active = plate.id == id;
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            plate.active = plate.id == id;
+        m_snapshot.active_plate = id;
+        publish(WorkspaceChangeReasons::Plates);
+        return CommandResult::success();
+    }
+    // A fixture states which actions a plate offers and the fake records what
+    // was run on it; the real preconditions live in the adapter.
+    void set_plate_actions_for_testing(std::vector<PlateAction> actions) { m_plate_actions = std::move(actions); }
+    std::vector<std::pair<PlateId, PlateAction>> plate_actions_run;
+    std::vector<PlateAction> plate_actions(PlateId id) const override
+    {
+        const auto found = std::find_if(m_outline.plates.begin(), m_outline.plates.end(),
+                                        [id](const OutlinePlate& plate) { return plate.id == id; });
+        return found == m_outline.plates.end() ? std::vector<PlateAction>{} : m_plate_actions;
+    }
+    CommandResult run_plate_action(PlateId id, PlateAction action) override
+    {
+        if (!id)
+            return CommandResult::failure(WorkspaceError::InvalidId, "Plate ID is invalid");
+        if (id.session() != m_session)
+            return CommandResult::failure(WorkspaceError::StaleId, "Plate ID belongs to an earlier project session");
+        const std::vector<PlateAction> offered = plate_actions(id);
+        if (offered.empty() && std::none_of(m_outline.plates.begin(), m_outline.plates.end(),
+                                            [id](const OutlinePlate& plate) { return plate.id == id; }))
+            return CommandResult::failure(WorkspaceError::MissingObject, "Plate does not exist in the current project session");
+        if (std::find(offered.begin(), offered.end(), action) == offered.end())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "That action does not apply to this plate");
+        plate_actions_run.emplace_back(id, action);
+        return CommandResult::success();
+    }
+    // Object actions work the same way: a fixture states what an object offers,
+    // and the fake records what ran.
+    void set_object_actions_for_testing(std::vector<ObjectAction> actions) { m_object_actions = std::move(actions); }
+    struct ObjectActionRun { ObjectId object; ObjectAction action; int slot; };
+    std::vector<ObjectActionRun> object_actions_run;
+    std::vector<InstanceId>      copies_toggled;
+    std::vector<ObjectAction> object_actions(ObjectId id) const override
+    {
+        for (const OutlineObject& object : m_outline.objects)
+            if (object.id == id)
+                return m_object_actions;
+        return {};
+    }
+    CommandResult run_object_action(ObjectId id, ObjectAction action, int slot = 0) override
+    {
+        if (!id)
+            return CommandResult::failure(WorkspaceError::InvalidId, "Object ID is invalid");
+        if (id.session() != m_session)
+            return CommandResult::failure(WorkspaceError::StaleId, "Object ID belongs to an earlier project session");
+        const std::vector<ObjectAction> offered = object_actions(id);
+        if (std::find(offered.begin(), offered.end(), action) == offered.end())
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "That action does not apply to this object");
+        object_actions_run.push_back({id, action, slot});
+        return CommandResult::success();
+    }
+    std::vector<std::pair<ObjectId, CustomizationTool>> customizations_opened;
+    CommandResult open_customization(ObjectId id, CustomizationTool tool) override
+    {
+        for (const OutlineObject& object : m_outline.objects)
+            if (object.id == id) {
+                customizations_opened.emplace_back(id, tool);
+                return CommandResult::success();
+            }
+        return CommandResult::failure(WorkspaceError::MissingObject, "Object does not exist in the current project session");
+    }
+    CommandResult toggle_copy_printable(InstanceId id) override
+    {
+        for (OutlineObject& object : m_outline.objects)
+            for (OutlineCopy& copy : object.copies)
+                if (copy.id == id) {
+                    copy.printable = !copy.printable;
+                    copies_toggled.push_back(id);
+                    publish(WorkspaceChangeReasons::Contents);
+                    return CommandResult::success();
+                }
+        return CommandResult::failure(WorkspaceError::MissingObject, "Copy does not exist in the current project session");
+    }
+    CommandResult add_plate() override
+    {
+        save_undo("Add plate");
+        OutlinePlate plate;
+        // A fixture names its own ids, so mint one past every plate it has.
+        std::uint64_t highest = m_last_object_id;
+        for (const OutlinePlate& existing : m_outline.plates)
+            highest = std::max(highest, existing.id.value());
+        m_last_object_id = highest + 1;
+        plate.id   = PlateId(m_session, m_last_object_id);
+        plate.name = "Plate " + std::to_string(m_outline.plates.size() + 1);
+        m_outline.plates.push_back(plate);
+        for (OutlinePlate& item : m_outline.plates)
+            item.active = item.id == plate.id;
+        WorkspacePlate projected;
+        projected.id   = plate.id;
+        projected.name = plate.name;
+        for (WorkspacePlate& item : m_snapshot.plates)
+            item.active = false;
+        projected.active = true;
+        m_snapshot.plates.push_back(projected);
+        m_snapshot.active_plate = plate.id;
+        publish(WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    CommandResult select_copy(InstanceId id) override
+    {
+        if (!id)
+            return CommandResult::failure(WorkspaceError::InvalidId, "Copy ID is invalid");
+        if (id.session() != m_session)
+            return CommandResult::failure(WorkspaceError::StaleId, "Copy ID belongs to an earlier project session");
+        for (const OutlineObject& object : m_outline.objects)
+            for (const OutlineCopy& copy : object.copies)
+                if (copy.id == id) {
+                    if (m_outline.selected_copies == std::vector<InstanceId>{id})
+                        return CommandResult::failure(WorkspaceError::NoChange, "Copy is already selected");
+                    m_outline.selected_copies = {id};
+                    m_outline.selected_volumes.clear();
+                    m_snapshot.selection_status = SelectionStatus::Unsupported;
+                    m_snapshot.selected_objects.clear();
+                    publish(WorkspaceChangeReasons::Selection);
+                    return CommandResult::success();
+                }
+        return CommandResult::failure(WorkspaceError::MissingObject, "Copy does not exist in the current project session");
+    }
+    CommandResult select_volume(VolumeId id) override
+    {
+        if (!id)
+            return CommandResult::failure(WorkspaceError::InvalidId, "Volume ID is invalid");
+        if (id.session() != m_session)
+            return CommandResult::failure(WorkspaceError::StaleId, "Volume ID belongs to an earlier project session");
+        for (const OutlineObject& object : m_outline.objects)
+            for (const OutlineVolume& volume : object.volumes)
+                if (volume.id == id) {
+                    if (object.volumes.size() < 2)
+                        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                                                      "Orca does not select a volume of a single-part object");
+                    if (m_outline.selected_volumes == std::vector<VolumeId>{id})
+                        return CommandResult::failure(WorkspaceError::NoChange, "Volume is already selected");
+                    m_outline.selected_volumes = {id};
+                    m_outline.selected_copies.clear();
+                    m_snapshot.selection_status = SelectionStatus::Unsupported;
+                    m_snapshot.selected_objects.clear();
+                    publish(WorkspaceChangeReasons::Selection);
+                    return CommandResult::success();
+                }
+        return CommandResult::failure(WorkspaceError::MissingObject, "Volume does not exist in the current project session");
+    }
     std::string current_process_preset() const override { return m_process_preset; }
 
     // A preset is known when set_presets_for_testing listed it, and
@@ -1084,6 +1279,7 @@ private:
         m_redo_names.clear();
         m_known_object_ids.clear();
         m_last_object_id = 0;
+        m_outline        = {};
         if (!keep_aux_dir)
             m_auxiliary_dir = fresh_auxiliary_dir();
         install_snapshot(std::move(replacement));
@@ -1262,6 +1458,9 @@ private:
     ProjectSessionId              m_session;
     mutable std::string           m_auxiliary_dir;
     WorkspaceSnapshot             m_snapshot;
+    ProjectOutline                m_outline;
+    std::vector<PlateAction>      m_plate_actions;
+    std::vector<ObjectAction>     m_object_actions;
     std::vector<WorkspaceSnapshot> m_undo;
     std::vector<WorkspaceSnapshot> m_redo;
     std::vector<std::string>       m_undo_names;

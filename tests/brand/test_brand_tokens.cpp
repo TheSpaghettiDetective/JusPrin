@@ -306,6 +306,22 @@ TEST_CASE("the Agent pane resize geometry is explicit", "[brand]")
         "component.agentPane");
 }
 
+// The Plates / Project pane's rows are boxes from its Figma frames
+// (26a-26h on the Plates & Project Pane page). Each number is a padding, gap or
+// height of one of those boxes, so a drifting value moves a painted row off
+// its frame.
+TEST_CASE("the Plates and Project pane geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("leftPane"),
+        {{"width", 200}, {"paddingY", 12}, {"tabHeight", 36}, {"tabIndicatorHeight", 2}, {"listPaddingY", 8},
+         {"rowGap", 2}, {"rowPaddingX", 8}, {"rowPaddingY", 6}, {"plateRowHeight", 32}, {"objectRowHeight", 36},
+         {"objectIndent", 20}, {"glyphSize", 16}, {"plateGap", 8}, {"objectGap", 4}, {"summaryIndent", 32},
+         {"summaryPaddingBottom", 6}, {"addPlatePaddingTop", 8}, {"addPlatePaddingBottom", 4},
+         {"addPlatePaddingX", 12}, {"addPlateButtonHeight", 30}},
+        "component.leftPane");
+}
+
 // A thread row (a hand edit, a G-code destination) stacks its title over its
 // metadata line with this gap. It is an internal size of the row, like button
 // padding, so it lives here rather than on the spacing scale.

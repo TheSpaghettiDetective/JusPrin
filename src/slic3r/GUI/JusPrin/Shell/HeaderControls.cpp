@@ -35,6 +35,10 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
     case HeaderIcon::Down: line({{4,6},{8,10},{12,6}}); break;
     case HeaderIcon::Up: line({{4,10},{8,6},{12,10}}); break;
     case HeaderIcon::Check: line({{3,8.5},{6.5,12},{13,4}}); break;
+    case HeaderIcon::Lock:
+        line({{3.5,7},{12.5,7},{12.5,14},{3.5,14},{3.5,7}});
+        line({{5.5,7},{5.5,5},{6,3.5},{7,3},{9,3},{10,3.5},{10.5,5},{10.5,7}});
+        break;
     case HeaderIcon::Caret: {
         // A filled disclosure triangle, as the chip halves use in the design.
         auto p = gc.CreatePath();
@@ -117,6 +121,11 @@ void draw_dot(wxGraphicsContext& gc, const std::optional<wxColour>& dot, double 
 }
 
 } // namespace
+
+void draw_header_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, double size, const wxColour& color)
+{
+    draw_icon(gc, icon, x, y, size, color);
+}
 
 HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyle style,
                            const wxString& label, HeaderIcon icon)
@@ -810,9 +819,10 @@ void HeaderMenu::on_key(wxKeyEvent& e)
     }
 }
 
-void HeaderMenu::open(HeaderButton& anchor)
+void HeaderMenu::open(HeaderButton& anchor, Align align)
 {
     m_anchor = &anchor;
+    m_align = align;
     anchor.set_open(true);
     reposition();
     Popup();
@@ -829,7 +839,8 @@ void HeaderMenu::open(HeaderButton& anchor)
 void HeaderMenu::reposition()
 {
     if (!m_anchor) return;
-    Position(m_anchor->ClientToScreen(wxPoint(m_anchor->GetSize().x-GetSize().x,m_anchor->GetSize().y+FromDIP(4))),wxSize(0,0));
+    const int x = m_align == Align::Left ? 0 : m_anchor->GetSize().x-GetSize().x;
+    Position(m_anchor->ClientToScreen(wxPoint(x,m_anchor->GetSize().y+FromDIP(4))),wxSize(0,0));
 }
 
 void HeaderMenu::select_item(int index)

@@ -176,6 +176,7 @@
 #include "mcp_stdio_client.hpp"
 #include "figma_timeline_fixture.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/LeftPane.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
@@ -212,6 +213,7 @@
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/TriangleSelector.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
@@ -605,7 +607,9 @@ struct HarnessState
         AutosaveReopen,
         PresetClose,
         ExternalProjectHistory,
-        FileCorpus
+        FileCorpus,
+        LeftPane,
+        LeftPaneSlicedCapture
     };
 
     std::atomic<int>  result{-1};
@@ -772,6 +776,14 @@ public:
                 return;
             }
             load_multi_plate_fixture();
+            if (m_state->mode == HarnessState::Mode::LeftPaneSlicedCapture) {
+                capture_sliced_left_pane();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::LeftPane) {
+                verify_left_pane();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::TaskChat) {
                 m_frame->select_tab(size_t(MainFrame::tp3DEditor));
                 wait_until([this] {
@@ -864,6 +876,602 @@ public:
     }
 
 private:
+    void capture_sliced_left_pane()
+    {
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        wait_until([this] {
+            return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
+        }, "sliced_pane_prepare_ready", [self = shared_from_this()] {
+            self->wait_until_settled("sliced_pane_settled", [self] {
+                self->m_plater->select_plate(0);
+                installed_shell()->status_row()->request_slice();
+                self->wait_until([self] {
+                    PartPlate* first = self->m_plater->get_partplate_list().get_plate(0);
+                    return first != nullptr && first->is_slice_result_valid() &&
+                           !self->m_plater->is_background_process_slicing();
+                }, "sliced_pane_plate_one_complete", [self] {
+                    LeftPane* pane = installed_shell()->left_pane();
+                    self->check(pane != nullptr, "sliced_pane_exists");
+                    if (pane != nullptr) {
+                        pane->refresh_from_workspace();
+                        self->check(pane->rows().size() == 3 && pane->rows()[0].sliced && !pane->rows()[2].sliced,
+                                    "sliced_pane_reads_real_plate_states");
+                        self->save_pane("figma-sliced-and-unsliced-plates", pane->snapshot());
+                        self->window_shot("figma-sliced-and-unsliced-plates");
+                    }
+                    self->finish();
+                });
+            });
+        });
+    }
+
+    // The Plates / Project pane in the real shell: what Prepare shows, what a
+    // click on each drawn control does to Orca, and what the pointer must not
+    // disturb. Clicks go through the pane's own mouse handler at the place the
+    // control was painted, so a hit region that drifted from its drawing fails.
+    void verify_left_pane()
+    {
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        wait_until([this] {
+            return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
+        }, "left_pane_prepare_ready", [self = shared_from_this()] {
+            self->wait_until_settled("left_pane_settled", [self] { self->run_left_pane_checks(); });
+        });
+    }
+
+    void click_pane(LeftPane* pane, const wxRect& rect, wxEventType type = wxEVT_LEFT_DOWN)
+    {
+        wxMouseEvent event(type);
+        event.SetEventObject(pane);
+        event.SetPosition(wxPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+        pane->GetEventHandler()->ProcessEvent(event);
+    }
+
+    void run_left_pane_checks()
+    {
+        LeftPane* pane = installed_shell()->left_pane();
+        check(pane != nullptr, "left_pane_exists");
+        if (pane == nullptr) {
+            finish();
+            return;
+        }
+        check(pane->IsShownOnScreen(), "left_pane_shown_on_prepare");
+        check(pane->GetSize().x == pane->FromDIP(200), "left_pane_is_200_dip_wide");
+        auto* workspace = installed_shell()->workspace();
+        const auto plate_count = [&] { return workspace->outline().plates.size(); };
+
+        pane->refresh_from_workspace();
+        wxBitmap first = pane->snapshot();
+        check(pane->rows().size() == 3 && pane->rows()[0].kind == PaneRow::Kind::Plate && pane->rows()[0].expanded &&
+                  pane->rows()[1].kind == PaneRow::Kind::Object && pane->rows()[2].kind == PaneRow::Kind::Plate &&
+                  !pane->rows()[2].expanded,
+              "left_pane_lists_two_plates_with_the_active_one_open");
+        check(pane->rows()[2].summary.objects == 1, "left_pane_folded_plate_summarises_its_object");
+        save_pane("left-pane-two-plates", first);
+        window_shot("two-plates");
+
+        // A folded plate row makes that Orca plate the active one.
+        const auto second_plate = pane->rows()[2].plate;
+        check(!pane->rect_of(2, LeftPane::Part::Row).IsEmpty(), "left_pane_second_plate_has_a_hit_region");
+        click_pane(pane, pane->rect_of(2, LeftPane::Part::Row));
+        check(workspace->snapshot().active_plate == second_plate, "left_pane_click_activates_the_plate");
+        check(m_plater->get_partplate_list().get_curr_plate_index() == 1, "left_pane_click_reached_orca");
+        pane->snapshot();
+        check(pane->rows().size() == 3 && pane->rows()[0].kind == PaneRow::Kind::Plate && !pane->rows()[0].expanded &&
+                  pane->rows()[1].kind == PaneRow::Kind::Plate && pane->rows()[1].expanded,
+              "left_pane_follows_the_plate_change");
+        save_pane("left-pane-second-plate-active", pane->snapshot());
+        window_shot("second-plate-active");
+
+        // Canvas selection comes back into the pane without delay.
+        // The second object sits on the plate that is now active.
+        check(m_plater->select_object(1), "left_pane_canvas_selection_command");
+        pane->snapshot();
+        check(std::any_of(pane->rows().begin(), pane->rows().end(),
+                          [](const PaneRow& row) { return row.kind == PaneRow::Kind::Object && row.selected; }),
+              "left_pane_reflects_canvas_selection");
+        save_pane("left-pane-object-selected", pane->snapshot());
+        window_shot("object-selected");
+
+        // Overflow menus: the plate's and the object's list what Orca offers,
+        // and the commands behind them reach Orca and its undo history.
+        const auto pane_menu = [pane]() -> HeaderMenu* {
+            for (auto* child : pane->GetChildren())
+                if (auto* menu = dynamic_cast<HeaderMenu*>(child); menu && menu->IsShown()) return menu;
+            return nullptr;
+        };
+        const auto menu_has = [](HeaderMenu* menu, const wxString& label) {
+            return menu != nullptr && wxWindow::FindWindowByName(label, menu) != nullptr;
+        };
+        pane->snapshot();
+        const PaneRow plate_row = pane->rows()[1]; // the active plate: the second, now
+        check(plate_row.kind == PaneRow::Kind::Plate && plate_row.expanded, "left_pane_menu_fixture_active_plate");
+        pane->open_row_menu(plate_row);
+        HeaderMenu* menu = pane_menu();
+        check(menu_has(menu, _L("Rename")) && menu_has(menu, _L("Arrange")) && menu_has(menu, _L("Auto-orient")) &&
+                  menu_has(menu, _L("Lock")) && menu_has(menu, _L("Plate settings…")) && menu_has(menu, _L("Delete plate")) &&
+                  menu_has(menu, _L("Move to front")),
+              "left_pane_plate_menu_lists_the_plate_actions");
+        save_pane("left-pane-plate-menu", pane->snapshot());
+        menu_shot("plate-menu");
+        if (menu != nullptr)
+            menu->close();
+        pane->snapshot();
+        pane->open_row_menu(pane->rows()[0]); // the first plate has no front to move to
+        menu = pane_menu();
+        check(menu != nullptr && !menu_has(menu, _L("Move to front")), "left_pane_first_plate_has_no_move_to_front");
+        menu_shot("figma-26d1-plate-menu");
+        if (menu != nullptr)
+            menu->close();
+        check(workspace->run_plate_action(plate_row.plate, Workspace::PlateAction::ToggleLock).succeeded() &&
+                  workspace->outline().plates[1].locked,
+              "left_pane_lock_reaches_orca");
+        check(m_plater->get_partplate_list().is_locked(1), "left_pane_lock_is_orcas_plate_lock");
+        check(workspace->run_plate_action(plate_row.plate, Workspace::PlateAction::ToggleLock).succeeded() &&
+                  !workspace->outline().plates[1].locked,
+              "left_pane_unlock_reaches_orca");
+
+        pane->snapshot();
+        const auto object_row = std::find_if(pane->rows().begin(), pane->rows().end(),
+                                             [](const PaneRow& row) { return row.kind == PaneRow::Kind::Object; });
+        check(object_row != pane->rows().end(), "left_pane_menu_fixture_object");
+        if (object_row != pane->rows().end()) {
+            const PaneRow object = *object_row;
+            // The pane rebuilds its rows on every change, so only the index outlives them.
+            const std::size_t object_index = static_cast<std::size_t>(object_row - pane->rows().begin());
+            pane->open_row_menu(object);
+            menu = pane_menu();
+            check(menu_has(menu, _L("Rename")) && menu_has(menu, _L("Set number of instances…")) && menu_has(menu, _L("Printable")) &&
+                      menu_has(menu, _L("Delete")),
+                  "left_pane_object_menu_lists_the_object_actions");
+            save_pane("left-pane-object-menu", pane->snapshot());
+            menu_shot("object-menu");
+            if (menu != nullptr)
+                menu->close();
+            const auto copies_print = [&] { return workspace->outline().objects[1].copies[0].printable; };
+            check(workspace->run_object_action(object.object, Workspace::ObjectAction::TogglePrintable).succeeded() && !copies_print(),
+                  "left_pane_printable_switch_reaches_orca");
+            pane->snapshot();
+            check(pane->rows()[2].all_wont_print(), "left_pane_shows_a_disabled_object_as_not_printing");
+            check(workspace->run_object_action(object.object, Workspace::ObjectAction::TogglePrintable).succeeded() && copies_print(),
+                  "left_pane_printable_switch_toggles_back");
+            // A per-object setting makes the object customized. Its mark lists
+            // the override count, while the unavailable editor remains disabled.
+            m_plater->model().objects[1]->config.set_key_value("wall_loops", new ConfigOptionInt(5));
+            pane->refresh_from_workspace();
+            pane->snapshot();
+            check(pane->rows()[object_index].customized && !pane->rows()[object_index].customization.has_tool(),
+                  "left_pane_setting_override_marks_the_object_customized");
+            check(!pane->rect_of(object_index, LeftPane::Part::Mark).IsEmpty(), "left_pane_settings_only_mark_opens_summary");
+            click_pane(pane, pane->rect_of(object_index, LeftPane::Part::Mark));
+            menu = pane_menu();
+            check(menu_has(menu, _L("Per-object settings · 1")), "left_pane_settings_override_count_is_listed");
+            if (menu != nullptr)
+                menu->close();
+            save_pane("left-pane-customized-object", pane->snapshot());
+            window_shot("customized-object");
+            m_plater->model().objects[1]->config.erase("wall_loops");
+            pane->refresh_from_workspace();
+            pane->snapshot();
+            check(!pane->rows()[object_index].customized, "left_pane_mark_goes_when_the_customization_does");
+            check(workspace->run_object_action(object.object, Workspace::ObjectAction::Filament, 1).error ==
+                      Workspace::WorkspaceError::UnavailableOperation,
+                  "left_pane_filament_action_is_absent_in_a_single_material_job");
+        }
+
+        // The tabs switch the pane's content and never the project.
+        const auto active_before = workspace->snapshot().active_plate;
+        const bool had_selection = !m_plater->canvas3D()->get_selection().is_empty();
+        click_pane(pane, pane->tab_rect(PaneTab::Project));
+        check(pane->navigation().tab() == PaneTab::Project, "left_pane_project_tab_opens");
+        check(workspace->snapshot().active_plate == active_before &&
+                  !m_plater->canvas3D()->get_selection().is_empty() == had_selection,
+              "left_pane_tab_switch_keeps_plate_and_selection");
+        save_pane("left-pane-project", pane->snapshot());
+        window_shot("project");
+        check(!pane->handle_escape(), "left_pane_escape_at_project_root_is_not_taken");
+        check(pane->navigation().tab() == PaneTab::Project, "left_pane_escape_does_not_leave_project");
+        // A project without 3MF metadata still offers the Details view.
+        const auto has_label = [pane](const wxString& label) {
+            const auto labels = pane->action_labels();
+            return std::find(labels.begin(), labels.end(), label) != labels.end();
+        };
+        pane->snapshot();
+        check(has_label(_L("Details")) && !has_label(_L("Printed once")), "left_pane_root_offers_empty_details_without_prints");
+        check(has_label(_L("Version history")) && has_label(_L("Export project 3MF…")) && has_label(_L("Edit Project Info")),
+              "left_pane_root_offers_version_history_export_and_edit");
+
+        // Model metadata is the file's own words: the title shown is the model's,
+        // never the saved project's name, and Details appears once there is
+        // something to show.
+        {
+            Model& model = m_plater->model();
+            model.model_info = std::make_shared<ModelInfo>();
+            model.model_info->model_name = "Pane test model";
+            model.design_info = std::make_shared<ModelDesignInfo>();
+            model.design_info->Designer = "Ada";
+            // A cover picture among the project's packed files.
+            const std::filesystem::path pictures = std::filesystem::path(workspace->auxiliary_data_dir()) / "Model Pictures";
+            std::filesystem::create_directories(pictures);
+            {
+                wxImage cover(60, 45);
+                cover.SetRGB(wxRect(0, 0, 60, 45), 120, 80, 160);
+                check(cover.SaveFile(wxString::FromUTF8((pictures / "cover.png").string()), wxBITMAP_TYPE_PNG),
+                      "left_pane_cover_fixture_written");
+            }
+            pane->refresh_from_workspace();
+            pane->snapshot();
+            check(has_label(_L("Details")), "left_pane_details_appears_with_metadata");
+            check(!has_label(_L("Printed once")), "left_pane_details_do_not_invent_a_print_count");
+            check(workspace->project_details().title == "Pane test model" && workspace->project_details().designer == "Ada",
+                  "left_pane_reads_the_models_own_title_and_designer");
+            check(workspace->project_details().attachments.size() == 1 &&
+                      workspace->project_details().attachments.front().folder == "Model Pictures",
+                  "left_pane_cover_is_a_packed_model_picture");
+            save_pane("left-pane-root-with-metadata", pane->snapshot());
+            window_shot("root-with-metadata");
+            check(pane->press_action(_L("Details")) && pane->navigation().view() == ProjectView::Details,
+                  "left_pane_details_open");
+            save_pane("left-pane-details", pane->snapshot());
+            window_shot("details");
+            check(pane->handle_escape(), "left_pane_details_escape_returns");
+            model.model_info.reset();
+            model.design_info.reset();
+            pane->refresh_from_workspace();
+            pane->snapshot();
+            check(has_label(_L("Details")) && workspace->project_details().title.empty() &&
+                      !workspace->project_details().attachments.empty(),
+                  "left_pane_cover_only_metadata_has_details_without_invented_title");
+            std::filesystem::remove_all(pictures);
+            pane->refresh_from_workspace();
+            pane->snapshot();
+            check(has_label(_L("Details")), "left_pane_details_remains_without_metadata");
+        }
+
+        // A sparse legacy ledger entry exercises the count-only Figma state.
+        // The live print path now records timestamps; this fixture deliberately
+        // omits them to cover an older imported record.
+        persistence().document().add_physical_print(Agent::PhysicalPrintRecord{}, "");
+        persistence().notify_ledger_changed();
+        pane->snapshot();
+        check(has_label(_L("Printed once")), "left_pane_count_only_record_is_counted");
+        check(pane->press_action(_L("Printed once")) && pane->navigation().view() == ProjectView::PrintHistory,
+              "left_pane_count_only_history_opens");
+        save_pane("left-pane-count-only-history", pane->snapshot());
+        window_shot("count-only-history");
+        check(pane->handle_escape(), "left_pane_count_only_history_returns");
+
+        // A recorded physical print adds its row, and the pane reads the ledger
+        // through its own subscription (the status row keeps its own).
+        Agent::PhysicalPrintRecord record;
+        record.id         = "print-1";
+        record.outcome    = "completed";
+        record.started_at = "2026-09-12T10:00:00Z";
+        record.ended_at   = "2026-09-12T11:44:00Z";
+        record.plate_name = "Plate 1";
+        record.printer    = "A1 mini";
+        record.statistics.material_grams = 38.0;
+        record.statistics.material_cost = 0.95;
+        persistence().document().add_physical_print(record, persistence().timestamp());
+        persistence().notify_ledger_changed();
+        pane->snapshot();
+        check(has_label(_L("Printed 2 times")), "left_pane_root_shows_the_print_count");
+        check(pane->press_action(_L("Printed 2 times")) && pane->navigation().view() == ProjectView::PrintHistory,
+              "left_pane_print_history_opens");
+        save_pane("left-pane-print-history", pane->snapshot());
+        window_shot("print-history");
+        check(pane->handle_escape() && pane->navigation().view() == ProjectView::Root, "left_pane_escape_goes_up_one_level");
+        Agent::PhysicalPrintRecord stopped_record;
+        stopped_record.id = "print-2";
+        stopped_record.outcome = "cancelled";
+        stopped_record.started_at = "2026-09-12T13:00:00Z";
+        stopped_record.ended_at = "2026-09-12T13:12:00Z";
+        stopped_record.plate_name = "Plate 2";
+        stopped_record.printer = "A1 mini";
+        stopped_record.statistics.material_grams = 9.0;
+        stopped_record.statistics.material_cost = 0.23;
+        persistence().document().add_physical_print(stopped_record, persistence().timestamp());
+        persistence().notify_ledger_changed();
+        pane->snapshot();
+        check(pane->press_action(_L("Printed 3 times")), "figma_26e3_three_prints_open");
+        save_pane("figma-26e3-mixed-history", pane->snapshot());
+        window_shot("figma-26e3-mixed-history");
+        check(pane->handle_escape(), "figma_26e3_history_returns");
+        {
+            Model& model = m_plater->model();
+            model.model_info = std::make_shared<ModelInfo>();
+            model.model_info->model_name = "Modular wall shelf brackets";
+            model.model_info->license = "CC BY 4.0";
+            model.model_info->description = "A set of modular brackets for a wall shelf.";
+            model.design_info = std::make_shared<ModelDesignInfo>();
+            model.design_info->Designer = "Anna K.";
+            model.profile_info = std::make_shared<ModelProfileInfo>();
+            model.profile_info->ProfileTile = "Strong PLA · by Anna K.";
+            model.profile_info->ProfileDescription = "Strength focused PLA profile.";
+            const std::filesystem::path auxiliary(workspace->auxiliary_data_dir());
+            const std::filesystem::path pictures = auxiliary / "Model Pictures";
+            std::filesystem::create_directories(pictures);
+            for (int index = 0; index < 3; ++index) {
+                wxImage picture(60, 45);
+                picture.SetRGB(wxRect(0, 0, 60, 45), 105 + index * 35, 75 + index * 20, 160 - index * 30);
+                check(picture.SaveFile(wxString::FromUTF8((pictures / ("view-" + std::to_string(index) + ".png")).string()),
+                                       wxBITMAP_TYPE_PNG), "figma_metadata_picture_saved");
+            }
+            for (const char* folder : {"Bill of Materials", "Assembly Guide", "Others"})
+                std::filesystem::create_directories(auxiliary / folder);
+            std::ofstream((auxiliary / "Bill of Materials" / "parts.txt").string()) << "Bracket x2";
+            std::ofstream((auxiliary / "Assembly Guide" / "instructions.txt").string()) << "Attach to wall";
+            std::ofstream((auxiliary / "Others" / "notes.txt").string()) << "Fixture";
+            std::ofstream((auxiliary / "Others" / "license.txt").string()) << "CC BY 4.0";
+            pane->refresh_from_workspace();
+            save_pane("figma-26e1-project-metadata", pane->snapshot());
+            window_shot("figma-26e1-project-metadata");
+            check(pane->press_action(_L("Details")), "figma_26e2_details_open");
+            save_pane("figma-26e2-project-details", pane->snapshot());
+            window_shot("figma-26e2-project-details");
+            check(pane->handle_escape(), "figma_26e2_details_returns");
+            model.model_info.reset();
+            model.design_info.reset();
+            model.profile_info.reset();
+            for (const char* folder : {"Model Pictures", "Bill of Materials", "Assembly Guide", "Others"})
+                std::filesystem::remove_all(auxiliary / folder);
+            pane->refresh_from_workspace();
+            save_pane("figma-26f-no-metadata", pane->snapshot());
+            window_shot("figma-26f-no-metadata");
+        }
+        pane->snapshot();
+        const auto captures_before_history = installed_shell()->autosave()->capture_attempts();
+        check(pane->press_action(_L("Version history")) && pane->navigation().view() == ProjectView::Versions,
+              "left_pane_version_history_opens");
+        save_pane("left-pane-versions", pane->snapshot());
+        check(installed_shell()->autosave()->capture_attempts() == captures_before_history,
+              "left_pane_reading_version_history_does_not_save");
+        window_shot("versions");
+        pane->snapshot();
+        check(pane->press_action(_L("Back to Project")) && pane->navigation().view() == ProjectView::Root, "left_pane_back_returns_to_root");
+        pane->snapshot();
+        check(pane->press_action(_L("Version history")), "left_pane_version_history_opens_again");
+        click_pane(pane, pane->tab_rect(PaneTab::Plates));
+        check(pane->navigation().tab() == PaneTab::Plates && pane->navigation().view() == ProjectView::Root,
+              "left_pane_plates_tab_leaves_a_project_subview");
+        click_pane(pane, pane->tab_rect(PaneTab::Plates));
+        check(pane->navigation().tab() == PaneTab::Plates, "left_pane_plates_tab_returns");
+
+        // Add plate is the toolbar's command, and undo takes it back.
+        pane->snapshot();
+        const std::size_t plates_before = plate_count();
+        click_pane(pane, pane->add_plate_rect());
+        check(plate_count() == plates_before + 1, "left_pane_add_plate_adds_a_plate");
+        check(m_plater->get_partplate_list().get_plate_count() == int(plates_before) + 1, "left_pane_add_plate_reached_orca");
+        check(workspace->undo().succeeded() && plate_count() == plates_before, "left_pane_add_plate_undoes");
+        check(workspace->redo().succeeded() && plate_count() == plates_before + 1, "left_pane_add_plate_redoes");
+        check(workspace->undo().succeeded() && plate_count() == plates_before, "left_pane_add_plate_undone_again");
+
+        // Check print is not touched: the pane is not there, and it returns with Prepare.
+        m_frame->select_tab(size_t(MainFrame::tpPreview));
+        wxYield();
+        check(m_notebook->GetSelection() == MainFrame::tpPreview && !pane->IsShown(), "left_pane_is_absent_on_check_print");
+        window_shot("check-print");
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        wxYield();
+        check(pane->IsShown(), "left_pane_returns_with_prepare");
+        window_shot("back-on-prepare");
+
+        capture_figma_plate_states(pane);
+        finish();
+    }
+
+    void capture_figma_plate_states(LeftPane* pane)
+    {
+        // These use Orca's real Model and PartPlateList. Separate captures let
+        // the simple and folded mockups be compared without a synthetic pane.
+        auto* workspace = installed_shell()->workspace();
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_fixture_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const auto loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            false);
+        check(loaded.size() == 1, "figma_fixture_bracket_loaded");
+        if (loaded.size() != 1)
+            return;
+        PartPlateList& plates = m_plater->get_partplate_list();
+        Model& model = m_plater->model();
+        model.objects[0]->name = "Bracket";
+        pane->refresh_from_workspace();
+        pane->snapshot();
+        check(pane->rows().size() == 2 && pane->rows()[1].name == "Bracket", "figma_26c1_single_object");
+        save_pane("figma-26c1-one-plate", pane->snapshot());
+        window_shot("figma-26c1-one-plate");
+
+        check(m_plater->duplicate_object(0) == 1, "figma_fixture_knob");
+        model.objects[1]->name = "Knob";
+        model.objects[0]->add_instance(*model.objects[0]->instances.front());
+        check(plates.get_plate(0)->add_instance(0, 1, true) == 0, "figma_fixture_bracket_second_copy");
+        check(plates.create_plate(true) == 1, "figma_fixture_plate_two");
+        check(plates.add_to_plate(1, 0, 1) == 0, "figma_fixture_knob_on_plate_two");
+        m_plater->canvas3D()->reload_scene(true, true);
+        pane->refresh_from_workspace();
+        pane->snapshot();
+        check(pane->rows().size() == 3 && pane->rows()[1].copies == 2 && pane->rows()[2].summary.single_object == "Knob",
+              "figma_26a_two_plate_summary");
+        save_pane("figma-26a-two-plates", pane->snapshot());
+        window_shot("figma-26a-two-plates");
+
+        // Three more folded plates: copies, one disabled copy, and three objects.
+        const auto add_duplicate = [&](const std::string& name, int plate_index, bool second_copy, bool disable_first) {
+            const int index = m_plater->duplicate_object(1);
+            check(index == int(model.objects.size()) - 1, "figma_fixture_object_duplicated");
+            model.objects[index]->name = name;
+            if (second_copy)
+                model.objects[index]->add_instance(*model.objects[index]->instances.front());
+            if (disable_first)
+                model.objects[index]->instances.front()->printable = false;
+            check(plates.add_to_plate(index, 0, plate_index) == 0, "figma_fixture_object_on_folded_plate");
+            if (second_copy)
+                check(plates.get_plate(plate_index)->add_instance(index, 1, true) == 0, "figma_fixture_copy_placed");
+        };
+        for (int plate_index = 2; plate_index < 5; ++plate_index)
+            check(plates.create_plate(true) == plate_index, "figma_fixture_folded_plate_created");
+        add_duplicate("Bracket", 2, true, false);
+        add_duplicate("Bracket", 3, true, true);
+        add_duplicate("Case", 4, false, false);
+        add_duplicate("Spacer", 4, false, false);
+        add_duplicate("Hinge pin", 4, false, false);
+        plates.get_plate(4)->set_bed_type(BedType::btPEI);
+        m_plater->canvas3D()->reload_scene(true, true);
+        pane->refresh_from_workspace();
+        pane->snapshot();
+        check(pane->rows().size() == 6 && pane->rows()[4].summary.wont_print == 1 && pane->rows()[5].summary.objects == 3,
+              "figma_26c2_folded_summaries");
+        check(pane->rows()[5].custom_settings, "figma_26c2_plate_settings_mark");
+        save_pane("figma-26c2-folded-summaries", pane->snapshot());
+        window_shot("figma-26c2-folded-summaries");
+
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_complex_new_project");
+        const auto complex_loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            false);
+        check(complex_loaded.size() == 1, "figma_complex_case_loaded");
+        if (complex_loaded.size() != 1)
+            return;
+        PartPlateList& complex_plates = m_plater->get_partplate_list();
+        Model& complex_model = m_plater->model();
+        for (int index = 1; index < 7; ++index)
+            check(m_plater->duplicate_object(0) == index, "figma_complex_object_duplicated");
+        const char* complex_names[] = {"Case", "Bracket", "Hinge pin", "Spacer", "Bracket", "Knob", "Pin"};
+        for (int index = 0; index < 7; ++index)
+            complex_model.objects[index]->name = complex_names[index];
+        // The fixture printer can accept three material slots. These are
+        // project setup facts read by the same outline path as a user setup.
+        auto* presets = wxGetApp().preset_bundle;
+        check(presets != nullptr && !presets->filament_presets.empty(), "figma_complex_material_setup_available");
+        if (presets != nullptr && !presets->filament_presets.empty()) {
+            presets->filament_presets.resize(3, presets->filament_presets.front());
+            presets->project_config.set_key_value("filament_colour", new ConfigOptionStrings({"#00A58A", "#CE9B48", "#4B81C7"}));
+        }
+        complex_model.objects[0]->config.set_key_value("extruder", new ConfigOptionInt(1));
+        complex_model.objects[1]->config.set_key_value("extruder", new ConfigOptionInt(3));
+        complex_model.objects[2]->config.set_key_value("extruder", new ConfigOptionInt(3));
+        check(complex_plates.create_plate(true) == 1, "figma_complex_plate_two");
+        for (int index = 4; index < 7; ++index)
+            check(complex_plates.add_to_plate(index, 0, 1) == 0, "figma_complex_plate_two_object");
+        check(complex_plates.get_plate(0)->remove_instance(3, 0) == 0, "figma_complex_spacer_off_plate");
+        for (int copy = 1; copy < 4; ++copy) {
+            complex_model.objects[1]->add_instance(*complex_model.objects[1]->instances.front());
+            check(complex_plates.get_plate(0)->add_instance(1, copy, true) == 0, "figma_complex_bracket_copy");
+        }
+        complex_model.objects[1]->instances[3]->printable = false;
+        indexed_triangle_set open_mesh = complex_model.objects[2]->volumes.front()->mesh().its;
+        open_mesh.indices.resize(1);
+        complex_model.objects[2]->volumes.front()->set_mesh(std::move(open_mesh));
+        complex_model.objects[2]->invalidate_bounding_box();
+        ModelObject* case_object = complex_model.objects[0];
+        ModelVolume* original_part = case_object->volumes.front();
+        original_part->name = "Case part";
+        ModelVolume* logo_part = case_object->add_volume(*original_part, ModelVolumeType::MODEL_PART);
+        logo_part->name = "Logo part";
+        case_object->add_volume(*original_part, ModelVolumeType::PARAMETER_MODIFIER)->name = "Dense infill";
+        case_object->add_volume(*original_part, ModelVolumeType::NEGATIVE_VOLUME)->name = "Cable hole";
+        TriangleSelector painted_facets(original_part->mesh());
+        painted_facets.set_facet(0, EnforcerBlockerType::ENFORCER);
+        check(original_part->supported_facets.set(painted_facets), "figma_complex_support_painting_saved");
+        case_object->config.set_key_value("wall_loops", new ConfigOptionInt(5));
+        case_object->layer_height_profile.set(std::vector<coordf_t>{0.0, 0.20, 20.0, 0.28});
+        m_plater->canvas3D()->reload_scene(true, true);
+        logo_part->config.set_key_value("extruder", new ConfigOptionInt(2));
+        pane->refresh_from_workspace();
+        const Workspace::ProjectOutline complex_outline = workspace->outline();
+        check(std::any_of(complex_outline.objects[0].volumes.begin(), complex_outline.objects[0].volumes.end(),
+                          [](const Workspace::OutlineVolume& volume) { return volume.name == "Logo part" && volume.extruder == 2; }),
+              "figma_complex_logo_filament_two");
+        pane->navigation().set_expanded(workspace->outline().objects[0].id, true);
+        pane->refresh_from_workspace();
+        pane->snapshot();
+        check(std::any_of(pane->rows().begin(), pane->rows().end(), [](const PaneRow& row) {
+                  return row.kind == PaneRow::Kind::OffPlateHeader;
+              }), "figma_26b_off_plate_group");
+        check(std::count_if(pane->rows().begin(), pane->rows().end(), [](const PaneRow& row) {
+                  return row.kind == PaneRow::Kind::Volume && row.name == "Cable hole";
+              }) == 1, "figma_26b_negative_part_visible");
+        check(std::any_of(pane->rows().begin(), pane->rows().end(), [](const PaneRow& row) {
+                  return row.kind == PaneRow::Kind::Object && row.name == "Hinge pin" && row.mesh.open_edges == 3;
+              }), "figma_26b_three_mesh_errors");
+        check(pane->rows()[1].customization.support_painting && pane->rows()[1].customization.variable_layer_height &&
+                  pane->rows()[1].filament == 1, "figma_26h_painting_layer_height_and_filament_facts");
+        save_pane("figma-26b-complex-plate", pane->snapshot());
+        window_shot("figma-26b-complex-plate");
+        const auto marked = std::find_if(pane->rows().begin(), pane->rows().end(), [](const PaneRow& row) {
+            return row.kind == PaneRow::Kind::Object && row.name == "Case";
+        });
+        check(marked != pane->rows().end() && marked->customized, "figma_26h_customization_mark");
+        if (marked != pane->rows().end()) {
+            const std::size_t index = std::size_t(marked - pane->rows().begin());
+            save_pane("figma-26h-customization-mark", pane->snapshot());
+            window_shot("figma-26h-customization-mark");
+            pane->open_row_menu(*marked);
+            menu_shot("figma-26d2-object-split-menu");
+            for (auto* child : pane->GetChildren())
+                if (auto* menu = dynamic_cast<HeaderMenu*>(child); menu && menu->IsShown())
+                    menu->close();
+            click_pane(pane, pane->rect_of(index, LeftPane::Part::Mark));
+            menu_shot("figma-26h-customization-mark-menu");
+            for (auto* child : pane->GetChildren())
+                if (auto* menu = dynamic_cast<HeaderMenu*>(child); menu && menu->IsShown())
+                    menu->close();
+        }
+        const auto damaged = std::find_if(pane->rows().begin(), pane->rows().end(), [](const PaneRow& row) {
+            return row.kind == PaneRow::Kind::Object && row.name == "Hinge pin";
+        });
+        if (damaged != pane->rows().end()) {
+            pane->open_row_menu(*damaged);
+            menu_shot("figma-26d2-object-repair-menu");
+            for (auto* child : pane->GetChildren())
+                if (auto* menu = dynamic_cast<HeaderMenu*>(child); menu && menu->IsShown())
+                    menu->close();
+        }
+
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_count_only_new_project");
+        for (int index = 0; index < 3; ++index)
+            persistence().document().add_physical_print(Agent::PhysicalPrintRecord{}, "");
+        persistence().notify_ledger_changed();
+        pane->refresh_from_workspace();
+        click_pane(pane, pane->tab_rect(PaneTab::Project));
+        pane->snapshot();
+        check(pane->press_action(_L("Printed 3 times")), "figma_26e4_count_only_opens");
+        save_pane("figma-26e4-count-only-history", pane->snapshot());
+        window_shot("figma-26e4-count-only-history");
+    }
+
+    // The whole window as the person sees it, from the screen. A popup menu is
+    // captured without yielding, which would close it.
+    void window_shot(const std::string& name)
+    {
+        if (!m_state->capture_dir.empty())
+            write_screen_capture(m_frame->GetScreenRect(), "window-" + name);
+    }
+    void menu_shot(const std::string& name)
+    {
+        if (m_state->capture_dir.empty())
+            return;
+        // Give the popup time to be drawn; nothing here clicks, so it stays open.
+        for (int settle = 0; settle < 10; ++settle) {
+            wxYield();
+            wxMilliSleep(50);
+        }
+        blit_screen(m_frame->GetScreenRect(), "window-" + name);
+    }
+
+    void save_pane(const std::string& name, const wxBitmap& bitmap)
+    {
+        check(bitmap.IsOk(), "captured_" + name);
+        if (m_state->capture_dir.empty() || !bitmap.IsOk())
+            return;
+        fs::create_directories(m_state->capture_dir);
+        const std::string file = (m_state->capture_dir / (name + ".png")).string();
+        bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
+        std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+    }
+
     void verify_autosave_seed()
     {
         check(!installed_shell()->autosave()->pin_current().empty(),
@@ -3619,8 +4227,9 @@ private:
         // both return on Prepare, and checks the header's layout there.
         check(m_notebook->GetSelection() == MainFrame::tpHome, "shell_starts_on_home");
         check(shell->status_row() != nullptr && !shell->status_row()->IsShown(), "status_row_hidden_on_home");
-        check(shell->status_row()->project_summary().Contains(wxString::FromUTF8("Prints \xC2\xB7 0")),
-              "overflow_summary_shows_empty_print_count");
+        check(shell->persistence()->document().physical_print_count() == 0 &&
+                  shell->status_row()->project_summary().Find('\n') == wxNOT_FOUND,
+              "overflow_summary_is_the_project_name_alone");
         verify_type_roles_render_at_token_size();
         check(shell->agent_pane() != nullptr && shell->is_agent_pane_collapsed() && !shell->agent_pane()->IsShown(),
               "agent_pane_collapsed_on_home");
@@ -4764,7 +5373,20 @@ private:
     void verify_header_overflow()
     {
         installed_shell()->status_row()->show_overflow_menu();
-        choose_header_item("Project details",[self=shared_from_this()] { self->verify_project_details_open(); });
+        HeaderMenu* menu = visible_header_menu();
+        check(menu != nullptr && wxWindow::FindWindowByName(_L("Recent projects…"), menu) != nullptr &&
+                  wxWindow::FindWindowByName(_L("Version history…"), menu) == nullptr &&
+                  wxWindow::FindWindowByName(_L("Export project 3MF…"), menu) == nullptr &&
+                  wxWindow::FindWindowByName(_L("Project details"), menu) == nullptr,
+              "header_overflow_keeps_recent_projects_and_hands_project_entries_to_the_pane");
+        if (menu != nullptr)
+            menu->close();
+        // Edit Project Info, on the Project tab, is how OrcaSlicer's own editor opens.
+        LeftPane* pane = installed_shell()->left_pane();
+        pane->show_project();
+        pane->snapshot();
+        check(pane->press_action(_L("Edit Project Info")), "left_pane_edit_project_info_pressed");
+        verify_project_details_open();
     }
 
     void verify_project_details_open()
@@ -6929,46 +7551,48 @@ private:
         if (versions.size() >= 2) {
             const std::string latest = autosave->current_version();
             const std::size_t objects = m_plater->model().objects.size();
-            installed_shell()->status_row()->show_version_history();
-            HeaderMenu* menu = visible_header_menu();
-            auto* older = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(
-                wxString::FromUTF8(versions[versions.size() - 2].created_at), menu)) : nullptr;
-            check(older != nullptr, "history_older_timestamp_visible");
-            if (older) {
-                if (!m_state->capture_dir.empty()) {
-                    fs::create_directories(m_state->capture_dir);
-                    check(older->snapshot().SaveFile(wxString::FromUTF8(
-                        (m_state->capture_dir / "version-history-row.png").string()), wxBITMAP_TYPE_PNG),
-                        "history_restore_row_capture_saved");
-                }
-                click_row(menu, older);
+            // Version history lives on the Project tab. Newest first, so the
+            // first Restore button is the next-older version's.
+            LeftPane* pane = installed_shell()->left_pane();
+            pane->show_project();
+            pane->open_project_view(ProjectView::Versions);
+            pane->snapshot();
+            const auto find_restore_label = [pane]() -> std::optional<wxString> {
+                for (const wxString& label : pane->action_labels())
+                    if (label.StartsWith(_L("Restore") + " "))
+                        return label;
+                return std::nullopt;
+            };
+            std::optional<wxString> restore_label = find_restore_label();
+            check(restore_label.has_value(), "history_older_timestamp_visible");
+            if (restore_label) {
+                save_pane("version-history-row", pane->snapshot());
+                // A click on the time, left of the button, restores nothing.
+                const wxRect button = pane->action_rect(*restore_label);
+                click_pane(pane, wxRect(button.x - 60, button.y, 2, button.height));
                 wxYield();
                 check(autosave->current_version() == latest && m_plater->model().objects.size() == objects,
                       "history_timestamp_click_does_not_restore");
-                check(older->row_action_label() == wxGetTranslation("Restore"),
-                      "history_older_version_has_restore_button");
                 int restore_prompt_count = 0;
                 bool restore_answer = false;
-                installed_shell()->status_row()->set_restore_confirmation([&] {
+                pane->set_restore_confirmation([&] {
                     ++restore_prompt_count;
                     return restore_answer;
                 });
-                older->invoke_row_action();
+                check(pane->press_action(*restore_label), "history_older_version_has_restore_button");
                 wxYield();
                 check(restore_prompt_count == 1 && autosave->current_version() == latest &&
                           m_plater->model().objects.size() == objects,
                       "history_restore_cancel_keeps_model");
-                installed_shell()->status_row()->show_version_history();
-                menu = visible_header_menu();
-                older = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(
-                    wxString::FromUTF8(versions[versions.size() - 2].created_at), menu)) : nullptr;
-                const bool restore_button_found = older != nullptr;
+                pane->snapshot();
+                restore_label = find_restore_label();
+                const bool restore_button_found = restore_label.has_value();
                 if (restore_button_found) {
                     restore_answer = true;
-                    older->invoke_row_action();
+                    pane->press_action(*restore_label);
                     wxYield();
                 }
-                installed_shell()->status_row()->set_restore_confirmation({});
+                pane->set_restore_confirmation({});
                 check(restore_button_found && restore_prompt_count == 2 &&
                           m_plater->model().objects.size() == versions[versions.size() - 2].objects.size(),
                       "history_restore_confirm_reloads_older_model");
@@ -7846,9 +8470,16 @@ private:
 
     void phase6_verify_records()
     {
-        check(installed_shell()->status_row()->project_summary()
-                  .Contains(wxString::FromUTF8("Prints \xC2\xB7 1")),
-              "overflow_print_count_follows_the_ledger");
+        // The count moved from the header's overflow menu to the Project tab.
+        {
+            LeftPane* pane = installed_shell()->left_pane();
+            pane->show_project();
+            pane->snapshot();
+            const auto labels = pane->action_labels();
+            check(std::find(labels.begin(), labels.end(), _L("Printed once")) != labels.end(),
+                  "project_tab_print_count_follows_the_ledger");
+            pane->show_plates();
+        }
         const Agent::BuildRecord build = persistence().document().builds().front();
         const Agent::ExportedCopyRecord copy = persistence().document().exported_copies().front();
         const Agent::PhysicalPrintRecord print = persistence().document().physical_prints().front();
@@ -8019,8 +8650,10 @@ private:
                   "agent_panel_drag_never_closes_the_pane");
 
             drag(-divider->FromDIP(2000));
+            const LeftPane* left_pane = installed_shell()->left_pane();
+            const int left_width = left_pane != nullptr && left_pane->IsShown() ? left_pane->GetSize().x : 0;
             const int expected_max = std::max(pane->FromDIP(320),
-                m_frame->GetClientSize().x - pane->FromDIP(320) - divider->GetSize().x);
+                m_frame->GetClientSize().x - pane->FromDIP(320) - divider->GetSize().x - left_width);
             check(pane->GetSize().x == expected_max, "agent_panel_drag_uses_available_window_width");
             check(workspace_width() > 200, "agent_panel_drag_preserves_workspace_width");
 
@@ -8160,7 +8793,11 @@ private:
         const wxRect workspace = m_notebook->GetRect();
         const wxRect bar = divider->GetRect();
         const wxRect agent = pane->GetRect();
-        const bool tiled = workspace.x == 0 && workspace.GetWidth() > 0 &&
+        // The Plates / Project pane, when shown, is the first column.
+        const LeftPane* left_pane = installed_shell()->left_pane();
+        const bool left_shown = left_pane != nullptr && left_pane->IsShown();
+        const int  origin = left_shown ? left_pane->GetRect().GetRight() + 1 : 0;
+        const bool tiled = (!left_shown || left_pane->GetRect().x == 0) && workspace.x == origin && workspace.GetWidth() > 0 &&
                            workspace.GetRight() + 1 == bar.x &&
                            bar.GetRight() + 1 == agent.x &&
                            agent.GetRight() + 1 == client;
@@ -8603,6 +9240,18 @@ int main(int argc, char** argv)
         }
         else if (argument == "--stock")
             state->mode = HarnessState::Mode::Stock;
+        else if (argument == "--left-pane")
+            state->mode = HarnessState::Mode::LeftPane;
+        else if (argument == "--left-pane-capture") {
+            if (++index == argc) return 2;
+            state->mode        = HarnessState::Mode::LeftPane;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--left-pane-sliced-capture") {
+            if (++index == argc) return 2;
+            state->mode        = HarnessState::Mode::LeftPaneSlicedCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--classic-switch")
             state->mode = HarnessState::Mode::ClassicSwitch;
         else if (argument == "--preset-close")

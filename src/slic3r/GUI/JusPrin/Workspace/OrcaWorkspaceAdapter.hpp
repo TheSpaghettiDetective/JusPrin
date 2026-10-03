@@ -38,6 +38,18 @@ public:
                                PlacementResult& result) override;
     CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const override;
     std::vector<ObjectDetails> object_details() const override;
+    // OrcaOutline.cpp
+    ProjectOutline outline() const override;
+    CommandResult  select_plate(PlateId id) override;
+    CommandResult  add_plate() override;
+    CommandResult  select_copy(InstanceId id) override;
+    CommandResult  select_volume(VolumeId id) override;
+    std::vector<PlateAction> plate_actions(PlateId id) const override;
+    CommandResult            run_plate_action(PlateId id, PlateAction action) override;
+    std::vector<ObjectAction> object_actions(ObjectId id) const override;
+    CommandResult             run_object_action(ObjectId id, ObjectAction action, int slot = 0) override;
+    CommandResult             toggle_copy_printable(InstanceId id) override;
+    CommandResult             open_customization(ObjectId id, CustomizationTool tool) override;
     ConfiguredPrinter configured_printer() const override;
     std::string current_process_preset() const override;
     PrinterSetupPreview preview_printer_setup(const PrinterSetupRequest& request) const override;

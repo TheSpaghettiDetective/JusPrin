@@ -69,10 +69,8 @@ private:
     wxString   m_root_dir;
     static inline int m_sequence_id = 8000;
 
-    void show_info_editor(bool show);
-    
-
 public:
+    void show_info_editor(bool show);
     ProjectPanel(wxWindow *parent, wxWindowID id = wxID_ANY, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = wxTAB_TRAVERSAL);
     ~ProjectPanel();
 

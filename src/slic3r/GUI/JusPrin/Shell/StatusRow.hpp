@@ -5,6 +5,7 @@
 #include "PrimaryPrintAction.hpp"
 
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <wx/panel.h>
 #include <wx/weakref.h>
@@ -63,7 +64,6 @@ public:
     void toggle_agent_pane();
     void show_action_menu();
     void show_overflow_menu();
-    void show_version_history(std::size_t offset = 0);
     void show_recent_projects(std::size_t offset = 0);
 
     // Chip entry points, shared by the controls and the native harness, so a
@@ -75,8 +75,6 @@ public:
     void on_filament_visit(const FilamentMenu::Visit& visit);
     wxString project_summary() const;
     void set_autosave(Workspace::ProjectAutosave* autosave) { m_autosave = autosave; refresh(); }
-    void set_restore_confirmation(std::function<bool()> confirmation)
-        { m_restore_confirmation = std::move(confirmation); }
 
     // Where the after-change chat line goes, with the colour that leads it
     // ("#RRGGBB", or empty). Supplied by ShellController once the Agent pane
@@ -112,10 +110,9 @@ private:
     HeaderButton* m_agent_toggle{nullptr};
 
     std::function<void(const wxString&, const wxString&)> m_note_sink;
-    std::function<bool()> m_restore_confirmation;
     std::function<void()>                                 m_agent_pane_toggle;
 
-    ProjectStateSubscription m_project_state_subscription;
+    ProjectStateSubscription         m_project_state_subscription;
     bool                     m_dark{false};
     bool                     m_tabpanel_alive{true};
 };

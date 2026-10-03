@@ -92,23 +92,19 @@ Retain a product-neutral presentation API on `GLCanvas3D` and a fork-owned RAII 
 
 Production controls should be more granular than the POC's broad `render_overlays` switch. Independently classify the stock main toolbar, gizmo picker, active gizmo handles, plate actions, object labels, layer-editing controls, navigation aids, Preview legend, and Preview sliders. Shared controls such as Plater's collapse toolbar need one owner at the shell lifetime, not one guard per canvas.
 
-### Plates and objects pane (deferred)
+### Plates and Project pane
 
-This pane remains part of the target product, but it is not part of the current
-production-shell or Agent-WebView task and is not a prerequisite for either.
-When it is scheduled, the production pane is intentionally smaller than
-`GUI_ObjectList`.
+The pane is a fork-owned native surface (`Shell/LeftPane`) that sits left of the workspace on Prepare. It lists every plate, including a one-plate project, and a second tab holds the saved project's identity, the model's 3MF metadata, the physical-print history, version history, and export. It adds no project state and no undo path: it paints what two GUI-free models describe and sends each click to a workspace command.
 
-It must:
+| Piece | Owns |
+|---|---|
+| `Workspace/ProjectOutline.hpp`, `IWorkspace::outline()` | The read model: plates, copies (with the plate that holds each), volumes, customization and mesh facts, and the selection below the object level. Plate membership comes from `PartPlateList`; nothing is inferred from where a copy sits. |
+| `Shell/LeftPaneModel` | What rows the Plates tab shows and when: the active plate is open, others are folded with a summary computed from the current copies, children exist only for data that exists, "Not on a plate" appears only for a copy no plate holds. Also the tab and Project-subview navigation. |
+| `Shell/ProjectPaneModel` | The Details and Print history views as data. A field nobody recorded is absent; a slicer estimate is kept apart from the measured duration; a ledger record with nothing to show is counted, not drawn. |
+| `Workspace/OrcaOutline.cpp` | The adapter's side: `select_plate`, `add_plate`, `select_copy`, `select_volume`, `plate_actions`, `run_plate_action`. Each ends in the path Orca's own UI takes (`Plater::select_plate_by_hover_id`, the toolbar's Add plate event, `Selection` plus the canvas's object-select event), raised synchronously on the GUI thread so a command returns with its effect in place. |
+| `Shell/LeftPane`, `LeftPaneProject.cpp` | Painting and input. Painting records where each control landed and the pointer reads that record, so a click can only hit what was drawn. |
 
-- list and switch plates;
-- list objects on the active plate;
-- synchronize selection in both directions;
-- add/import, rename, duplicate, and remove an object;
-- expose less common operations through a selected-object menu, More, or the Agent;
-- expand into a full tree only for multi-object, multi-part, multi-material, modifier, or print-order complexity.
-
-Every command must reuse Orca's snapshot, cancellation, plate-membership, selection, update, and serialization behavior.
+The physical-print ledger has any number of subscribers (`ProjectPersistence::subscribe_ledger`), so the pane and the header's overflow menu observe it independently.
 
 ### Agent WebView
 

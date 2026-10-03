@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -79,15 +80,11 @@ public:
     void set_change_listener(std::function<void(const ChangeEntry&)> listener) { m_change_added = std::move(listener); }
 
     // Fired when the manufacturing ledger gains an entry or the document is
-    // replaced. Deliberately a separate slot from the Agent-owned listener
-    // above so shell surfaces outside the Agent pane -- the status row's print
-    // count -- can observe the ledger without competing for it.
-    void set_ledger_listener(std::function<void()> listener) { m_ledger_changed = std::move(listener); }
-    void notify_ledger_changed() const
-    {
-        if (m_ledger_changed)
-            m_ledger_changed();
-    }
+    // replaced. Any number of shell surfaces may observe it -- the Project
+    // pane's print history, the status row's overflow menu -- each holding its
+    // own subscription; dropping one never affects another.
+    Workspace::WorkspaceSubscription subscribe_ledger(std::function<void()> listener);
+    void notify_ledger_changed() const;
 
     // Marks the document changed. In managed mode ProjectAutosave coalesces
     // document writes between model versions; legacy mode flushes auxiliary files.
@@ -145,7 +142,8 @@ private:
 
     std::function<void()>                   m_document_replaced;
     std::function<void(const ChangeEntry&)> m_change_added;
-    std::function<void()>                   m_ledger_changed;
+    struct LedgerObservers;
+    std::shared_ptr<LedgerObservers>        m_ledger_observers;
 
     // Attachment bytes of an in-memory session, by the same relative path a
     // project session writes on disk.
