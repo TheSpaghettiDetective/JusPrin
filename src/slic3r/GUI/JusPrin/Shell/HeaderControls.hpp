@@ -15,10 +15,10 @@ namespace Slic3r::GUI::JusPrin {
 
 // Caret is the chip's own solid disclosure triangle; Down/Up/Right are the
 // lighter strokes the menu rows use.
-// PanelOpen and PanelClosed are one control's two states: a window with its
-// right-hand panel filled in, or the same window with that panel empty.
+// PanelOpen and PanelClosed are the right pane's two states; PanelLeftOpen
+// and PanelLeftClosed mirror the same glyph for the left pane.
 enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Lock, Slice, Plates, Export, Print, Cancel,
-                        PanelOpen, PanelClosed };
+                        PanelOpen, PanelClosed, PanelLeftOpen, PanelLeftClosed };
 
 // Draws one of the header's small stroked glyphs into a graphics context, for
 // shell surfaces that paint their own rows with the same icon set.

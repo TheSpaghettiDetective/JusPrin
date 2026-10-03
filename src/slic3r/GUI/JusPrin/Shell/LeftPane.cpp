@@ -60,6 +60,14 @@ LeftPane::LeftPane(wxWindow* parent, const ShellTheme& theme, IWorkspace& worksp
     SetName("Plates and Project");
     m_menu_anchor = new HeaderButton(this, theme, HeaderStyle::Quiet, wxEmptyString, HeaderIcon::More);
     m_menu_anchor->Hide();
+    m_pane_toggle = new HeaderButton(this, theme, HeaderStyle::Outline, wxEmptyString, HeaderIcon::PanelLeftOpen);
+    m_pane_toggle->SetName(_L("Plates and Project panel"));
+    m_pane_toggle->SetToolTip(_L("Hide the Plates and Project panel"));
+    m_pane_toggle->Hide();
+    m_pane_toggle->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (m_pane_toggle_callback)
+            m_pane_toggle_callback();
+    });
 
     Bind(wxEVT_PAINT, &LeftPane::paint, this);
     Bind(wxEVT_LEFT_DOWN, &LeftPane::on_left_down, this);
@@ -70,7 +78,7 @@ LeftPane::LeftPane(wxWindow* parent, const ShellTheme& theme, IWorkspace& worksp
     Bind(wxEVT_KEY_DOWN, &LeftPane::on_key_down, this);
     Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& event) { Refresh(); event.Skip(); });
     Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent& event) { Refresh(); event.Skip(); });
-    Bind(wxEVT_SIZE, [this](wxSizeEvent& event) { clamp_scroll(); Refresh(); event.Skip(); });
+    Bind(wxEVT_SIZE, [this](wxSizeEvent& event) { layout_header(); clamp_scroll(); Refresh(); event.Skip(); });
 
     m_subscription = m_workspace.subscribe([this](const WorkspaceChanged&) { refresh_from_workspace(); });
     refresh_from_workspace();
@@ -86,7 +94,24 @@ wxSize LeftPane::DoGetBestSize() const
 void LeftPane::apply_appearance(bool dark)
 {
     m_dark = dark;
+    m_pane_toggle->set_dark(dark);
     Refresh();
+}
+
+void LeftPane::set_pane_toggle(std::function<void()> toggle)
+{
+    m_pane_toggle_callback = std::move(toggle);
+    m_pane_toggle->Show(static_cast<bool>(m_pane_toggle_callback));
+    layout_header();
+}
+
+void LeftPane::layout_header()
+{
+    const int margin = FromDIP(m_theme.metrics().space_4);
+    const wxSize size = m_pane_toggle->GetBestSize();
+    const int header_height = FromDIP(2 * m_theme.metrics().left_pane.padding_y +
+                                      m_theme.metrics().left_pane.tab_height);
+    m_pane_toggle->SetSize(margin, (header_height - size.y) / 2, size.x, size.y);
 }
 
 void LeftPane::refresh_from_workspace()
@@ -680,7 +705,7 @@ void LeftPane::on_key_down(wxKeyEvent& event)
 void LeftPane::clamp_scroll()
 {
     const LeftPaneMetrics& pane = m_theme.metrics().left_pane;
-    const int viewport = GetClientSize().y - FromDIP(2 * pane.padding_y + pane.tab_height);
+    const int viewport = GetClientSize().y - 2 * FromDIP(2 * pane.padding_y + pane.tab_height);
     m_scroll = std::clamp(m_scroll, 0, std::max(0, m_content_height - viewport));
 }
 
@@ -770,18 +795,19 @@ void LeftPane::draw(wxGraphicsContext& gc, const wxSize& client)
     gc.SetPen(*wxTRANSPARENT_PEN);
     gc.SetBrush(wxBrush(p.surface_subtle));
     gc.DrawRectangle(0, 0, client.x, client.y);
-    // The pane's right edge.
-    gc.SetPen(wxPen(p.border_subtle, 1));
-    gc.StrokeLine(client.x - 0.5, 0, client.x - 0.5, client.y);
 
     m_hits.clear();
-    draw_tabs(gc, client.x - 1);
+    draw_tabs(gc, client.x);
 
-    const int top = FromDIP(pane.padding_y + pane.tab_height);
+    // The pane toggle owns the first header band. The tabs occupy the matching
+    // row below it, leaving the toggle in a stable place as the pane opens and
+    // closes while keeping Plates / Project visually separate.
+    const int header_height = FromDIP(2 * pane.padding_y + pane.tab_height);
+    const int top = 2 * header_height;
     gc.PushState();
-    gc.Clip(0, top, client.x - 1, std::max(0, client.y - top));
-    m_content_height = (m_navigation.tab() == PaneTab::Plates ? draw_plates(gc, top - m_scroll, client.x - 1)
-                                                              : draw_project(gc, top - m_scroll, client.x - 1)) + m_scroll - top;
+    gc.Clip(0, top, client.x, std::max(0, client.y - top));
+    m_content_height = (m_navigation.tab() == PaneTab::Plates ? draw_plates(gc, top - m_scroll, client.x)
+                                                              : draw_project(gc, top - m_scroll, client.x)) + m_scroll - top;
     gc.PopState();
     clamp_scroll();
 
@@ -800,12 +826,14 @@ void LeftPane::draw_tabs(wxGraphicsContext& gc, int width)
 {
     const ShellPalette&    p    = m_theme.palette(m_dark);
     const LeftPaneMetrics& pane = m_theme.metrics().left_pane;
-    const int top    = FromDIP(pane.padding_y);
+    const int header_height = FromDIP(2 * pane.padding_y + pane.tab_height);
+    const int top    = header_height + FromDIP(pane.padding_y);
     const int height = FromDIP(pane.tab_height);
+    const int tabs_bottom = 2 * header_height;
 
     gc.SetPen(*wxTRANSPARENT_PEN);
     gc.SetBrush(wxBrush(p.surface_canvas));
-    gc.DrawRectangle(0, top, width, height);
+    gc.DrawRectangle(0, 0, width, tabs_bottom);
 
     const struct { PaneTab tab; wxString label; } tabs[] = {{PaneTab::Plates, _L("Plates")}, {PaneTab::Project, _L("Project")}};
     for (int index = 0; index < 2; ++index) {
@@ -828,6 +856,9 @@ void LeftPane::draw_tabs(wxGraphicsContext& gc, int width)
         }
         m_hits.push_back({Hit::Kind::Tab, rect, 0, tabs[index].tab});
     }
+    gc.SetPen(wxPen(p.border_subtle));
+    gc.StrokeLine(0, header_height - 0.5, width, header_height - 0.5);
+    gc.StrokeLine(0, tabs_bottom - 0.5, width, tabs_bottom - 0.5);
 }
 
 int LeftPane::draw_plates(wxGraphicsContext& gc, int top, int width)

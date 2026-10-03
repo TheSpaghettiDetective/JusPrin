@@ -56,6 +56,9 @@ public:
     ~LeftPane() override;
 
     void apply_appearance(bool dark);
+    // The open pane owns one copy of its toggle; ShellController keeps the
+    // collapsed copy in the project header so the control stays at x=16.
+    void set_pane_toggle(std::function<void()> toggle);
     void set_project_sources(ProjectSources sources);
     // Replaces the restore question, as the header's does for the harness.
     void set_restore_confirmation(std::function<bool()> confirmation) { m_sources.confirm_restore = std::move(confirmation); }
@@ -122,6 +125,7 @@ private:
     void paint(wxPaintEvent&);
     void draw(wxGraphicsContext& gc, const wxSize& client);
     void draw_tabs(wxGraphicsContext& gc, int width);
+    void layout_header();
     int  draw_plates(wxGraphicsContext& gc, int top, int width);
     // LeftPaneProject.cpp: the Project tab. Each returns the y below what it drew.
     int  draw_project(wxGraphicsContext& gc, int top, int width);
@@ -211,6 +215,8 @@ private:
 
     // Anchor for popup menus: HeaderMenu opens under a HeaderButton.
     HeaderButton* m_menu_anchor{nullptr};
+    HeaderButton* m_pane_toggle{nullptr};
+    std::function<void()> m_pane_toggle_callback;
     // Keeps a menu's rows alive until the owner has run the chosen command.
     std::function<void()> m_pending_command;
 };

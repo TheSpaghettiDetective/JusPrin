@@ -314,7 +314,7 @@ TEST_CASE("the Plates and Project pane geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("leftPane"),
-        {{"width", 200}, {"paddingY", 12}, {"tabHeight", 36}, {"tabIndicatorHeight", 2}, {"listPaddingY", 8},
+        {{"width", 200}, {"minWidth", 160}, {"paddingY", 10}, {"tabHeight", 36}, {"tabIndicatorHeight", 2}, {"listPaddingY", 8},
          {"rowGap", 2}, {"rowPaddingX", 8}, {"rowPaddingY", 6}, {"plateRowHeight", 32}, {"objectRowHeight", 36},
          {"objectIndent", 20}, {"glyphSize", 16}, {"plateGap", 8}, {"objectGap", 4}, {"summaryIndent", 32},
          {"summaryPaddingBottom", 6}, {"addPlatePaddingTop", 8}, {"addPlatePaddingBottom", 4},

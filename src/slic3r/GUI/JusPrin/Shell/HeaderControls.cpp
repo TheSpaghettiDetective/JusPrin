@@ -77,14 +77,19 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         line({{2,7},{14,2},{9,14},{7,9},{2,7}}); line({{7,9},{14,2}}); break;
     case HeaderIcon::PanelOpen:
     case HeaderIcon::PanelClosed:
+    case HeaderIcon::PanelLeftOpen:
+    case HeaderIcon::PanelLeftClosed: {
         line({{2.5,3.5},{13.5,3.5},{13.5,12.5},{2.5,12.5},{2.5,3.5}});
-        line({{9.5,3.5},{9.5,12.5}});
-        if (icon == HeaderIcon::PanelOpen) {
+        const bool left = icon == HeaderIcon::PanelLeftOpen || icon == HeaderIcon::PanelLeftClosed;
+        const double divider_x = left ? 6.5 : 9.5;
+        line({{divider_x,3.5},{divider_x,12.5}});
+        if (icon == HeaderIcon::PanelOpen || icon == HeaderIcon::PanelLeftOpen) {
             gc.SetBrush(wxBrush(color));
             gc.SetPen(*wxTRANSPARENT_PEN);
-            gc.DrawRectangle(9.5,3.5,4,9);
+            gc.DrawRectangle(left ? 2.5 : 9.5,3.5,4,9);
         }
         break;
+    }
     case HeaderIcon::None: break;
     }
     gc.PopState();

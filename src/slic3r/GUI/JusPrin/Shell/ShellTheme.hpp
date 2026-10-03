@@ -130,6 +130,7 @@ struct FocusMetrics     { int width{0}; int offset{0}; };
 struct LeftPaneMetrics
 {
     int width{0};
+    int min_width{0};
     int padding_y{0};
     int tab_height{0};
     int tab_indicator_height{0};
