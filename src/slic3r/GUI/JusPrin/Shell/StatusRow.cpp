@@ -110,11 +110,6 @@ StatusRow::StatusRow(wxWindow*                  parent,
 
     m_project_state_subscription = m_plater.subscribe_project_state(
         [this](const ProjectStateChanged&) { refresh(); });
-    // A recorded print and a replaced document both change the print count
-    // without publishing a project-state change, so the ledger is observed
-    // separately. Persistence outlives this row in both teardown orders, and
-    // the destructor clears the slot.
-    m_persistence.set_ledger_listener([this]() { refresh(); });
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
     // The tab panel and this row are siblings, so wx may destroy either one
     // first at shutdown; only unbind while the tab panel still exists.
@@ -123,7 +118,6 @@ StatusRow::StatusRow(wxWindow*                  parent,
 
 StatusRow::~StatusRow()
 {
-    m_persistence.set_ledger_listener(nullptr);
     if (m_tabpanel_alive) {
         m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
         m_tabpanel.Unbind(wxEVT_DESTROY, &StatusRow::on_tabpanel_destroyed, this);
@@ -317,8 +311,7 @@ wxString StatusRow::project_summary() const
     } else if (m_plater.is_project_dirty()) {
         name += em_dash() + _L("Unsaved changes");
     }
-    return name + "\n" + _L("Prints") + middle_dot() +
-           wxString::Format("%d",int(m_persistence.document().physical_print_count()));
+    return name;
 }
 
 void StatusRow::request_home()
@@ -430,23 +423,10 @@ void StatusRow::show_overflow_menu()
 {
     std::vector<HeaderMenuItem> menu{
         {project_summary().BeforeFirst('\n'),HeaderIcon::None,{},false,false,{}},
-        {_L("Version history…"),HeaderIcon::None,{},m_autosave != nullptr,true,[this] { show_version_history(); }},
-        {_L("Recent projects…"),HeaderIcon::None,{},m_autosave != nullptr,false,[this] { show_recent_projects(); }},
-        {_L("Export project 3MF…"),HeaderIcon::None,{},m_autosave != nullptr,true,[this] {
-            wxFileDialog dialog(this, _L("Export project 3MF"), {}, "JusPrin project.3mf",
-                                "3MF files (*.3mf)|*.3mf", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
-            if (dialog.ShowModal() != wxID_OK)
-                return;
-            try {
-                if (!m_autosave->export_copy(std::filesystem::path(dialog.GetPath().ToStdWstring())))
-                    throw std::runtime_error(m_autosave->error());
-            } catch (const std::exception& error) {
-                show_project_error(this, _L("Export failed"), _L("The project couldn't be exported. Try again."), error.what());
-            }
-        }},
-        {_L("Project details"),HeaderIcon::None,{},true,true,[this] { m_tabpanel.SetSelection(MainFrame::tpProject); }},
+        // Version history, export, details and the print count live in the
+        // Project tab of the Plates / Project pane.
+        {_L("Recent projects…"),HeaderIcon::None,{},m_autosave != nullptr,true,[this] { show_recent_projects(); }},
         {_L("Back to Prepare"),HeaderIcon::Back,{},true,false,[this] { request_prepare(); }},
-        {project_summary().AfterFirst('\n'),HeaderIcon::None,{},false,false,{}},
         {_L("Preferences…"),HeaderIcon::None,{},true,true,[] { wxGetApp().open_preferences(); }},
         {_L("Switch to classic view…"),HeaderIcon::None,{},true,true,
             [frame = wxWeakRef<wxWindow>(GetParent())] {
@@ -496,57 +476,6 @@ void StatusRow::show_recent_projects(std::size_t offset)
     } catch (const std::exception& error) {
         show_project_error(this, _L("Couldn't load projects"),
                            _L("Projects couldn't be loaded. Try again."), error.what());
-    }
-}
-
-void StatusRow::show_version_history(std::size_t offset)
-{
-    if (m_autosave == nullptr)
-        return;
-    try {
-        if (!m_autosave->save_now())
-            throw std::runtime_error(m_autosave->error());
-        const auto versions = m_autosave->history();
-        const std::string current = m_autosave->current_version();
-        std::vector<HeaderMenuItem> menu{
-            {_L("Version history"),HeaderIcon::None,{},false,false,{}},
-            {_L("Back"),HeaderIcon::Back,{},true,false,[this] { show_overflow_menu(); }}
-        };
-        const std::size_t end = std::min(versions.size(), offset + 8);
-        for (std::size_t index = offset; index < end; ++index) {
-            const auto& version = versions[versions.size() - 1 - index];
-            wxString label = wxString::FromUTF8(version.created_at);
-            if (version.id == current)
-                label += _L(" (current)");
-            HeaderMenuItem item;
-            item.label = label;
-            item.enabled = version.id != current;
-            item.row_action_label = version.id == current ? wxString() : _L("Restore");
-            item.dismisses_on_row_action = true;
-            item.invoke_row_action = [this, id = version.id] {
-                const bool confirmed = m_restore_confirmation ? m_restore_confirmation() : [this] {
-                    wxMessageDialog confirmation(this,
-                        _L("Restore this version of the model and project settings? The current model will be saved "
-                           "as a version first. Conversations and print records will stay current."),
-                        _L("Restore project version"), wxYES_NO | wxICON_QUESTION);
-                    confirmation.SetYesNoLabels(_L("Restore"), _L("Cancel"));
-                    return confirmation.ShowModal() == wxID_YES;
-                }();
-                if (!confirmed)
-                    return;
-                if (!m_autosave->restore(id))
-                    show_project_error(this, _L("Restore failed"),
-                                       _L("This version couldn't be restored. Try again."), m_autosave->error());
-                refresh();
-            };
-            menu.push_back(std::move(item));
-        }
-        if (end < versions.size())
-            menu.push_back({_L("Older versions…"),HeaderIcon::None,{},true,false,[this, end] { show_version_history(end); }});
-        (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_overflow_button);
-    } catch (const std::exception& error) {
-        show_project_error(this, _L("Version history unavailable"),
-                           _L("Version history couldn't be loaded. Try again."), error.what());
     }
 }
 

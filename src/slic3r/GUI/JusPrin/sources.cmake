@@ -107,6 +107,13 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/PrinterFilamentChip.hpp
     GUI/JusPrin/Shell/FilamentChipModel.cpp
     GUI/JusPrin/Shell/FilamentChipModel.hpp
+    GUI/JusPrin/Shell/LeftPane.cpp
+    GUI/JusPrin/Shell/LeftPaneProject.cpp
+    GUI/JusPrin/Shell/LeftPane.hpp
+    GUI/JusPrin/Shell/LeftPaneModel.cpp
+    GUI/JusPrin/Shell/LeftPaneModel.hpp
+    GUI/JusPrin/Shell/ProjectPaneModel.cpp
+    GUI/JusPrin/Shell/ProjectPaneModel.hpp
     GUI/JusPrin/Shell/PrinterMenu.cpp
     GUI/JusPrin/Shell/PrinterMenu.hpp
     GUI/JusPrin/Shell/FilamentMenu.cpp
@@ -120,6 +127,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/FileLoads.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp
     GUI/JusPrin/Workspace/OrcaGeometry.hpp
+    GUI/JusPrin/Workspace/OrcaOutline.cpp
     GUI/JusPrin/Workspace/OrcaRegions.cpp
     GUI/JusPrin/Workspace/OrcaReshape.cpp
     GUI/JusPrin/Workspace/OrcaSliceChecks.cpp

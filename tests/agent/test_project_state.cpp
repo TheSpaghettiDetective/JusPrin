@@ -967,3 +967,56 @@ TEST_CASE("a document written before intent and plan existed gains them", "[proj
     CHECK(round["printIntent"][0]["futureAnnotation"] == "keep me");
     CHECK(round["printIntent"][0]["value"] == "decorative");
 }
+
+TEST_CASE("every ledger subscriber hears a ledger change, and releasing one leaves the others", "[persistence][ledger]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+
+    int first = 0, second = 0;
+    auto first_subscription  = persistence.subscribe_ledger([&first]() { ++first; });
+    auto second_subscription = persistence.subscribe_ledger([&second]() { ++second; });
+
+    persistence.notify_ledger_changed();
+    CHECK(first == 1);
+    CHECK(second == 1);
+
+    first_subscription.reset();
+    persistence.notify_ledger_changed();
+    CHECK(first == 1);
+    CHECK(second == 2);
+}
+
+TEST_CASE("a ledger subscriber may release itself or another during dispatch", "[persistence][ledger]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+
+    int self_calls = 0, other_calls = 0;
+    Workspace::WorkspaceSubscription self, other;
+    other = persistence.subscribe_ledger([&other_calls]() { ++other_calls; });
+    self  = persistence.subscribe_ledger([&]() {
+        ++self_calls;
+        other.reset();
+        self.reset();
+    });
+
+    persistence.notify_ledger_changed();
+    persistence.notify_ledger_changed();
+    CHECK(self_calls == 1);
+    // The other observer was registered first, so it ran before being released.
+    CHECK(other_calls == 1);
+}
+
+TEST_CASE("a ledger subscription outliving its persistence does nothing", "[persistence][ledger]")
+{
+    Workspace::WorkspaceSubscription survivor;
+    {
+        Workspace::FakeWorkspace workspace(small_snapshot());
+        ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+        survivor = persistence.subscribe_ledger([]() {});
+    }
+    REQUIRE_NOTHROW(survivor.reset());
+}

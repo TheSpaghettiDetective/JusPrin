@@ -17,8 +17,12 @@ namespace Slic3r::GUI::JusPrin {
 // lighter strokes the menu rows use.
 // PanelOpen and PanelClosed are one control's two states: a window with its
 // right-hand panel filled in, or the same window with that panel empty.
-enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Slice, Plates, Export, Print, Cancel,
+enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Lock, Slice, Plates, Export, Print, Cancel,
                         PanelOpen, PanelClosed };
+
+// Draws one of the header's small stroked glyphs into a graphics context, for
+// shell surfaces that paint their own rows with the same icon set.
+void draw_header_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, double size, const wxColour& color);
 
 // ChipLeft and ChipRight are the two halves of the printer/filament chip. Each is
 // a separate focus target, and each paints its own outer half of one shared
@@ -202,7 +206,11 @@ class HeaderMenu : public PopupWindow
 public:
     HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark,
                std::vector<HeaderMenuItem> items);
-    void open(HeaderButton& anchor);
+    // Which edge of the anchor the popup lines up with: Right opens under a
+    // control at the window's right (the header), Left under one at its left
+    // (the Plates pane), so a menu never opens toward the window's edge.
+    enum class Align { Right, Left };
+    void open(HeaderButton& anchor, Align align = Align::Right);
     HeaderButton* selected_item() const { return m_selected < 0 ? nullptr : m_items[m_selected]; }
     // The custom view, when it takes part in the keyboard model, and whether
     // the keyboard is in it now.
@@ -250,6 +258,7 @@ private:
     bool m_header_active{false};
     std::function<void()> m_dismissed;
     wxWeakRef<HeaderButton> m_anchor;
+    Align m_align{Align::Right};
     bool m_closed{false};
     int m_selected{-1};
     int m_width{0};

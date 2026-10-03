@@ -11,6 +11,7 @@
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
@@ -343,6 +344,147 @@ private:
         check(dialogs.count == 0, "settings_no_modal_dialog_reached");
     }
 
+    // The Plates pane's read model against the real Plater: membership comes
+    // from the plate list, copy switches from the model, selection from the
+    // canvas, and every command ends in the path Orca's own UI takes. The
+    // fixture is two objects with one copy each, one per plate.
+    void verify_outline(const WorkspaceSnapshot& initial)
+    {
+        const ProjectOutline outline = m_workspace->outline();
+        check(outline.session == initial.session, "pane_outline_session_agrees");
+        check(outline.plates.size() == initial.plates.size() && outline.objects.size() == 2, "pane_outline_lists_fixture");
+        check(outline.filament_count >= 1, "pane_outline_counts_a_filament");
+        check(outline.can_add_plate == m_plater->can_add_plate(), "pane_outline_reports_orcas_add_plate_condition");
+
+        const auto active = std::count_if(outline.plates.begin(), outline.plates.end(), [](const OutlinePlate& p) { return p.active; });
+        check(active == 1 && initial.active_plate &&
+                  std::any_of(outline.plates.begin(), outline.plates.end(),
+                              [&](const OutlinePlate& p) { return p.active && p.id == *initial.active_plate; }),
+              "pane_outline_active_plate_agrees_with_snapshot");
+
+        // Membership must agree with the snapshot's per-plate objects, which
+        // are read from the same plate list by a different path.
+        bool membership_agrees = true;
+        for (const WorkspacePlate& plate : initial.plates) {
+            std::set<ObjectId> from_snapshot, from_outline;
+            for (const WorkspaceObject& object : plate.objects)
+                from_snapshot.insert(object.id);
+            for (const PlacedCopy& placed : copies_on_plate(outline, plate.id))
+                from_outline.insert(placed.object->id);
+            membership_agrees = membership_agrees && from_snapshot == from_outline;
+        }
+        check(membership_agrees, "pane_outline_membership_agrees_with_snapshot");
+        check(copies_off_plate(outline).empty(), "pane_fixture_has_no_off_plate_copy");
+        check(summarize_plate(outline, initial.plates.front().id).copies == 1 &&
+                  summarize_plate(outline, initial.plates.front().id).objects == 1,
+              "pane_summary_of_a_plate_with_one_object");
+
+        const OutlineObject& first = outline.objects.front();
+        check(first.copies.size() == 1 && first.copies.front().printable && first.printable, "pane_simple_object_prints");
+        check(first.volumes.size() == 1 && first.volumes.front().role == VolumeRole::Part && !has_volume_children(first),
+              "pane_simple_object_has_no_children");
+        std::cerr << "PANE first object: customization=" << first.customization.any() << " overrides=" << first.customization.setting_overrides
+                  << " mesh open=" << first.mesh.open_edges << " repaired=" << first.mesh.repaired_errors << " extruder=" << first.extruder.value_or(0) << '\n';
+        check(!first.customization.any() && !first.mesh.any() && first.extruder.value_or(1) == 1,
+              "pane_clean_object_has_no_marks");
+
+        const WorkspaceSnapshot before_read = m_workspace->snapshot();
+        const ProjectOutline    second_read = m_workspace->outline();
+        const WorkspaceSnapshot again       = m_workspace->snapshot();
+        check(second_read.objects.front().id == first.id && second_read.objects.front().copies.front().id == first.copies.front().id &&
+                  second_read.objects.front().volumes.front().id == first.volumes.front().id && again.revision == before_read.revision,
+              "pane_outline_ids_are_stable_and_reading_is_silent");
+
+        // Facts the person chose: a per-object setting, and a filament override.
+        ModelObject& model_first = *m_plater->model().objects.front();
+        model_first.config.set_key_value("wall_loops", new ConfigOptionInt(5));
+        check(m_workspace->outline().objects.front().customization.setting_overrides == 1 &&
+                  m_workspace->outline().objects.front().customization.any(),
+              "pane_setting_override_is_customization");
+        model_first.config.set_key_value("extruder", new ConfigOptionInt(2));
+        const OutlineObject& overridden = m_workspace->outline().objects.front();
+        check(overridden.extruder == 2 && overridden.customization.setting_overrides == 1,
+              "pane_filament_override_is_not_a_setting_override");
+        model_first.config.erase("extruder");
+        model_first.config.erase("wall_loops");
+
+        // A disabled copy is explicit, and the object switch is separate.
+        model_first.instances.front()->printable = false;
+        check(!m_workspace->outline().objects.front().copies.front().printable &&
+                  summarize_plate(m_workspace->outline(), initial.plates.front().id).wont_print == 1,
+              "pane_disabled_copy_wont_print");
+        model_first.instances.front()->printable = true;
+        model_first.printable = false;
+        check(!m_workspace->outline().objects.front().printable &&
+                  summarize_plate(m_workspace->outline(), initial.plates.front().id).wont_print == 1,
+              "pane_disabled_object_wont_print");
+        model_first.printable = true;
+
+        // A copy no plate holds is off the plate; where it sits does not matter.
+        model_first.add_instance();
+        const ProjectOutline with_loose = m_workspace->outline();
+        const auto loose = copies_off_plate(with_loose);
+        check(loose.size() == 1 && loose.front().object->id == first.id && with_loose.objects.front().copies.size() == 2,
+              "pane_unplaced_copy_is_off_plate");
+        check(summarize_plate(with_loose, initial.plates.front().id).copies == 1, "pane_off_plate_copy_is_in_no_summary");
+        model_first.delete_last_instance();
+        check(copies_off_plate(m_workspace->outline()).empty(), "pane_off_plate_group_clears");
+
+        // Selecting a plate is Orca's plate click: one Plates change, no undo step.
+        const WorkspaceSnapshot before_select = m_workspace->snapshot();
+        const PlateId inactive = [&] {
+            for (const OutlinePlate& plate : m_workspace->outline().plates)
+                if (!plate.active) return plate.id;
+            return PlateId();
+        }();
+        check(static_cast<bool>(inactive), "pane_fixture_has_an_inactive_plate");
+        const std::size_t changes_before = m_changes.size();
+        const std::size_t edits_before   = m_edits.size();
+        check(m_workspace->select_plate(inactive).succeeded(), "pane_select_plate");
+        check(m_workspace->snapshot().active_plate && *m_workspace->snapshot().active_plate == inactive,
+              "pane_select_plate_activates_the_orca_plate");
+        check(m_plater->get_partplate_list().get_curr_plate()->id().id == inactive.value(), "pane_select_plate_reached_orca");
+        check(m_changes.size() > changes_before && has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Plates),
+              "pane_select_plate_publishes_a_plates_change");
+        check(m_edits.size() == edits_before, "pane_select_plate_is_not_an_edit");
+        check(m_workspace->select_plate(inactive).error == WorkspaceError::NoChange, "pane_select_plate_twice_is_no_change");
+        check(m_workspace->select_plate(PlateId(initial.session, 987654321)).error == WorkspaceError::MissingObject,
+              "pane_select_unknown_plate");
+        check(m_workspace->select_plate(PlateId(ProjectSessionId(initial.session.value() + 1), inactive.value())).error ==
+                  WorkspaceError::StaleId,
+              "pane_select_plate_of_another_session");
+        check(m_workspace->select_plate(*before_select.active_plate).succeeded(), "pane_select_plate_back");
+
+        // A copy is selected exactly, and the canvas reports the same thing.
+        const InstanceId copy_id = m_workspace->outline().objects.front().copies.front().id;
+        check(m_workspace->select_copy(copy_id).succeeded(), "pane_select_copy");
+        Selection& selection = m_plater->canvas3D()->get_selection();
+        check(selection.is_single_full_instance() && selection.get_object_idx() == 0 && selection.get_instance_idx() == 0,
+              "pane_select_copy_reached_the_canvas_selection");
+        check(m_workspace->outline().selected_copies == std::vector<InstanceId>{copy_id} &&
+                  m_workspace->outline().selected_volumes.empty(),
+              "pane_selected_copy_is_read_back");
+        check(m_workspace->select_copy(copy_id).error == WorkspaceError::NoChange, "pane_select_copy_twice_is_no_change");
+        check(m_workspace->select_volume(m_workspace->outline().objects.front().volumes.front().id).error ==
+                  WorkspaceError::UnavailableOperation,
+              "pane_single_part_volume_is_not_selectable");
+        m_plater->deselect_all();
+        check(m_workspace->outline().selected_copies.empty(), "pane_canvas_deselect_is_read_back");
+
+        // Add plate is the toolbar's command: one undo step, and undo removes it.
+        const std::size_t plates_before = m_workspace->outline().plates.size();
+        check(m_workspace->add_plate().succeeded(), "pane_add_plate");
+        check(m_workspace->outline().plates.size() == plates_before + 1 && m_workspace->outline().plates.back().active,
+              "pane_add_plate_adds_and_activates");
+        check(m_workspace->snapshot().can_undo, "pane_add_plate_is_undoable");
+        check(m_workspace->undo().succeeded() && m_workspace->outline().plates.size() == plates_before, "pane_add_plate_undo");
+        check(m_workspace->redo().succeeded() && m_workspace->outline().plates.size() == plates_before + 1, "pane_add_plate_redo");
+        check(m_workspace->undo().succeeded() && m_workspace->outline().plates.size() == plates_before, "pane_add_plate_undone_again");
+        check(m_workspace->select_plate(*before_select.active_plate).error == WorkspaceError::NoChange ||
+                  m_workspace->snapshot().active_plate == before_select.active_plate,
+              "pane_fixture_restored");
+    }
+
     // Filament and printer settings, by preset name: an unsaved change to the
     // preset being edited, a save in place, a copy of a preset Orca ships
     // that takes its place, and a saved printer the project does not use,
@@ -527,6 +669,8 @@ private:
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");
         check(object_count(initial) == 2, "initial_snapshot_has_two_objects");
         check(same_ids(initial, m_workspace->snapshot()), "stable_snapshot_ids_within_session");
+
+        verify_outline(initial);
 
         m_first = initial.plates.front().objects.front().id;
         for (const WorkspacePlate& plate : initial.plates)
@@ -853,6 +997,9 @@ private:
         head_file >> head;
         std::ifstream current_file(root / "current-state.json");
         current_file >> current;
+        // Windows will not replace a file that is still open for reading.
+        head_file.close();
+        current_file.close();
         const std::string legacy_head = head.at("current").get<std::string>();
         std::ofstream(root / "versions" / legacy_head / "state.json") << current.at("state").dump(2);
         std::ofstream(root / "current-state.json") <<
@@ -874,6 +1021,7 @@ private:
         nlohmann::json upgraded;
         std::ifstream upgraded_file(root / "current-state.json");
         upgraded_file >> upgraded;
+        upgraded_file.close();
         check(upgraded.value("schema", 0) == 2 && !upgraded.contains("baseVersion"),
               "versions_legacy_document_upgrades_without_model_checkpoint");
         const auto current_document = reopened.materialize(reopened.head_id());

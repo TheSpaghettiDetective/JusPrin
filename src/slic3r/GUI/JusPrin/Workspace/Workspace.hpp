@@ -9,6 +9,10 @@
 #include <utility>
 #include <vector>
 
+namespace Slic3r::GUI::JusPrin::Agent {
+class ProjectPersistence;
+}
+
 namespace Slic3r::GUI::JusPrin::Workspace {
 
 class ProjectSessionId
@@ -337,6 +341,161 @@ struct ObjectDetails
     Vec3                 size{};
     std::size_t          overrides{0};
 };
+
+struct InstanceIdTag;
+struct VolumeIdTag;
+// One copy of an object (an Orca ModelInstance) and one of its volumes.
+using InstanceId = ProjectScopedId<InstanceIdTag>;
+using VolumeId   = ProjectScopedId<VolumeIdTag>;
+
+enum class VolumeRole : std::uint8_t { Part, Modifier, NegativePart, SupportEnforcer, SupportBlocker };
+
+// What Orca's mesh check says about one mesh. A mesh with remaining errors
+// cannot be printed as modelled; one Orca already repaired still warrants a
+// look. Both are problems with the model, not choices the person made.
+struct MeshProblem
+{
+    std::size_t open_edges{0};
+    std::size_t repaired_errors{0};
+
+    bool any() const { return open_edges != 0 || repaired_errors != 0; }
+    friend bool operator==(const MeshProblem& lhs, const MeshProblem& rhs)
+    {
+        return lhs.open_edges == rhs.open_edges && lhs.repaired_errors == rhs.repaired_errors;
+    }
+};
+
+// What the person chose to do to an object beyond placing it. Each flag is
+// read from the Orca state that owns it; none is inferred from a label.
+struct ObjectCustomization
+{
+    bool support_painting{false};
+    bool seam_painting{false};
+    bool color_painting{false};
+    bool fuzzy_skin_painting{false};
+    bool variable_layer_height{false};
+    // Per-object setting overrides in Orca's ModelConfig.
+    std::size_t setting_overrides{0};
+
+    // Whether an OrcaSlicer tool made this customization, as opposed to per-object
+    // settings, which the shell has no tool to open.
+    bool has_tool() const
+    {
+        return support_painting || seam_painting || color_painting || fuzzy_skin_painting || variable_layer_height;
+    }
+
+    bool any() const
+    {
+        return support_painting || seam_painting || color_painting || fuzzy_skin_painting || variable_layer_height ||
+               setting_overrides != 0;
+    }
+    friend bool operator==(const ObjectCustomization& lhs, const ObjectCustomization& rhs)
+    {
+        return lhs.support_painting == rhs.support_painting && lhs.seam_painting == rhs.seam_painting &&
+               lhs.color_painting == rhs.color_painting && lhs.fuzzy_skin_painting == rhs.fuzzy_skin_painting &&
+               lhs.variable_layer_height == rhs.variable_layer_height && lhs.setting_overrides == rhs.setting_overrides;
+    }
+};
+
+struct OutlineVolume
+{
+    VolumeId    id;
+    std::string name;
+    VolumeRole  role{VolumeRole::Part};
+    MeshProblem mesh;
+    // The volume's own filament override, 1-based as Orca stores it.
+    std::optional<int> extruder;
+};
+
+struct OutlineCopy
+{
+    InstanceId id;
+    // The copy's own switch: false means it is in the project and will not print.
+    bool       printable{true};
+    // Absent when no plate holds the copy. Membership comes from Orca's
+    // PartPlateList, never from where the copy sits.
+    std::optional<PlateId> plate;
+};
+
+struct OutlineObject
+{
+    ObjectId                   id;
+    std::string                name;
+    // The object's own switch, applied on top of each copy's.
+    bool                       printable{true};
+    std::vector<OutlineCopy>   copies;
+    // Every volume, in Orca's order. Consumers show children only when a
+    // volume other than the single model part exists.
+    std::vector<OutlineVolume> volumes;
+    // The filament slot the object is assigned to, 1-based as Orca stores it.
+    // Orca assigns the first slot when an object is loaded, so a value is not
+    // by itself a choice the person made.
+    std::optional<int>         extruder;
+    MeshProblem                mesh;
+    ObjectCustomization        customization;
+};
+
+struct OutlinePlate
+{
+    PlateId     id;
+    std::string name;
+    bool        active{false};
+    bool        sliced{false};
+    bool        locked{false};
+    // The plate carries its own settings (bed type, print sequence, or other
+    // plate-level overrides) instead of the project's.
+    bool        custom_settings{false};
+};
+
+// The project as the Plates pane lists it. Copies carry their plate, so a
+// plate's contents are always a grouping of one list and cannot disagree with
+// the off-plate group.
+struct ProjectOutline
+{
+    ProjectSessionId           session;
+    std::vector<OutlinePlate>  plates;
+    std::vector<OutlineObject> objects;
+    // Number of filaments the project prints with; more than one is a
+    // multi-material job.
+    std::size_t                filament_count{1};
+    // Each filament slot's colour, "#RRGGBB", in slot order; may be shorter than
+    // filament_count when a profile names fewer.
+    std::vector<std::string>   filament_colours;
+    // Orca's own condition for the toolbar's Add plate: false while a slice runs
+    // or when the project holds as many plates as Orca allows.
+    bool                       can_add_plate{true};
+    // Exactly what Orca has selected below the object level. Whole-object
+    // selection stays in WorkspaceSnapshot.
+    std::vector<InstanceId>    selected_copies;
+    std::vector<VolumeId>      selected_volumes;
+};
+
+// What a plate's overflow menu can do. Each runs Orca's own plate command, the
+// one its plate icons run, so undo, validation and dialogs are Orca's.
+enum class PlateAction : std::uint8_t {
+    Rename,
+    Arrange,
+    AutoOrient,
+    ToggleLock, // Lock when unlocked, Unlock when locked
+    Settings,
+    MoveToFront,
+    FilamentGrouping,
+    Delete
+};
+
+// What an object's overflow menu can run through OrcaSlicer's own object
+// commands. Renaming and deleting have workspace commands of their own.
+//   Quantity         OrcaSlicer's copies dialog
+//   TogglePrintable  the object list's printable switch, applied to every copy
+//   Filament         move the object to another filament slot
+//   Repair           the object list's mesh repair
+//   Split            split into separate objects
+//   SplitToParts     split one mesh into Orca model parts
+enum class ObjectAction : std::uint8_t { Quantity, TogglePrintable, Filament, Repair, Split, SplitToParts };
+
+// The OrcaSlicer tools that make an object customized, each opened on one
+// object the way OrcaSlicer's own toolbar opens it.
+enum class CustomizationTool : std::uint8_t { SupportPainting, SeamPainting, ColorPainting, FuzzySkinPainting, VariableLayerHeight };
 
 // Place one object instance for printing. Every facet is optional; the
 // adapter applies them in a fixed order -- units, scale, mirror, rotation,
@@ -1131,6 +1290,7 @@ private:
 
     friend class WorkspaceChangeHub;
     friend class WorkspaceEditHub;
+    friend class Agent::ProjectPersistence;
 };
 
 // A delivery is safe to queue: it owns no workspace or observer and becomes a
@@ -1417,6 +1577,39 @@ public:
                                        PlacementResult& result) = 0;
     virtual CommandResult analyze_object(ObjectId id, const AnalysisRequest& request, ObjectAnalysis& result) const = 0;
     virtual std::vector<ObjectDetails> object_details() const = 0;
+
+    // The Plates pane's read model and the commands that move its selection.
+    // `outline` is read fresh from Orca on every call, like snapshot().
+    // `select_plate` makes a plate the active one, as clicking it in Orca's own
+    // plate list does; `add_plate` is the toolbar's Add plate, one undo step.
+    // `select_copy` and `select_volume` select exactly that item, and fail with
+    // UnavailableOperation when Orca cannot select at that granularity (a
+    // volume of an object with a single model part, or a copy that no plate
+    // holds). A no-op selection fails with NoChange.
+    virtual ProjectOutline outline() const                       = 0;
+    virtual CommandResult  select_plate(PlateId id)              = 0;
+    virtual CommandResult  add_plate()                           = 0;
+    virtual CommandResult  select_copy(InstanceId id)            = 0;
+    virtual CommandResult  select_volume(VolumeId id)            = 0;
+    // The plate actions that apply to this plate right now, in menu order:
+    // Orca offers Delete only while another plate remains, Move to front only
+    // below the first plate, and Filament grouping only on a dual-extruder
+    // Bambu printer. `run_plate_action` refuses one that is not in that list
+    // with UnavailableOperation instead of running it anyway.
+    virtual std::vector<PlateAction> plate_actions(PlateId id) const                       = 0;
+    virtual CommandResult            run_plate_action(PlateId id, PlateAction action)      = 0;
+    // The object actions that apply to this object now, in menu order: Filament
+    // only in a multi-material job, Repair only for a mesh with problems, Split
+    // only for an object that has more than one piece. `slot` is the 1-based
+    // filament for Filament and ignored otherwise. A refusal by OrcaSlicer comes
+    // back as UnavailableOperation.
+    virtual std::vector<ObjectAction> object_actions(ObjectId id) const                                    = 0;
+    virtual CommandResult             run_object_action(ObjectId id, ObjectAction action, int slot = 0)    = 0;
+    // The object list's printable switch for one copy.
+    virtual CommandResult             toggle_copy_printable(InstanceId id)                                 = 0;
+    // Selects the object and opens the tool on it. `UnavailableOperation` when
+    // OrcaSlicer won't open it (a gizmo already running, for one).
+    virtual CommandResult             open_customization(ObjectId id, CustomizationTool tool)             = 0;
     virtual ConfiguredPrinter configured_printer() const = 0;
     virtual std::string current_process_preset() const = 0;
     // Read-only: evaluates compatibility without selecting, and leaves every

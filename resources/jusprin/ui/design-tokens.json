@@ -358,6 +358,28 @@
       "resizeHandleWidth": 8,
       "resizeHandleLineWidth": 2
     },
+    "leftPane": {
+      "width": 200,
+      "paddingY": 12,
+      "tabHeight": 36,
+      "tabIndicatorHeight": 2,
+      "listPaddingY": 8,
+      "rowGap": 2,
+      "rowPaddingX": 8,
+      "rowPaddingY": 6,
+      "plateRowHeight": 32,
+      "objectRowHeight": 36,
+      "objectIndent": 20,
+      "glyphSize": 16,
+      "plateGap": 8,
+      "objectGap": 4,
+      "summaryIndent": 32,
+      "summaryPaddingBottom": 6,
+      "addPlatePaddingTop": 8,
+      "addPlatePaddingBottom": 4,
+      "addPlatePaddingX": 12,
+      "addPlateButtonHeight": 30
+    },
     "threadRow": {
       "lineGap": 2,
       "avatarSize": 20

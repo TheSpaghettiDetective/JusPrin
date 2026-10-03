@@ -25,6 +25,7 @@ class Plater;
 namespace Slic3r::GUI::JusPrin {
 
 class AgentPane;
+class LeftPane;
 class ShellTheme;
 class StatusRow;
 
@@ -61,6 +62,7 @@ public:
     Home::HomeWebView* home_view() const { return m_home; }
     PrinterSetup::PrinterPanel* printer_panel() const { return m_printer_panel; }
     AgentPane* agent_pane() const { return m_agent_pane; }
+    LeftPane* left_pane() const { return m_left_pane; }
     // The Prepare canvas's presentation, for the integration harness to drive
     // the tool strip and the value card the way a pointer does.
     const CanvasPresentationController& prepare_canvas_presentation() const { return m_prepare_canvas_presentation; }
@@ -139,6 +141,8 @@ private:
 
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
+    // The Plates / Project pane, left of the workspace; shown on Prepare only.
+    LeftPane*  m_left_pane{nullptr};
     // Shown in the Notebook's slot while the Notebook's selection is tpHome.
     Home::HomeWebView* m_home{nullptr};
     // Fresh in-memory printer or filament task chat, shown over the workspace.

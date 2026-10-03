@@ -264,6 +264,29 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.agent_pane.resize_handle_width      = parse_int(agent_pane, "component.agentPane", "resizeHandleWidth");
     m.agent_pane.resize_handle_line_width = parse_int(agent_pane, "component.agentPane", "resizeHandleLineWidth");
 
+    const nlohmann::json& left_pane = component.at("leftPane");
+    const auto            pane_int  = [&left_pane](const char* key) { return parse_int(left_pane, "component.leftPane", key); };
+    m.left_pane.width                    = pane_int("width");
+    m.left_pane.padding_y                = pane_int("paddingY");
+    m.left_pane.tab_height               = pane_int("tabHeight");
+    m.left_pane.tab_indicator_height     = pane_int("tabIndicatorHeight");
+    m.left_pane.list_padding_y           = pane_int("listPaddingY");
+    m.left_pane.row_gap                  = pane_int("rowGap");
+    m.left_pane.row_padding_x            = pane_int("rowPaddingX");
+    m.left_pane.row_padding_y            = pane_int("rowPaddingY");
+    m.left_pane.plate_row_height         = pane_int("plateRowHeight");
+    m.left_pane.object_row_height        = pane_int("objectRowHeight");
+    m.left_pane.object_indent            = pane_int("objectIndent");
+    m.left_pane.glyph_size               = pane_int("glyphSize");
+    m.left_pane.plate_gap                = pane_int("plateGap");
+    m.left_pane.object_gap               = pane_int("objectGap");
+    m.left_pane.summary_indent           = pane_int("summaryIndent");
+    m.left_pane.summary_padding_bottom   = pane_int("summaryPaddingBottom");
+    m.left_pane.add_plate_padding_top    = pane_int("addPlatePaddingTop");
+    m.left_pane.add_plate_padding_bottom = pane_int("addPlatePaddingBottom");
+    m.left_pane.add_plate_padding_x      = pane_int("addPlatePaddingX");
+    m.left_pane.add_plate_button_height  = pane_int("addPlateButtonHeight");
+
     const nlohmann::json& swatch = component.at("swatch");
     m.swatch.size               = parse_int(swatch, "component.swatch", "size");
     m.swatch.radius             = parse_int(swatch, "component.swatch", "radius");

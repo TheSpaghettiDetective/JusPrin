@@ -1,6 +1,7 @@
 #include "ShellController.hpp"
 
 #include "AgentPane.hpp"
+#include "LeftPane.hpp"
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "StatusRow.hpp"
@@ -16,6 +17,7 @@
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
@@ -420,6 +422,20 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
         m_workspace_sizer->Add(&tabpanel, 1, wxEXPAND);
         m_workspace_sizer->Add(m_home, 1, wxEXPAND);
+        m_left_pane = new LeftPane(&frame, *m_theme, *m_workspace);
+        m_left_pane->set_project_sources({m_persistence.get(), m_autosave.get(),
+            [this] {
+                // OrcaSlicer's project-information editor lives on its Project page.
+                ProjectPanel* project = m_frame->m_project;
+                if (project == nullptr)
+                    throw std::runtime_error("the Project page is unavailable");
+                const int page = m_tabpanel->FindPage(project);
+                if (page == wxNOT_FOUND)
+                    throw std::runtime_error("the Project page is missing from the Notebook");
+                m_frame->select_tab(size_t(page));
+                project->show_info_editor(true);
+            }});
+        m_center_sizer->Add(m_left_pane, 0, wxEXPAND);
         m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_agent_resize_handle, 0, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
@@ -489,6 +505,10 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         // Same order as uninstall(): the pane and status row first, since
         // their destructors talk to persistence and the workspace, then
         // those two. The remaining children die with the frame.
+        if (m_left_pane != nullptr) {
+            m_left_pane->Destroy();
+            m_left_pane = nullptr;
+        }
         if (m_agent_pane != nullptr) {
             m_agent_pane->web_view().host().tools().set_version_callbacks({}, {});
             m_agent_pane->Destroy();
@@ -532,7 +552,10 @@ int ShellController::agent_pane_width_within(int width) const
     const int min_width = m_frame->FromDIP(metrics.min_width);
     const int workspace_min_width = m_frame->FromDIP(metrics.workspace_min_width);
     const int handle_width = m_frame->FromDIP(metrics.resize_handle_width);
-    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width);
+    // The Plates / Project pane is also beside the canvas, so the Agent pane
+    // may not take what the canvas needs while it is on screen.
+    const int left_width = m_left_pane != nullptr && m_left_pane->IsShown() ? m_left_pane->GetSize().x : 0;
+    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width - left_width);
     return std::clamp(width, min_width, max_width);
 }
 
@@ -622,6 +645,8 @@ void ShellController::uninstall()
             if (m_home != nullptr)
                 m_workspace_sizer->Detach(m_home);
         }
+        if (m_left_pane != nullptr)
+            m_center_sizer->Detach(m_left_pane);
         if (m_agent_resize_handle != nullptr)
             m_center_sizer->Detach(m_agent_resize_handle);
         if (m_agent_pane != nullptr)
@@ -638,6 +663,10 @@ void ShellController::uninstall()
     if (m_main_sizer->GetItem(m_tabpanel) == nullptr)
         m_main_sizer->Add(m_tabpanel, 1, wxEXPAND | wxTOP, 0);
 
+    if (m_left_pane != nullptr) {
+        m_left_pane->Destroy();
+        m_left_pane = nullptr;
+    }
     if (m_status_row != nullptr) {
         m_status_row->Destroy();
         m_status_row = nullptr;
@@ -682,6 +711,8 @@ void ShellController::apply_current_appearance()
     const bool dark = wxGetApp().dark_mode();
     if (m_status_row != nullptr)
         m_status_row->apply_appearance(dark);
+    if (m_left_pane != nullptr)
+        m_left_pane->apply_appearance(dark);
     if (m_agent_pane != nullptr)
         m_agent_pane->apply_appearance(dark);
     if (m_home != nullptr)
@@ -745,6 +776,7 @@ void ShellController::show_task_panel()
     m_task_origin_tab = m_tabpanel->GetSelection();
     m_home->set_live(false);
     m_workspace_sizer->Show(false);
+    m_left_pane->Hide();
     m_status_row->Hide();
     m_agent_pane->Hide();
     m_agent_resize_handle->Hide();
@@ -798,6 +830,9 @@ void ShellController::on_page_changed()
     m_home->Show(home);
     m_tabpanel->Show(!home);
     m_status_row->Show(!home);
+    // The pane lists the project being prepared; Preview draws its own plate
+    // picker and Home has no project in front.
+    m_left_pane->Show(!home && m_tabpanel->GetSelection() == MainFrame::tp3DEditor);
     m_frame->Layout();
     set_agent_pane_collapsed(home ? true : m_agent_pane_user_collapsed);
 }

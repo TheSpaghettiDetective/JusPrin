@@ -101,6 +101,26 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.agent_pane.workspace_min_width == 320);
     CHECK(m.agent_pane.resize_handle_width == 8);
     CHECK(m.agent_pane.resize_handle_line_width == 2);
+    CHECK(m.left_pane.width == 200);
+    CHECK(m.left_pane.padding_y == 12);
+    CHECK(m.left_pane.tab_height == 36);
+    CHECK(m.left_pane.tab_indicator_height == 2);
+    CHECK(m.left_pane.list_padding_y == 8);
+    CHECK(m.left_pane.row_gap == 2);
+    CHECK(m.left_pane.row_padding_x == 8);
+    CHECK(m.left_pane.row_padding_y == 6);
+    CHECK(m.left_pane.plate_row_height == 32);
+    CHECK(m.left_pane.object_row_height == 36);
+    CHECK(m.left_pane.object_indent == 20);
+    CHECK(m.left_pane.glyph_size == 16);
+    CHECK(m.left_pane.plate_gap == 8);
+    CHECK(m.left_pane.object_gap == 4);
+    CHECK(m.left_pane.summary_indent == 32);
+    CHECK(m.left_pane.summary_padding_bottom == 6);
+    CHECK(m.left_pane.add_plate_padding_top == 8);
+    CHECK(m.left_pane.add_plate_padding_bottom == 4);
+    CHECK(m.left_pane.add_plate_padding_x == 12);
+    CHECK(m.left_pane.add_plate_button_height == 30);
     CHECK(m.swatch.size == 24);
 
     CHECK(m.field.height == 26);

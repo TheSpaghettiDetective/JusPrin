@@ -428,6 +428,43 @@ outlives the widget tree must have an abandon path that forgets pointers
 without touching them. Restoring state is for runtime detach; teardown only
 ever abandons.
 
+### A canvas event posted from a command had not run when the command returned
+
+`GLCanvas3D::post_event` queues the event with `wxPostEvent`. A workspace command
+that used it to add a plate, or to tell Orca a selection changed, returned with
+the plate count and the object list unchanged, and the following read saw the
+old state. Commands that must have taken effect when they return raise the event
+on the canvas window with `ProcessEvent` (`raise_now` in `Workspace/OrcaOutline.cpp`).
+
+### `Plater::select_object` returns early when the canvas already holds the selection
+
+It skips `ObjectList::update_selections()`, so the object list can still be
+pointing at the plate it last showed. The object list's own commands
+(`toggle_printable_state`, `set_extruder_for_selected_items`, `fix_through_cgal`)
+act on the list's selection and do nothing, without an error, when it is not an
+object or a copy. Bring the list up to date first, and check the effect: a
+command that can silently do nothing needs its result read back.
+
+### The object list changes the model without announcing it
+
+Switching an object's printable state or filament through the list publishes no
+project-state change, so a view built on the workspace stays as it was. The
+command that calls the list publishes a Contents change itself.
+
+### Orca gives every loaded object the first filament slot
+
+An object's config carries `extruder = 1` from the start. It is an assignment,
+not a choice, so presence of the key says nothing about whether the person chose
+it; the pane shows a filament only for a multi-material job or a slot other than
+the first.
+
+### A plate carries settings only by Orca's own test
+
+`PartPlate::config()` has keys on every plate. The plate icon's "has plate
+settings" test is bed type, print sequence, first-layer and other-layers
+sequences, or a spiral-mode setting; the pane uses the same one.
+
+
 ## 4. Testing and verification lessons
 
 ### Printer UI without a physical machine

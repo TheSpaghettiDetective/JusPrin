@@ -124,6 +124,33 @@ struct SlotDotMetrics
 };
 // The keyboard focus ring every focusable control draws.
 struct FocusMetrics     { int width{0}; int offset{0}; };
+// The Plates / Project pane's geometry, from component.leftPane. Heights and
+// paddings are DIP, taken from the pane's Figma frames; each row is a box whose
+// padding and gap are named here so the painted row and the frame agree.
+struct LeftPaneMetrics
+{
+    int width{0};
+    int padding_y{0};
+    int tab_height{0};
+    int tab_indicator_height{0};
+    int list_padding_y{0};
+    int row_gap{0};
+    int row_padding_x{0};
+    int row_padding_y{0};
+    int plate_row_height{0};
+    int object_row_height{0};
+    int object_indent{0};
+    int glyph_size{0};
+    int plate_gap{0};
+    int object_gap{0};
+    int summary_indent{0};
+    int summary_padding_bottom{0};
+    int add_plate_padding_top{0};
+    int add_plate_padding_bottom{0};
+    int add_plate_padding_x{0};
+    int add_plate_button_height{0};
+};
+
 // Home's printers column, which the printer conversation takes over while it
 // is open, so the two are the same width.
 struct PrinterCardMetrics { int column_width{0}; int radius{0}; };
@@ -178,6 +205,7 @@ struct ShellMetrics
     PopoverMetrics   popover;
     StatusRowMetrics status_row;
     AgentPaneMetrics agent_pane;
+    LeftPaneMetrics  left_pane;
     SwatchMetrics    swatch;
     SlotDotMetrics   slot_dot;
     FocusMetrics     focus;

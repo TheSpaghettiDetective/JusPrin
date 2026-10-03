@@ -1,5 +1,6 @@
 add_executable(workspace_contract_tests
     test_workspace_contract.cpp
+    test_project_outline.cpp
 )
 
 target_include_directories(workspace_contract_tests PRIVATE

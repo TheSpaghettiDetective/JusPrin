@@ -75,8 +75,43 @@ const char* edit_kind_name(Workspace::EditKind kind)
 
 } // namespace
 
+// Shared with each subscription's unsubscribe closure, which outlives neither
+// the observers nor, through the weak pointer, the persistence that owns them.
+struct ProjectPersistence::LedgerObservers
+{
+    std::uint64_t                                  next_id{1};
+    std::map<std::uint64_t, std::function<void()>> observers;
+};
+
+Workspace::WorkspaceSubscription ProjectPersistence::subscribe_ledger(std::function<void()> listener)
+{
+    const std::uint64_t id = m_ledger_observers->next_id++;
+    m_ledger_observers->observers.emplace(id, std::move(listener));
+    std::weak_ptr<LedgerObservers> weak = m_ledger_observers;
+    return Workspace::WorkspaceSubscription([weak, id]() {
+        if (auto state = weak.lock())
+            state->observers.erase(id);
+    });
+}
+
+void ProjectPersistence::notify_ledger_changed() const
+{
+    // Look each observer up just before calling it, so one that unsubscribes
+    // another, or itself, during dispatch is safe.
+    std::vector<std::uint64_t> ids;
+    for (const auto& observer : m_ledger_observers->observers)
+        ids.push_back(observer.first);
+    for (const std::uint64_t id : ids) {
+        const auto found = m_ledger_observers->observers.find(id);
+        if (found == m_ledger_observers->observers.end())
+            continue;
+        const std::function<void()> callback = found->second;
+        callback();
+    }
+}
+
 ProjectPersistence::ProjectPersistence(Workspace::IWorkspace& workspace, Config config)
-    : m_workspace(workspace), m_config(std::move(config))
+    : m_workspace(workspace), m_config(std::move(config)), m_ledger_observers(std::make_shared<LedgerObservers>())
 {
     if (!m_config.clock)
         m_config.clock = default_clock;
