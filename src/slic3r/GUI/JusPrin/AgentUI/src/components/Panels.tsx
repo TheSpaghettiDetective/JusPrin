@@ -2,6 +2,7 @@
 // body; a bridge error is an internal connection failure with diagnostics.
 
 import type { FileReport } from '../bridge/protocol';
+import { AgentPaneToggle } from './ChatNavigation';
 import { FileNotesCard } from './FileNotesCard';
 
 interface BridgeErrorProps {
@@ -43,11 +44,12 @@ export function BridgeErrorPane({ title, detail, diagnostics, onRetry }: BridgeE
 // whether or not an Agent is ever set up. It replaces the conversation
 // chrome only while the conversation is empty; history carried in from a
 // previously configured session stays visible in the ordinary chat.
-export function AgentNotConfiguredHeader() {
+export function AgentNotConfiguredHeader({ onCollapse }: { onCollapse: () => void }) {
   return (
     <div className="agent-header" data-testid="agent-not-configured-header">
       <span className="agent-title">Agent</span>
       <span className="agent-badge">NOT SET UP</span>
+      <AgentPaneToggle onCollapse={onCollapse} />
     </div>
   );
 }

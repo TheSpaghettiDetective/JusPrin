@@ -11,6 +11,20 @@ function NewChat({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
   </button>;
 }
 
+// The open-pane half of the shell's two-button collapse control. Keeping it
+// in the page makes the conversation controls and pane toggle one header row;
+// the native project header owns the other half while the pane is hidden.
+export function AgentPaneToggle({ onCollapse }: { onCollapse: () => void }) {
+  return <button className="chat-icon agent-pane-toggle" aria-label="Hide the Agent panel"
+    title="Hide the Agent panel" onClick={onCollapse}>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="14" rx="1" />
+      <path d="M14 5v14" />
+      <path className="agent-pane-toggle-fill" d="M14 5h6v14h-6Z" />
+    </svg>
+  </button>;
+}
+
 export interface MenuItem {
   label: string;
   onSelect: () => void;
@@ -94,9 +108,10 @@ interface HeaderProps {
   onCreate: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
+  onCollapse: () => void;
 }
 
-export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete }: HeaderProps) {
+export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete, onCollapse }: HeaderProps) {
   const [editing, setEditing] = useState<'rename' | 'delete' | null>(null);
   const [name, setName] = useState(title);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -120,6 +135,7 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete }
         { label: 'Rename', onSelect: () => { setName(title); setEditing('rename'); } },
         { label: 'Delete', danger: true, disabled: busy, onSelect: () => setEditing('delete') },
       ]} />
+      <AgentPaneToggle onCollapse={onCollapse} />
     </header>
     {editing && <Dialog title={editing === 'rename' ? 'Rename chat' : 'Delete chat?'} onClose={closeDialog}>
       {editing === 'rename' ? <form onSubmit={(event) => {
@@ -153,7 +169,7 @@ export function chatTimestamp(timestamp: string, now = new Date()): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }
 
-export function ChatList({ conversations, activeId, busy, agentUnavailable, onSwitch, onCreate, onConfigure }: {
+export function ChatList({ conversations, activeId, busy, agentUnavailable, onSwitch, onCreate, onConfigure, onCollapse }: {
   conversations: ConversationInfo[];
   activeId: string;
   busy: boolean;
@@ -161,11 +177,13 @@ export function ChatList({ conversations, activeId, busy, agentUnavailable, onSw
   onSwitch: (id: string) => void;
   onCreate: () => void;
   onConfigure: () => void;
+  onCollapse: () => void;
 }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60000); return () => clearInterval(timer); }, []);
   return <section className="chat-list-pane" aria-label="Project chats">
-    <header className="chat-list-header"><h1>Chats</h1><NewChat busy={busy} onCreate={onCreate} /></header>
+    <header className="chat-list-header"><h1>Chats</h1><NewChat busy={busy} onCreate={onCreate} />
+      <AgentPaneToggle onCollapse={onCollapse} /></header>
     <div className="chat-list-scroll">
       {conversations.length === 0 && <p className="chat-list-empty">No chats yet. Start a new chat about this project.</p>}
       {conversations.map((chat) => {

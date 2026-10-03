@@ -87,6 +87,9 @@ public:
     // without a panel shows no control for one.
     void set_agent_pane_toggle(std::function<void()> toggle);
     void set_agent_pane_collapsed(bool collapsed);
+    void set_left_pane_toggle(std::function<void()> toggle);
+    void set_left_pane_available(bool available);
+    void set_left_pane_collapsed(bool collapsed);
 
 private:
     void refresh_chip();
@@ -103,6 +106,7 @@ private:
     Workspace::ProjectAutosave* m_autosave{nullptr};
 
     HeaderButton*        m_home_button{nullptr};
+    HeaderButton*        m_left_pane_toggle{nullptr};
     PrinterFilamentChip* m_chip{nullptr};
     HeaderButton* m_slice_button{nullptr};
     HeaderButton* m_menu_button{nullptr};
@@ -111,9 +115,12 @@ private:
 
     std::function<void(const wxString&, const wxString&)> m_note_sink;
     std::function<void()>                                 m_agent_pane_toggle;
+    std::function<void()>                                 m_left_pane_toggle_callback;
 
     ProjectStateSubscription         m_project_state_subscription;
     bool                     m_dark{false};
+    bool                     m_left_pane_available{false};
+    bool                     m_left_pane_collapsed{false};
     bool                     m_tabpanel_alive{true};
 };
 

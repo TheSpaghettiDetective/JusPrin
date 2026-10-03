@@ -127,6 +127,17 @@ describe('App', () => {
     host = new MockHost();
   });
 
+  it('keeps the pane toggle in the active Agent header', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    expect(screen.getAllByRole('button', { name: 'Hide the Agent panel' })).toHaveLength(1);
+  });
+
   it('offers only Back and manual settings from a temporary filament chat', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ navigation: { focused: true } }));

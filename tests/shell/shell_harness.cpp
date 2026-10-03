@@ -42,6 +42,9 @@
 //                 reuse the directory to test restarts without reconfiguration
 //   --header-visual <fixture-directory>
 //                 same fixture without the expert sidebar, with the header menu open
+//   --right-pane-visual <fixture-directory>
+//                 production-like right-pane fixture: expert sidebar hidden,
+//                 Agent open, no project-header menu covering the layout
 //   --live-agent-unavailable
 //              selects OpenAI with consent withheld and verifies that the
 //              application stays usable without silently selecting the mock
@@ -625,6 +628,7 @@ struct HarnessState
     Mode mode{Mode::Shell};
     bool mcp_bridge{false};
     bool header_visual{false};
+    bool right_pane_visual{false};
     bool task_chat_configured{false};
     bool figma_timeline_manual{false};
     std::optional<bool> dark_appearance;
@@ -807,10 +811,13 @@ public:
                     // shell's rendered external approval cards remain live.
                     if (self->m_state->header_visual) {
                         installed_shell()->status_row()->show_action_menu();
-                    } else {
+                    } else if (!self->m_state->right_pane_visual) {
                         self->m_plater->set_sidebar_available(true);
                         self->m_plater->collapse_sidebar(false);
                         self->check(self->m_plater->sidebar().IsShown(), "mcp_fixture_native_sidebar_visible");
+                    } else {
+                        self->check(!self->m_plater->sidebar().IsShown(),
+                                    "right_pane_fixture_native_sidebar_hidden");
                     }
                     // The checks above fire at the instant of navigation.
                     // Anything deferred -- a queued page change, a CallAfter
@@ -890,6 +897,10 @@ private:
             return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
         }, "editor_prepare_ready", [self = shared_from_this()] {
             self->wait_until_settled("editor_prepare_settled", [self] {
+                if (installed_shell()->is_left_pane_collapsed()) {
+                    installed_shell()->toggle_left_pane();
+                    wxYield();
+                }
                 LeftPane* pane = installed_shell()->left_pane();
                 self->check(pane != nullptr && pane->IsShownOnScreen(), "editor_pane_visible");
                 if (pane == nullptr) {
@@ -930,6 +941,10 @@ private:
             return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
         }, "sliced_pane_prepare_ready", [self = shared_from_this()] {
             self->wait_until_settled("sliced_pane_settled", [self] {
+                if (installed_shell()->is_left_pane_collapsed()) {
+                    installed_shell()->toggle_left_pane();
+                    wxYield();
+                }
                 self->m_plater->select_plate(0);
                 installed_shell()->status_row()->request_slice();
                 self->wait_until([self] {
@@ -982,13 +997,21 @@ private:
             finish();
             return;
         }
+        check(installed_shell()->is_left_pane_collapsed() && !pane->IsShown(),
+              "left_pane_fixture_starts_at_the_closed_default");
+        installed_shell()->toggle_left_pane();
+        wxYield();
         check(pane->IsShownOnScreen(), "left_pane_shown_on_prepare");
         check(pane->GetSize().x == pane->FromDIP(200), "left_pane_is_200_dip_wide");
+        auto* open_toggle = wxWindow::FindWindowByName("Plates and Project panel", pane);
+        check(open_toggle != nullptr && open_toggle->IsShown(), "left_pane_open_toggle_has_its_own_header_row");
         auto* workspace = installed_shell()->workspace();
         const auto plate_count = [&] { return workspace->outline().plates.size(); };
 
         pane->refresh_from_workspace();
         wxBitmap first = pane->snapshot();
+        check(pane->tab_rect(PaneTab::Plates).y >= pane->FromDIP(56),
+              "left_pane_tabs_sit_below_the_toggle_row");
         check(pane->rows().size() == 3 && pane->rows()[0].kind == PaneRow::Kind::Plate && pane->rows()[0].expanded &&
                   pane->rows()[1].kind == PaneRow::Kind::Object && pane->rows()[2].kind == PaneRow::Kind::Plate &&
                   !pane->rows()[2].expanded,
@@ -1306,11 +1329,13 @@ private:
         // Check print is not touched: the pane is not there, and it returns with Prepare.
         m_frame->select_tab(size_t(MainFrame::tpPreview));
         wxYield();
+        auto* left_divider = wxWindow::FindWindowByName("Resize Plates and Project panel", m_frame);
         check(m_notebook->GetSelection() == MainFrame::tpPreview && !pane->IsShown(), "left_pane_is_absent_on_check_print");
+        check(left_divider != nullptr && !left_divider->IsShown(), "left_resize_handle_is_absent_on_check_print");
         window_shot("check-print");
         m_frame->select_tab(size_t(MainFrame::tp3DEditor));
         wxYield();
-        check(pane->IsShown(), "left_pane_returns_with_prepare");
+        check(pane->IsShown() && left_divider->IsShown(), "left_pane_and_resize_handle_return_with_prepare");
         window_shot("back-on-prepare");
 
         capture_figma_plate_states(pane);
@@ -4333,6 +4358,8 @@ private:
             {MainFrame::tp3DEditor, "agent_pane_prepare_first_visit", [this, shell, collapsed, expanded] {
                  check(shell->status_row()->IsShown(), "status_row_shown_on_prepare");
                  verify_header_layout();
+                 check(shell->is_left_pane_collapsed() && !shell->left_pane()->IsShown(),
+                       "left_pane_defaults_closed_on_prepare");
                  check(expanded(), "agent_pane_shown_on_prepare");
                  shell->toggle_agent_pane();
                  check(collapsed(), "agent_pane_user_collapses_on_prepare");
@@ -4379,9 +4406,15 @@ private:
 
     wxSizer* frame_main_sizer()
     {
-        // The harness reaches the layout through public wx state: the status
-        // row was inserted into MainFrame's inner vertical sizer.
-        return installed_shell()->status_row()->GetContainingSizer();
+        // MainFrame's outer sizer owns the platform top bar and the inner
+        // application sizer. The project header now lives one level deeper,
+        // so find the direct child that recursively contains it.
+        wxSizer* root = m_frame->GetSizer();
+        for (wxSizerItem* item : root->GetChildren())
+            if (wxSizer* child = item->GetSizer(); child != nullptr &&
+                child->GetItem(installed_shell()->status_row(), true) != nullptr)
+                return child;
+        return nullptr;
     }
 
     void load_multi_plate_fixture()
@@ -8647,6 +8680,94 @@ private:
 
     void verify_resize()
     {
+        if (installed_shell()->is_left_pane_collapsed()) {
+            installed_shell()->toggle_left_pane();
+            wxYield();
+        }
+        auto* left_divider = wxWindow::FindWindowByName("Resize Plates and Project panel", m_frame);
+        auto* left_pane = installed_shell()->left_pane();
+        check(left_divider != nullptr && left_divider->IsShown(), "left_resize_handle_shown");
+        check(left_divider != nullptr && left_divider->GetSize().x == left_divider->FromDIP(8),
+              "left_resize_handle_matches_agent_treatment");
+        if (left_divider != nullptr && left_pane != nullptr) {
+            auto drag_left = [left_divider](int delta_x) {
+                const wxPoint start(left_divider->GetClientSize().x / 2, left_divider->GetClientSize().y / 2);
+                for (wxEventType type : {wxEVT_LEFT_DOWN, wxEVT_MOTION, wxEVT_LEFT_UP}) {
+                    wxMouseEvent event(type);
+                    event.SetPosition(start + (type == wxEVT_LEFT_DOWN ? wxPoint() : wxPoint(delta_x, 0)));
+                    event.SetEventObject(left_divider);
+                    left_divider->GetEventHandler()->ProcessEvent(event);
+                }
+                wxYield();
+            };
+
+            const int original_width = left_pane->GetSize().x;
+            drag_left(left_divider->FromDIP(120));
+            check(left_pane->GetSize().x > original_width, "left_panel_mouse_drag_grows_width");
+
+            drag_left(-left_divider->FromDIP(2000));
+            check(left_pane->GetSize().x == left_pane->FromDIP(160), "left_panel_drag_stops_at_minimum_width");
+            check(left_pane->IsShown() && left_divider->IsShown(), "left_panel_drag_never_closes_the_pane");
+
+            drag_left(left_divider->FromDIP(2000));
+            auto* agent_divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+            const int agent_width = installed_shell()->agent_pane()->GetSize().x;
+            const int expected_max = std::max(left_pane->FromDIP(160),
+                m_frame->GetClientSize().x - left_pane->FromDIP(320) - left_divider->GetSize().x -
+                agent_width - (agent_divider == nullptr ? 0 : agent_divider->GetSize().x));
+            check(left_pane->GetSize().x == expected_max, "left_panel_drag_uses_available_window_width");
+            check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
+                  "left_panel_drag_preserves_workspace_width");
+
+            drag_left(original_width - left_pane->GetSize().x);
+            check(left_pane->GetSize().x == original_width, "left_panel_width_can_be_restored");
+
+            auto* open_toggle = dynamic_cast<HeaderButton*>(
+                wxWindow::FindWindowByName("Plates and Project panel", left_pane));
+            auto* project_toggle = dynamic_cast<HeaderButton*>(
+                wxWindow::FindWindowByName("Plates and Project panel", installed_shell()->status_row()));
+            auto press = [](HeaderButton* button) {
+                if (button == nullptr) return;
+                wxMouseEvent down(wxEVT_LEFT_DOWN), up(wxEVT_LEFT_UP);
+                button->ProcessWindowEvent(down);
+                button->ProcessWindowEvent(up);
+                wxYield();
+            };
+            auto double_click_left = [left_divider] {
+                const wxPoint start(left_divider->GetClientSize().x / 2, left_divider->GetClientSize().y / 2);
+                for (wxEventType type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP, wxEVT_LEFT_DCLICK, wxEVT_LEFT_UP}) {
+                    wxMouseEvent event(type);
+                    event.SetPosition(start);
+                    event.SetEventObject(left_divider);
+                    left_divider->GetEventHandler()->ProcessEvent(event);
+                }
+                wxYield();
+            };
+            check(open_toggle != nullptr && open_toggle->IsShown() &&
+                  project_toggle != nullptr && !project_toggle->IsShown(),
+                  "left_panel_open_toggle_stays_in_its_own_row");
+            const int open_toggle_x = open_toggle == nullptr ? -1 : open_toggle->GetScreenPosition().x;
+            press(open_toggle);
+            check(installed_shell()->is_left_pane_collapsed(), "left_panel_open_toggle_collapses");
+            check(!left_pane->IsShown() && !left_divider->IsShown(),
+                  "left_panel_collapse_hides_pane_and_divider");
+            check(project_toggle != nullptr && project_toggle->IsShown(),
+                  "left_panel_closed_toggle_moves_to_project_header");
+            check(project_toggle != nullptr && project_toggle->GetScreenPosition().x == open_toggle_x,
+                  "left_panel_toggle_keeps_the_same_screen_position");
+            press(project_toggle);
+            check(!installed_shell()->is_left_pane_collapsed() && left_pane->IsShown() && left_divider->IsShown(),
+                  "left_panel_project_toggle_reopens_the_pane");
+            check(left_pane->GetSize().x == original_width, "left_panel_reopens_at_its_previous_width");
+
+            double_click_left();
+            check(installed_shell()->is_left_pane_collapsed(), "left_panel_divider_double_click_collapses");
+            press(project_toggle);
+            check(!installed_shell()->is_left_pane_collapsed() && left_pane->IsShown() && left_divider->IsShown(),
+                  "left_panel_reopens_after_divider_collapse");
+            verify_agent_pane_tiling("after_left_panel_drag");
+        }
+
         auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
         auto* pane = installed_shell()->agent_pane();
         check(divider != nullptr && divider->IsShown(), "agent_resize_handle_shown");
@@ -8680,13 +8801,25 @@ private:
                 }
                 wxYield();
             };
-            auto* toggle = dynamic_cast<HeaderButton*>(
+            auto* project_toggle = dynamic_cast<HeaderButton*>(
                 wxWindow::FindWindowByName("Agent panel", installed_shell()->status_row()));
-            auto press_toggle = [&toggle] {
-                if (!toggle) return;
+            auto press_toggle = [project_toggle, pane] {
+                if (!installed_shell()->is_agent_pane_collapsed()) {
+                    static int next = 0;
+                    pane->web_view().host().on_page_message(
+                        nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                       {"version", Agent::Protocol::kVersion},
+                                       {"id", "pane-toggle-" + std::to_string(++next)},
+                                       {"type", Agent::Protocol::kShellAction},
+                                       {"payload", {{"action", "collapse_agent_pane"}}}}
+                            .dump());
+                    wxYield();
+                    return;
+                }
+                if (project_toggle == nullptr) return;
                 wxMouseEvent press(wxEVT_LEFT_DOWN), release(wxEVT_LEFT_UP);
-                toggle->ProcessWindowEvent(press);
-                toggle->ProcessWindowEvent(release);
+                project_toggle->ProcessWindowEvent(press);
+                project_toggle->ProcessWindowEvent(release);
                 wxYield();
             };
             auto workspace_width = [this] {
@@ -8706,22 +8839,28 @@ private:
                   "agent_panel_drag_never_closes_the_pane");
 
             drag(-divider->FromDIP(2000));
-            const LeftPane* left_pane = installed_shell()->left_pane();
-            const int left_width = left_pane != nullptr && left_pane->IsShown() ? left_pane->GetSize().x : 0;
+            const LeftPane* current_left_pane = installed_shell()->left_pane();
+            const int left_width = current_left_pane != nullptr && current_left_pane->IsShown() ? current_left_pane->GetSize().x : 0;
+            auto* current_left_divider = wxWindow::FindWindowByName("Resize Plates and Project panel", m_frame);
+            const int left_handle_width = current_left_divider != nullptr && current_left_divider->IsShown()
+                                              ? current_left_divider->GetSize().x : 0;
             const int expected_max = std::max(pane->FromDIP(320),
-                m_frame->GetClientSize().x - pane->FromDIP(320) - divider->GetSize().x - left_width);
+                m_frame->GetClientSize().x - pane->FromDIP(320) - divider->GetSize().x - left_width - left_handle_width);
             check(pane->GetSize().x == expected_max, "agent_panel_drag_uses_available_window_width");
             check(workspace_width() > 200, "agent_panel_drag_preserves_workspace_width");
 
             drag(pane->GetSize().x - original_pane_width);
             check(pane->GetSize().x == original_pane_width, "agent_panel_width_can_be_restored");
 
-            check(toggle != nullptr && toggle->IsShown(), "agent_panel_toggle_shown");
+            check(project_toggle != nullptr && !project_toggle->IsShown(),
+                  "agent_panel_open_toggle_leaves_project_header");
             const int open_workspace_width = workspace_width();
 
             double_click();
             check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_divider_double_click_collapses");
             check(!pane->IsShown() && !divider->IsShown(), "agent_panel_collapse_hides_pane_and_divider");
+            check(project_toggle != nullptr && project_toggle->IsShown(),
+                  "agent_panel_closed_toggle_moves_to_project_header");
             check(workspace_width() > open_workspace_width, "agent_panel_collapse_widens_workspace");
             check(pane->web_view().host().mcp() != nullptr, "agent_panel_collapse_keeps_the_runtime");
 
@@ -8734,36 +8873,6 @@ private:
             check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_closes_the_pane");
             press_toggle();
             check(!installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_reopens_again");
-
-            // The toggle's two states are one glyph with its right-hand column
-            // filled or empty. No assertion on state can see which was drawn,
-            // so the button paints itself into a file the way the chip does.
-            if (toggle != nullptr) {
-                const char* artifact_dir = std::getenv("JUSPRIN_ARTIFACT_DIR");
-                const fs::path out = artifact_dir != nullptr ? fs::path(artifact_dir)
-                                                             : fs::path(data_dir()) / "agent-toggle";
-                fs::create_directories(out);
-                auto shoot = [&](const std::string& name) {
-                    const wxBitmap bitmap = toggle->snapshot();
-                    const std::string file = (out / (name + ".png")).string();
-                    const bool ok = bitmap.IsOk() && bitmap.GetWidth() > 0 &&
-                                    bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
-                    check(ok, "agent_panel_toggle_renders_" + name);
-                    if (ok) std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
-                    return bitmap.IsOk() ? bitmap.ConvertToImage() : wxImage();
-                };
-                const wxImage open_glyph = shoot("agent-toggle-open");
-                press_toggle();
-                const wxImage closed_glyph = shoot("agent-toggle-closed");
-                press_toggle();
-                const bool differ = open_glyph.IsOk() && closed_glyph.IsOk() &&
-                                    open_glyph.GetWidth() == closed_glyph.GetWidth() &&
-                                    open_glyph.GetHeight() == closed_glyph.GetHeight() &&
-                                    std::memcmp(open_glyph.GetData(), closed_glyph.GetData(),
-                                                std::size_t(open_glyph.GetWidth()) * open_glyph.GetHeight() * 3) != 0;
-                check(differ, "agent_panel_toggle_draws_its_two_states_differently");
-                check(!installed_shell()->is_agent_pane_collapsed(), "agent_panel_open_after_capture");
-            }
 
             drag(-divider->FromDIP(120));
             check(pane->GetSize().x > original_pane_width, "agent_panel_still_resizable_after_collapse");
@@ -8849,18 +8958,33 @@ private:
         const wxRect workspace = m_notebook->GetRect();
         const wxRect bar = divider->GetRect();
         const wxRect agent = pane->GetRect();
+        auto* row = installed_shell()->status_row();
+        auto* webview = pane->web_view().webview();
         // The Plates / Project pane, when shown, is the first column.
         const LeftPane* left_pane = installed_shell()->left_pane();
         const bool left_shown = left_pane != nullptr && left_pane->IsShown();
-        const int  origin = left_shown ? left_pane->GetRect().GetRight() + 1 : 0;
-        const bool tiled = (!left_shown || left_pane->GetRect().x == 0) && workspace.x == origin && workspace.GetWidth() > 0 &&
+        auto* left_divider = wxWindow::FindWindowByName("Resize Plates and Project panel", m_frame);
+        const bool left_divider_shown = left_divider != nullptr && left_divider->IsShown();
+        const int project_origin = left_shown && left_divider_shown ? left_divider->GetRect().GetRight() + 1 : 0;
+        const bool tiled = (!left_shown || (left_pane->GetRect().x == 0 && left_divider_shown &&
+                                            left_pane->GetRect().GetRight() + 1 == left_divider->GetRect().x)) &&
+                           workspace.x == project_origin && workspace.GetWidth() > 0 &&
                            workspace.GetRight() + 1 == bar.x &&
                            bar.GetRight() + 1 == agent.x &&
                            agent.GetRight() + 1 == client;
         check(tiled, "agent_panel_columns_tile_the_client_" + name);
+        const bool header_split = row != nullptr && webview != nullptr &&
+                                  row->GetRect().x == project_origin && row->GetRect().GetRight() + 1 == bar.x &&
+                                  row->GetRect().y == bar.y && agent.y == bar.y &&
+                                  webview->GetRect().x == 0 && webview->GetRect().y == 0 &&
+                                  webview->GetRect().GetWidth() == agent.GetWidth();
+        check(header_split, "agent_panel_web_header_splits_at_divider_" + name);
         if (!tiled)
             std::cerr << "HARNESS DETAIL client=" << client << " workspace=" << workspace.x << "+"
-                      << workspace.GetWidth() << " divider=" << bar.x << "+" << bar.GetWidth()
+                      << workspace.GetWidth() << " left-divider="
+                      << (left_divider == nullptr ? -1 : left_divider->GetRect().x) << "+"
+                      << (left_divider == nullptr ? 0 : left_divider->GetRect().GetWidth())
+                      << " divider=" << bar.x << "+" << bar.GetWidth()
                       << " pane=" << agent.x << "+" << agent.GetWidth() << '\n';
     }
 
@@ -8875,10 +8999,14 @@ private:
         auto* action = wxWindow::FindWindowByName("Next print action",row);
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         auto* more = wxWindow::FindWindowByName("Project actions",row);
+        auto* toggle = wxWindow::FindWindowByName("Agent panel",row);
+        auto* left_toggle = wxWindow::FindWindowByName("Plates and Project panel",row);
         check(home && setup && action && arrow && more,"header_has_all_five_controls");
         if (!home || !setup || !action || !arrow || !more) return;
         check(row->GetSize().y == row->FromDIP(56),"header_matches_56_dip_design");
-        check(home->GetPosition().x == row->FromDIP(16),"header_home_left_margin");
+        const int expected_home_x = row->FromDIP(16) +
+            (left_toggle != nullptr && left_toggle->IsShown() ? left_toggle->GetSize().x + row->FromDIP(8) : 0);
+        check(home->GetPosition().x == expected_home_x,"header_home_follows_optional_left_pane_toggle");
         check(home->GetRect().GetRight() < setup->GetPosition().x && setup->GetRect().GetRight() < action->GetPosition().x,
               "header_home_setup_actions_order_without_overlap");
         // The reducer returns no menu items for a single unsliced plate, and the
@@ -8891,7 +9019,15 @@ private:
             check(action->GetRect().GetRight() < more->GetPosition().x,"header_lone_action_precedes_overflow");
         }
         check(action->GetSize().y == row->FromDIP(34),"header_action_height");
-        check(more->GetPosition().x+more->GetSize().x == row->GetSize().x-row->FromDIP(16),"header_overflow_right_aligned");
+        if (toggle != nullptr && toggle->IsShown()) {
+            check(toggle->GetPosition().x + toggle->GetSize().x == row->GetSize().x - row->FromDIP(16),
+                  "header_closed_agent_toggle_right_aligned");
+            check(more->GetRect().GetRight() < toggle->GetPosition().x,
+                  "header_overflow_precedes_closed_agent_toggle");
+        } else {
+            check(more->GetPosition().x+more->GetSize().x == row->GetSize().x-row->FromDIP(16),
+                  "header_overflow_right_aligned");
+        }
         check(!setup->GetLabel().Contains("Plate ") && !setup->GetLabel().Contains("@"),"header_setup_compact_no_plate_or_raw_suffix");
         check(!status_row_labels(row).Contains(wxString::FromUTF8("Prints \xC2\xB7")),"header_has_no_standalone_print_count");
     }
@@ -9362,13 +9498,15 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Mcp;
         else if (argument == "--mcp-setup")
             state->mode = HarnessState::Mode::McpSetup;
-        else if (argument == "--manual-mcp" || argument == "--header-visual") {
+        else if (argument == "--manual-mcp" || argument == "--header-visual" ||
+                 argument == "--right-pane-visual") {
             if (++index == argc) {
                 std::cerr << "--manual-mcp requires a dedicated fixture directory\n";
                 return 2;
             }
             state->mode = HarnessState::Mode::ManualMcp;
             state->header_visual = argument == "--header-visual";
+            state->right_pane_visual = argument == "--right-pane-visual";
             data_directory = fs::absolute(argv[index]);
         }
         else if (argument == "--mcp-bridge") {

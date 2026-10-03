@@ -52,11 +52,13 @@ bool preset_exists(Preset::Type type, const std::string& name)
     return preset != nullptr && preset->name == name && preset->is_visible && !preset->is_default;
 }
 
-class AgentPaneResizeHandle final : public wxPanel
+class PaneResizeHandle final : public wxPanel
 {
 public:
+    enum class PaneSide { Left, Right };
+
     // What the divider needs from the shell: the pane's width now, a new
-    // width while dragging, and the double click that closes the pane.
+    // width while dragging, and optionally the double click that closes it.
     struct Callbacks
     {
         std::function<int()>     width;
@@ -64,26 +66,29 @@ public:
         std::function<void()>    toggle;
     };
 
-    AgentPaneResizeHandle(wxWindow* parent, const ShellTheme& theme, Callbacks callbacks)
+    PaneResizeHandle(wxWindow* parent, const ShellTheme& theme, PaneSide side,
+                     const wxString& name, const wxString& tooltip, Callbacks callbacks)
         : wxPanel(parent, wxID_ANY, wxDefaultPosition,
                   parent->FromDIP(wxSize(theme.metrics().agent_pane.resize_handle_width, -1)),
                   wxBORDER_NONE)
         , m_theme(theme)
+        , m_side(side)
         , m_callbacks(std::move(callbacks))
     {
-        SetName(_L("Resize Agent panel"));
-        SetToolTip(_L("Drag to resize the Agent panel"));
+        SetName(name);
+        SetToolTip(tooltip);
         SetMinSize(parent->FromDIP(wxSize(m_theme.metrics().agent_pane.resize_handle_width, -1)));
         SetCursor(wxCursor(wxCURSOR_SIZEWE));
         SetBackgroundStyle(wxBG_STYLE_PAINT);
 
-        Bind(wxEVT_PAINT, &AgentPaneResizeHandle::on_paint, this);
+        Bind(wxEVT_PAINT, &PaneResizeHandle::on_paint, this);
         Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) { m_hovered = true; Refresh(); });
         Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) { m_hovered = false; Refresh(); });
-        Bind(wxEVT_LEFT_DOWN, &AgentPaneResizeHandle::on_left_down, this);
-        Bind(wxEVT_LEFT_UP, &AgentPaneResizeHandle::on_left_up, this);
-        Bind(wxEVT_LEFT_DCLICK, &AgentPaneResizeHandle::on_double_click, this);
-        Bind(wxEVT_MOTION, &AgentPaneResizeHandle::on_motion, this);
+        Bind(wxEVT_LEFT_DOWN, &PaneResizeHandle::on_left_down, this);
+        Bind(wxEVT_LEFT_UP, &PaneResizeHandle::on_left_up, this);
+        if (m_callbacks.toggle)
+            Bind(wxEVT_LEFT_DCLICK, &PaneResizeHandle::on_double_click, this);
+        Bind(wxEVT_MOTION, &PaneResizeHandle::on_motion, this);
         Bind(wxEVT_MOUSE_CAPTURE_LOST, [this](wxMouseCaptureLostEvent&) { m_dragging = false; Refresh(); });
     }
 
@@ -129,12 +134,10 @@ private:
         if (!m_dragging || !HasCapture())
             return;
         const int pointer_x = ClientToScreen(event.GetPosition()).x;
-        // A drag only ever sizes the pane; it stops at the minimum width and
-        // never closes it. Closing is deliberate -- the header button or a
-        // double click on this divider -- because a drag that closed the pane
-        // on its own would take the conversation off the screen as a side
-        // effect of aiming for a narrow one.
-        m_callbacks.set_width(m_drag_origin_width + m_drag_origin_x - pointer_x);
+        // Moving a pane's outer edge away from it grows the pane, regardless
+        // of which side of the workspace it occupies.
+        const int delta = pointer_x - m_drag_origin_x;
+        m_callbacks.set_width(m_drag_origin_width + (m_side == PaneSide::Left ? delta : -delta));
     }
 
     void end_drag()
@@ -148,6 +151,7 @@ private:
     }
 
     const ShellTheme& m_theme;
+    PaneSide m_side;
     Callbacks m_callbacks;
     bool m_hovered{false};
     bool m_dragging{false};
@@ -255,9 +259,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
         m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.min_width);
-        m_agent_resize_handle = new AgentPaneResizeHandle(
-            &frame, *m_theme,
-            AgentPaneResizeHandle::Callbacks{
+        m_agent_resize_handle = new PaneResizeHandle(
+            &frame, *m_theme, PaneResizeHandle::PaneSide::Right,
+            _L("Resize Agent panel"), _L("Drag to resize the Agent panel"),
+            PaneResizeHandle::Callbacks{
                 [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
                 [this](int width) { request_agent_pane_width(width); },
                 [this] { toggle_agent_pane(); }});
@@ -310,8 +315,20 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             return points;
         });
         project_host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
-            if (type != Agent::Protocol::kShellAction || !payload.is_object() ||
-                payload.value("action", std::string()) != "revert_to_here")
+            if (type != Agent::Protocol::kShellAction || !payload.is_object())
+                return false;
+            const std::string action = payload.value("action", std::string());
+            if (action == "collapse_agent_pane") {
+                // Hiding a wxWebView from inside its own script-message
+                // callback can stall its platform message pump. Collapse on
+                // the next native turn, after this handler has returned.
+                m_frame->CallAfter([this] {
+                    if (m_installed && !m_agent_pane_collapsed)
+                        toggle_agent_pane();
+                });
+                return true;
+            }
+            if (action != "revert_to_here")
                 return false;
             const std::string id = payload.value("versionId", std::string());
             const auto versions = m_autosave->history();
@@ -419,10 +436,22 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
+        m_project_sizer = new wxBoxSizer(wxVERTICAL);
         m_workspace_sizer = new wxBoxSizer(wxVERTICAL);
         m_workspace_sizer->Add(&tabpanel, 1, wxEXPAND);
         m_workspace_sizer->Add(m_home, 1, wxEXPAND);
         m_left_pane = new LeftPane(&frame, *m_theme, *m_workspace);
+        m_left_pane_preferred_width = frame.FromDIP(m_theme->metrics().left_pane.width);
+        m_left_resize_handle = new PaneResizeHandle(
+            &frame, *m_theme, PaneResizeHandle::PaneSide::Left,
+            _L("Resize Plates and Project panel"), _L("Drag to resize the Plates and Project panel"),
+            PaneResizeHandle::Callbacks{
+                [this] { return m_left_pane == nullptr ? 0 : m_left_pane->GetSize().x; },
+                [this](int width) { request_left_pane_width(width); },
+                [this] { toggle_left_pane(); }});
+        m_left_pane->set_pane_toggle([this] { toggle_left_pane(); });
+        m_status_row->set_left_pane_toggle([this] { toggle_left_pane(); });
+        m_status_row->set_left_pane_collapsed(m_left_pane_collapsed);
         m_left_pane->set_project_sources({m_persistence.get(), m_autosave.get(),
             [this] {
                 // OrcaSlicer's project-information editor lives on its Project page.
@@ -435,13 +464,15 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 m_frame->select_tab(size_t(page));
                 project->show_info_editor(true);
             }});
+        m_project_sizer->Add(m_status_row, 0, wxEXPAND);
+        m_project_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_left_pane, 0, wxEXPAND);
-        m_center_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
+        m_center_sizer->Add(m_left_resize_handle, 0, wxEXPAND);
+        m_center_sizer->Add(m_project_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_agent_resize_handle, 0, wxEXPAND);
         m_center_sizer->Add(m_agent_pane, 0, wxEXPAND);
         m_center_sizer->Add(m_printer_panel, 1, wxEXPAND);
         m_printer_panel->Hide();
-        main_sizer.Insert(0, m_status_row, 0, wxEXPAND);
         main_sizer.Add(m_center_sizer, 1, wxEXPAND);
 
         tabpanel.GetBtnsListCtrl()->Hide();
@@ -476,6 +507,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         apply_current_appearance();
         m_status_row->refresh();
         frame.Layout();
+        apply_left_pane_width();
         apply_agent_pane_width();
         // Home owns first-run printer setup; keep Orca's wizard available on demand.
         // Shell installation runs during MainFrame construction, before the
@@ -540,8 +572,10 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
 void ShellController::on_frame_size(wxSizeEvent& event)
 {
     event.Skip();
-    if (m_installed)
+    if (m_installed) {
+        apply_left_pane_width();
         apply_agent_pane_width();
+    }
 }
 
 int ShellController::agent_pane_width_within(int width) const
@@ -555,7 +589,9 @@ int ShellController::agent_pane_width_within(int width) const
     // The Plates / Project pane is also beside the canvas, so the Agent pane
     // may not take what the canvas needs while it is on screen.
     const int left_width = m_left_pane != nullptr && m_left_pane->IsShown() ? m_left_pane->GetSize().x : 0;
-    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width - left_width);
+    const int left_handle_width = m_left_resize_handle != nullptr && m_left_resize_handle->IsShown() ? handle_width : 0;
+    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width -
+                                             left_width - left_handle_width);
     return std::clamp(width, min_width, max_width);
 }
 
@@ -589,6 +625,59 @@ void ShellController::apply_agent_pane_width()
     m_frame->Layout();
 }
 
+int ShellController::left_pane_width_within(int width) const
+{
+    if (m_theme == nullptr || m_frame == nullptr)
+        return width;
+    const int min_width = m_frame->FromDIP(m_theme->metrics().left_pane.min_width);
+    const AgentPaneMetrics& agent = m_theme->metrics().agent_pane;
+    const int workspace_min_width = m_frame->FromDIP(agent.workspace_min_width);
+    const int handle_width = m_frame->FromDIP(agent.resize_handle_width);
+    const int agent_width = m_agent_pane != nullptr && m_agent_pane->IsShown() ? m_agent_pane->GetSize().x : 0;
+    const int agent_handle_width = m_agent_resize_handle != nullptr && m_agent_resize_handle->IsShown() ? handle_width : 0;
+    const int max_width = std::max(min_width, m_frame->GetClientSize().x - workspace_min_width - handle_width -
+                                             agent_width - agent_handle_width);
+    return std::clamp(width, min_width, max_width);
+}
+
+void ShellController::request_left_pane_width(int width)
+{
+    m_left_pane_preferred_width = left_pane_width_within(width);
+    apply_left_pane_width();
+    // Both panes share the same workspace reserve. Re-evaluate the opposite
+    // edge after a drag so neither preference can cover the center column.
+    apply_agent_pane_width();
+}
+
+void ShellController::apply_left_pane_width()
+{
+    if (m_theme == nullptr || m_frame == nullptr || m_center_sizer == nullptr || m_left_pane == nullptr ||
+        !m_left_pane->IsShown())
+        return;
+    const int width = left_pane_width_within(m_left_pane_preferred_width);
+    m_center_sizer->SetItemMinSize(m_left_pane, width, -1);
+    m_frame->Layout();
+}
+
+void ShellController::set_left_pane_collapsed(bool collapsed)
+{
+    if (m_left_pane == nullptr || m_left_resize_handle == nullptr || m_left_pane_collapsed == collapsed)
+        return;
+    m_left_pane_collapsed = collapsed;
+    const bool available = !m_task_open && m_tabpanel != nullptr &&
+                           m_tabpanel->GetSelection() == MainFrame::tp3DEditor;
+    m_left_pane->Show(available && !collapsed);
+    m_left_resize_handle->Show(available && !collapsed);
+    if (m_status_row != nullptr)
+        m_status_row->set_left_pane_collapsed(collapsed);
+    if (!collapsed)
+        apply_left_pane_width();
+    m_frame->Layout();
+    // The Agent preference may have expanded into space freed by the left
+    // pane, or need constraining when it returns.
+    apply_agent_pane_width();
+}
+
 void ShellController::set_agent_pane_collapsed(bool collapsed)
 {
     if (m_agent_pane == nullptr || m_agent_resize_handle == nullptr || m_agent_pane_collapsed == collapsed)
@@ -603,6 +692,7 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
         m_status_row->set_agent_pane_collapsed(collapsed);
     // Expanding re-applies the width policy, which lays out on its way; a
     // collapsed pane has no width to apply, so it lays out here.
+    apply_left_pane_width();
     if (collapsed)
         m_frame->Layout();
     else
@@ -624,6 +714,7 @@ void ShellController::uninstall()
     if (!m_installed)
         return;
     m_installed = false;
+    m_left_pane_collapsed = true;
     m_agent_pane_collapsed = false;
     m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
     m_frame->Unbind(wxEVT_SIZE, &ShellController::on_frame_size, this);
@@ -645,8 +736,18 @@ void ShellController::uninstall()
             if (m_home != nullptr)
                 m_workspace_sizer->Detach(m_home);
         }
+        if (m_project_sizer != nullptr) {
+            if (m_status_row != nullptr)
+                m_project_sizer->Detach(m_status_row);
+            if (m_workspace_sizer != nullptr)
+                m_project_sizer->Detach(m_workspace_sizer);
+        }
         if (m_left_pane != nullptr)
             m_center_sizer->Detach(m_left_pane);
+        if (m_left_resize_handle != nullptr)
+            m_center_sizer->Detach(m_left_resize_handle);
+        if (m_project_sizer != nullptr)
+            m_center_sizer->Detach(m_project_sizer);
         if (m_agent_resize_handle != nullptr)
             m_center_sizer->Detach(m_agent_resize_handle);
         if (m_agent_pane != nullptr)
@@ -654,12 +755,13 @@ void ShellController::uninstall()
         if (m_printer_panel != nullptr)
             m_center_sizer->Detach(m_printer_panel);
         m_main_sizer->Detach(m_center_sizer);
+        delete m_workspace_sizer;
+        delete m_project_sizer;
         delete m_center_sizer;
         m_center_sizer = nullptr;
+        m_project_sizer = nullptr;
         m_workspace_sizer = nullptr;
     }
-    if (m_status_row != nullptr)
-        m_main_sizer->Detach(m_status_row);
     if (m_main_sizer->GetItem(m_tabpanel) == nullptr)
         m_main_sizer->Add(m_tabpanel, 1, wxEXPAND | wxTOP, 0);
 
@@ -670,6 +772,10 @@ void ShellController::uninstall()
     if (m_status_row != nullptr) {
         m_status_row->Destroy();
         m_status_row = nullptr;
+    }
+    if (m_left_resize_handle != nullptr) {
+        m_left_resize_handle->Destroy();
+        m_left_resize_handle = nullptr;
     }
     if (m_agent_resize_handle != nullptr) {
         m_agent_resize_handle->Destroy();
@@ -721,6 +827,8 @@ void ShellController::apply_current_appearance()
         m_printer_panel->apply_appearance(dark);
     if (m_agent_resize_handle != nullptr)
         m_agent_resize_handle->Refresh();
+    if (m_left_resize_handle != nullptr)
+        m_left_resize_handle->Refresh();
 }
 
 // Home is a screen before a project, not a workspace: the Agent pilots a
@@ -777,6 +885,7 @@ void ShellController::show_task_panel()
     m_home->set_live(false);
     m_workspace_sizer->Show(false);
     m_left_pane->Hide();
+    m_left_resize_handle->Hide();
     m_status_row->Hide();
     m_agent_pane->Hide();
     m_agent_resize_handle->Hide();
@@ -832,8 +941,14 @@ void ShellController::on_page_changed()
     m_status_row->Show(!home);
     // The pane lists the project being prepared; Preview draws its own plate
     // picker and Home has no project in front.
-    m_left_pane->Show(!home && m_tabpanel->GetSelection() == MainFrame::tp3DEditor);
+    const bool left_pane_available = !home && m_tabpanel->GetSelection() == MainFrame::tp3DEditor;
+    if (m_status_row != nullptr)
+        m_status_row->set_left_pane_available(left_pane_available);
+    const bool show_left_pane = left_pane_available && !m_left_pane_collapsed;
+    m_left_pane->Show(show_left_pane);
+    m_left_resize_handle->Show(show_left_pane);
     m_frame->Layout();
+    apply_left_pane_width();
     set_agent_pane_collapsed(home ? true : m_agent_pane_user_collapsed);
 }
 

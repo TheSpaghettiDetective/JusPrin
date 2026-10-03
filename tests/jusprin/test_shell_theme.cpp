@@ -102,7 +102,8 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.agent_pane.resize_handle_width == 8);
     CHECK(m.agent_pane.resize_handle_line_width == 2);
     CHECK(m.left_pane.width == 200);
-    CHECK(m.left_pane.padding_y == 12);
+    CHECK(m.left_pane.min_width == 160);
+    CHECK(m.left_pane.padding_y == 10);
     CHECK(m.left_pane.tab_height == 36);
     CHECK(m.left_pane.tab_indicator_height == 2);
     CHECK(m.left_pane.list_padding_y == 8);

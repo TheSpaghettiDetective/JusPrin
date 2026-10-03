@@ -267,6 +267,7 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& left_pane = component.at("leftPane");
     const auto            pane_int  = [&left_pane](const char* key) { return parse_int(left_pane, "component.leftPane", key); };
     m.left_pane.width                    = pane_int("width");
+    m.left_pane.min_width                = pane_int("minWidth");
     m.left_pane.padding_y                = pane_int("paddingY");
     m.left_pane.tab_height               = pane_int("tabHeight");
     m.left_pane.tab_indicator_height     = pane_int("tabIndicatorHeight");

@@ -86,6 +86,11 @@ public:
         set_agent_pane_collapsed(m_agent_pane_user_collapsed);
     }
     bool is_agent_pane_collapsed() const { return m_agent_pane_collapsed; }
+    // Mirrored left-panel treatment: the open copy lives in its own header
+    // row; the collapsed copy lives at the same screen edge in Project header.
+    void set_left_pane_collapsed(bool collapsed);
+    void toggle_left_pane() { set_left_pane_collapsed(!m_left_pane_collapsed); }
+    bool is_left_pane_collapsed() const { return m_left_pane_collapsed; }
     // Takes the person to the Agent panel's own setup flow from anywhere in
     // the shell: leaves Home for the workspace, opens the panel as their
     // choice, and asks the page to open setup.
@@ -129,6 +134,9 @@ private:
     int  agent_pane_width_within(int width) const;
     void request_agent_pane_width(int width);
     void apply_agent_pane_width();
+    int  left_pane_width_within(int width) const;
+    void request_left_pane_width(int width);
+    void apply_left_pane_width();
 
     const ShellTheme* m_theme{nullptr};
     wxTimer m_runtime_timer{this};
@@ -141,17 +149,25 @@ private:
 
     StatusRow* m_status_row{nullptr};
     AgentPane* m_agent_pane{nullptr};
+    // The Agent page owns the open-pane toggle in its existing header. The
+    // project header owns the collapsed copy; only one is visible at a time.
     // The Plates / Project pane, left of the workspace; shown on Prepare only.
     LeftPane*  m_left_pane{nullptr};
     // Shown in the Notebook's slot while the Notebook's selection is tpHome.
     Home::HomeWebView* m_home{nullptr};
     // Fresh in-memory printer or filament task chat, shown over the workspace.
     PrinterSetup::PrinterPanel* m_printer_panel{nullptr};
+    wxWindow* m_left_resize_handle{nullptr};
     wxWindow* m_agent_resize_handle{nullptr};
     wxBoxSizer* m_center_sizer{nullptr};
+    // The project header and canvas share the center column. The Plates /
+    // Project and Agent panes are independent full-height columns beside it.
+    wxBoxSizer* m_project_sizer{nullptr};
     // Home and the Notebook share this slot: exactly one is shown.
     wxBoxSizer* m_workspace_sizer{nullptr};
+    int m_left_pane_preferred_width{0};
     int m_agent_pane_preferred_width{0};
+    bool m_left_pane_collapsed{true};
     bool m_agent_pane_collapsed{false};
     // What the person last asked for, as opposed to what Home imposes.
     bool m_agent_pane_user_collapsed{false};

@@ -360,7 +360,8 @@
     },
     "leftPane": {
       "width": 200,
-      "paddingY": 12,
+      "minWidth": 160,
+      "paddingY": 10,
       "tabHeight": 36,
       "tabIndicatorHeight": 2,
       "listPaddingY": 8,

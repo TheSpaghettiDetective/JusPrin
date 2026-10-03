@@ -4,7 +4,7 @@ import { AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard } from './components/SetupCard';
-import { ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
+import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
 import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
@@ -359,6 +359,7 @@ export function App({
     state.messages.some((message) => message.id === activity.correlationId) &&
     ['pending', 'approved', 'running'].includes(activity.state));
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); collapseSetup(); };
+  const collapseAgentPane = () => client.send('shell_action', { action: 'collapse_agent_pane' });
   const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
   const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); collapseSetup(); };
 
@@ -373,7 +374,7 @@ export function App({
         collapseSetup();
       }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
-      }} />;
+      }} onCollapse={collapseAgentPane} />;
 
   // The dock body is one of three things: the conversation, the offer, or a
   // setup screen. Setup replaces the body rather than covering it, so backing
@@ -569,13 +570,14 @@ export function App({
       {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'setup' && !state.navigation.focused ? (
-        <AgentNotConfiguredHeader />
+        <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
       ) : state.navigation.focused ? (
         <header className="chat-header printer-header">
           <button type="button" className="printer-link-button" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
             onClick={() => { if (view === 'setup') closeSetup(); else returnToWorkspace(); }}>‹ Back</button>
           {view !== 'setup' && <button type="button" className="printer-link-button"
             onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>}
+          <AgentPaneToggle onCollapse={collapseAgentPane} />
         </header>
       ) : (
         <>
@@ -583,7 +585,8 @@ export function App({
             onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
-            onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }} />
+            onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }}
+            onCollapse={collapseAgentPane} />
           {view === 'chat' && !notConfigured && state.context && (
             // The card sits in its own pinned band above the thread, as the
             // design has it: the band is the canvas the tinted card sits on.

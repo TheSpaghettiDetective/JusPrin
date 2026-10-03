@@ -67,6 +67,14 @@ StatusRow::StatusRow(wxWindow*                  parent,
     SetName("Project header");
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetMinSize(wxSize(-1, FromDIP(kHeaderHeightDip)));
+    m_left_pane_toggle = new HeaderButton(this, theme, HeaderStyle::Outline, wxEmptyString, HeaderIcon::PanelLeftClosed);
+    m_left_pane_toggle->SetName(_L("Plates and Project panel"));
+    m_left_pane_toggle->SetToolTip(_L("Show the Plates and Project panel"));
+    m_left_pane_toggle->Hide();
+    m_left_pane_toggle->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (m_left_pane_toggle_callback)
+            m_left_pane_toggle_callback();
+    });
     m_home_button = new HeaderButton(this, theme, HeaderStyle::Quiet, _L("Home"), HeaderIcon::Back);
     m_home_button->SetName("Home navigation");
     m_chip = new PrinterFilamentChip(this, theme);
@@ -142,7 +150,7 @@ void StatusRow::apply_appearance(bool dark)
     m_dark = dark;
     const ShellPalette& palette = m_theme.palette(dark);
     SetBackgroundColour(palette.surface_canvas);
-    for (auto* button : {m_home_button,m_slice_button,m_menu_button,m_overflow_button,m_agent_toggle})
+    for (auto* button : {m_left_pane_toggle,m_home_button,m_slice_button,m_menu_button,m_overflow_button,m_agent_toggle})
         button->set_dark(dark);
     m_chip->set_dark(dark);
     Refresh();
@@ -259,6 +267,37 @@ void StatusRow::set_agent_pane_collapsed(bool collapsed)
 {
     m_agent_toggle->set_icon(collapsed ? HeaderIcon::PanelClosed : HeaderIcon::PanelOpen);
     m_agent_toggle->SetToolTip(collapsed ? _L("Show the Agent panel") : _L("Hide the Agent panel"));
+    // The open pane carries its own copy at the same right edge. Keeping two
+    // controls avoids reparenting a live native button as the pane changes.
+    m_agent_toggle->Show(collapsed);
+    layout_header();
+}
+
+void StatusRow::set_left_pane_toggle(std::function<void()> toggle)
+{
+    m_left_pane_toggle_callback = std::move(toggle);
+    m_left_pane_toggle->Show(m_left_pane_available && m_left_pane_collapsed &&
+                             static_cast<bool>(m_left_pane_toggle_callback));
+    layout_header();
+}
+
+void StatusRow::set_left_pane_available(bool available)
+{
+    m_left_pane_available = available;
+    m_left_pane_toggle->Show(available && m_left_pane_collapsed &&
+                             static_cast<bool>(m_left_pane_toggle_callback));
+    layout_header();
+}
+
+void StatusRow::set_left_pane_collapsed(bool collapsed)
+{
+    m_left_pane_collapsed = collapsed;
+    m_left_pane_toggle->set_icon(collapsed ? HeaderIcon::PanelLeftClosed : HeaderIcon::PanelLeftOpen);
+    m_left_pane_toggle->SetToolTip(collapsed ? _L("Show the Plates and Project panel") :
+                                              _L("Hide the Plates and Project panel"));
+    m_left_pane_toggle->Show(m_left_pane_available && collapsed &&
+                             static_cast<bool>(m_left_pane_toggle_callback));
+    layout_header();
 }
 
 void StatusRow::toggle_agent_pane()
@@ -275,22 +314,28 @@ void StatusRow::layout_header()
         if (width >= 0) size.x = width;
         button->SetSize(x,(height-size.y)/2,size.x,size.y);
     };
-    int right = GetClientSize().x-margin-m_overflow_button->GetBestSize().x;
-    place(m_overflow_button,right);
-    right -= gap;
+    int right = GetClientSize().x-margin;
     if (m_agent_toggle->IsShown()) {
         right -= m_agent_toggle->GetBestSize().x;
         place(m_agent_toggle,right);
         right -= gap;
     }
+    right -= m_overflow_button->GetBestSize().x;
+    place(m_overflow_button,right);
+    right -= gap;
     if (m_menu_button->IsShown()) {
         right -= m_menu_button->GetBestSize().x;
         place(m_menu_button,right);
     }
     right -= m_slice_button->GetBestSize().x;
     place(m_slice_button,right);
-    place(m_home_button,margin);
-    const int left = margin+m_home_button->GetBestSize().x+gap;
+    int home_x = margin;
+    if (m_left_pane_toggle->IsShown()) {
+        place(m_left_pane_toggle, home_x);
+        home_x += m_left_pane_toggle->GetBestSize().x + gap;
+    }
+    place(m_home_button,home_x);
+    const int left = home_x+m_home_button->GetBestSize().x+gap;
     const int available = std::max(0,right-gap-left);
     const int width = std::min(m_chip->GetBestSize().x,available);
     const wxSize chip = m_chip->GetBestSize();
