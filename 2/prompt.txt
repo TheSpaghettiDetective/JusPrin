@@ -1,0 +1,9 @@
+read @/Users/kenneth/Projects/JusPrin/handoff-chat-state-and-restoration.md to see if you have everything you need to implement this task
+
+---
+
+Do you need a hi-fi design or you can use the current reusable components to construct the UI elements that you may need to implement this.?
+
+---
+
+implement it and test it
