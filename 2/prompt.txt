@@ -109,3 +109,15 @@ This block is automatically supplied ambient UI state, not part of the user's re
 
 ## My request:
 promote the existing 4-DIP value to the shared Progress component/token and have PrinterCard consume it.
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=1222-1300&t=IMosyiKaPTMBxb2J-0
+</in-app-browser-context>
+
+## My request:
+commit to jusprin-newui branch and push.
