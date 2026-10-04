@@ -9,3 +9,7 @@ The handle dock is updated to tell you where to find the Figma design. reload it
 ---
 
 launch the app so that I can test it
+
+---
+
+commit to jusprin-newui and push
