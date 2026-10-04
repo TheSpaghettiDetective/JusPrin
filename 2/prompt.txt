@@ -1,0 +1,111 @@
+open figma in browser
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=0-1&p=f&t=6xRUgJr0EAkCU5QO-0
+</in-app-browser-context>
+
+## My request:
+check the add/change printer/filament flow page against the "design system" in figma. identify the elements that are misisng from the design system.
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=0-1&p=f&t=6xRUgJr0EAkCU5QO-0
+</in-app-browser-context>
+## My request:
+check the ui elements used in add/change printer/filament chat page against the "design system" in figma. identify the ui elements that are misisng from the design system. Don't make any changes For now.
+
+---
+
+can you prompt figma agent to design these missing elements without a lofi wireframe?
+
+---
+
+check to see if printer chat examples are in shared lib, or local. don't make chan ges
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=1198-3644&t=6xRUgJr0EAkCU5QO-0
+</in-app-browser-context>
+## My request:
+so it should be moved to “Printer & Material Settings.” right? if so, move it yourself. don't ask figma agent to do so. after that, spin up a subagent to bring the code up to date with the figma design.
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=1202-2660&t=6xRUgJr0EAkCU5QO-0
+</in-app-browser-context>
+
+## My request:
+check the chat panel on the prepare screen to identify the UI elements that are still missing from figma design systems
+
+---
+
+this is in the sidechat:&#x20;
+are  visible rows, header, and Configure Agent footer supposed to be shared?
+8:34 PM
+Probably not. The chat list header and Configure Agent footer are specific to this panel, so they can stay local. The rows only need a shared component if the same interaction pattern appears elsewhere.
+I overreached by listing the chat list as a design-system gap. Its local Figma frame is sufficient for the current screen; I’d remove it from the missing-shared-elements list.
+
+check to see if you have overstated other parts too. I am a little bit surprised that we have more than twenty components in the design systems and we still keep on missing UI elements. My understanding about the design system is that it's supposed to be some building blocks to construct the entire UI, right? How many different kinds of building blocks do we actually need
+
+---
+
+did you previously create unnecessary shared components too?
+
+---
+
+search all fork-owned UI code to see if there are still ui elements that are not defined in Figma design system.
+
+---
+
+in sidechat:
+
+The easiest is to use a icon library, Instead of adding icons on case by case basis, right?
+8:59 PM
+Worked for 1m
+Yes. A consistent SVG icon library is a better source than drawing and cataloging each glyph ad hoc. A library such as [Lucide](https://lucide.dev/) provides a coherent style and SVGs whose size, color, and stroke can be adjusted.
+For JusPrin, I’d choose **one icon source for Figma, React, and the native shell**, then import only the icons the product uses. The existing `Icon` component can define size and color; it does not need a new component for every glyph. A few product-specific symbols can remain custom. The key is using the *same artwork* across all three surfaces—adding a React icon package alone would leave the native UI and Figma out of sync.
+
+let's choose one.&#x20;
+
+also instruct figma to add the other 2 missing shared controls
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=1222-1300&t=IMosyiKaPTMBxb2J-0
+</in-app-browser-context>
+
+## My request:
+Do you need anything from me to do icon migration? If not, spin up the subagents to do it.
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://www.figma.com/design/jo9J1sK9ZZ0vxncWnSp0vH/JusPrin-v2?node-id=1222-1300&t=IMosyiKaPTMBxb2J-0
+</in-app-browser-context>
+
+## My request:
+promote the existing 4-DIP value to the shared Progress component/token and have PrinterCard consume it.
