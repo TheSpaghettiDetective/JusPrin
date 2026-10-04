@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4482CE8GCQC3F7RM7A6XWDW",
+  "session_id": "01a10357-dac1-7ce3-ad39-fe213307750e",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-04T20:00:53.167821Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/LeftPane.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "bee65f347a6b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 739430,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 50335616,
+    "output_tokens": 104305,
+    "api_call_count": 345
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-04T20:00:52.467056Z",
+    "agent_lines": 372,
+    "agent_removed": 90,
+    "human_added": 158,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 532,
+    "total_lines_changed": 628,
+    "agent_percentage": 73.56687898089172,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 62,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
