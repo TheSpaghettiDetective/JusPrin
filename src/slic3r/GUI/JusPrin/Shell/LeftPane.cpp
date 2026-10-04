@@ -132,6 +132,20 @@ void LeftPane::refresh_from_workspace()
     Refresh();
 }
 
+void LeftPane::refresh_slicing_progress()
+{
+    const auto now = std::chrono::steady_clock::now();
+    if (now - m_last_progress_refresh < std::chrono::milliseconds(200))
+        return;
+    m_last_progress_refresh = now;
+    const auto slicing = m_workspace.snapshot().slicing;
+    if (m_snapshot.slicing.plate != slicing.plate || m_snapshot.slicing.percent != slicing.percent ||
+        m_snapshot.slicing.running != slicing.running) {
+        m_snapshot.slicing = slicing;
+        Refresh();
+    }
+}
+
 void LeftPane::show_plates()
 {
     m_navigation.show_plates();
@@ -160,6 +174,8 @@ bool LeftPane::handle_escape()
 
 wxString LeftPane::plate_status(const PaneRow& row) const
 {
+    if (m_snapshot.slicing.running && m_snapshot.slicing.plate == row.plate)
+        return m_snapshot.slicing.percent ? wxString::Format(_L("Slicing %d%%"), *m_snapshot.slicing.percent) : _L("Slicing…");
     return row.sliced ? _L("Sliced") : _L("Needs slice");
 }
 

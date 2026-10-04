@@ -10,14 +10,14 @@ The target project window has four stable regions:
 
 1. A compact machine and project status row.
 2. A collapsible, thin plates and objects pane.
-3. OrcaSlicer's existing Prepare or G-code Preview canvas.
+3. OrcaSlicer's existing Prepare canvas.
 4. A fixed Agent conversation and print-plan pane.
 
 The compact plates/objects pane is deferred to a later task. The first
 production shell and Agent implementation must not depend on it; users interact
 with objects through the native canvas and Agent until the pane is added.
 
-Prepare is the persistent workspace. **Check print** temporarily replaces its center canvas with Orca's real sliced Preview. **Print** opens Send preflight and never sends immediately. Project details are a drawer, and Monitor is a separate surface that can remain visible during other work.
+Prepare is the persistent workspace. **Check print** opens a modal window with a second instance of Orca's real Preview widget for the active valid slice; the stock Preview remains in Plater's Notebook. A small neutral Plater factory supplies the existing model, bed, slicing process, and G-code result to that window. Closing it returns focus to Prepare, and a changed project or slice closes it. **Print** currently opens Orca's existing send confirmation dialog and never sends immediately. Project details are a drawer, and Monitor is a separate surface that can remain visible during other work.
 
 ## Runtime architecture
 
@@ -27,10 +27,10 @@ OrcaSlicer process (C++17 / wxWidgets / OpenGL)
 │   ├── compact top navigation and machine status
 │   ├── native plates/objects pane
 │   ├── center workspace host
-│   │   ├── existing GLCanvas3D Prepare canvas
-│   │   └── existing G-code Preview canvas
+│   │   └── existing GLCanvas3D Prepare canvas
 │   └── wxWebView
 │       └── local React/TypeScript Agent interface
+├── modal Check print window with Orca G-code Preview
 ├── typed workspace/controller boundary
 ├── existing Orca model, selection, plates, gizmos, and undo stack
 └── existing slicing, project I/O, device, and print subsystems

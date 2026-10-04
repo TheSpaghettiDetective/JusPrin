@@ -4,7 +4,7 @@
 
 namespace Slic3r::GUI::JusPrin {
 
-enum class PrintAction { Slice, SliceAll, Cancel, Print, PrintAll, Export };
+enum class PrintAction { Slice, SliceAll, Cancel, CheckPrint, Print, PrintAll, Export };
 
 struct PrintActionState
 {
@@ -32,7 +32,8 @@ inline PrimaryPrintAction primary_print_action(const PrintActionState& state)
         if (state.plate_count > 1) result.menu.push_back({PrintAction::SliceAll, state.can_slice_all});
     } else {
         result.primary = {PrintAction::Print, state.can_print};
-        result.menu = {{PrintAction::PrintAll, state.plate_count > 1 && state.can_print_all},
+        result.menu = {{PrintAction::CheckPrint, true},
+                       {PrintAction::PrintAll, state.plate_count > 1 && state.can_print_all},
                        {PrintAction::Export, state.can_export}};
     }
     return result;

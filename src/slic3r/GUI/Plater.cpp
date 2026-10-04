@@ -17247,6 +17247,13 @@ GLCanvas3D* Plater::get_preview_canvas3D()
     return p->preview->get_canvas3d();
 }
 
+Preview* Plater::create_preview(wxWindow* parent)
+{
+    return new Preview(parent, p->bed, &p->model, p->config, &p->background_process,
+                       p->partplate_list.get_current_slice_result(),
+                       [this]() { p->schedule_background_process(); });
+}
+
 GLCanvas3D* Plater::get_assmeble_canvas3D()
 {
     if (p->assemble_view)

@@ -33,12 +33,14 @@ const char* icon_asset(HeaderIcon icon)
     case HeaderIcon::Down:    return "chevron-down";
     case HeaderIcon::Up:      return "chevron-up";
     case HeaderIcon::Check:   return "check";
+    case HeaderIcon::Eye:     return "eye";
     case HeaderIcon::Lock:    return "lock-keyhole";
     case HeaderIcon::Printer: return "printer";
     case HeaderIcon::Monitor: return "monitor";
     case HeaderIcon::More:    return "ellipsis";
     case HeaderIcon::Cancel:  return "x";
     case HeaderIcon::Slice:   return "circle-play";
+    case HeaderIcon::Slicing: return "rotate-cw";
     case HeaderIcon::Plates:  return "layers-3";
     case HeaderIcon::Export:  return "download";
     case HeaderIcon::Print:   return "send";

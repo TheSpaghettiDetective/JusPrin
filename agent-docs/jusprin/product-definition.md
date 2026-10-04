@@ -139,7 +139,7 @@ These are authoritative project facts, not slicing parameters.
 The Project window should not treat Prepare, Preview, and Info as three equal destinations.
 
 - **Prepare is the dominant, persistent workspace.** It is where users inspect the model, communicate intent, manipulate geometry, resolve uncertainty, and review the agent's plan.
-- **Preview becomes Check print.** It is a temporary sliced-verification mode, not an equal workspace. Leaving Check returns the user to Prepare.
+- **Check print opens Orca Preview in a modal window.** Prepare remains underneath; closing Check returns focus to Prepare. It is a secondary action when the active plate has a valid slice.
 - **Info becomes Project details.** It is a drawer opened from the project name or menu. The agent reads its contents continuously even when the drawer is closed.
 - **Print opens Send preflight.** It never sends directly. Explicit Send remains the consequential commitment.
 
@@ -476,7 +476,7 @@ Do not always show time and material estimates in Prepare. Show them there only 
 
 This surface answers: **What will the printer actually do?**
 
-OrcaSlicer’s Preview capability is not merely an expert visualization. It is the last opportunity to discover a bad plan before material and machine time are consumed. In the AI-first product it should become **Check print**, a temporary mode that changes the main canvas into a sliced verification view.
+OrcaSlicer’s Preview capability is not merely an expert visualization. It is the last opportunity to discover a bad plan before material and machine time are consumed. **Check print** opens the current valid slice in a modal window using Orca's real Preview widget and G-code renderer. The window closes if that slice or its project changes. For now, Print stays the primary action for every valid slice and Check print stays in its menu; agent findings do not change that action.
 
 ### Default verification
 
@@ -547,6 +547,8 @@ This surface answers: **Is the correct job about to be sent to the correct physi
 Prepare should contain a visible Print entry point. Print opens this preflight; it does not bypass it:
 
 `Print -> Send preflight -> explicit Send`
+
+The current Print action opens Orca's existing Select Machine or printer-host send dialog, which requires a separate send/upload choice. The complete JusPrin preflight checklist below remains future product work.
 
 ### What should remain
 

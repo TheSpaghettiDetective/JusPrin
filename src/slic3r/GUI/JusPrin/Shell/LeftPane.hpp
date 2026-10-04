@@ -13,6 +13,7 @@
 #include <wx/panel.h>
 
 #include <functional>
+#include <chrono>
 #include <memory>
 #include <map>
 #include <optional>
@@ -68,6 +69,7 @@ public:
     void restore_version(const std::string& version_id);
     // Re-reads the workspace and repaints. Called for every workspace change.
     void refresh_from_workspace();
+    void refresh_slicing_progress();
 
     PaneNavigation&       navigation() { return m_navigation; }
     const PaneNavigation& navigation() const { return m_navigation; }
@@ -196,6 +198,7 @@ private:
     bool                    m_dark{false};
 
     Workspace::WorkspaceSnapshot m_snapshot;
+    std::chrono::steady_clock::time_point m_last_progress_refresh{};
     Workspace::ProjectOutline    m_outline;
     std::vector<PaneRow>         m_rows;
 
