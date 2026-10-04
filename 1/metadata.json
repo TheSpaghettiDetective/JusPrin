@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4482CE8GCQC3F7RM7A6XWDW",
+  "session_id": "01a10393-5633-7832-932c-5f682c41a3a2",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-04T20:00:54.545451Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/architecture.md",
+    "agent-docs/jusprin/product-definition.md"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-astra",
+  "turn_id": "4950c4c4ac1d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 441062,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 5076864,
+    "output_tokens": 25152,
+    "api_call_count": 38
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-04T20:00:54.382655Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 146,
+    "human_modified": 6,
+    "human_removed": 0,
+    "total_committed": 146,
+    "total_lines_changed": 160,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
