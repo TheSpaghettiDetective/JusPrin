@@ -77,9 +77,10 @@ describe('styles.css stays on the design tokens', () => {
     const emitted = new Set([...staticVariableNames(), ...semanticVariableNames()]);
     expect(emitted).toContain('--font-body-bold');
     expect(emitted).toContain('--button-secondary-padding');
+    expect(emitted).toContain('--progress-height');
     expect(emitted).toContain('--action-primary-text');
     const requested = [
-      ...css.matchAll(/var\((--(?:radius|font|button|action|text|surface|border|status)-[\w-]+)\)/g),
+      ...css.matchAll(/var\((--(?:radius|font|button|progress|action|text|surface|border|status)-[\w-]+)\)/g),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);
     expect(requested.filter((name) => !emitted.has(name))).toEqual([]);

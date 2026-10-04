@@ -18,7 +18,9 @@ export function staticVariableNames(): string[] {
   return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--thread-row-avatar-size',
     '--timeline-summary-padding', '--timeline-summary-padding-x', '--timeline-summary-icon-gap', '--printer-setup-width',
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
-    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size'];
+    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size',
+    '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
+    '--field-height', '--field-padding-x'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
@@ -42,7 +44,10 @@ export function applyStaticTokens(): void {
       printerDialog: { width: number; radius: number; scrimAlpha: number };
       timelineRevert: { width: number };
       statusDot: { size: number };
-      replyChip: { height: number; paddingX: number } };
+      replyChip: { height: number; paddingX: number };
+      chatAttachment: { maxWidth: number; thumbnailSize: number; kindSize: number };
+      field: { height: number; paddingX: number };
+      printerCard: { pictureSize: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
   document.documentElement.style.setProperty('--thread-row-avatar-size', `${component.threadRow.avatarSize}px`);
@@ -62,4 +67,10 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--reply-chip-padding-x', `${component.replyChip.paddingX}px`);
   document.documentElement.style.setProperty('--timeline-revert-width', `${component.timelineRevert.width}px`);
   document.documentElement.style.setProperty('--status-dot-size', `${component.statusDot.size}px`);
+  document.documentElement.style.setProperty('--chat-attachment-max-width', `${component.chatAttachment.maxWidth}px`);
+  document.documentElement.style.setProperty('--chat-attachment-thumbnail-size', `${component.chatAttachment.thumbnailSize}px`);
+  document.documentElement.style.setProperty('--chat-attachment-kind-size', `${component.chatAttachment.kindSize}px`);
+  document.documentElement.style.setProperty('--field-height', `${component.field.height}px`);
+  document.documentElement.style.setProperty('--field-padding-x', `${component.field.paddingX}px`);
+  document.documentElement.style.setProperty('--printer-card-picture-size', `${component.printerCard.pictureSize}px`);
 }

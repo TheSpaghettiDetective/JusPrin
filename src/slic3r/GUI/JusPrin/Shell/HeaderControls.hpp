@@ -20,8 +20,8 @@ namespace Slic3r::GUI::JusPrin {
 enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Lock, Slice, Plates, Export, Print, Cancel,
                         PanelOpen, PanelClosed, PanelLeftOpen, PanelLeftClosed };
 
-// Draws one of the header's small stroked glyphs into a graphics context, for
-// shell surfaces that paint their own rows with the same icon set.
+// Draws a semantic Lucide asset, or the product-specific solid caret/pane state,
+// into a graphics context for shell surfaces that paint their own rows.
 void draw_header_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, double size, const wxColour& color);
 
 // ChipLeft and ChipRight are the two halves of the printer/filament chip. Each is

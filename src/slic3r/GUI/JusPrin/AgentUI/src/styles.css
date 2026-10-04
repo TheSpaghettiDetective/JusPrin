@@ -387,8 +387,10 @@ body {
   margin-inline: auto;
 }
 /* Its dialog uses the existing printer-dialog tokens. */
-.app--printer-setup .chat-dialog-shade { background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); }
-.app--printer-setup .chat-dialog { max-width: var(--printer-dialog-width); border-radius: var(--printer-dialog-radius); box-shadow: var(--elevation-strong); }
+.chat-dialog-shade--destructive { background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); }
+.chat-dialog--destructive { max-width: var(--printer-dialog-width); border-radius: var(--printer-dialog-radius); box-shadow: var(--elevation-strong); }
+.chat-dialog--destructive .chat-dialog-buttons button { border-color: var(--border-subtle); }
+.chat-dialog--destructive .chat-dialog-buttons button.danger { border-color: var(--action-danger-border); background: var(--action-danger); color: var(--action-danger-text); }
 .app--printer-setup .printer-header, .app--focused-chat .printer-header {
   height: auto;
   flex-wrap: wrap;
@@ -415,7 +417,36 @@ body {
   white-space: nowrap;
   font: var(--font-body-bold);
 }
-.chat-header svg, .chat-list-pane svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+/* These masks come from the pinned Lucide SVG catalog. Vite embeds them in
+   the single-file WebView bundle while currentColor follows semantic tokens. */
+.jp-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.jp-icon-message-circle { -webkit-mask-image: url('@resources/jusprin/ui/icons/message-circle.svg'); mask-image: url('@resources/jusprin/ui/icons/message-circle.svg'); }
+.jp-icon-plus { -webkit-mask-image: url('@resources/jusprin/ui/icons/plus.svg'); mask-image: url('@resources/jusprin/ui/icons/plus.svg'); }
+.jp-icon-ellipsis { -webkit-mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); }
+.jp-icon-chevron-left { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-left.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-left.svg'); }
+.jp-icon-chevron-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); }
+.jp-icon-chevron-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
+.jp-icon-chevron-up { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg'); }
+.jp-icon-settings { -webkit-mask-image: url('@resources/jusprin/ui/icons/settings.svg'); mask-image: url('@resources/jusprin/ui/icons/settings.svg'); }
+.jp-icon-printer { -webkit-mask-image: url('@resources/jusprin/ui/icons/printer.svg'); mask-image: url('@resources/jusprin/ui/icons/printer.svg'); }
+.jp-icon-circle-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-check.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-check.svg'); }
+.jp-icon-circle-minus { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-minus.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-minus.svg'); }
+.jp-icon-circle-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
+.jp-icon-pencil { -webkit-mask-image: url('@resources/jusprin/ui/icons/pencil.svg'); mask-image: url('@resources/jusprin/ui/icons/pencil.svg'); }
+.jp-icon-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
+.jp-icon-close { -webkit-mask-image: url('@resources/jusprin/ui/icons/close.svg'); mask-image: url('@resources/jusprin/ui/icons/close.svg'); }
 button.chat-icon {
   display: inline-flex;
   align-items: center;
@@ -430,6 +461,9 @@ button.chat-icon {
   background: var(--surface-canvas);
 }
 button.chat-back { border-color: transparent; color: var(--action-primary); }
+/* The filled pane half communicates open/closed state, so this glyph is
+   product-specific rather than a stock Lucide action icon. */
+.agent-pane-toggle svg { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .agent-pane-toggle-fill { fill: currentColor; stroke: none; }
 .chat-actions { position: relative; }
 .chat-menu {
@@ -474,7 +508,7 @@ button.chat-list-row.selected { background: var(--surface-selected); }
 .chat-list-footer { flex: 0 0 auto; padding: 16px; border-top: 1px solid var(--border-subtle); background: var(--surface-subtle); }
 button.configure-agent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; text-align: left; border: 1px solid var(--border-subtle); background: var(--surface-canvas); }
 button.configure-agent:hover:enabled { background: var(--surface-canvas); border-color: var(--border-subtle); }
-.configure-agent svg { color: var(--action-primary); }
+.configure-agent .jp-icon { color: var(--action-primary); }
 .configure-agent span { min-width: 0; }
 .configure-agent strong { display: block; }
 .configure-agent small { display: block; font: var(--font-metadata); color: var(--text-secondary); }
@@ -486,7 +520,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: var(--radius-standard); }
 .chat-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-label); color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
-.chat-error span { flex: 1; }
+.chat-error > span { flex: 1; }
 
 /* Measured from the Figma Design System component "Chat Bubble" (node 9-126),
    which has one property, Role, with the two variants below. Both hug their
@@ -811,7 +845,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 .agent-change-summary-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-change-summary > button > .settings-changes-icon { flex: 0 0 var(--button-icon-icon-size); }
-.agent-change-summary-more { color: var(--action-primary); font: var(--font-label-bold); white-space: nowrap; }
+.agent-change-summary-more { display: inline-flex; align-items: center; color: var(--action-primary); font: var(--font-label-bold); white-space: nowrap; }
 .agent-change-summary-details {
   border-top: 1px solid var(--border-subtle);
 }
@@ -922,20 +956,14 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .tool-card {
   align-self: stretch;
   margin-left: 12px;
-  padding: 8px 12px;
+  padding: 12px;
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--action-primary);
   border-radius: var(--radius-container);
-  background: var(--surface-raised);
+  background: var(--surface-subtle);
 }
 
 .tool-card .tool-title {
   font: var(--font-body-bold);
-}
-
-.tool-card .tool-meta {
-  font: var(--font-metadata);
-  color: var(--text-secondary);
 }
 
 .tool-card .tool-actions {
@@ -944,28 +972,53 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   align-items: center;
   gap: 8px;
 }
+.tool-card .tool-actions > button:not(.primary) { border-color: var(--border-subtle); }
 
 .tool-card .tool-state {
-  font: var(--font-label);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font: var(--font-body-small);
   color: var(--text-secondary);
 }
 
 .tool-card .tool-state.done {
-  margin-top: 4px;
   color: var(--status-success);
 }
 
 .tool-card .tool-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin-top: 4px;
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--status-danger);
 }
 
 .tool-card progress {
-  flex: 1;
-  height: 6px;
+  display: block;
+  width: 100%;
+  height: var(--progress-height);
+  margin-top: 8px;
   accent-color: var(--action-primary);
 }
+
+.tool-status-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/ellipsis.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/ellipsis.svg') center / contain no-repeat;
+}
+.tool-status-icon.running { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); }
+.tool-status-icon.done { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
+.tool-status-icon.failed { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
+.tool-status-icon.cancelled { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-minus.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-minus.svg'); }
+.tool-cancel { margin-top: 8px; padding: 0; border: none; color: var(--action-primary); font: var(--font-label-bold); text-decoration: underline; }
+.tool-cancel:hover:enabled { border-color: transparent; color: var(--action-primary-hover); text-decoration: underline; }
 
 .tool-card .plan-members {
   margin: 4px 0 0;
@@ -978,15 +1031,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .tool-card .plan-member .tool-state {
   margin-left: 8px;
-}
-
-.tool-card.state-cancelled,
-.tool-card.state-rejected {
-  border-left-color: var(--border-subtle);
-}
-
-.tool-card.state-failed {
-  border-left-color: var(--status-danger);
 }
 
 /* Immutable build, external-copy, and physical-print timeline records */
@@ -1026,7 +1070,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   color: var(--text-secondary);
   font: var(--font-label);
 }
-.build-delivery { color: var(--status-success); }
+.build-delivery { display: inline-flex; align-items: center; gap: 4px; color: var(--status-success); }
 .history-reprint {
   align-self: flex-start;
   color: var(--action-primary);
@@ -1216,16 +1260,18 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
    `display: flex` that removes the engine's default one. */
 .history-disclosure {
   flex: 0 0 auto;
+  display: inline-block;
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: currentColor;
   color: var(--text-secondary);
-  font: var(--font-metadata);
+  -webkit-mask: url('@resources/jusprin/ui/icons/chevron-right.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/chevron-right.svg') center / contain no-repeat;
 }
 
-.history-disclosure::after {
-  content: '\25B8';
-}
-
-.history-details[open] .history-disclosure::after {
-  content: '\25BE';
+.history-details[open] .history-disclosure {
+  -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg');
+  mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg');
 }
 
 .history-detail {
@@ -1508,17 +1554,16 @@ input[type='radio']:checked {
   gap: 8px;
 }
 
-/* Both end controls take the same 28x28 slot so the row never shifts when
-   Send swaps for Stop. */
+/* Send and Stop share the same text-button slot, so streaming does not move
+   the field or its attachment action. */
 .attach-button,
 .composer-send {
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
+  min-height: var(--button-icon-height);
+  padding: var(--button-secondary-padding);
   border-radius: var(--radius-standard);
   cursor: pointer;
+  font: var(--font-label-bold);
 }
 
 .attach-button:hover:enabled,
@@ -1530,6 +1575,9 @@ input[type='radio']:checked {
   background: transparent;
   color: var(--action-primary);
 }
+
+.attach-button:hover:enabled { color: var(--action-primary-hover); }
+.attach-button:active:enabled { color: var(--action-primary-pressed); }
 
 .attach-button:disabled {
   color: var(--action-disabled-text);
@@ -1555,81 +1603,40 @@ input[type='radio']:checked {
   cursor: default;
 }
 
-.composer-send .send-glyph {
-  display: block;
-  width: 16px;
-  height: 16px;
-}
-
-/* A plain square: the smallest radius token (4px) would round an 8px glyph
-   into a circle. */
-.composer-send .stop-glyph {
-  display: block;
-  width: 8px;
-  height: 8px;
-  background: currentColor;
-}
-
-.attach-button .attach-glyph {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: currentColor;
-  -webkit-mask: url('@resources/jusprin/ui/icons/plus.svg') center / 16px 16px no-repeat;
-  mask: url('@resources/jusprin/ui/icons/plus.svg') center / 16px 16px no-repeat;
-}
-
 .attachment-chip {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  max-width: 240px;
-  padding: 4px 8px;
+  gap: 8px;
+  width: 100%;
+  max-width: var(--chat-attachment-max-width);
+  padding: 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-standard);
-  background: var(--surface-raised);
+  background: var(--surface-subtle);
 }
 
 .attachment-chip.errored {
   border-color: var(--status-danger);
 }
 
-/* The printer panel's staged photo: the picture is the point, so this drops
-   the padding, border and kind label the general chip carries. The file
-   name stays, per the wireframe (3.1 item 4, 3.3 state E). */
-.attachment-chip-compact {
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-
-.attachment-thumb-compact {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  border-radius: var(--radius-standard);
-}
-
-.attachment-name-compact {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font: var(--font-label);
-  color: var(--text-primary);
-}
-
 .attachment-thumb {
-  width: 28px;
-  height: 28px;
+  width: var(--chat-attachment-thumbnail-size);
+  height: var(--chat-attachment-thumbnail-size);
   object-fit: cover;
   border-radius: var(--radius-standard);
   flex: 0 0 auto;
 }
 
 .attachment-kind {
+  display: grid;
+  place-items: center;
+  width: var(--chat-attachment-kind-size);
+  height: var(--chat-attachment-kind-size);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
   font: var(--font-metadata);
-  text-transform: uppercase;
   color: var(--text-secondary);
   flex: 0 0 auto;
 }
@@ -1637,6 +1644,7 @@ input[type='radio']:checked {
 .attachment-meta {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-width: 0;
 }
 
@@ -1661,23 +1669,17 @@ input[type='radio']:checked {
 
 .attachment-remove {
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
+  padding: var(--button-secondary-padding);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font: var(--font-label);
   cursor: pointer;
 }
 
-.attachment-remove .remove-glyph {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: currentColor;
-  -webkit-mask: url('@resources/jusprin/ui/icons/close.svg') center / 16px 16px no-repeat;
-  mask: url('@resources/jusprin/ui/icons/close.svg') center / 16px 16px no-repeat;
-}
+.attachment-remove:hover:enabled { background: var(--action-secondary-hover); }
+.attachment-error { flex-basis: 100%; }
 
 .message-attachments {
   display: flex;
@@ -1699,17 +1701,21 @@ input[type='radio']:checked {
 .reply-chip {
   height: var(--reply-chip-height);
   padding: 0 var(--reply-chip-padding-x);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-standard);
   background: var(--surface-canvas);
   cursor: pointer;
   font: var(--font-label);
-  color: var(--text-primary);
+  color: var(--action-primary);
 }
 
 .reply-chip:hover {
-  border-color: var(--border-strong);
+  border-color: var(--action-primary-hover);
+  background: var(--action-primary-hover);
+  color: var(--action-primary-text);
 }
+.reply-chip:active { border-color: var(--action-primary-pressed); background: var(--action-primary-pressed); color: var(--action-primary-text); }
+.reply-chip:disabled { border-color: var(--action-disabled); background: var(--action-disabled); color: var(--action-disabled-text); }
 
 /* A sent photo in the printer panel: the picture itself, with any typed
    words drawing as its caption underneath (the message text, unchanged). */
@@ -1737,7 +1743,7 @@ input[type='radio']:checked {
   border: none;
   background: transparent;
   color: var(--text-primary);
-  min-height: 36px;
+  min-height: var(--field-height);
   max-height: 120px;
 }
 
@@ -1988,6 +1994,9 @@ button.wide {
 }
 
 .setup-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font: var(--font-label);
   color: var(--text-secondary);
 }
@@ -2017,6 +2026,9 @@ button.wide {
 }
 
 .setup-banner-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex: 1;
 }
 
@@ -2176,13 +2188,6 @@ button.wide {
   color: var(--status-success);
 }
 
-.setup-check {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--status-success);
-}
-
 .setup-expect {
   margin: 0;
   padding-left: 20px;
@@ -2261,25 +2266,10 @@ button.wide {
   color: var(--text-primary);
 }
 
-/* A photo is the fastest way in, said once, under the opening. */
+/* A photo is the fastest way in, said once under the opening. */
 .printer-tip {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 12px;
-  border-left: 2px solid var(--action-primary);
-  /* Not the selected surface: secondary text on it measures below 4.5:1 in
-     dark mode, and this paragraph is meant to be read. */
-  background: var(--surface-subtle);
   font: var(--font-label);
   color: var(--text-secondary);
-}
-
-.printer-tip-icon {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  color: var(--action-primary);
 }
 
 /* printer_add's receipt: the app's own line that the printer is saved. */
@@ -2290,7 +2280,7 @@ button.wide {
   padding: 8px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
-  background: var(--surface-raised);
+  background: var(--surface-subtle);
 }
 
 .printer-added-icon {
@@ -2306,6 +2296,8 @@ button.wide {
   min-width: 0;
 }
 
+.printer-added-text > small { font: var(--font-metadata); color: var(--text-secondary); }
+
 .printer-added-caption {
   font: var(--font-label-bold);
   color: var(--status-success);
@@ -2314,13 +2306,7 @@ button.wide {
 /* Wraps rather than clips: the nozzle at its end is the fact to check. */
 .printer-added-name {
   overflow-wrap: anywhere;
-  font: var(--font-label);
-  color: var(--text-primary);
-}
-
-.printer-added-name small {
-  font: var(--font-label);
-  color: var(--text-secondary);
+  color: inherit;
 }
 
 .printer-added-undo {
@@ -2335,8 +2321,7 @@ button.wide {
 }
 
 .printer-added-removed .printer-added-name {
-  color: var(--text-secondary);
-  text-decoration: line-through;
+  color: inherit;
 }
 
 /* The app's notice that Bambu's network plug-in is missing. Laid out as the
@@ -2349,7 +2334,7 @@ button.wide {
   padding: 8px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
-  background: var(--surface-raised);
+  background: var(--surface-subtle);
 }
 
 .printer-plugin-icon {
@@ -2387,7 +2372,11 @@ button.wide {
 .printer-found {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-container);
+  background: var(--surface-subtle);
 }
 
 .printer-found-caption {
@@ -2401,21 +2390,22 @@ button.wide {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-container);
-  background: var(--surface-raised);
 }
+
+.printer-row-icon { flex: none; width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-primary); }
+
+.printer-row-status { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font: var(--font-metadata); }
 
 .printer-dot {
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: var(--status-dot-size);
+  height: var(--status-dot-size);
   border-radius: var(--radius-pill);
-  background: var(--text-tertiary);
+  border: 1px solid var(--status-danger);
 }
 
 .printer-dot-online {
+  border: none;
   background: var(--status-success);
 }
 
@@ -2447,8 +2437,8 @@ button.wide {
 .printer-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
   background: var(--surface-raised);
@@ -2456,22 +2446,25 @@ button.wide {
 
 .printer-card-picture {
   flex: none;
-  width: 72px;
-  height: 56px;
+  width: var(--printer-card-picture-size);
+  height: var(--printer-card-picture-size);
   object-fit: contain;
   border-radius: var(--radius-standard);
   background: var(--surface-subtle);
 }
 
+.printer-card-picture-empty { display: grid; place-items: center; }
+.printer-card-glyph { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-primary); }
+
 /* The compact form is a question with two or three answers, so each row
    keeps its own button and gives the picture less of the width. */
 .printer-cards-compact .printer-card {
-  padding: 8px 12px;
+  padding: 8px;
 }
 
 .printer-cards-compact .printer-card-picture {
-  width: 44px;
-  height: 34px;
+  width: var(--printer-card-picture-size);
+  height: var(--printer-card-picture-size);
 }
 
 /* printer_connect's card: the one field the person types a secret into. */
@@ -2485,9 +2478,11 @@ button.wide {
 }
 
 .printer-credential-input {
-  padding: var(--button-secondary-padding);
+  box-sizing: border-box;
+  height: var(--field-height);
+  padding: 0 var(--field-padding-x);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-compact);
+  border-radius: var(--radius-standard);
   background: var(--surface-canvas);
   color: var(--text-primary);
   font: var(--font-code);
@@ -2508,24 +2503,15 @@ button.wide {
   color: var(--action-primary);
   text-decoration: underline;
 }
+.printer-back-link { display: inline-flex; align-items: center; gap: 4px; }
+
+.printer-link-button:hover:enabled { border-color: transparent; color: var(--action-primary-hover); text-decoration: underline; }
+.printer-link-button:active:enabled { color: var(--action-primary-pressed); }
+.printer-link-button:disabled { color: var(--action-disabled-text); }
 
 /* Labelled, because a picture is a primary way to name a printer. */
 .attach-button-photo {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  width: auto;
-  padding: var(--button-secondary-padding);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-standard);
-  font: var(--font-label);
-  color: var(--text-primary);
-}
-
-.photo-glyph {
-  flex: none;
-  width: 16px;
-  height: 16px;
+  color: var(--action-primary);
 }
 
 /* What a staged photo is waiting for: words, or just send. */

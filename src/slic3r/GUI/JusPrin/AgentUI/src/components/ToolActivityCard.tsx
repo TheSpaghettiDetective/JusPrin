@@ -27,34 +27,38 @@ export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
     activity.progress.total > 0 ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
 
   return (
-    <div className={`tool-card state-${activity.state}`} data-testid={`tool-${activity.actionId}`}>
+    <div className={`tool-card state-${activity.state}`} data-testid={`tool-${activity.actionId}`}
+      title={`${activity.tool} · ${activity.server}`}>
       <div className="tool-title">{activity.title}</div>
-      <div className="tool-meta">
-        {activity.tool} · {activity.server}
-      </div>
 
       {activity.state === 'pending' && (
-        <div className="tool-actions">
-          <span className="tool-state">{stateLabels.pending}</span>
-          <button className="primary" onClick={() => onDecision(activity.actionId, 'approve')}>
-            Approve
-          </button>
-          <button onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
-        </div>
+        <>
+          <div className="tool-state"><span className="tool-status-icon pending" aria-hidden="true" />{stateLabels.pending}</div>
+          <div className="tool-actions">
+            <button className="primary" onClick={() => onDecision(activity.actionId, 'approve')}>
+              Approve
+            </button>
+            <button onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
+          </div>
+        </>
       )}
 
       {(activity.state === 'approved' || activity.state === 'running') && (
-        <div className="tool-actions">
-          <progress aria-label={`${activity.title} progress`} max={activity.progress.total} value={activity.progress.current} />
-          <span className="tool-state">{activity.state === 'running' ? `${percent}%` : stateLabels.approved}</span>
-          <button onClick={() => onCancel(activity.actionId)}>Cancel</button>
-        </div>
+        <>
+          <div className="tool-state"><span className="tool-status-icon running" aria-hidden="true" />
+            {activity.state === 'running' ? `Running…${activity.progress.total > 0 ? ` · ${percent}%` : ''}` : stateLabels.approved}
+          </div>
+          <progress aria-label={`${activity.title} progress`}
+            max={activity.progress.total > 0 ? activity.progress.total : undefined}
+            value={activity.progress.total > 0 ? activity.progress.current : undefined} />
+          <button className="tool-cancel" onClick={() => onCancel(activity.actionId)}>Cancel</button>
+        </>
       )}
 
-      {activity.state === 'succeeded' && <div className="tool-state done">{stateLabels.succeeded}</div>}
+      {activity.state === 'succeeded' && <div className="tool-state done"><span className="tool-status-icon done" aria-hidden="true" />{stateLabels.succeeded}</div>}
 
       {activity.state === 'failed' && (
-        <div className="tool-error">
+        <div className="tool-error"><span className="tool-status-icon failed" aria-hidden="true" />
           {stale
             ? 'The project changed after this was proposed, so it was not run. Ask the Agent again.'
             : activity.error?.message ?? 'The action failed.'}
@@ -62,7 +66,7 @@ export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
       )}
 
       {(activity.state === 'cancelled' || activity.state === 'rejected') && (
-        <div className="tool-state">{stateLabels[activity.state]}</div>
+        <div className="tool-state"><span className="tool-status-icon cancelled" aria-hidden="true" />{stateLabels[activity.state]}</div>
       )}
     </div>
   );

@@ -85,7 +85,7 @@ function SetupInlineError({
       {diagnostic && (
         <div className="setup-error-details">
           <button type="button" onClick={() => setDetails(!details)}>
-            {details ? '▾' : '▸'} Technical output
+            <span className={`jp-icon jp-icon-chevron-${details ? 'down' : 'right'}`} aria-hidden="true" /> Technical output
           </button>
           {details && <pre>{diagnostic}</pre>}
         </div>
@@ -209,7 +209,7 @@ export function SetupLocalTool({
     return (
       <div className="pane-state setup" data-testid="setup-local-saved">
         <p className="setup-kicker">
-          <span className="setup-check" aria-hidden="true" />
+          <span className="jp-icon jp-icon-circle-check" aria-hidden="true" />
           Connected
         </p>
         <h1>{tool?.name ?? 'AI tool'} can see this project</h1>
@@ -261,7 +261,7 @@ export function SetupLocalTool({
         </div>
         <div className="setup-advanced">
           <button type="button" onClick={() => setAdvanced(!advanced)}>
-            {advanced ? '▾' : '▸'} Advanced / developer details
+            <span className={`jp-icon jp-icon-chevron-${advanced ? 'down' : 'right'}`} aria-hidden="true" /> Advanced / developer details
           </button>
           {advanced && (
             <>

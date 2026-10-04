@@ -129,7 +129,7 @@ describe('chat panel preview', () => {
       .map((entry) => `<figure>
   <figcaption><b>${entry.name}</b> — ${entry.note}</figcaption>
   <div class="dock ${mode}"><div class="app"><div class="chat-content">
-    <header class="chat-header"><button class="chat-back chat-icon" aria-label="Back to chats"><svg viewBox="0 0 24 24"><path d="m15 5-8 7 8 7"/></svg></button><h1>First print</h1><button class="chat-icon" aria-label="New chat"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="chat-icon" aria-label="Chat actions"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></header>
+    <header class="chat-header"><button class="chat-back chat-icon" aria-label="Back to chats"><span class="jp-icon jp-icon-chevron-left" aria-hidden="true"></span></button><h1>First print</h1><button class="chat-icon" aria-label="New chat"><span class="jp-icon jp-icon-plus" aria-hidden="true"></span></button><button class="chat-icon" aria-label="Chat actions"><span class="jp-icon jp-icon-ellipsis" aria-hidden="true"></span></button></header>
     ${entry.body}
     ${composer(false)}
   </div></div></div>

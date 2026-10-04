@@ -34,7 +34,7 @@ interface StaticTokens {
     code: TypeRole & { cssFamily: string };
     roles: Record<string, TypeRole>;
   };
-  component: { button: Record<string, ButtonRecipe> };
+  component: { button: Record<string, ButtonRecipe>; progress: { height: number } };
 }
 
 function fontShorthand(role: TypeRole, family: string): string {
@@ -76,6 +76,7 @@ export function sharedStaticVariableNames(): string[] {
       .filter(([, recipe]) => recipe.iconGap !== undefined)
       .map(([name]) => `--button-${kebab(name)}-icon-gap`),
     '--button-icon-width', '--button-icon-height', '--button-icon-icon-size',
+    ...pixelVariableNames('progress', component.progress),
   ];
 }
 
@@ -111,6 +112,7 @@ export function applySharedStaticTokens(): void {
   root.style.setProperty('--button-icon-width', `${icon.width}px`);
   root.style.setProperty('--button-icon-height', `${icon.height}px`);
   root.style.setProperty('--button-icon-icon-size', `${icon.iconSize}px`);
+  applyPixelTokens('progress', component.progress);
 }
 
 interface ElevationTier {

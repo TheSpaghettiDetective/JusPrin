@@ -44,6 +44,7 @@ interface Props {
   onToolCancel: (actionId: string) => void;
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
+  replyDisabled?: boolean;
   onDiscussFailure?: (text: string) => void;
   // The setup card's expansion is a layer over this thread; the thread dims
   // rather than being covered, so the conversation stays legibly there.
@@ -125,6 +126,7 @@ export function MessageList({
   onToolDecision,
   onToolCancel,
   onSend,
+  replyDisabled = false,
   onDiscussFailure,
   dimmed,
   printerBlocks,
@@ -301,7 +303,8 @@ export function MessageList({
               {choices.length > 0 && (
                 <div className="reply-chips">
                   {choices.map((choice) => (
-                    <button key={choice} type="button" className="reply-chip" onClick={() => onSend(choice)}>
+                    <button key={choice} type="button" className="reply-chip" disabled={replyDisabled}
+                      onClick={() => onSend(choice)}>
                       {choice}
                     </button>
                   ))}

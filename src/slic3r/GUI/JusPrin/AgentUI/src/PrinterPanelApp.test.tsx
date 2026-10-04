@@ -115,7 +115,7 @@ describe('the printer panel page', () => {
 
   it('goes back without asking before the person has said anything', async () => {
     const host = open();
-    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -127,7 +127,7 @@ describe('the printer panel page', () => {
 
   it('asks before going back once the person has said something, and Cancel stays', async () => {
     const host = open(said);
-    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     const dialog = screen.getByRole('dialog', { name: 'Close this conversation?' });
     expect(dialog).toHaveTextContent("This conversation will be closed. You can't continue it at a later point. Are you sure?");
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -136,7 +136,7 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')).toBeUndefined();
 
     // Escape is Cancel.
-    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(host.lastOfType('printer_action')).toBeUndefined();
@@ -144,7 +144,7 @@ describe('the printer panel page', () => {
 
   it('closes the conversation when the person confirms', async () => {
     const host = open(said);
-    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close conversation' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -153,7 +153,7 @@ describe('the printer panel page', () => {
   it('asks before going back over words not yet sent', async () => {
     const host = open();
     await userEvent.type(screen.getByLabelText('Message the Agent'), 'half a thought');
-    await userEvent.click(screen.getByRole('button', { name: '‹ Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(host.lastOfType('printer_action')).toBeUndefined();
   });
@@ -258,7 +258,7 @@ describe('the printer panel page', () => {
         }),
       }),
     );
-    const receipt = screen.getByText('Printer added').closest('.printer-added')!;
+    const receipt = screen.getByText('Added:', { exact: false }).closest('.printer-added')!;
     expect(screen.getByText('creality k1').compareDocumentPosition(receipt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(receipt.compareDocumentPosition(screen.getByText('Want to connect it?')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The reply's own choices are still the reply's, under it.
@@ -272,9 +272,9 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'undo_add', blockId: 'b2' });
 
     host.deliver('printer_session', session({ blocks: [{ ...added, removed: true }] }));
-    const receipt = screen.getByText('Printer removed').closest('.printer-added')!;
+    const receipt = screen.getByText('Removed:', { exact: false }).closest('.printer-added')!;
     expect(receipt).toHaveClass('printer-added-removed');
-    expect(screen.queryByText('Printer added')).toBeNull();
+    expect(screen.queryByText('Added:', { exact: false })).toBeNull();
     expect(receipt.querySelector('button')).toBeNull();
   });
 
@@ -340,15 +340,12 @@ describe('a photo in the printer panel', () => {
     previewDataUrl: 'data:image/jpeg;base64,AAA',
   };
 
-  // F3 review fix: the general chat's kind label ("Image") is dropped, but
-  // the wireframe (3.1 item 4, 3.3 state E) keeps the file name beside the
-  // thumbnail -- an earlier pass over-simplified this to a bare thumbnail.
-  it('stages a photo as the picture with its name, not the general chip with a kind label', () => {
+  it('stages a photo in the shared attachment row with its name and thumbnail', () => {
     const host = open();
     host.deliver('attachment_updated', { attachment: stagedPhoto });
     expect(screen.queryByText('Image')).toBeNull();
     expect(screen.getByText('nameplate.jpg')).toBeInTheDocument();
-    expect(screen.getByAltText('nameplate.jpg')).toBeInTheDocument();
+    expect(screen.getByText('nameplate.jpg').closest('.attachment-chip')!.querySelector('img')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove nameplate.jpg' })).toBeInTheDocument();
   });
 

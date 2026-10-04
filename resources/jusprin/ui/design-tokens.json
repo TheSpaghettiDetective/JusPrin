@@ -429,11 +429,19 @@
       "height": 28,
       "paddingX": 12
     },
+    "chatAttachment": {
+      "maxWidth": 320,
+      "thumbnailSize": 48,
+      "kindSize": 32
+    },
     "printerCard": {
       "columnWidth": 320,
-      "progressHeight": 4,
+      "pictureSize": 32,
       "padding": 16,
       "radius": 12
+    },
+    "progress": {
+      "height": 4
     },
     "statusDot": {
       "size": 8

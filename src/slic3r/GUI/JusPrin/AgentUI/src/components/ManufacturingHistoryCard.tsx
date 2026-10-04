@@ -109,7 +109,7 @@ export function ManufacturingHistoryCard({ entry, onDiscussFailure, discussDisab
             </span>
             <strong className="build-stats-line">{summaryStats(build.statistics)}</strong>
             {build.printer && <span className="build-target">{build.sentAt ? 'Sent to' : 'Sliced for'} {build.printer}</span>}
-            {build.deliveryConfirmedAt && <span className="build-delivery">✓ {chatTimestamp(build.deliveryConfirmedAt)} · on {build.deliveryLocation || 'the printer'}</span>}
+            {build.deliveryConfirmedAt && <span className="build-delivery"><span className="jp-icon jp-icon-check" aria-hidden="true" /> {chatTimestamp(build.deliveryConfirmedAt)} · on {build.deliveryLocation || 'the printer'}</span>}
             {copy && <span className="build-export">{copyName || copy.destination} · {copy.verified ? 'Checksum verified' : copy.modified ? 'Checksum differs' : 'Not checked'}</span>}
             {(build.sentAt || copy?.verified) && <span className="history-reprint" aria-disabled="true"
               title="This build does not retain a G-code file that the app can resend">Reprint this G-code</span>}

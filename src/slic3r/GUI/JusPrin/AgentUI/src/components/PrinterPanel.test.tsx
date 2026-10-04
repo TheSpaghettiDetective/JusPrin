@@ -27,20 +27,21 @@ describe('the cards the agent draws', () => {
     render(<PrinterBlockView block={block({ kind: 'network', printers: [{ name: 'Workshop', serial: '01P00A3B', online: true }] })} />);
     expect(screen.getByText('FOUND ON YOUR NETWORK')).toBeInTheDocument();
     expect(screen.getByText('01P00A3B')).toBeInTheDocument();
+    expect(screen.getByText('Online')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('says a printer was added, with its name and nozzle, and nothing to tap', () => {
     render(<PrinterBlockView block={block({ kind: 'added', printer: { name: 'Creality K1', nozzle: 0.4 } })} />);
     const receipt = screen.getByRole('status');
-    expect(receipt).toHaveTextContent('Printer added');
-    expect(receipt).toHaveTextContent('Creality K1 · 0.4 mm nozzle');
+    expect(receipt).toHaveTextContent('Added: Creality K1');
+    expect(receipt).toHaveTextContent('0.4 mm nozzle');
     expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('leaves out a nozzle the saved printer does not state', () => {
     render(<PrinterBlockView block={block({ kind: 'added', printer: { name: 'Creality K1', nozzle: 0 } })} />);
-    expect(screen.getByRole('status')).toHaveTextContent(/^Printer addedCreality K1$/);
+    expect(screen.getByRole('status')).toHaveTextContent(/^Added: Creality K1$/);
   });
 
   it('says the plug-in is needed, and Install asks the app to install it', async () => {

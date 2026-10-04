@@ -2,12 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ConversationInfo } from '../bridge/protocol';
 
 function ChatIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 3h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>;
+  return <span className="jp-icon jp-icon-message-circle" aria-hidden="true" />;
 }
 
 function NewChat({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
   return <button className="chat-icon" aria-label="New chat" title="New chat" disabled={busy} onClick={onCreate}>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+    <span className="jp-icon jp-icon-plus" aria-hidden="true" />
   </button>;
 }
 
@@ -67,7 +67,7 @@ export function ActionMenu({ label, items, buttonRef }: {
   }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <button ref={button} className="chat-icon" aria-label={label} title={label}
       aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+      <span className="jp-icon jp-icon-ellipsis" aria-hidden="true" />
     </button>
     {open && <div className="chat-menu" role="menu" aria-label={label}>
       {items.map((item) => <button key={item.label} role="menuitem" className={item.danger ? 'danger' : undefined}
@@ -78,15 +78,18 @@ export function ActionMenu({ label, items, buttonRef }: {
 
 // A modal question over the panel: focus starts on its first control and
 // stays inside it, and Escape is the same as `onClose` (its Cancel).
-export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+export function Dialog({ title, onClose, children, destructive = false }: {
+  title: string; onClose: () => void; children: React.ReactNode; destructive?: boolean;
+}) {
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const controls = () => Array.from(dialog.current!.querySelectorAll<HTMLElement>('input, button:not(:disabled)'));
 
   useEffect(() => { controls()[0]?.focus(); }, []);
 
-  return <div className="chat-dialog-shade">
-    <div ref={dialog} className="chat-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}
+  return <div className={`chat-dialog-shade${destructive ? ' chat-dialog-shade--destructive' : ''}`}>
+    <div ref={dialog} className={`chat-dialog${destructive ? ' chat-dialog--destructive' : ''}`}
+      role="dialog" aria-modal="true" aria-labelledby={titleId}
       onKeyDown={(event) => {
         if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
         if (event.key === 'Tab') {
@@ -127,7 +130,7 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete, 
   return <>
     <header className="chat-header">
       <button className="chat-back chat-icon" aria-label="Back to chats" title="Back to chats" onClick={onBack}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-8 7 8 7" /></svg>
+        <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" />
       </button>
       <h1 title={title}>{title}</h1>
       <NewChat busy={busy} onCreate={onCreate} />
@@ -137,7 +140,8 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete, 
       ]} />
       <AgentPaneToggle onCollapse={onCollapse} />
     </header>
-    {editing && <Dialog title={editing === 'rename' ? 'Rename chat' : 'Delete chat?'} onClose={closeDialog}>
+    {editing && <Dialog title={editing === 'rename' ? 'Rename chat' : 'Delete chat?'} onClose={closeDialog}
+      destructive={editing === 'delete'}>
       {editing === 'rename' ? <form onSubmit={(event) => {
         event.preventDefault();
         if (validName) { onRename(name.trim()); closeDialog(); }
@@ -199,7 +203,7 @@ export function ChatList({ conversations, activeId, busy, agentUnavailable, onSw
     </div>
     <footer className="chat-list-footer">
       <button className="configure-agent" onClick={onConfigure} disabled={busy}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.5 3-2 1-2.5-1-2 3 2 2v2l-2 2 2 3 2.5-1 2 1 .5 3h4l.5-3 2-1 2.5 1 2-3-2-2v-2l2-2-2-3-2.5 1-2-1L13 3Z" /><circle cx="11" cy="12" r="3" /></svg>
+        <span className="jp-icon jp-icon-settings" aria-hidden="true" />
         <span>
           <strong>{agentUnavailable ? 'Set up the agent' : 'Configure Agent'}</strong>
           <small>{agentUnavailable ? 'Connect an Agent to continue this conversation' : 'Adjust defaults, models, and slice preferences'}</small>

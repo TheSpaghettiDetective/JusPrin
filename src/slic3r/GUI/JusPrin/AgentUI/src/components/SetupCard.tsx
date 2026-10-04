@@ -207,7 +207,7 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
             data-testid="current-setup-chevron"
             onClick={onToggle}
           >
-            {expanded ? '▲' : '▼'}
+            <span className={`jp-icon jp-icon-chevron-${expanded ? 'up' : 'down'}`} aria-hidden="true" />
           </button>
         )}
       </p>

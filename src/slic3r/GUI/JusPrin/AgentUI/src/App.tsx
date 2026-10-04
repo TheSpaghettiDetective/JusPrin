@@ -364,7 +364,7 @@ export function App({
   const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); collapseSetup(); };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
-    <span>{commandError}</span><button aria-label="Dismiss error" onClick={() => setCommandError(null)}>×</button>
+    <span>{commandError}</span><button aria-label="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
   </div>;
 
   const chatList = <ChatList conversations={state.conversations} activeId={state.activeConversationId} busy={busy}
@@ -402,6 +402,7 @@ export function App({
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
           onSend={sendMessage}
+          replyDisabled={unavailable || streaming}
           onDiscussFailure={(text) => sendMessage(text, false)}
           onSetUpAgent={openSetup}
         />
@@ -464,15 +465,15 @@ export function App({
         {errorNotice}
         <div className="chat-content">
           <header className="chat-header printer-header">
-            <button type="button" className="printer-link-button" onClick={back}>
-              ‹ Back
+            <button type="button" className="printer-link-button printer-back-link" onClick={back}>
+              <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back
             </button>
             <button type="button" className="printer-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
               {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
             </button>
           </header>
           {confirmPrinterClose && (
-            <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)}>
+            <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)} destructive>
               <p>This conversation will be closed. You can't continue it at a later point. Are you sure?</p>
               <div className="chat-dialog-buttons">
                 <button type="button" onClick={() => setConfirmPrinterClose(false)}>Cancel</button>
@@ -490,6 +491,7 @@ export function App({
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
               onSend={sendMessage}
+              replyDisabled={unavailable || streaming}
               // The person decides on the credential's card and on a settings
               // change's; every other tool is what the model then says it did.
               toolActivities={state.toolActivities.filter((activity) =>
@@ -573,8 +575,8 @@ export function App({
         <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
       ) : state.navigation.focused ? (
         <header className="chat-header printer-header">
-          <button type="button" className="printer-link-button" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
-            onClick={() => { if (view === 'setup') closeSetup(); else returnToWorkspace(); }}>‹ Back</button>
+          <button type="button" className="printer-link-button printer-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
+            onClick={() => { if (view === 'setup') closeSetup(); else returnToWorkspace(); }}><span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back</button>
           {view !== 'setup' && <button type="button" className="printer-link-button"
             onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>}
           <AgentPaneToggle onCollapse={collapseAgentPane} />

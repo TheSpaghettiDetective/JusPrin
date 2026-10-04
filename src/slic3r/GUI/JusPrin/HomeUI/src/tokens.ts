@@ -3,7 +3,8 @@
 // geometry, guarded in tests/brand/test_brand_tokens.cpp:
 //   --project-card-<name>   min/max width, footer height, radius
 //   --project-card-thumbnail-aspect  the unitless `4 / 3` for aspect-ratio
-//   --printer-card-<name>   column width, progress height, radius
+//   --printer-card-<name>   column width, picture size, radius
+//   --progress-height       shared progress-track height from WebShared
 //   --status-dot-size, --swatch-size, --swatch-radius
 // and the printer card's menu, from the shared menu geometry:
 //   --button-icon-<name>    the kebab button: width, height, icon size, radius

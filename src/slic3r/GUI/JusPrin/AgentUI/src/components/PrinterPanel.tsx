@@ -14,15 +14,8 @@ import type {
 } from '../bridge/protocol';
 import { numberText } from '../printerWords';
 
-// The camera the panel shows wherever a photo is offered. Inline, like the
-// composer's send arrow, because the icon set carries no camera yet.
-export function CameraGlyph({ className }: { className: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
-    </svg>
-  );
+function PrinterGlyph({ className }: { className: string }) {
+  return <span className={`${className} jp-icon jp-icon-printer`} aria-hidden="true" />;
 }
 
 // One card in the thread, under the message it belongs to.
@@ -38,7 +31,6 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   if (block.kind === 'tip')
     return (
       <div className="printer-tip">
-        <CameraGlyph className="printer-tip-icon" />
         <span>
           <b>Tip:</b> a photo is the fastest way. Use <b>Photo</b> below, or drop a picture of the printer, its nameplate or the box
           into this panel.
@@ -53,16 +45,10 @@ export const PrinterBlockView = memo(function PrinterBlockView({
     const printer = block.printer!;
     return (
       <div className={block.removed ? 'printer-added printer-added-removed' : 'printer-added'} role="status">
-        <svg className="printer-added-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" />
-          {!block.removed && <path d="m7.5 12.5 3 3 6-6.5" />}
-        </svg>
+        <span className={`printer-added-icon jp-icon jp-icon-${block.removed ? 'circle-minus' : 'circle-check'}`} aria-hidden="true" />
         <span className="printer-added-text">
-          <span className="printer-added-caption">{block.removed ? 'Printer removed' : 'Printer added'}</span>
-          <span className="printer-added-name">
-            {printer.name}
-            {printer.nozzle > 0 && <small> · {numberText(printer.nozzle)} mm nozzle</small>}
-          </span>
+          <span className="printer-added-caption">{block.removed ? 'Removed:' : 'Added:'} <span className="printer-added-name">{printer.name}</span></span>
+          {!block.removed && printer.nozzle > 0 && <small>{numberText(printer.nozzle)} mm nozzle</small>}
         </span>
         {!block.removed && onUndoAdd && (
           <button type="button" className="printer-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
@@ -80,10 +66,7 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   if (block.kind === 'plugin')
     return (
       <div className={block.installed ? 'printer-plugin printer-plugin-installed' : 'printer-plugin'} role="status">
-        <svg className="printer-plugin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" />
-          {block.installed ? <path d="m7.5 12.5 3 3 6-6.5" /> : <path d="M12 7v6M12 16.5v.5" />}
-        </svg>
+        <span className={`printer-plugin-icon jp-icon jp-icon-${block.installed ? 'circle-check' : 'circle-alert'}`} aria-hidden="true" />
         <span className="printer-plugin-text">
           <span className="printer-plugin-caption">
             {block.installed ? 'Network plug-in installed' : 'Bambu network plug-in needed'}
@@ -108,10 +91,14 @@ export const PrinterBlockView = memo(function PrinterBlockView({
         <p className="printer-found-caption">FOUND ON YOUR NETWORK</p>
         {((block.printers ?? []) as NetworkPrinterInfo[]).map((printer) => (
           <div className="printer-row" key={printer.serial}>
-            <span className={printer.online ? 'printer-dot printer-dot-online' : 'printer-dot'} aria-hidden="true" />
+            <PrinterGlyph className="printer-row-icon" />
             <span className="printer-row-name">
               {printer.name}
               <small>{printer.serial}</small>
+            </span>
+            <span className="printer-row-status">
+              <span className={printer.online ? 'printer-dot printer-dot-online' : 'printer-dot'} aria-hidden="true" />
+              {printer.online ? 'Online' : 'Offline'}
             </span>
           </div>
         ))}
@@ -126,7 +113,7 @@ export const PrinterBlockView = memo(function PrinterBlockView({
           {printer.picture ? (
             <img className="printer-card-picture" src={printer.picture} alt="" />
           ) : (
-            <span className="printer-card-picture printer-card-picture-empty" aria-hidden="true" />
+            <span className="printer-card-picture printer-card-picture-empty" aria-hidden="true"><PrinterGlyph className="printer-card-glyph" /></span>
           )}
           <span className="printer-card-name">
             {printer.name}
@@ -164,20 +151,14 @@ export function PrinterCredentialCard({
         <div className="tool-title">{activity.title}</div>
         {state === 'connecting' && (
           <>
-            <div className="tool-state">Connecting…</div>
-            <div className="tool-actions">
-              <progress aria-label="Connecting" />
-              {connection && (
-                <button type="button" onClick={() => onCancelConnection(activity.actionId)}>
-                  Cancel
-                </button>
-              )}
-            </div>
+            <div className="tool-state"><span className="tool-status-icon running" aria-hidden="true" />Connecting…</div>
+            <progress aria-label="Connecting" />
+            {connection && <button type="button" className="tool-cancel" onClick={() => onCancelConnection(activity.actionId)}>Cancel</button>}
           </>
         )}
-        {state === 'verified' && <div className="tool-state done">Connected</div>}
-        {state === 'failed' && <div className="tool-error">{target ? `Couldn't reach ${target}` : "Couldn't connect"}</div>}
-        {state === 'cancelled' && <div className="tool-state">Cancelled</div>}
+        {state === 'verified' && <div className="tool-state done"><span className="tool-status-icon done" aria-hidden="true" />Connected</div>}
+        {state === 'failed' && <div className="tool-error"><span className="tool-status-icon failed" aria-hidden="true" />{target ? `Couldn't reach ${target}` : "Couldn't connect"}</div>}
+        {state === 'cancelled' && <div className="tool-state"><span className="tool-status-icon cancelled" aria-hidden="true" />Cancelled</div>}
       </div>
     );
   }
@@ -191,6 +172,7 @@ export function PrinterCredentialCard({
       }}
     >
       <div className="tool-title">{activity.title}</div>
+      <div className="tool-state"><span className="tool-status-icon pending" aria-hidden="true" />Pending</div>
       <label className="printer-credential-field">
         <span>{bambu ? 'Access code' : 'API key (if the printer asks for one)'}</span>
         <input

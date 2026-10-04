@@ -288,7 +288,7 @@ body {
 }
 
 .printer-progress {
-  height: var(--printer-card-progress-height);
+  height: var(--progress-height);
   border-radius: var(--radius-pill);
   background: var(--border-subtle);
   overflow: hidden;
@@ -448,10 +448,23 @@ body {
 
 /* Glyphs take the size and colour of the text beside them. */
 .glyph {
+  display: inline-block;
   flex: 0 0 auto;
   width: var(--glyph-size);
   height: var(--glyph-size);
+  background: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
+.glyph-printer { -webkit-mask-image: url('@resources/jusprin/ui/icons/printer.svg'); mask-image: url('@resources/jusprin/ui/icons/printer.svg'); }
+.glyph-monitor { -webkit-mask-image: url('@resources/jusprin/ui/icons/monitor.svg'); mask-image: url('@resources/jusprin/ui/icons/monitor.svg'); }
+.glyph-upload { -webkit-mask-image: url('@resources/jusprin/ui/icons/upload.svg'); mask-image: url('@resources/jusprin/ui/icons/upload.svg'); }
+.glyph-more { -webkit-mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); }
+.glyph-plus { -webkit-mask-image: url('@resources/jusprin/ui/icons/plus.svg'); mask-image: url('@resources/jusprin/ui/icons/plus.svg'); }
 
 .printer-name-row {
   display: flex;

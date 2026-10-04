@@ -161,7 +161,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
             <button type="button" aria-expanded={summaryExpanded} onClick={() => setSummaryExpanded(!summaryExpanded)}>
               <span className="settings-changes-icon" aria-hidden="true" />
               <span className="agent-change-summary-label">{summary}</span>
-              <span className="agent-change-summary-more">{more > 0 ? `+${more}` : ''}{summaryExpanded ? '⌃' : '⌄'}</span>
+              <span className="agent-change-summary-more">{more > 0 ? `+${more}` : ''}<span className={`jp-icon jp-icon-chevron-${summaryExpanded ? 'up' : 'down'}`} aria-hidden="true" /></span>
             </button>
             {summaryExpanded && <div className="agent-change-summary-details" role="list">
               {settings.map((run) => <div className="settings-change-row change-row" role="listitem" key={run.first.seq}>
@@ -215,7 +215,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
     const run = runs[index];
     entries.push(
       <div key={run.first.seq} className="change-row" role="listitem" data-testid={`change-${run.first.seq}`}>
-        <span className="change-icon" aria-hidden="true">✎</span>
+        <span className="change-icon jp-icon jp-icon-pencil" aria-hidden="true" />
         <div className="change-text">
           <span className="change-title">{title(run)}</span>
           <span className="change-meta">{meta(run)}</span>

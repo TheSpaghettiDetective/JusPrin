@@ -111,7 +111,8 @@ describe('change rows in the thread', () => {
     expect(text[3]).toContain('Sparse infill density 35% → 45%');
     expect(text[3]).toContain('you, in Strong');
     expect(text[4]).toContain('Switched to Strong');
-    expect(text[5]).toMatch(/^✎DuplicateAgent/);
+    expect(text[5]).toMatch(/^DuplicateAgent/);
+    expect(screen.getByTestId('change-6').querySelector('.jp-icon-pencil')).toBeInTheDocument();
   });
 
   it('shows a run of edits to one setting as its net change', () => {

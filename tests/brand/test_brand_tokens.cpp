@@ -349,8 +349,7 @@ TEST_CASE("the project card geometry is explicit", "[brand]")
 }
 
 // The printer column is a fixed rail, not a share of the window: the gallery
-// takes the width that is left. A printing printer's progress bar is the one
-// size inside the card that is not padding.
+// takes the width that is left. Progress thickness is shared with Agent work.
 // Home's own printer dialogs -- rename, remove -- are one small modal over
 // the gallery: the same width, the same corner, the same dimming behind it.
 TEST_CASE("the printer dialog geometry is explicit", "[brand]")
@@ -367,20 +366,32 @@ TEST_CASE("printer setup has a readable conversation width", "[brand]")
         {{"contentWidth", 720}}, "component.printerSetup");
 }
 
-// The replies the printer assistant offers under its message: a pill (the
-// radius scale's own pill) this tall, text inset this far from its ends.
+// Replies in the Agent thread use the standard control radius. Their height
+// and text inset are shared between the printer, filament, and project chats.
 TEST_CASE("the reply chip geometry is explicit", "[brand]")
 {
     require_exact_table<int>(load_tokens().at("component").at("replyChip"),
         {{"height", 28}, {"paddingX", 12}}, "component.replyChip");
 }
 
+TEST_CASE("the shared chat attachment geometry is explicit", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("chatAttachment"),
+        {{"maxWidth", 320}, {"thumbnailSize", 48}, {"kindSize", 32}}, "component.chatAttachment");
+}
+
 TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("printerCard"),
-        {{"columnWidth", 320}, {"progressHeight", 4}, {"padding", 16}, {"radius", 12}},
+        {{"columnWidth", 320}, {"pictureSize", 32}, {"padding", 16}, {"radius", 12}},
         "component.printerCard");
+}
+
+TEST_CASE("the shared progress track height is explicit", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("progress"),
+        {{"height", 4}}, "component.progress");
 }
 
 // The header's menus and Home's printer-card menu are one control: an icon

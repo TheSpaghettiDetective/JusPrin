@@ -1,18 +1,96 @@
 #include "HeaderControls.hpp"
+#include "libslic3r/Utils.hpp"
+#include "nanosvg/nanosvg.h"
+#include "nanosvg/nanosvgrast.h"
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/nowide/fstream.hpp>
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
+#include <wx/image.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/weakref.h>
 #include <algorithm>
+#include <cmath>
+#include <iterator>
+#include <map>
 #include <memory>
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin {
 namespace {
 
-// Small semantic strokes share the header's foreground and DPI transform.
-void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, double size, const wxColour& color)
+const char* icon_asset(HeaderIcon icon)
+{
+    switch (icon) {
+    case HeaderIcon::Back:    return "chevron-left";
+    case HeaderIcon::Right:   return "chevron-right";
+    case HeaderIcon::Down:    return "chevron-down";
+    case HeaderIcon::Up:      return "chevron-up";
+    case HeaderIcon::Check:   return "check";
+    case HeaderIcon::Lock:    return "lock-keyhole";
+    case HeaderIcon::Printer: return "printer";
+    case HeaderIcon::Monitor: return "monitor";
+    case HeaderIcon::More:    return "ellipsis";
+    case HeaderIcon::Cancel:  return "x";
+    case HeaderIcon::Slice:   return "circle-play";
+    case HeaderIcon::Plates:  return "layers-3";
+    case HeaderIcon::Export:  return "download";
+    case HeaderIcon::Print:   return "send";
+    case HeaderIcon::None:
+    case HeaderIcon::Caret:
+    case HeaderIcon::PanelOpen:
+    case HeaderIcon::PanelClosed:
+    case HeaderIcon::PanelLeftOpen:
+    case HeaderIcon::PanelLeftClosed: return nullptr;
+    }
+    return nullptr;
+}
+
+const wxBitmap& icon_bitmap(const char* name, int size_px, const wxColour& color)
+{
+    using Key = std::tuple<std::string, int, unsigned long>;
+    static std::map<Key, wxBitmap> cache;
+    const Key key{name, size_px, color.GetRGBA()};
+    auto found = cache.find(key);
+    if (found != cache.end()) return found->second;
+
+    const auto path = boost::filesystem::path(resources_dir()) / "jusprin" / "ui" / "icons" / (std::string(name) + ".svg");
+    boost::nowide::ifstream file(path.string());
+    if (!file.is_open()) throw std::runtime_error("header icon is missing: " + path.string());
+    std::string svg((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    const std::string hex = wxString::Format("#%02X%02X%02X", color.Red(), color.Green(), color.Blue()).ToStdString();
+    boost::replace_all(svg, "currentColor", hex);
+    std::unique_ptr<NSVGimage, decltype(&nsvgDelete)> parsed(nsvgParse(svg.data(), "px", 96.f), nsvgDelete);
+    if (!parsed || parsed->width <= 0.f || parsed->height <= 0.f)
+        throw std::runtime_error("header icon could not be parsed: " + path.string());
+    std::unique_ptr<NSVGrasterizer, decltype(&nsvgDeleteRasterizer)> rasterizer(nsvgCreateRasterizer(), nsvgDeleteRasterizer);
+    if (!rasterizer) throw std::runtime_error("header icon rasterizer could not be created");
+    std::vector<unsigned char> pixels(size_t(size_px) * size_px * 4, 0);
+    nsvgRasterize(rasterizer.get(), parsed.get(), 0, 0, float(size_px) / parsed->width,
+                  pixels.data(), size_px, size_px, size_px * 4);
+
+    wxImage image(size_px, size_px);
+    image.InitAlpha();
+    unsigned char* rgb = image.GetData();
+    unsigned char* alpha = image.GetAlpha();
+    for (size_t i = 0; i < size_t(size_px) * size_px; ++i) {
+        rgb[i * 3 + 0] = pixels[i * 4 + 0];
+        rgb[i * 3 + 1] = pixels[i * 4 + 1];
+        rgb[i * 3 + 2] = pixels[i * 4 + 2];
+        alpha[i] = pixels[i * 4 + 3];
+    }
+    return cache.emplace(key, wxBitmap(image)).first->second;
+}
+
+// The solid chip caret and filled/empty pane columns encode product states
+// that Lucide's generic outline icons do not represent.
+void draw_custom_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, double size, const wxColour& color)
 {
     gc.PushState();
     gc.Translate(x, y);
@@ -30,15 +108,6 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         gc.StrokePath(path);
     };
     switch (icon) {
-    case HeaderIcon::Back: line({{10,3},{5,8},{10,13}}); break;
-    case HeaderIcon::Right: line({{6,3},{11,8},{6,13}}); break;
-    case HeaderIcon::Down: line({{4,6},{8,10},{12,6}}); break;
-    case HeaderIcon::Up: line({{4,10},{8,6},{12,10}}); break;
-    case HeaderIcon::Check: line({{3,8.5},{6.5,12},{13,4}}); break;
-    case HeaderIcon::Lock:
-        line({{3.5,7},{12.5,7},{12.5,14},{3.5,14},{3.5,7}});
-        line({{5.5,7},{5.5,5},{6,3.5},{7,3},{9,3},{10,3.5},{10.5,5},{10.5,7}});
-        break;
     case HeaderIcon::Caret: {
         // A filled disclosure triangle, as the chip halves use in the design.
         auto p = gc.CreatePath();
@@ -47,34 +116,6 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         gc.FillPath(p);
         break;
     }
-    case HeaderIcon::Printer:
-        // A printer: paper feeding out of a body, not the abstract mark the
-        // previous single chip inherited.
-        line({{4.5,6},{4.5,2.5},{11.5,2.5},{11.5,6}});
-        line({{2.5,6},{13.5,6},{13.5,11},{2.5,11},{2.5,6}});
-        line({{4.5,9},{4.5,13.5},{11.5,13.5},{11.5,9}});
-        break;
-    case HeaderIcon::Monitor:
-        line({{2,3},{14,3},{14,11},{2,11},{2,3}});
-        line({{6,14},{10,14}}); line({{8,11},{8,14}});
-        break;
-    case HeaderIcon::More:
-        gc.SetBrush(wxBrush(color));
-        for (int i = 0; i < 3; ++i) gc.DrawEllipse(3 + i * 4, 7, 1.5, 1.5);
-        break;
-    case HeaderIcon::Cancel: line({{4,4},{12,12}}); line({{12,4},{4,12}}); break;
-    case HeaderIcon::Slice:
-        gc.DrawEllipse(1.5,1.5,13,13);
-        line({{6,4.5},{11,8},{6,11.5},{6,4.5}});
-        break;
-    case HeaderIcon::Plates:
-        line({{2,5},{8,2},{14,5},{8,8},{2,5}});
-        line({{2,8},{8,11},{14,8}}); line({{2,11},{8,14},{14,11}}); break;
-    case HeaderIcon::Export:
-        line({{8,2},{8,9.5}}); line({{4.5,6},{8,9.5},{11.5,6}});
-        line({{3,11},{3,13.5},{13,13.5},{13,11}}); break;
-    case HeaderIcon::Print:
-        line({{2,7},{14,2},{9,14},{7,9},{2,7}}); line({{7,9},{14,2}}); break;
     case HeaderIcon::PanelOpen:
     case HeaderIcon::PanelClosed:
     case HeaderIcon::PanelLeftOpen:
@@ -90,7 +131,7 @@ void draw_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, doubl
         }
         break;
     }
-    case HeaderIcon::None: break;
+    default: break;
     }
     gc.PopState();
 }
@@ -129,7 +170,10 @@ void draw_dot(wxGraphicsContext& gc, const std::optional<wxColour>& dot, double 
 
 void draw_header_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y, double size, const wxColour& color)
 {
-    draw_icon(gc, icon, x, y, size, color);
+    if (const char* asset = icon_asset(icon))
+        gc.DrawBitmap(icon_bitmap(asset, std::max(1, int(std::lround(size))), color), x, y, size, size);
+    else if (icon != HeaderIcon::None)
+        draw_custom_icon(gc, icon, x, y, size, color);
 }
 
 HeaderButton::HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyle style,
@@ -411,7 +455,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     const double icon_size = FromDIP(m.button.icon.icon_size);
     const HeaderIcon icon = m_open && m_icon == HeaderIcon::Down ? HeaderIcon::Up : m_icon;
     if (m_style == HeaderStyle::PrimaryRight || m_style == HeaderStyle::Outline) {
-        draw_icon(*gc, icon, (w-icon_size)/2,(h-icon_size)/2,icon_size,foreground);
+        draw_header_icon(*gc, icon, (w-icon_size)/2,(h-icon_size)/2,icon_size,foreground);
         if (HasFocus()) {
             gc->SetBrush(*wxTRANSPARENT_BRUSH); gc->SetPen(wxPen(p.border_focus,FromDIP(2)));
             gc->DrawRoundedRectangle(2,2,w-4,h-4,std::max(0.,r-2));
@@ -421,7 +465,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
 
     double x = FromDIP(12);
     if (icon != HeaderIcon::None) {
-        draw_icon(*gc,icon,x,(h-icon_size)/2,icon_size,foreground);
+        draw_header_icon(*gc,icon,x,(h-icon_size)/2,icon_size,foreground);
         x += FromDIP(24);
     }
     if (const int lead = lead_width(); lead > 0) {
@@ -481,17 +525,17 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         // reserved, so rows do not shift when the pointer crosses them.
         if (highlighted) {
             const wxRect rect = row_action_rect();
-            draw_icon(*gc, m_row_action, rect.x + (rect.width-icon_size)/2, rect.y + (rect.height-icon_size)/2,
+            draw_header_icon(*gc, m_row_action, rect.x + (rect.width-icon_size)/2, rect.y + (rect.height-icon_size)/2,
                       icon_size, p.text_secondary);
         }
         right -= FromDIP(20);
     }
     if (m_decoration.trailing != HeaderIcon::None) {
-        draw_icon(*gc, m_decoration.trailing, right-icon_size, (h-icon_size)/2, icon_size, p.text_secondary);
+        draw_header_icon(*gc, m_decoration.trailing, right-icon_size, (h-icon_size)/2, icon_size, p.text_secondary);
         right -= FromDIP(20);
     }
     if (m_decoration.check) {
-        draw_icon(*gc, HeaderIcon::Check, right-icon_size, (h-icon_size)/2, icon_size, p.action_primary);
+        draw_header_icon(*gc, HeaderIcon::Check, right-icon_size, (h-icon_size)/2, icon_size, p.action_primary);
         right -= FromDIP(20);
     }
     if (!m_decoration.detail.empty() && !m_decoration.detail_inline) {

@@ -1,52 +1,21 @@
-// Inline glyphs, as the Agent page does: the bundle is a single file, so an
-// icon is markup rather than a fetched asset. Each takes the size and colour
-// of the text it sits beside -- stroke follows currentColor, and the box is
-// the smallest size on the icon scale.
+// The masks in styles.css use the same pinned Lucide SVGs as the native shell.
+// Keeping them in CSS lets Vite inline the artwork into the offline WebView.
 export function PrinterGlyph() {
-  return (
-    <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-      <path d="M4.5 6V2.5h7V6" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="1.8" y="6" width="12.4" height="5.2" rx="1.2" />
-      <path d="M4.5 9.5h7V14h-7z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <span className="glyph glyph-printer" aria-hidden="true" />;
 }
 
 export function MonitorGlyph() {
-  return (
-    <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
-      <rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.2" />
-      <path d="M6 13.8h4" strokeLinecap="round" />
-      <path d="M8 11.2v2.6" strokeLinecap="round" />
-    </svg>
-  );
+  return <span className="glyph glyph-monitor" aria-hidden="true" />;
 }
 
 export function UploadGlyph() {
-  return (
-    <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M8 10.5V2" strokeLinecap="round" />
-      <path d="M4.3 5.7 8 2l3.7 3.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M2 10v2.5A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5V10" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <span className="glyph glyph-upload" aria-hidden="true" />;
 }
 
-// The horizontal kebab the header and the Agent page use for an actions menu.
 export function MoreGlyph() {
-  return (
-    <svg className="glyph" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="3.5" cy="8" r="1.3" />
-      <circle cx="8" cy="8" r="1.3" />
-      <circle cx="12.5" cy="8" r="1.3" />
-    </svg>
-  );
+  return <span className="glyph glyph-more" aria-hidden="true" />;
 }
 
 export function PlusGlyph() {
-  return (
-    <svg className="glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-      <path d="M8 2v12M2 8h12" strokeLinecap="round" />
-    </svg>
-  );
+  return <span className="glyph glyph-plus" aria-hidden="true" />;
 }

@@ -13,7 +13,6 @@
 import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { AttachmentInfo, AttachmentSource } from '../bridge/protocol';
 import { AttachmentChip } from './AttachmentChip';
-import { CameraGlyph } from './PrinterPanel';
 
 interface Props {
   disabled: boolean;
@@ -36,24 +35,6 @@ interface Props {
   // Labelled "Photo" instead of a bare paperclip: in the printer panel a
   // picture is a primary way to say which printer this is, not an extra.
   photoButton?: boolean;
-}
-
-// The upward arrow the Figma Composer puts on the send control. It is drawn
-// inline rather than masked from resources/jusprin/ui/icons because that icon
-// set has no arrow yet; `currentColor` keeps it on the button's text token.
-function SendGlyph() {
-  return (
-    <svg className="send-glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path
-        d="M8 13V3.5M8 3.5 3.75 7.75M8 3.5 12.25 7.75"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 export function Composer({
@@ -153,7 +134,7 @@ export function Composer({
       {attachments.length > 0 && (
         <div className="composer-attachments" aria-label="Staged attachments">
           {attachments.map((attachment) => (
-            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} compact={photoButton} />
+            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
           ))}
           {/* A staged photo waits for the person; it never sends itself. */}
           {photoButton && <span className="composer-staged-hint">add a note, or just send</span>}
@@ -167,8 +148,7 @@ export function Composer({
           disabled={disabled}
           onClick={() => fileInput.current?.click()}
         >
-          {photoButton ? <CameraGlyph className="photo-glyph" /> : <span className="attach-glyph" aria-hidden="true" />}
-          {photoButton && 'Photo'}
+          {photoButton ? 'Photo' : 'Attach a file'}
         </button>
         <input
           ref={fileInput}
@@ -197,11 +177,11 @@ export function Composer({
           }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          rows={2}
+          rows={1}
         />
         {streaming ? (
           <button type="button" className="composer-send" onClick={onStop} aria-label="Stop generating">
-            <span className="stop-glyph" aria-hidden="true" />
+            Stop
           </button>
         ) : (
           <button
@@ -211,7 +191,7 @@ export function Composer({
             disabled={!canSend}
             aria-label="Send message"
           >
-            <SendGlyph />
+            Send
           </button>
         )}
       </div>

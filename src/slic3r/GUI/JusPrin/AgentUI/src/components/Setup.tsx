@@ -58,7 +58,7 @@ export function SetupChooser({ onUseApiKey, onConnectTool, onDismiss }: SetupCho
         <div className="setup-card-head">
           <h1>Set up the agent</h1>
           <button className="icon" onClick={onDismiss} aria-label="Close setup">
-            ✕
+            <span className="jp-icon jp-icon-close" aria-hidden="true" />
           </button>
         </div>
         <p>
@@ -72,11 +72,11 @@ export function SetupChooser({ onUseApiKey, onConnectTool, onDismiss }: SetupCho
         <p className="setup-eyebrow">If you know what these are</p>
         <button className="setup-row" onClick={onUseApiKey} data-testid="setup-row-api-key">
           <span>Use your own API key</span>
-          <span aria-hidden="true">›</span>
+          <span className="jp-icon jp-icon-chevron-right" aria-hidden="true" />
         </button>
         <button className="setup-row" onClick={onConnectTool} data-testid="setup-row-connect-tool">
           <span>Connect an AI tool you already use</span>
-          <span aria-hidden="true">›</span>
+          <span className="jp-icon jp-icon-chevron-right" aria-hidden="true" />
         </button>
       </div>
       <p className="footnote">
@@ -198,7 +198,7 @@ function SetupResult({ setup }: { setup: SetupStatusPayload }) {
   if (setup.phase === 'verified')
     return (
       <span className="setup-result ok" data-testid="setup-verified">
-        ✓ replied in {seconds(setup.elapsedMs ?? 0)}
+        <span className="jp-icon jp-icon-check" aria-hidden="true" /> replied in {seconds(setup.elapsedMs ?? 0)}
       </span>
     );
   if (setup.phase === 'error')
@@ -223,11 +223,11 @@ export function ConnectedBanner({ provider, warning, onDismiss }: ConnectedBanne
   return (
     <div className={warning ? 'setup-banner warning' : 'setup-banner'} data-testid="setup-connected">
       <span className="setup-banner-text">
-        ✓ Connected · your own {providerLabel(provider)} key
-        {warning ? ` — ${warning}` : ''}
+        <span className="jp-icon jp-icon-check" aria-hidden="true" />
+        <span>Connected · your own {providerLabel(provider)} key{warning ? ` — ${warning}` : ''}</span>
       </span>
       <button className="icon" onClick={onDismiss} aria-label="Dismiss">
-        ✕
+        <span className="jp-icon jp-icon-close" aria-hidden="true" />
       </button>
     </div>
   );
