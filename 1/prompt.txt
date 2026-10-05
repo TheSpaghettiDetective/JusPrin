@@ -1,0 +1,29 @@
+read @/Users/kenneth/Projects/JusPrin/handoff-chat-state-and-restoration.md to see if you have everything you need to implement this task
+
+---
+
+Do you need a hi-fi design or you can use the current reusable components to construct the UI elements that you may need to implement this.?
+
+---
+
+implement it and test it
+
+---
+
+move your work to a worktree instead of the main checkout
+
+---
+
+does main checkout contain any commits that are related to this task?
+
+---
+
+tell me what this task is about
+
+---
+
+Run live testing and capture screenshot so that I can review how they look like.
+
+---
+
+merge to jusprin-newui and push
