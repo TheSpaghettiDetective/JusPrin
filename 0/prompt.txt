@@ -1,0 +1,18 @@
+if we add all settings to`different_settings_to_system` , basically we let project\_settings.config beat preset every time when there is a diff, this hole will be plugged, right?
+
+---
+
+which option will result in smaller upstream footprint:
+
+
+
+- make the checking a key against different\_settings\_to\_system always return true.
+- add all keys to =different\_settings\_to\_system at the end of the backup process
+
+---
+
+Go implement the second option and test it.
+
+---
+
+run live testing, and measure if this Significantly increase the disk space usage  by the checkpoints.
