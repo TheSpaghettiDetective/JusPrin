@@ -26,6 +26,7 @@
 #include <wx/modalhook.h>
 
 #include <boost/filesystem.hpp>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -1324,6 +1325,51 @@ private:
                 versions.back().objects.front().resource.id;
         };
         std::string resource = saved_resource("managed_mesh_loaded");
+        const std::string initial_version = autosave->current_version();
+        const std::string initial_layer_height = m_app.preset_bundle->prints.get_edited_preset().config.opt_serialize("layer_height");
+        bool found_metadata = false;
+        for (const auto& project : autosave->projects()) {
+            const auto metadata = std::filesystem::u8path(project.store_path) / "versions" /
+                                  autosave->current_version() / "metadata.3mf";
+            if (!std::filesystem::is_regular_file(metadata))
+                continue;
+            found_metadata = true;
+            mz_zip_archive archive;
+            mz_zip_zero_struct(&archive);
+            check(open_zip_reader(&archive, metadata.u8string()), "managed_mesh_metadata_opens");
+            size_t size = 0;
+            void* data = mz_zip_reader_extract_file_to_heap(&archive, "Metadata/project_settings.config", &size, 0);
+            check(data != nullptr, "managed_mesh_project_settings_present");
+            if (data != nullptr) {
+                const auto config = nlohmann::json::parse(std::string(static_cast<const char*>(data), size));
+                mz_free(data);
+                std::set<std::string> saved_keys;
+                for (auto it = config.begin(); it != config.end(); ++it)
+                    if (it.key() != "version" && it.key() != "name" && it.key() != "from" &&
+                        it.key() != "different_settings_to_system")
+                        saved_keys.insert(it.key());
+                const auto& groups = config.at("different_settings_to_system");
+                check(groups.size() == config.at("filament_colour").size() + 2,
+                      "managed_mesh_different_settings_group_count");
+                for (std::size_t index = 0; index < groups.size(); ++index) {
+                    std::vector<std::string> keys;
+                    check(unescape_strings_cstyle(groups[index].get<std::string>(), keys),
+                          "managed_mesh_different_settings_decode_" + std::to_string(index));
+                    const std::set<std::string> protected_keys(keys.begin(), keys.end());
+                    for (const std::string& key : saved_keys)
+                        if (protected_keys.find(key) == protected_keys.end()) {
+                            std::cerr << "HARNESS MISSING PROTECTED KEY " << index << ' ' << key << '\n';
+                            break;
+                        }
+                    check(std::includes(protected_keys.begin(), protected_keys.end(),
+                                        saved_keys.begin(), saved_keys.end()),
+                          "managed_mesh_all_settings_protected_" + std::to_string(index));
+                }
+            }
+            close_zip_reader(&archive);
+            break;
+        }
+        check(found_metadata, "managed_mesh_metadata_found");
         RegionRecord region;
         region.id = "r1";
         region.kind = "support";
@@ -1348,6 +1394,34 @@ private:
         next = saved_resource("managed_mesh_repair");
         check(!next.empty() && next != resource, "managed_mesh_repair_changes_resource");
         check(!fs::exists(backup_file), "managed_mesh_skips_orca_backup_cache");
+        check(autosave->restore(initial_version), "managed_mesh_restores_protected_checkpoint");
+        check(m_plater->model().objects.size() == 1, "managed_mesh_restores_original_object");
+        check(m_app.preset_bundle->prints.get_edited_preset().config.opt_serialize("layer_height") == initial_layer_height,
+              "managed_mesh_restores_layer_height");
+        m_plater->sidebar().add_filament();
+        check(m_app.preset_bundle->filament_presets.size() == 2, "managed_mesh_second_filament_added");
+        check(autosave->save_now(), "managed_mesh_two_filament_checkpoint_saved");
+        const std::string two_filament_version = autosave->current_version();
+        m_plater->sidebar().delete_filament(1, 0);
+        check(m_app.preset_bundle->filament_presets.size() == 1, "managed_mesh_second_filament_removed");
+        check(autosave->save_now(), "managed_mesh_one_filament_checkpoint_saved");
+        // The all-keys marker currently prompts Orca's modified-G-code warning for multi-filament restores.
+        // Capture and dismiss it so the restore path remains testable without user input.
+        struct RestoreDialogs : wxModalDialogHook {
+            std::vector<std::string> titles;
+            int Enter(wxDialog* dialog) override {
+                titles.emplace_back(dialog->GetTitle().ToStdString());
+                return wxID_OK;
+            }
+        } restore_dialogs;
+        restore_dialogs.Register();
+        const bool restored_two_filaments = autosave->restore(two_filament_version);
+        restore_dialogs.Unregister();
+        check(restored_two_filaments, "managed_mesh_two_filament_checkpoint_restored");
+        check(m_app.preset_bundle->filament_presets.size() == 2, "managed_mesh_two_filament_slots_restored");
+        std::cerr << "HARNESS CHECKPOINT_RESTORE_DIALOGS count=" << restore_dialogs.titles.size();
+        for (const auto& title : restore_dialogs.titles) std::cerr << " title=" << title;
+        std::cerr << '\n';
         finish();
     }
 
