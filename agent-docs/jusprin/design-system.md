@@ -289,7 +289,12 @@ were not visually verified.
 
 Every high-fidelity product frame must:
 
-1. Include paired light and dark versions using the same semantic token names.
+1. Define each application screen in one canonical appearance mode. Do not
+   create paired light and dark screen frames. The other mode must be
+   deterministically derived by the design system from the same semantic token
+   names, component variants, geometry, content, and interaction state. Verify
+   light/dark differences in the design-system primitives and semantic mappings
+   rather than duplicating every application screen.
 2. State the mode, viewport, component variants, keyboard focus, and any deliberate exception.
 3. Use DIP, native density, and the standard radius scale.
 4. Use HarmonyOS Sans SC for product UI, and monospace only for code (Figma's Code style uses Roboto Mono as a stand-in for the system font).
