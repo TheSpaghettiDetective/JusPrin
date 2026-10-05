@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M46X9XG9QZMP7VHEPZZDHGS3",
+  "session_id": "01a108a5-1a44-7fa3-99de-ab111a79d7dd",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-05T20:50:23.750954Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/autosave-version-history.md",
+    "resources/JusPrin.icns"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-terra",
+  "turn_id": "324d9a751f21",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 106945,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 590080,
+    "output_tokens": 4504,
+    "api_call_count": 11
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 144,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        "agent-docs/jusprin/autosave-version-history.md": 122
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    }
+  ]
+}
