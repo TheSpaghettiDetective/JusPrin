@@ -113,6 +113,7 @@ export function App({
   // whenever the host resent state and re-closed the card mid-click.
   const collapseSetup = () => setSetupExpanded(false);
   const [commandError, setCommandError] = useState<string | null>(null);
+  const [confirmChatRestore, setConfirmChatRestore] = useState(false);
   const setupReturn = useRef<'chat' | 'list'>('chat');
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
@@ -226,7 +227,8 @@ export function App({
     const attachmentIds = includeStagedAttachments
       ? stateRef.current.attachments.filter((a) => a.state === 'staged').map((a) => a.id)
       : [];
-    client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds });
+    client.send('user_message', { clientMessageId: nextClientMessageId(), text, attachmentIds,
+      conversationId: stateRef.current.activeConversationId });
   };
 
   const attachFiles = (files: File[], source: AttachmentSource) => {
@@ -351,8 +353,48 @@ export function App({
   );
   const notConfigured = unavailable && (printerPanel || state.navigation.focused || onlyFileReports);
   const streaming = state.streamingMessageId !== null;
-  const busy = streaming || state.conversationBusy;
-  const activeChat = state.conversations.find((chat) => chat.id === state.activeConversationId);
+  const busy = streaming || state.conversationBusy || state.projectChatBlocked;
+  const viewedId = state.viewedConversationId || state.activeConversationId;
+  const viewedChat = state.conversations.find((chat) => chat.id === viewedId);
+  const historical = viewedId !== state.activeConversationId;
+  const resumeStatus = state.chatResume.status;
+  const historicalReason = resumeStatus === 'changed'
+    ? 'There have been project updates since this chat. Restore its saved project version to continue.'
+    : resumeStatus === 'unchanged'
+      ? 'This chat is inactive. Resume from its saved setup to continue.'
+      : 'This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.';
+  const returnToActiveChat = () => {
+    client.send('switch_conversation', { conversationId: state.activeConversationId });
+    setView('chat');
+    collapseSetup();
+  };
+  const askCurrentChat = () => {
+    const latest = [...stateRef.current.messages].reverse().find((message) => message.text.trim());
+    const excerpt = latest ? `\nExcerpt: “${latest.text.trim().slice(0, 600)}”` : '';
+    const reference = `From earlier chat “${viewedChat?.title || viewedId}”${state.chatResume.savedAt ?
+      ` (saved ${state.chatResume.savedAt})` : ''}:${excerpt}\n\nWhat should we do with this in the current project?`;
+    client.send('switch_conversation', { conversationId: state.activeConversationId });
+    client.send('draft_update', { append: reference });
+    client.send('state_request', {});
+    setView('chat');
+    collapseSetup();
+  };
+  const resumeChat = () => {
+    if (resumeStatus === 'changed') { setConfirmChatRestore(true); return; }
+    if (resumeStatus === 'unchanged') client.send('restore_conversation', {
+      conversationId: viewedId, activeConversationId: state.activeConversationId, docRevision: state.docRevision,
+    });
+  };
+  const historicalNotice = historical && <div className="historical-chat-notice" role="note">
+    <p>{historicalReason}</p>
+    <p>The canvas shows your current project.</p>
+    <div className="chat-dialog-buttons historical-chat-actions">
+      {resumeStatus !== 'unavailable' && <button type="button" className="primary"
+        disabled={busy || state.projectChatBlocked} onClick={resumeChat}>{resumeStatus === 'changed' ? 'Restore and resume' : 'Resume saved setup'}</button>}
+      <button type="button" onClick={returnToActiveChat}>Return to active chat</button>
+      <button type="button" onClick={askCurrentChat}>Ask current chat about this</button>
+    </div>
+  </div>;
   const externalActions = state.toolActivities.filter((activity) => activity.source === 'mcp' && activity.requiresApproval);
   const externalPlans = planMembers(externalActions);
   const pendingAction = state.toolActivities.some((activity) =>
@@ -369,7 +411,7 @@ export function App({
 
   const chatList = <ChatList conversations={state.conversations} activeId={state.activeConversationId} busy={busy}
       onSwitch={(conversationId) => {
-        if (conversationId !== state.activeConversationId) client.send('switch_conversation', { conversationId });
+        if (conversationId !== viewedId) client.send('switch_conversation', { conversationId });
         setView('chat');
         collapseSetup();
       }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
@@ -386,23 +428,25 @@ export function App({
       return (
         <MessageList
           dimmed={setupExpanded}
-          key={`messages-${state.context?.sessionId}-${state.activeConversationId}`}
+          key={`messages-${state.context?.sessionId}-${viewedId}`}
           messages={state.messages}
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
           toolActivities={state.toolActivities}
-          builds={state.builds}
-          exportedCopies={state.exportedCopies}
-          physicalPrints={state.physicalPrints}
-          changes={state.changes.filter((change) => change.conversationId === state.activeConversationId)}
-          restorePoints={state.restorePoints}
+          builds={historical ? state.builds.filter((record) => record.conversationId === viewedId) : state.builds}
+          exportedCopies={historical ? state.exportedCopies.filter((record) => record.conversationId === viewedId) : state.exportedCopies}
+          physicalPrints={historical ? state.physicalPrints.filter((record) => record.conversationId === viewedId) : state.physicalPrints}
+          changes={state.changes.filter((change) => change.conversationId === viewedId)}
+          restorePoints={historical ? [] : state.restorePoints}
           onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
           answeredState={!state.navigation.focused}
-          onRetry={(messageId) => client.send('retry_message', { messageId })}
+          onRetry={(messageId) => client.send('retry_message', { messageId, conversationId: viewedId })}
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
           onSend={sendMessage}
-          replyDisabled={unavailable || streaming}
+          replyDisabled={unavailable || streaming || historical || state.projectChatBlocked}
+          readOnly={historical || state.projectChatBlocked}
+          endNotice={historicalNotice}
           onDiscussFailure={(text) => sendMessage(text, false)}
           onSetUpAgent={openSetup}
         />
@@ -583,17 +627,18 @@ export function App({
         </header>
       ) : (
         <>
-          <ChatHeader key={`header-${state.context?.sessionId}-${state.activeConversationId}`} title={activeChat?.title || 'New chat'} busy={busy || pendingAction}
+          <ChatHeader key={`header-${state.context?.sessionId}-${viewedId}`} title={viewedChat?.title || 'New chat'} busy={busy || pendingAction}
             onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
             onCreate={createChat}
-            onRename={(title) => client.send('rename_conversation', { conversationId: state.activeConversationId, title })}
-            onDelete={() => { client.send('delete_conversation', { conversationId: state.activeConversationId }); setView('list'); }}
+            onRename={(title) => client.send('rename_conversation', { conversationId: viewedId, title })}
+            onDelete={() => { client.send('delete_conversation', { conversationId: viewedId }); setView('list'); }}
             onCollapse={collapseAgentPane} />
-          {view === 'chat' && !notConfigured && state.context && (
+          {view === 'chat' && !notConfigured && (historical ? state.chatResume.summary : state.context) && (
             // The card sits in its own pinned band above the thread, as the
             // design has it: the band is the canvas the tinted card sits on.
             <div className="pinned-setup">
-              <SetupCard context={state.context} expanded={setupExpanded} working={busy}
+              <SetupCard context={historical ? state.chatResume.summary ?? null : state.context}
+                historical={historical} expanded={setupExpanded} working={!historical && busy}
                 onToggle={() => setSetupExpanded((open) => !open)} />
             </div>
           )}
@@ -607,14 +652,18 @@ export function App({
         />
       )}
       {body()}
+      {state.projectChatBlocked && <div className="chat-error" role="alert">
+        Project restoration needs recovery. This chat cannot run project actions.
+      </div>}
+      {historical && view === 'chat' && <div className="historical-chat-composer-notice">{historicalNotice}</div>}
       {!(state.navigation.focused && notConfigured) && <div hidden={view === 'setup'}><Composer
-        key={`composer-${state.context?.sessionId}-${state.activeConversationId}`}
-        disabled={unavailable}
-        disabledReason={notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
+        key={`composer-${state.context?.sessionId}-${viewedId}`}
+        disabled={unavailable || historical || state.projectChatBlocked}
+        disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : historical ? historicalReason : notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
         placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
-        streaming={streaming}
-        initialText={state.draft}
-        attachments={stagedAttachments}
+        streaming={historical ? false : streaming}
+        initialText={historical ? '' : state.draft}
+        attachments={historical ? [] : stagedAttachments}
         onSend={sendMessage}
         onStop={() => {
           if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
@@ -625,6 +674,19 @@ export function App({
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>}
+      {confirmChatRestore && historical && <Dialog title="Restore this chat's project setup?"
+        onClose={() => setConfirmChatRestore(false)}>
+        <p>Restore “{viewedChat?.title || 'this chat'}” from {state.chatResume.savedAt || 'its saved checkpoint'}? Its earlier model and settings will replace the working version, with the matching intent and plan. Your current version will remain in history.</p>
+        <div className="chat-dialog-buttons">
+          <button type="button" onClick={() => setConfirmChatRestore(false)}>Cancel</button>
+          <button type="button" className="primary" disabled={busy} onClick={() => {
+            setConfirmChatRestore(false);
+            client.send('restore_conversation', {
+              conversationId: viewedId, activeConversationId: state.activeConversationId, docRevision: state.docRevision,
+            });
+          }}>Restore and resume</button>
+        </div>
+      </Dialog>}
       </div>
     </div>
   );

@@ -147,12 +147,14 @@ struct PlanRecord
     std::vector<PlanDecision> decisions;
     std::vector<std::string>  assumptions;
     std::vector<std::string>  risks;
+    std::string               validity{"current"};
+    std::string               invalidated_by;
 };
 
 class ProjectStateDocument
 {
 public:
-    static constexpr int kSchemaVersion = 2;
+    static constexpr int kSchemaVersion = 3;
 
     enum class LoadResult { Loaded, Migrated, Corrupt };
 
@@ -162,8 +164,8 @@ public:
     // to adopt a new identity); an older schema is migrated in place.
     LoadResult load(const std::string& json_text);
     std::string dump() const;
-    // These fields follow a model version when the person restores history.
-    // Conversation, audit, drafts, and print facts remain current instead.
+    // Model history leaves this document current. Chat checkpoints explicitly
+    // bind selected planning fields to a saved model version for chat resume.
 
     // Monotonic per-document change counter, bumped by every mutating call.
     // The recovery mirror with the higher value is the newer state.
@@ -184,8 +186,17 @@ public:
     // -- Conversations ------------------------------------------------------
     std::vector<ConversationInfo> conversations() const;
     std::string                   active_conversation_id() const;
+    std::string                   viewed_conversation_id() const;
     std::string create_conversation(const std::string& title, const std::string& timestamp); // returns id, makes it active
     bool        set_active_conversation(const std::string& conversation_id);
+    bool        set_viewed_conversation(const std::string& conversation_id);
+    // A missing checkpoint means historical state is unknown, including for
+    // migrated chats. Model versions do not contain this data.
+    std::optional<nlohmann::json> chat_checkpoint(const std::string& conversation_id) const;
+    bool save_chat_checkpoint(const std::string& conversation_id, const std::string& version_id,
+                              const nlohmann::json& summary, const std::string& timestamp);
+    nlohmann::json planning_snapshot() const;
+    void restore_planning_snapshot(const nlohmann::json& snapshot);
     bool        needs_conversation_title(const std::string& conversation_id) const;
     bool        rename_conversation(const std::string& conversation_id, const std::string& title, bool generated = false);
     // The agent's restatement of what this chat asked the setup to be, in the
@@ -259,6 +270,7 @@ public:
     PlanRecord plan() const;
     // Replaces the plan wholesale: it is one statement, not a list of edits.
     PlanRecord set_plan(PlanRecord record, const std::string& timestamp);
+    bool mark_plan_needs_reassessment(const std::string& reason);
     // Region annotations. The list is replaced whole; a record with no seq is
     // new or changed and is stamped on the way in.
     std::vector<Workspace::RegionRecord> regions() const;

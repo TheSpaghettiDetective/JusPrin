@@ -126,6 +126,22 @@ public:
     void set_handshake_listener(std::function<void()> listener) { m_handshake_listener = std::move(listener); }
     // A completed, failed, or stopped reply is a document durability boundary.
     void set_turn_boundary_callback(std::function<void()> callback) { m_turn_boundary_callback = std::move(callback); }
+    // Managed projects supply native model-version operations. Temporary
+    // printer conversations intentionally leave these unset.
+    void set_chat_checkpoint_callbacks(std::function<std::string()> pin_current,
+                                       std::function<std::string()> current_version,
+                                       std::function<bool(const std::string&)> version_exists,
+                                       std::function<bool()> save_document,
+                                       std::function<bool(const std::string&, const nlohmann::json&,
+                                                          const std::string&)> restore)
+    {
+        m_pin_chat_version = std::move(pin_current);
+        m_current_chat_version = std::move(current_version);
+        m_chat_version_exists = std::move(version_exists);
+        m_save_chat_document = std::move(save_document);
+        m_restore_chat_version = std::move(restore);
+    }
+    bool checkpoint_active_chat();
 
     // Invoked once, right after pump_setup() persists a verified credential
     // and installs the newly connected agent. A throwaway setup-only host
@@ -254,6 +270,7 @@ private:
     void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
     void handle_create_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json);
+    void handle_restore_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_rename_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_delete_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_draft_update(const std::string& payload_json);
@@ -310,6 +327,7 @@ private:
     void start_next_queued_reply();
     void refresh_workspace_identity() const;
     bool agent_busy() const;
+    bool transition_busy() const;
     void start_conversation_title(const std::string& conversation_id);
     void cancel_conversation_title();
     void pump_conversation_title();
@@ -379,6 +397,12 @@ private:
     SendFn                m_send;
     std::function<void()> m_handshake_listener;
     std::function<void()> m_turn_boundary_callback;
+    std::function<std::string()> m_pin_chat_version;
+    std::function<std::string()> m_current_chat_version;
+    std::function<bool(const std::string&)> m_chat_version_exists;
+    std::function<bool()> m_save_chat_document;
+    std::function<bool(const std::string&, const nlohmann::json&, const std::string&)> m_restore_chat_version;
+    bool m_chat_transition_blocked{false};
     std::function<void()> m_setup_completed_listener;
 
     AgentSessionProfile             m_session_profile;

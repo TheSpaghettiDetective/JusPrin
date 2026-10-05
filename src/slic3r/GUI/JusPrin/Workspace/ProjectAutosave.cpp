@@ -1,6 +1,7 @@
 #include "slic3r/GUI/I18N.hpp"
 
 #include "ProjectAutosave.hpp"
+#include "Regions.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
@@ -970,19 +971,59 @@ void ProjectAutosave::record_agent_operation(const std::string& action_id, const
 
 bool ProjectAutosave::restore(const std::string& version_id)
 {
+    return restore_impl(version_id, nullptr, {});
+}
+
+bool ProjectAutosave::restore_chat(const std::string& version_id, const nlohmann::json& planning,
+                                   const std::string& conversation_id)
+{
+    return restore_impl(version_id, &planning, conversation_id);
+}
+
+bool ProjectAutosave::restore_impl(const std::string& version_id, const nlohmann::json* planning,
+                                   const std::string& conversation_id)
+{
     std::string before_id;
     std::string before_state;
     std::optional<ProjectVersionStore::Materialization> materialized;
     bool replacement_started = false;
+    bool marker_written = false;
+    const auto validate_regions = [&] {
+        if (!planning)
+            return;
+        std::vector<RegionRecord> regions;
+        for (const auto& entry : planning->at("regions"))
+            regions.push_back(region_record_from(entry));
+        for (const RegionStatus& status : m_workspace.region_status(regions))
+            if (status.binding_lost)
+                throw std::runtime_error("a saved region no longer matches this model");
+    };
     try {
         if (!save_now())
             return false;
-        if (version_id == m_committed_head)
+        if (version_id == m_committed_head && planning == nullptr)
             return true;
         before_id = m_committed_head;
         before_state = m_persistence.document().dump();
         m_store->pin(before_id);
         m_store->pin(version_id);
+        if (planning) {
+            m_store->begin_chat_restore(before_id, version_id, conversation_id);
+            marker_written = true;
+        }
+        if (version_id == before_id) {
+            // Planning-only resume keeps the same committed model version.
+            // The document transition still has to be durable before input
+            // moves to the resumed chat.
+            validate_regions();
+            m_persistence.record_chat_restore(before_state, before_id, version_id,
+                                              *planning, conversation_id);
+            if (!persist_document(true))
+                throw std::runtime_error(m_error);
+            m_store->finish_chat_restore();
+            m_persistence.notify_chat_restore_published();
+            return true;
+        }
         materialized = m_store->materialize(version_id);
         const auto selected = m_store->history();
         const auto version = std::find_if(selected.begin(), selected.end(), [&version_id](const auto& item) {
@@ -1008,9 +1049,14 @@ bool ProjectAutosave::restore(const std::string& version_id)
             m_plater.set_project_filename(wxString::FromUTF8(version->source_path));
             m_persistence.adopt_managed_state(before_state);
             m_last_edit = Clock::now();
+            validate_regions();
             if (!capture(true))
                 throw std::runtime_error(m_error);
-            m_persistence.record_managed_restore(before_state, before_id, version_id);
+            if (planning) {
+                m_persistence.record_chat_restore(before_state, before_id, version_id,
+                                                  *planning, conversation_id);
+            } else
+                m_persistence.record_managed_restore(before_state, before_id, version_id);
             if (!persist_document(true))
                 throw std::runtime_error(m_error);
         });
@@ -1024,9 +1070,22 @@ bool ProjectAutosave::restore(const std::string& version_id)
         }
         m_active_materialization = *materialized;
         m_active_materialization_project = m_store->project_id();
+        if (planning) {
+            m_store->finish_chat_restore();
+            m_persistence.notify_chat_restore_published();
+        }
         return true;
     } catch (const std::exception& error) {
         const std::string reason = error.what();
+        if (marker_written && !replacement_started &&
+            m_persistence.document().active_conversation_id() != conversation_id) {
+            try {
+                m_store->finish_chat_restore();
+            } catch (const std::exception& cleanup_error) {
+                fail(reason + "; restoration marker cleanup failed: " + cleanup_error.what());
+                return false;
+            }
+        }
         if (replacement_started && m_store && m_store->head_id() == before_id) {
             try {
                 const auto previous = m_store->materialize(before_id);
@@ -1053,6 +1112,8 @@ bool ProjectAutosave::restore(const std::string& version_id)
                 m_active_materialization_project = m_store->project_id();
                 if (materialized)
                     m_store->remove_materialization(*materialized);
+                if (marker_written)
+                    m_store->finish_chat_restore();
             } catch (const std::exception& rollback_error) {
                 fail(reason + "; previous project also failed to reload: " + rollback_error.what());
                 return false;

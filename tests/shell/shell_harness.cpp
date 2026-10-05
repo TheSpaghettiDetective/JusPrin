@@ -81,6 +81,9 @@
 //   --external-project-history [--external-project-history-capture <output-directory>]
 //              checks the repeated external 3MF choice and explicit,
 //              confirmed version restore; optionally captures a history row
+//   --chat-restoration
+//              checks historical viewing and explicit chat/model/planning
+//              restoration in an isolated managed project
 //   --printer-live
 //              needs OPENAI_API_KEY: the printer-agent-tools handoff's worked
 //              examples through the real printer panel and the live model --
@@ -612,6 +615,7 @@ struct HarnessState
         AutosaveReopen,
         PresetClose,
         ExternalProjectHistory,
+        ChatRestoration,
         FileCorpus,
         LeftPane,
         LeftPaneEditor,
@@ -740,6 +744,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
                 verify_external_project_history();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ChatRestoration) {
+                verify_chat_restoration();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::FileCorpus) {
@@ -1551,6 +1559,130 @@ private:
         const std::string file = (m_state->capture_dir / (name + ".png")).string();
         bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
         std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+    }
+
+    void capture_chat_pane(const std::string& name)
+    {
+        if (m_state->capture_dir.empty())
+            return;
+        // Let the bridge update and the web view paint before taking its
+        // native snapshot. This keeps captures tied to visible UI states.
+        for (int settle = 0; settle < 8; ++settle) {
+            wxYield();
+            wxMilliSleep(50);
+        }
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), name);
+    }
+
+    void verify_chat_restoration()
+    {
+        const fs::path source = fs::path(data_dir()) / "chat-restoration-cube.stl";
+        fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
+                      source, fs::copy_option::overwrite_if_exists);
+        const bool loaded = m_plater->load_files(std::vector<std::string>{source.string()},
+                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+                   false).size() == 1;
+        check(loaded, "chat_restore_model_loaded");
+        if (!loaded) {
+            finish();
+            return;
+        }
+        auto& document = persistence().document();
+        auto& host = installed_shell()->agent_pane()->web_view().host();
+        const std::string first = document.active_conversation_id();
+        check(document.rename_conversation(first, "Quick print"), "chat_restore_quick_chat_named");
+        DynamicPrintConfig quick;
+        quick.set_deserialize_strict("sparse_infill_density", "5%");
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(quick);
+        document.set_setup_intent(first, "Quick print");
+        Agent::PlanRecord quick_plan;
+        quick_plan.headline = "Quick plan";
+        document.set_plan(quick_plan, persistence().timestamp());
+        const bool quick_saved = host.checkpoint_active_chat();
+        check(quick_saved, "chat_restore_quick_checkpoint");
+        if (!quick_saved) {
+            finish();
+            return;
+        }
+        const std::string quick_version = document.chat_checkpoint(first)->at("versionId").get<std::string>();
+        auto& view = installed_shell()->agent_pane()->web_view();
+        WebView::RunScript(view.webview(), "window.__jusprinTest.createConversation()");
+        wait_until([this, first] { return persistence().document().active_conversation_id() != first; },
+                   "chat_restore_second_chat_created", [self = shared_from_this(), first, quick_version] {
+            auto& document = self->persistence().document();
+            const std::string second = document.active_conversation_id();
+            self->check(document.rename_conversation(second, "Strong print"), "chat_restore_strong_chat_named");
+            DynamicPrintConfig strong;
+            strong.set_deserialize_strict("sparse_infill_density", "80%");
+            wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(strong);
+            document.set_setup_intent(second, "Strong print");
+            Agent::PlanRecord strong_plan;
+            strong_plan.headline = "Strong plan";
+            document.set_plan(strong_plan, self->persistence().timestamp());
+            const bool strong_saved = installed_shell()->agent_pane()->web_view().host().checkpoint_active_chat();
+            self->check(strong_saved, "chat_restore_strong_checkpoint");
+            if (!strong_saved) {
+                self->finish();
+                return;
+            }
+            self->check(document.chat_checkpoint(second)->at("versionId") != quick_version,
+                        "chat_restore_settings_have_distinct_versions");
+            auto& view = installed_shell()->agent_pane()->web_view();
+            WebView::RunScript(view.webview(), wxString::FromUTF8(
+                "window.__jusprinTest.switchConversation('" + first + "')"));
+            self->wait_until([self, first] { return self->persistence().document().viewed_conversation_id() == first; },
+                             "chat_restore_history_viewed", [self, first, second, quick_version] {
+                auto& document = self->persistence().document();
+                self->check(document.active_conversation_id() == second,
+                            "chat_restore_browsing_preserves_active_identity");
+                self->check(wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize(
+                                "sparse_infill_density") == "80%", "chat_restore_browsing_preserves_live_settings");
+                const auto checkpoint = document.chat_checkpoint(first);
+                self->check(checkpoint && (*checkpoint)["summary"]["setupIntent"] == "Quick print",
+                            "chat_restore_saved_card_keeps_quick_intent");
+                self->capture_chat_pane("chat-history-quick-with-strong-project");
+                const std::size_t old_messages = document.messages(first).size();
+                auto& view = installed_shell()->agent_pane()->web_view();
+                const auto received_before = view.host().messages_received();
+                WebView::RunScript(view.webview(), "window.__jusprinTest.send('forged inactive turn')");
+                self->wait_until([&view, old_messages, first, received_before] {
+                    return view.host().persistence().document().messages(first).size() == old_messages &&
+                           view.host().messages_received() > received_before;
+                }, "chat_restore_inactive_send_refused", [self, first, second, old_messages, quick_version] {
+                    auto& document = self->persistence().document();
+                    self->check(document.messages(first).size() == old_messages &&
+                                document.active_conversation_id() == second,
+                                "chat_restore_forged_send_cannot_activate_history");
+                    auto& view = installed_shell()->agent_pane()->web_view();
+                    WebView::RunScript(view.webview(),
+                        "document.querySelector('.historical-chat-actions button.primary')?.click()");
+                    self->capture_chat_pane("chat-restore-confirmation");
+                    WebView::RunScript(view.webview(),
+                        "(function(){ const timer=setInterval(function(){"
+                        "const button=document.querySelector('.chat-dialog button.primary');"
+                        "if(button){clearInterval(timer);button.click();}},50);"
+                        "setTimeout(function(){clearInterval(timer);},5000); })()");
+                    self->wait_until([self, first] {
+                            return self->persistence().document().active_conversation_id() == first;
+                        }, "chat_restore_confirmed_transition", [self, first, second, quick_version] {
+                            auto& document = self->persistence().document();
+                            self->check(document.viewed_conversation_id() == first &&
+                                        document.plan().headline == "Quick plan",
+                                        "chat_restore_matching_planning_and_authority");
+                            self->check(wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize(
+                                            "sparse_infill_density") == "5%",
+                                        "chat_restore_quick_settings_restored");
+                            self->check(document.chat_checkpoint(second).has_value() &&
+                                        document.chat_checkpoint(second)->at("versionId") != quick_version,
+                                        "chat_restore_outgoing_version_remains_recoverable");
+                            self->check(installed_shell()->autosave()->save_now(),
+                                        "chat_restore_transition_durable");
+                            self->capture_chat_pane("chat-restored-quick-setup");
+                            self->finish();
+                        });
+                });
+            });
+        });
     }
 
     void verify_autosave_seed()
@@ -7517,9 +7649,13 @@ private:
                     auto& view = installed_shell()->agent_pane()->web_view();
                     WebView::RunScript(view.webview(), wxString::FromUTF8(
                         "window.__jusprinTest.deleteConversation('" + disposable + "')"));
-                    self->wait_until([self] { return self->persistence().document().conversations().size() == 2; },
+                    self->wait_until([self, disposable] {
+                        return self->persistence().document().conversations().size() == 3 &&
+                               self->persistence().document().active_conversation_id() != disposable;
+                    },
                                      "chat_deleted_via_page", [self, id, revision] {
-                        self->check(self->persistence().document().active_conversation_id() == id, "deletion_returns_to_recent_chat");
+                        self->check(self->persistence().document().active_conversation_id() != id,
+                                    "deletion_creates_fresh_active_chat");
                         self->check(installed_shell()->workspace()->snapshot().revision == revision, "chat_management_preserves_model");
                         self->agent_save_reopen();
                     });
@@ -7564,13 +7700,17 @@ private:
                     self->wait_until(
                         [self] { return self->persistence().document().project_id() == self->m_saved_project_id; },
                         "saved_state_adopted_on_reopen", [self] {
-                            self->check(self->persistence().document().conversations().size() == 2,
+                            self->check(self->persistence().document().conversations().size() == 3,
                                         "saved_conversations_survive_reopen");
-                            self->check(self->persistence().document().conversations().front().title == "Backpack frame test",
+                            const auto chats = self->persistence().document().conversations();
+                            const auto earlier = std::find_if(chats.begin(), chats.end(), [](const auto& chat) {
+                                return chat.title == "Backpack frame test";
+                            });
+                            self->check(earlier != chats.end(),
                                         "renamed_chat_survives_project_reopen");
-                            const auto messages = self->persistence().document().messages(
-                                self->persistence().document().active_conversation_id());
-                            self->check(!messages.empty(), "saved_messages_survive_reopen");
+                            self->check(earlier != chats.end() &&
+                                        !self->persistence().document().messages(earlier->id).empty(),
+                                        "saved_messages_survive_reopen");
                             self->agent_phase6_history();
                         });
                 });
@@ -9452,6 +9592,13 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PresetClose;
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
+        else if (argument == "--chat-restoration")
+            state->mode = HarnessState::Mode::ChatRestoration;
+        else if (argument == "--chat-restoration-capture") {
+            if (++index == argc) return 2;
+            state->mode = HarnessState::Mode::ChatRestoration;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--external-project-history-capture") {
             if (++index == argc) return 2;
             state->mode = HarnessState::Mode::ExternalProjectHistory;

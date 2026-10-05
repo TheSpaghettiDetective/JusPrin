@@ -194,7 +194,7 @@ export function ChatList({ conversations, activeId, busy, agentUnavailable, onSw
         const preview = (chat.preview || 'No messages yet').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*#`_]/g, '').replace(/\s+/g, ' ');
         return <button key={chat.id} className={`chat-list-row${chat.id === activeId ? ' selected' : ''}`}
           aria-current={chat.id === activeId ? 'true' : undefined} aria-label={`Open chat: ${chat.title}`}
-          disabled={busy && chat.id !== activeId} onClick={() => onSwitch(chat.id)}>
+          onClick={() => onSwitch(chat.id)}>
           <span className="chat-list-row-top"><ChatIcon /><strong title={chat.title}>{chat.title}</strong>
             <time dateTime={chat.updatedAt || chat.createdAt} title={chat.updatedAt || chat.createdAt}>{chatTimestamp(chat.updatedAt || chat.createdAt, now)}</time></span>
           <span className="chat-list-preview">{preview}</span>

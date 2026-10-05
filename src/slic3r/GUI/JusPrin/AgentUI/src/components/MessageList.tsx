@@ -45,6 +45,8 @@ interface Props {
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
   replyDisabled?: boolean;
+  readOnly?: boolean;
+  endNotice?: ReactNode;
   onDiscussFailure?: (text: string) => void;
   // The setup card's expansion is a layer over this thread; the thread dims
   // rather than being covered, so the conversation stays legibly there.
@@ -127,6 +129,8 @@ export function MessageList({
   onToolCancel,
   onSend,
   replyDisabled = false,
+  readOnly = false,
+  endNotice,
   onDiscussFailure,
   dimmed,
   printerBlocks,
@@ -204,8 +208,8 @@ export function MessageList({
   return (
     <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={restorePoints} onRevert={onRevert}
-        onDiscussFailure={discussFailure} discussDisabled={streamingMessageId !== null} />
+      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
+        onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
       {messages.length === 0 && (
         <div className="notice">
           <h2>Ask the Agent about your print</h2>
@@ -320,7 +324,7 @@ export function MessageList({
               {message.state === 'failed' && message.error && (
                 <div className="error">
                   {message.error.message}
-                  {message.error.retryable && (
+                  {message.error.retryable && !readOnly && (
                     <div>
                       <button onClick={() => onRetry(message.id)}>Retry</button>
                     </div>
@@ -362,6 +366,7 @@ export function MessageList({
                     stillProposing={streamingMessageId !== null}
                     onDecision={onToolDecision}
                     onCancel={onToolCancel}
+                    readOnly={readOnly}
                   />
                 ) : (
                   <ToolActivityCard
@@ -369,16 +374,18 @@ export function MessageList({
                     activity={activity}
                     onDecision={onToolDecision}
                     onCancel={onToolCancel}
+                    readOnly={readOnly}
                   />
                 );
               })}
             </div>
             {printerBlockViews(message.id)}
-            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} restorePoints={restorePoints} onRevert={onRevert}
-              onDiscussFailure={discussFailure} discussDisabled={streamingMessageId !== null} />
+            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
+              onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
           </Fragment>
         );
       })}
+      {endNotice}
     </div>
   );
 }

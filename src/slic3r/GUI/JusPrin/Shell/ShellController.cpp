@@ -173,10 +173,15 @@ ShellController::ShellController()
         if (m_autosave) {
             m_autosave->tick();
             const std::string head = m_autosave->current_version();
-            if (head != m_timeline_version_head) {
-                m_timeline_version_head = head;
-                if (m_agent_pane)
+            const auto document_revision = m_agent_pane ?
+                m_agent_pane->web_view().host().persistence().document().doc_revision() : 0;
+            if (!head.empty() && m_autosave->state() == Workspace::ProjectAutosave::State::Saved &&
+                (head != m_timeline_version_head || document_revision != m_timeline_document_revision)) {
+                if (m_agent_pane && m_agent_pane->web_view().host().checkpoint_active_chat()) {
+                    m_timeline_version_head = m_autosave->current_version();
+                    m_timeline_document_revision = m_agent_pane->web_view().host().persistence().document().doc_revision();
                     m_agent_pane->web_view().host().refresh_page_state();
+                }
             }
             const std::string key = std::to_string(int(m_autosave->state())) + m_autosave->error();
             if (key != m_autosave_status_key && m_status_row != nullptr) {
@@ -289,6 +294,23 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             *plater, *m_persistence, *m_workspace,
             std::filesystem::path(data_dir()) / "jusprin" / "projects");
         auto& project_host = m_agent_pane->web_view().host();
+        project_host.set_chat_checkpoint_callbacks(
+            [this] { return m_autosave->pin_current(); },
+            [this] {
+                return m_autosave->state() == Workspace::ProjectAutosave::State::Saved
+                    ? m_autosave->current_version() : std::string();
+            },
+            [this](const std::string& id) {
+                const auto versions = m_autosave->history();
+                return std::any_of(versions.begin(), versions.end(), [&id](const auto& version) {
+                    return version.id == id;
+                });
+            },
+            [this] { return m_autosave->save_now(); },
+            [this](const std::string& version, const nlohmann::json& planning, const std::string& chat) {
+                return m_autosave->restore_chat(version, planning, chat);
+            });
+        project_host.checkpoint_active_chat();
         project_host.set_restore_points_provider([this] {
             nlohmann::json points = nlohmann::json::array();
             if (!m_autosave)
@@ -342,7 +364,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             m_agent_pane->web_view().host().refresh_page_state();
             return true;
         });
-        m_agent_pane->web_view().host().set_turn_boundary_callback([this] { m_autosave->save_now(); });
+        m_agent_pane->web_view().host().set_turn_boundary_callback([this] {
+            m_agent_pane->web_view().host().checkpoint_active_chat();
+        });
         Slic3r::set_backup_suspended(true);
         m_status_row->set_autosave(m_autosave.get());
         plater->set_before_project_release([this] {

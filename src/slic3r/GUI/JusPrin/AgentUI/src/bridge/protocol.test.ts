@@ -31,6 +31,7 @@ describe('protocol constants', () => {
       'tool_cancel',
       'create_conversation',
       'switch_conversation',
+      'restore_conversation',
       'rename_conversation',
       'delete_conversation',
       'draft_update',

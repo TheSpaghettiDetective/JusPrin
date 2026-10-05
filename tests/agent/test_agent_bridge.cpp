@@ -296,7 +296,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
     CHECK(page_types == std::set<std::string>{Protocol::kHello, Protocol::kStateRequest, Protocol::kUserMessage,
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
                                               Protocol::kToolCancel, Protocol::kCreateConversation,
-                                              Protocol::kSwitchConversation, Protocol::kRenameConversation, Protocol::kDeleteConversation,
+                                              Protocol::kSwitchConversation, Protocol::kRestoreConversation,
+                                              Protocol::kRenameConversation, Protocol::kDeleteConversation,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
@@ -1360,8 +1361,13 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
 
     harness.deliver("switch_conversation", json{{"conversationId", first}});
     const json* switched = harness.last_of_type("state");
-    CHECK((*switched)["payload"]["activeConversationId"] == first);
+    CHECK((*switched)["payload"]["activeConversationId"] == second);
+    CHECK((*switched)["payload"]["viewedConversationId"] == first);
     CHECK((*switched)["payload"]["conversation"][0]["text"] == "hello in the first conversation");
+
+    harness.send_user_message("should not land in history", "c-old");
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "inactive_conversation");
+    CHECK(harness.persistence.document().messages(first).size() == 2);
 
     SECTION("switching to an unknown conversation is refused") {
         harness.deliver("switch_conversation", json{{"conversationId", "c-999"}});
@@ -1369,14 +1375,87 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     }
 
     SECTION("changing conversations is refused while a reply streams") {
+        harness.deliver("switch_conversation", json{{"conversationId", second}});
         harness.send_user_message("/slow tell me more", "c-c3");
         REQUIRE(harness.host.stream_active());
         harness.deliver("create_conversation", json::object());
         CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
-        harness.deliver("switch_conversation", json{{"conversationId", second}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK((*harness.last_of_type("state"))["payload"]["viewedConversationId"] == first);
+        CHECK((*harness.last_of_type("state"))["payload"]["activeConversationId"] == second);
         harness.pump_all();
     }
+}
+
+TEST_CASE("inactive chat resume checks authority, revision and saved planning", "[agent][conversations]")
+{
+    Harness harness;
+    std::string current_version = "v-1";
+    harness.host.set_chat_checkpoint_callbacks(
+        [&] { return current_version; }, [&] { return current_version; },
+        [](const std::string& version) { return version == "v-1" || version == "v-2"; },
+        [] { return true; },
+        [&](const std::string& version, const json& planning, const std::string& chat) {
+            harness.persistence.document().restore_planning_snapshot(planning);
+            harness.persistence.document().set_active_conversation(chat);
+            harness.persistence.document().set_viewed_conversation(chat);
+            current_version = version;
+            return true;
+        });
+    harness.handshake();
+    REQUIRE(harness.host.checkpoint_active_chat());
+    const std::string first = harness.persistence.document().active_conversation_id();
+    harness.deliver("create_conversation", json{{"title", "Strong"}});
+    const std::string second = harness.persistence.document().active_conversation_id();
+    REQUIRE(first != second);
+    current_version = "v-2";
+    REQUIRE(harness.persistence.document().set_setup_intent(second, "Strong print"));
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    const json payload = (*harness.last_of_type("state"))["payload"];
+    CHECK(payload["activeConversationId"] == second);
+    CHECK(payload["chatResume"]["status"] == "changed");
+    CHECK(payload["chatResume"]["summary"]["setupIntent"] == "");
+
+    harness.deliver("restore_conversation", json{{"conversationId", first},
+                                                  {"activeConversationId", second},
+                                                  {"docRevision", payload["docRevision"].get<std::uint64_t>() - 1}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "stale_transition");
+    CHECK(harness.persistence.document().active_conversation_id() == second);
+
+    const json fresh = (*harness.last_of_type("state"))["payload"];
+    harness.deliver("restore_conversation", json{{"conversationId", first},
+                                                  {"activeConversationId", second},
+                                                  {"docRevision", fresh["docRevision"]}});
+    CHECK(harness.persistence.document().active_conversation_id() == first);
+    CHECK(harness.persistence.document().viewed_conversation_id() == first);
+    CHECK(current_version == "v-1");
+    CHECK(harness.persistence.document().chat_checkpoint(second)->at("versionId") == "v-2");
+}
+
+TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conversations]")
+{
+    Harness harness;
+    harness.host.set_chat_checkpoint_callbacks(
+        [] { return std::string("v-1"); }, [] { return std::string("v-1"); },
+        [](const std::string&) { return true; }, [] { return true; },
+        [](const std::string&, const json&, const std::string&) { return false; });
+    harness.handshake();
+    REQUIRE(harness.host.checkpoint_active_chat());
+    const std::string first = harness.persistence.document().active_conversation_id();
+    harness.deliver("create_conversation", json::object());
+    const std::string second = harness.persistence.document().active_conversation_id();
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    const json state = (*harness.last_of_type("state"))["payload"];
+    harness.deliver("restore_conversation", json{{"conversationId", first},
+                                                  {"activeConversationId", second},
+                                                  {"docRevision", state["docRevision"]}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "restore_failed");
+    CHECK((*harness.last_of_type("state"))["payload"]["projectChatBlocked"] == true);
+    CHECK(harness.persistence.document().active_conversation_id() == second);
+    harness.deliver("switch_conversation", json{{"conversationId", second}});
+    harness.deliver("user_message", json{{"clientMessageId", "blocked-send"},
+                                         {"text", "try to continue"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "recovery_required");
 }
 
 TEST_CASE("the draft lives in the recovery store and clears when sent", "[agent][draft]")
@@ -1386,9 +1465,22 @@ TEST_CASE("the draft lives in the recovery store and clears when sent", "[agent]
 
     harness.deliver("draft_update", json{{"text", "half-typed thought"}});
     CHECK(harness.persistence.draft() == "half-typed thought");
+    CHECK((*harness.last_of_type("state"))["payload"]["docRevision"] ==
+          harness.persistence.document().doc_revision());
+    harness.deliver("draft_update", json{{"append", "From earlier chat: saved excerpt"}});
+    CHECK(harness.persistence.draft() == "half-typed thought\n\nFrom earlier chat: saved excerpt");
 
     harness.deliver("state_request");
-    CHECK((*harness.last_of_type("state"))["payload"]["draft"] == "half-typed thought");
+    CHECK((*harness.last_of_type("state"))["payload"]["draft"] ==
+          "half-typed thought\n\nFrom earlier chat: saved excerpt");
+
+    const std::string first = harness.persistence.document().active_conversation_id();
+    harness.deliver("create_conversation", json::object());
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    harness.deliver("draft_update", json{{"text", "forged historical draft"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "inactive_conversation");
+    CHECK(harness.persistence.draft() == "half-typed thought\n\nFrom earlier chat: saved excerpt");
+    harness.deliver("switch_conversation", json{{"conversationId", harness.persistence.document().active_conversation_id()}});
 
     harness.send_user_message("half-typed thought, finished", "c-d1");
     CHECK(harness.persistence.draft().empty());

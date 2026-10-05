@@ -19,6 +19,7 @@ export type PageMessageType =
   | 'tool_cancel'
   | 'create_conversation'
   | 'switch_conversation'
+  | 'restore_conversation'
   | 'rename_conversation'
   | 'delete_conversation'
   | 'draft_update'
@@ -295,6 +296,8 @@ export interface WorkspaceContext {
   // The agent's restatement of what this chat asked the setup to be, in the
   // user's words. Empty until a change is applied: talking does not write it.
   setupIntent: string;
+  planValidity?: 'current' | 'needs_reassessment';
+  planInvalidatedBy?: string;
 }
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',
@@ -542,7 +545,16 @@ export interface StatePayload {
   appearance: Appearance;
   conversations: ConversationInfo[];
   activeConversationId: string;
-  conversation: WireMessage[]; // messages of the active conversation
+  viewedConversationId?: string;
+  docRevision?: number;
+  projectChatBlocked?: boolean;
+  chatResume?: {
+    status: 'active' | 'changed' | 'unchanged' | 'unavailable';
+    savedAt?: string;
+    versionId?: string;
+    summary?: WorkspaceContext;
+  };
+  conversation: WireMessage[]; // messages of the viewed conversation
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
   builds: BuildInfo[];

@@ -9,6 +9,7 @@ interface Props {
   activity: ToolActivityInfo;
   onDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onCancel: (actionId: string) => void;
+  readOnly?: boolean;
 }
 
 const stateLabels: Record<ToolStateName, string> = {
@@ -21,7 +22,7 @@ const stateLabels: Record<ToolStateName, string> = {
   rejected: 'Rejected — nothing was changed',
 };
 
-export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
+export function ToolActivityCard({ activity, onDecision, onCancel, readOnly = false }: Props) {
   const stale = activity.state === 'failed' && activity.error?.code === 'stale_revision';
   const percent =
     activity.progress.total > 0 ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
@@ -35,10 +36,10 @@ export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
         <>
           <div className="tool-state"><span className="tool-status-icon pending" aria-hidden="true" />{stateLabels.pending}</div>
           <div className="tool-actions">
-            <button className="primary" onClick={() => onDecision(activity.actionId, 'approve')}>
+            <button className="primary" disabled={readOnly} onClick={() => onDecision(activity.actionId, 'approve')}>
               Approve
             </button>
-            <button onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
+            <button disabled={readOnly} onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
           </div>
         </>
       )}
@@ -51,7 +52,7 @@ export function ToolActivityCard({ activity, onDecision, onCancel }: Props) {
           <progress aria-label={`${activity.title} progress`}
             max={activity.progress.total > 0 ? activity.progress.total : undefined}
             value={activity.progress.total > 0 ? activity.progress.current : undefined} />
-          <button className="tool-cancel" onClick={() => onCancel(activity.actionId)}>Cancel</button>
+          <button className="tool-cancel" disabled={readOnly} onClick={() => onCancel(activity.actionId)}>Cancel</button>
         </>
       )}
 

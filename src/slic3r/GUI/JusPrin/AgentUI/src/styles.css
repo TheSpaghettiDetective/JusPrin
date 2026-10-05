@@ -339,6 +339,19 @@ body {
   font: var(--font-label);
 }
 
+.historical-chat-notice {
+  margin: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-container);
+  background: var(--surface-subtle);
+}
+.historical-chat-notice p { margin: 0 0 8px; font: var(--font-body-small); color: var(--text-primary); }
+.historical-chat-notice p + p { font: var(--font-label); color: var(--text-secondary); }
+.historical-chat-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 8px; }
+.historical-chat-composer-notice { border-top: 1px solid var(--border-subtle); }
+.historical-chat-composer-notice .historical-chat-notice { margin: 8px 12px; }
+
 /* Conversation */
 .external-actions {
   flex: 0 1 auto;

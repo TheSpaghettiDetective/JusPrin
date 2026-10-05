@@ -56,26 +56,31 @@ export function Composer({
   const [text, setText] = useState(initialText ?? '');
   const [dragging, setDragging] = useState(false);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDraft = useRef(false);
+  const latestText = useRef(initialText ?? '');
   const fileInput = useRef<HTMLInputElement>(null);
 
   // A recovered draft arrives after the first connect; apply it only while
   // the composer is untouched so it never clobbers active typing.
   const touched = useRef(false);
   useEffect(() => {
-    if (!touched.current && initialText) setText(initialText);
+    if (!touched.current && initialText) { setText(initialText); latestText.current = initialText; }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialText]);
 
   useEffect(() => {
     return () => {
       if (draftTimer.current !== null) clearTimeout(draftTimer.current);
+      if (pendingDraft.current) onDraftChange?.(latestText.current);
     };
   }, []);
 
   const reportDraft = (value: string) => {
     if (!onDraftChange) return;
     if (draftTimer.current !== null) clearTimeout(draftTimer.current);
-    draftTimer.current = setTimeout(() => onDraftChange(value), draftDebounceMs);
+    pendingDraft.current = true;
+    latestText.current = value;
+    draftTimer.current = setTimeout(() => { pendingDraft.current = false; onDraftChange(value); }, draftDebounceMs);
   };
 
   const hasSendable = attachments.some((a) => a.state === 'staged');
@@ -84,6 +89,7 @@ export function Composer({
   const send = () => {
     if (!canSend) return;
     if (draftTimer.current !== null) clearTimeout(draftTimer.current);
+    pendingDraft.current = false;
     onSend(text.trim());
     setText('');
   };
@@ -173,6 +179,7 @@ export function Composer({
             touched.current = true;
             onTyping?.();
             setText(event.target.value);
+            latestText.current = event.target.value;
             reportDraft(event.target.value);
           }}
           onKeyDown={handleKeyDown}

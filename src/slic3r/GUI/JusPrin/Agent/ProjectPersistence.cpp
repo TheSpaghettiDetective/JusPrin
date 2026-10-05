@@ -143,6 +143,7 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     entry.to     = edit.after;
     entry.preset = edit.preset;
     const ChangeEntry stored = m_document.add_change(std::move(entry), m_config.clock());
+    m_document.mark_plan_needs_reassessment(stored.label.empty() ? "The project changed" : stored.label);
     // A paint session is a burst of edits; the owner's pacing timer writes them.
     commit();
     if (m_change_added)
@@ -407,6 +408,7 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
     change.from = from_version;
     change.to = selected_version;
     current.add_change(std::move(change), m_config.clock());
+    current.mark_plan_needs_reassessment("An earlier model version was restored");
     m_document = std::move(current);
     m_draft = m_document.draft();
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();
@@ -415,6 +417,41 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
     m_dirty = true;
     flush();
     notify_document_replaced();
+}
+
+void ProjectPersistence::record_chat_restore(const std::string& current_state,
+                                              const std::string& from_version,
+                                              const std::string& selected_version,
+                                              const nlohmann::json& planning,
+                                              const std::string& conversation_id)
+{
+    if (m_config.managed_root.empty())
+        throw std::logic_error("chat restore requires a managed project document");
+    ProjectStateDocument current;
+    if (current.load(current_state) == ProjectStateDocument::LoadResult::Corrupt || !current.has_identity())
+        throw std::runtime_error("chat checkpoint is unavailable during restore");
+    const auto checkpoint = current.chat_checkpoint(conversation_id);
+    if (!checkpoint || checkpoint->value("versionId", "") != selected_version ||
+        (*checkpoint)["planning"] != planning)
+        throw std::runtime_error("chat checkpoint changed during restore");
+    current.normalize_interrupted_state();
+    current.restore_planning_snapshot(planning);
+    if (!current.set_active_conversation(conversation_id) || !current.set_viewed_conversation(conversation_id))
+        throw std::runtime_error("chat disappeared during restore");
+    ChangeEntry change;
+    change.kind = "restore";
+    change.actor = "person";
+    change.label = "Restored this chat's saved project setup";
+    change.from = from_version;
+    change.to = selected_version;
+    current.add_change(std::move(change), m_config.clock());
+    m_document = std::move(current);
+    m_draft = m_document.draft();
+    m_attached_aux_dir = m_workspace.auxiliary_data_dir();
+    m_attached = true;
+    m_boundary_pending = false;
+    m_dirty = true;
+    flush();
 }
 
 void ProjectPersistence::write_state_to(const std::string& directory) const

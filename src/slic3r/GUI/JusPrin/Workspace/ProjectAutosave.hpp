@@ -56,6 +56,8 @@ public:
     void record_agent_operation(const std::string& action_id, const std::string& tool,
                                 const std::string& outcome, const std::string& before);
     bool restore(const std::string& version_id);
+    bool restore_chat(const std::string& version_id, const nlohmann::json& planning,
+                      const std::string& conversation_id);
     bool resume_latest();
     std::vector<ManagedProject> projects();
     // Read-only lookup also works when another app instance owns the store lock.
@@ -65,6 +67,8 @@ public:
     bool export_copy(const std::filesystem::path& destination);
 
 private:
+    bool restore_impl(const std::string& version_id, const nlohmann::json* planning,
+                      const std::string& conversation_id);
     void adopt_project();
     bool capture(bool wait_for_commit);
     bool persist_document(bool wait_for_commit);

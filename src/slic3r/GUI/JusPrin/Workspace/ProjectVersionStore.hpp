@@ -92,6 +92,12 @@ public:
     void remove_materialization(const Materialization& materialization) const;
     std::vector<Version> history() const;
     void pin(const std::string& version_id);
+    // A chat restore spans Orca model publication and the independent
+    // document write. An interrupted marker blocks reopening rather than
+    // exposing a chat against a possibly mismatched model.
+    void begin_chat_restore(const std::string& from_version, const std::string& to_version,
+                            const std::string& conversation_id);
+    void finish_chat_restore();
     void record_operation(const std::string& action_id, const std::string& tool, const std::string& outcome,
                           const std::string& before, const std::string& after);
     void prune(std::size_t max_versions, std::uintmax_t max_bytes,

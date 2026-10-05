@@ -943,8 +943,10 @@ std::vector<ToolDefinition> make_definitions()
                                              {"topic", "statement", "confidence", "alternative"});
     const json plan_section = object_schema({{"headline", text}, {"decisions", array_schema(plan_decision, 16)},
                                              {"assumptions", array_schema(text, 16)}, {"risks", array_schema(text, 16)},
-                                             {"updatedAt", id}, {"truncated", boolean_schema()}},
-                                            {"headline", "decisions", "assumptions", "risks", "updatedAt", "truncated"});
+                                             {"updatedAt", id}, {"validity", id},
+                                             {"invalidatedBy", string_schema()}, {"truncated", boolean_schema()}},
+                                            {"headline", "decisions", "assumptions", "risks", "updatedAt",
+                                             "validity", "invalidatedBy", "truncated"});
     const json intent_output = object_schema({{"intent", intent_section}, {"sessionId", id}, {"revision", revision},
                                               {"projectUndo", boolean_schema()}},
                                              {"intent", "sessionId", "revision", "projectUndo"});

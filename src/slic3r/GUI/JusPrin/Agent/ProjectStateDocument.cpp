@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <set>
+#include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -389,6 +390,7 @@ json fresh_document()
                                   {"nextAttachment", std::uint64_t(1)}, {"nextBuild", std::uint64_t(1)},
                                   {"nextExport", std::uint64_t(1)}, {"nextPrint", std::uint64_t(1)}}},
                 {"activeConversationId", ""},
+                {"viewedConversationId", ""},
                 {"draft", ""},
                 {"conversations", json::array()},
                 {"toolActivities", json::array()},
@@ -445,6 +447,8 @@ ProjectStateDocument::LoadResult ProjectStateDocument::load(const std::string& j
     for (auto& [key, value] : parsed.items())
         result[key] = std::move(value);
     result["schemaVersion"] = kSchemaVersion;
+    if (!parsed.contains("viewedConversationId"))
+        result["viewedConversationId"] = result.value("activeConversationId", "");
     m_doc                   = std::move(result);
     return version < kSchemaVersion ? LoadResult::Migrated : LoadResult::Loaded;
 }
@@ -528,8 +532,11 @@ std::vector<ConversationInfo> ProjectStateDocument::conversations() const
 
 std::string ProjectStateDocument::active_conversation_id() const { return m_doc.value("activeConversationId", ""); }
 
+std::string ProjectStateDocument::viewed_conversation_id() const { return m_doc.value("viewedConversationId", active_conversation_id()); }
+
 std::string ProjectStateDocument::create_conversation(const std::string& title, const std::string& timestamp)
 {
+    const std::string inherited_intent = setup_intent(active_conversation_id());
     const std::uint64_t number = m_doc["counters"].value("nextConversation", std::uint64_t(1));
     m_doc["counters"]["nextConversation"] = number + 1;
     const std::string id = "c-" + std::to_string(number);
@@ -538,8 +545,10 @@ std::string ProjectStateDocument::create_conversation(const std::string& title, 
                                           {"title", title.empty() ? "New chat" : title},
                                           {"titleSource", title.empty() ? "default" : "manual"},
                                           {"createdAt", timestamp},
+                                          {"setupIntent", inherited_intent},
                                           {"messages", json::array()}});
     m_doc["activeConversationId"] = id;
+    m_doc["viewedConversationId"] = id;
     touch();
     return id;
 }
@@ -553,6 +562,68 @@ bool ProjectStateDocument::set_active_conversation(const std::string& conversati
     m_doc["activeConversationId"] = conversation_id;
     touch();
     return true;
+}
+
+bool ProjectStateDocument::set_viewed_conversation(const std::string& conversation_id)
+{
+    if (conversation_json(conversation_id) == nullptr)
+        return false;
+    if (viewed_conversation_id() == conversation_id)
+        return true;
+    m_doc["viewedConversationId"] = conversation_id;
+    touch();
+    return true;
+}
+
+std::optional<json> ProjectStateDocument::chat_checkpoint(const std::string& conversation_id) const
+{
+    const json* conversation = conversation_json(conversation_id);
+    if (!conversation || !conversation->contains("resumeCheckpoint") ||
+        !(*conversation)["resumeCheckpoint"].is_object())
+        return std::nullopt;
+    const json& record = (*conversation)["resumeCheckpoint"];
+    if (!record.contains("versionId") || !record["versionId"].is_string() ||
+        record["versionId"].get<std::string>().empty() || !record.contains("planning") ||
+        !record["planning"].is_object() || !record.contains("summary") ||
+        !record["summary"].is_object() || !record.contains("boundaryId") ||
+        !record["boundaryId"].is_string())
+        return std::nullopt;
+    return std::optional<json>(std::in_place, record);
+}
+
+json ProjectStateDocument::planning_snapshot() const
+{
+    return json{{"printIntent", m_doc["printIntent"]}, {"plan", m_doc["plan"]},
+                {"regions", m_doc["regions"]}};
+}
+
+bool ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_id,
+                                                 const std::string& version_id,
+                                                 const json& summary,
+                                                 const std::string& timestamp)
+{
+    json* conversation = conversation_json(conversation_id);
+    if (!conversation || conversation_id != active_conversation_id() || version_id.empty() || !summary.is_object())
+        return false;
+    (*conversation)["resumeCheckpoint"] = json{{"versionId", version_id},
+                                                  {"planning", planning_snapshot()},
+                                                  {"summary", summary},
+                                                  {"boundaryId", last_item_id(conversation_id)},
+                                                  {"savedAt", timestamp}};
+    touch();
+    return true;
+}
+
+void ProjectStateDocument::restore_planning_snapshot(const json& snapshot)
+{
+    if (!snapshot.is_object() || !snapshot.contains("printIntent") || !snapshot["printIntent"].is_array() ||
+        !snapshot.contains("plan") || !snapshot["plan"].is_object() ||
+        !snapshot.contains("regions") || !snapshot["regions"].is_array())
+        throw std::invalid_argument("invalid chat planning snapshot");
+    m_doc["printIntent"] = snapshot["printIntent"];
+    m_doc["plan"] = snapshot["plan"];
+    m_doc["regions"] = snapshot["regions"];
+    touch();
 }
 
 bool ProjectStateDocument::needs_conversation_title(const std::string& conversation_id) const
@@ -613,6 +684,8 @@ std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversatio
 {
     const json* conversation = conversation_json(conversation_id);
     if (!conversation) return std::nullopt;
+    const std::string inherited_intent = conversation_id == active_conversation_id()
+        ? setup_intent(conversation_id) : std::string();
     std::set<std::string> message_ids;
     std::set<std::string> attachment_ids;
     for (const json& message : (*conversation)["messages"]) {
@@ -640,10 +713,13 @@ std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversatio
         removed_dirs.push_back("attachments/" + id);
         return true;
     }), attachments.end());
-    if (chats.empty())
-        create_conversation({}, timestamp);
-    else if (active_conversation_id() == conversation_id)
-        m_doc["activeConversationId"] = conversations().front().id;
+    if (chats.empty() || active_conversation_id() == conversation_id) {
+        const std::string replacement = create_conversation({}, timestamp);
+        if (!inherited_intent.empty())
+            set_setup_intent(replacement, inherited_intent);
+    }
+    if (viewed_conversation_id() == conversation_id)
+        m_doc["viewedConversationId"] = active_conversation_id();
     touch();
     return removed_dirs;
 }
@@ -1020,6 +1096,8 @@ PlanRecord ProjectStateDocument::plan() const
     record.seq        = stored.value("seq", std::uint64_t(0));
     record.updated_at = stored.value("updatedAt", "");
     record.headline   = stored.value("headline", "");
+    record.validity = stored.value("validity", "current");
+    record.invalidated_by = stored.value("invalidatedBy", "");
     if (stored.contains("decisions") && stored["decisions"].is_array())
         for (const json& entry : stored["decisions"])
             record.decisions.push_back({entry.value("topic", ""), entry.value("statement", ""),
@@ -1046,6 +1124,8 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     stored["seq"]         = record.seq;
     stored["updatedAt"]   = record.updated_at;
     stored["headline"]    = record.headline;
+    stored["validity"]    = "current";
+    stored["invalidatedBy"] = "";
     stored["decisions"]   = json::array();
     for (const PlanDecision& decision : record.decisions)
         stored["decisions"].push_back({{"topic", decision.topic},
@@ -1056,6 +1136,21 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     stored["risks"]       = record.risks;
     touch();
     return record;
+}
+
+bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reason)
+{
+    json& stored = m_doc["plan"];
+    if (!stored.is_object() || (stored.value("headline", "").empty() &&
+                                (!stored.contains("decisions") || stored["decisions"].empty())))
+        return false;
+    if (stored.value("validity", "current") == "needs_reassessment" &&
+        stored.value("invalidatedBy", "") == reason)
+        return false;
+    stored["validity"] = "needs_reassessment";
+    stored["invalidatedBy"] = reason;
+    touch();
+    return true;
 }
 
 std::vector<Workspace::RegionRecord> ProjectStateDocument::regions() const

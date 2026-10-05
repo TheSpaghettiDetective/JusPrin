@@ -43,6 +43,7 @@ inline constexpr const char* kToolDecision       = "tool_decision";
 inline constexpr const char* kToolCancel         = "tool_cancel";
 inline constexpr const char* kCreateConversation = "create_conversation";
 inline constexpr const char* kSwitchConversation = "switch_conversation";
+inline constexpr const char* kRestoreConversation = "restore_conversation";
 inline constexpr const char* kRenameConversation = "rename_conversation";
 inline constexpr const char* kDeleteConversation = "delete_conversation";
 inline constexpr const char* kConversationsUpdated = "conversations_updated";

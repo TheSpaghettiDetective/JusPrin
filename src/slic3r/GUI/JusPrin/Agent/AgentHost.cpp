@@ -12,6 +12,7 @@
 #include <cctype>
 #include <filesystem>
 #include <set>
+#include <string_view>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -422,7 +423,8 @@ json attachment_json(const AttachmentRecord& record)
 // too, but only the copy returned with a tool result: an ordinary turn is
 // built from the snapshot struct, which has no notion of an agent.
 json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>& agent_authored,
-                  const std::string& setup_intent = {})
+                  const std::string& setup_intent = {}, const std::string& plan_validity = "current",
+                  const std::string& plan_invalidated_by = {})
 {
     json plates = json::array();
     for (const Workspace::WorkspacePlate& plate : snapshot.plates) {
@@ -488,7 +490,9 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
                 {"history", json{{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}}},
                 {"presetDeltas", std::move(preset_deltas)},
                 {"currency", snapshot.currency},
-                {"setupIntent", setup_intent}};
+                {"setupIntent", setup_intent},
+                {"planValidity", plan_validity},
+                {"planInvalidatedBy", plan_invalidated_by}};
 }
 
 } // namespace
@@ -622,6 +626,7 @@ std::vector<ConversationMessage> AgentHost::conversation() const
 
 void AgentHost::on_document_replaced()
 {
+    m_chat_transition_blocked = false;
     rebuild_agent_authored();
     m_title.reset();
     if (m_mcp) m_mcp->detach_calls();
@@ -639,6 +644,18 @@ void AgentHost::send_envelope(const char* type, const std::string& payload_json,
 {
     if (!m_send)
         return;
+    // A live turn can finish while the person reads history. Its incremental
+    // message and action events belong to the active chat, never the viewed
+    // transcript; refresh the selected view from authoritative state instead.
+    const std::string_view event_type(type);
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id() &&
+        (event_type == Protocol::kMessageAdded || event_type == Protocol::kAssistantStarted ||
+         event_type == Protocol::kAssistantDelta || event_type == Protocol::kAssistantCompleted ||
+         event_type == Protocol::kAssistantFailed || event_type == Protocol::kAssistantStopped ||
+         event_type == Protocol::kToolActivity)) {
+        send_state();
+        return;
+    }
     json envelope{{"protocol", Protocol::kName},
                   {"version", Protocol::kVersion},
                   {"id", "h-" + std::to_string(m_next_envelope_id++)},
@@ -667,12 +684,30 @@ void AgentHost::send_state(const std::string& correlation_id)
 
     const ProjectStateDocument& document = m_persistence.document();
     const std::string active = document.active_conversation_id();
+    const std::string viewed = document.viewed_conversation_id();
 
     json conversations = conversation_list_json(document);
 
     json conversation = json::array();
-    for (const ConversationMessage& message : document.messages(active))
+    for (const ConversationMessage& message : document.messages(viewed))
         conversation.push_back(message_json(message));
+
+    json resume{{"status", "active"}};
+    if (viewed != active) {
+        resume["status"] = "unavailable";
+        if (const auto checkpoint = document.chat_checkpoint(viewed)) {
+            const std::string version = checkpoint->value("versionId", "");
+            resume["summary"] = (*checkpoint)["summary"];
+            resume["savedAt"] = checkpoint->value("savedAt", "");
+            if (m_chat_version_exists && m_chat_version_exists(version)) {
+                const bool same_model = m_current_chat_version && m_current_chat_version() == version;
+                const bool same_planning = (*checkpoint)["planning"] == document.planning_snapshot();
+                const bool same_intent = (*checkpoint)["summary"].value("setupIntent", "") == document.setup_intent(active);
+                resume["status"] = same_model && same_planning && same_intent ? "unchanged" : "changed";
+                resume["versionId"] = version;
+            }
+        }
+    }
 
     // Stored history first, overlaid by live coordinator records (the live
     // record is fresher while an action runs). The project_open that closed
@@ -720,9 +755,13 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"appearance", m_dark ? "dark" : "light"},
                  {"conversations", std::move(conversations)},
                  {"activeConversationId", active},
+                 {"viewedConversationId", viewed},
+                 {"docRevision", document.doc_revision()},
+                 {"chatResume", std::move(resume)},
+                 {"projectChatBlocked", m_chat_transition_blocked},
                  {"conversation", std::move(conversation)},
-                 {"streamingMessageId", m_stream ? json(m_stream->message.id) : json(nullptr)},
-                 {"conversationBusy", m_stream.has_value() || !m_tool_continuations.empty()},
+                 {"streamingMessageId", m_stream && m_stream->conversation_id == viewed ? json(m_stream->message.id) : json(nullptr)},
+                 {"conversationBusy", transition_busy()},
                  {"toolActivities", std::move(tool_activities)},
                  {"draft", m_persistence.draft()},
                  {"attachments", std::move(attachments)},
@@ -731,7 +770,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"physicalPrints", std::move(physical_prints)},
                  {"changes", std::move(changes)},
                  {"context", context_json(snapshot, agent_authored_keys(snapshot),
-                                          m_persistence.document().setup_intent(active))}};
+                                          document.setup_intent(active), document.plan().validity,
+                                          document.plan().invalidated_by)}};
     if (m_session_state_provider)
         payload["session"] = m_session_state_provider();
     if (m_navigation_state_provider)
@@ -749,7 +789,9 @@ void AgentHost::send_context()
     send_envelope(Protocol::kContext,
                   json{{"context", context_json(snapshot, agent_authored_keys(snapshot),
                                                 m_persistence.document().setup_intent(
-                                                    m_persistence.document().active_conversation_id()))}}
+                                                    m_persistence.document().active_conversation_id()),
+                                                m_persistence.document().plan().validity,
+                                                m_persistence.document().plan().invalidated_by)}}
                       .dump());
 }
 
@@ -829,6 +871,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_create_conversation(envelope_id, payload);
     else if (type == Protocol::kSwitchConversation)
         handle_switch_conversation(envelope_id, payload);
+    else if (type == Protocol::kRestoreConversation)
+        handle_restore_conversation(envelope_id, payload);
     else if (type == Protocol::kRenameConversation)
         handle_rename_conversation(envelope_id, payload);
     else if (type == Protocol::kDeleteConversation)
@@ -910,11 +954,24 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
 
 void AgentHost::handle_user_message(const std::string& envelope_id, const std::string& payload_json)
 {
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
+        send_bridge_error("inactive_conversation", "Return to the active chat or restore this chat before sending.", envelope_id);
+        return;
+    }
     if (m_setup_pending) {
         send_bridge_error("setup_busy", "Finish or cancel Agent configuration before sending a message.", envelope_id);
         return;
     }
     const json payload = json::parse(payload_json);
+    if (payload.contains("conversationId") && payload["conversationId"] !=
+        m_persistence.document().active_conversation_id()) {
+        send_bridge_error("stale_conversation", "This message belongs to a different chat.", envelope_id);
+        return;
+    }
     const std::string client_id = payload.at("clientMessageId").get<std::string>();
     const std::string text      = payload.at("text").get<std::string>();
 
@@ -1216,6 +1273,14 @@ void AgentHost::handle_stop(const std::string& payload_json)
 
 void AgentHost::handle_retry(const std::string& envelope_id, const std::string& payload_json)
 {
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
+        send_bridge_error("inactive_conversation", "Historical replies cannot be retried.", envelope_id);
+        return;
+    }
     cancel_conversation_title();
     const json payload = json::parse(payload_json, nullptr, false);
     const std::string message_id = payload.is_object() ? payload.value("messageId", "") : std::string();
@@ -1240,6 +1305,14 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
 
 void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::string& payload_json)
 {
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
+        send_bridge_error("inactive_conversation", "Historical tool decisions cannot be submitted.", envelope_id);
+        return;
+    }
     const json payload = json::parse(payload_json);
     const std::string action_id = payload.at("actionId").get<std::string>();
     const std::string decision  = payload.at("decision").get<std::string>();
@@ -1277,6 +1350,14 @@ std::optional<json> AgentHost::take_decision_input(const std::string& action_id)
 
 void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json)
 {
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
+        send_bridge_error("inactive_conversation", "Historical tool actions cannot be changed.", envelope_id);
+        return;
+    }
     const json        payload   = json::parse(payload_json, nullptr, false);
     const std::string action_id = payload.is_object() ? payload.value("actionId", "") : std::string();
     if (m_tools.find(action_id) == nullptr) {
@@ -1291,34 +1372,117 @@ void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::st
     }
 }
 
+bool AgentHost::checkpoint_active_chat()
+{
+    if (!m_pin_chat_version)
+        return true; // Temporary sessions and GUI-free hosts have no model store.
+    if (transition_busy())
+        return false;
+    const std::string version = m_pin_chat_version();
+    if (version.empty())
+        return false;
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string active = document.active_conversation_id();
+    const WorkspaceSnapshot snapshot = m_workspace.snapshot();
+    if (!document.save_chat_checkpoint(active, version,
+            context_json(snapshot, agent_authored_keys(snapshot), document.setup_intent(active),
+                         document.plan().validity, document.plan().invalidated_by),
+            m_persistence.timestamp()))
+        return false;
+    m_persistence.flush();
+    return !m_save_chat_document || m_save_chat_document();
+}
+
 void AgentHost::handle_create_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
     cancel_conversation_title();
-    if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the streaming reply before changing conversations.", envelope_id);
+    if (transition_busy()) {
+        send_bridge_error("busy", "Finish or resolve pending work before creating a chat.", envelope_id);
+        return;
+    }
+    if (!checkpoint_active_chat()) {
+        send_bridge_error("save_failed", "The current chat could not be saved.", envelope_id);
         return;
     }
     const json        payload = json::parse(payload_json, nullptr, false);
     const std::string title   = payload.is_object() ? payload.value("title", "") : std::string();
-    m_persistence.document().create_conversation(title, m_persistence.timestamp());
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string before = document.dump();
+    const std::string previous = document.active_conversation_id();
+    const std::string created = document.create_conversation(title, m_persistence.timestamp());
+    if (const auto prior = document.chat_checkpoint(previous))
+        document.save_chat_checkpoint(created, prior->value("versionId", ""),
+            context_json(m_workspace.snapshot(), agent_authored_keys(m_workspace.snapshot()),
+                         document.setup_intent(created), document.plan().validity,
+                         document.plan().invalidated_by), m_persistence.timestamp());
     m_persistence.flush();
+    if (m_save_chat_document && !m_save_chat_document()) {
+        document.load(before);
+        send_bridge_error("save_failed", "The new chat could not be saved.", envelope_id);
+        return;
+    }
     send_state(envelope_id);
 }
 
 void AgentHost::handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
-    cancel_conversation_title();
-    if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the streaming reply before changing conversations.", envelope_id);
-        return;
-    }
     const json        payload         = json::parse(payload_json, nullptr, false);
     const std::string conversation_id = payload.is_object() ? payload.value("conversationId", "") : std::string();
-    if (!m_persistence.document().set_active_conversation(conversation_id)) {
+    if (!m_persistence.document().set_viewed_conversation(conversation_id)) {
         send_bridge_error("unknown_conversation", "No conversation \"" + conversation_id + "\" exists.", envelope_id);
         return;
     }
     m_persistence.flush();
+    send_state(envelope_id);
+}
+
+void AgentHost::handle_restore_conversation(const std::string& envelope_id, const std::string& payload_json)
+{
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    const json payload = json::parse(payload_json, nullptr, false);
+    ProjectStateDocument& document = m_persistence.document();
+    if (!payload.is_object() || payload.value("conversationId", "") != document.viewed_conversation_id() ||
+        payload.value("activeConversationId", "") != document.active_conversation_id() ||
+        payload.value("docRevision", std::uint64_t(0)) != document.doc_revision()) {
+        send_bridge_error("stale_transition", "The project or selected chat changed. Review it again.", envelope_id);
+        send_state();
+        return;
+    }
+    if (transition_busy()) {
+        send_bridge_error("busy", "Finish or resolve pending work before resuming a chat.", envelope_id);
+        return;
+    }
+    const std::string target = document.viewed_conversation_id();
+    if (target == document.active_conversation_id()) {
+        send_bridge_error("invalid_transition", "This chat is already active.", envelope_id);
+        return;
+    }
+    const auto checkpoint = document.chat_checkpoint(target);
+    if (!checkpoint || !m_chat_version_exists ||
+        !m_chat_version_exists(checkpoint->value("versionId", "")) || !m_restore_chat_version) {
+        send_bridge_error("checkpoint_unavailable", "This chat has no recoverable project checkpoint.", envelope_id);
+        send_state();
+        return;
+    }
+    if (!checkpoint_active_chat()) {
+        send_bridge_error("save_failed", "The current project could not be saved before restoration.", envelope_id);
+        return;
+    }
+    if (!m_restore_chat_version(checkpoint->value("versionId", ""), (*checkpoint)["planning"], target)) {
+        m_chat_transition_blocked = true;
+        send_bridge_error("restore_failed", "The saved project could not be restored.", envelope_id);
+        send_state();
+        return;
+    }
+    post_note("Restored this chat's saved project setup. Check the current printer and material before printing.");
+    checkpoint_active_chat();
     send_state(envelope_id);
 }
 
@@ -1353,9 +1517,18 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
         send_bridge_error("busy", "Finish or stop the reply and resolve pending actions before deleting this chat.", envelope_id);
         return;
     }
-    const auto removed = m_persistence.document().delete_conversation(id, m_persistence.timestamp());
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string before = document.dump();
+    const std::string previous_active = document.active_conversation_id();
+    const auto removed = document.delete_conversation(id, m_persistence.timestamp());
     if (!removed) {
         send_bridge_error("unknown_conversation", "This chat no longer exists.", envelope_id);
+        return;
+    }
+    if (document.active_conversation_id() != previous_active && !checkpoint_active_chat()) {
+        document.load(before);
+        m_persistence.flush();
+        send_bridge_error("save_failed", "The replacement chat could not be saved.", envelope_id);
         return;
     }
     m_tools.forget_terminal_activities(message_ids);
@@ -1366,9 +1539,24 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_draft_update(const std::string& payload_json)
 {
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
+        send_bridge_error("inactive_conversation", "Historical chats cannot edit the current draft.");
+        return;
+    }
     const json payload = json::parse(payload_json, nullptr, false);
-    if (payload.is_object() && payload.contains("text") && payload["text"].is_string())
+    bool updated = false;
+    if (payload.is_object() && payload.contains("text") && payload["text"].is_string()) {
         m_persistence.set_draft(payload["text"].get<std::string>());
+        updated = true;
+    } else if (payload.is_object() && payload.contains("append") && payload["append"].is_string()) {
+        const std::string addition = payload["append"].get<std::string>();
+        if (!addition.empty()) {
+            m_persistence.set_draft(m_persistence.draft().empty() ? addition : m_persistence.draft() + "\n\n" + addition);
+            updated = true;
+        }
+    }
+    if (updated && m_handshake)
+        send_state();
 }
 
 void AgentHost::send_tool_activity(const ToolActivity& activity, const std::string& correlation_id)
@@ -1595,8 +1783,8 @@ void AgentHost::pump_tools()
     // A parked project boundary (Project event delivered before the new
     // directory was in place) resolves here, once per timer tick.
     m_persistence.resolve_pending_boundary();
-    if (m_mcp) m_mcp->poll();
-    if (m_handshake || m_mcp)
+    if (!m_chat_transition_blocked && m_mcp) m_mcp->poll();
+    if (!m_chat_transition_blocked && (m_handshake || m_mcp))
         m_tools.pump();
     // Streaming deltas and progress mark the document dirty without forcing a
     // write each; this pump gives them their throttled flush.
@@ -1619,6 +1807,8 @@ std::optional<ConversationMessage> AgentHost::find_stored_message(const std::str
 
 void AgentHost::start_turn(const std::string& source_message_id)
 {
+    if (m_chat_transition_blocked)
+        return;
     // As a sent message does: the title is optional, the turn is not. The
     // source ID keeps an app-initiated file report attached to its own turn.
     cancel_conversation_title();
@@ -1876,7 +2066,6 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     stream.message.state = MessageState::Complete;
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
-    if (m_turn_boundary_callback) m_turn_boundary_callback();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
     const ToolActivity& proposed =
@@ -2158,6 +2347,15 @@ void AgentHost::start_next_queued_reply()
 bool AgentHost::agent_busy() const
 {
     return m_stream.has_value() || !m_tool_continuations.empty() || (m_agent && m_agent->busy());
+}
+
+bool AgentHost::transition_busy() const
+{
+    if (agent_busy() || m_setup_pending || !m_queued_user_message_ids.empty())
+        return true;
+    return std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [](const ToolActivity& activity) {
+        return !tool_state_terminal(activity.state);
+    });
 }
 
 void AgentHost::set_appearance(bool dark)

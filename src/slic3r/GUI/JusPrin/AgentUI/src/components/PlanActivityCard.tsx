@@ -6,6 +6,7 @@
 import { ActionClassName, ToolActivityInfo, ToolStateName } from '../bridge/protocol';
 
 interface Props {
+  readOnly?: boolean;
   members: ToolActivityInfo[];
   headline?: string;
   // The in-app agent's turn is still running and may add members; the
@@ -64,7 +65,7 @@ export function planMembers(activities: ToolActivityInfo[]): Map<string, ToolAct
   return plans;
 }
 
-export function PlanActivityCard({ members, headline, stillProposing, onDecision, onCancel }: Props) {
+export function PlanActivityCard({ members, headline, stillProposing, onDecision, onCancel, readOnly = false }: Props) {
   const state = groupState(members);
   const highest = members.reduce<ActionClassName>(
     (top, member) => (classRank[member.actionClass] > classRank[top] ? member.actionClass : top), 'read_only');
@@ -96,10 +97,10 @@ export function PlanActivityCard({ members, headline, stillProposing, onDecision
       {waiting && (
         <div className="tool-actions">
           <span className="tool-state">{stillProposing ? 'The Agent is still adding to this plan' : 'Waiting for your approval'}</span>
-          <button className="primary" disabled={stillProposing} onClick={() => onDecision(waiting.actionId, 'approve')}>
+          <button className="primary" disabled={stillProposing || readOnly} onClick={() => onDecision(waiting.actionId, 'approve')}>
             Approve all
           </button>
-          <button disabled={stillProposing} onClick={() => onDecision(waiting.actionId, 'reject')}>Reject all</button>
+          <button disabled={stillProposing || readOnly} onClick={() => onDecision(waiting.actionId, 'reject')}>Reject all</button>
         </div>
       )}
 
@@ -107,7 +108,7 @@ export function PlanActivityCard({ members, headline, stillProposing, onDecision
         <div className="tool-actions">
           <progress aria-label="Plan progress" max={members.length} value={done} />
           <span className="tool-state">{done} of {members.length}</span>
-          <button onClick={() => active.forEach((member) => onCancel(member.actionId))}>Cancel</button>
+          <button disabled={readOnly} onClick={() => active.forEach((member) => onCancel(member.actionId))}>Cancel</button>
         </div>
       )}
 
