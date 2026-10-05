@@ -84,7 +84,13 @@ Keep stable constraints short and consistent across prompts. Put most prompt det
 
 For JusPrin high-fidelity frames, also require:
 
-- paired light and dark states using the same semantic token roles;
+- one canonical appearance mode for each application screen; do not create a
+  second light/dark screen frame solely to demonstrate theming;
+- the other appearance mode must be deterministically derived by the design
+  system from the same semantic token roles, component variants, geometry,
+  content, and interaction state;
+- light/dark comparisons belong in the design-system work needed to verify
+  semantic mappings, not as duplicate application-screen deliverables;
 - HarmonyOS Sans SC roles and the established functional SVG icon system;
 - native desktop density and the documented radius, spacing, control-size, and typography roles;
 - applicable hover, pressed, disabled, focus, success, warning, and error states;
