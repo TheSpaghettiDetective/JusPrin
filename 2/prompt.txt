@@ -7,3 +7,15 @@ Do you need a hi-fi design or you can use the current reusable components to con
 ---
 
 implement it and test it
+
+---
+
+move your work to a worktree instead of the main checkout
+
+---
+
+does main checkout contain any commits that are related to this task?
+
+---
+
+tell me what this task is about
