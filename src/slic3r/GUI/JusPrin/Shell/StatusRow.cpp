@@ -12,7 +12,9 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "slic3r/GUI/Event.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/GUI_Preview.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
@@ -25,6 +27,8 @@
 #include <wx/filedlg.h>
 #include <wx/weakref.h>
 #include <wx/dcbuffer.h>
+#include <wx/dialog.h>
+#include <wx/timer.h>
 #include <algorithm>
 #include <boost/log/trivial.hpp>
 #include <stdexcept>
@@ -50,6 +54,65 @@ void show_project_error(wxWindow* parent, const wxString& title, const wxString&
     BOOST_LOG_TRIVIAL(error) << std::string(title.ToUTF8()) << ": " << detail;
     wxMessageBox(message, title, wxOK | wxICON_ERROR, parent);
 }
+
+class CheckPrintDialog final : public wxDialog
+{
+public:
+    CheckPrintDialog(wxWindow* parent, Plater& plater, std::function<bool()> is_current)
+        : wxDialog(parent, wxID_ANY, _L("Check Print"), wxDefaultPosition, wxDefaultSize,
+                   wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER)
+        , m_plater(plater)
+        , m_is_current(std::move(is_current))
+    {
+        SetName(_L("Check Print"));
+        m_preview = m_plater.create_preview(this);
+        if (m_preview->get_canvas3d() == nullptr)
+            throw std::runtime_error("Check Print could not create the Orca Preview canvas");
+        auto* layout = new wxBoxSizer(wxVERTICAL);
+        layout->Add(m_preview, 1, wxEXPAND);
+        SetSizer(layout);
+        SetClientSize(m_plater.GetClientSize());
+        CentreOnParent();
+
+        m_preview->get_canvas3d()->bind_event_handlers();
+        m_subscription = m_plater.subscribe_project_state([this](const ProjectStateChanged&) { close_if_stale(); });
+        m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &CheckPrintDialog::on_slice_status_changed, this);
+        Bind(wxEVT_TIMER, [this](wxTimerEvent&) { close_if_stale(); }, m_stale_timer.GetId());
+        m_stale_timer.Start(200);
+        Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& event) {
+            if (event.GetKeyCode() == WXK_ESCAPE) EndModal(wxID_CANCEL);
+            else event.Skip();
+        });
+    }
+
+    ~CheckPrintDialog() override
+    {
+        m_stale_timer.Stop();
+        m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &CheckPrintDialog::on_slice_status_changed, this);
+        m_subscription.reset();
+        if (m_preview->get_canvas3d())
+            m_preview->get_canvas3d()->unbind_event_handlers();
+    }
+
+private:
+    void close_if_stale()
+    {
+        if (IsModal() && !m_is_current())
+            EndModal(wxID_CANCEL);
+    }
+
+    void on_slice_status_changed(wxCommandEvent& event)
+    {
+        close_if_stale();
+        event.Skip();
+    }
+
+    Plater& m_plater;
+    std::function<bool()> m_is_current;
+    Preview* m_preview{nullptr};
+    ProjectStateSubscription m_subscription;
+    wxTimer m_stale_timer{this};
+};
 
 } // namespace
 
@@ -165,8 +228,9 @@ void StatusRow::refresh()
     const auto actions = primary_print_action(state);
     m_slice_button->SetLabel(action_label(actions.primary.action, true));
     m_slice_button->Enable(actions.primary.enabled);
-    m_slice_button->set_icon(actions.primary.action == PrintAction::Print ? HeaderIcon::Print : HeaderIcon::Slice);
-    m_slice_button->set_status(!state.slicing && actions.primary.enabled, false);
+    m_slice_button->set_icon(state.slicing ? HeaderIcon::Slicing :
+                             actions.primary.action == PrintAction::Print ? HeaderIcon::Print : HeaderIcon::Slice);
+    m_slice_button->set_status(false, false);
     m_menu_button->set_icon(state.slicing ? HeaderIcon::Cancel : HeaderIcon::Down);
     m_menu_button->SetToolTip(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
     m_menu_button->SetName(state.slicing ? _L("Cancel slicing") : _L("Print actions"));
@@ -216,6 +280,7 @@ wxString StatusRow::action_label(PrintAction action, bool primary) const
     case PrintAction::Slice: return _L("Slice");
     case PrintAction::SliceAll: return _L("Slice all plates");
     case PrintAction::Cancel: return primary ? _L("Slicing…") : _L("Cancel");
+    case PrintAction::CheckPrint: return _L("Check Print");
     case PrintAction::Print: return primary ? (state.plate_count > 1 ? wxString::Format(_L("Print plate %d"), state.plate_number) : _L("Print")) : _L("Print…");
     case PrintAction::PrintAll: return _L("Print all plates…");
     case PrintAction::Export: return _L("Export sliced file…");
@@ -239,7 +304,8 @@ void StatusRow::show_action_menu()
     std::vector<HeaderMenuItem> menu;
     for (const auto& item : actions.menu) {
         HeaderIcon icon = HeaderIcon::Slice;
-        if (item.action == PrintAction::Print) icon = HeaderIcon::Print;
+        if (item.action == PrintAction::CheckPrint) icon = HeaderIcon::Eye;
+        else if (item.action == PrintAction::Print) icon = HeaderIcon::Print;
         else if (item.action == PrintAction::PrintAll || item.action == PrintAction::SliceAll) icon = HeaderIcon::Plates;
         else if (item.action == PrintAction::Export) icon = HeaderIcon::Export;
         else if (item.action == PrintAction::Cancel) icon = HeaderIcon::Cancel;
@@ -533,6 +599,16 @@ void StatusRow::request_action(PrintAction action)
     case PrintAction::Slice: request_slice(); return;
     case PrintAction::SliceAll: request_slice(true); return;
     case PrintAction::Cancel: m_plater.cancel_slicing(); return;
+    case PrintAction::CheckPrint: {
+        const auto identity = print_target_identity();
+        CheckPrintDialog dialog(this, m_plater, [this,identity] {
+            return action_state().sliced && print_target_identity() == identity;
+        });
+        dialog.ShowModal();
+        m_menu_button->SetFocus();
+        refresh();
+        return;
+    }
     case PrintAction::Print:
     case PrintAction::PrintAll: {
         auto& presets = *wxGetApp().preset_bundle;

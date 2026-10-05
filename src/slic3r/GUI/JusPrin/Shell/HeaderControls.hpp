@@ -17,7 +17,7 @@ namespace Slic3r::GUI::JusPrin {
 // lighter strokes the menu rows use.
 // PanelOpen and PanelClosed are the right pane's two states; PanelLeftOpen
 // and PanelLeftClosed mirror the same glyph for the left pane.
-enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Lock, Slice, Plates, Export, Print, Cancel,
+enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Eye, Lock, Slice, Slicing, Plates, Export, Print, Cancel,
                         PanelOpen, PanelClosed, PanelLeftOpen, PanelLeftClosed };
 
 // Draws a semantic Lucide asset, or the product-specific solid caret/pane state,

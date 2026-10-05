@@ -199,6 +199,8 @@ ShellController::ShellController()
                 m_frame->update_title_colour_after_set_title();
             }
         }
+        if (m_left_pane != nullptr && m_plater != nullptr && m_plater->is_background_process_slicing())
+            m_left_pane->refresh_slicing_progress();
         if (!m_agent_pane) return;
         auto& host = m_agent_pane->web_view().host();
         host.pump_stream();

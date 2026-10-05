@@ -7,6 +7,7 @@
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/GCode/Thumbnails.hpp"
+#include "libslic3r/miniz_extension.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/Camera.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
@@ -188,6 +189,76 @@ void append_transform(std::ostringstream& out, const Transform3d& transform)
 {
     for (int index = 0; index < 16; ++index)
         out << transform.matrix().data()[index] << ',';
+}
+
+// Managed checkpoints keep their captured settings; ordinary 3MF exports keep Orca's
+// actual preset-difference list. Rewrite only the unpublished backup archive.
+void protect_saved_settings(const std::filesystem::path& metadata)
+{
+    constexpr const char* entry = "Metadata/project_settings.config";
+    mz_zip_archive source, target;
+    mz_zip_zero_struct(&source);
+    mz_zip_zero_struct(&target);
+    if (!open_zip_reader(&source, metadata.u8string()))
+        throw std::runtime_error("Could not read captured project metadata");
+
+    bool target_open = false;
+    auto rewritten = metadata;
+    rewritten += ".rewrite";
+    try {
+        const int entry_index = mz_zip_reader_locate_file(&source, entry, nullptr, 0);
+        if (entry_index < 0)
+            throw std::runtime_error("Captured project settings are missing");
+        size_t size = 0;
+        void* data = mz_zip_reader_extract_file_to_heap(&source, entry, &size, 0);
+        if (!data)
+            throw std::runtime_error("Could not read captured project settings");
+        std::string original(static_cast<const char*>(data), size);
+        mz_free(data);
+
+        auto settings = nlohmann::json::parse(original);
+        const auto& colours = settings.at("filament_colour");
+        if (!colours.is_array() || colours.empty())
+            throw std::runtime_error("Captured project has no filament settings");
+        std::vector<std::string> keys;
+        for (auto it = settings.begin(); it != settings.end(); ++it)
+            if (it.key() != "version" && it.key() != "name" && it.key() != "from" &&
+                it.key() != "different_settings_to_system")
+                keys.push_back(it.key());
+        const std::string protected_keys = escape_strings_cstyle(keys);
+        settings["different_settings_to_system"] =
+            std::vector<std::string>(colours.size() + 2, protected_keys);
+        const std::string replacement = settings.dump(1, '\t') + '\n';
+
+        if (!open_zip_writer(&target, rewritten.u8string()))
+            throw std::runtime_error("Could not rewrite captured project metadata");
+        target_open = true;
+        for (mz_uint index = 0; index < mz_zip_reader_get_num_files(&source); ++index) {
+            const bool added = int(index) == entry_index ?
+                mz_zip_writer_add_mem(&target, entry, replacement.data(), replacement.size(), MZ_DEFAULT_COMPRESSION) :
+                mz_zip_writer_add_from_zip_reader(&target, &source, index);
+            if (!added)
+                throw std::runtime_error("Could not copy captured project metadata entry");
+        }
+        if (!mz_zip_writer_finalize_archive(&target))
+            throw std::runtime_error("Could not finalize captured project metadata");
+        target_open = false;
+        if (!close_zip_writer(&target))
+            throw std::runtime_error("Could not close rewritten project metadata");
+        if (!close_zip_reader(&source))
+            throw std::runtime_error("Could not close captured project metadata");
+#ifdef _WIN32
+        // This archive is still unpublished staging data; Windows cannot rename over it.
+        std::filesystem::remove(metadata);
+#endif
+        std::filesystem::rename(rewritten, metadata);
+    } catch (...) {
+        if (target_open) close_zip_writer(&target);
+        if (source.m_zip_mode == MZ_ZIP_MODE_READING) close_zip_reader(&source);
+        std::error_code ignored;
+        std::filesystem::remove(rewritten, ignored);
+        throw;
+    }
 }
 
 } // namespace
@@ -404,6 +475,7 @@ bool ProjectAutosave::capture(bool wait_for_commit)
                                                 SaveStrategy::Backup | SaveStrategy::Silence);
         if (result < 0)
             throw std::runtime_error("OrcaSlicer could not capture project metadata");
+        protect_saved_settings(metadata);
         const wxString source = m_plater.get_project_filename(".3mf");
         auto frozen = m_store->freeze(m_plater.model(), id, ++m_revision, m_persistence.document().dump(),
                                       source.ToUTF8().data(), m_persistence.timestamp());

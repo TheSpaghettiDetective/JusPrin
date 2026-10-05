@@ -38,6 +38,8 @@ TEST_CASE("Header offers only the next valid manufacturing action", "[header]")
             CHECK(actions.primary.action == PrintAction::Print);
             CHECK_FALSE(offers(PrintAction::Slice));
             CHECK_FALSE(offers(PrintAction::SliceAll));
+            CHECK(offers(PrintAction::CheckPrint));
+            CHECK(actions.menu.front().action == PrintAction::CheckPrint);
             CHECK(offers(PrintAction::PrintAll) == (state.plate_count > 1 && state.can_print_all));
             CHECK(offers(PrintAction::Export) == state.can_export);
         }

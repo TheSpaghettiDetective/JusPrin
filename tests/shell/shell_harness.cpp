@@ -211,6 +211,7 @@
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/GUI_Preview.hpp"
 #include "slic3r/GUI/Auxiliary.hpp"
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
@@ -4618,8 +4619,32 @@ private:
         check(primary_print_action(row->action_state()).primary.action == PrintAction::Print, "slice_offers_print");
         auto* primary = wxWindow::FindWindowByName("Next print action", row);
         check(primary && primary->GetLabel().StartsWith("Print"), "slice_completion_updates_rendered_button");
+        m_frame->CallAfter([self = shared_from_this()] {
+            wxDialog* dialog = nullptr;
+            for (wxWindow* window : wxTopLevelWindows)
+                if (window->GetName() == _L("Check Print"))
+                    dialog = dynamic_cast<wxDialog*>(window);
+            self->check(dialog && dialog->IsModal(), "check_print_opens_modal_window");
+            if (!dialog) return;
+            Preview* preview = nullptr;
+            for (wxWindow* child : dialog->GetChildren())
+                if (auto* candidate = dynamic_cast<Preview*>(child))
+                    preview = candidate;
+            self->check(preview && preview->is_loaded() &&
+                            preview->get_canvas3d() != self->m_plater->get_preview_canvas3D(),
+                        "check_print_uses_current_orca_preview_result");
+            self->check(self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(),
+                        "check_print_keeps_prepare_under_window");
+            dialog->EndModal(wxID_CANCEL);
+        });
+        row->request_action(PrintAction::CheckPrint);
+        check(primary_print_action(row->action_state()).primary.action == PrintAction::Print,
+              "closing_check_print_keeps_print_primary");
         const int original_plate = m_plater->get_partplate_list().get_curr_plate_index();
-        m_plater->select_plate(original_plate == 0 ? 1 : 0);
+        m_frame->CallAfter([self = shared_from_this(), original_plate] {
+            self->m_plater->select_plate(original_plate == 0 ? 1 : 0);
+        });
+        row->request_action(PrintAction::CheckPrint);
         check(primary_print_action(row->action_state()).primary.action == PrintAction::Slice, "other_unsliced_plate_offers_slice");
         m_plater->select_plate(original_plate);
         check(primary_print_action(row->action_state()).primary.action == PrintAction::Print, "return_to_sliced_plate_offers_print");
@@ -4688,7 +4713,8 @@ private:
         row->show_action_menu();
         auto* menu = visible_header_menu();
         check(menu && menu->IsShown(),"header_action_menu_visible");
-        check(menu && wxWindow::FindWindowByName(ui_name("Print all plates…"),menu) &&
+        check(menu && wxWindow::FindWindowByName(ui_name("Check Print"),menu) &&
+              wxWindow::FindWindowByName(ui_name("Print all plates…"),menu) &&
               wxWindow::FindWindowByName(ui_name("Export sliced file…"),menu),"header_menu_has_contextual_actions");
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         check(menu && menu->GetScreenRect().GetRight() == arrow->GetScreenRect().GetRight(),"header_menu_right_edge_matches_split_button");
