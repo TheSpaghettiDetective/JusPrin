@@ -27,6 +27,15 @@ before-state, then link an after-version and outcome in an operation record.
 
 ## Storage and recovery contract
 
+The restoration rules above describe ordinary Version history. The accepted
+chat-resumption design (implementation pending) adds an explicit **Restore and
+resume** operation that also restores matching intent, plan, and region
+annotations from a separate chat checkpoint. It preserves all conversations,
+audit and print records, and global printer facts. Save the outgoing working
+state before replacement. This does not add a full project-document copy to
+model versions or make document edits create model versions. Ordinary Version
+history remains model-only and does not activate an older chat.
+
 Each model version has Orca backup-format metadata and a manifest of object
 resources. It has no copy of the project document. Unchanged object resources are referenced rather
 than serialized again. Changed objects are serialized with Orca's split-model
