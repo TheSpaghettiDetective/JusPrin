@@ -86,3 +86,7 @@ It looks good, but they're I think you overengineered a few things:
 - After that we should have the time and material estimate. Make them as consistent as possible. Your mockup is pretty good except that for this field you somehow made it look different between the current setup and the outdated setup. There's no need to except that maybe the entire outdated setup card is treated with a style, such as some opacity to make it look not so fresh.&#x20;
 - For the need attention field, how do you keep track of unresolved agent questions? How do you make sure these questions trapped are still relevant? If you have an easy way to do that, let's keep it, otherwise let's just make it deterministic checks.&#x20;
 - &#x20;I also want you to mark up the expanded details.&#x20;
+
+---
+
+create a handoff folder for another agent to implement this. Include your mock-ups as well as what you thought about why we have those fields and how each of those fields should be obtained. Remember, another agent will try to validate your claim so do not make hand-wavy claims that cannot be reliably implemented.
