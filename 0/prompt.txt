@@ -1,0 +1,15 @@
+read @/Users/kenneth/Projects/JusPrin/handoff-prepare-print-action.md and tell me what you need to implement it
+
+---
+
+1. yes 2. don't use the flag for now. always put "Check Print" as the secondary 3. ignore the flag for now. just display current orca's preview as is. 4. use orca's existing dialogs.&#x20;
+
+The handle dock is updated to tell you where to find the Figma design. reload it
+
+---
+
+launch the app so that I can test it
+
+---
+
+commit to jusprin-newui and push
