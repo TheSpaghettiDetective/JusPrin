@@ -19,6 +19,7 @@ export interface SetupCardProps {
   // is still exactly what Slice would produce this second, so the invariant
   // holds even while the answer is being written.
   working?: boolean;
+  historical?: boolean;
 }
 
 // "~3h 50" over an hour, "~50 min" under it. Seconds are never shown: the
@@ -167,13 +168,13 @@ function DeltaList({ deltas }: { deltas: PresetDeltaInfo[] }) {
   );
 }
 
-export function SetupCard({ context, expanded, onToggle, working }: SetupCardProps) {
+export function SetupCard({ context, expanded, onToggle, working, historical = false }: SetupCardProps) {
   if (!context) return null;
   const model = cardModel(context);
 
   // Nothing was delegated and nothing has moved: what is left is a label, and
   // a label does not need a card, a border, or a heading over it.
-  if (!model.kicker) {
+  if (!model.kicker && !historical && context.planValidity !== 'needs_reassessment') {
     // Still the plan line even when it is only a label, so it names both the
     // preset and the material the plan is written against.
     const label = [model.preset, model.material].filter(Boolean).join(' · ');
@@ -185,9 +186,9 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
   return (
     <section className={['current-setup', working ? 'working' : '', model.outOfDate ? 'out-of-date' : ''].filter(Boolean).join(' ')}
       data-testid="current-setup"
-      aria-label="Current setup" aria-busy={working || undefined}>
+      aria-label={historical ? 'Earlier setup — saved with this conversation' : 'Current setup'} aria-busy={working || undefined}>
       <p className="current-setup-eyebrow">
-        <span>Current setup</span>
+        <span>{historical ? 'Earlier setup — saved with this conversation' : 'Current setup'}</span>
         {/* Out of date is a legitimate state, not an error: the card is not
             broken, it simply will not stand behind the number any more. */}
         {model.outOfDate && <span className="current-setup-status out-of-date">· out of date</span>}
@@ -211,9 +212,15 @@ export function SetupCard({ context, expanded, onToggle, working }: SetupCardPro
           </button>
         )}
       </p>
+      {historical && !model.kicker && <p className="current-setup-summary">
+        {[model.preset, model.material].filter(Boolean).join(' · ') || 'No setup details were saved.'}
+      </p>}
       {model.title && <p className="current-setup-title" title={model.title}>{model.title}</p>}
       {model.identity && <p className="current-setup-identity" title={model.identity}>{model.identity}</p>}
       {model.summary && <p className="current-setup-summary">{model.summary}</p>}
+      {context.planValidity === 'needs_reassessment' && <p className="current-setup-note">
+        Plan needs reassessment{context.planInvalidatedBy ? `: ${context.planInvalidatedBy}` : '.'}
+      </p>}
       {/* The row is omitted, not left blank: a sliced plate with no usable
           estimate and an untouched preset has nothing to put on this line. */}
       {(model.facts.length > 0 || model.deltaLabel || model.struckEstimate) && <p className="current-setup-cost">

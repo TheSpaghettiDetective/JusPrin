@@ -93,6 +93,10 @@ public:
     void flush_if_dirty();
     void record_managed_restore(const std::string& current_state, const std::string& from_version,
                                 const std::string& selected_version);
+    void record_chat_restore(const std::string& current_state, const std::string& from_version,
+                             const std::string& selected_version, const nlohmann::json& planning,
+                             const std::string& conversation_id);
+    void notify_chat_restore_published() { notify_document_replaced(); }
     void adopt_managed_state(const std::string& state);
 
     // The composer draft is a document field in managed mode; legacy mode

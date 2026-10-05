@@ -679,6 +679,59 @@ describe('App', () => {
     expect(host.lastOfType('create_conversation')).toBeTruthy();
   });
 
+  it('shows saved historical setup and requires a scoped restore confirmation', async () => {
+    render(<App getTransport={() => host.transport} />);
+    const earlier = { ...context, setupIntent: 'Quick print', presetDeltas: [
+      { key: 'sparse_infill_density', label: 'Sparse infill density', value: '5%', preset: '15%', origin: 'agent' as const },
+    ] };
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Quick print', createdAt: 't' },
+        { id: 'conv-b', title: 'Strong print', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a', docRevision: 23,
+      chatResume: { status: 'changed', savedAt: '2026-10-03T12:00:00Z', versionId: 'v-a', summary: earlier },
+      conversation: proposalConversation(),
+      toolActivities: [toolActivity()],
+      draft: 'Keep my current draft',
+      context: { ...context, setupIntent: 'Strong print' },
+    }));
+
+    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('5%');
+    expect(screen.getAllByText('The canvas shows your current project.')).toHaveLength(2);
+    expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Restore and resume' })[0]);
+    expect(screen.getByRole('dialog')).toHaveTextContent('earlier model and settings');
+    expect(host.lastOfType('restore_conversation')).toBeUndefined();
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('restore_conversation')).toBeUndefined();
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Ask current chat about this' })[0]);
+    expect(host.lastOfType('switch_conversation')?.payload).toEqual({ conversationId: 'conv-b' });
+    expect(host.lastOfType('draft_update')?.payload).toMatchObject({
+      append: expect.stringContaining('Excerpt:'),
+    });
+    expect(host.lastOfType('user_message')).toBeUndefined();
+  });
+
+  it('resumes an unchanged saved setup through the checked transition', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a', docRevision: 9,
+      chatResume: { status: 'unchanged', versionId: 'v-a', summary: context },
+    }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Resume saved setup' })[0]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(host.lastOfType('restore_conversation')?.payload).toEqual({
+      conversationId: 'conv-a', activeConversationId: 'conv-b', docRevision: 9,
+    });
+  });
+
   it('offers Rename above Delete and preserves messages when a title changes', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ conversation: proposalConversation() }));

@@ -403,7 +403,7 @@ private:
                   m_workspace->outline().objects.front().customization.any(),
               "pane_setting_override_is_customization");
         model_first.config.set_key_value("extruder", new ConfigOptionInt(2));
-        const OutlineObject& overridden = m_workspace->outline().objects.front();
+        const OutlineObject overridden = m_workspace->outline().objects.front();
         check(overridden.extruder == 2 && overridden.customization.setting_overrides == 1,
               "pane_filament_override_is_not_a_setting_override");
         model_first.config.erase("extruder");
@@ -959,6 +959,12 @@ private:
         store.pin(initial.first);
         store.prune(1, 1024 * 1024);
         check(store.history().size() == 2, "versions_pin_survives_prune");
+        store.begin_chat_restore(renamed.first, initial.first, "c-1");
+        check(std::filesystem::exists(std::filesystem::path(data_dir()) / "version-test" / "p-harness" /
+                                      "chat-restore.pending.json"), "versions_chat_restore_marker_durable");
+        store.finish_chat_restore();
+        check(!std::filesystem::exists(std::filesystem::path(data_dir()) / "version-test" / "p-harness" /
+                                       "chat-restore.pending.json"), "versions_chat_restore_marker_cleared");
         const auto restored = store.materialize(initial.first);
         check(restored.semantic_state == live_state,
               "versions_restore_keeps_current_document");
@@ -1009,6 +1015,16 @@ private:
         std::filesystem::create_directories(root / "versions" / "uncommitted-version");
         std::filesystem::create_directories(root / "materialized" / "stale-restore");
         std::ofstream(root / "current-state.pending") << "interrupted state write";
+        std::ofstream(root / "chat-restore.pending.json") << "{}";
+        bool interrupted_restore_refused = false;
+        try {
+            ProjectVersionStore blocked(root.parent_path(), "p-harness");
+        } catch (const std::exception& error) {
+            interrupted_restore_refused = std::string(error.what()).find("interrupted chat restoration") != std::string::npos;
+        }
+        check(interrupted_restore_refused && std::filesystem::exists(root / "chat-restore.pending.json"),
+              "versions_restart_blocks_interrupted_chat_restore");
+        std::filesystem::remove(root / "chat-restore.pending.json");
         ProjectVersionStore reopened(root.parent_path(), "p-harness");
         const auto versions = reopened.history();
         check(!std::filesystem::exists(root / "pending" / "interrupted-write") &&

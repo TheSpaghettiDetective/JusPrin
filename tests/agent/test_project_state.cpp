@@ -230,7 +230,8 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     const auto removed = document.delete_conversation(first, kT);
     REQUIRE(removed);
     CHECK(*removed == std::vector<std::string>{attachment.relative_dir()});
-    CHECK(document.active_conversation_id() == second);
+    CHECK(document.active_conversation_id() != second);
+    CHECK(document.viewed_conversation_id() == document.active_conversation_id());
     CHECK(document.messages(first).empty());
     CHECK(document.attachments().empty());
     CHECK(document.activities().empty());
@@ -246,6 +247,38 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
     CHECK(loaded.messages(first).empty());
     CHECK(loaded.builds().size() == 1);
+}
+
+TEST_CASE("viewing history never changes authority and checkpoints bind planning to a model", "[project-state][conversations]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const std::string first = document.active_conversation_id();
+    REQUIRE(document.save_chat_checkpoint(first, "v-1", nlohmann::json{{"setupIntent", "Quick print"}}, kT));
+    const auto saved = document.chat_checkpoint(first);
+    REQUIRE(saved);
+    CHECK((*saved)["versionId"] == "v-1");
+    CHECK((*saved)["planning"] == document.planning_snapshot());
+
+    const std::string second = document.create_conversation("Strong print", kT);
+    REQUIRE(document.set_viewed_conversation(first));
+    CHECK(document.active_conversation_id() == second);
+    CHECK(document.viewed_conversation_id() == first);
+    CHECK_FALSE(document.save_chat_checkpoint(first, "v-2", nlohmann::json::object(), kT));
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(reloaded.active_conversation_id() == second);
+    CHECK(reloaded.viewed_conversation_id() == first);
+    REQUIRE(reloaded.chat_checkpoint(first));
+    CHECK((*reloaded.chat_checkpoint(first))["summary"]["setupIntent"] == "Quick print");
+
+    auto legacy = nlohmann::json::parse(document.dump());
+    legacy.erase("viewedConversationId");
+    legacy["conversations"][0].erase("resumeCheckpoint");
+    REQUIRE(reloaded.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(reloaded.viewed_conversation_id() == second);
+    CHECK_FALSE(reloaded.chat_checkpoint(first));
 }
 
 TEST_CASE("unknown fields survive a load-edit-save cycle", "[project-state][schema]")

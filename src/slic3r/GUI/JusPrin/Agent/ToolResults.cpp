@@ -201,7 +201,8 @@ json plan_section_result(const PlanRecord& plan)
     };
     return {{"headline", text(plan.headline, truncated)}, {"decisions", std::move(decisions)},
             {"assumptions", lines(plan.assumptions)}, {"risks", lines(plan.risks)},
-            {"updatedAt", plan.updated_at}, {"truncated", truncated}};
+            {"updatedAt", plan.updated_at}, {"validity", plan.validity},
+            {"invalidatedBy", plan.invalidated_by}, {"truncated", truncated}};
 }
 
 namespace {

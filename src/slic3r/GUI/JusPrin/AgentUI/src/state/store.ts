@@ -39,6 +39,10 @@ export interface AgentUiState {
   appearance: Appearance;
   conversations: ConversationInfo[];
   activeConversationId: string;
+  viewedConversationId: string;
+  docRevision: number;
+  projectChatBlocked: boolean;
+  chatResume: NonNullable<StatePayload['chatResume']>;
   messages: Message[];
   streamingMessageId: string | null;
   conversationBusy: boolean;
@@ -78,6 +82,10 @@ export const initialState: AgentUiState = {
   appearance: 'light',
   conversations: [],
   activeConversationId: '',
+  viewedConversationId: '',
+  docRevision: 0,
+  projectChatBlocked: false,
+  chatResume: { status: 'active' },
   messages: [],
   streamingMessageId: null,
   conversationBusy: false,
@@ -156,6 +164,10 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         appearance: full.appearance,
         conversations: full.conversations ?? [],
         activeConversationId: full.activeConversationId ?? '',
+        viewedConversationId: full.viewedConversationId ?? full.activeConversationId ?? '',
+        docRevision: full.docRevision ?? 0,
+        projectChatBlocked: full.projectChatBlocked ?? false,
+        chatResume: full.chatResume ?? { status: 'active' },
         messages: full.conversation.map(fromWire),
         streamingMessageId: full.streamingMessageId,
         conversationBusy: full.conversationBusy ?? full.streamingMessageId !== null,

@@ -407,12 +407,32 @@ ProjectVersionStore::ProjectVersionStore(fs::path root, std::string project_id)
     fs::create_directories(m_root / "operations");
     lock();
     try {
+        require(!fs::exists(m_root / "chat-restore.pending.json"),
+                "an interrupted chat restoration requires recovery before this project can be edited");
         load_head();
         recover_uncommitted();
     } catch (...) {
         unlock();
         throw;
     }
+}
+
+void ProjectVersionStore::begin_chat_restore(const std::string& from_version,
+                                              const std::string& to_version,
+                                              const std::string& conversation_id)
+{
+    require(safe_component(from_version) && safe_component(to_version) && safe_component(conversation_id),
+            "invalid chat restoration identity");
+    const fs::path pending = m_root / "chat-restore.writing.json";
+    checked_write(pending, json{{"fromVersion", from_version}, {"toVersion", to_version},
+                                {"conversationId", conversation_id}}.dump(2));
+    atomic_replace(pending, m_root / "chat-restore.pending.json");
+}
+
+void ProjectVersionStore::finish_chat_restore()
+{
+    fs::remove(m_root / "chat-restore.pending.json");
+    sync_directory(m_root);
 }
 
 void ProjectVersionStore::recover_uncommitted()
@@ -437,6 +457,7 @@ void ProjectVersionStore::recover_uncommitted()
     fs::remove(m_root / "HEAD.pending");
     fs::remove(m_root / "current-state.pending");
     fs::remove(m_root / "pins.pending");
+    fs::remove(m_root / "chat-restore.writing.json");
     for (const auto& entry : fs::directory_iterator(m_root / "operations"))
         if (entry.path().extension() == ".pending")
             fs::remove(entry.path());
