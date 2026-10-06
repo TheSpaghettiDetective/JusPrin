@@ -98,6 +98,17 @@ struct Harness
 
 } // namespace
 
+TEST_CASE("MCP cannot silently accept a chat-owned setup title", "[tools][intent][mcp]")
+{
+    Harness harness;
+    const auto& activity = harness.coordinator.propose(
+        {"intent_update", json{{"setupTitle", "A strong bracket"}, {"fields", json::array()}}.dump()},
+        "mcp-title", {}, ToolSource::Mcp);
+    CHECK(activity.state == ToolState::Failed);
+    REQUIRE(activity.error);
+    CHECK(activity.error->code == "chat_title_unavailable");
+}
+
 TEST_CASE("project mutations are bracketed by durable version callbacks", "[tools][versions]")
 {
     Harness harness;

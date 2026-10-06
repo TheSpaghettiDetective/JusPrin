@@ -95,15 +95,14 @@ describe('styles.css stays on the design tokens', () => {
     expect(offScale).toEqual([]);
   });
 
-  // Measured in a browser at the dock's real width, which narrows with the
-  // window well below the 429px design frame: a three-digit "+ 128 yours"
-  // wrapped "CURRENT SETUP" onto a second line and the card silently grew a
-  // row. The heading must clip instead.
-  it('keeps the setup card eyebrow on one line', () => {
-    const rule = css.match(/\.current-setup-eyebrow\s*\{[^}]*\}/);
+  // The dock narrows with the window, well below the 429px design frame, and
+  // a header that wraps there silently costs the thread a row. The label on
+  // the left must clip instead, so the state on the right is always whole.
+  it('keeps the setup card header on one line', () => {
+    const rule = css.match(/\.current-setup-header\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/white-space:\s*nowrap/);
-    const label = css.match(/\.current-setup-eyebrow\s*>\s*span:first-child\s*\{[^}]*\}/);
+    const label = css.match(/\.current-setup-label\s*\{[^}]*\}/);
     expect(label).not.toBeNull();
     expect(label![0]).toMatch(/text-overflow:\s*ellipsis/);
   });

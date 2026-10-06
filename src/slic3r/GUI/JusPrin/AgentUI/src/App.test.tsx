@@ -70,6 +70,18 @@ const context: WorkspaceContext = {
   setupIntent: '',
 };
 
+// The same project as reported by a host that reads the applied settings.
+const applied: WorkspaceContext = {
+  ...context,
+  appliedSetup: { version: 1, plateId: '11', printableObjects: 2, spiralMode: false, variableLayerHeight: false,
+    objects: ['cube-a', 'cube-b'], localOverrides: [],
+    settings: [['layer_height', '0.2'], ['wall_loops', '2'], ['sparse_infill_density', '15%'],
+      ['sparse_infill_pattern', 'grid'], ['enable_support', '0']].map(([key, value]) => ({ key, value, base: value,
+      coverage: 'exact' as const, scopes: [0, 1].map((object) => ({ object, target: `cube-${'ab'[object]}`, kind: 'object', value })) })) },
+  setupIdentity: { printer: 'MyKlipper 0.2 nozzle', nozzles: [0.2], plateType: 'Textured PEI',
+    filaments: [{ preset: 'Generic PLA', material: 'PLA' }] },
+};
+
 function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
   return {
     agent: { status: 'ready' },
@@ -207,13 +219,11 @@ describe('App', () => {
 
     expect(screen.getByText('what is on the plate?')).toBeInTheDocument();
     expect(screen.getByText('Two cubes.')).toBeInTheDocument();
-    // Nothing delegated, nothing sliced, preset untouched: the card degrades
-    // to a label rather than an empty frame. It names the process preset the
-    // changes are measured against, not the machine.
+    // A host that reports no applied settings and a chat with no intent: the
+    // card is a label for the process preset and claims nothing else.
+    expect(screen.getByTestId('current-setup')).toHaveTextContent('Preset fallback');
     expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
-    // The card is the plan line, so a filament change has to be visible here too.
-    expect(screen.getByTestId('current-setup')).toHaveTextContent('Generic PLA');
-    expect(screen.queryByText('Current setup')).not.toBeInTheDocument();
+    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('MyKlipper');
   });
 
   it('renders assistant Markdown while keeping user input literal', () => {
@@ -459,8 +469,13 @@ describe('App', () => {
     expect(screen.getByText('No agent connected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeEnabled();
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
-    // The conversation chrome gives way to the offer.
-    expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
+    // The card stays, as a label for the preset in use and nothing more.
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('Preset fallback');
+    expect(card).toHaveTextContent('No agent');
+    expect(card).toHaveTextContent('Test Printer 0.4');
+    expect(card).toHaveTextContent('No agent configured · using the selected preset.');
+    expect(within(card).queryByRole('button')).toBeNull();
     // The ask box stays in place, inert.
     const composer = screen.getByLabelText('Message the Agent');
     expect(composer).toBeDisabled();
@@ -698,7 +713,7 @@ describe('App', () => {
     }));
 
     expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('5%');
-    expect(screen.getAllByText('The canvas shows your current project.')).toHaveLength(2);
+    expect(screen.getAllByText(/The canvas shows your current project\./)).toHaveLength(1);
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
     await userEvent.click(screen.getAllByRole('button', { name: 'Restore and resume' })[0]);
@@ -713,6 +728,165 @@ describe('App', () => {
       append: expect.stringContaining('Excerpt:'),
     });
     expect(host.lastOfType('user_message')).toBeUndefined();
+  });
+
+  it('renders one project-update boundary with three actions and a locked continuation', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a', docRevision: 23,
+      chatResume: { status: 'changed', versionId: 'v-a', savedAt: '2026-10-03T10:42:00Z', summary: context },
+    }));
+    expect(screen.getAllByRole('note')).toHaveLength(1);
+    const boundary = screen.getByRole('note');
+    expect(boundary).toHaveTextContent('There have been project updates.');
+    expect(within(boundary).getByRole('button', { name: 'Restore and resume' })).toBeEnabled();
+    expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
+    expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: /message/i })).toHaveAttribute('placeholder', 'Restore this chat to continue');
+    // The boundary ends the conversation; it is not part of the setup card.
+    expect(within(screen.getByTestId('current-setup')).queryByRole('note')).toBeNull();
+    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('project updates');
+  });
+
+  it('keeps an earlier chat locked against typing and sending', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
+      chatResume: { status: 'changed', versionId: 'v-a', summary: context },
+      draft: 'A draft that belongs to the active chat',
+    }));
+    const field = screen.getByRole('textbox', { name: /message/i });
+    expect(field).toHaveValue('');
+    await userEvent.type(field, 'hello{Enter}');
+    expect(field).toHaveValue('');
+    expect(screen.queryByRole('button', { name: /send/i })).toBeNull();
+    expect(host.lastOfType('user_message')).toBeUndefined();
+    expect(host.lastOfType('draft_update')).toBeUndefined();
+  });
+
+  it('describes an unchanged checkpoint as resumable, not as project updates', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
+      chatResume: { status: 'unchanged', versionId: 'v-a', summary: context },
+    }));
+    const boundary = screen.getByRole('note');
+    expect(boundary).not.toHaveTextContent('There have been project updates');
+    expect(boundary).toHaveTextContent('The project has not changed since.');
+    expect(within(boundary).getByRole('button', { name: 'Resume saved setup' })).toBeEnabled();
+    expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
+    expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: /message/i })).toHaveAttribute('placeholder', 'Resume this chat to continue');
+  });
+
+  it('does not claim project updates when a historical checkpoint is unavailable', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
+      chatResume: { status: 'unavailable' },
+    }));
+    expect(screen.queryByText(/There have been project updates/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Restore and resume' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume saved setup' })).not.toBeInTheDocument();
+    const boundary = screen.getByRole('note');
+    expect(boundary).toHaveTextContent('This chat can’t be continued.');
+    expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
+    expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
+  });
+
+  it('does not let a live workspace update rewrite the saved card', () => {
+    render(<App getTransport={() => host.transport} />);
+    const saved: WorkspaceContext = {
+      ...context, setupIntent: 'Earlier bracket',
+      plates: [{ ...context.plates[0], sliced: true,
+        estimate: { printTimeSeconds: 2520, materialGrams: 18, materialCost: null } }],
+      appliedSetup: { version: 1, plateId: '11', printableObjects: 1, spiralMode: false,
+        variableLayerHeight: false, localOverrides: [], settings: [
+          { key: 'wall_loops', value: '2', coverage: 'exact', scopes: [] },
+        ] },
+    };
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
+      chatResume: { status: 'changed', versionId: 'saved-1', summary: saved },
+    }));
+    const earlier = screen.getByLabelText('Earlier setup — saved with this conversation');
+    expect(earlier).toHaveTextContent('2 walls');
+    expect(earlier).toHaveTextContent('~42 min');
+
+    host.deliver('context', { context: { ...context, revision: 3, setupIntent: 'Live project',
+      appliedSetup: { ...saved.appliedSetup!, settings: [
+        { key: 'wall_loops', value: '5', coverage: 'exact', scopes: [] },
+      ] } } });
+    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('2 walls');
+    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).not.toHaveTextContent('5 walls');
+  });
+
+  it('returns to the active chat without restoring the historical project', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
+      chatResume: { status: 'changed', versionId: 'saved-1', summary: context },
+    }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Return to active chat' })[0]);
+    expect(host.lastOfType('switch_conversation')?.payload).toEqual({ conversationId: 'conv-b' });
+    expect(host.lastOfType('restore_conversation')).toBeUndefined();
+  });
+
+  it('marks a saved summary as sliced and sent only for the plate this chat sent', () => {
+    render(<App getTransport={() => host.transport} />);
+    const summary: WorkspaceContext = { ...applied, plates: [{ ...applied.plates[0], sliced: true,
+      estimate: { printTimeSeconds: 2520, materialGrams: 18, materialCost: null } }] };
+    const build = { id: 'b-1', seq: 1, createdAt: '2026-10-03T10:40:00', projectId: 'p', conversationId: 'conv-a',
+      afterMessageId: '', plateIndex: 0, plateName: 'Plate 1', printer: 'Bambu A1', material: 'PLA',
+      manufacturingInputHash: 'i', outputHash: 'o', slicerVersion: '2', configurationProvenance: '',
+      sentAt: '2026-10-03T10:42:00', statistics: { printTimeSeconds: 2520, filamentMm: 1, materialGrams: 18,
+        materialCost: 0, layerCount: 10 }, warnings: [], stale: false };
+    const state = (builds: typeof build[]) => emptyState({
+      conversations: [
+        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
+        { id: 'conv-b', title: 'Current', createdAt: 't' },
+      ],
+      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
+      chatResume: { status: 'changed', versionId: 'v-a', savedAt: '2026-10-03T10:42:00', summary },
+      builds,
+    });
+    connect(host, state([{ ...build, conversationId: 'conv-b' }, { ...build, id: 'b-2', plateIndex: 1 }]));
+    const card = () => screen.getByLabelText('Earlier setup — saved with this conversation');
+    expect(card()).toHaveTextContent('Earlier setup');
+    expect(card()).not.toHaveTextContent('Sliced & sent');
+
+    host.deliver('state', state([build]));
+    expect(card()).toHaveTextContent('Saved sliced snapshot');
+    expect(card()).toHaveTextContent('Sliced & sent');
+    expect(card()).toHaveTextContent('Saved pre-slice estimates');
+    expect(card()).toHaveTextContent('Actual time & material unavailable.');
+    expect(card()).toHaveTextContent('sent to Bambu A1');
   });
 
   it('resumes an unchanged saved setup through the checked transition', async () => {
@@ -826,51 +1000,111 @@ describe('App', () => {
 
   it('rebuilds the setup card when the native workspace changes', () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host);
-    expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
+    connect(host, emptyState({ context: applied }));
+    const card = () => screen.getByTestId('current-setup');
+    expect(card()).toHaveTextContent('Test Printer 0.4');
+    expect(card()).toHaveTextContent('2 walls');
+    expect(card()).toHaveTextContent('Not sliced');
 
+    // A hand edit in Orca, a slice, and an intent: no chat turn in between.
     const changed: WorkspaceContext = {
-      ...context,
+      ...applied,
       revision: 3,
       setupIntent: "Strong - it'll bear weight",
-      presetDeltas: [
-        { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' },
-        { key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '45%', origin: 'agent' },
-      ],
-      plates: [{ ...context.plates[0], sliced: true, estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: null } }],
+      appliedSetup: { ...applied.appliedSetup!, settings: applied.appliedSetup!.settings.map((item) =>
+        item.key === 'wall_loops' ? { ...item, value: '4', base: '4' } : item) },
+      plates: [{ ...applied.plates[0], sliced: true, estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: null } }],
     };
     host.deliver('context', { context: changed });
 
-    const card = screen.getByTestId('current-setup');
-    expect(card).toHaveTextContent('Current setup');
-    expect(card).toHaveTextContent("Strong - it'll bear weight");
-    expect(card).toHaveTextContent('~3h 50');
-    expect(card).toHaveTextContent('47 g');
-    expect(card).toHaveTextContent('2 changes from preset');
+    expect(card()).toHaveAccessibleName('Current setup');
+    expect(card()).toHaveTextContent("Strong - it'll bear weight");
+    expect(card()).toHaveTextContent('4 walls');
+    expect(card()).toHaveTextContent('~3h 50m');
+    expect(card()).toHaveTextContent('47 g');
+    expect(card()).toHaveTextContent('Current');
   });
 
-  it('opens the deltas over the thread and closes them again on the next keystroke', async () => {
+  it('opens the details over the thread and closes them again on the next keystroke', async () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host);
-    host.deliver('context', {
-      context: {
-        ...context,
-        setupIntent: 'Strong enough to bear weight',
-        presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4' }],
-      },
-    });
+    connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong enough to bear weight' } }));
 
     expect(screen.queryByTestId('current-setup-expansion')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByTestId('current-setup-handle'));
+    await userEvent.click(screen.getByRole('button', { name: 'Setup details' }));
 
     const expansion = screen.getByTestId('current-setup-expansion');
-    expect(expansion).toHaveTextContent('Wall loops');
-    expect(expansion).toHaveTextContent('2');
-    expect(expansion).toHaveTextContent('4');
+    expect(expansion).toHaveTextContent('Applied settings · Plate 1');
+    expect(expansion).toHaveTextContent('Wall loops2');
 
     // Typing means the user has moved on, so the layer gets out of the way.
     await userEvent.type(screen.getByRole('textbox'), 'a');
     expect(screen.queryByTestId('current-setup-expansion')).not.toBeInTheDocument();
+  });
+
+  it('asks the host to compute estimates for the plate the card shows', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ context: applied }));
+    await userEvent.click(screen.getByRole('button', { name: 'Compute estimates' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({
+      action: 'compute_setup_estimates', sessionId: '1', plateId: '11' });
+  });
+
+  it('shows a change the agent just made and stops calling it new when the window passes', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-10-05T20:00:10'));
+      render(<App getTransport={() => host.transport} />);
+      connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong' }, changes: [
+        { seq: 7, createdAt: '2026-10-05T20:00:00', kind: 'setting', actor: 'agent', label: 'Wall loops',
+          from: '2', to: '4', preset: 'Standard', conversationId: 'conv-1', afterId: 'm-1' },
+        // Another chat's change is not this chat's news.
+        { seq: 8, createdAt: '2026-10-05T20:00:05', kind: 'setting', actor: 'agent', label: 'Layer height',
+          from: '0.2', to: '0.3', preset: 'Standard', conversationId: 'conv-other', afterId: 'm-9' },
+      ] }));
+      const card = () => screen.getByTestId('current-setup');
+      expect(card()).toHaveTextContent('Updated');
+      expect(card()).toHaveTextContent('Wall loops 2 → 4');
+      expect(card()).not.toHaveTextContent('Layer height 0.2 → 0.3');
+      // A preset edit is not on Orca's undo stack, so there is nothing to offer.
+      expect(within(card()).queryByRole('button', { name: 'Undo' })).toBeNull();
+
+      act(() => { vi.advanceTimersByTime(61000); });
+      expect(card()).not.toHaveTextContent('Updated');
+      expect(card()).not.toHaveTextContent('Wall loops 2 → 4');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('undoes the agent\'s project step through the host, naming the step', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong', history: { canUndo: true, canRedo: false } },
+      changes: [{ seq: 9, createdAt: new Date().toISOString(), kind: 'step', actor: 'agent', label: 'Add modifier',
+        conversationId: 'conv-1', afterId: 'm-1' }] }));
+    await userEvent.click(within(screen.getByTestId('current-setup')).getByRole('button', { name: 'Undo' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'undo_setup_change', sessionId: '1', changeSeq: 9 });
+  });
+
+  it('shows the estimate before and after a change once the plate is sliced again', () => {
+    render(<App getTransport={() => host.transport} />);
+    const sliced = (seconds: number, grams: number, status: 'current' | 'stale' = 'current'): WorkspaceContext => ({
+      ...applied, setupIntent: 'Strong', plates: [{ ...applied.plates[0], sliced: status === 'current',
+        estimate: { printTimeSeconds: seconds, materialGrams: grams, materialCost: null }, estimateStatus: status }] });
+    const changes = [{ seq: 3, createdAt: new Date().toISOString(), kind: 'setting' as const, actor: 'agent' as const,
+      label: 'Wall loops', from: '2', to: '4', preset: 'Standard', conversationId: 'conv-1', afterId: 'm-1' }];
+    connect(host, emptyState({ context: sliced(2520, 18) }));
+    const card = () => screen.getByTestId('current-setup');
+    expect(card()).not.toHaveTextContent('Estimate:');
+
+    // The change lands and outdates the slice: the old figure is not paired
+    // with itself, and is labelled for what it is.
+    host.deliver('state', emptyState({ context: sliced(2520, 18, 'stale'), changes }));
+    expect(card()).toHaveTextContent('Updated');
+    expect(card()).toHaveTextContent('Previous estimates · not current');
+    expect(card()).not.toHaveTextContent('Estimate:');
+
+    host.deliver('context', { context: sliced(8280, 46) });
+    expect(card()).toHaveTextContent('Estimate: ~42 min / 18 g → ~2h 18m / 46 g');
   });
 });
 

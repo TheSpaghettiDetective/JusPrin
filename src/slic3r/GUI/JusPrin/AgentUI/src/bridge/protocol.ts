@@ -243,6 +243,8 @@ export interface SliceEstimateInfo {
   printTimeSeconds: number;
   materialGrams: number;
   materialCost: number | null;
+  timeAvailable?: boolean;
+  materialAvailable?: boolean;
 }
 
 // One process setting whose value in force differs from the preset it came
@@ -263,6 +265,45 @@ export interface PresetDeltaInfo {
 // slice in flight or invalidated does not make the last honest figure
 // worthless, and blanking it kills the comparison the reader is making.
 export type EstimateStatus = 'current' | 'recomputing' | 'stale';
+
+// The settings in force for the printable objects on one plate, read from
+// OrcaSlicer on the GUI thread. Every value is the raw serialized config value
+// under its stable key; wording is the card's job. `coverage` says how far a
+// single value can be trusted: exact for the whole plate, mixed across
+// objects, local when a modifier, part, height range or paint overrides it
+// somewhere, unavailable when nothing printable defines it.
+export interface AppliedSetupInfo {
+  version: number;
+  plateId: string;
+  printableObjects: number;
+  spiralMode: boolean;
+  variableLayerHeight: boolean;
+  // Names of the printable objects, in the order `object` indexes them.
+  // Absent from checkpoints saved before the card grouped by object.
+  objects?: string[];
+  settings: {
+    key: string;
+    value: string;
+    // The plate's own value before any object changes it.
+    base?: string;
+    coverage: 'exact' | 'mixed' | 'local' | 'unavailable';
+    scopes: { object?: number; target: string; kind: string; value: string }[];
+  }[];
+  localOverrides: { object?: number; target: string; kind: string; key: string; value: string }[];
+}
+
+export interface SetupIdentityInfo {
+  printer: string;
+  nozzles: number[];
+  plateType: string;
+  filaments: { preset: string; material: string }[];
+}
+
+export interface PrinterReviewInfo {
+  observed?: { connection?: string; observedAt?: string };
+  mismatches: { what: string; configured: string; observed: string; source: 'device' | 'user_confirmed' }[];
+  confirmedFacts?: { fact: string; confirmedAt: string }[];
+}
 
 export interface WorkspaceContext {
   sessionId: string;
@@ -289,6 +330,10 @@ export interface WorkspaceContext {
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };
   history: { canUndo: boolean; canRedo: boolean };
   presetDeltas: PresetDeltaInfo[];
+  // Optional for checkpoints written before the setup-card read model existed.
+  appliedSetup?: AppliedSetupInfo | null;
+  setupIdentity?: SetupIdentityInfo | null;
+  printerReview?: PrinterReviewInfo | null;
   // ISO 4217 code from the machine's regional settings, empty when the OS does
   // not say. OrcaSlicer itself has no currency concept, so this is the only
   // thing that says what a cost is denominated in.

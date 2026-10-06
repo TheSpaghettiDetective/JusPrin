@@ -69,11 +69,12 @@ body {
   font: var(--font-label-bold);
 }
 
-/* Current setup card. Measured from the Figma "Current Setup Card" page:
-   a 405px card inset 12px inside a 429px dock, tinted surface/subtle with a
-   2px action/primary edge, container radius, 16/12 padding and a 4px row gap.
-   The compact rows keep settings and print facts readable; expansion grows the same
-   card rather than floating a second panel under it. */
+/* Setup card. Measured from the Figma "Current Setup Card" page, sections 5
+   to 7: a 405px card inset 12px inside the dock, surface/subtle, container
+   radius, 12/16 padding and a 4px row gap. A live card carries a 2px
+   action/primary edge and an action/primary header; a saved or out-of-date
+   card drops the edge and greys the header. Expansion grows the same card
+   rather than floating a second panel under it. */
 .pinned-setup {
   flex: 0 0 auto;
   padding: 12px;
@@ -84,234 +85,285 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
+  min-width: 0;
+  padding: 12px 16px;
   border-radius: var(--radius-container);
   background: var(--surface-subtle);
 }
 
-/* The degenerate case: nothing delegated, nothing sliced, preset untouched.
-   A label is not a card, so it keeps the slot but drops the frame. */
-.current-setup.bare {
-  padding: 0 4px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  font: var(--font-metadata);
-  color: var(--text-secondary);
+/* Drawn inside the box, as Figma's stroke is: the edge follows the corner
+   radius and takes no width from the rows. */
+.current-setup--live {
+  box-shadow: inset 2px 0 0 var(--action-primary);
 }
 
-.current-setup p {
+.current-setup p,
+.current-setup h2,
+.current-setup h3,
+.current-setup dl,
+.current-setup dd,
+.current-setup ul {
   margin: 0;
 }
 
-/* Eyebrow in Dense Metadata, action/primary. The right half is where a state
-   puts its one word -- "working...", "+2 yours", "undo" -- so nothing else may
-   live there. */
-.current-setup-eyebrow {
+/* Header in Metadata Bold: what the card is on the left, the one state it is
+   in on the right. One line, always: the dock narrows with the window, and a
+   wrapped header silently costs the thread a row. The label gives way. */
+.current-setup-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  font: var(--font-metadata);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--action-primary);
-  /* One line, always. Measured at the dock's real width -- which narrows with
-     the window, well below the 429px design frame -- a three-digit count wraps
-     the heading and the card silently grows a row. The fixed word gives up a
-     few pixels instead, because losing height is worse than losing them. */
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.current-setup-eyebrow > span:first-child {
+.current-setup--live .current-setup-header {
+  color: var(--action-primary);
+}
+
+.current-setup-label {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Mid-thought: everything drops to secondary, nothing is removed. The numbers
-   on screen are still what Slice would produce this second. */
-.current-setup.working .current-setup-title,
-.current-setup.working .current-setup-identity {
-  color: var(--text-secondary);
+.current-setup-state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
 }
 
-.current-setup.working.bare {
-  opacity: 0.7;
-}
-
-/* The figure the plate can no longer defend. Kept legible: it is the number
-   the reader is comparing the new one against. */
-.current-setup-cost .superseded {
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-
-/* Out of date drops the edge entirely, as the design has it: the card is not
-   asking for attention, it is standing down from a number it cannot defend.
-   Transparent rather than removed so the box keeps its size. */
-.current-setup.out-of-date {
-  border-color: transparent;
-}
-
-/* Why it went, then what to do. Its own row: the dock narrows with the window,
-   well below the 429px design frame, and sharing the facts line cost this its
-   second half in the running app. A truncated instruction is worse than 16px. */
-.current-setup-note {
-  font: var(--font-metadata);
-  color: var(--text-secondary);
+/* Body Bold, one line. The whole sentence is in the tooltip. */
+.current-setup-title {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Colour alone marks the action, as it does on every other accent control in
-   the panel. */
-.current-setup-note .action {
-  color: var(--action-primary);
+.current-setup-line {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
-.current-setup-eyebrow .out-of-date {
+.current-setup-heading {
+  font: var(--font-metadata-bold);
+  color: var(--text-primary);
+}
+
+/* Time, material, plate. They wrap as whole clauses at a narrow dock. */
+.current-setup-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.current-setup-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.current-setup-metric .jp-icon,
+.current-setup-info .jp-icon,
+.current-setup-state .jp-icon {
+  color: var(--text-secondary);
+}
+
+/* The fact glyphs sit inside a row of text, so they take the card's own
+   size; the disclosure chevrons stay on the icon scale. */
+.current-setup-metric .jp-icon,
+.current-setup-info .jp-icon,
+.current-setup-state .jp-icon,
+.current-setup-warning .jp-icon {
+  width: var(--setup-card-icon-size);
+  height: var(--setup-card-icon-size);
+}
+
+.current-setup-divider {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--border-subtle);
+}
+
+.current-setup-attention {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.current-setup-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-metadata-bold);
+  color: var(--text-primary);
+}
+
+/* Colour is never the only signal: the row always has its icon and words. */
+.current-setup-warning .jp-icon {
   color: var(--status-warning);
 }
 
-/* The one word a state gets, hard right in the eyebrow, before the chevron. */
-.current-setup-status {
-  margin-left: auto;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-/* Body Bold, text/primary. One line, always: 40 characters is a contract with the
-   agent, and all the card can do is stop a long one from breaking the layout
-   -- the full sentence lives in the expansion. */
-.current-setup-title {
-  font: var(--font-label);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* The preset name standing in for a title it does not have. */
-.current-setup-identity {
-  font: var(--font-body-small-bold);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.current-setup-summary,
-.current-setup-intent {
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-.current-setup-summary {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Metadata, text/secondary. One line: the clauses give way before the
-   handle does, because the handle is the only way into the expansion. */
-.current-setup-cost {
+.current-setup-info {
   display: flex;
-  align-items: baseline;
-  white-space: nowrap;
-  font: var(--font-metadata);
+  align-items: center;
+  gap: 8px;
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
-.current-setup-cost .clauses {
+.current-setup-info > span:last-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
-.current-setup-cost .sep {
-  opacity: 0.6;
-}
-
-.current-setup-handle {
-  flex: 0 0 auto;
-  padding: 0;
+/* The design system's Button/Link: text only, Label Bold, action/primary. */
+.current-setup-link {
+  align-self: flex-start;
+  height: 26px;
+  padding: 0 4px;
   border: 0;
+  border-radius: var(--radius-standard);
   background: none;
-  font: inherit;
-  color: inherit;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
   cursor: pointer;
 }
 
-.current-setup-handle:hover {
-  color: var(--text-primary);
+.current-setup-link:hover {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
 }
 
-.current-setup-chevron {
+.current-setup-link:active {
+  color: var(--action-primary-pressed);
+}
+
+/* The design system's Disclosure header: one 28px target for the whole row. */
+.current-setup-disclosure {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 16px;
-  margin: 0 -4px 0 0;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-standard);
   background: none;
-  font: var(--font-metadata);
-  color: var(--action-primary);
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+  text-align: left;
   cursor: pointer;
 }
 
-.current-setup-chevron:hover {
-  background: var(--surface-selected);
-}
-
-/* The deltas grow the card. They are a temporary layer over the thread, which
-   dims rather than disappearing, so the conversation is still legibly there. */
-.current-setup-deltas {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  margin: 4px 0 0;
-  font: var(--font-metadata);
-  color: var(--text-secondary);
-}
-
-.current-setup-deltas > div {
-  display: contents;
-}
-
-.current-setup-deltas dt {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.current-setup-deltas dd {
-  margin: 0;
+.current-setup-disclosure:hover {
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.current-setup-deltas .was {
+.current-setup-details,
+.current-setup-section,
+.current-setup-rows,
+.current-setup-override {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.current-setup h3 {
+  font: var(--font-label-bold);
   color: var(--text-secondary);
-  text-decoration: line-through;
 }
 
-/* Which rows the eyebrow's count meant. Secondary rather than accented: it
-   marks a row, it does not compete with the value on it. */
-.current-setup-deltas .yours {
+/* Name left, value right. A long value wraps under itself, still right. */
+.current-setup-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 0;
+  font: var(--font-metadata);
+}
+
+.current-setup-row dt {
+  flex: 0 0 auto;
   color: var(--text-secondary);
 }
 
-.current-setup-base {
-  margin-top: 4px !important;
+.current-setup-row dd {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.current-setup-note {
   font: var(--font-metadata);
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.current-setup-object {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.current-setup-object-name {
+  font: var(--font-metadata-bold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.current-setup-object-values,
+.current-setup-override-target {
+  font: var(--font-metadata);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.current-setup-override-target {
+  padding: 4px 0;
+}
+
+.current-setup-sent {
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
+}
+
+.current-setup-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  list-style: none;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}
+
+.current-setup-findings li {
+  display: flex;
+  flex-direction: column;
+}
+
+.current-setup-findings strong {
+  color: var(--text-primary);
 }
 
 /* The thread is dimmed, not removed: the expansion is a layer over a
@@ -339,18 +391,107 @@ body {
   font: var(--font-label);
 }
 
-.historical-chat-notice {
-  margin: 12px;
+/* The end of an earlier chat. Figma section 5, "Project updates · Locked
+   continuation": the same quiet surface as a saved card, with no edge, and
+   the locked field where the composer would be. */
+.project-updates-band {
+  flex: 0 0 auto;
   padding: 12px;
-  border: 1px solid var(--border-strong);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+}
+
+.project-updates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
   border-radius: var(--radius-container);
   background: var(--surface-subtle);
 }
-.historical-chat-notice p { margin: 0 0 8px; font: var(--font-body-small); color: var(--text-primary); }
-.historical-chat-notice p + p { font: var(--font-label); color: var(--text-secondary); }
-.historical-chat-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 8px; }
-.historical-chat-composer-notice { border-top: 1px solid var(--border-subtle); }
-.historical-chat-composer-notice .historical-chat-notice { margin: 8px 12px; }
+
+.project-updates p {
+  margin: 0;
+}
+
+.project-updates-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--border-subtle);
+}
+
+.project-updates-title {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.project-updates-detail {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.project-updates-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.project-updates-actions button.primary {
+  padding: 8px 16px;
+  border-radius: var(--radius-container);
+  font: var(--font-body-small-bold);
+}
+
+.project-updates-link {
+  height: 26px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-standard);
+  background: none;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  cursor: pointer;
+}
+
+.project-updates-link:hover {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
+}
+
+.project-updates-link:active {
+  color: var(--action-primary-pressed);
+}
+
+/* Locked, not merely greyed: the host refuses a send from an earlier chat as
+   well. The field stays so the place to continue is still where it was. */
+.project-updates-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.project-updates-locked input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: var(--font-body-small);
+  color: var(--action-disabled-text);
+}
+
+.project-updates-locked input::placeholder {
+  color: var(--action-disabled-text);
+  opacity: 1;
+}
 
 /* Conversation */
 .external-actions {
@@ -460,6 +601,12 @@ body {
 .jp-icon-pencil { -webkit-mask-image: url('@resources/jusprin/ui/icons/pencil.svg'); mask-image: url('@resources/jusprin/ui/icons/pencil.svg'); }
 .jp-icon-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
 .jp-icon-close { -webkit-mask-image: url('@resources/jusprin/ui/icons/close.svg'); mask-image: url('@resources/jusprin/ui/icons/close.svg'); }
+.jp-icon-clock { -webkit-mask-image: url('@resources/jusprin/ui/icons/clock.svg'); mask-image: url('@resources/jusprin/ui/icons/clock.svg'); }
+.jp-icon-package { -webkit-mask-image: url('@resources/jusprin/ui/icons/package.svg'); mask-image: url('@resources/jusprin/ui/icons/package.svg'); }
+.jp-icon-grid-3x3 { -webkit-mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); }
+.jp-icon-info { -webkit-mask-image: url('@resources/jusprin/ui/icons/info.svg'); mask-image: url('@resources/jusprin/ui/icons/info.svg'); }
+.jp-icon-triangle-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); }
+.jp-icon-lock { -webkit-mask-image: url('@resources/jusprin/ui/icons/lock.svg'); mask-image: url('@resources/jusprin/ui/icons/lock.svg'); }
 button.chat-icon {
   display: inline-flex;
   align-items: center;

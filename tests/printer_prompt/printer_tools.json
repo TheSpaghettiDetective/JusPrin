@@ -139,8 +139,8 @@
           "type": "string"
         },
         "intent": {
-          "description": "What the user asked this setup to be, in their own words, as one line of at most 40 characters. Not a description of the settings you changed. Send it whenever the change came from something the user asked for.",
-          "maxLength": 40,
+          "description": "What the user asked this setup to be, in their own words, as a short title. Not a description of the settings you changed. Send it whenever the change came from something the user asked for.",
+          "maxLength": 120,
           "type": "string"
         },
         "persistAs": {

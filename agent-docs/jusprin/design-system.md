@@ -128,6 +128,7 @@ Avoid web-only assumptions such as oversized controls, blur-heavy or glass surfa
 Use the existing native component density and Lucide `v1.47.0` SVG artwork for generic functional icons. Pin the artwork in `resources/jusprin/ui/icons` and use the same SVG geometry in Figma, the React pages, and the native shell; a package or plugin alone is not the cross-surface source of truth. Keep the JusPrin mark and product-specific symbols custom. Functional clarity comes before logo-derived decoration.
 
 - Functional icons: Lucide artwork at 16, 20, or 24 DIP, colored through the surrounding semantic token, with PNG fallback when the platform path requires it. Do not create a separate UI component for each glyph.
+- Setup card fact glyphs: 14 DIP from `component.setupCard.iconSize`, the one size below the icon scale. The clock, material, plate, warning, and info glyphs sit inside a row of Label or Metadata text, 14 to 16 DIP tall, and a 16 DIP glyph makes that row taller than its text. The card's disclosure chevron is an ordinary 16 DIP icon. Do not use this size on another surface; it is not a step of the icon scale.
 - Shared progress track: 4 DIP from `component.progress.height`; PrinterCard and Agent activity use this role rather than owning separate track heights.
 - Orbit motif: progress, connection, or active workflow; verify stroke clarity at output size.
 - Directional accent: at most one diagonal for momentum; avoid decorative competing angles.

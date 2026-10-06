@@ -667,9 +667,8 @@ bool ProjectStateDocument::set_setup_intent(const std::string& conversation_id, 
     const auto first = intent.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) return false;
     std::string cleaned = intent.substr(first, intent.find_last_not_of(" \t\r\n") - first + 1);
-    // The 40-character line is a contract with the agent, enforced in its
-    // prompt. All the store can do is refuse one long enough to be a
-    // paragraph, and let the card clamp the rest to one line.
+    // Keep this a title rather than a paragraph; the card wraps it at narrow
+    // widths without changing the saved wording.
     const auto characters = std::count_if(cleaned.begin(), cleaned.end(), [](unsigned char byte) {
         return (byte & 0xc0) != 0x80;
     });

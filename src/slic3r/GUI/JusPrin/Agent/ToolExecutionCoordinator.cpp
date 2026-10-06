@@ -451,6 +451,11 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     stored.arguments_json = std::move(validation.arguments_json);
     {
         const json arguments = json::parse(stored.arguments_json);
+        if (source == ToolSource::Mcp && definition->handler == ToolHandler::IntentUpdate &&
+            arguments.contains("setupTitle")) {
+            fail(stored, "chat_title_unavailable", "A setup title belongs to an in-app chat. MCP can update intent fields only.");
+            return stored;
+        }
         stored.plan_id       = arguments.value("planId", "");
         stored.plan_scope    = stored.plan_id.empty() ? std::string() : plan_scope;
         // A plan waits for its card as a whole, including the members that
@@ -1910,7 +1915,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                     Provenance::AgentInferred : Provenance::UserConfirmed;
                 fields.push_back(std::move(written));
             }
-            result["intent"] = intent_section_result(m_product_state->set_print_intent(fields));
+            result["intent"] = intent_section_result(fields.empty() ? m_product_state->print_intent() :
+                                                         m_product_state->set_print_intent(fields));
         } else {
             PlanRecord plan;
             plan.headline = arguments.at("headline").get<std::string>();

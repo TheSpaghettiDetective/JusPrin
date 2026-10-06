@@ -351,6 +351,28 @@ private:
     // fixture is two objects with one copy each, one per plate.
     void verify_outline(const WorkspaceSnapshot& initial)
     {
+        const auto applied_setting = [](const WorkspaceSnapshot& snapshot, const std::string& key) -> const SetupSetting* {
+            if (!snapshot.applied_setup) return nullptr;
+            const auto& settings = snapshot.applied_setup->settings;
+            const auto found = std::find_if(settings.begin(), settings.end(), [&key](const SetupSetting& item) {
+                return item.key == key;
+            });
+            return found == settings.end() ? nullptr : &*found;
+        };
+        check(initial.applied_setup && initial.applied_setup->printable_objects == 1,
+              "setup_active_plate_excludes_other_plate_object");
+        const SetupSetting* initial_walls = applied_setting(initial, "wall_loops");
+        check(initial_walls && initial_walls->coverage == "exact" && initial_walls->scopes.size() == 1,
+              "setup_active_plate_has_one_wall_scope");
+        const DynamicPrintConfig& process = m_app.preset_bundle->prints.get_edited_preset().config;
+        const SetupSetting* initial_brim = applied_setting(initial, "brim_type");
+        check(applied_setting(initial, "brim_width") != nullptr && initial_brim != nullptr &&
+                  initial_brim->coverage == "exact" && initial_brim->value == process.option("brim_type")->serialize(),
+              "setup_applied_settings_include_brim");
+        check(initial.applied_setup->objects.size() == 1 &&
+                  initial.applied_setup->objects.front() == m_plater->model().objects.front()->name,
+              "setup_names_the_objects_it_covers");
+
         const ProjectOutline outline = m_workspace->outline();
         check(outline.session == initial.session, "pane_outline_session_agrees");
         check(outline.plates.size() == initial.plates.size() && outline.objects.size() == 2, "pane_outline_lists_fixture");
@@ -396,9 +418,69 @@ private:
                   second_read.objects.front().volumes.front().id == first.volumes.front().id && again.revision == before_read.revision,
               "pane_outline_ids_are_stable_and_reading_is_silent");
 
+        DynamicPrintConfig& plate_config = *m_plater->get_partplate_list().get_curr_plate()->config();
+        const ConfigOption* former_height = plate_config.option("layer_height");
+        const auto saved_height = former_height ? former_height->clone() : nullptr;
+        plate_config.set_key_value("layer_height", new ConfigOptionFloat(0.28));
+        const WorkspaceSnapshot plate_edited = m_workspace->snapshot();
+        const SetupSetting* plate_height = applied_setting(plate_edited, "layer_height");
+        check(plate_height && plate_height->coverage == "exact" &&
+                  plate_height->value == plate_config.option("layer_height")->serialize(),
+              "setup_plate_override_wins_over_process_preset");
+        if (saved_height) plate_config.set_key_value("layer_height", saved_height);
+        else plate_config.erase("layer_height");
+
         // Facts the person chose: a per-object setting, and a filament override.
         ModelObject& model_first = *m_plater->model().objects.front();
         model_first.config.set_key_value("wall_loops", new ConfigOptionInt(5));
+        const WorkspaceSnapshot locally_edited = m_workspace->snapshot();
+        const SetupSetting* local_walls = applied_setting(locally_edited, "wall_loops");
+        check(local_walls && local_walls->value == "5" && local_walls->coverage == "exact" &&
+                  std::any_of(locally_edited.applied_setup->local_overrides.begin(),
+                              locally_edited.applied_setup->local_overrides.end(), [](const SetupLocalOverride& item) {
+                                  return item.kind == "object" && item.key == "wall_loops" && item.value == "5";
+                              }),
+              "setup_manual_object_setting_uses_live_value");
+        check(local_walls && local_walls->base == process.option("wall_loops")->serialize() && local_walls->base != "5",
+              "setup_object_override_leaves_the_plate_default_readable");
+
+        // The case the preset-plus-object read gets wrong: a modifier holds a
+        // value that neither config has, so that read still answers 5 for the
+        // whole plate. The setup must not.
+        ModelVolume* modifier = model_first.add_volume(TriangleMesh(model_first.volumes.front()->mesh()),
+                                                       ModelVolumeType::PARAMETER_MODIFIER);
+        modifier->name = "tab";
+        modifier->config.set_key_value("wall_loops", new ConfigOptionInt(7));
+        const WorkspaceSnapshot with_modifier = m_workspace->snapshot();
+        const SetupSetting* modified_walls = applied_setting(with_modifier, "wall_loops");
+        const auto whole_plate_read = m_workspace->read_settings(
+            {"wall_loops"}, SettingsTarget{SettingsScope::Object, with_modifier.plates.front().objects.front().id, {}});
+        std::cerr << "SETUP modifier: object read=" << (whole_plate_read.items.empty() ? "" : whole_plate_read.items.front().value)
+                  << " setup coverage=" << (modified_walls ? modified_walls->coverage : "") << '\n';
+        check(modified_walls && modified_walls->coverage == "local" &&
+                  std::any_of(with_modifier.applied_setup->local_overrides.begin(),
+                              with_modifier.applied_setup->local_overrides.end(), [&](const SetupLocalOverride& item) {
+                                  return item.kind == "modifier" && item.key == "wall_loops" && item.value == "7" &&
+                                         item.target == model_first.name + " / tab" && item.object == 0;
+                              }),
+              "setup_modifier_value_is_local_not_universal");
+        model_first.delete_volume(model_first.volumes.size() - 1);
+
+        // A height range that changes walls is a local wall setting, and is
+        // not variable layer height.
+        ModelConfig& range = model_first.layer_config_ranges[{0.0, 2.0}];
+        range.set_key_value("wall_loops", new ConfigOptionInt(3));
+        const WorkspaceSnapshot with_range = m_workspace->snapshot();
+        const SetupSetting* ranged_walls = applied_setting(with_range, "wall_loops");
+        check(ranged_walls && ranged_walls->coverage == "local" && !with_range.applied_setup->variable_layer_height &&
+                  std::any_of(with_range.applied_setup->local_overrides.begin(),
+                              with_range.applied_setup->local_overrides.end(), [](const SetupLocalOverride& item) {
+                                  return item.kind == "height range" && item.key == "wall_loops" && item.value == "3";
+                              }),
+              "setup_height_range_is_local_and_not_variable_height");
+        model_first.layer_config_ranges.clear();
+        check(applied_setting(m_workspace->snapshot(), "wall_loops")->coverage == "exact",
+              "setup_local_coverage_clears_with_the_override");
         check(m_workspace->outline().objects.front().customization.setting_overrides == 1 &&
                   m_workspace->outline().objects.front().customization.any(),
               "pane_setting_override_is_customization");
@@ -411,6 +493,8 @@ private:
 
         // A disabled copy is explicit, and the object switch is separate.
         model_first.instances.front()->printable = false;
+        check(m_workspace->snapshot().applied_setup && m_workspace->snapshot().applied_setup->printable_objects == 0,
+              "setup_disabled_copy_is_not_printable");
         check(!m_workspace->outline().objects.front().copies.front().printable &&
                   summarize_plate(m_workspace->outline(), initial.plates.front().id).wont_print == 1,
               "pane_disabled_copy_wont_print");
@@ -423,6 +507,8 @@ private:
 
         // A copy no plate holds is off the plate; where it sits does not matter.
         model_first.add_instance();
+        check(m_workspace->snapshot().applied_setup && m_workspace->snapshot().applied_setup->printable_objects == 1,
+              "setup_off_plate_copy_does_not_change_active_scope");
         const ProjectOutline with_loose = m_workspace->outline();
         const auto loose = copies_off_plate(with_loose);
         check(loose.size() == 1 && loose.front().object->id == first.id && with_loose.objects.front().copies.size() == 2,
@@ -445,6 +531,13 @@ private:
         check(m_workspace->snapshot().active_plate && *m_workspace->snapshot().active_plate == inactive,
               "pane_select_plate_activates_the_orca_plate");
         check(m_plater->get_partplate_list().get_curr_plate()->id().id == inactive.value(), "pane_select_plate_reached_orca");
+        // The setup is the selected plate's: its scope moves with the plate,
+        // and it names that plate's object rather than the first in the model.
+        const WorkspaceSnapshot on_other_plate = m_workspace->snapshot();
+        check(on_other_plate.applied_setup && on_other_plate.applied_setup->plate == inactive &&
+                  on_other_plate.applied_setup->objects ==
+                      std::vector<std::string>{m_plater->model().objects.back()->name},
+              "setup_follows_the_selected_plate");
         check(m_changes.size() > changes_before && has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Plates),
               "pane_select_plate_publishes_a_plates_change");
         check(m_edits.size() == edits_before, "pane_select_plate_is_not_an_edit");
@@ -465,6 +558,12 @@ private:
         check(m_workspace->outline().selected_copies == std::vector<InstanceId>{copy_id} &&
                   m_workspace->outline().selected_volumes.empty(),
               "pane_selected_copy_is_read_back");
+        // Selecting an object is not a change of scope: the setup still
+        // describes the whole plate.
+        const WorkspaceSnapshot with_selection = m_workspace->snapshot();
+        check(with_selection.applied_setup && with_selection.applied_setup->plate == *before_select.active_plate &&
+                  with_selection.applied_setup->printable_objects == 1,
+              "setup_scope_ignores_object_selection");
         check(m_workspace->select_copy(copy_id).error == WorkspaceError::NoChange, "pane_select_copy_twice_is_no_change");
         check(m_workspace->select_volume(m_workspace->outline().objects.front().volumes.front().id).error ==
                   WorkspaceError::UnavailableOperation,

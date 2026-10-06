@@ -97,6 +97,8 @@ struct SliceEstimate
     // consumers drop the clause rather than printing a zero.
     double        material_cost{0.0};
     bool          has_cost{false};
+    bool          has_time{false};
+    bool          has_material{false};
 };
 
 // What the estimate on a plate is worth right now. The number itself is kept
@@ -137,6 +139,54 @@ struct PresetDelta
     std::string label;  // the setting's own UI label, already localized
     std::string preset; // value the preset carries
     std::string value;  // value in force
+};
+
+// A read-only account of configured FFF values on the selected plate. A local
+// value names its owner, not a resolved geometric region: overlapping modifier
+// precedence remains Orca's responsibility at slice time.
+struct SetupScopedValue
+{
+    std::string target;
+    std::string kind;
+    std::string value;
+    // Position of the owning object in AppliedSetup::objects. Names repeat,
+    // so consumers group by this rather than by target text.
+    std::size_t object{0};
+};
+
+struct SetupSetting
+{
+    std::string key;
+    std::string value;
+    // exact, mixed, local, or unavailable. "local" means the listed overrides
+    // prevent a single value from describing the whole plate.
+    std::string coverage{"unavailable"};
+    std::vector<SetupScopedValue> scopes;
+    // The plate's own value before any object changes it: the plate override
+    // when the plate has one, otherwise the process preset. Empty when neither
+    // defines the key.
+    std::string base;
+};
+
+struct SetupLocalOverride
+{
+    std::string target;
+    std::string kind;
+    std::string key;
+    std::string value;
+    std::size_t object{0}; // as SetupScopedValue::object
+};
+
+struct AppliedSetup
+{
+    PlateId plate;
+    std::size_t printable_objects{0};
+    bool spiral_mode{false};
+    bool variable_layer_height{false};
+    // Names of the objects with a printable copy on the plate, in model order.
+    std::vector<std::string> objects;
+    std::vector<SetupSetting> settings;
+    std::vector<SetupLocalOverride> local_overrides;
 };
 
 enum class SelectionStatus : std::uint8_t { None, Objects, Unsupported };
@@ -205,6 +255,8 @@ struct WorkspaceSnapshot
     // Empty when the process preset is untouched, which is also the state a
     // non-FFF printer reports.
     std::vector<PresetDelta>    preset_deltas;
+    // Absent for a non-FFF printer or when no plate is selected.
+    std::optional<AppliedSetup> applied_setup;
     // ISO 4217 code from the machine's regional settings, or empty when the OS
     // does not say. A cost is a bare number without it, so consumers drop the
     // money rather than denominate it in a guess.

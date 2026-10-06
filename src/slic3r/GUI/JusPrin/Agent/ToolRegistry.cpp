@@ -677,8 +677,9 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                (!arguments.contains("wait") || arguments["wait"].is_boolean());
 
     if (definition.handler == ToolHandler::IntentUpdate) {
-        if (!has_only(arguments, {"fields"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
-            arguments["fields"].empty() || arguments["fields"].size() > 32)
+        if (!has_only(arguments, {"fields", "setupTitle"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
+            arguments["fields"].size() > 32 || !optional_text(arguments, "setupTitle") ||
+            (arguments["fields"].empty() && arguments.value("setupTitle", std::string()).empty()))
             return false;
         return std::all_of(arguments["fields"].begin(), arguments["fields"].end(), [](const json& field) {
             if (!has_only(field, {"field", "value", "question", "assumed"}) || !field.contains("field") ||
@@ -1003,9 +1004,9 @@ std::vector<ToolDefinition> make_definitions()
          "Apply an atomic settings patch. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
          object_schema({{"scope", settings_scope}, {"target", settings_target}, {"changes", changes_input}, {"persistAs", persist_as},
                         {"expectedSessionId", id}, {"expectedRevision", revision},
-                        {"intent", json{{"type", "string"}, {"maxLength", 40},
+                        {"intent", json{{"type", "string"}, {"maxLength", 120},
                                         {"description", "What the user asked this setup to be, in their own words, as "
-                                         "one line of at most 40 characters. Not a description of the settings you "
+                                         "a short title. Not a description of the settings you "
                                          "changed. Send it whenever the change came from something the user asked for."}}}},
                        {"scope", "changes", "expectedSessionId", "expectedRevision"}),
          settings_output({{"applied", boolean_schema()}, {"changes", array_schema(change)}, {"normalized", array_schema(id)},
@@ -1013,8 +1014,9 @@ std::vector<ToolDefinition> make_definitions()
              {"applied", "changes", "normalized", "savedAs", "presetDirty", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
         {"intent_update", "Record what this print is for",
-         "Record what the user said they want out of this print, as named answers you choose (only what they said or clearly implied, not your own plan; that belongs in plan_set): what it is for, how it will be used, what matters about it, how long it may take. Send question without value for something you have asked and do not know yet; the unanswered ones come back as openQuestions. Calling it shows the user an approval card in JusPrin and waits for their decision, because the card is where the user confirms you understood them. Project Undo does not undo this.",
-         object_schema({{"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
+         "Record the user's explicit purpose as setupTitle in an in-app chat, including when no setting changes. MCP callers can update named fields but cannot set a chat-owned title. Send fields as an empty array for a title-only update. Do not infer a purpose from a preset or proposed plan. Calling it shows an approval card. Project Undo does not undo this.",
+         object_schema({{"setupTitle", json{{"type", "string"}, {"maxLength", 120}}},
+                        {"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
                                                                {"assumed", boolean_schema()}}, {"field"}), 32)}},
                        {"fields"}),
          intent_output,
@@ -1796,9 +1798,11 @@ std::string ToolRegistry::approval_title(const ToolDefinition& definition, const
         // shows the interpreted answer rather than the field names.
         const auto arguments = json::parse(arguments_json);
         std::string title = "Record what this print is for: ";
+        if (arguments.contains("setupTitle") && arguments["setupTitle"].is_string())
+            title += arguments["setupTitle"].get<std::string>();
         bool first = true;
         for (const auto& field : arguments.at("fields")) {
-            if (!first) title += "; ";
+            if (!first || arguments.contains("setupTitle")) title += "; ";
             title += field.at("field").get<std::string>() + " = " +
                      (field.value("value", "").empty() ? "(asked) " + field.value("question", "") : field.value("value", ""));
             first = false;

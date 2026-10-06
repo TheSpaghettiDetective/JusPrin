@@ -424,7 +424,9 @@ json attachment_json(const AttachmentRecord& record)
 // built from the snapshot struct, which has no notion of an agent.
 json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>& agent_authored,
                   const std::string& setup_intent = {}, const std::string& plan_validity = "current",
-                  const std::string& plan_invalidated_by = {})
+                  const std::string& plan_invalidated_by = {},
+                  const std::optional<Workspace::ConfiguredPrinter>& configured = std::nullopt,
+                  const json& printer_review = nullptr)
 {
     json plates = json::array();
     for (const Workspace::WorkspacePlate& plate : snapshot.plates) {
@@ -443,6 +445,8 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
         if (plate.estimate)
             estimate = json{{"printTimeSeconds", plate.estimate->print_time_seconds},
                             {"materialGrams", plate.estimate->material_grams},
+                            {"timeAvailable", plate.estimate->has_time || plate.estimate->print_time_seconds > 0},
+                            {"materialAvailable", plate.estimate->has_material || plate.estimate->material_grams > 0},
                             {"materialCost", plate.estimate->has_cost ? json(plate.estimate->material_cost) : json(nullptr)}};
         const char* estimate_status = "current";
         if (plate.estimate_status == Workspace::EstimateStatus::Recomputing) estimate_status = "recomputing";
@@ -476,6 +480,38 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
     for (Workspace::ObjectId id : snapshot.selected_objects)
         selected_ids.push_back(std::to_string(id.value()));
 
+    json applied_setup = nullptr;
+    if (snapshot.applied_setup) {
+        json settings = json::array();
+        for (const Workspace::SetupSetting& setting : snapshot.applied_setup->settings) {
+            json scopes = json::array();
+            for (const Workspace::SetupScopedValue& scope : setting.scopes)
+                scopes.push_back({{"object", scope.object}, {"target", scope.target},
+                                  {"kind", scope.kind}, {"value", scope.value}});
+            settings.push_back({{"key", setting.key}, {"value", setting.value}, {"base", setting.base},
+                                {"coverage", setting.coverage}, {"scopes", std::move(scopes)}});
+        }
+        json locals = json::array();
+        for (const Workspace::SetupLocalOverride& local : snapshot.applied_setup->local_overrides)
+            locals.push_back({{"object", local.object}, {"target", local.target}, {"kind", local.kind},
+                              {"key", local.key}, {"value", local.value}});
+        applied_setup = json{{"version", 1}, {"plateId", std::to_string(snapshot.applied_setup->plate.value())},
+                             {"printableObjects", snapshot.applied_setup->printable_objects},
+                             {"spiralMode", snapshot.applied_setup->spiral_mode},
+                             {"variableLayerHeight", snapshot.applied_setup->variable_layer_height},
+                             {"objects", snapshot.applied_setup->objects},
+                             {"settings", std::move(settings)}, {"localOverrides", std::move(locals)}};
+    }
+
+    json setup_identity = nullptr;
+    if (configured) {
+        json filaments = json::array();
+        for (const Workspace::ConfiguredFilament& filament : configured->filaments)
+            filaments.push_back({{"preset", filament.preset}, {"material", filament.material}});
+        setup_identity = json{{"printer", configured->preset}, {"nozzles", configured->nozzle_diameters},
+                              {"plateType", configured->plate_type}, {"filaments", std::move(filaments)}};
+    }
+
     return json{{"sessionId", std::to_string(snapshot.session.value())},
                 {"revision", snapshot.revision},
                 {"projectName", snapshot.setup.project_name},
@@ -489,10 +525,22 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
                 {"selection", json{{"status", selection_status}, {"objectIds", std::move(selected_ids)}}},
                 {"history", json{{"canUndo", snapshot.can_undo}, {"canRedo", snapshot.can_redo}}},
                 {"presetDeltas", std::move(preset_deltas)},
+                {"appliedSetup", std::move(applied_setup)},
+                {"setupIdentity", std::move(setup_identity)},
+                {"printerReview", printer_review},
                 {"currency", snapshot.currency},
                 {"setupIntent", setup_intent},
                 {"planValidity", plan_validity},
                 {"planInvalidatedBy", plan_invalidated_by}};
+}
+
+json current_printer_review(Workspace::IWorkspace& workspace, IProductState& product_state)
+{
+    const auto configured = workspace.configured_printer();
+    const auto devices = workspace.printers();
+    const auto facts = product_state.has_printer_facts() ?
+        product_state.printer_facts(printer_fact_key(configured, devices)) : std::vector<Workspace::PrinterFact>{};
+    return printer_section_result(configured, devices, facts);
 }
 
 } // namespace
@@ -552,13 +600,14 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             m_persistence.commit();
         if (m_handshake)
             send_tool_activity(activity);
-        if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch") {
+        if (activity.state == ToolState::Succeeded &&
+            (activity.tool == "settings_apply_patch" || activity.tool == "intent_update")) {
             // The change itself pushed a context while it was advancing the
             // workspace revision, and that push predates both writes below.
             // Without a second one the card would show the new deltas under
             // the old title and the old attribution -- the exact moment it is
             // supposed to be proof that the agent heard you.
-            const bool authored = remember_agent_authored(activity);
+            const bool authored = activity.tool == "settings_apply_patch" && remember_agent_authored(activity);
             const bool restated = remember_setup_intent(activity);
             if ((authored || restated) && m_handshake)
                 send_context();
@@ -771,7 +820,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"changes", std::move(changes)},
                  {"context", context_json(snapshot, agent_authored_keys(snapshot),
                                           document.setup_intent(active), document.plan().validity,
-                                          document.plan().invalidated_by)}};
+                                          document.plan().invalidated_by, m_workspace.configured_printer(),
+                                          current_printer_review(m_workspace, m_product_state))}};
     if (m_session_state_provider)
         payload["session"] = m_session_state_provider();
     if (m_navigation_state_provider)
@@ -791,7 +841,9 @@ void AgentHost::send_context()
                                                 m_persistence.document().setup_intent(
                                                     m_persistence.document().active_conversation_id()),
                                                 m_persistence.document().plan().validity,
-                                                m_persistence.document().plan().invalidated_by)}}
+                                                m_persistence.document().plan().invalidated_by,
+                                                m_workspace.configured_printer(),
+                                                current_printer_review(m_workspace, m_product_state))}}
                       .dump());
 }
 
@@ -1386,7 +1438,8 @@ bool AgentHost::checkpoint_active_chat()
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
     if (!document.save_chat_checkpoint(active, version,
             context_json(snapshot, agent_authored_keys(snapshot), document.setup_intent(active),
-                         document.plan().validity, document.plan().invalidated_by),
+                         document.plan().validity, document.plan().invalidated_by,
+                         m_workspace.configured_printer(), current_printer_review(m_workspace, m_product_state)),
             m_persistence.timestamp()))
         return false;
     m_persistence.flush();
@@ -1418,7 +1471,8 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
         document.save_chat_checkpoint(created, prior->value("versionId", ""),
             context_json(m_workspace.snapshot(), agent_authored_keys(m_workspace.snapshot()),
                          document.setup_intent(created), document.plan().validity,
-                         document.plan().invalidated_by), m_persistence.timestamp());
+                         document.plan().invalidated_by, m_workspace.configured_printer(),
+                         current_printer_review(m_workspace, m_product_state)), m_persistence.timestamp());
     m_persistence.flush();
     if (m_save_chat_document && !m_save_chat_document()) {
         document.load(before);
@@ -2095,15 +2149,16 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
 bool AgentHost::remember_setup_intent(const ToolActivity& activity)
 {
     const json arguments = json::parse(activity.arguments_json, nullptr, false);
-    if (arguments.is_discarded() || !arguments.is_object() || !arguments.contains("intent") ||
-        !arguments["intent"].is_string())
+    const char* key = activity.tool == "intent_update" ? "setupTitle" : "intent";
+    if (arguments.is_discarded() || !arguments.is_object() || !arguments.contains(key) ||
+        !arguments[key].is_string())
         return false;
     // A change made outside a chat -- an MCP client, say -- has no chat to be
     // the record of, so it leaves no intent behind.
     const std::string conversation_id = m_persistence.document().conversation_of_message(activity.correlation_id);
     if (conversation_id.empty())
         return false;
-    if (!m_persistence.document().set_setup_intent(conversation_id, arguments["intent"].get<std::string>()))
+    if (!m_persistence.document().set_setup_intent(conversation_id, arguments[key].get<std::string>()))
         return false;
     m_persistence.commit();
     // An intent written on a chat you are not looking at changes nothing on

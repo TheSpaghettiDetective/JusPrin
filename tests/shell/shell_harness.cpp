@@ -62,8 +62,9 @@
 //              unopened Preview's plate selection unchanged.
 //   --recomputing-capture <output-directory>
 //              slices the fixture, scales the cube to 120 mm and re-slices,
-//              asserts the setup card reads "re-slicing…" while the slice
-//              runs, and writes recomputing-agent-pane.png and
+//              asserts the setup card says the estimates are recomputing,
+//              and shows no earlier figure, while the slice runs, and writes
+//              recomputing-agent-pane.png and
 //              recomputing-shell.png to the directory (handoff item 6)
 //   --timeline-capture <output-directory>
 //              records a build, asks a question the Agent answers without a
@@ -1656,7 +1657,7 @@ private:
                                 "chat_restore_forged_send_cannot_activate_history");
                     auto& view = installed_shell()->agent_pane()->web_view();
                     WebView::RunScript(view.webview(),
-                        "document.querySelector('.historical-chat-actions button.primary')?.click()");
+                        "document.querySelector('.project-updates-actions button.primary')?.click()");
                     self->capture_chat_pane("chat-restore-confirmation");
                     WebView::RunScript(view.webview(),
                         "(function(){ const timer=setInterval(function(){"
@@ -1673,6 +1674,12 @@ private:
                             self->check(wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize(
                                             "sparse_infill_density") == "5%",
                                         "chat_restore_quick_settings_restored");
+                            // The restore replays the saved settings under the
+                            // person who asked for it, and logs itself last. The
+                            // setup card reads that order to tell the restore's
+                            // work from a hand edit, so nothing may follow it.
+                            self->check(!document.changes().empty() && document.changes().back().kind == "restore",
+                                        "chat_restore_is_the_newest_logged_change");
                             self->check(document.chat_checkpoint(second).has_value() &&
                                         document.chat_checkpoint(second)->at("versionId") != quick_version,
                                         "chat_restore_outgoing_version_remains_recoverable");
@@ -5861,19 +5868,20 @@ private:
         [] { probe_setup_card(); });
     }
 
-    // Reports only once the card carries the recomputing markup
-    // (SetupCard.tsx: .superseded is the struck estimate, .estimate-note is
-    // "re-slicing…"), so an unanswered probe and a stale card look the same:
-    // no draft.
+    // Reports only once the card carries the recomputing state
+    // (SetupCard.tsx: .current-setup-heading is the estimate area's heading,
+    // .current-setup-metric a time or material figure), so an unanswered
+    // probe and a stale card look the same: no draft.
     static void probe_setup_card()
     {
         WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
             "(function(){"
             "  var card = document.querySelector('[data-testid=\"current-setup\"]');"
-            "  var note = card && card.querySelector('.estimate-note');"
-            "  var struck = card && card.querySelector('.superseded');"
-            "  if (note && struck && window.__jusprinTest)"
-            "    window.__jusprinTest.setDraft('card=' + note.textContent + '|' + struck.textContent);"
+            "  var heading = card && card.querySelector('.current-setup-heading');"
+            "  if (heading && /recomputing/.test(heading.textContent) && window.__jusprinTest)"
+            "    window.__jusprinTest.setDraft('card=' + heading.textContent + '|state=' +"
+            "      card.querySelector('.current-setup-state').textContent + '|figures=' +"
+            "      card.querySelectorAll('.current-setup-metric').length);"
             "})()");
     }
 
@@ -5882,7 +5890,11 @@ private:
         const std::string probe = persistence().draft();
         const bool observed = probe.rfind("card=", 0) == 0;
         check(observed, "setup_card_renders_recomputing_while_slicing");
-        check(observed && probe.find("re-slicing") != std::string::npos, "setup_card_note_reads_re_slicing");
+        check(observed && probe.find("estimates recomputing") != std::string::npos, "setup_card_says_estimates_are_recomputing");
+        // The settings are confirmed and the old figures are not: none of
+        // them may stand as current while the plate is being sliced again.
+        check(observed && probe.find("|state=Confirmed") != std::string::npos, "setup_card_keeps_settings_confirmed");
+        check(observed && probe.find("|figures=0") != std::string::npos, "setup_card_shows_no_superseded_figure");
         std::cout << "HARNESS CARD PROBE " << probe << std::endl;
         persistence().set_draft({});
         // The pictures must show the state the probe saw.

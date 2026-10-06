@@ -40,6 +40,7 @@
 #include <wx/thread.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -107,15 +108,22 @@ std::optional<SliceEstimate> estimate_of(const GCodeProcessorResult& result)
     SliceEstimate estimate;
     const auto& statistics = result.print_statistics;
     const auto& mode = statistics.modes[static_cast<std::size_t>(PrintEstimatedStatistics::ETimeMode::Normal)];
-    estimate.print_time_seconds = mode.time > 0.f ? static_cast<std::uint32_t>(mode.time) : 0u;
+    estimate.has_time = mode.time > 0.f;
+    estimate.print_time_seconds = estimate.has_time ? static_cast<std::uint32_t>(mode.time) : 0u;
+    estimate.has_material = !statistics.total_volumes_per_extruder.empty();
 
     double cost = 0.0;
     bool   every_filament_priced = true;
     for (const auto& [extruder, volume] : statistics.total_volumes_per_extruder) {
-        // A slice that used an extruder Orca has no density for cannot be
-        // weighed, and a partial weight presented as the total is worse than
-        // no weight at all -- so the whole estimate goes.
-        if (extruder >= result.filament_densities.size()) return std::nullopt;
+        // Keep an independent time estimate, but never present a partial
+        // weight or cost as the total for a multi-material plate.
+        if (extruder >= result.filament_densities.size() ||
+            !std::isfinite(result.filament_densities[extruder]) || result.filament_densities[extruder] <= 0.f) {
+            estimate.has_material = false;
+            estimate.material_grams = 0.0;
+            every_filament_priced = false;
+            break;
+        }
         const double grams = volume * result.filament_densities[extruder] * 0.001;
         estimate.material_grams += grams;
         // A filament profile with no price reports zero, which is not a price.
@@ -128,8 +136,8 @@ std::optional<SliceEstimate> estimate_of(const GCodeProcessorResult& result)
     // priced and another not, a "total" would silently leave material out.
     estimate.has_cost      = every_filament_priced && cost > 0.0;
     estimate.material_cost = estimate.has_cost ? cost : 0.0;
-    // A slice that produced no material is not an estimate worth a row.
-    if (estimate.print_time_seconds == 0 && estimate.material_grams <= 0.0) return std::nullopt;
+    // A slice with neither trustworthy quantity is not an estimate worth a row.
+    if (!estimate.has_time && !estimate.has_material) return std::nullopt;
     return estimate;
 }
 
@@ -150,6 +158,116 @@ std::vector<PresetDelta> preset_deltas_of(const PresetCollection& prints, const 
         const std::string& label = definition->full_label.empty() ? definition->label : definition->full_label;
         result.push_back({key, label.empty() ? key : label, before->serialize(), after->serialize()});
     }
+    return result;
+}
+
+const std::array<const char*, 13> kSetupKeys{{
+    "layer_height", "wall_loops", "sparse_infill_density", "sparse_infill_pattern",
+    "enable_support", "support_type", "support_on_build_plate_only",
+    "top_shell_layers", "bottom_shell_layers", "top_shell_thickness", "bottom_shell_thickness",
+    "brim_type", "brim_width"
+}};
+
+std::string setting_value(const DynamicPrintConfig& process, const DynamicPrintConfig& plate,
+                          const DynamicPrintConfig& object, const char* key)
+{
+    const ConfigOption* option = object.option(key);
+    if (option == nullptr) option = plate.option(key);
+    if (option == nullptr) option = process.option(key);
+    return option == nullptr ? std::string() : option->serialize();
+}
+
+AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlate& plate,
+                              const DynamicPrintConfig& process)
+{
+    AppliedSetup result;
+    result.plate = PlateId(session, plate.id().id);
+    result.spiral_mode = plate.get_spiral_vase_mode();
+    const DynamicPrintConfig& plate_config = *plate.config();
+    const DynamicPrintConfig no_object;
+    for (const char* key : kSetupKeys)
+        result.settings.push_back({key, {}, "unavailable", {}, setting_value(process, plate_config, no_object, key)});
+
+    const auto add_local = [&result](const std::string& target, const std::string& kind,
+                                     const DynamicPrintConfig& config) {
+        for (const std::string& key : config.keys()) {
+            const ConfigOption* option = config.option(key);
+            if (option != nullptr)
+                result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1});
+        }
+    };
+    // A customization with no single value to quote: paint, a blocker, a
+    // variable-height profile.
+    const auto add_artifact = [&result](const std::string& target, const std::string& kind, const std::string& key = {}) {
+        result.local_overrides.push_back({target, kind, key, {}, result.objects.size() - 1});
+    };
+
+    const ModelObjectPtrs& objects = plater.model().objects;
+    for (std::size_t index = 0; index < objects.size(); ++index) {
+        const ModelObject& object = *objects[index];
+        if (!object.printable) continue;
+        bool prints_here = false;
+        for (std::size_t copy = 0; copy < object.instances.size(); ++copy)
+            if (object.instances[copy]->printable && plate.contain_instance(static_cast<int>(index), static_cast<int>(copy))) {
+                prints_here = true;
+                break;
+            }
+        if (!prints_here) continue;
+        ++result.printable_objects;
+        result.objects.push_back(object.name);
+        const DynamicPrintConfig& object_config = object.config.get();
+        add_local(object.name, "object", object_config);
+        for (SetupSetting& setting : result.settings) {
+            const std::string value = setting_value(process, plate_config, object_config, setting.key.c_str());
+            if (value.empty()) continue;
+            setting.scopes.push_back({object.name, "object", value, result.objects.size() - 1});
+            if (setting.coverage == "unavailable") {
+                setting.value = value;
+                setting.coverage = "exact";
+            } else if (setting.value != value) {
+                setting.coverage = "mixed";
+            }
+        }
+
+        // has_custom_layering() is also true for a height range, which may
+        // change walls and leave the layer height alone; ranges are listed
+        // below with the keys they actually set.
+        if (!object.layer_height_profile.empty()) {
+            result.variable_layer_height = true;
+            add_artifact(object.name, "variable layer height", "layer_height");
+        }
+        for (const auto& range : object.layer_config_ranges)
+            add_local(object.name, "height range", range.second.get());
+        for (const ModelVolume* volume : object.volumes) {
+            const std::string target = object.name + " / " + volume->name;
+            const char* kind = volume->is_modifier() ? "modifier" :
+                               volume->is_support_blocker() ? "support blocker" :
+                               volume->is_support_enforcer() ? "support enforcer" :
+                               volume->is_negative_volume() ? "negative part" : "part";
+            add_local(target, kind, volume->config.get());
+            if (volume->is_support_blocker() || volume->is_support_enforcer())
+                add_artifact(target, kind);
+        }
+        if (object.is_fdm_support_painted())
+            add_artifact(object.name, "support painting");
+        if (object.is_seam_painted())
+            add_artifact(object.name, "seam painting");
+        if (object.is_mm_painted())
+            add_artifact(object.name, "color painting");
+        if (object.is_fuzzy_skin_painted())
+            add_artifact(object.name, "fuzzy skin painting");
+    }
+
+    for (SetupSetting& setting : result.settings)
+        if (std::any_of(result.local_overrides.begin(), result.local_overrides.end(),
+                        [&setting](const SetupLocalOverride& local) {
+                            const bool support_geometry = (local.kind == "support blocker" ||
+                                local.kind == "support enforcer" || local.kind == "support painting") &&
+                                (setting.key == "enable_support" || setting.key == "support_type" ||
+                                 setting.key == "support_on_build_plate_only");
+                            return support_geometry || (local.kind != "object" && local.key == setting.key);
+                        }))
+            setting.coverage = "local";
     return result;
 }
 
@@ -529,7 +647,8 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.active = index == active_index;
         projected_plate.sliced = plate->is_slice_result_valid();
         const std::uint64_t plate_key = plate->id().id;
-        if (projected_plate.sliced && !m_plater.is_background_process_slicing() && plate->get_slice_result()) {
+        const bool this_plate_slicing = result.slicing.running && result.slicing.plate == projected_plate.id;
+        if (projected_plate.sliced && !this_plate_slicing && plate->get_slice_result()) {
             projected_plate.estimate        = estimate_of(*plate->get_slice_result());
             projected_plate.estimate_status = EstimateStatus::Current;
             // The figure this plate can currently defend, kept so a slice in
@@ -537,13 +656,15 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
             if (projected_plate.estimate) m_last_estimate[plate_key] = *projected_plate.estimate;
         } else if (const auto remembered = m_last_estimate.find(plate_key); remembered != m_last_estimate.end()) {
             projected_plate.estimate        = remembered->second;
-            projected_plate.estimate_status = m_plater.is_background_process_slicing() ?
+            projected_plate.estimate_status = this_plate_slicing ?
                 EstimateStatus::Recomputing : EstimateStatus::Stale;
             if (projected_plate.estimate_status == EstimateStatus::Stale) {
                 if (const auto why = m_invalidated_by.find(plate_key); why != m_invalidated_by.end())
                     projected_plate.invalidated_by = why->second;
             }
         }
+        if (this_plate_slicing && !projected_plate.estimate)
+            projected_plate.estimate_status = EstimateStatus::Recomputing;
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
             WorkspaceObject object = project_object(m_session, *objects[object_index], *plate, static_cast<int>(object_index));
@@ -552,6 +673,10 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         }
         if (projected_plate.active)
             result.active_plate = projected_plate.id;
+        if (projected_plate.active && wxGetApp().preset_bundle != nullptr &&
+            wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptFFF)
+            result.applied_setup = applied_setup_of(m_session, m_plater, *plate,
+                wxGetApp().preset_bundle->prints.get_edited_preset().config);
         result.plates.emplace_back(std::move(projected_plate));
     }
 

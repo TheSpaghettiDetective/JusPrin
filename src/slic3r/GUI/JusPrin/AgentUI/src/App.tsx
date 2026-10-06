@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import { AttachmentSource, Envelope } from './bridge/protocol';
+import { AttachmentSource, Envelope, SliceEstimateInfo } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
-import { SetupCard } from './components/SetupCard';
+import { RECENT_CHANGE_MS, SetupCard } from './components/SetupCard';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { ToolActivityCard } from './components/ToolActivityCard';
@@ -326,6 +326,42 @@ export function App({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const viewed = state.viewedConversationId || state.activeConversationId;
+    if (state.connection !== 'connected' || viewed !== state.activeConversationId ||
+        view !== 'chat' || !state.context) return;
+    const timer = window.setInterval(() => client.send('state_request', {}), 30000);
+    return () => window.clearInterval(timer);
+  }, [client, state.connection, state.viewedConversationId, state.activeConversationId, view, state.context?.sessionId]);
+
+  // "Just changed" is a window of time, so something has to end it: one
+  // timer per newest change, set for the moment that change stops being new.
+  const [now, setNow] = useState(() => Date.now());
+  const newestChange = state.changes.at(-1);
+  useEffect(() => {
+    setNow(Date.now());
+    if (!newestChange) return;
+    const left = Date.parse(newestChange.createdAt) + RECENT_CHANGE_MS - Date.now();
+    if (!Number.isFinite(left) || left <= 0) return;
+    const timer = window.setTimeout(() => setNow(Date.now()), left + 50);
+    return () => window.clearTimeout(timer);
+  }, [newestChange?.seq, newestChange?.createdAt]);
+
+  // The pair behind "Estimate: a → b": the plate's last current estimate, and
+  // the one that was in force when the newest change arrived. Both are native
+  // figures for the same plate; nothing here is computed.
+  const activePlate = state.context?.plates.find((plate) => plate.active);
+  const lastEstimate = useRef<{ plateId: string; estimate: SliceEstimateInfo } | null>(null);
+  const beforeChange = useRef<{ seq: number; plateId: string; estimate: SliceEstimateInfo } | null>(null);
+  useEffect(() => {
+    if (!newestChange || beforeChange.current?.seq === newestChange.seq) return;
+    beforeChange.current = lastEstimate.current ? { seq: newestChange.seq, ...lastEstimate.current } : null;
+  }, [newestChange?.seq]);
+  useEffect(() => {
+    if (activePlate?.estimate && activePlate.estimateStatus === 'current')
+      lastEstimate.current = { plateId: activePlate.id, estimate: activePlate.estimate };
+  }, [activePlate?.id, activePlate?.estimate, activePlate?.estimateStatus]);
+
   if (state.connection === 'connecting') return <div className="app"><ConnectingPane /></div>;
 
   if (state.connection !== 'connected') {
@@ -358,11 +394,16 @@ export function App({
   const viewedChat = state.conversations.find((chat) => chat.id === viewedId);
   const historical = viewedId !== state.activeConversationId;
   const resumeStatus = state.chatResume.status;
-  const historicalReason = resumeStatus === 'changed'
-    ? 'There have been project updates since this chat. Restore its saved project version to continue.'
+  // What the end of an earlier chat says depends on what its checkpoint is
+  // worth: only a project that really moved on is described as updated.
+  const boundary = resumeStatus === 'changed'
+    ? { title: 'There have been project updates.', detail: 'Restore this chat’s saved project to continue.',
+        locked: 'Restore this chat to continue' }
     : resumeStatus === 'unchanged'
-      ? 'This chat is inactive. Resume from its saved setup to continue.'
-      : 'This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.';
+      ? { title: 'This is an earlier chat.', detail: 'The project has not changed since. Resume it from its saved setup to continue.',
+          locked: 'Resume this chat to continue' }
+      : { title: 'This chat can’t be continued.', detail: 'Its saved project is missing or damaged, so there is nothing to restore.',
+          locked: 'This chat can’t be continued' };
   const returnToActiveChat = () => {
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     setView('chat');
@@ -385,15 +426,50 @@ export function App({
       conversationId: viewedId, activeConversationId: state.activeConversationId, docRevision: state.docRevision,
     });
   };
-  const historicalNotice = historical && <div className="historical-chat-notice" role="note">
-    <p>{historicalReason}</p>
-    <p>The canvas shows your current project.</p>
-    <div className="chat-dialog-buttons historical-chat-actions">
+  // The end of an earlier chat: what happened to the project since, the
+  // three ways on, and the locked field where the composer would be.
+  const projectUpdates = historical && <div className="project-updates" role="note">
+    <hr className="project-updates-divider" />
+    <p className="project-updates-title">{boundary.title}</p>
+    <p className="project-updates-detail">{boundary.detail}</p>
+    <div className="project-updates-actions">
       {resumeStatus !== 'unavailable' && <button type="button" className="primary"
         disabled={busy || state.projectChatBlocked} onClick={resumeChat}>{resumeStatus === 'changed' ? 'Restore and resume' : 'Resume saved setup'}</button>}
-      <button type="button" onClick={returnToActiveChat}>Return to active chat</button>
-      <button type="button" onClick={askCurrentChat}>Ask current chat about this</button>
+      <button type="button" className="project-updates-link" onClick={returnToActiveChat}>Return to active chat</button>
+      <button type="button" className="project-updates-link" onClick={askCurrentChat}>Ask current chat about this</button>
     </div>
+    <hr className="project-updates-divider" />
+    <div className="project-updates-locked">
+      <span className="jp-icon jp-icon-lock" aria-hidden="true" />
+      <input type="text" aria-label="Message the Agent" disabled placeholder={boundary.locked} />
+    </div>
+  </div>;
+  const cardContext = historical ? state.chatResume.summary ?? null : state.context;
+  // A saved summary belongs to a send when this chat sent the plate it shows.
+  const sentBuild = historical ? [...state.builds].reverse().find((record) => record.conversationId === viewedId &&
+    !!record.sentAt && record.plateIndex === cardContext?.plates.findIndex((plate) => plate.active)) : undefined;
+  // The card sits in its own pinned band above the thread, as the design has
+  // it: the band is the canvas the tinted card sits on.
+  const setupCard = view === 'chat' && cardContext && <div className="pinned-setup">
+    <SetupCard context={cardContext} historical={historical} savedAt={historical ? state.chatResume.savedAt : undefined}
+      agentAvailable={!unavailable} expanded={setupExpanded} working={!historical && busy}
+      changes={historical ? undefined : state.changes.filter((change) => change.conversationId === viewedId)}
+      now={now}
+      estimateBefore={!historical && beforeChange.current?.seq === newestChange?.seq &&
+        beforeChange.current?.plateId === activePlate?.id ? beforeChange.current?.estimate : null}
+      sent={sentBuild?.sentAt ? { at: sentBuild.sentAt, printer: sentBuild.printer } : undefined}
+      onCompute={historical ? undefined : () => {
+        const current = stateRef.current.context;
+        const plate = current?.plates.find((item) => item.active);
+        if (current && plate) client.send('shell_action', {
+          action: 'compute_setup_estimates', sessionId: current.sessionId, plateId: plate.id,
+        });
+      }}
+      onUndo={historical ? undefined : (changeSeq) => {
+        const current = stateRef.current.context;
+        if (current) client.send('shell_action', { action: 'undo_setup_change', sessionId: current.sessionId, changeSeq });
+      }}
+      onToggle={() => setSetupExpanded((open) => !open)} />
   </div>;
   const externalActions = state.toolActivities.filter((activity) => activity.source === 'mcp' && activity.requiresApproval);
   const externalPlans = planMembers(externalActions);
@@ -446,7 +522,6 @@ export function App({
           onSend={sendMessage}
           replyDisabled={unavailable || streaming || historical || state.projectChatBlocked}
           readOnly={historical || state.projectChatBlocked}
-          endNotice={historicalNotice}
           onDiscussFailure={(text) => sendMessage(text, false)}
           onSetUpAgent={openSetup}
         />
@@ -616,7 +691,10 @@ export function App({
       {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'setup' && !state.navigation.focused ? (
-        <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
+        <>
+          <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
+          {setupCard}
+        </>
       ) : state.navigation.focused ? (
         <header className="chat-header printer-header">
           <button type="button" className="printer-link-button printer-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
@@ -633,15 +711,7 @@ export function App({
             onRename={(title) => client.send('rename_conversation', { conversationId: viewedId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: viewedId }); setView('list'); }}
             onCollapse={collapseAgentPane} />
-          {view === 'chat' && !notConfigured && (historical ? state.chatResume.summary : state.context) && (
-            // The card sits in its own pinned band above the thread, as the
-            // design has it: the band is the canvas the tinted card sits on.
-            <div className="pinned-setup">
-              <SetupCard context={historical ? state.chatResume.summary ?? null : state.context}
-                historical={historical} expanded={setupExpanded} working={!historical && busy}
-                onToggle={() => setSetupExpanded((open) => !open)} />
-            </div>
-          )}
+          {setupCard}
         </>
       )}
       {!notConfigured && connected && (
@@ -655,15 +725,15 @@ export function App({
       {state.projectChatBlocked && <div className="chat-error" role="alert">
         Project restoration needs recovery. This chat cannot run project actions.
       </div>}
-      {historical && view === 'chat' && <div className="historical-chat-composer-notice">{historicalNotice}</div>}
-      {!(state.navigation.focused && notConfigured) && <div hidden={view === 'setup'}><Composer
+      {view === 'chat' && historical && <div className="project-updates-band">{projectUpdates}</div>}
+      {!historical && !(state.navigation.focused && notConfigured) && <div hidden={view === 'setup'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}
-        disabled={unavailable || historical || state.projectChatBlocked}
-        disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : historical ? historicalReason : notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
+        disabled={unavailable || state.projectChatBlocked}
+        disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
         placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
-        streaming={historical ? false : streaming}
-        initialText={historical ? '' : state.draft}
-        attachments={historical ? [] : stagedAttachments}
+        streaming={streaming}
+        initialText={state.draft}
+        attachments={stagedAttachments}
         onSend={sendMessage}
         onStop={() => {
           if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });

@@ -30,7 +30,8 @@ enum class ToolExposure : std::uint8_t {
 // How a print request goes, for both adapters' instructions: the tools'
 // own descriptions say how each one works.
 inline constexpr const char* kPrintJourneyGuidance =
-    "For a print request: record what the user said with intent_update, ask only the questions whose answer would change what "
+    "For a print request: record the user's explicit purpose as setupTitle with intent_update, even when no setting changes; "
+    "record confirmed requirements as fields. Ask only the questions whose answer would change what "
     "you do, and record your plan, with everything you assumed instead of asking, through plan_set before you change the "
     "project. Check the slice with slice_report before you export; a G-code file is written with export_file.";
 

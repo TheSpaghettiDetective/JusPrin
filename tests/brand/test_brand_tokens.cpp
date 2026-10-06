@@ -496,6 +496,18 @@ TEST_CASE("the status dot is one size", "[brand]")
     require_exact_table<int>(tokens.at("component").at("statusDot"), {{"size", 8}}, "component.statusDot");
 }
 
+// The setup card's fact glyphs -- clock, material, plate, warning, info --
+// sit inside a row of Label or Metadata text, 14 to 16 DIP tall. A glyph from
+// the icon scale would make the row taller than its text, so the card has
+// the one size below the scale, and it is not a step of that scale: Home
+// takes its glyph from the scale's smallest step, which stays 16.
+TEST_CASE("the setup card's inline glyph is one size", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("setupCard"), {{"iconSize", 14}}, "component.setupCard");
+    CHECK(tokens.at("component").at("icon").at("sizes").get<std::vector<int>>().front() == 16);
+}
+
 TEST_CASE("every component radius comes from the radius scale", "[brand]")
 {
     const json tokens = load_tokens();

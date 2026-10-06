@@ -446,6 +446,9 @@
     "statusDot": {
       "size": 8
     },
+    "setupCard": {
+      "iconSize": 14
+    },
     "field": {
       "height": 26,
       "radius": 4,
