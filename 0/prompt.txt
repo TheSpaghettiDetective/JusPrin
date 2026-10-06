@@ -1,0 +1,17 @@
+# Response annotations:
+Each item contains text selected from an earlier Codex response and may include a user comment. Treat items as Annotation 1, Annotation 2, and so on in array order. Use every selection as context and address every comment. For every annotation you address, include its inline directive `:codex-annotation{index="N"}`, where N is its one-based array position (for example, `:codex-annotation{index="1"}`). Do not use unstructured annotation labels.
+<response-annotations>
+[{"text":"An updated installed preset can change an effective setting. Orca’s loader can replace settings that were not customized in the captured project with values from the currently installed system or inherited preset. For example, if a system preset’s default changes after capture, restoring that version can use the new default. That is a concrete reason my earlier statement that metadata.3mf “carries the settings restored with that version” was too absolute. Preset loading rule (line 2496)","source":{"messageId":"msg_02cda4f7c3173bb4016ac2c896f12487d0a2ba3e657853326b","startOffset":604,"endOffset":1095}}]
+</response-annotations>
+
+## My request:
+if we add all settings to`different_settings_to_system` , basically we let project\_settings.config beat preset every time when there is a diff, this hole will be plugged, right?
+
+---
+
+which option will result in smaller upstream footprint:
+
+
+
+- make the checking a key against different\_settings\_to\_system always return true.
+- add all keys to =different\_settings\_to\_system at the end of the backup process
