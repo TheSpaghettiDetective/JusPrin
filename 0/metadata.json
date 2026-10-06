@@ -1,0 +1,241 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M47Q7Y32ZN1YCRWMRF2Q1N8E",
+  "session_id": "01a108a0-ac0f-78c0-a894-d0e9c5f09451",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-06T04:23:41.890092Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 16,
+  "save_step_count": 16,
+  "files_touched": [
+    "agent-docs/jusprin/autosave-version-history.md",
+    "resources/JusPrin.icns"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-sol",
+  "turn_id": "39a5d90b2295",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 644600,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9416448,
+    "output_tokens": 33185,
+    "api_call_count": 93
+  },
+  "session_metrics": {
+    "turn_count": 16
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 539,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        "agent-docs/jusprin/autosave-version-history.md": 131,
+        "handoff-chat-state-and-restoration.md": 314,
+        "handoff-prepare-print-action.md": 72
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 15,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 16,
+      "user_lines_added": 22,
+      "user_lines_removed": 1,
+      "agent_lines_added": 517,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    }
+  ]
+}

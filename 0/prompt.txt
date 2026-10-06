@@ -1,0 +1,89 @@
+which branch are you looking at?
+
+---
+
+which branch are you looking at?
+
+---
+
+if you need to make code change, where will you commit to?
+
+---
+
+Describer to me how the project data is being saved. ideally with a diagram
+
+---
+
+find recent commits that implemented autosave feature. then use entire to find out which agent sessions committed them
+
+---
+
+# Response annotations:
+Each item contains text selected from an earlier Codex response and may include a user comment. Treat items as Annotation 1, Annotation 2, and so on in array order. Use every selection as context and address every comment. For every annotation you address, include its inline directive `:codex-annotation{index="N"}`, where N is its one-based array position (for example, `:codex-annotation{index="1"}`). Do not use unstructured annotation labels.
+<response-annotations>
+[{"text":"Each version has Orca 3MF metadata plus references","source":{"messageId":"msg_02cda4f7c3173bb4016ac2b97c9a9087d095b73928809e4e21","startOffset":8374,"endOffset":8424}}]
+</response-annotations>
+
+## My request:
+describe the structyure of each version folder
+
+---
+
+where are effective settings saved?
+
+---
+
+describe `metadata.3mf` in details for me
+
+---
+
+given a  version, is it true that we can always unambiguously restore all values at the point when the version was captured? are there any situations that will cause the restored version to be different from the captured version
+
+---
+
+# Response annotations:
+Each item contains text selected from an earlier Codex response and may include a user comment. Treat items as Annotation 1, Annotation 2, and so on in array order. Use every selection as context and address every comment. For every annotation you address, include its inline directive `:codex-annotation{index="N"}`, where N is its one-based array position (for example, `:codex-annotation{index="1"}`). Do not use unstructured annotation labels.
+<response-annotations>
+[{"text":"An updated installed preset can change an effective setting. Orca’s loader can replace settings that were not customized in the captured project with values from the currently installed system or inherited preset. For example, if a system preset’s default changes after capture, restoring that version can use the new default. That is a concrete reason my earlier statement that metadata.3mf “carries the settings restored with that version” was too absolute.","annotation":"are you sure? based on:\n- If the saved effective settings match the existing preset, it selects that preset.\n- If they differ, it selects the existing preset and applies the saved differences to an edited copy. Those differences depend on the project’s different_settings_to_system data.\neven if the installed presets changes, the same setting value will still hold, just as a edit, instead of a default","source":{"messageId":"msg_02cda4f7c3173bb4016ac2c896f12487d0a2ba3e657853326b","startOffset":604,"endOffset":1063}}]
+</response-annotations>
+
+## My request:
+did I misunderstand here?
+
+---
+
+this means that if the embedded preset is skipped because it shares the same name as a system prset, but it contains different values, the resulted combined config is likely wrong, right?
+
+---
+
+how is `different_settings_to_system` used in upstream orcaslicer? what behavior does it drive?
+
+---
+
+so if wall\_loop=3 in project\_settings.config, and wall\_loop=2 in print\_preset, however, wall\_loop is not in `different_settings_to_system`, then the effective wall\_loop in memory will be 2? this sounds like a bug!\~
+
+---
+
+what if:
+
+user A change wall\_loops in "user\_preset\_1" to 3
+user A saves the 3mf. in this case, wall\_loop=3 in project\_settings.config, and wall\_loop=3 in embedded preset "user\_preset\_1". but wall\_loop won't be in `different_settings_to_system`
+user B has wall\_loops =3 in "user\_preset\_1", the preset that happens to share the same name as user A
+user B loads the 3mf user A saved.
+the effective wall\_loop is now 2.
+
+did I get anything wrong here?
+
+---
+
+this is so fucking confusing. is there a design principle behind this mess for upstream orcaslicer?
+
+---
+
+# Response annotations:
+Each item contains text selected from an earlier Codex response and may include a user comment. Treat items as Annotation 1, Annotation 2, and so on in array order. Use every selection as context and address every comment. For every annotation you address, include its inline directive `:codex-annotation{index="N"}`, where N is its one-based array position (for example, `:codex-annotation{index="1"}`). Do not use unstructured annotation labels.
+<response-annotations>
+[{"text":"different_settings_to_system decides which of those values win over the current base.","annotation":"the keys not in different_settings_to_system won't be used in the restore process, right? if so, why bother saving them in  project_settings.config?","source":{"messageId":"msg_02cda4f7c3173bb4016ac31f6564ec87d081172ec9cc26e710","startOffset":534,"endOffset":620}}]
+</response-annotations>
+
+## My request:
