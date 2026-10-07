@@ -1,6 +1,7 @@
 #include "slic3r/GUI/I18N.hpp"
 
 #include "ProjectAutosave.hpp"
+#include "DialogListeners.hpp"
 #include "Regions.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -101,6 +102,27 @@ boost::filesystem::path boost_path(const std::filesystem::path& path)
 #else
     return boost::filesystem::path(path.string());
 #endif
+}
+
+std::vector<size_t> load_managed_checkpoint(Plater& plater,
+                                            const ProjectVersionStore::Materialization& materialized,
+                                            LoadStrategy strategy)
+{
+    // Commit 1fcc7e05a4 marks every captured setting as project-owned so
+    // current preset defaults cannot replace a checkpoint's values. Orca's
+    // safety check consequently sees every G-code setting as modified. The
+    // checkpoint was created locally after the original import was accepted,
+    // so suppress only that known false positive while preserving every other
+    // restore dialog.
+    ScopedDialogListener modified_gcode_answer([](wxWindow&, const DialogFacts& facts) -> std::optional<int> {
+        if (facts.ok && facts.title == _u8L("Modified G-code"))
+            return wxID_OK;
+        return std::nullopt;
+    });
+    return plater.load_files(
+        std::vector<boost::filesystem::path>{boost_path(materialized.metadata),
+                                             boost_path(materialized.absent_original)},
+        strategy, false);
 }
 
 bool project_edit(WorkspaceChangeReasons reasons)
@@ -675,10 +697,7 @@ bool ProjectAutosave::resume_latest()
         auto strategy = LoadStrategy::Restore;
         if (materialized.empty)
             strategy = strategy | LoadStrategy::AllowEmpty;
-        const auto loaded = m_plater.load_files(
-            std::vector<boost::filesystem::path>{boost_path(materialized.metadata),
-                                                 boost_path(materialized.absent_original)},
-            strategy, false);
+        const auto loaded = load_managed_checkpoint(m_plater, materialized, strategy);
         if ((loaded.empty() && !materialized.empty) || (materialized.empty && !m_plater.model().objects.empty()))
             throw std::runtime_error("recent managed project could not be restored");
         m_plater.set_project_filename(wxString::FromUTF8(selected->source_path));
@@ -854,10 +873,7 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
         auto strategy = LoadStrategy::Restore;
         if (materialized.empty)
             strategy = strategy | LoadStrategy::AllowEmpty;
-        const auto loaded = m_plater.load_files(
-            std::vector<boost::filesystem::path>{boost_path(materialized.metadata),
-                                                 boost_path(materialized.absent_original)},
-            strategy, false);
+        const auto loaded = load_managed_checkpoint(m_plater, materialized, strategy);
         if ((loaded.empty() && !materialized.empty) || (materialized.empty && !m_plater.model().objects.empty()))
             throw std::runtime_error("local project could not be restored");
         m_plater.set_project_filename(wxString::FromUTF8(version.source_path));
@@ -1110,10 +1126,7 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const nlohmann
             auto strategy = LoadStrategy::Restore;
             if (materialized->empty)
                 strategy = strategy | LoadStrategy::AllowEmpty;
-            const auto loaded = m_plater.load_files(
-                std::vector<boost::filesystem::path>{boost_path(materialized->metadata),
-                                                     boost_path(materialized->absent_original)},
-                strategy, false);
+            const auto loaded = load_managed_checkpoint(m_plater, *materialized, strategy);
             if (loaded.empty() && !materialized->empty)
                 throw std::runtime_error("OrcaSlicer could not restore the selected model");
             if (materialized->empty && !m_plater.model().objects.empty())
@@ -1172,9 +1185,7 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const nlohmann
                 auto strategy = LoadStrategy::Restore;
                 if (previous.empty)
                     strategy = strategy | LoadStrategy::AllowEmpty;
-                const auto loaded = m_plater.load_files(
-                    std::vector<boost::filesystem::path>{boost_path(previous.metadata), boost_path(previous.absent_original)},
-                    strategy, false);
+                const auto loaded = load_managed_checkpoint(m_plater, previous, strategy);
                 if ((loaded.empty() && !previous.empty) || (previous.empty && !m_plater.model().objects.empty()))
                     throw std::runtime_error("previous project version could not be reloaded");
                 m_plater.set_project_filename(wxString::FromUTF8(old->source_path));

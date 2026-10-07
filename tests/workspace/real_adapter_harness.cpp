@@ -1520,8 +1520,9 @@ private:
         m_plater->sidebar().delete_filament(1, 0);
         check(m_app.preset_bundle->filament_presets.size() == 1, "managed_mesh_second_filament_removed");
         check(autosave->save_now(), "managed_mesh_one_filament_checkpoint_saved");
-        // The all-keys marker currently prompts Orca's modified-G-code warning for multi-filament restores.
-        // Capture and dismiss it so the restore path remains testable without user input.
+        // Managed restore answers the false-positive modified-G-code warning
+        // before it is shown. This outer hook keeps the test non-blocking and
+        // fails on that warning or any other dialog escaping the restore scope.
         struct RestoreDialogs : wxModalDialogHook {
             std::vector<std::string> titles;
             int Enter(wxDialog* dialog) override {
@@ -1534,6 +1535,7 @@ private:
         restore_dialogs.Unregister();
         check(restored_two_filaments, "managed_mesh_two_filament_checkpoint_restored");
         check(m_app.preset_bundle->filament_presets.size() == 2, "managed_mesh_two_filament_slots_restored");
+        check(restore_dialogs.titles.empty(), "managed_mesh_checkpoint_restore_shows_no_dialog");
         std::cerr << "HARNESS CHECKPOINT_RESTORE_DIALOGS count=" << restore_dialogs.titles.size();
         for (const auto& title : restore_dialogs.titles) std::cerr << " title=" << title;
         std::cerr << '\n';
