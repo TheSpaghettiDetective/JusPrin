@@ -46,28 +46,28 @@ public:
     bool refresh_if_changed();
     void push_appearance(bool dark);
 
-    bool               connected() const { return m_connected; }
+    bool connected() const { return m_connected; }
     unsigned long long messages_sent() const { return m_sent; }
     unsigned long long messages_received() const { return m_received; }
 
 private:
-    Snapshot collect() const;
+    Snapshot collect();
     // The backend's printers, led by `m_added` when it is listed.
     std::vector<PrinterEntry> ordered_printers() const;
-    void     send_state(Snapshot snapshot);
-    void     send(const std::string& type, const nlohmann::json& payload, const std::string& correlation = {});
+    void send_state(Snapshot snapshot);
+    void send(const std::string& type, const nlohmann::json& payload, const std::string& correlation = {});
 
-    IHomeBackend&      m_backend;
-    Send               m_send;
-    bool               m_connected{false};
+    IHomeBackend& m_backend;
+    Send m_send;
+    bool m_connected{false};
     unsigned long long m_sent{0};
     unsigned long long m_received{0};
     unsigned long long m_next_id{1};
     // What the last push_state named, and the printers of the last state
     // sent, serialised as the page receives them: what refresh_if_changed
     // compares against.
-    std::string        m_added;
-    std::string        m_sent_printers;
+    std::string m_added;
+    std::string m_sent_printers;
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

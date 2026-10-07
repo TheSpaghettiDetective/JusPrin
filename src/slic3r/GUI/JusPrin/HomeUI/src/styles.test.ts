@@ -82,7 +82,7 @@ describe('styles.css stays on the design tokens', () => {
     expect(emitted).toContain('--action-primary-text');
     const requested = [
       ...css.matchAll(
-        /var\((--(?:radius|font|button|project-card|printer-card|progress|printer-dialog|menu-row|popover|status-dot|swatch|glyph|elevation|action|text|surface|border|status|overlay)-[\w-]+)\)/g,
+        /var\((--(?:radius|font|button|project-card|printer-card|progress|printer-dialog|onboarding|checkbox|select|form-row|menu-row|popover|status-dot|swatch|glyph|elevation|action|text|surface|border|status|overlay)-[\w-]+)\)/g,
       ),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);

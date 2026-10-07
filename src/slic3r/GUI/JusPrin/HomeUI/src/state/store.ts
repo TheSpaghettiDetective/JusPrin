@@ -10,6 +10,7 @@ import type {
   PrinterInfo,
   ProjectInfo,
   StatePayload,
+  OnboardingState,
 } from '../bridge/protocol';
 
 export interface HomeState {
@@ -28,6 +29,8 @@ export interface HomeState {
   // A printer the conversation just added, which the host leads the column
   // with for this one push; its card draws attention to itself once.
   highlightPrinter?: string;
+  onboarding?: OnboardingState;
+  onboardingError?: string;
 }
 
 export const initialState: HomeState = {
@@ -41,7 +44,8 @@ export const initialState: HomeState = {
 export type HomeAction =
   | { kind: 'connection'; state: ConnectionState; detail?: string }
   | { kind: 'envelope'; envelope: Envelope }
-  | { kind: 'printer_action' };
+  | { kind: 'printer_action' }
+  | { kind: 'onboarding_action' };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
@@ -49,6 +53,9 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
   }
   if (action.kind === 'printer_action') {
     return { ...state, printerError: undefined };
+  }
+  if (action.kind === 'onboarding_action') {
+    return { ...state, onboardingError: undefined };
   }
   const { type, payload } = action.envelope;
   switch (type) {
@@ -62,6 +69,7 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         printers: next.printers ?? [],
         error: undefined,
         highlightPrinter: next.highlightPrinter || undefined,
+        onboarding: next.onboarding,
       };
     }
     case 'projects':
@@ -72,6 +80,8 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       return { ...state, appearance: (payload as { appearance: Appearance }).appearance };
     case 'printer_error':
       return { ...state, printerError: payload as PrinterErrorPayload };
+    case 'onboarding_error':
+      return { ...state, onboardingError: (payload as { message?: string }).message };
     case 'bridge_error':
       return { ...state, error: (payload as { message?: string }).message };
     default:

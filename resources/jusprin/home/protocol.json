@@ -6,7 +6,8 @@
     "printers",
     "appearance",
     "project_actions",
-    "printer_actions"
+    "printer_actions",
+    "onboarding"
   ],
   "pageMessageTypes": [
     "hello",
@@ -19,7 +20,22 @@
     "connect_printer",
     "open_printer_settings",
     "rename_printer",
-    "remove_printer"
+    "remove_printer",
+    "onboarding_begin",
+    "onboarding_dismiss",
+    "onboarding_defer_profiles",
+    "onboarding_accept_partial_profiles",
+    "onboarding_use_profiles",
+    "onboarding_confirm_setup",
+    "onboarding_back",
+    "onboarding_choose_profile_bundle",
+    "onboarding_choose_profile_folder",
+    "onboarding_manual_setup",
+    "onboarding_offline_example",
+    "onboarding_account_stub",
+    "onboarding_terms_stub",
+    "onboarding_privacy_stub",
+    "onboarding_open_example"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -29,6 +45,7 @@
     "printers",
     "appearance",
     "printer_error",
+    "onboarding_error",
     "bridge_error"
   ]
 }

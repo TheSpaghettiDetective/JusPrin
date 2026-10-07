@@ -28,6 +28,21 @@ describe('protocol constants come from the shared file', () => {
       'open_printer_settings',
       'rename_printer',
       'remove_printer',
+      'onboarding_begin',
+      'onboarding_dismiss',
+      'onboarding_defer_profiles',
+      'onboarding_accept_partial_profiles',
+      'onboarding_use_profiles',
+      'onboarding_confirm_setup',
+      'onboarding_back',
+      'onboarding_choose_profile_bundle',
+      'onboarding_choose_profile_folder',
+      'onboarding_manual_setup',
+      'onboarding_offline_example',
+      'onboarding_account_stub',
+      'onboarding_terms_stub',
+      'onboarding_privacy_stub',
+      'onboarding_open_example',
     ];
     const host: HostMessageType[] = [
       'hello_ack',
@@ -37,6 +52,7 @@ describe('protocol constants come from the shared file', () => {
       'printers',
       'appearance',
       'printer_error',
+      'onboarding_error',
       'bridge_error',
     ];
     expect([...page].sort()).toEqual([...protocolJson.pageMessageTypes].sort());
@@ -46,7 +62,7 @@ describe('protocol constants come from the shared file', () => {
 
 describe('isEnvelope', () => {
   it('accepts a well-formed envelope of this protocol', () => {
-    expect(isEnvelope({ protocol: PROTOCOL_NAME, version: 1, id: 'h-1', type: 'state', payload: {} })).toBe(true);
+    expect(isEnvelope({ protocol: PROTOCOL_NAME, version: PROTOCOL_VERSION, id: 'h-1', type: 'state', payload: {} })).toBe(true);
   });
 
   it('rejects anything else', () => {

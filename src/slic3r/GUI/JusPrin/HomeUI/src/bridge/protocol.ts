@@ -25,7 +25,22 @@ export type PageMessageType =
   | 'connect_printer'
   | 'open_printer_settings'
   | 'rename_printer'
-  | 'remove_printer';
+  | 'remove_printer'
+  | 'onboarding_begin'
+  | 'onboarding_dismiss'
+  | 'onboarding_defer_profiles'
+  | 'onboarding_accept_partial_profiles'
+  | 'onboarding_use_profiles'
+  | 'onboarding_confirm_setup'
+  | 'onboarding_back'
+  | 'onboarding_choose_profile_bundle'
+  | 'onboarding_choose_profile_folder'
+  | 'onboarding_manual_setup'
+  | 'onboarding_offline_example'
+  | 'onboarding_account_stub'
+  | 'onboarding_terms_stub'
+  | 'onboarding_privacy_stub'
+  | 'onboarding_open_example';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -35,6 +50,7 @@ export type HostMessageType =
   | 'printers'
   | 'appearance'
   | 'printer_error'
+  | 'onboarding_error'
   | 'bridge_error';
 
 export type Appearance = 'light' | 'dark';
@@ -124,13 +140,50 @@ export interface PrinterErrorPayload {
   message: string;
 }
 
-
 export interface StatePayload {
   appearance: Appearance;
   projects: ProjectInfo[];
   printers: PrinterInfo[];
   // A printer the conversation just added; empty for any other push.
   highlightPrinter?: string;
+  onboarding: OnboardingState;
+}
+
+export type OnboardingStep = 'hidden' | 'welcome' | 'profiles' | 'confirm_setup' | 'setup' | 'project';
+
+export interface OnboardingState {
+  visible: boolean;
+  step: OnboardingStep;
+  status: 'unfinished' | 'completed' | 'dismissed';
+  agentConfigured: boolean;
+  profiles: {
+    available: boolean;
+    imported: boolean;
+    partialImportPending: boolean;
+    failed: string[];
+    printerCount: number;
+    filamentCount: number;
+    processCount: number;
+    source: string;
+    // Preset names found in the source, per kind, for reviewing a selection.
+    printerNames?: string[];
+    filamentNames?: string[];
+    processNames?: string[];
+    // After an import that left some presets behind: the ones that were
+    // copied, named like `failed` as "<directory>/<file>.json".
+    importedFiles?: string[];
+  };
+  setup: {
+    usable: boolean;
+    offlineExample: boolean;
+    summary: string;
+    printer: string;
+    nozzle: string;
+    plate: string;
+    material: string;
+    process: string;
+  };
+  projectOpen: boolean;
 }
 
 export interface Envelope<T = unknown> {

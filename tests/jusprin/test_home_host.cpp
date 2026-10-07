@@ -22,31 +22,81 @@ namespace {
 class FakeBackend final : public IHomeBackend
 {
 public:
-    bool                      is_dark{false};
+    bool is_dark{false};
     std::vector<ProjectEntry> projects;
     std::vector<PrinterEntry> machines;
 
     std::vector<std::string> opened;
     std::vector<std::string> monitored;
-    int                      new_projects{0};
-    int                      imports{0};
-    int                      wizards{0};
+    int new_projects{0};
+    int imports{0};
+    int wizards{0};
+    int onboarding_begins{0};
+    int onboarding_dismissals{0};
+    int profile_deferrals{0};
+    int partial_profile_acceptances{0};
+    int profile_uses{0};
+    int setup_confirmations{0};
+    int onboarding_backs{0};
+    int profile_bundle_choices{0};
+    int profile_folder_choices{0};
+    int manual_setups{0};
+    int offline_examples{0};
+    int account_stubs{0};
+    int terms_stubs{0};
+    int privacy_stubs{0};
+    int project_examples{0};
 
-    bool                      dark() const override { return is_dark; }
+    bool dark() const override { return is_dark; }
     std::vector<ProjectEntry> recent_projects() const override { return projects; }
     std::vector<PrinterEntry> printers() const override { return machines; }
+    Snapshot::Onboarding onboarding_state;
+    Snapshot::Onboarding onboarding() override { return onboarding_state; }
 
     void open_project(const std::string& id) override { opened.push_back(id); }
     void new_project() override { ++new_projects; }
     void import_model() override { ++imports; }
     void launch_monitor(const std::string& id) override { monitored.push_back(id); }
     void add_printer() override { ++wizards; }
+    void begin_onboarding() override { ++onboarding_begins; }
+    void dismiss_onboarding() override { ++onboarding_dismissals; }
+    void defer_profile_import() override { ++profile_deferrals; }
+    void accept_partial_profile_import() override { ++partial_profile_acceptances; }
+    Snapshot::ProfileSelection profile_selection;
+    std::string use_detected_profiles(const Snapshot::ProfileSelection& selection) override
+    {
+        ++profile_uses;
+        profile_selection = selection;
+        return refusal;
+    }
+    void confirm_onboarding_setup() override { ++setup_confirmations; }
+    void back_onboarding() override { ++onboarding_backs; }
+    void choose_profile_bundle() override { ++profile_bundle_choices; }
+    void choose_profile_folder() override { ++profile_folder_choices; }
+    std::string run_manual_setup() override
+    {
+        ++manual_setups;
+        return refusal;
+    }
+    std::string choose_offline_example() override
+    {
+        ++offline_examples;
+        return refusal;
+    }
+    void open_account_stub() override { ++account_stubs; }
+    void open_terms_stub() override { ++terms_stubs; }
+    void open_privacy_stub() override { ++privacy_stubs; }
+    std::string open_onboarding_example() override
+    {
+        ++project_examples;
+        return refusal;
+    }
 
-    std::vector<std::string>                         settings_opened;
-    std::vector<std::string>                         connections_opened;
+    std::vector<std::string> settings_opened;
+    std::vector<std::string> connections_opened;
     std::vector<std::pair<std::string, std::string>> renamed;
-    std::vector<std::string>                         removed;
-    std::string                                      refusal; // what every printer action answers
+    std::vector<std::string> removed;
+    std::string refusal; // what every printer action answers
 
     std::string open_printer_settings(const std::string& id) override
     {
@@ -92,18 +142,12 @@ struct Wire
 
 std::string page_message(const std::string& type, const json& payload = json::object())
 {
-    return json{{"protocol", "jusprin-home-bridge"},
-                {"version", 1},
-                {"id", "w-1"},
-                {"type", type},
-                {"payload", payload}}
-        .dump();
+    return json{{"protocol", "jusprin-home-bridge"}, {"version", 1}, {"id", "w-1"}, {"type", type}, {"payload", payload}}.dump();
 }
 
 std::string hello(int version = 1)
 {
-    return page_message("hello",
-                        json{{"protocolVersions", json::array({version})}, {"capabilities", json::array()}});
+    return page_message("hello", json{{"protocolVersions", json::array({version})}, {"capabilities", json::array()}});
 }
 
 ProjectEntry a_project(const std::string& id, const std::string& name)
@@ -122,7 +166,7 @@ TEST_CASE("the handshake is answered with an ack and the whole screen", "[home]"
 {
     FakeBackend backend;
     backend.projects = {a_project("0", "Garage bracket")};
-    Wire     wire;
+    Wire wire;
     HomeHost host(backend, wire.sink());
 
     host.on_page_message(hello());
@@ -140,8 +184,8 @@ TEST_CASE("the handshake is answered with an ack and the whole screen", "[home]"
 TEST_CASE("a page speaking another version is rejected", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
 
     host.on_page_message(hello(99));
 
@@ -155,8 +199,8 @@ TEST_CASE("a page speaking another version is rejected", "[home]")
 TEST_CASE("actions before the handshake are ignored", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
 
     host.on_page_message(page_message("open_project", json{{"id", "0"}}));
     host.on_page_message(page_message("new_project"));
@@ -168,8 +212,8 @@ TEST_CASE("actions before the handshake are ignored", "[home]")
 TEST_CASE("each page message reaches its own action", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
     host.on_page_message(page_message("open_project", json{{"id", "2"}}));
@@ -185,13 +229,92 @@ TEST_CASE("each page message reaches its own action", "[home]")
     CHECK(backend.wizards == 1);
 }
 
+TEST_CASE("onboarding messages reach local actions and refresh the gate", "[home][onboarding]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states = wire.of_type("state").size();
+
+    host.on_page_message(page_message("onboarding_begin"));
+    host.on_page_message(page_message("onboarding_defer_profiles"));
+    host.on_page_message(page_message("onboarding_accept_partial_profiles"));
+    host.on_page_message(page_message("onboarding_use_profiles"));
+    host.on_page_message(page_message("onboarding_confirm_setup"));
+    host.on_page_message(page_message("onboarding_back"));
+    host.on_page_message(page_message("onboarding_choose_profile_bundle"));
+    host.on_page_message(page_message("onboarding_choose_profile_folder"));
+    host.on_page_message(page_message("onboarding_manual_setup"));
+    host.on_page_message(page_message("onboarding_offline_example"));
+    host.on_page_message(page_message("onboarding_account_stub"));
+    host.on_page_message(page_message("onboarding_terms_stub"));
+    host.on_page_message(page_message("onboarding_privacy_stub"));
+    host.on_page_message(page_message("onboarding_open_example"));
+    host.on_page_message(page_message("onboarding_dismiss"));
+
+    CHECK(backend.onboarding_begins == 1);
+    CHECK(backend.profile_deferrals == 1);
+    CHECK(backend.partial_profile_acceptances == 1);
+    CHECK(backend.profile_uses == 1);
+    CHECK(backend.setup_confirmations == 1);
+    CHECK(backend.onboarding_backs == 1);
+    CHECK(backend.profile_bundle_choices == 1);
+    CHECK(backend.profile_folder_choices == 1);
+    CHECK(backend.manual_setups == 1);
+    CHECK(backend.offline_examples == 1);
+    CHECK(backend.account_stubs == 1);
+    CHECK(backend.terms_stubs == 1);
+    CHECK(backend.privacy_stubs == 1);
+    CHECK(backend.project_examples == 1);
+    CHECK(backend.onboarding_dismissals == 1);
+    CHECK(wire.of_type("state").size() == states + 12);
+}
+
+// The import copies the kinds the page ticked. A request that names none, as
+// a retry of the failed presets sends, leaves nothing out.
+TEST_CASE("an Orca import carries the kinds the user selected", "[home][onboarding]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("onboarding_use_profiles", json{{"categories", json::array({"printer", "process"})}}));
+    CHECK(backend.profile_selection.printers);
+    CHECK_FALSE(backend.profile_selection.filaments);
+    CHECK(backend.profile_selection.processes);
+
+    host.on_page_message(page_message("onboarding_use_profiles"));
+    CHECK(backend.profile_selection.printers);
+    CHECK(backend.profile_selection.filaments);
+    CHECK(backend.profile_selection.processes);
+    CHECK(backend.profile_uses == 2);
+}
+
+TEST_CASE("an onboarding action failure is typed and keeps the flow", "[home][onboarding]")
+{
+    FakeBackend backend;
+    backend.refusal = "No local printer profile is installed.";
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("onboarding_offline_example"));
+
+    const auto errors = wire.of_type("onboarding_error");
+    REQUIRE(errors.size() == 1);
+    CHECK(errors.front().at("payload").at("message") == backend.refusal);
+    CHECK(wire.of_type("state").size() == 2);
+}
+
 // Adding a printer changes what the rail should show, so the screen is pushed
 // again without the page having to ask.
 TEST_CASE("adding a printer refreshes the screen", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
     const size_t states_after_hello = wire.of_type("state").size();
 
@@ -209,10 +332,10 @@ TEST_CASE("a printer just added leads the column, for one push", "[home]")
     existing.id   = "named:Existing";
     existing.name = "Existing Printer";
     PrinterEntry added;
-    added.id   = "named:New";
-    added.name = "New Printer";
+    added.id         = "named:New";
+    added.name       = "New Printer";
     backend.machines = {existing, added};
-    Wire     wire;
+    Wire wire;
     HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
@@ -233,8 +356,8 @@ TEST_CASE("a printer just added leads the column, for one push", "[home]")
 TEST_CASE("state_request sends the screen again", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
     backend.projects = {a_project("0", "Vent grille")};
@@ -249,8 +372,8 @@ TEST_CASE("state_request sends the screen again", "[home]")
 TEST_CASE("a page reload invalidates the handshake", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
     host.reset_page();
@@ -265,8 +388,8 @@ TEST_CASE("a page reload invalidates the handshake", "[home]")
 TEST_CASE("traffic from another surface is ignored", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
     const std::string agent = json{{"protocol", "jusprin-agent-bridge"},
@@ -285,8 +408,8 @@ TEST_CASE("traffic from another surface is ignored", "[home]")
 TEST_CASE("unreadable page text does not break the bridge", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
     host.on_page_message("{not json");
@@ -298,8 +421,8 @@ TEST_CASE("unreadable page text does not break the bridge", "[home]")
 TEST_CASE("appearance follows the host, and only while connected", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
 
     host.push_appearance(true);
     CHECK(wire.of_type("appearance").empty());
@@ -313,8 +436,8 @@ TEST_CASE("appearance follows the host, and only while connected", "[home]")
 TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]")
 {
     FakeBackend backend;
-    Wire        wire;
-    HomeHost    host(backend, wire.sink());
+    Wire wire;
+    HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
     const size_t states_after_hello = wire.of_type("state").size();
 
@@ -339,7 +462,7 @@ TEST_CASE("a refused printer action reaches the page with its reason", "[home]")
 {
     FakeBackend backend;
     backend.refusal = "Another printer or profile is already named \"Office A1\".";
-    Wire     wire;
+    Wire wire;
     HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
     const size_t states_after_hello = wire.of_type("state").size();
@@ -359,14 +482,14 @@ TEST_CASE("a refused printer action reaches the page with its reason", "[home]")
 // nothing, and a printer that starts printing or drops off reaches it.
 TEST_CASE("a live refresh sends only when a card changed", "[home]")
 {
-    FakeBackend  backend;
+    FakeBackend backend;
     PrinterEntry garage;
     garage.id              = "named:Garage A1 mini";
     garage.name            = "Garage A1 mini";
     garage.connection_text = "Connected";
     backend.machines       = {garage};
     backend.projects       = {a_project("0", "Garage bracket")};
-    Wire     wire;
+    Wire wire;
     HomeHost host(backend, wire.sink());
 
     CHECK_FALSE(host.refresh_if_changed()); // nothing to send before the handshake
@@ -408,12 +531,12 @@ TEST_CASE("a live refresh sends only when a card changed", "[home]")
 // sent it, so a live refresh never repeats an explicit push.
 TEST_CASE("a live refresh after an explicit push sends nothing new", "[home]")
 {
-    FakeBackend  backend;
+    FakeBackend backend;
     PrinterEntry garage;
     garage.id        = "named:Garage A1 mini";
     garage.name      = "Garage A1 mini";
     backend.machines = {garage};
-    Wire     wire;
+    Wire wire;
     HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
@@ -429,7 +552,7 @@ TEST_CASE("a live refresh after an explicit push sends nothing new", "[home]")
 // out from under the person and cut its glow short.
 TEST_CASE("a live refresh keeps the added printer leading and highlighted", "[home]")
 {
-    FakeBackend  backend;
+    FakeBackend backend;
     PrinterEntry existing;
     existing.id   = "named:Existing";
     existing.name = "Existing Printer";
@@ -437,7 +560,7 @@ TEST_CASE("a live refresh keeps the added printer leading and highlighted", "[ho
     added.id         = "named:New";
     added.name       = "New Printer";
     backend.machines = {existing, added};
-    Wire     wire;
+    Wire wire;
     HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
     host.push_state("New Printer");

@@ -13,6 +13,10 @@
 // and its rename and remove dialogs, which are the add-printer dialog's kind:
 //   --printer-dialog-width, --printer-dialog-radius
 //   --printer-dialog-scrim  the scrim's strength, a percentage for color-mix()
+// and first-run onboarding:
+//   --onboarding-<name>     the welcome layout, task card, example panel and
+//                           setup field widths
+//   --checkbox-<name>, --select-<name>, --form-row-<name>  its form controls
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
 import {
@@ -36,6 +40,10 @@ interface CardTokens {
     menuRow: Record<string, number>;
     popover: Record<string, number>;
     printerDialog: { width: number; radius: number; scrimAlpha: number };
+    onboarding: Record<string, number>;
+    checkbox: { size: number; glyphSize: number; labelGap: number };
+    select: { height: number; paddingX: number };
+    formRow: { height: number; gap: number; labelWidth: number };
   };
 }
 
@@ -49,6 +57,17 @@ const ASPECT = '--project-card-thumbnail-aspect';
 // is the smallest size on the documented icon scale, so it sits on the text
 // line rather than beside it.
 const GLYPH = '--glyph-size';
+
+// The form controls onboarding draws. Each token section also names a radius
+// and a type role, which the stylesheet takes from --radius-* and --font-*.
+function formControls(): [string, Record<string, number>][] {
+  const { checkbox, select, formRow } = component;
+  return [
+    ['checkbox', { size: checkbox.size, glyphSize: checkbox.glyphSize, labelGap: checkbox.labelGap }],
+    ['select', { height: select.height, paddingX: select.paddingX }],
+    ['form-row', { height: formRow.height, gap: formRow.gap, labelWidth: formRow.labelWidth }],
+  ];
+}
 
 function pixelSection(section: Record<string, number>): Record<string, number> {
   const { thumbnailAspectWidth, thumbnailAspectHeight, ...rest } = section;
@@ -80,6 +99,8 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('menu-row', component.menuRow),
     ...pixelVariableNames('popover', component.popover),
     ...Object.keys(printerDialog()).map((name) => `--printer-dialog-${name}`),
+    ...pixelVariableNames('onboarding', component.onboarding),
+    ...formControls().flatMap(([prefix, values]) => pixelVariableNames(prefix, values)),
     ...elevationVariableNames(),
     GLYPH,
   ];
@@ -102,5 +123,7 @@ export function applyStaticTokens(): void {
   for (const [name, value] of Object.entries(printerDialog())) {
     document.documentElement.style.setProperty(`--printer-dialog-${name}`, value);
   }
+  applyPixelTokens('onboarding', component.onboarding);
+  for (const [prefix, values] of formControls()) applyPixelTokens(prefix, values);
   document.documentElement.style.setProperty(GLYPH, `${Math.min(...component.icon.sizes)}px`);
 }

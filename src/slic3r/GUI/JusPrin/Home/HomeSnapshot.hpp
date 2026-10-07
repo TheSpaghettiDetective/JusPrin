@@ -12,6 +12,8 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include "OnboardingModel.hpp"
+
 #include <string>
 #include <vector>
 
@@ -27,12 +29,12 @@ const char* to_string(ProjectStatusKind kind);
 
 struct ProjectEntry
 {
-    std::string        id;
-    std::string        name;
-    std::string        path;
-    std::string        thumbnail_url; // empty when no preview is available
-    ProjectStatusKind  status_kind{ProjectStatusKind::Unknown};
-    std::string        status_text;
+    std::string id;
+    std::string name;
+    std::string path;
+    std::string thumbnail_url; // empty when no preview is available
+    ProjectStatusKind status_kind{ProjectStatusKind::Unknown};
+    std::string status_text;
 };
 
 // A spool the printer holds, as a connected printer reports its tray. Either
@@ -69,46 +71,78 @@ const char* to_string(ConnectionState state);
 
 struct PrinterEntry
 {
-    std::string             id;
-    std::string             name;
-    PrinterKind             kind{PrinterKind::Named};
+    std::string id;
+    std::string name;
+    PrinterKind kind{PrinterKind::Named};
     // The card's menu. An action the card cannot offer is sent as false and
     // shown disabled, so the menu keeps its shape.
-    bool                    can_open_settings{false};
-    bool                    can_rename{false};
-    bool                    can_remove{false};
-    PrinterState            state{PrinterState::Idle};
-    std::string             status_text;
+    bool can_open_settings{false};
+    bool can_rename{false};
+    bool can_remove{false};
+    PrinterState state{PrinterState::Idle};
+    std::string status_text;
     // Below zero whenever there is no job to report; only a printing printer
     // sends a bar.
-    int                     progress_percent{-1};
+    int progress_percent{-1};
     // The Connection row: the finished line, the state it rests on, and the
     // transport -- "lan", "cloud", "host", or empty.
-    ConnectionState         connection_state{ConnectionState::None};
-    std::string             connection_text;
-    std::string             connection_kind;
-    std::string             connection_action; // "reconnect", or empty for no button
+    ConnectionState connection_state{ConnectionState::None};
+    std::string connection_text;
+    std::string connection_kind;
+    std::string connection_action; // "reconnect", or empty for no button
     // A print host's address as saved, without its scheme.
-    std::string             address;
+    std::string address;
     // The Model row, "X1 Carbon · 0.4 mm"; empty when neither is known.
-    std::string             model_text;
+    std::string model_text;
     // The Loaded row; empty when nothing is known to be loaded.
     std::vector<SpoolEntry> spools;
-    bool                    can_launch_monitor{false};
+    bool can_launch_monitor{false};
 };
 
 struct Snapshot
 {
-    bool                      dark{false};
+    bool dark{false};
     std::vector<ProjectEntry> projects;
     std::vector<PrinterEntry> printers;
     // A printer the conversation just added: the page leads with it and
     // draws attention to its card once. Empty for any other push.
-    std::string               highlight_printer;
+    std::string highlight_printer;
+    struct Onboarding
+    {
+        OnboardingProgress progress;
+        OnboardingFacts facts;
+        OnboardingStep step{OnboardingStep::Hidden};
+        bool agent_configured{false};
+        int printer_profiles{0};
+        int filament_profiles{0};
+        int process_profiles{0};
+        std::string profile_source;
+        // Preset names found in the Orca source, for reviewing a selection.
+        std::vector<std::string> printer_profile_names;
+        std::vector<std::string> filament_profile_names;
+        std::vector<std::string> process_profile_names;
+        // After an import that left some presets behind: what was copied and
+        // what was not, each as "<directory>/<file>.json".
+        std::vector<std::string> imported_profiles;
+        std::vector<std::string> failed_profiles;
+        std::string setup_summary;
+        std::string setup_printer;
+        std::string setup_nozzle;
+        std::string setup_plate;
+        std::string setup_material;
+        std::string setup_process;
+    } onboarding;
+
+    // Which kinds of preset an Orca import should copy.
+    struct ProfileSelection
+    {
+        bool printers{true};
+        bool filaments{true};
+        bool processes{true};
+    };
 };
 
-// The `state` payload: { appearance, projects, printers, highlightPrinter }.
+// The `state` payload: { appearance, projects, printers, highlightPrinter, onboarding }.
 nlohmann::json state_payload(const Snapshot& snapshot);
-
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

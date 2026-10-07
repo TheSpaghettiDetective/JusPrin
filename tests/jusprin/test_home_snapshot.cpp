@@ -44,16 +44,72 @@ PrinterEntry a_printer()
 
 } // namespace
 
-TEST_CASE("the payload carries the three fields the page reads", "[home]")
+TEST_CASE("the payload carries the top-level fields the page reads", "[home]")
 {
     Snapshot snapshot;
-    snapshot.dark = true;
+    snapshot.dark      = true;
     const json payload = state_payload(snapshot);
     CHECK(payload.at("appearance") == "dark");
     CHECK(payload.at("projects").is_array());
     CHECK(payload.at("printers").is_array());
     CHECK(payload.at("projects").empty());
     CHECK(payload.at("highlightPrinter") == "");
+    CHECK(payload.at("onboarding").at("visible") == false);
+    CHECK(payload.at("onboarding").at("step") == "hidden");
+}
+
+TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")
+{
+    Snapshot snapshot;
+    snapshot.onboarding.progress.started                 = true;
+    snapshot.onboarding.progress.profile_import_deferred = true;
+    snapshot.onboarding.progress.partial_import_pending  = true;
+    snapshot.onboarding.progress.offline_example         = true;
+    snapshot.onboarding.facts.profiles_available         = true;
+    snapshot.onboarding.facts.usable_setup               = true;
+    snapshot.onboarding.facts.project_open               = false;
+    snapshot.onboarding.step                             = OnboardingStep::Project;
+    snapshot.onboarding.agent_configured                 = true;
+    snapshot.onboarding.printer_profiles                 = 2;
+    snapshot.onboarding.filament_profiles                = 3;
+    snapshot.onboarding.process_profiles                 = 4;
+    snapshot.onboarding.profile_source                   = "/tmp/orca";
+    snapshot.onboarding.printer_profile_names            = {"Voron 2.4 0.4 nozzle"};
+    snapshot.onboarding.filament_profile_names           = {"Fast PLA"};
+    snapshot.onboarding.imported_profiles                = {"machine/Voron 2.4 0.4 nozzle.json"};
+    snapshot.onboarding.failed_profiles                  = {"filament/Fast PLA.json"};
+    snapshot.onboarding.setup_summary                    = "A1 mini · 0.4 mm · PLA";
+    snapshot.onboarding.setup_printer                    = "A1 mini";
+    snapshot.onboarding.setup_nozzle                     = "0.4 mm";
+    snapshot.onboarding.setup_plate                      = "Textured PEI Plate";
+    snapshot.onboarding.setup_material                   = "PLA";
+    snapshot.onboarding.setup_process                    = "0.20 mm Standard";
+
+    const json state = state_payload(snapshot).at("onboarding");
+    CHECK(state.at("visible") == true);
+    CHECK(state.at("step") == "project");
+    CHECK(state.at("status") == "unfinished");
+    CHECK(state.at("agentConfigured") == true);
+    CHECK(state.at("profiles").at("available") == true);
+    CHECK(state.at("profiles").at("imported") == true);
+    CHECK(state.at("profiles").at("partialImportPending") == true);
+    CHECK(state.at("profiles").at("failed") == json::array({"filament/Fast PLA.json"}));
+    CHECK(state.at("profiles").at("importedFiles") == json::array({"machine/Voron 2.4 0.4 nozzle.json"}));
+    CHECK(state.at("profiles").at("printerNames") == json::array({"Voron 2.4 0.4 nozzle"}));
+    CHECK(state.at("profiles").at("filamentNames") == json::array({"Fast PLA"}));
+    CHECK(state.at("profiles").at("processNames") == json::array());
+    CHECK(state.at("profiles").at("printerCount") == 2);
+    CHECK(state.at("profiles").at("filamentCount") == 3);
+    CHECK(state.at("profiles").at("processCount") == 4);
+    CHECK(state.at("profiles").at("source") == "/tmp/orca");
+    CHECK(state.at("setup").at("offlineExample") == true);
+    CHECK(state.at("setup").at("summary") == "A1 mini · 0.4 mm · PLA");
+    CHECK(state.at("setup").at("printer") == "A1 mini");
+    CHECK(state.at("setup").at("nozzle") == "0.4 mm");
+    CHECK(state.at("setup").at("plate") == "Textured PEI Plate");
+    CHECK(state.at("setup").at("material") == "PLA");
+    CHECK(state.at("setup").at("process") == "0.20 mm Standard");
+    CHECK(state.at("projectOpen") == false);
 }
 
 TEST_CASE("appearance is the page's own vocabulary, not a boolean", "[home]")
@@ -67,7 +123,7 @@ TEST_CASE("appearance is the page's own vocabulary, not a boolean", "[home]")
 TEST_CASE("a project carries its identity and its status", "[home]")
 {
     Snapshot snapshot;
-    snapshot.projects = {a_project()};
+    snapshot.projects  = {a_project()};
     const json project = state_payload(snapshot).at("projects").at(0);
     CHECK(project.at("id") == "p1");
     CHECK(project.at("name") == "Garage bracket");
@@ -93,13 +149,10 @@ TEST_CASE("a missing thumbnail is an absent field, not an empty string", "[home]
 TEST_CASE("every status kind maps to the page's vocabulary", "[home]")
 {
     Snapshot snapshot;
-    snapshot.projects = {a_project()};
+    snapshot.projects                                          = {a_project()};
     const std::pair<ProjectStatusKind, const char*> expected[] = {
-        {ProjectStatusKind::Unknown, "unknown"},
-        {ProjectStatusKind::Draft, "draft"},
-        {ProjectStatusKind::Sliced, "sliced"},
-        {ProjectStatusKind::Printing, "printing"},
-        {ProjectStatusKind::Completed, "completed"},
+        {ProjectStatusKind::Unknown, "unknown"},   {ProjectStatusKind::Draft, "draft"},         {ProjectStatusKind::Sliced, "sliced"},
+        {ProjectStatusKind::Printing, "printing"}, {ProjectStatusKind::Completed, "completed"},
     };
     for (const auto& [kind, text] : expected) {
         snapshot.projects[0].status_kind = kind;
@@ -111,7 +164,7 @@ TEST_CASE("every status kind maps to the page's vocabulary", "[home]")
 TEST_CASE("a printing printer carries its job, its bar, and its spools", "[home]")
 {
     Snapshot snapshot;
-    snapshot.printers = {a_printer()};
+    snapshot.printers  = {a_printer()};
     const json printer = state_payload(snapshot).at("printers").at(0);
     CHECK(printer.at("state") == "printing");
     CHECK(printer.at("statusText") == "Printing - 43% - 2h left");
@@ -178,7 +231,7 @@ TEST_CASE("a print host carries its address and its page", "[home]")
     host.connection_text    = "Connected - 192.168.1.42:7125";
     host.can_launch_monitor = true;
     snapshot.printers       = {host};
-    const json printer = state_payload(snapshot).at("printers").at(0);
+    const json printer      = state_payload(snapshot).at("printers").at(0);
     CHECK(printer.at("connectionState") == "connected");
     CHECK(printer.at("connectionKind") == "host");
     CHECK(printer.at("address") == "192.168.1.42:7125");
@@ -198,7 +251,7 @@ TEST_CASE("an idle printer sends no progress bar", "[home]")
     idle.state            = PrinterState::Idle;
     idle.progress_percent = 43; // stale value from a finished job
     snapshot.printers     = {idle};
-    const json printer = state_payload(snapshot).at("printers").at(0);
+    const json printer    = state_payload(snapshot).at("printers").at(0);
     CHECK(printer.at("state") == "idle");
     CHECK_FALSE(printer.contains("progressPercent"));
     CHECK_FALSE(printer.contains("statusText"));
@@ -211,10 +264,10 @@ TEST_CASE("an idle printer sends no progress bar", "[home]")
 TEST_CASE("a printing printer with no percentage yet sends no bar", "[home]")
 {
     Snapshot snapshot;
-    PrinterEntry starting = a_printer();
+    PrinterEntry starting     = a_printer();
     starting.progress_percent = -1;
     snapshot.printers         = {starting};
-    const json printer = state_payload(snapshot).at("printers").at(0);
+    const json printer        = state_payload(snapshot).at("printers").at(0);
     CHECK(printer.at("state") == "printing");
     CHECK_FALSE(printer.contains("progressPercent"));
     CHECK(printer.at("statusText") == "Printing - 43% - 2h left");
@@ -233,7 +286,7 @@ TEST_CASE("an offline printer is its own state", "[home]")
 // offers what the host said the card cannot do.
 TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]")
 {
-    Snapshot     snapshot;
+    Snapshot snapshot;
     PrinterEntry named;
     named.id                = "named:Garage X1C";
     named.kind              = PrinterKind::Named;
@@ -241,8 +294,8 @@ TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]
     named.can_rename        = true;
     named.can_remove        = true;
     PrinterEntry device;
-    device.id   = "device:FAKE001";
-    device.kind = PrinterKind::Device;
+    device.id         = "device:FAKE001";
+    device.kind       = PrinterKind::Device;
     snapshot.printers = {named, device};
 
     const json printers = state_payload(snapshot).at("printers");
@@ -259,7 +312,7 @@ TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]
 TEST_CASE("Home connection actions do not depend on translated status text", "[home]")
 {
     Snapshot snapshot;
-    snapshot.printers = {a_printer()};
+    snapshot.printers                      = {a_printer()};
     snapshot.printers[0].connection_action = "reconnect";
     snapshot.printers[0].connection_text   = "Localized status";
     CHECK(state_payload(snapshot)["printers"][0]["connectionAction"] == "reconnect");

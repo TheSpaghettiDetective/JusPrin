@@ -69,6 +69,822 @@ body {
   color: var(--text-secondary);
 }
 
+/* First-run onboarding takes the whole Home surface. Each rule below is a
+   layer of the Figma frames on the "On boarding experience" page, and the
+   numbers are those frames' auto-layout values. Figma draws a stroke inside
+   its box, so outlines are inset shadows rather than borders: a border would
+   make every card two pixels larger than its frame. */
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+.onboarding p,
+.onboarding h1,
+.onboarding h2,
+.onboarding dl,
+.onboarding dd,
+.onboarding ul {
+  margin: 0;
+}
+
+.onboarding h1 {
+  font: var(--font-page-title);
+  color: var(--text-primary);
+}
+
+.onboarding-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 24px;
+  box-shadow: inset 0 -1px 0 var(--border-subtle);
+}
+
+.onboarding-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.onboarding-wordmark {
+  font: var(--font-section);
+  color: var(--action-primary);
+}
+
+.onboarding-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.onboarding-status-dot {
+  flex: none;
+  width: var(--status-dot-size);
+  height: var(--status-dot-size);
+  background: var(--status-success);
+  border-radius: var(--radius-pill);
+}
+
+/* Nothing to report yet: a broken ring rather than a state colour. */
+.onboarding-status-dot.waiting {
+  background: transparent;
+  border: 1px dashed var(--text-secondary);
+}
+
+/* The screen's one block sits in the middle of what the header and footer
+   leave. Two equal spacers centre it and still let a block taller than the
+   window scroll from its top, which align-items: center would cut off; the
+   first keeps a little air under the header when nothing is left to share. */
+.onboarding-stage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 0 24px 32px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.onboarding-stage::before,
+.onboarding-stage::after {
+  flex: 1 1 0;
+  content: '';
+}
+
+.onboarding-stage::before {
+  min-height: 8px;
+}
+
+.onboarding-stage > * {
+  flex: none;
+}
+
+.onboarding-footer {
+  flex: none;
+  min-height: 32px;
+  padding: 8px 24px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 var(--border-subtle);
+}
+
+.onboarding-card,
+.onboarding-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-container);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: var(--onboarding-card-width);
+}
+
+.onboarding-card.compact {
+  gap: 12px;
+}
+
+.onboarding-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-eyebrow {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.onboarding-eyebrow.danger {
+  color: var(--status-danger);
+}
+
+.onboarding-copy {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.onboarding-error {
+  font: var(--font-label);
+  color: var(--status-danger);
+}
+
+/* The shared buttons, as the frames draw them: a primary button has no
+   outline of its own, and a secondary one shows the surface it sits on. */
+.onboarding .button-primary,
+.onboarding .button-secondary {
+  justify-content: center;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.onboarding .button-primary {
+  border: 0;
+}
+
+.onboarding .button-secondary {
+  background: transparent;
+}
+
+.onboarding .button-secondary:hover {
+  background: var(--action-secondary-pressed);
+}
+
+.onboarding .block {
+  display: flex;
+  width: 100%;
+}
+
+/* The design system's Button/Link: text only, Label Bold, action/primary.
+   `flush` drops the side inset where a frame lines the label up with the
+   text column, and `text` is the bare line the welcome frame uses. */
+.onboarding-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  height: 26px;
+  padding: 0 4px;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-standard);
+  cursor: pointer;
+}
+
+.onboarding-link:hover {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
+}
+
+.onboarding-link.flush,
+.onboarding-link.text {
+  padding: 0;
+}
+
+.onboarding-link.text {
+  height: auto;
+}
+
+.onboarding-link.block {
+  display: flex;
+  align-self: stretch;
+}
+
+/* 00 · Welcome */
+.onboarding-welcome {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  width: 100%;
+  max-width: var(--onboarding-content-width);
+}
+
+.onboarding-intro {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.onboarding-welcome-heading {
+  gap: 12px;
+}
+
+.onboarding-lead {
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.onboarding-routes {
+  display: flex;
+  gap: 24px;
+}
+
+.onboarding-route {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.onboarding-route p,
+.onboarding-dismissal p {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-route .button-secondary:hover {
+  background: var(--action-secondary-hover);
+}
+
+.onboarding-dismissal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  box-shadow: inset 0 1px 0 var(--border-subtle);
+}
+
+.onboarding-demo {
+  flex: none;
+  width: var(--onboarding-demo-width);
+}
+
+.onboarding-demo-disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-standard);
+}
+
+.onboarding-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 16px;
+  font: var(--font-body);
+  color: var(--text-primary);
+  box-shadow: inset 2px 0 0 var(--border-subtle);
+}
+
+.onboarding-speaker {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+.onboarding-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  font: var(--font-body-small);
+  box-shadow: inset 0 1px 0 var(--border-subtle);
+}
+
+.onboarding-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.onboarding-summary dt {
+  color: var(--text-secondary);
+}
+
+.onboarding-summary dd.strong {
+  font: var(--font-body-small-bold);
+}
+
+/* 09, 17, 18 · the Orca source and what was found in it */
+.onboarding-source {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-canvas);
+  border-radius: var(--radius-standard);
+}
+
+.onboarding-source-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.onboarding-source-path {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.onboarding-source-scope {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+.onboarding-source.compact {
+  gap: 4px;
+  padding: 8px;
+}
+
+.onboarding-source.compact .onboarding-source-name {
+  font: var(--font-label-bold);
+}
+
+.onboarding-source.compact .onboarding-source-path {
+  font: var(--font-label);
+}
+
+.onboarding-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-selection-summary {
+  display: flex;
+  justify-content: space-between;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-category {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 0 12px;
+  background: var(--surface-canvas);
+  border-radius: var(--radius-standard);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  cursor: pointer;
+}
+
+/* The design system's Checkbox. The real input lies over the drawn box, so
+   the whole row stays one label and the keyboard still reaches it. */
+.onboarding-check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--checkbox-label-gap);
+  font: var(--font-body);
+  color: var(--text-primary);
+}
+
+.onboarding-check input {
+  position: absolute;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  margin: 0;
+  opacity: 0;
+}
+
+.onboarding-check-box {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  color: transparent;
+  background: var(--surface-canvas);
+  border-radius: var(--radius-standard);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.onboarding-check-box .glyph {
+  width: var(--checkbox-glyph-size);
+  height: var(--checkbox-glyph-size);
+}
+
+.onboarding-check input:checked + .onboarding-check-box {
+  color: var(--action-primary-text);
+  background: var(--action-primary);
+  box-shadow: inset 0 0 0 1px var(--action-primary);
+}
+
+.onboarding-check input:disabled + .onboarding-check-box {
+  background: var(--action-disabled);
+  box-shadow: inset 0 0 0 1px var(--action-disabled);
+}
+
+.onboarding-check input:focus-visible + .onboarding-check-box {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.onboarding-count,
+.onboarding-preview {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* The design system's Disclosure header: one 28px target for the whole row. */
+.onboarding-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0;
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-standard);
+  cursor: pointer;
+}
+
+.onboarding-disclosure:hover {
+  color: var(--text-primary);
+}
+
+.onboarding-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* An Orca folder can hold hundreds of presets; the list scrolls inside the
+   card instead of pushing the import button off the screen. */
+.onboarding-review {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  padding: 0;
+  overflow-y: auto;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.onboarding-review li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-review li span:first-child {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onboarding-review li span:last-child {
+  flex: none;
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onboarding-results-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-results-summary h2 {
+  font: var(--font-section);
+  color: var(--text-primary);
+}
+
+.onboarding-result {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px 12px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  background: var(--surface-canvas);
+}
+
+.onboarding-result strong {
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.onboarding-result .success {
+  color: var(--status-success);
+}
+
+.onboarding-recovery-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-pair > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 10 · Confirm physical setup */
+.onboarding-configuration {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-provenance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* The design system's Form Row and Select. */
+.onboarding-field {
+  display: flex;
+  align-items: center;
+  gap: var(--form-row-gap);
+  min-height: var(--form-row-height);
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+.onboarding-field > span:first-child {
+  flex: none;
+  width: var(--form-row-label-width);
+}
+
+.onboarding-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: var(--onboarding-field-width);
+  max-width: 100%;
+  color: var(--text-secondary);
+}
+
+.onboarding-select select {
+  width: 100%;
+  height: var(--select-height);
+  padding: 0 32px 0 var(--select-padding-x);
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.onboarding-select .glyph {
+  position: absolute;
+  right: var(--select-padding-x);
+  pointer-events: none;
+}
+
+.onboarding-process {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  background: var(--surface-canvas);
+  border-radius: var(--radius-standard);
+}
+
+.onboarding-notice strong {
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.onboarding-notice span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onboarding-offline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  box-shadow: inset 0 1px 0 var(--border-subtle);
+}
+
+/* 10A · Choose printer setup path */
+.onboarding-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--surface-canvas);
+  border-radius: var(--radius-container);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.onboarding-choice p {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.onboarding-choice .button-secondary:hover {
+  background: var(--action-secondary-hover);
+}
+
+.onboarding-back {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onboarding-back p {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* 11 · First project */
+.onboarding-open {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-open p {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-example {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-example-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.onboarding-reassurance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  box-shadow: inset 0 1px 0 var(--border-subtle);
+}
+
+/* 11A · Project load failed. The frame's first block labels it as a design
+   reference and is not part of the product. */
+.onboarding-failure {
+  gap: 16px;
+}
+
+.onboarding-failure-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0;
+  border-radius: var(--radius-standard);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  cursor: pointer;
+}
+
+.onboarding-close:hover {
+  background: var(--action-secondary-hover);
+}
+
+.onboarding-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border-radius: var(--radius-standard);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.onboarding-reason strong {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+/* Below the width of the welcome frame its two columns stack. */
+@media (max-width: 1008px) {
+  .onboarding-welcome {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .onboarding-demo {
+    width: 100%;
+  }
+}
+
 .footnote {
   font: var(--font-label);
   color: var(--text-secondary);
@@ -465,6 +1281,11 @@ body {
 .glyph-upload { -webkit-mask-image: url('@resources/jusprin/ui/icons/upload.svg'); mask-image: url('@resources/jusprin/ui/icons/upload.svg'); }
 .glyph-more { -webkit-mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); }
 .glyph-plus { -webkit-mask-image: url('@resources/jusprin/ui/icons/plus.svg'); mask-image: url('@resources/jusprin/ui/icons/plus.svg'); }
+.glyph-box { -webkit-mask-image: url('@resources/jusprin/ui/icons/box.svg'); mask-image: url('@resources/jusprin/ui/icons/box.svg'); }
+.glyph-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
+.glyph-chevron-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
+.glyph-chevron-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); }
+.glyph-x { -webkit-mask-image: url('@resources/jusprin/ui/icons/x.svg'); mask-image: url('@resources/jusprin/ui/icons/x.svg'); }
 
 .printer-name-row {
   display: flex;

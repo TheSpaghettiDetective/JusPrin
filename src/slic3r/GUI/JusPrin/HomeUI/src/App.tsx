@@ -4,6 +4,7 @@ import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
 import type { PrinterActions } from './components/PrinterMenu';
 import { PlusGlyph, UploadGlyph } from './components/Glyphs';
+import { Onboarding } from './components/Onboarding';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
 
@@ -48,6 +49,12 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     applyAppearance(state.appearance);
   }, [state.appearance]);
 
+  // As with the printer actions, a new request clears the last refusal.
+  const onboardingAction = (type: string, payload: object = {}) => {
+    dispatch({ kind: 'onboarding_action' });
+    client.send(type, payload);
+  };
+
   if (state.connection !== 'connected' && !state.loaded) {
     return (
       <div className="app connecting">
@@ -59,6 +66,19 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             <p className="footnote">{state.connectionDetail}</p>
           </details>
         )}
+      </div>
+    );
+  }
+
+  if (state.onboarding?.visible) {
+    return (
+      <div className="app">
+        <Onboarding
+          onboarding={state.onboarding}
+          error={state.onboardingError}
+          onAction={onboardingAction}
+          onDismissError={() => dispatch({ kind: 'onboarding_action' })}
+        />
       </div>
     );
   }

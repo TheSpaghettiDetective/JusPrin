@@ -115,11 +115,46 @@ json state_payload(const Snapshot& snapshot)
     for (const PrinterEntry& printer : snapshot.printers)
         printers.push_back(printer_json(printer));
 
+    const auto& onboarding = snapshot.onboarding;
     return json{
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
         {"printers", std::move(printers)},
         {"highlightPrinter", snapshot.highlight_printer},
+        {"onboarding",
+         json{
+             {"visible", onboarding.step != OnboardingStep::Hidden},
+             {"step", to_string(onboarding.step)},
+             {"status", to_string(onboarding.progress.status)},
+             {"agentConfigured", onboarding.agent_configured},
+             {"profiles",
+              json{
+                  {"available", onboarding.printer_profiles + onboarding.filament_profiles + onboarding.process_profiles > 0},
+                  {"imported", onboarding.facts.profiles_available},
+                  {"partialImportPending", onboarding.progress.partial_import_pending},
+                  {"failed", onboarding.failed_profiles},
+                  {"printerCount", onboarding.printer_profiles},
+                  {"filamentCount", onboarding.filament_profiles},
+                  {"processCount", onboarding.process_profiles},
+                  {"source", onboarding.profile_source},
+                  {"printerNames", onboarding.printer_profile_names},
+                  {"filamentNames", onboarding.filament_profile_names},
+                  {"processNames", onboarding.process_profile_names},
+                  {"importedFiles", onboarding.imported_profiles},
+              }},
+             {"setup",
+              json{
+                  {"usable", onboarding.facts.usable_setup},
+                  {"offlineExample", onboarding.progress.offline_example},
+                  {"summary", onboarding.setup_summary},
+                  {"printer", onboarding.setup_printer},
+                  {"nozzle", onboarding.setup_nozzle},
+                  {"plate", onboarding.setup_plate},
+                  {"material", onboarding.setup_material},
+                  {"process", onboarding.setup_process},
+              }},
+             {"projectOpen", onboarding.facts.project_open},
+         }},
     };
 }
 

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { initialState, reduce } from './store';
+import { PROTOCOL_VERSION } from '../bridge/protocol';
 import type { Envelope, PrinterInfo, ProjectInfo } from '../bridge/protocol';
 
 function envelope(type: string, payload: unknown): Envelope {
-  return { protocol: 'jusprin-home-bridge', version: 1, id: 'h-1', type, payload };
+  return { protocol: 'jusprin-home-bridge', version: PROTOCOL_VERSION, id: 'h-1', type, payload };
 }
 
 const project: ProjectInfo = {

@@ -425,6 +425,12 @@
     "printerSetup": {
       "contentWidth": 720
     },
+    "onboarding": {
+      "contentWidth": 960,
+      "cardWidth": 480,
+      "demoWidth": 472,
+      "fieldWidth": 220
+    },
     "replyChip": {
       "height": 28,
       "paddingX": 12

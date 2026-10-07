@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
-import { Envelope, PrinterInfo, ProjectInfo, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from './bridge/protocol';
+import { Envelope, OnboardingState, PrinterInfo, ProjectInfo, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from './bridge/protocol';
 
 class MockHost {
   received: Envelope[] = [];
@@ -70,8 +70,30 @@ function printer(overrides: Partial<PrinterInfo> = {}): PrinterInfo {
   };
 }
 
+function onboarding(overrides: Partial<OnboardingState> = {}): OnboardingState {
+  return {
+    visible: false,
+    step: 'hidden',
+    status: 'unfinished',
+    agentConfigured: false,
+    profiles: {
+      available: false,
+      imported: false,
+      partialImportPending: false,
+      failed: [],
+      printerCount: 0,
+      filamentCount: 0,
+      processCount: 0,
+      source: '/tmp/orca',
+    },
+    setup: { usable: false, offlineExample: false, summary: '', printer: '', nozzle: '', plate: '', material: '', process: '' },
+    projectOpen: false,
+    ...overrides,
+  };
+}
+
 function state(overrides: Partial<StatePayload> = {}): StatePayload {
-  return { appearance: 'light', projects: [project()], printers: [printer()], ...overrides };
+  return { appearance: 'light', projects: [project()], printers: [printer()], onboarding: onboarding(), ...overrides };
 }
 
 function start(): MockHost {
@@ -355,6 +377,201 @@ describe('Home', () => {
     expect(document.documentElement.dataset.appearance).toBe('dark');
     host.deliver('appearance', { appearance: 'light' });
     expect(document.documentElement.dataset.appearance).toBe('light');
+  });
+});
+
+describe('local onboarding', () => {
+  it('matches the welcome frame actions and routes account setup to its placeholder', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'welcome' }) }));
+
+    expect(screen.getByText('Your Orca workflow, with help planning the print.')).toBeInTheDocument();
+    expect(screen.getByText('Example interaction · Not live')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Explore first' }));
+    expect(host.lastOfType('onboarding_begin')).toBeDefined();
+    await userEvent.click(screen.getByText('Set up JusPrin'));
+    expect(host.lastOfType('onboarding_account_stub')).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss onboarding and continue locally' }));
+    expect(host.lastOfType('onboarding_dismiss')).toBeDefined();
+  });
+
+  it('shows detected Orca profile counts and offers a real local import', async () => {
+    const host = start();
+    host.deliver('state', state({
+      onboarding: onboarding({
+        visible: true,
+        step: 'profiles',
+        profiles: {
+          available: true,
+          imported: false,
+          partialImportPending: false,
+          failed: [],
+          printerCount: 2,
+          filamentCount: 3,
+          processCount: 4,
+          source: '/Users/test/Library/Application Support/OrcaSlicer',
+        },
+      }),
+    }));
+
+    expect(screen.getByText('9 selected')).toBeInTheDocument();
+    expect(screen.getByText('Detected on this computer')).toBeInTheDocument();
+    // The frame's sample preset names are not the user's: with none reported,
+    // there is nothing to review and nothing is listed.
+    expect(screen.queryByRole('button', { name: 'Review selection' })).toBeNull();
+    expect(screen.queryByText(/Bambu Lab A1/)).toBeNull();
+
+    // Leaving a kind out takes its presets out of the count and the request.
+    await userEvent.click(screen.getByRole('checkbox', { name: /Filament presets/ }));
+    expect(screen.getByText('6 selected')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Import selected' }));
+    expect(host.lastOfType('onboarding_use_profiles')!.payload).toEqual({ categories: ['printer', 'process'] });
+    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+    expect(host.lastOfType('onboarding_defer_profiles')).toBeDefined();
+  });
+
+  it('lists the detected presets for review and imports nothing when none is chosen', async () => {
+    const host = start();
+    host.deliver('state', state({
+      onboarding: onboarding({
+        visible: true,
+        step: 'profiles',
+        profiles: {
+          available: true,
+          imported: false,
+          partialImportPending: false,
+          failed: [],
+          printerCount: 1,
+          filamentCount: 1,
+          processCount: 0,
+          source: '/Users/test/Library/Application Support/OrcaSlicer',
+          printerNames: ['Voron 2.4 0.4 nozzle'],
+          filamentNames: ['Fast PLA'],
+          processNames: [],
+        },
+      }),
+    }));
+
+    expect(screen.getByText('Voron 2.4 0.4 nozzle · Fast PLA')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Review selection' }));
+    expect(screen.getByText('Fast PLA')).toBeInTheDocument();
+    expect(screen.getByText('Filament preset')).toBeInTheDocument();
+    // A kind with no presets cannot be chosen.
+    expect(screen.getByRole('checkbox', { name: /Process presets/ })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Printer presets/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Filament presets/ }));
+    expect(screen.getByText('0 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import selected' })).toBeDisabled();
+  });
+
+  it('holds a partial profile import for deliberate acknowledgement', async () => {
+    const host = start();
+    host.deliver('state', state({
+      onboarding: onboarding({
+        visible: true,
+        step: 'profiles',
+        profiles: {
+          available: true,
+          imported: true,
+          partialImportPending: true,
+          failed: ['filament/Fast PLA.json'],
+          printerCount: 1,
+          filamentCount: 1,
+          processCount: 1,
+          source: '/Users/test/Library/Application Support/OrcaSlicer',
+          importedFiles: ['machine/Voron 2.4 0.4 nozzle.json'],
+        },
+      }),
+    }));
+
+    const failed = screen.getByText('Fast PLA').closest('.onboarding-result') as HTMLElement;
+    expect(within(failed).getByText('Filament preset · not imported')).toBeInTheDocument();
+    expect(screen.getByText('Not imported')).toBeInTheDocument();
+    const copied = screen.getByText('Voron 2.4 0.4 nozzle').closest('.onboarding-result') as HTMLElement;
+    expect(within(copied).getByText('Printer preset · copied into JusPrin')).toBeInTheDocument();
+    // No sample rows and no claimed diagnosis: only what the host reported.
+    expect(screen.getAllByText('1 item')).toHaveLength(2);
+    expect(screen.queryByText(/example items/)).toBeNull();
+    expect(screen.queryByText(/Conflict resolved/)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry failed items' }));
+    expect(host.lastOfType('onboarding_use_profiles')).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with imported settings' }));
+    expect(host.lastOfType('onboarding_accept_partial_profiles')).toBeDefined();
+  });
+
+  it('offers the three approved local setup paths without requiring an account', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'setup' }) }));
+
+    await userEvent.click(screen.getByRole('button', { name: /Configure manually/ }));
+    expect(host.lastOfType('onboarding_manual_setup')).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: /I don’t have a printer here/ }));
+    expect(host.lastOfType('onboarding_offline_example')).toBeDefined();
+    expect(screen.getByRole('link', { name: /Set up with Agent/ })).toHaveAttribute('href', 'https://jusprin.com/account');
+  });
+
+  it('says in place why a setup path did not finish', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'setup' }) }));
+    host.deliver('onboarding_error', { message: 'No printer setup was saved.' });
+    expect(screen.getByRole('alert')).toHaveTextContent('No printer setup was saved.');
+    // It is not a project failure, so the recovery frame stays away.
+    expect(screen.queryByText('Couldn’t open the file.')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /Configure manually/ }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('confirms the imported physical setup before the project gate', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'confirm_setup', setup: {
+      usable: true, offlineExample: false, summary: 'Bambu Lab A1 · 0.4 mm · PLA', printer: 'Bambu Lab A1', nozzle: '0.4 mm',
+      plate: 'Textured PEI Plate', material: 'PLA', process: '0.20 mm Standard',
+    } }) }));
+
+    expect(screen.getByRole('combobox', { name: 'Printer' })).toHaveValue('Bambu Lab A1');
+    expect(screen.getByText('The preset uses Textured PEI Plate. Check the plate on your printer.')).toBeInTheDocument();
+    expect(screen.getByText('Process preset: 0.20 mm Standard')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Use this setup' }));
+    expect(host.lastOfType('onboarding_confirm_setup')).toBeDefined();
+  });
+
+  it('opens a model, bundled example, or saved project from the final gate', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'project' }) }));
+
+    await userEvent.click(screen.getByRole('button', { name: /Open a project or model/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Try the example' }));
+    expect(host.lastOfType('import_project')).toBeDefined();
+    expect(host.lastOfType('onboarding_open_example')).toBeDefined();
+  });
+
+  it('shows the project recovery frame after a failed open', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'project' }) }));
+    await userEvent.click(screen.getByRole('button', { name: 'Try the example' }));
+    host.deliver('onboarding_error', { message: 'The file is incomplete or no longer available.' });
+    expect(screen.getByText('Couldn’t open the file.')).toBeInTheDocument();
+    expect(screen.getByText('The file is incomplete or no longer available.')).toBeInTheDocument();
+    // The frame's "reference" label is a note to the designer, not product copy.
+    expect(screen.queryByText(/recovery reference/i)).toBeNull();
+
+    // Retry repeats the request that failed.
+    host.received.length = 0;
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(host.lastOfType('onboarding_open_example')).toBeDefined();
+    expect(screen.queryByText('Couldn’t open the file.')).toBeNull();
+
+    host.deliver('onboarding_error', { message: 'The file is incomplete or no longer available.' });
+    await userEvent.click(screen.getByRole('button', { name: 'Choose another' }));
+    expect(host.lastOfType('import_project')).toBeDefined();
+
+    // Closing returns to the project step and tells the host nothing.
+    host.deliver('onboarding_error', { message: 'The file is incomplete or no longer available.' });
+    host.received.length = 0;
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('button', { name: /Open a project or model/ })).toBeInTheDocument();
+    expect(host.received).toEqual([]);
   });
 });
 

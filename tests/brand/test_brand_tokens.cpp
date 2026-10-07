@@ -366,6 +366,15 @@ TEST_CASE("printer setup has a readable conversation width", "[brand]")
         {{"contentWidth", 720}}, "component.printerSetup");
 }
 
+// The widths of the first-run frames: the two-column welcome layout, the task
+// card every later step uses, the welcome frame's example panel, and the
+// select in the setup confirmation's form rows.
+TEST_CASE("onboarding follows the approved desktop frame widths", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("onboarding"),
+        {{"contentWidth", 960}, {"cardWidth", 480}, {"demoWidth", 472}, {"fieldWidth", 220}}, "component.onboarding");
+}
+
 // Replies in the Agent thread use the standard control radius. Their height
 // and text inset are shared between the printer, filament, and project chats.
 TEST_CASE("the reply chip geometry is explicit", "[brand]")

@@ -10,8 +10,8 @@ using nlohmann::json;
 
 namespace {
 
-constexpr int     kProtocolVersion = 1;
-const char* const kProtocolName    = "jusprin-home-bridge";
+constexpr int kProtocolVersion  = 1;
+const char* const kProtocolName = "jusprin-home-bridge";
 
 } // namespace
 
@@ -22,10 +22,7 @@ void HomeHost::reset_page() { m_connected = false; }
 void HomeHost::send(const std::string& type, const json& payload, const std::string& correlation)
 {
     json envelope{
-        {"protocol", kProtocolName},
-        {"version", kProtocolVersion},
-        {"id", "h-" + std::to_string(m_next_id++)},
-        {"type", type},
+        {"protocol", kProtocolName}, {"version", kProtocolVersion}, {"id", "h-" + std::to_string(m_next_id++)}, {"type", type},
         {"payload", payload},
     };
     if (!correlation.empty())
@@ -35,12 +32,13 @@ void HomeHost::send(const std::string& type, const json& payload, const std::str
         m_send(envelope.dump());
 }
 
-Snapshot HomeHost::collect() const
+Snapshot HomeHost::collect()
 {
     Snapshot snapshot;
-    snapshot.dark     = m_backend.dark();
-    snapshot.projects = m_backend.recent_projects();
-    snapshot.printers = ordered_printers();
+    snapshot.dark       = m_backend.dark();
+    snapshot.projects   = m_backend.recent_projects();
+    snapshot.printers   = ordered_printers();
+    snapshot.onboarding = m_backend.onboarding();
     return snapshot;
 }
 
@@ -71,8 +69,8 @@ std::string printers_json(const std::vector<PrinterEntry>& printers)
 
 void HomeHost::send_state(Snapshot snapshot)
 {
-    const bool listed = std::any_of(snapshot.printers.begin(), snapshot.printers.end(),
-                                    [this](const PrinterEntry& printer) { return !m_added.empty() && printer.name == m_added; });
+    const bool listed          = std::any_of(snapshot.printers.begin(), snapshot.printers.end(),
+                                             [this](const PrinterEntry& printer) { return !m_added.empty() && printer.name == m_added; });
     snapshot.highlight_printer = listed ? m_added : std::string();
     m_sent_printers            = printers_json(snapshot.printers);
     send("state", state_payload(snapshot));
@@ -94,9 +92,10 @@ bool HomeHost::refresh_if_changed()
     if (printers_json(printers) == m_sent_printers)
         return false;
     Snapshot snapshot;
-    snapshot.dark     = m_backend.dark();
-    snapshot.projects = m_backend.recent_projects();
-    snapshot.printers = std::move(printers);
+    snapshot.dark       = m_backend.dark();
+    snapshot.projects   = m_backend.recent_projects();
+    snapshot.printers   = std::move(printers);
+    snapshot.onboarding = m_backend.onboarding();
     send_state(std::move(snapshot));
     return true;
 }
@@ -126,7 +125,7 @@ void HomeHost::on_page_message(const std::string& text)
 
     const std::string type        = envelope.value("type", std::string());
     const std::string correlation = envelope.value("id", std::string());
-    const json        payload     = envelope.value("payload", json::object());
+    const json payload            = envelope.value("payload", json::object());
 
     if (type == "hello") {
         const json versions    = payload.value("protocolVersions", json::array());
@@ -158,14 +157,60 @@ void HomeHost::on_page_message(const std::string& text)
     else if (type == "add_printer") {
         m_backend.add_printer();
         push_state();
-    }
-    else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer") {
-        const std::string id = payload.value("id", std::string());
-        const std::string problem =
-            type == "connect_printer"       ? m_backend.connect_printer(id)
-            : type == "open_printer_settings" ? m_backend.open_printer_settings(id)
-            : type == "rename_printer"      ? m_backend.rename_printer(id, payload.value("name", std::string()))
-                                            : m_backend.remove_printer(id);
+    } else if (type == "onboarding_begin") {
+        m_backend.begin_onboarding();
+        push_state();
+    } else if (type == "onboarding_dismiss") {
+        m_backend.dismiss_onboarding();
+        push_state();
+    } else if (type == "onboarding_defer_profiles") {
+        m_backend.defer_profile_import();
+        push_state();
+    } else if (type == "onboarding_accept_partial_profiles") {
+        m_backend.accept_partial_profile_import();
+        push_state();
+    } else if (type == "onboarding_confirm_setup") {
+        m_backend.confirm_onboarding_setup();
+        push_state();
+    } else if (type == "onboarding_back") {
+        m_backend.back_onboarding();
+        push_state();
+    } else if (type == "onboarding_choose_profile_bundle") {
+        m_backend.choose_profile_bundle();
+        push_state();
+    } else if (type == "onboarding_choose_profile_folder") {
+        m_backend.choose_profile_folder();
+        push_state();
+    } else if (type == "onboarding_account_stub") {
+        m_backend.open_account_stub();
+    } else if (type == "onboarding_terms_stub") {
+        m_backend.open_terms_stub();
+    } else if (type == "onboarding_privacy_stub") {
+        m_backend.open_privacy_stub();
+    } else if (type == "onboarding_use_profiles" || type == "onboarding_manual_setup" || type == "onboarding_offline_example" ||
+               type == "onboarding_open_example") {
+        // The page names the kinds it ticked. A request without the list, as
+        // a retry of the presets that failed sends, leaves nothing out.
+        Snapshot::ProfileSelection selection;
+        if (const auto categories = payload.find("categories"); categories != payload.end() && categories->is_array()) {
+            const auto chosen   = [&](const char* name) { return std::find(categories->begin(), categories->end(), name) != categories->end(); };
+            selection.printers  = chosen("printer");
+            selection.filaments = chosen("filament");
+            selection.processes = chosen("process");
+        }
+        const std::string problem = type == "onboarding_use_profiles"    ? m_backend.use_detected_profiles(selection) :
+                                    type == "onboarding_manual_setup"    ? m_backend.run_manual_setup() :
+                                    type == "onboarding_offline_example" ? m_backend.choose_offline_example() :
+                                                                           m_backend.open_onboarding_example();
+        if (!problem.empty())
+            send("onboarding_error", json{{"message", problem}}, correlation);
+        push_state();
+    } else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer") {
+        const std::string id      = payload.value("id", std::string());
+        const std::string problem = type == "connect_printer"       ? m_backend.connect_printer(id) :
+                                    type == "open_printer_settings" ? m_backend.open_printer_settings(id) :
+                                    type == "rename_printer"        ? m_backend.rename_printer(id, payload.value("name", std::string())) :
+                                                                      m_backend.remove_printer(id);
         if (!problem.empty())
             send("printer_error", json{{"id", id}, {"message", problem}}, correlation);
         // Each can change the rail, including when the person cancelled
