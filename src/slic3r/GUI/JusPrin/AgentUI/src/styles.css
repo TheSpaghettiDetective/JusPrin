@@ -373,80 +373,61 @@ body {
 }
 
 .notice {
-  margin: 12px;
-  padding: 12px;
-  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
   border-radius: var(--radius-container);
-  background: var(--surface-raised);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
 .notice h2 {
-  margin: 0 0 4px;
-  font: var(--font-body-bold);
+  margin: 0;
+  font: var(--font-section);
 }
 
 .notice p {
   margin: 0;
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 
-/* The end of an earlier chat. Figma section 5, "Project updates · Locked
-   continuation": the same quiet surface as a saved card, with no edge, and
-   the locked field where the composer would be. */
-.project-updates-band {
-  flex: 0 0 auto;
-  padding: 12px;
-  border-top: 1px solid var(--border-subtle);
-  background: var(--surface-canvas);
-}
-
+/* The notice on an earlier chat (Figma "Agent/Historical chat notice"): why
+   the chat cannot continue as it is, and the ways on. It sits in the
+   composer's band, above the field it has locked. */
 .project-updates {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border-radius: var(--radius-container);
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-standard);
   background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 .project-updates p {
   margin: 0;
-}
-
-.project-updates-divider {
-  width: 100%;
-  height: 1px;
-  margin: 0;
-  border: 0;
-  background: var(--border-subtle);
-}
-
-.project-updates-title {
-  font: var(--font-body-bold);
   color: var(--text-primary);
-}
-
-.project-updates-detail {
   font: var(--font-body-small);
-  color: var(--text-secondary);
 }
 
 .project-updates-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: 12px;
 }
 
 .project-updates-actions button.primary {
-  padding: 8px 16px;
-  border-radius: var(--radius-container);
+  padding: var(--button-primary-padding);
+  border: 0;
   font: var(--font-body-small-bold);
 }
 
+/* The design system's Button/Link: text only, Label Bold, action/primary. */
 .project-updates-link {
-  height: 26px;
+  height: var(--button-icon-height);
   padding: 0 4px;
   border: 0;
   border-radius: var(--radius-standard);
@@ -456,41 +437,24 @@ body {
   cursor: pointer;
 }
 
-.project-updates-link:hover {
+.project-updates-link:hover:enabled {
   color: var(--action-primary-hover);
   text-decoration: underline;
 }
 
-.project-updates-link:active {
+.project-updates-link:active:enabled {
   color: var(--action-primary-pressed);
 }
 
-/* Locked, not merely greyed: the host refuses a send from an earlier chat as
-   well. The field stays so the place to continue is still where it was. */
-.project-updates-locked {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 12px;
-  border: 1px solid var(--border-subtle);
+/* What stops the project chat altogether: a danger-stroked strip above the
+   field it has disabled. */
+.composer-alert {
+  padding: 8px 12px;
   border-radius: var(--radius-standard);
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-}
-
-.project-updates-locked input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: var(--font-body-small);
-  color: var(--action-disabled-text);
-}
-
-.project-updates-locked input::placeholder {
-  color: var(--action-disabled-text);
-  opacity: 1;
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+  color: var(--status-danger);
+  font: var(--font-body-small-bold);
 }
 
 /* Conversation */
@@ -540,11 +504,6 @@ body {
   max-width: var(--printer-setup-width);
   margin-inline: auto;
 }
-/* Its dialog uses the existing printer-dialog tokens. */
-.chat-dialog-shade--destructive { background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); }
-.chat-dialog--destructive { max-width: var(--printer-dialog-width); border-radius: var(--printer-dialog-radius); box-shadow: var(--elevation-strong); }
-.chat-dialog--destructive .chat-dialog-buttons button { border-color: var(--border-subtle); }
-.chat-dialog--destructive .chat-dialog-buttons button.danger { border-color: var(--action-danger-border); background: var(--action-danger); color: var(--action-danger-text); }
 .app--printer-setup .printer-header, .app--focused-chat .printer-header {
   height: auto;
   flex-wrap: wrap;
@@ -552,16 +511,19 @@ body {
   border-bottom: none;
   padding: 8px 16px;
 }
+/* The chat header is one 44 DIP row; the chat list's own header is the
+   taller 56 DIP panel header with its Section title. */
 .chat-header, .chat-list-header {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  height: 56px;
-  padding: 12px 16px;
+  height: 44px;
+  padding: 8px 12px 8px 16px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
 }
+.chat-list-header { height: 56px; padding: 16px; }
 .chat-header h1, .chat-list-header h1 {
   flex: 1;
   min-width: 0;
@@ -606,6 +568,8 @@ body {
 .jp-icon-grid-3x3 { -webkit-mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); }
 .jp-icon-info { -webkit-mask-image: url('@resources/jusprin/ui/icons/info.svg'); mask-image: url('@resources/jusprin/ui/icons/info.svg'); }
 .jp-icon-triangle-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); }
+.jp-icon-rotate-ccw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); }
+.jp-icon-rotate-cw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); }
 .jp-icon-lock { -webkit-mask-image: url('@resources/jusprin/ui/icons/lock.svg'); mask-image: url('@resources/jusprin/ui/icons/lock.svg'); }
 button.chat-icon {
   display: inline-flex;
@@ -620,7 +584,7 @@ button.chat-icon {
   color: var(--text-secondary);
   background: var(--surface-canvas);
 }
-button.chat-back { border-color: transparent; color: var(--action-primary); }
+button.chat-icon:disabled { color: var(--action-disabled-text); }
 /* The filled pane half communicates open/closed state, so this glyph is
    product-specific rather than a stock Lucide action icon. */
 .agent-pane-toggle svg { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -628,7 +592,7 @@ button.chat-back { border-color: transparent; color: var(--action-primary); }
 .chat-actions { position: relative; }
 .chat-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 16px);
   right: 0;
   z-index: 2;
   min-width: 128px;
@@ -636,51 +600,76 @@ button.chat-back { border-color: transparent; color: var(--action-primary); }
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
   background: var(--surface-raised);
+  box-shadow: var(--elevation-medium);
 }
 .chat-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: var(--radius-standard); }
+.chat-menu button:disabled { color: var(--action-disabled-text); }
 .chat-menu button:hover:enabled,
 .chat-menu button:active:enabled { border: 0; background: var(--surface-subtle); }
 button.danger { color: var(--status-danger); }
 .chat-list-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--surface-canvas); }
 .chat-list-header h1 { font: var(--font-section); }
-.chat-list-header .chat-icon { border: 0; }
-.chat-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.chat-list-empty { margin: 16px; color: var(--text-secondary); font: var(--font-body); }
+.chat-list-scroll { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+.chat-list-empty { margin: auto; padding: 16px 48px; color: var(--text-secondary); font: var(--font-body); text-align: center; }
 button.chat-list-row {
   display: block;
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 64px;
   padding: 12px 16px;
   border: 0;
-  border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
   background: var(--surface-canvas);
+  box-shadow: inset 0 -1px 0 var(--border-subtle);
   color: var(--text-primary);
   text-align: left;
 }
-button.chat-list-row.selected { background: var(--surface-selected); }
+button.chat-list-row.selected { background: var(--surface-subtle); }
+.chat-list-row .jp-icon { color: var(--text-secondary); }
+.chat-list-row.selected .jp-icon { color: var(--action-primary); }
 .chat-list-row:focus-visible { outline-offset: -2px; }
 .chat-list-row-top { display: flex; align-items: center; gap: 8px; }
 /* The title is a <strong>: it inherits Body and takes the element's own bold. */
-.chat-list-row-top strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-list-row time { flex: 0 0 auto; margin-left: 4px; font: var(--font-metadata); color: var(--text-secondary); }
-.chat-list-preview { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font: var(--font-label); }
-.chat-list-footer { flex: 0 0 auto; padding: 16px; border-top: 1px solid var(--border-subtle); background: var(--surface-subtle); }
-button.configure-agent { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; text-align: left; border: 1px solid var(--border-subtle); background: var(--surface-canvas); }
-button.configure-agent:hover:enabled { background: var(--surface-canvas); border-color: var(--border-subtle); }
+.chat-list-row-top strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--font-body-small-bold); }
+.chat-list-row time { flex: 0 0 auto; font: var(--font-label); color: var(--text-secondary); }
+.chat-list-preview { display: block; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font: var(--font-label); }
+.chat-list-footer { flex: 0 0 auto; padding: 16px; background: var(--surface-subtle); box-shadow: inset 0 1px 0 var(--border-subtle); }
+/* The footer's one action: a container-radius row, its stroke inside the box. */
+button.configure-agent { display: flex; justify-content: flex-start; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; text-align: left; border: 0; border-radius: var(--radius-container); background: var(--surface-canvas); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+button.configure-agent:hover:enabled { background: var(--surface-canvas); box-shadow: inset 0 0 0 1px var(--border-strong); }
+button.configure-agent:disabled { background: var(--action-disabled); box-shadow: inset 0 0 0 1px var(--action-disabled); color: var(--action-disabled-text); }
 .configure-agent .jp-icon { color: var(--action-primary); }
-.configure-agent span { min-width: 0; }
-.configure-agent strong { display: block; }
-.configure-agent small { display: block; font: var(--font-metadata); color: var(--text-secondary); }
-.chat-dialog-shade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; background: var(--surface-subtle); overflow-y: auto; }
-.chat-dialog { width: 100%; padding: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-container); background: var(--surface-raised); }
-.chat-dialog h2 { margin: 0 0 12px; font: var(--font-section); }
-.chat-dialog p { overflow-wrap: anywhere; color: var(--text-secondary); font: var(--font-body); }
-.chat-dialog label { display: block; font: var(--font-label); }
-.chat-dialog input { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-strong); border-radius: var(--radius-standard); }
-.chat-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-label); color: var(--status-danger); background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle); }
-.chat-error > span { flex: 1; }
+.configure-agent span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.configure-agent strong { display: block; font: var(--font-body-small-bold); }
+.configure-agent small { display: block; font: var(--font-label); color: var(--text-secondary); }
+.configure-agent:disabled .jp-icon, .configure-agent:disabled small { color: var(--action-disabled-text); }
+/* Dialog/Confirmation and the rename dialog: one sheet over a scrim, its
+   title, body and actions 16 apart. Width and corner come from the
+   printer-dialog token every JusPrin dialog shares. */
+.chat-dialog-shade { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; background: color-mix(in srgb, var(--overlay-scrim) var(--printer-dialog-scrim), transparent); overflow-y: auto; }
+.chat-dialog { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: var(--printer-dialog-width); padding: 24px; border-radius: var(--printer-dialog-radius); background: var(--surface-raised); box-shadow: var(--elevation-strong); }
+.chat-dialog form { display: flex; flex-direction: column; gap: 16px; }
+.chat-dialog h2 { margin: 0; font: var(--font-section); }
+.chat-dialog p { margin: 0; overflow-wrap: anywhere; color: var(--text-secondary); font: var(--font-body); }
+.chat-dialog p.chat-dialog-note { font: var(--font-label); }
+/* Field/Text: label, entry and error 4 apart. */
+.chat-dialog-field { display: flex; flex-direction: column; gap: 4px; }
+.chat-dialog label { display: block; color: var(--text-secondary); font: var(--font-label); }
+.chat-dialog input { width: 100%; height: var(--field-height); padding: 0 var(--field-padding-x); font: var(--font-body); color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-subtle); border-radius: var(--radius-standard); }
+.chat-dialog input[aria-invalid='true'] { border-color: var(--status-danger); }
+.chat-dialog p.chat-dialog-field-error { color: var(--status-danger); font: var(--font-label); }
+.chat-dialog-buttons { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.chat-dialog-buttons button { gap: var(--button-secondary-icon-gap); padding: var(--button-secondary-padding); border-color: var(--border-subtle); background: var(--surface-raised); font: var(--font-body-small); }
+.chat-dialog-buttons button:not(.primary):hover:enabled { background: var(--surface-subtle); }
+.chat-dialog-buttons button:disabled { color: var(--action-disabled-text); }
+.chat-dialog-buttons button.primary { padding: var(--button-primary-padding); border: 0; background: var(--action-primary); font: var(--font-body-small-bold); }
+.chat-dialog-buttons button.primary:disabled { color: var(--action-primary-text); }
+.chat-dialog-buttons button.danger:enabled { border-color: var(--action-danger-border); background: var(--action-danger); color: var(--action-danger-text); }
+/* A destructive action that is the dialog's whole point takes the decisive
+   button's size and weight, in the danger colours. */
+.chat-dialog-buttons button.danger.decisive { padding: var(--button-primary-padding); border-radius: var(--radius-compact); font: var(--font-body-small-bold); }
+/* The transient command error: the host's own words, dismissible. */
+.chat-error { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; padding: 8px 12px; font: var(--font-body-small-bold); color: var(--status-danger); background: var(--surface-raised); box-shadow: inset 0 -1px 0 var(--border-subtle); }
+.chat-error > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 /* Measured from the Figma Design System component "Chat Bubble" (node 9-126),
    which has one property, Role, with the two variants below. Both hug their
@@ -712,7 +701,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
    of authorship, so the answer sits on the canvas as prose rather than
    inside a card. */
 .message.assistant {
-  align-self: flex-start;
+  align-self: stretch;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -723,6 +712,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .message-content {
+  flex: 1;
   min-width: 0;
 }
 
@@ -750,6 +740,10 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 /* What stands in for a tool-only turn while it still has no words: the model
    is working, not silent. Gone the moment real text arrives. */
 .printer-activity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   padding: 4px 0;
   color: var(--text-secondary);
   font: var(--font-label);
@@ -760,22 +754,24 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .message.note {
   align-self: stretch;
   max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px 0;
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-body-small);
   background: none;
   border: none;
 }
 
-/* The border keeps a white or near-background colour visible. */
+/* The design system's Swatch. The stroke keeps a white or near-background
+   colour visible. */
 .note-swatch {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 50%;
-  vertical-align: baseline;
+  flex: 0 0 auto;
+  width: var(--swatch-size);
+  height: var(--swatch-size);
+  border-radius: var(--radius-standard);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
 .markdown-content {
@@ -794,7 +790,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .markdown-content p,
 .markdown-content blockquote,
 .markdown-content pre,
-.markdown-content table,
+.markdown-table,
 .markdown-content ul,
 .markdown-content ol {
   margin: 0 0 8px;
@@ -806,7 +802,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  margin: 12px 0 4px;
+  margin: 12px 0 8px;
 }
 
 .markdown-content h1,
@@ -823,7 +819,8 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 
 .markdown-content ul,
 .markdown-content ol {
-  padding-left: 20px;
+  padding-left: 16px;
+  color: var(--text-secondary);
 }
 
 .markdown-content li + li {
@@ -861,22 +858,36 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   background: transparent;
 }
 
-.markdown-content table {
-  display: block;
+/* One stroked block with a standard corner: a subtle header row, and a rule
+   drawn inside every row but the last. A table too wide for the reply
+   scrolls inside its frame. */
+.markdown-table {
   max-width: 100%;
-  border-collapse: collapse;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-standard);
   overflow-x: auto;
+}
+
+.markdown-content table {
+  width: 100%;
+  margin: 0;
+  border-spacing: 0;
 }
 
 .markdown-content th,
 .markdown-content td {
-  padding: 4px 8px;
-  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  box-shadow: inset 0 -1px 0 var(--border-subtle);
+  color: var(--text-secondary);
   text-align: left;
 }
 
+.markdown-content tbody tr:last-child td { box-shadow: none; }
+
 .markdown-content th {
   background: var(--surface-subtle);
+  color: var(--text-primary);
+  font: var(--font-label-bold);
 }
 
 .markdown-content hr {
@@ -888,7 +899,6 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .markdown-link {
   color: var(--action-primary);
   text-decoration: underline;
-  text-decoration-style: dotted;
 }
 
 .markdown-image-alt {
@@ -897,16 +907,31 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 }
 
 .message .meta {
-  margin-top: 4px;
+  margin-top: 8px;
   font: var(--font-metadata);
   color: var(--text-secondary);
 }
 
-.message .error {
-  margin-top: 4px;
-  font: var(--font-label);
-  color: var(--status-danger);
+/* A reply that could not finish: Notice/Strip in its error tone with the
+   host's words, and Retry beneath it when another attempt can work. */
+.message-failure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
+.message-content > .message-failure:not(:first-child) { margin-top: 8px; }
+.message .error {
+  align-self: stretch;
+  padding: 8px 12px;
+  border-radius: var(--radius-standard);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+  color: var(--status-danger);
+  font: var(--font-label-bold);
+  overflow-wrap: anywhere;
+}
+.message-failure > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
 
 .message-group {
   display: flex;
@@ -1112,57 +1137,42 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .change-revert-buttons button { padding: var(--button-expanded-padding); font: var(--font-body); border: 1px solid var(--border-subtle); }
 .change-revert-buttons .confirm { color: var(--text-on-action); background: var(--action-primary); border-color: var(--action-primary); }
 
-/* Native tool action cards. */
+/* Native tool action cards (Figma "Agent/Tool activity card" and
+   "Agent/Plan activity card"): one raised card the width of the thread, its
+   title, status line, progress and actions 8 apart. */
 .tool-card {
   align-self: stretch;
-  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
   padding: 12px;
-  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
-  background: var(--surface-subtle);
+  background: var(--surface-raised);
+  /* The stroke is drawn inside the box, as Figma's is, so the 12 DIP inset is
+     measured from the card's edge. */
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-body-small);
 }
 
 .tool-card .tool-title {
-  font: var(--font-body-bold);
+  overflow-wrap: anywhere;
+  font: var(--font-body-small-bold);
 }
 
-.tool-card .tool-actions {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.tool-card .tool-actions > button:not(.primary) { border-color: var(--border-subtle); }
+.tool-card .tool-meta { color: var(--text-secondary); overflow-wrap: anywhere; }
+.tool-card .tool-meta.destructive { color: var(--status-danger); }
 
+/* The status line: a 16 DIP glyph and the words beside it. The glyph takes
+   the state's colour; the words stay secondary, so the state is never read
+   from colour alone. */
 .tool-card .tool-state {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  font: var(--font-body-small);
-  color: var(--text-secondary);
-}
-
-.tool-card .tool-state.done {
-  color: var(--status-success);
-}
-
-.tool-card .tool-error {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-top: 4px;
-  font: var(--font-body-small);
-  color: var(--status-danger);
+  color: var(--text-secondary);
 }
-
-.tool-card progress {
-  display: block;
-  width: 100%;
-  height: var(--progress-height);
-  margin-top: 8px;
-  accent-color: var(--action-primary);
-}
+.tool-state-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 .tool-status-icon {
   display: inline-block;
@@ -1174,190 +1184,88 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   mask: url('@resources/jusprin/ui/icons/ellipsis.svg') center / contain no-repeat;
 }
 .tool-status-icon.running { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); }
-.tool-status-icon.done { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
-.tool-status-icon.failed { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
+.tool-status-icon.done { color: var(--status-success); -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
+.tool-status-icon.failed { color: var(--status-danger); -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
 .tool-status-icon.cancelled { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-minus.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-minus.svg'); }
-.tool-cancel { margin-top: 8px; padding: 0; border: none; color: var(--action-primary); font: var(--font-label-bold); text-decoration: underline; }
-.tool-cancel:hover:enabled { border-color: transparent; color: var(--action-primary-hover); text-decoration: underline; }
 
-.tool-card .plan-members {
-  margin: 4px 0 0;
-  padding-left: 16px;
-}
-
-.tool-card .plan-member {
-  font: var(--font-label);
-}
-
-.tool-card .plan-member .tool-state {
-  margin-left: 8px;
-}
-
-/* Immutable build, external-copy, and physical-print timeline records */
-.history-card {
-  align-self: stretch;
-  min-width: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--border-strong);
-  border-radius: var(--radius-container);
-  background: var(--surface-raised);
-  overflow-wrap: anywhere;
-}
-
-.history-card.build-card { border-left-color: var(--action-primary); }
-.history-card.copy-card { border-left-color: var(--border-focus); }
-.history-card.print-card { border-left-color: var(--status-success); }
-
-.history-card.build-card,
-.history-card.copy-card {
-  padding: 12px 0;
-  border: 0;
-  border-top: 1px solid var(--border-subtle);
-  border-radius: 0;
-  background: transparent;
-}
-.build-card .history-summary,
-.build-card .history-detail {
-  padding-left: calc(var(--thread-row-avatar-size) + 8px);
-}
-.build-card .history-title { align-items: center; }
-.build-card .history-title code { color: var(--text-primary); font: var(--font-code); }
-.build-stats-line { font: var(--font-body-small-bold); }
-.build-target { font: var(--font-label-bold); }
-.build-delivery,
-.build-export {
-  color: var(--text-secondary);
-  font: var(--font-label);
-}
-.build-delivery { display: inline-flex; align-items: center; gap: 4px; color: var(--status-success); }
-.history-reprint {
-  align-self: flex-start;
-  color: var(--action-primary);
-  font: var(--font-label-bold);
-}
-
-.history-card.print-failed {
+/* Button/Primary and Button/Secondary, from the token file's two recipes. */
+.tool-card .tool-actions {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--border-on-failure);
-  background: var(--surface-failure-inverse);
-  color: var(--text-on-failure-primary);
-}
-
-.print-failed .history-summary { gap: 8px; }
-.failure-heading {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
-.failure-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--status-danger-on-inverse);
-  font: var(--font-metadata-bold);
-  text-transform: uppercase;
+.tool-card .tool-actions > button {
+  flex: 0 0 auto;
+  gap: var(--button-secondary-icon-gap);
+  padding: var(--button-secondary-padding);
+  border-color: var(--border-subtle);
+  font: var(--font-body-small);
 }
-.failure-dot {
-  width: var(--status-dot-size);
-  height: var(--status-dot-size);
-  border-radius: var(--radius-pill);
-  background: currentColor;
-}
-.failure-time {
-  margin-left: auto;
-  color: var(--text-on-failure-tertiary);
-  font: var(--font-metadata);
-  white-space: nowrap;
-}
-.failure-title {
-  color: var(--text-on-failure-primary);
+.tool-card .tool-actions > button.primary {
+  padding: var(--button-primary-padding);
+  border: 0;
   font: var(--font-body-small-bold);
 }
-.failure-reason {
-  color: var(--text-on-failure-secondary);
-  font: var(--font-label);
+.tool-card .tool-actions > button:not(.primary):hover:enabled { background: var(--surface-subtle); }
+.tool-card .tool-actions > button:not(.primary):disabled { opacity: 0.5; }
+
+/* The shared progress track. */
+.jp-progress {
+  display: flex;
+  flex: 0 0 auto;
+  width: 100%;
+  height: var(--progress-height);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border-subtle);
 }
-.print-failed .history-disclosure { color: var(--text-on-failure-tertiary); }
-.print-failed .history-detail { border-top-color: var(--border-on-failure); }
-.print-failed dt { color: var(--text-on-failure-tertiary); }
-.print-failed dd,
-.print-failed .history-provenance { color: var(--text-on-failure-secondary); }
-.print-failed .history-hash code {
-  color: var(--text-on-failure-primary);
-  background: transparent;
-  border: 1px solid var(--border-on-failure);
-}
-.failure-action {
-  align-self: flex-start;
-  padding: var(--button-expanded-padding);
-  border: 1px solid var(--border-on-failure);
-  border-radius: var(--radius-standard);
-  color: var(--text-on-failure-primary);
-  font: var(--font-label-bold);
-}
-.failure-action:hover:enabled { border-color: var(--text-on-failure-secondary); }
-/* What OrcaSlicer said while loading a file, when the Agent could not speak
-   about it. Warning-coloured: things the person may need to act on. */
-.history-card.file-notes-card {
+.jp-progress-fill { height: 100%; border-radius: var(--radius-pill); background: var(--action-primary); }
+.jp-progress-indeterminate { justify-content: center; }
+.jp-progress-indeterminate .jp-progress-fill { width: 20%; }
+
+/* A plan's steps: the step on the left, its state on the right, 4 apart. The
+   list keeps its numbers as a counter so they sit at the card's own inset. */
+.tool-card .plan-members {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  border-left-color: var(--status-warning);
-}
-
-.file-notes-title {
-  margin: 0;
-  color: var(--text-primary);
-  font: var(--font-body-bold);
-}
-
-.file-notes-files,
-.file-notes-more,
-.file-notes-help {
-  margin: 0;
-  color: var(--text-secondary);
-  font: var(--font-label);
-}
-
-.file-notes-files {
-  font: var(--font-metadata);
-}
-
-.file-notes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
-  align-self: stretch;
+  counter-reset: plan-step;
 }
+.tool-card .plan-member { display: flex; flex-direction: column; gap: 4px; counter-increment: plan-step; }
+.plan-member-row { display: flex; align-items: center; gap: 8px; }
+.plan-member-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.plan-member-title::before { content: counter(plan-step) '. '; }
+.plan-member.destructive .plan-member-title { color: var(--status-danger); }
+.plan-member-state { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-label); }
+.plan-member.state-succeeded .plan-member-state { color: var(--status-success); }
+.plan-member.state-failed .plan-member-state,
+.plan-member-error { color: var(--status-danger); }
+.plan-member-error { overflow-wrap: anywhere; }
 
-.file-notes-list li {
+/* A running plan: the track takes the row, its count and Cancel follow. */
+.tool-card .plan-execution { flex-wrap: nowrap; }
+.plan-execution .jp-progress { flex: 1 1 0; width: auto; min-width: 0; }
+.plan-progress-text { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-label); }
+
+/* Immutable build, external-copy, and physical-print timeline records (Figma
+   "Agent/Manufacturing history card"): one card per record, its rows 12 apart,
+   the stroke drawn inside the box. */
+.history-card {
+  align-self: stretch;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.file-notes-heading {
-  color: var(--text-primary);
-  font: var(--font-label-bold);
-}
-
-.file-notes-text {
-  color: var(--text-primary);
-  font: var(--font-label);
-  white-space: pre-line;
-}
-
-.file-notes-answer {
-  color: var(--text-secondary);
-  font: var(--font-metadata);
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--radius-container);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-body-small);
+  overflow-wrap: anywhere;
 }
 
 /* The card rests as its <summary>; the forensic detail stays mounted in the
@@ -1365,7 +1273,7 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
 .history-summary {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
   list-style: none;
   cursor: pointer;
 }
@@ -1374,178 +1282,260 @@ button.configure-agent:hover:enabled { background: var(--surface-canvas); border
   display: none;
 }
 
-.history-summary-head {
+/* Kind and identity, the time, and the chevron that reads the disclosure. */
+.history-heading {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
 }
 
 .history-title {
   display: flex;
-  align-items: baseline;
+  flex: 1;
+  align-items: center;
   gap: 4px;
   min-width: 0;
 }
 
+.history-kind {
+  color: var(--text-primary);
+  font: var(--font-metadata-bold);
+}
+
+/* A record's short ID: what the code face is reserved for. */
+.history-title code,
+.history-rows code,
+.failure-reason code {
+  font: var(--font-code);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.history-title code { color: var(--text-secondary); }
+
 .history-time {
   flex: 0 0 auto;
-  margin-left: auto;
   color: var(--text-secondary);
   font: var(--font-metadata);
   white-space: nowrap;
 }
 
-/* Figma sets the resting lines at 13px, which is between Label and Body and
-   has no token; Label is the nearest role the token file emits. */
-.history-line {
-  min-width: 0;
-  color: var(--text-secondary);
-  font: var(--font-label);
-}
-
-/* A build's short output hash: an ID, which is what the code face is now
-   reserved for. */
-.history-line code {
-  color: var(--text-secondary);
-  font: var(--font-code);
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-.history-note {
-  color: var(--status-warning);
-}
-
-/* The disclosure arrow reads the open state; a marker of our own survives the
-   `display: flex` that removes the engine's default one. */
+/* Down while the card rests, up once it is open. A marker of our own survives
+   the `display: flex` that removes the engine's default one. */
 .history-disclosure {
   flex: 0 0 auto;
   display: inline-block;
   width: var(--button-icon-icon-size);
   height: var(--button-icon-icon-size);
   background: currentColor;
-  color: var(--text-secondary);
-  -webkit-mask: url('@resources/jusprin/ui/icons/chevron-right.svg') center / contain no-repeat;
-  mask: url('@resources/jusprin/ui/icons/chevron-right.svg') center / contain no-repeat;
+  color: var(--text-primary);
+  -webkit-mask: url('@resources/jusprin/ui/icons/chevron-down.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/chevron-down.svg') center / contain no-repeat;
 }
 
 .history-details[open] .history-disclosure {
-  -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg');
-  mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg');
+  -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg');
+  mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg');
 }
 
-.history-detail {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-subtle);
-}
+.history-stats-line { font: var(--font-body-bold); }
 
-/* An eyebrow, like .current-setup-eyebrow and .setup-eyebrow. */
-.history-kind {
+.history-line {
+  min-width: 0;
   color: var(--text-secondary);
-  font: var(--font-metadata);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
+.history-line.primary { color: var(--text-primary); }
+.history-line.history-note { color: var(--status-warning); }
 
+/* The state of a record: glyph and words in the state's colour. */
 .history-status {
-  flex: 0 0 auto;
-  padding: 0 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
   color: var(--text-secondary);
-  font: var(--font-metadata);
-  text-transform: capitalize;
+  font: var(--font-body-small-bold);
+}
+.history-status.success { color: var(--status-success); }
+.history-status.warning { color: var(--status-warning); }
+
+/* What the disclosure reveals: label left, value right, 4 apart. */
+.history-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
 }
 
-.history-status.success { color: var(--status-success); border-color: var(--status-success); }
-.history-status.warning { color: var(--status-warning); border-color: var(--status-warning); }
-
-.history-facts,
-.history-stats,
-.history-hashes {
+.history-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
 }
 
-.history-facts,
-.history-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 12px;
-  margin-bottom: 8px;
-}
-
-.history-facts > div,
-.history-stats > div,
-.history-hash {
+.history-rows > div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   min-width: 0;
 }
 
 .history-card dt {
+  flex: 0 0 auto;
   color: var(--text-secondary);
-  font: var(--font-metadata);
+  font: var(--font-label);
 }
 
 .history-card dd {
+  flex: 1;
+  min-width: 0;
   margin: 0;
+  color: var(--text-primary);
+  text-align: right;
 }
 
-.history-hashes {
-  display: flex;
+/* A value too long for one line sits under its label: a path, a digest. */
+.history-rows > .history-block {
   flex-direction: column;
-  gap: 4px;
+  align-items: stretch;
 }
+.history-block dd { text-align: left; }
 
 .history-hash code {
   display: block;
-  padding: 4px;
-  border-radius: var(--radius-standard);
-  background: var(--surface-subtle);
   color: var(--text-primary);
-  font: var(--font-code);
-  overflow-wrap: anywhere;
-  user-select: text;
 }
 
-.history-provenance,
-.history-warnings {
-  margin: 8px 0 0;
+.history-provenance {
+  margin: 0;
   color: var(--text-secondary);
-  font: var(--font-metadata);
+  font: var(--font-label);
 }
 
-/* A slice warning is the most actionable line on the card, so it takes Label Bold
-   rather than the Dense Metadata its sibling provenance line uses. */
 .history-warnings {
-  padding-left: 20px;
-  color: var(--status-warning);
-  font: var(--font-label-bold);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
+
+/* Button/Secondary: the one thing a record offers. */
+.history-action {
+  align-self: flex-start;
+  gap: var(--button-secondary-icon-gap);
+  padding: var(--button-secondary-padding);
+  border-color: var(--border-subtle);
+  font: var(--font-body-small);
+}
+.history-action:hover:enabled { background: var(--surface-subtle); }
+.history-action:disabled { opacity: 0.5; }
+
+/* A failed print is the one inverse card: every role takes its on-failure
+   counterpart. */
+.history-card.print-failed {
+  background: var(--surface-failure-inverse);
+  box-shadow: none;
+  color: var(--text-on-failure-primary);
+}
+
+.print-failed .history-kind { color: var(--status-danger-on-inverse); }
+.print-failed .history-time,
+.print-failed .history-disclosure,
+.print-failed dt { color: var(--text-on-failure-secondary); }
+.failure-title {
+  color: var(--text-on-failure-primary);
+  font: var(--font-body-bold);
+}
+.failure-reason {
+  color: var(--text-on-failure-secondary);
+  font: var(--font-label);
+}
+.print-failed dd,
+.print-failed .history-hash code { color: var(--text-on-failure-primary); }
+.print-failed .history-action {
+  border-color: var(--border-on-failure);
+  color: var(--text-on-failure-primary);
+}
+.print-failed .history-action:hover:enabled { border-color: var(--text-on-failure-secondary); background: transparent; }
 
 .long-content {
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 320px) {
-  .history-card { padding: 8px; }
-  .history-summary-head { flex-wrap: wrap; }
-  .history-facts,
-  .history-stats { grid-template-columns: minmax(0, 1fr); }
+/* What OrcaSlicer said while loading a file, when the Agent could not speak
+   about it. Warning-coloured: things the person may need to act on. */
+.history-card.file-notes-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--radius-container);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .markdown-content.streaming-cursor > :last-child::after { animation: none; }
+.file-notes-title {
+  margin: 0;
+  color: var(--text-primary);
+  font: var(--font-section);
 }
 
+.file-notes-files,
+.file-notes-more,
+.file-notes-help {
+  margin: 0;
+  color: var(--text-secondary);
+  font: var(--font-body-small);
+  overflow-wrap: anywhere;
+}
+
+.file-notes-files {
+  font: var(--font-metadata);
+}
+
+/* One bullet per thing OrcaSlicer said, 4 apart. */
+.file-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  align-self: stretch;
+  color: var(--text-secondary);
+  font: var(--font-body-small);
+}
+
+.file-notes-list li > span { display: block; overflow-wrap: anywhere; }
+
+.file-notes-heading {
+  color: var(--text-primary);
+  font: var(--font-body-small-bold);
+}
+
+.file-notes-text {
+  white-space: pre-line;
+}
+
+.file-notes-answer {
+  font: var(--font-metadata);
+}
+
+.file-notes-card > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
+
+/* The streaming cursor: a static 2 DIP bar after the last word. It does not
+   blink, so there is no motion to switch off. */
 .markdown-content.streaming-cursor > :last-child::after {
-  content: '▌';
-  animation: blink 1s step-start infinite;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.385em;
+  margin-left: 4px;
+  background: var(--action-primary);
+  vertical-align: bottom;
 }
 
 /* Expanded button from the token file: 12x8 padding, standard radius, Body. */
@@ -1681,31 +1671,29 @@ input[type='radio']:checked {
   background: var(--surface-canvas);
 }
 
+/* A file held over the composer: a 2 DIP strong stroke inside its box. */
 .composer.dragging {
-  outline: 2px dashed var(--border-focus);
-  outline-offset: -4px;
+  border-radius: var(--radius-standard);
+  box-shadow: inset 0 0 0 2px var(--border-strong);
 }
 
-/* The Figma Composer is one bordered field: the leading control, the text
-   field, and the send control share a single rounded container. Figma's
-   padding is 12/10/8/10; 10 is off the spacing scale, so the vertical inset
-   rounds to 8. */
+/* The Figma Composer is one bordered field, 50 DIP tall: the attachment
+   action, the text field, and Send share a single container whose stroke is
+   drawn inside it. */
 .composer-row {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 8px 8px 8px 12px;
-  border: 1px solid var(--border-subtle);
+  padding: 12px 8px 12px 12px;
   border-radius: var(--radius-standard);
   background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-/* The field gave up its own outline to the container, so the container has to
-   carry a ring of the same weight the global :focus-visible rule draws --
-   a 1px border changing colour is not an equal replacement for a 2px one. */
+/* The field gave up its own outline to the container, so the container
+   carries a ring of the weight the global :focus-visible rule draws. */
 .composer-row:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 1px var(--border-focus);
+  box-shadow: inset 0 0 0 2px var(--border-focus);
 }
 
 .composer-attachments {
@@ -1714,26 +1702,22 @@ input[type='radio']:checked {
   gap: 8px;
 }
 
-/* Send and Stop share the same text-button slot, so streaming does not move
-   the field or its attachment action. */
+/* Button/Link on the left; Send and Stop share the slot on the right, so
+   streaming does not move the field or its attachment action. */
 .attach-button,
 .composer-send {
   flex: 0 0 auto;
   min-height: var(--button-icon-height);
-  padding: var(--button-secondary-padding);
-  border-radius: var(--radius-standard);
+  border: 0;
   cursor: pointer;
-  font: var(--font-label-bold);
-}
-
-.attach-button:hover:enabled,
-.composer-send:hover:enabled {
-  border-color: transparent;
 }
 
 .attach-button {
+  padding: 0 4px;
+  border-radius: var(--radius-standard);
   background: transparent;
   color: var(--action-primary);
+  font: var(--font-label-bold);
 }
 
 .attach-button:hover:enabled { color: var(--action-primary-hover); }
@@ -1745,8 +1729,11 @@ input[type='radio']:checked {
 }
 
 .composer-send {
+  padding: 4px 16px;
+  border-radius: var(--radius-compact);
   background: var(--action-primary);
   color: var(--action-primary-text);
+  font: var(--font-body-small-bold);
 }
 
 .composer-send:hover:enabled {
@@ -1763,21 +1750,36 @@ input[type='radio']:checked {
   cursor: default;
 }
 
+/* Stop is Button/Secondary: it ends the reply, it does not send. */
+.composer-send.composer-stop {
+  padding: 4px 12px;
+  border-radius: var(--radius-standard);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-primary);
+  font: var(--font-body-small);
+}
+.composer-send.composer-stop:hover:enabled { background: var(--surface-subtle); }
+
+/* Chat/Attachment: one row of thumbnail or kind badge, name and size, and
+   Remove while it is still staged; an error sits on a line of its own. */
 .attachment-chip {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   width: 100%;
   max-width: var(--chat-attachment-max-width);
-  padding: 8px;
-  border: 1px solid var(--border-subtle);
+  padding: 12px;
   border-radius: var(--radius-standard);
   background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-.attachment-chip.errored {
-  border-color: var(--status-danger);
+.attachment-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .attachment-thumb {
@@ -1793,10 +1795,10 @@ input[type='radio']:checked {
   place-items: center;
   width: var(--chat-attachment-kind-size);
   height: var(--chat-attachment-kind-size);
-  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-standard);
   background: var(--surface-canvas);
-  font: var(--font-metadata);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-metadata-bold);
   color: var(--text-secondary);
   flex: 0 0 auto;
 }
@@ -1804,13 +1806,14 @@ input[type='radio']:checked {
 .attachment-meta {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   flex: 1;
   min-width: 0;
 }
 
 /* A name the user gave the file, not a path, so it stays in the UI face. */
 .attachment-name {
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1823,8 +1826,9 @@ input[type='radio']:checked {
 }
 
 .attachment-error {
-  font: var(--font-metadata);
+  font: var(--font-label);
   color: var(--status-danger);
+  overflow-wrap: anywhere;
 }
 
 .attachment-remove {
@@ -1832,14 +1836,13 @@ input[type='radio']:checked {
   padding: var(--button-secondary-padding);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-standard);
-  background: var(--surface-canvas);
+  background: var(--surface-subtle);
   color: var(--text-primary);
-  font: var(--font-label);
+  font: var(--font-body-small);
   cursor: pointer;
 }
 
 .attachment-remove:hover:enabled { background: var(--action-secondary-hover); }
-.attachment-error { flex-basis: 100%; }
 
 .message-attachments {
   display: flex;
@@ -1865,7 +1868,7 @@ input[type='radio']:checked {
   border-radius: var(--radius-standard);
   background: var(--surface-canvas);
   cursor: pointer;
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--action-primary);
 }
 
@@ -1875,7 +1878,7 @@ input[type='radio']:checked {
   color: var(--action-primary-text);
 }
 .reply-chip:active { border-color: var(--action-primary-pressed); background: var(--action-primary-pressed); color: var(--action-primary-text); }
-.reply-chip:disabled { border-color: var(--action-disabled); background: var(--action-disabled); color: var(--action-disabled-text); }
+.reply-chip:disabled { border-color: var(--border-subtle); background: var(--action-disabled); color: var(--action-disabled-text); cursor: default; }
 
 /* A sent photo in the printer panel: the picture itself, with any typed
    words drawing as its caption underneath (the message text, unchanged). */
@@ -1898,13 +1901,20 @@ input[type='radio']:checked {
   flex: 1;
   min-width: 0;
   resize: none;
-  font: inherit;
+  font: var(--font-body-small);
   padding: 0;
   border: none;
   background: transparent;
   color: var(--text-primary);
-  min-height: var(--field-height);
   max-height: 120px;
+}
+
+/* One line, cut with an ellipsis: an invitation never wraps the field. */
+.composer textarea::placeholder {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer textarea:focus {
@@ -1934,15 +1944,44 @@ input[type='radio']:checked {
   color: var(--text-secondary);
 }
 
-.pane-state details {
-  font: var(--font-label);
-  color: var(--text-secondary);
-  max-width: 100%;
-}
+.pane-state p.pane-state-detail { font: var(--font-label); }
+.pane-state > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
 
-.pane-state pre {
+/* Disclosure/Technical details: one 28 DIP row is the whole target; the
+   content sits under the label, 24 in from the chevron's edge. */
+.diagnostics { align-self: stretch; min-width: 0; }
+.diagnostics-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  border-radius: var(--radius-standard);
+  color: var(--text-secondary);
+  font: var(--font-label-bold);
+  cursor: pointer;
+  list-style: none;
+}
+.diagnostics-header::-webkit-details-marker { display: none; }
+.diagnostics-header:hover { color: var(--text-primary); }
+.diagnostics-chevron {
+  flex: 0 0 auto;
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/chevron-right.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/chevron-right.svg') center / contain no-repeat;
+}
+.diagnostics[open] .diagnostics-chevron { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
+.diagnostics-code {
+  margin: 8px 0 0 24px;
+  padding: 12px;
+  border-radius: var(--radius-standard);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-primary);
+  font: var(--font-code);
   white-space: pre-wrap;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .pane-state .footnote {
@@ -1974,8 +2013,8 @@ input[type='radio']:checked {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 56px;
-  padding: 12px 16px;
+  height: 44px;
+  padding: 8px 12px 8px 16px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-canvas);
 }
@@ -2432,38 +2471,48 @@ button.wide {
   color: var(--text-secondary);
 }
 
-/* printer_add's receipt: the app's own line that the printer is saved. */
-.printer-added {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-container);
-  background: var(--surface-subtle);
-}
-
-.printer-added-icon {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  color: var(--status-success);
-}
-
-.printer-added-text {
+/* The panel's own notices -- printer_add's receipt and the plug-in notice
+   (Figma "Printer chat" coverage): one subtle card, a heading of glyph and
+   words, then what follows it, 8 apart. */
+.printer-added,
+.printer-plugin {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-container);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-body-small);
+}
+
+.printer-notice-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   min-width: 0;
+  color: var(--text-primary);
+  font: var(--font-body-small-bold);
 }
+.printer-notice-heading .jp-icon { margin: 0; }
 
-.printer-added-text > small { font: var(--font-metadata); color: var(--text-secondary); }
+.printer-notice-body { color: var(--text-secondary); }
 
-.printer-added-caption {
-  font: var(--font-label-bold);
-  color: var(--status-success);
+.printer-added .printer-notice-heading { color: var(--status-success); }
+
+/* The nozzle on the left, Undo on the right. */
+.printer-added-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--button-icon-height);
 }
+.printer-added-detail > small { font: var(--font-label); color: var(--text-secondary); }
 
-/* Wraps rather than clips: the nozzle at its end is the fact to check. */
+/* Wraps rather than clips: the name is the fact to check. */
+.printer-added-caption { min-width: 0; }
 .printer-added-name {
   overflow-wrap: anywhere;
   color: inherit;
@@ -2475,105 +2524,66 @@ button.wide {
 }
 
 /* Undone: the receipt stays, no longer a success. */
-.printer-added-removed .printer-added-icon,
-.printer-added-removed .printer-added-caption {
-  color: var(--text-secondary);
-}
-
-.printer-added-removed .printer-added-name {
-  color: inherit;
-}
-
-/* The app's notice that Bambu's network plug-in is missing. Laid out as the
-   receipt is; the button sits under the words, which need the width. */
-.printer-plugin {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 8px;
-  row-gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-container);
-  background: var(--surface-subtle);
-}
-
-.printer-plugin-icon {
-  width: 20px;
-  height: 20px;
-  color: var(--status-warning);
-}
-
-.printer-plugin-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.printer-plugin-caption {
-  font: var(--font-label-bold);
-  color: var(--text-primary);
-}
-
-.printer-plugin-body {
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
+.printer-added-removed .printer-notice-heading { color: var(--text-primary); }
 
 .printer-plugin-install {
-  grid-column: 2;
-  justify-self: start;
+  align-self: flex-start;
+  padding: var(--button-primary-padding);
+  border: 0;
+  font: var(--font-body-small-bold);
 }
 
-.printer-plugin-installed .printer-plugin-icon,
-.printer-plugin-installed .printer-plugin-caption {
-  color: var(--status-success);
-}
+.printer-plugin-installed .printer-notice-heading { color: var(--status-success); }
 
+/* What is on the network now (Figma "PrinterChat/Discovery state"): a subtle
+   card of rows, each a printer with the one thing to do about it. */
 .printer-found {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--border-subtle);
+  gap: 12px;
+  padding: 16px;
   border-radius: var(--radius-container);
   background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
 .printer-found-caption {
   margin: 0;
-  font: var(--font-metadata);
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
+  color: var(--text-primary);
+  font: var(--font-body-small-bold);
+}
+
+.printer-found-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .printer-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-container);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-.printer-row-icon { flex: none; width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-primary); }
+.printer-row-icon { flex: none; width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-secondary); }
 
-.printer-row-status { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font: var(--font-metadata); }
-
-.printer-dot {
-  flex: none;
-  width: var(--status-dot-size);
-  height: var(--status-dot-size);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--status-danger);
-}
-
-.printer-dot-online {
-  border: none;
-  background: var(--status-success);
-}
+/* A printer that cannot be reached now: every word takes the disabled role,
+   and the row still says "Offline". */
+.printer-row-offline .printer-row-icon,
+.printer-row-offline .printer-row-name,
+.printer-row-offline .printer-row-name small { color: var(--action-disabled-text); }
 
 .printer-row-name,
 .printer-card-name {
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 4px;
+  min-width: 0;
   overflow: hidden;
   font: var(--font-label-bold);
   color: var(--text-primary);
@@ -2594,45 +2604,51 @@ button.wide {
   gap: 8px;
 }
 
+/* Printer/Candidate Card: the picture, or the printer glyph where the
+   profile ships none, beside the name and build volume. */
 .printer-card {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-container);
-  background: var(--surface-raised);
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-window);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
+
+.printer-card-name { font: var(--font-body-bold); }
+.printer-card-brand { color: var(--text-secondary); font: var(--font-metadata-bold); }
+.printer-card-name small { font: var(--font-label); }
 
 .printer-card-picture {
   flex: none;
   width: var(--printer-card-picture-size);
   height: var(--printer-card-picture-size);
   object-fit: contain;
-  border-radius: var(--radius-standard);
+  border-radius: var(--radius-container);
   background: var(--surface-subtle);
 }
 
 .printer-card-picture-empty { display: grid; place-items: center; }
-.printer-card-glyph { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-primary); }
+.printer-card-glyph { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-secondary); }
 
-/* The compact form is a question with two or three answers, so each row
-   keeps its own button and gives the picture less of the width. */
-.printer-cards-compact .printer-card {
-  padding: 8px;
-}
+/* printer_connect's card (Figma "Chat/Tool Activity" in the printer chat):
+   the subtle variant of the tool card, whose state line takes the state's
+   colour, and the one field the person types a secret into. */
+.tool-card.printer-credential { background: var(--surface-subtle); }
+.printer-credential .tool-state.done { color: var(--status-success); }
+.printer-credential .tool-state.failed { color: var(--status-danger); }
+.printer-credential .tool-state.running .tool-status-icon,
+.printer-credential .tool-state.cancelled .tool-status-icon { color: var(--text-primary); }
+.printer-credential .tool-status-icon.cancelled { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); }
+.printer-credential-glyph { color: var(--text-primary); }
+.printer-credential-state { color: var(--text-secondary); font: var(--font-label); }
+.printer-credential-cancel { align-self: flex-start; height: var(--button-icon-height); padding: 0 4px; }
 
-.printer-cards-compact .printer-card-picture {
-  width: var(--printer-card-picture-size);
-  height: var(--printer-card-picture-size);
-}
-
-/* printer_connect's card: the one field the person types a secret into. */
 .printer-credential-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 8px;
   font: var(--font-label);
   color: var(--text-secondary);
 }
@@ -2649,11 +2665,12 @@ button.wide {
 }
 
 .printer-credential-note {
-  margin: 4px 0 8px;
-  font: var(--font-metadata);
+  margin: 0;
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
+/* The design system's Button/Link: text only, Label Bold, action/primary. */
 .printer-link-button {
   padding: 0;
   border: none;
@@ -2661,7 +2678,6 @@ button.wide {
   cursor: pointer;
   font: var(--font-label-bold);
   color: var(--action-primary);
-  text-decoration: underline;
 }
 .printer-back-link { display: inline-flex; align-items: center; gap: 4px; }
 
@@ -2672,11 +2688,4 @@ button.wide {
 /* Labelled, because a picture is a primary way to name a printer. */
 .attach-button-photo {
   color: var(--action-primary);
-}
-
-/* What a staged photo is waiting for: words, or just send. */
-.composer-staged-hint {
-  align-self: center;
-  font: var(--font-metadata);
-  color: var(--text-secondary);
 }

@@ -13,6 +13,8 @@ import type {
   ToolActivityInfo,
 } from '../bridge/protocol';
 import { numberText } from '../printerWords';
+import { Progress } from './Progress';
+import { ToolStatus } from './ToolActivityCard';
 
 function PrinterGlyph({ className }: { className: string }) {
   return <span className={`${className} jp-icon jp-icon-printer`} aria-hidden="true" />;
@@ -45,16 +47,24 @@ export const PrinterBlockView = memo(function PrinterBlockView({
     const printer = block.printer!;
     return (
       <div className={block.removed ? 'printer-added printer-added-removed' : 'printer-added'} role="status">
-        <span className={`printer-added-icon jp-icon jp-icon-${block.removed ? 'circle-minus' : 'circle-check'}`} aria-hidden="true" />
-        <span className="printer-added-text">
+        <span className="printer-notice-heading">
+          <span className={`jp-icon jp-icon-${block.removed ? 'rotate-ccw' : 'check'}`} aria-hidden="true" />
           <span className="printer-added-caption">{block.removed ? 'Removed:' : 'Added:'} <span className="printer-added-name">{printer.name}</span></span>
-          {!block.removed && printer.nozzle > 0 && <small>{numberText(printer.nozzle)} mm nozzle</small>}
         </span>
-        {!block.removed && onUndoAdd && (
-          <button type="button" className="printer-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
-            Undo
-          </button>
-        )}
+        {block.removed
+          ? <span className="printer-notice-body">Removed from your printers.</span>
+          : (printer.model || printer.nozzle > 0 || onUndoAdd) && (
+            <span className="printer-added-detail">
+              {(printer.model || printer.nozzle > 0) && <small>
+                {[printer.model, printer.nozzle > 0 && `${numberText(printer.nozzle)} mm nozzle`].filter(Boolean).join(' · ')}
+              </small>}
+              {onUndoAdd && (
+                <button type="button" className="printer-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
+                  Undo
+                </button>
+              )}
+            </span>
+          )}
       </div>
     );
   }
@@ -66,17 +76,13 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   if (block.kind === 'plugin')
     return (
       <div className={block.installed ? 'printer-plugin printer-plugin-installed' : 'printer-plugin'} role="status">
-        <span className={`printer-plugin-icon jp-icon jp-icon-${block.installed ? 'circle-check' : 'circle-alert'}`} aria-hidden="true" />
-        <span className="printer-plugin-text">
-          <span className="printer-plugin-caption">
-            {block.installed ? 'Network plug-in installed' : 'Bambu network plug-in needed'}
-          </span>
-          <span className="printer-plugin-body">
-            {block.installed
-              ? 'Your Bambu Lab printer can be connected now.'
-              : 'Connecting a Bambu Lab printer needs Bambu’s network plug-in. Your printer already works for preparing prints without it.'}
-          </span>
+        <span className="printer-notice-heading">
+          <span className={`jp-icon jp-icon-${block.installed ? 'check' : 'settings'}`} aria-hidden="true" />
+          <span className="printer-plugin-caption">{block.installed ? 'Bambu plug-in installed' : 'Bambu plug-in needed'}</span>
         </span>
+        {!block.installed && (
+          <span className="printer-notice-body">You can prepare prints with this printer before installing the Bambu plug-in.</span>
+        )}
         {!block.installed && onInstallPlugin && (
           <button type="button" className="primary printer-plugin-install" onClick={() => onInstallPlugin()}>
             Install plug-in
@@ -88,20 +94,18 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   if (block.kind === 'network')
     return (
       <div className="printer-found">
-        <p className="printer-found-caption">FOUND ON YOUR NETWORK</p>
-        {((block.printers ?? []) as NetworkPrinterInfo[]).map((printer) => (
-          <div className="printer-row" key={printer.serial}>
-            <PrinterGlyph className="printer-row-icon" />
-            <span className="printer-row-name">
-              {printer.name}
-              <small>{printer.serial}</small>
-            </span>
-            <span className="printer-row-status">
-              <span className={printer.online ? 'printer-dot printer-dot-online' : 'printer-dot'} aria-hidden="true" />
-              {printer.online ? 'Online' : 'Offline'}
-            </span>
-          </div>
-        ))}
+        <p className="printer-found-caption">Found on your network</p>
+        <div className="printer-found-rows">
+          {((block.printers ?? []) as NetworkPrinterInfo[]).map((printer) => (
+            <div className={printer.online ? 'printer-row' : 'printer-row printer-row-offline'} key={printer.serial}>
+              <PrinterGlyph className="printer-row-icon" />
+              <span className="printer-row-name">
+                {printer.name}
+                <small>{[printer.online ? 'Online' : 'Offline', ...(printer.online ? [printer.model, printer.serial] : [])].filter(Boolean).join(' · ')}</small>
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     );
 
@@ -115,8 +119,11 @@ export const PrinterBlockView = memo(function PrinterBlockView({
           ) : (
             <span className="printer-card-picture printer-card-picture-empty" aria-hidden="true"><PrinterGlyph className="printer-card-glyph" /></span>
           )}
+          {/* Brand above model when the app sends the two apart. */}
           <span className="printer-card-name">
-            {printer.name}
+            {printer.brand && printer.model
+              ? <><span className="printer-card-brand">{printer.brand}</span>{printer.model}</>
+              : printer.name}
             <small>{printer.buildVolume}</small>
           </span>
         </div>
@@ -131,11 +138,14 @@ export const PrinterBlockView = memo(function PrinterBlockView({
 export function PrinterCredentialCard({
   activity,
   connection,
+  model,
   onDecision,
   onCancelConnection,
 }: {
   activity: ToolActivityInfo;
   connection?: PrinterConnectionInfo;
+  // What kind of printer the conversation is about, when the app knows.
+  model?: string;
   onDecision: (actionId: string, decision: 'approve' | 'reject', input?: { credential: string }) => void;
   onCancelConnection: (actionId: string) => void;
 }) {
@@ -146,19 +156,22 @@ export function PrinterCredentialCard({
     const state =
       activity.state === 'rejected' ? 'cancelled' : connection?.state ?? (activity.state === 'failed' ? 'failed' : 'connecting');
     const target = connection?.target;
+    // A figure only when the app has measured one, kept inside its range.
+    const percent = typeof connection?.percent === 'number' && Number.isFinite(connection.percent)
+      ? Math.round(Math.min(100, Math.max(0, connection.percent))) : undefined;
     return (
       <div className="tool-card printer-credential" data-testid={`tool-${activity.actionId}`}>
         <div className="tool-title">{activity.title}</div>
         {state === 'connecting' && (
           <>
-            <div className="tool-state"><span className="tool-status-icon running" aria-hidden="true" />Connecting…</div>
-            <progress aria-label="Connecting" />
-            {connection && <button type="button" className="tool-cancel" onClick={() => onCancelConnection(activity.actionId)}>Cancel</button>}
+            <ToolStatus state="running">{percent === undefined ? 'Connecting…' : `Connecting · ${percent}%`}</ToolStatus>
+            <Progress label="Connecting" value={percent} max={percent === undefined ? undefined : 100} />
+            {connection && <button type="button" className="printer-link-button printer-credential-cancel" onClick={() => onCancelConnection(activity.actionId)}>Cancel</button>}
           </>
         )}
-        {state === 'verified' && <div className="tool-state done"><span className="tool-status-icon done" aria-hidden="true" />Connected</div>}
-        {state === 'failed' && <div className="tool-error"><span className="tool-status-icon failed" aria-hidden="true" />{target ? `Couldn't reach ${target}` : "Couldn't connect"}</div>}
-        {state === 'cancelled' && <div className="tool-state"><span className="tool-status-icon cancelled" aria-hidden="true" />Cancelled</div>}
+        {state === 'verified' && <ToolStatus state="succeeded">{target ? `Connected to ${target}.` : 'Connected.'}</ToolStatus>}
+        {state === 'failed' && <ToolStatus state="failed">{target ? `Couldn't reach ${target}` : "Couldn't connect"}</ToolStatus>}
+        {state === 'cancelled' && <ToolStatus state="cancelled">Cancelled. No connection was made.</ToolStatus>}
       </div>
     );
   }
@@ -171,8 +184,11 @@ export function PrinterCredentialCard({
         onDecision(activity.actionId, 'approve', { credential });
       }}
     >
-      <div className="tool-title">{activity.title}</div>
-      <div className="tool-state"><span className="tool-status-icon pending" aria-hidden="true" />Pending</div>
+      <div className="printer-notice-heading">
+        <PrinterGlyph className="printer-credential-glyph" />
+        <span className="tool-title">{activity.title}</span>
+      </div>
+      <div className="printer-credential-state">{model ? `Pending · ${model}` : 'Pending'}</div>
       <label className="printer-credential-field">
         <span>{bambu ? 'Access code' : 'API key (if the printer asks for one)'}</span>
         <input

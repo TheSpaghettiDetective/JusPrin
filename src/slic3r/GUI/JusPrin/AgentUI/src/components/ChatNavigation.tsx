@@ -78,8 +78,8 @@ export function ActionMenu({ label, items, buttonRef }: {
 
 // A modal question over the panel: focus starts on its first control and
 // stays inside it, and Escape is the same as `onClose` (its Cancel).
-export function Dialog({ title, onClose, children, destructive = false }: {
-  title: string; onClose: () => void; children: React.ReactNode; destructive?: boolean;
+export function Dialog({ title, onClose, children }: {
+  title: string; onClose: () => void; children: React.ReactNode;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -87,8 +87,8 @@ export function Dialog({ title, onClose, children, destructive = false }: {
 
   useEffect(() => { controls()[0]?.focus(); }, []);
 
-  return <div className={`chat-dialog-shade${destructive ? ' chat-dialog-shade--destructive' : ''}`}>
-    <div ref={dialog} className={`chat-dialog${destructive ? ' chat-dialog--destructive' : ''}`}
+  return <div className="chat-dialog-shade">
+    <div ref={dialog} className="chat-dialog"
       role="dialog" aria-modal="true" aria-labelledby={titleId}
       onKeyDown={(event) => {
         if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
@@ -140,19 +140,22 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete, 
       ]} />
       <AgentPaneToggle onCollapse={onCollapse} />
     </header>
-    {editing && <Dialog title={editing === 'rename' ? 'Rename chat' : 'Delete chat?'} onClose={closeDialog}
-      destructive={editing === 'delete'}>
+    {editing && <Dialog title={editing === 'rename' ? 'Rename chat' : 'Delete chat?'} onClose={closeDialog}>
       {editing === 'rename' ? <form onSubmit={(event) => {
         event.preventDefault();
         if (validName) { onRename(name.trim()); closeDialog(); }
       }}>
-        <label htmlFor="chat-title-input">Chat title</label>
-        <input id="chat-title-input" ref={renameInput} value={name} onChange={(event) => setName(event.target.value)} />
-        {!validName && <p role="alert">Enter a title of 1–120 characters.</p>}
+        <div className="chat-dialog-field">
+          <label htmlFor="chat-title-input">Chat title</label>
+          <input id="chat-title-input" ref={renameInput} value={name} aria-invalid={!validName}
+            aria-describedby={validName ? undefined : 'chat-title-error'} onChange={(event) => setName(event.target.value)} />
+          {!validName && <p id="chat-title-error" className="chat-dialog-field-error" role="alert">Enter a title of 1–120 characters.</p>}
+        </div>
         <div className="chat-dialog-buttons"><button type="button" onClick={closeDialog}>Cancel</button>
           <button className="primary" disabled={!validName} type="submit">Save</button></div>
       </form> : <>
-        <p>Delete “{title}” and its messages? Your model, builds, and print history will stay. This cannot be undone.</p>
+        <p>Delete ‘{title}’ and its messages? Your model, builds, and print history will stay. This cannot be undone.</p>
+        {busy && <p className="chat-dialog-note">Wait for the current action to finish before deleting.</p>}
         <div className="chat-dialog-buttons"><button onClick={closeDialog}>Cancel</button>
           <button className="danger" disabled={busy} onClick={() => { onDelete(); closeDialog(); }}>Delete</button></div>
       </>}

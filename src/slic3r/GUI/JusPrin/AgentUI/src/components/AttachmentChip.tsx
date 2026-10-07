@@ -31,31 +31,34 @@ export function AttachmentChip({ attachment, onRemove }: Props) {
   const title = attachment.name || attachment.summary || label;
   const extension = attachment.name.split('.').pop()?.toUpperCase();
   const kind = attachment.previewDataUrl ? label : extension && extension.length <= 5 ? extension : label;
-  const format = attachment.previewDataUrl ? `${attachment.mime.split('/')[1]?.toUpperCase() || label} · ` : '';
+  // The format the size is of: the picture's own, or the kind on the badge.
+  const format = attachment.previewDataUrl ? attachment.mime.split('/')[1]?.toUpperCase() || label : kind;
 
   return (
     <div className={`attachment-chip${errored ? ' errored' : ''}`} title={title}>
-      {attachment.previewDataUrl ? (
-        <img className="attachment-thumb" src={attachment.previewDataUrl} alt="" />
-      ) : (
-        <span className="attachment-kind" aria-hidden="true">
-          {kind}
+      <div className="attachment-content">
+        {attachment.previewDataUrl ? (
+          <img className="attachment-thumb" src={attachment.previewDataUrl} alt="" />
+        ) : (
+          <span className="attachment-kind" aria-hidden="true">
+            {kind}
+          </span>
+        )}
+        <span className="attachment-meta">
+          <span className="attachment-name">{title}</span>
+          <span className="attachment-sub">{format} · {sizeLabel(attachment.sizeBytes)}</span>
         </span>
-      )}
-      <span className="attachment-meta">
-        <span className="attachment-name">{title}</span>
-        <span className="attachment-sub">{format}{sizeLabel(attachment.sizeBytes)}</span>
-      </span>
-      {onRemove && (
-        <button
-          type="button"
-          className="attachment-remove"
-          aria-label={`Remove ${title}`}
-          onClick={() => onRemove(attachment.id)}
-        >
-          Remove
-        </button>
-      )}
+        {onRemove && (
+          <button
+            type="button"
+            className="attachment-remove"
+            aria-label={`Remove ${title}`}
+            onClick={() => onRemove(attachment.id)}
+          >
+            Remove
+          </button>
+        )}
+      </div>
       {errored && <span className="attachment-error">{attachment.error?.message ?? 'Could not be attached'}</span>}
     </div>
   );

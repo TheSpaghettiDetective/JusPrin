@@ -25,9 +25,8 @@ describe('the cards the agent draws', () => {
 
   it('lists what is on the network, with its serial, and nothing to tap', () => {
     render(<PrinterBlockView block={block({ kind: 'network', printers: [{ name: 'Workshop', serial: '01P00A3B', online: true }] })} />);
-    expect(screen.getByText('FOUND ON YOUR NETWORK')).toBeInTheDocument();
-    expect(screen.getByText('01P00A3B')).toBeInTheDocument();
-    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.getByText('Found on your network')).toBeInTheDocument();
+    expect(screen.getByText('Online · 01P00A3B')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
   });
 
@@ -44,18 +43,41 @@ describe('the cards the agent draws', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/^Added: Creality K1$/);
   });
 
+  // The app does not send these yet; each is drawn only when it is there.
+  it('adds the model to a network row, a receipt and a card once the app reports it', () => {
+    const { unmount } = render(<PrinterBlockView block={block({ kind: 'network', printers: [
+      { name: 'Studio A1', serial: 'DEMO-A1-2048', online: true, model: 'Bambu A1' },
+      { name: 'Workshop M4', serial: 'DEMO-M4-0031', online: false, model: 'Qidi M4' },
+    ] })} />);
+    expect(screen.getByText('Online · Bambu A1 · DEMO-A1-2048')).toBeInTheDocument();
+    // An unreachable printer says only that.
+    expect(screen.getByText('Offline')).toBeInTheDocument();
+    unmount();
+
+    const receipt = render(<PrinterBlockView block={block({ kind: 'added', printer: { name: 'Studio A1', nozzle: 0.4, model: 'Bambu A1' } })} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Bambu A1 · 0.4 mm nozzle');
+    receipt.unmount();
+
+    render(<PrinterBlockView block={block({ kind: 'printers', printers: [
+      { catalogId: 'a1-mini', name: 'Bambu Lab A1 mini', brand: 'Bambu Lab', model: 'A1 mini', buildVolume: '180 × 180 × 180 mm', picture: '' },
+    ] })} />);
+    expect(screen.getByText('Bambu Lab')).toHaveClass('printer-card-brand');
+    expect(screen.getByText('A1 mini')).toBeInTheDocument();
+    expect(screen.queryByText('Bambu Lab A1 mini')).toBeNull();
+  });
+
   it('says the plug-in is needed, and Install asks the app to install it', async () => {
     const install = vi.fn();
     render(<PrinterBlockView block={block({ kind: 'plugin' })} onInstallPlugin={install} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Bambu network plug-in needed');
-    expect(screen.getByRole('status')).toHaveTextContent('already works for preparing prints');
+    expect(screen.getByRole('status')).toHaveTextContent('Bambu plug-in needed');
+    expect(screen.getByRole('status')).toHaveTextContent('You can prepare prints with this printer before installing the Bambu plug-in.');
     await userEvent.click(screen.getByRole('button', { name: 'Install plug-in' }));
     expect(install).toHaveBeenCalledTimes(1);
   });
 
   it('says once the plug-in is installed, with nothing left to tap', () => {
     render(<PrinterBlockView block={block({ kind: 'plugin', installed: true })} onInstallPlugin={vi.fn()} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Network plug-in installed');
+    expect(screen.getByRole('status')).toHaveTextContent('Bambu plug-in installed');
     expect(screen.queryByRole('button')).toBeNull();
   });
 
@@ -124,9 +146,9 @@ describe('the credential card', () => {
   });
 
   it.each([
-    ['verified', 'Connected'],
+    ['verified', 'Connected to 192.168.1.42.'],
     ['failed', "Couldn't reach 192.168.1.42"],
-    ['cancelled', 'Cancelled'],
+    ['cancelled', 'Cancelled. No connection was made.'],
   ] as const)('ends %s in plain words, with nothing left to tap', (state, words) => {
     render(
       <PrinterCredentialCard
@@ -141,9 +163,23 @@ describe('the credential card', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('shows how far the connection has got once the app measures it', () => {
+    render(<PrinterCredentialCard activity={connect({ state: 'running' })} connection={{ state: 'connecting', target: '192.168.1.42', percent: 60 }}
+      onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+    expect(screen.getByText('Connecting · 60%')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Connecting' })).toHaveAttribute('aria-valuenow', '60');
+  });
+
+  it('names the kind of printer on the waiting card when the app knows it', () => {
+    const { rerender } = render(<PrinterCredentialCard activity={connect()} onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    rerender(<PrinterCredentialCard activity={connect()} model="Bambu A1" onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+    expect(screen.getByText('Pending · Bambu A1')).toBeInTheDocument();
+  });
+
   it('folds to one line once decided, with no field left', () => {
     render(<PrinterCredentialCard activity={connect({ state: 'rejected' })} onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
-    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled. No connection was made.')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
   });

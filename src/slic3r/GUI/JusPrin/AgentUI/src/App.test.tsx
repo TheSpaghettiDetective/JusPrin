@@ -730,7 +730,7 @@ describe('App', () => {
     expect(host.lastOfType('user_message')).toBeUndefined();
   });
 
-  it('renders one project-update boundary with three actions and a locked continuation', () => {
+  it('renders one earlier-chat notice with three actions above a locked field', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({
       conversations: [
@@ -742,12 +742,16 @@ describe('App', () => {
     }));
     expect(screen.getAllByRole('note')).toHaveLength(1);
     const boundary = screen.getByRole('note');
-    expect(boundary).toHaveTextContent('There have been project updates.');
+    expect(boundary).toHaveTextContent('There have been project updates since this chat. Restore its saved project version to continue.');
     expect(within(boundary).getByRole('button', { name: 'Restore and resume' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
-    expect(screen.getByRole('textbox', { name: /message/i })).toHaveAttribute('placeholder', 'Restore this chat to continue');
+    // The notice above the field says why; the field itself is an empty shell
+    // with nothing to attach.
+    expect(screen.getByRole('textbox', { name: /message/i })).toHaveAttribute('placeholder', '');
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Attach a file' })).toBeNull();
     // The boundary ends the conversation; it is not part of the setup card.
     expect(within(screen.getByTestId('current-setup')).queryByRole('note')).toBeNull();
     expect(screen.getByTestId('current-setup')).not.toHaveTextContent('project updates');
@@ -768,7 +772,10 @@ describe('App', () => {
     expect(field).toHaveValue('');
     await userEvent.type(field, 'hello{Enter}');
     expect(field).toHaveValue('');
-    expect(screen.queryByRole('button', { name: /send/i })).toBeNull();
+    // The shell keeps its Send, disabled (Figma "Historical composer · disabled").
+    const send = screen.getByRole('button', { name: /send/i });
+    expect(send).toBeDisabled();
+    await userEvent.click(send);
     expect(host.lastOfType('user_message')).toBeUndefined();
     expect(host.lastOfType('draft_update')).toBeUndefined();
   });
@@ -785,11 +792,11 @@ describe('App', () => {
     }));
     const boundary = screen.getByRole('note');
     expect(boundary).not.toHaveTextContent('There have been project updates');
-    expect(boundary).toHaveTextContent('The project has not changed since.');
+    expect(boundary).toHaveTextContent('This chat is inactive. Resume from its saved setup to continue.');
     expect(within(boundary).getByRole('button', { name: 'Resume saved setup' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
-    expect(screen.getByRole('textbox', { name: /message/i })).toHaveAttribute('placeholder', 'Resume this chat to continue');
+    expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
   });
 
   it('does not claim project updates when a historical checkpoint is unavailable', () => {
@@ -806,7 +813,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Restore and resume' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Resume saved setup' })).not.toBeInTheDocument();
     const boundary = screen.getByRole('note');
-    expect(boundary).toHaveTextContent('This chat can’t be continued.');
+    expect(boundary).toHaveTextContent('This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.');
     expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();

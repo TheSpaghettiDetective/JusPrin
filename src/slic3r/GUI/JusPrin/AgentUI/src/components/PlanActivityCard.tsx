@@ -4,6 +4,8 @@
 // the first member still waiting.
 
 import { ActionClassName, ToolActivityInfo, ToolStateName } from '../bridge/protocol';
+import { Progress } from './Progress';
+import { ToolStatus } from './ToolActivityCard';
 
 interface Props {
   readOnly?: boolean;
@@ -77,43 +79,49 @@ export function PlanActivityCard({ members, headline, stillProposing, onDecision
   return (
     <div className={`tool-card plan-card state-${state}`} data-testid={`plan-${members[0].planId}`}>
       <div className="tool-title">{headline ?? `A plan of ${members.length} changes`}</div>
-      <div className="tool-meta">
+      {/* A destructive plan says so in words and names the step; the colour
+          only repeats it. */}
+      <div className={destructive ? 'tool-meta destructive' : 'tool-meta'}>
         {members.length} {members.length === 1 ? 'change' : 'changes'} · {highest === 'destructive' ? 'destructive' : 'changes the project'}
         {destructive && ` — “${destructive.title}” cannot be undone in JusPrin`}
       </div>
       <ol className="plan-members">
         {members.map((member) => (
-          <li key={member.actionId} className={`plan-member state-${member.state}`}>
-            <span className="plan-member-title">{member.title}</span>
-            <span className="tool-state">
-              {member.actionClass === 'destructive' ? 'Destructive · ' : ''}
-              {memberLabels[member.state]}
+          <li key={member.actionId}
+            className={`plan-member state-${member.state}${member.actionClass === 'destructive' ? ' destructive' : ''}`}>
+            <span className="plan-member-row">
+              <span className="plan-member-title">{member.title}</span>
+              <span className="plan-member-state">{memberLabels[member.state]}</span>
             </span>
-            {member.state === 'failed' && member.error && <div className="tool-error">{member.error.message}</div>}
+            {member.state === 'failed' && member.error && <span className="plan-member-error">{member.error.message}</span>}
           </li>
         ))}
       </ol>
 
       {waiting && (
-        <div className="tool-actions">
-          <span className="tool-state">{stillProposing ? 'The Agent is still adding to this plan' : 'Waiting for your approval'}</span>
-          <button className="primary" disabled={stillProposing || readOnly} onClick={() => onDecision(waiting.actionId, 'approve')}>
-            Approve all
-          </button>
-          <button disabled={stillProposing || readOnly} onClick={() => onDecision(waiting.actionId, 'reject')}>Reject all</button>
-        </div>
+        <>
+          <ToolStatus state="pending">
+            {stillProposing ? 'The Agent is still adding to this plan' : 'Waiting for your approval'}
+          </ToolStatus>
+          <div className="tool-actions">
+            <button className="primary" disabled={stillProposing || readOnly} onClick={() => onDecision(waiting.actionId, 'approve')}>
+              Approve all
+            </button>
+            <button disabled={stillProposing || readOnly} onClick={() => onDecision(waiting.actionId, 'reject')}>Reject all</button>
+          </div>
+        </>
       )}
 
       {!waiting && active.length > 0 && (
-        <div className="tool-actions">
-          <progress aria-label="Plan progress" max={members.length} value={done} />
-          <span className="tool-state">{done} of {members.length}</span>
+        <div className="tool-actions plan-execution">
+          <Progress label="Plan progress" value={done} max={members.length} />
+          <span className="plan-progress-text">{done} of {members.length}</span>
           <button disabled={readOnly} onClick={() => active.forEach((member) => onCancel(member.actionId))}>Cancel</button>
         </div>
       )}
 
-      {state === 'succeeded' && <div className="tool-state done">Done</div>}
-      {state === 'rejected' && <div className="tool-state">Rejected — nothing was changed</div>}
+      {state === 'succeeded' && <ToolStatus state="succeeded">Done</ToolStatus>}
+      {state === 'rejected' && <ToolStatus state="rejected">Rejected — nothing was changed</ToolStatus>}
     </div>
   );
 }

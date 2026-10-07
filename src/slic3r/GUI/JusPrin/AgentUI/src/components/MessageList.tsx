@@ -275,8 +275,13 @@ export function MessageList({
         const choices =
           message.state === 'complete' && message.id === messages[messages.length - 1].id ? reply.choices : [];
         const bubble = workingOnCard ? (
-          <div className="printer-activity" role="status">
-            Working on it…
+          // Chat/System Line: the agent's mark, then a quiet line of status.
+          <div className="message assistant">
+            <span className="agent-avatar" aria-hidden="true" />
+            <div className="printer-activity" role="status">
+              <span className="jp-icon jp-icon-rotate-cw" aria-hidden="true" />
+              Working on it…
+            </div>
           </div>
         ) : emptyPrinterTurn ? null : (
           <div className={`message ${message.role}`}>
@@ -322,12 +327,10 @@ export function MessageList({
                 </div>
               )}
               {message.state === 'failed' && message.error && (
-                <div className="error">
-                  {message.error.message}
+                <div className="message-failure">
+                  <div className="error">{message.error.message}</div>
                   {message.error.retryable && !readOnly && (
-                    <div>
-                      <button onClick={() => onRetry(message.id)}>Retry</button>
-                    </div>
+                    <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
                   )}
                 </div>
               )}

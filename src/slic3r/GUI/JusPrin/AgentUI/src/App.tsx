@@ -394,16 +394,13 @@ export function App({
   const viewedChat = state.conversations.find((chat) => chat.id === viewedId);
   const historical = viewedId !== state.activeConversationId;
   const resumeStatus = state.chatResume.status;
-  // What the end of an earlier chat says depends on what its checkpoint is
+  // What the notice on an earlier chat says depends on what its checkpoint is
   // worth: only a project that really moved on is described as updated.
   const boundary = resumeStatus === 'changed'
-    ? { title: 'There have been project updates.', detail: 'Restore this chat’s saved project to continue.',
-        locked: 'Restore this chat to continue' }
+    ? 'There have been project updates since this chat. Restore its saved project version to continue.'
     : resumeStatus === 'unchanged'
-      ? { title: 'This is an earlier chat.', detail: 'The project has not changed since. Resume it from its saved setup to continue.',
-          locked: 'Resume this chat to continue' }
-      : { title: 'This chat can’t be continued.', detail: 'Its saved project is missing or damaged, so there is nothing to restore.',
-          locked: 'This chat can’t be continued' };
+      ? 'This chat is inactive. Resume from its saved setup to continue.'
+      : 'This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.';
   const returnToActiveChat = () => {
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     setView('chat');
@@ -426,23 +423,19 @@ export function App({
       conversationId: viewedId, activeConversationId: state.activeConversationId, docRevision: state.docRevision,
     });
   };
-  // The end of an earlier chat: what happened to the project since, the
-  // three ways on, and the locked field where the composer would be.
+  // The notice on an earlier chat: why it cannot continue as it is, and the
+  // ways on. It sits in the composer's band, above the field it has locked.
   const projectUpdates = historical && <div className="project-updates" role="note">
-    <hr className="project-updates-divider" />
-    <p className="project-updates-title">{boundary.title}</p>
-    <p className="project-updates-detail">{boundary.detail}</p>
+    <p>{boundary}</p>
     <div className="project-updates-actions">
       {resumeStatus !== 'unavailable' && <button type="button" className="primary"
         disabled={busy || state.projectChatBlocked} onClick={resumeChat}>{resumeStatus === 'changed' ? 'Restore and resume' : 'Resume saved setup'}</button>}
       <button type="button" className="project-updates-link" onClick={returnToActiveChat}>Return to active chat</button>
       <button type="button" className="project-updates-link" onClick={askCurrentChat}>Ask current chat about this</button>
     </div>
-    <hr className="project-updates-divider" />
-    <div className="project-updates-locked">
-      <span className="jp-icon jp-icon-lock" aria-hidden="true" />
-      <input type="text" aria-label="Message the Agent" disabled placeholder={boundary.locked} />
-    </div>
+  </div>;
+  const blockedAlert = state.projectChatBlocked && <div className="composer-alert" role="alert">
+    Project restoration needs recovery. This chat cannot run project actions.
   </div>;
   const cardContext = historical ? state.chatResume.summary ?? null : state.context;
   // A saved summary belongs to a send when this chat sent the plate it shows.
@@ -482,7 +475,7 @@ export function App({
   const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); collapseSetup(); };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
-    <span>{commandError}</span><button aria-label="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
+    <span>{commandError}</span><button className="icon" aria-label="Dismiss error" title="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
   </div>;
 
   const chatList = <ChatList conversations={state.conversations} activeId={state.activeConversationId} busy={busy}
@@ -592,11 +585,11 @@ export function App({
             </button>
           </header>
           {confirmPrinterClose && (
-            <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)} destructive>
+            <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)}>
               <p>This conversation will be closed. You can't continue it at a later point. Are you sure?</p>
               <div className="chat-dialog-buttons">
                 <button type="button" onClick={() => setConfirmPrinterClose(false)}>Cancel</button>
-                <button type="button" className="danger" onClick={() => { setConfirmPrinterClose(false); printerAction('close'); }}>
+                <button type="button" className="danger decisive" onClick={() => { setConfirmPrinterClose(false); printerAction('close'); }}>
                   Close conversation
                 </button>
               </div>
@@ -619,6 +612,7 @@ export function App({
                 <PrinterCredentialCard
                   activity={activity}
                   connection={session?.connections?.[activity.actionId]}
+                  model={session?.context.printer?.model}
                   onDecision={sendToolDecision}
                   onCancelConnection={(actionId) => client.send('printer_action', { action: 'cancel_connection', actionId })}
                 />
@@ -722,14 +716,28 @@ export function App({
         />
       )}
       {body()}
-      {state.projectChatBlocked && <div className="chat-error" role="alert">
-        Project restoration needs recovery. This chat cannot run project actions.
-      </div>}
-      {view === 'chat' && historical && <div className="project-updates-band">{projectUpdates}</div>}
+      {/* An earlier chat is read-only: its composer is an empty, disabled
+          shell under the notice, with no draft and no attachments. */}
+      {view === 'chat' && historical && <Composer
+        key={`composer-historical-${viewedId}`}
+        disabled
+        disabledReason=""
+        attachable={false}
+        streaming={false}
+        attachments={[]}
+        notice={<>{blockedAlert}{projectUpdates}</>}
+        onSend={() => {}}
+        onStop={() => {}}
+        onAttachFiles={() => {}}
+        onRemoveAttachment={() => {}}
+      />}
+      {!historical && state.navigation.focused && notConfigured && blockedAlert}
       {!historical && !(state.navigation.focused && notConfigured) && <div hidden={view === 'setup'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}
         disabled={unavailable || state.projectChatBlocked}
         disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
+        attachable={!state.projectChatBlocked}
+        notice={blockedAlert || undefined}
         placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
         streaming={streaming}
         initialText={state.draft}

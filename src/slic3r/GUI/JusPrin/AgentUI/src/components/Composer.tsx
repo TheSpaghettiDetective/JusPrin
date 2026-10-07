@@ -10,7 +10,7 @@
 // attachments and no text. The host owns decoding and storage — the composer
 // only hands it files.
 
-import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { AttachmentInfo, AttachmentSource } from '../bridge/protocol';
 import { AttachmentChip } from './AttachmentChip';
 
@@ -35,6 +35,12 @@ interface Props {
   // Labelled "Photo" instead of a bare paperclip: in the printer panel a
   // picture is a primary way to say which printer this is, not an extra.
   photoButton?: boolean;
+  // What the band says above the field when the field cannot be used as it
+  // is: the notice on an earlier chat, or a recovery alert.
+  notice?: ReactNode;
+  // False where nothing can be attached at all, so the action is left out
+  // rather than shown disabled: a read-only shell has only its field and Send.
+  attachable?: boolean;
 }
 
 export function Composer({
@@ -52,6 +58,8 @@ export function Composer({
   onTyping,
   placeholder,
   photoButton,
+  notice,
+  attachable = true,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
   const [dragging, setDragging] = useState(false);
@@ -137,17 +145,9 @@ export function Composer({
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
     >
-      {attachments.length > 0 && (
-        <div className="composer-attachments" aria-label="Staged attachments">
-          {attachments.map((attachment) => (
-            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
-          ))}
-          {/* A staged photo waits for the person; it never sends itself. */}
-          {photoButton && <span className="composer-staged-hint">add a note, or just send</span>}
-        </div>
-      )}
+      {notice}
       <div className="composer-row">
-        <button
+        {attachable && <button
           type="button"
           className={photoButton ? 'attach-button attach-button-photo' : 'attach-button'}
           aria-label={photoButton ? 'Add a photo' : 'Attach a file'}
@@ -155,7 +155,7 @@ export function Composer({
           onClick={() => fileInput.current?.click()}
         >
           {photoButton ? 'Photo' : 'Attach a file'}
-        </button>
+        </button>}
         <input
           ref={fileInput}
           type="file"
@@ -171,7 +171,12 @@ export function Composer({
           placeholder={
             disabled
               ? disabledReason ?? 'The Agent is not available'
-              : placeholder ?? 'Ask about this print or request a change…'
+              : streaming
+                ? 'Agent is responding…'
+                // A staged photo waits for the person; it never sends itself.
+                : photoButton && hasSendable
+                  ? 'add a note, or just send'
+                  : placeholder ?? 'Ask about this print…'
           }
           value={text}
           disabled={disabled}
@@ -187,7 +192,7 @@ export function Composer({
           rows={1}
         />
         {streaming ? (
-          <button type="button" className="composer-send" onClick={onStop} aria-label="Stop generating">
+          <button type="button" className="composer-send composer-stop" onClick={onStop} aria-label="Stop generating">
             Stop
           </button>
         ) : (
@@ -202,6 +207,13 @@ export function Composer({
           </button>
         )}
       </div>
+      {attachments.length > 0 && (
+        <div className="composer-attachments" aria-label="Staged attachments">
+          {attachments.map((attachment) => (
+            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

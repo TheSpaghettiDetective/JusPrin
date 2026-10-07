@@ -20,7 +20,7 @@ export function staticVariableNames(): string[] {
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
-    '--field-height', '--field-padding-x', '--setup-card-icon-size'];
+    '--field-height', '--field-padding-x', '--setup-card-icon-size', '--swatch-size'];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
@@ -35,6 +35,8 @@ export function staticVariableNames(): string[] {
 //                          strength, a percentage for color-mix())
 //   --setup-card-icon-size the setup card's fact glyphs, which sit inside a
 //                          row of Label or Metadata text
+//   --swatch-size          a colour drawn beside a note, the design
+//                          system's Swatch
 //   --reply-chip-height,   a reply the assistant offers as a chip under its
 //   --reply-chip-padding-x message: its height and its text's inset.
 export function applyStaticTokens(): void {
@@ -50,7 +52,8 @@ export function applyStaticTokens(): void {
       chatAttachment: { maxWidth: number; thumbnailSize: number; kindSize: number };
       field: { height: number; paddingX: number };
       printerCard: { pictureSize: number };
-      setupCard: { iconSize: number } };
+      setupCard: { iconSize: number };
+      swatch: { size: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
   document.documentElement.style.setProperty('--thread-row-avatar-size', `${component.threadRow.avatarSize}px`);
@@ -71,6 +74,7 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--timeline-revert-width', `${component.timelineRevert.width}px`);
   document.documentElement.style.setProperty('--status-dot-size', `${component.statusDot.size}px`);
   document.documentElement.style.setProperty('--setup-card-icon-size', `${component.setupCard.iconSize}px`);
+  document.documentElement.style.setProperty('--swatch-size', `${component.swatch.size}px`);
   document.documentElement.style.setProperty('--chat-attachment-max-width', `${component.chatAttachment.maxWidth}px`);
   document.documentElement.style.setProperty('--chat-attachment-thumbnail-size', `${component.chatAttachment.thumbnailSize}px`);
   document.documentElement.style.setProperty('--chat-attachment-kind-size', `${component.chatAttachment.kindSize}px`);

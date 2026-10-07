@@ -497,6 +497,10 @@ export interface PrinterSpoolInfo {
 export interface PrinterCardInfo {
   catalogId: string;
   name: string; // brand and model
+  // The same name in its two parts, so the card can set the brand above the
+  // model. Optional: the card shows `name` alone until the app sends both.
+  brand?: string;
+  model?: string;
   buildVolume: string; // "180 × 180 × 180 mm"
   picture: string; // data URL, empty when the profile ships no picture
 }
@@ -505,6 +509,9 @@ export interface NetworkPrinterInfo {
   name: string;
   serial: string;
   online: boolean;
+  // What kind of printer it is ("Bambu A1"). Optional: left out of the row
+  // until the app reports it.
+  model?: string;
 }
 
 // A card in the thread, anchored after the message it belongs to, in the same
@@ -529,6 +536,9 @@ export interface PrinterBlock {
 export interface AddedPrinterInfo {
   name: string;
   nozzle: number; // mm
+  // What kind of printer was saved ("Bambu A1"). Optional: the receipt shows
+  // the nozzle alone until the app reports it.
+  model?: string;
 }
 
 // The filament chat's facts, which its instructions state
@@ -558,6 +568,9 @@ export interface PrinterConnectionInfo {
   state: 'connecting' | 'verified' | 'failed' | 'cancelled';
   // What the card connects to: the address, or the printer's network name.
   target: string;
+  // How far a 'connecting' attempt has got, 0 to 100. Optional: the card
+  // draws the wait without a figure until the app measures one.
+  percent?: number;
 }
 
 export interface PrinterContext {

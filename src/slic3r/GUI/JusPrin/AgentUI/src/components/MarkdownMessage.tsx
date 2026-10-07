@@ -17,6 +17,13 @@ const components: Components = {
     </span>
   ),
   img: ({ alt }) => <span className="markdown-image-alt">[Image: {alt || 'description unavailable'}]</span>,
+  // The frame owns the stroke and the sideways scroll, so the table itself
+  // can fill the reply's width.
+  table: ({ children }) => (
+    <div className="markdown-table">
+      <table>{children}</table>
+    </div>
+  ),
 };
 
 const remarkPlugins = [remarkGfm];

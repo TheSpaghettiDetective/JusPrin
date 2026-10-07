@@ -48,11 +48,15 @@ export function FileNotesCard({ report, onSetUpAgent }: Props) {
         })}
       </ul>
       {report.messages.truncated && <p className="file-notes-more">OrcaSlicer said more than fits here.</p>}
-      <p className="file-notes-help">If you'd like help with these, set up the Agent: it can explain them and fix what needs fixing.</p>
+      {/* Offered only where the card is the way in: beside the pane's own
+          setup offer it would say the same thing twice. */}
       {onSetUpAgent && (
-        <button type="button" className="primary" onClick={onSetUpAgent}>
-          Set up the Agent
-        </button>
+        <>
+          <p className="file-notes-help">If you'd like help with these, set up the Agent: it can explain them and fix what needs fixing.</p>
+          <button type="button" className="primary" onClick={onSetUpAgent}>
+            Set up the Agent
+          </button>
+        </>
       )}
     </article>
   );

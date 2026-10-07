@@ -3,7 +3,9 @@
 // coordinator owns the state machine, so a stale button click is a benign
 // no-op there rather than a second execution.
 
+import { ReactNode } from 'react';
 import { ToolActivityInfo, ToolStateName } from '../bridge/protocol';
+import { Progress } from './Progress';
 
 interface Props {
   activity: ToolActivityInfo;
@@ -17,57 +19,71 @@ const stateLabels: Record<ToolStateName, string> = {
   approved: 'Approved',
   running: 'Running…',
   succeeded: 'Done',
-  failed: 'Failed',
+  failed: 'The action failed.',
   cancelled: 'Cancelled — nothing was changed',
   rejected: 'Rejected — nothing was changed',
 };
 
+// Which glyph a state's line leads with. Colour is never the only signal: the
+// line always has its icon and its words.
+const stateIcons: Record<ToolStateName, string> = {
+  pending: 'pending',
+  approved: 'running',
+  running: 'running',
+  succeeded: 'done',
+  failed: 'failed',
+  cancelled: 'cancelled',
+  rejected: 'cancelled',
+};
+
+// The one status line every state of a tool or plan card has.
+export function ToolStatus({ state, children }: { state: ToolStateName; children: ReactNode }) {
+  return (
+    <div className={`tool-state ${stateIcons[state]}`}>
+      <span className={`tool-status-icon ${stateIcons[state]}`} aria-hidden="true" />
+      <span className="tool-state-text">{children}</span>
+    </div>
+  );
+}
+
 export function ToolActivityCard({ activity, onDecision, onCancel, readOnly = false }: Props) {
-  const stale = activity.state === 'failed' && activity.error?.code === 'stale_revision';
-  const percent =
-    activity.progress.total > 0 ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
+  const { state } = activity;
+  const stale = state === 'failed' && activity.error?.code === 'stale_revision';
+  const measured = activity.progress.total > 0;
+  const percent = measured ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
+  const message =
+    state === 'running' && measured
+      ? `Running… · ${percent}%`
+      : state === 'failed'
+        ? stale
+          ? 'The project changed after this was proposed, so it was not run. Ask the Agent again.'
+          : activity.error?.message ?? stateLabels.failed
+        : stateLabels[state];
 
   return (
-    <div className={`tool-card state-${activity.state}`} data-testid={`tool-${activity.actionId}`}
+    <div className={`tool-card state-${state}`} data-testid={`tool-${activity.actionId}`}
       title={`${activity.tool} · ${activity.server}`}>
       <div className="tool-title">{activity.title}</div>
+      <ToolStatus state={state}>{message}</ToolStatus>
 
-      {activity.state === 'pending' && (
-        <>
-          <div className="tool-state"><span className="tool-status-icon pending" aria-hidden="true" />{stateLabels.pending}</div>
-          <div className="tool-actions">
-            <button className="primary" disabled={readOnly} onClick={() => onDecision(activity.actionId, 'approve')}>
-              Approve
-            </button>
-            <button disabled={readOnly} onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
-          </div>
-        </>
-      )}
-
-      {(activity.state === 'approved' || activity.state === 'running') && (
-        <>
-          <div className="tool-state"><span className="tool-status-icon running" aria-hidden="true" />
-            {activity.state === 'running' ? `Running…${activity.progress.total > 0 ? ` · ${percent}%` : ''}` : stateLabels.approved}
-          </div>
-          <progress aria-label={`${activity.title} progress`}
-            max={activity.progress.total > 0 ? activity.progress.total : undefined}
-            value={activity.progress.total > 0 ? activity.progress.current : undefined} />
-          <button className="tool-cancel" disabled={readOnly} onClick={() => onCancel(activity.actionId)}>Cancel</button>
-        </>
-      )}
-
-      {activity.state === 'succeeded' && <div className="tool-state done"><span className="tool-status-icon done" aria-hidden="true" />{stateLabels.succeeded}</div>}
-
-      {activity.state === 'failed' && (
-        <div className="tool-error"><span className="tool-status-icon failed" aria-hidden="true" />
-          {stale
-            ? 'The project changed after this was proposed, so it was not run. Ask the Agent again.'
-            : activity.error?.message ?? 'The action failed.'}
+      {state === 'pending' && (
+        <div className="tool-actions">
+          <button className="primary" disabled={readOnly} onClick={() => onDecision(activity.actionId, 'approve')}>
+            Approve
+          </button>
+          <button disabled={readOnly} onClick={() => onDecision(activity.actionId, 'reject')}>Reject</button>
         </div>
       )}
 
-      {(activity.state === 'cancelled' || activity.state === 'rejected') && (
-        <div className="tool-state"><span className="tool-status-icon cancelled" aria-hidden="true" />{stateLabels[activity.state]}</div>
+      {(state === 'approved' || state === 'running') && (
+        <>
+          <Progress label={`${activity.title} progress`}
+            value={state === 'running' && measured ? activity.progress.current : undefined}
+            max={state === 'running' && measured ? activity.progress.total : undefined} />
+          <div className="tool-actions">
+            <button disabled={readOnly} onClick={() => onCancel(activity.actionId)}>Cancel</button>
+          </div>
+        </>
       )}
     </div>
   );

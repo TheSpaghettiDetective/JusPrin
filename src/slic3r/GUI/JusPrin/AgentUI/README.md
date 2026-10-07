@@ -44,6 +44,26 @@ implemented natively in `DeterministicMockAgent.cpp` and asserted by
 `tests/agent/test_agent_bridge.cpp`; the tests here exercise the page against
 a scripted mock host playing the same protocol.
 
+### State matrices
+
+`src/visual/` holds one state input per state on the Figma page **Agent UI ·
+States & Components**: the approval cards, runtime and header states, chat
+list, composer, messages, manufacturing history, the earlier-chat notice, and
+the printer chat. Each is rendered by the production components, or by the
+real `App` against a scripted host, so a state is covered only if real inputs
+can produce it. `npm test` asserts every one renders; with an output path the
+same test writes a review page of all of them at the 429 and 320 DIP dock
+widths in both appearances:
+
+```bash
+PREVIEW_OUT=/tmp/agent-ui-states.html npx vitest run AgentUiStateMatrix
+```
+
+Open the page with `?show=<case>,<case>&mode=dark&dock=320` to narrow it to
+the states being compared with a Figma node. The page proves rendering only;
+look at the running app as well (`tests/shell`'s capture modes write PNGs of
+the real WebView).
+
 ## Design
 
 `tokens.ts` imports `resources/jusprin/ui/design-tokens.json` at build time

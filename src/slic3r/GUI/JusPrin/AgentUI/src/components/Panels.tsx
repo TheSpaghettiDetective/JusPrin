@@ -21,19 +21,31 @@ export function ConnectingPane() {
   );
 }
 
+// The Agent pane's technical details: one disclosure, closed until asked for,
+// whose content is the bridge's own log lines in the code face. `open` is the
+// state it starts in.
+export function Diagnostics({ lines, open = false }: { lines: string[]; open?: boolean }) {
+  return (
+    <details className="diagnostics" open={open}>
+      <summary className="diagnostics-header">
+        <span className="diagnostics-chevron" aria-hidden="true" />
+        Diagnostics
+      </summary>
+      <pre className="diagnostics-code">{lines.length > 0 ? lines.join('\n') : 'No bridge messages recorded.'}</pre>
+    </details>
+  );
+}
+
 export function BridgeErrorPane({ title, detail, diagnostics, onRetry }: BridgeErrorProps) {
   return (
     <div className="pane-state" data-testid="bridge-error" role="alert">
       <h1>{title}</h1>
       <p>This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working.</p>
-      {detail && <p>{detail}</p>}
+      {detail && <p className="pane-state-detail">{detail}</p>}
       <button className="primary" onClick={onRetry}>
         Retry
       </button>
-      <details>
-        <summary>Diagnostics</summary>
-        <pre>{diagnostics.length > 0 ? diagnostics.join('\n') : 'No bridge messages recorded.'}</pre>
-      </details>
+      <Diagnostics lines={diagnostics} />
     </div>
   );
 }

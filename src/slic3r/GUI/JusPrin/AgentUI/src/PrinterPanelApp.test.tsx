@@ -426,8 +426,12 @@ describe('a tool-only turn in the printer panel', () => {
         streamingMessageId: 'm-2',
       }),
     );
-    expect(screen.getByText('Working on it…')).toBeInTheDocument();
-    expect(document.querySelector('.agent-avatar')).toBeNull();
+    // The agent's mark beside a status line (Figma "Working on it"), never an
+    // empty reply.
+    const line = screen.getByText('Working on it…');
+    expect(line).toHaveAttribute('role', 'status');
+    expect(line.previousElementSibling).toHaveClass('agent-avatar');
+    expect(document.querySelector('.markdown-content')).toBeNull();
   });
 
   it('draws nothing for a tool-only turn once its stream ends, still empty', () => {
