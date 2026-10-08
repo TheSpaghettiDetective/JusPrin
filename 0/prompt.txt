@@ -118,3 +118,7 @@ how many6 commits have you made in this session?
 ---
 
 Amend that commits to add the new changes. Make sure you amend the commit message accoridngly too
+
+---
+
+confirmed
