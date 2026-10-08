@@ -242,21 +242,21 @@ public:
         return result;
     }
 
-    CommandResult apply(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed, SettingsPreview& applied)
+    CommandResult apply(const SettingsPatch& patch, const std::vector<SettingChange>& expected, SettingsPreview& applied)
     {
         if (preset_scope(patch.target))
-            return apply_preset(patch, confirmed, applied);
+            return apply_preset(patch, expected, applied);
         applied = preview(patch);
         const auto current = effective(patch.target);
-        for (const auto& change : confirmed)
+        for (const auto& change : expected)
             if (current.count(change.key) == 0 || current.at(change.key) != change.before)
-                return CommandResult::failure(WorkspaceError::StaleSettings, "A confirmed setting changed. Read and preview again.");
+                return CommandResult::failure(WorkspaceError::StaleSettings, "A previewed setting changed. Read and preview again.");
         if (!applied.valid)
             return CommandResult::failure(WorkspaceError::InvalidSettings, "The settings patch is invalid.");
-        const auto actual = settings_confirmation(applied);
-        if (actual.size() != confirmed.size() || !std::equal(actual.begin(), actual.end(), confirmed.begin(),
+        const auto actual = previewed_changes(applied);
+        if (actual.size() != expected.size() || !std::equal(actual.begin(), actual.end(), expected.begin(),
             [](const auto& a, const auto& b) { return a.key == b.key && a.before == b.before && a.after == b.after; }))
-            return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the approved preview.");
+            return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the preview.");
         if (actual.empty())
             return CommandResult::failure(WorkspaceError::NoChange, "All requested values are unchanged.");
         for (const auto& change : actual)
@@ -370,21 +370,21 @@ private:
         return result;
     }
 
-    CommandResult apply_preset(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed, SettingsPreview& applied)
+    CommandResult apply_preset(const SettingsPatch& patch, const std::vector<SettingChange>& expected, SettingsPreview& applied)
     {
         applied = preview_preset(patch);
         if (const FakePreset* found = preset(patch.target)) {
             const auto& current = selected(patch.target) ? found->values : found->saved;
-            for (const auto& change : confirmed)
+            for (const auto& change : expected)
                 if (current.count(change.key) == 0 || current.at(change.key) != change.before)
-                    return CommandResult::failure(WorkspaceError::StaleSettings, "A confirmed setting changed. Read and preview again.");
+                    return CommandResult::failure(WorkspaceError::StaleSettings, "A previewed setting changed. Read and preview again.");
         }
         if (!applied.valid)
             return CommandResult::failure(WorkspaceError::InvalidSettings, "The settings patch is invalid.");
-        const auto actual = settings_confirmation(applied);
-        if (actual.size() != confirmed.size() || !std::equal(actual.begin(), actual.end(), confirmed.begin(),
+        const auto actual = previewed_changes(applied);
+        if (actual.size() != expected.size() || !std::equal(actual.begin(), actual.end(), expected.begin(),
             [](const auto& a, const auto& b) { return a.key == b.key && a.before == b.before && a.after == b.after; }))
-            return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the approved preview.");
+            return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the preview.");
         if (actual.empty())
             return CommandResult::failure(WorkspaceError::NoChange, "All requested values are unchanged.");
         const bool   filament = patch.target.scope == SettingsScope::Filament;

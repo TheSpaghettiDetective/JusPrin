@@ -114,7 +114,7 @@
     "type": "function"
   },
   {
-    "description": "Apply an atomic settings patch. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
+    "description": "Apply an atomic settings patch. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
     "name": "settings_apply_patch",
     "parameters": {
       "additionalProperties": false,
@@ -146,11 +146,6 @@
         "persistAs": {
           "description": "Not for object. Save the changed preset under this name, as OrcaSlicer's Save does: its own name overwrites it; another name saves a copy, which is used in its place from then on. A preset that comes with OrcaSlicer cannot be overwritten (read_only_preset): save a copy, under the name the issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the preset being edited can be.",
           "maxLength": 2048,
-          "type": "string"
-        },
-        "planId": {
-          "description": "Only to group two or more changes; leave it out for a single change. Calls with the same planId share one approval card and run in order; each returns queued, and you do not hear how they end.",
-          "maxLength": 64,
           "type": "string"
         },
         "scope": {

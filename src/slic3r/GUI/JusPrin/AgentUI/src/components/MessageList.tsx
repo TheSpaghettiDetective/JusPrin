@@ -1,8 +1,7 @@
 // Conversation transcript with stable scroll anchoring: the list follows new
 // content only while the reader is at the bottom; scrolling up to reread
 // pins the viewport until they return to the bottom. Tool activity cards
-// render beneath the assistant message that proposed them, a plan's calls as
-// one card beneath the message that proposed its first call; the change log and
+// render beneath the assistant message that proposed them; the change log and
 // the manufacturing history render after the conversation item they follow,
 // in the order they happened.
 
@@ -23,7 +22,6 @@ import { ChangeRows } from './ChangeRows';
 import { FileNotesCard } from './FileNotesCard';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
-import { PlanActivityCard, planHeadline, planKey, planMembers } from './PlanActivityCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 import { PrinterBlockView } from './PrinterPanel';
 import { splitChoices, withoutPartialChoices } from '../replyChoices';
@@ -40,7 +38,6 @@ interface Props {
   restorePoints?: RestorePointInfo[];
   onRevert?: (versionId: string) => void;
   onRetry: (messageId: string) => void;
-  onToolDecision: (actionId: string, decision: 'approve' | 'reject') => void;
   onToolCancel: (actionId: string) => void;
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
@@ -111,7 +108,7 @@ function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, dis
   );
 }
 
-const inFlight = new Set(['pending', 'approved', 'running']);
+const inFlight = new Set(['pending', 'input_required', 'running']);
 
 export function MessageList({
   messages,
@@ -125,7 +122,6 @@ export function MessageList({
   restorePoints = [],
   onRevert,
   onRetry,
-  onToolDecision,
   onToolCancel,
   onSend,
   replyDisabled = false,
@@ -171,8 +167,6 @@ export function MessageList({
     ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
   ];
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
-  const plans = planMembers(toolActivities);
-  const headline = planHeadline(toolActivities);
   // A change follows a message or one of its tool activities; both place it
   // after that message's group.
   const messageOfItem = new Map<string, string>();
@@ -215,7 +209,7 @@ export function MessageList({
           <h2>Ask the Agent about your print</h2>
           <p>
             The Agent can describe the open project, the plates and objects on them, the current selection, and the
-            printer setup — or duplicate the selected object with your approval.
+            printer setup — or duplicate the selected object.
           </p>
         </div>
       )}
@@ -353,33 +347,10 @@ export function MessageList({
                 bubble
               )}
               {activitiesOf(message.id).map((activity) => {
-                const key = planKey(activity);
-                const found = key ? plans.get(key) : undefined;
-                // A plan of one change is decided like any other call, once
-                // the agent can no longer add to it.
-                const members = found && (found.length > 1 || streamingMessageId !== null) ? found : undefined;
-                if (members && members[0].actionId !== activity.actionId) return null;
-                const own = members ? undefined : renderActivity?.(activity);
+                const own = renderActivity?.(activity);
                 if (own !== undefined) return <Fragment key={activity.actionId}>{own}</Fragment>;
-                return members ? (
-                  <PlanActivityCard
-                    key={activity.actionId}
-                    members={members}
-                    headline={headline}
-                    stillProposing={streamingMessageId !== null}
-                    onDecision={onToolDecision}
-                    onCancel={onToolCancel}
-                    readOnly={readOnly}
-                  />
-                ) : (
-                  <ToolActivityCard
-                    key={activity.actionId}
-                    activity={activity}
-                    onDecision={onToolDecision}
-                    onCancel={onToolCancel}
-                    readOnly={readOnly}
-                  />
-                );
+                return <ToolActivityCard key={activity.actionId} activity={activity}
+                  onCancel={onToolCancel} readOnly={readOnly} />;
               })}
             </div>
             {printerBlockViews(message.id)}

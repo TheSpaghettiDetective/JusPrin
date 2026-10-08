@@ -7,7 +7,7 @@
 namespace Slic3r::GUI::JusPrin::Mcp {
 
 // GUI-thread adapter. The host owns this after the coordinator and destroys
-// it first. Network traffic is never allowed to approve a proposal.
+// it first.
 class McpRuntime
 {
 public:

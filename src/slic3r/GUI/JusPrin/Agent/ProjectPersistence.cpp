@@ -280,7 +280,7 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     m_document = std::move(loaded);
 
     // The recovery mirror may hold state newer than the last explicit save
-    // (messages, approvals, a partial reply from before a crash).
+    // (messages, tool activity, a partial reply from before a crash).
     const std::string recovery = m_config.managed_root.empty() ? recovery_dir() :
         (m_config.recovery_root.empty() ? std::string() :
             (fs::path(m_config.recovery_root) / m_document.project_id()).string());

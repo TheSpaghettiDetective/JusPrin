@@ -82,7 +82,7 @@ struct AttachmentRecord
 };
 
 // Where a recorded fact came from. A tool never promotes an inferred value to
-// confirmed; only an approved write that showed the value on its card does.
+// confirmed; only a write of the user's explicit answer does.
 enum class Provenance : std::uint8_t { File, Observed, AgentInferred, UserConfirmed };
 
 // One spelling, shared by the stored document and every tool result.

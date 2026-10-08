@@ -50,8 +50,7 @@ const SETTINGS =
   'Rules for changing its settings:\n' +
   '- Every settings call uses scope "printer" and target {"preset": the printer\'s name below}. Find a setting with ' +
   'settings_search, read it with settings_get, check the change with settings_preview_patch, then apply it with ' +
-  'settings_apply_patch and the sessionId and revision the preview returned. Applying shows the person a card to ' +
-  'approve.\n' +
+  'settings_apply_patch and the sessionId and revision the preview returned. Applying runs immediately.\n' +
   '- Save every change: pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and ' +
   'model; when the facts below give a copy to save as, pass that name instead, and say the change is saved as a copy ' +
   'with that name, which is the printer from then on. When a preview says read_only_preset, preview again with ' +

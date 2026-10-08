@@ -205,16 +205,12 @@ class Conversation:
         self.routing = {"provider": {"order": providers, "allow_fallbacks": False}} if providers else {}
         self.history = [{"role": "assistant", "content": prompt["opening"]}]  # the page's opening line
         self.log = ["assistant: " + prompt["opening"]]
-        self.waiting = None  # a card left up at the end of the last turn
-        self.waiting_turn = None  # the input of the turn that card stopped
+        self.waiting = None  # a local-input tool left waiting at the end of the last turn
+        self.waiting_turn = None  # the input of the turn that tool stopped
 
     def say(self, words):
-        """One turn: the person's words, then the model until it stops or a card waits."""
+        """One turn: the person's words, then the model until it stops or needs local input."""
         self.log.append("person: " + words)
-        # Writing while a card waits cancels it; the replay says so.
-        if self.waiting is not None:
-            self.history += self.replayed(self.waiting, {"state": "cancelled"})
-            self.waiting = None
         turn = self.history + [{"role": "user", "content": [{"type": "input_text", "text": words}]}]
         self.history.append({"role": "user", "content": words})
         self.respond(turn)
@@ -226,19 +222,19 @@ class Conversation:
         self.history.append({"role": "developer", "content": text})
         self.respond(list(self.history))
 
-    def decide(self, result):
-        """The person decides the waiting card; its result continues the turn
-        that card stopped, as the app's continue_after_tool does."""
+    def submit_input(self, result):
+        """The person submits local input; its result continues the turn that
+        stopped, as the app's continue_after_tool does."""
         call, turn = self.waiting, self.waiting_turn
         self.waiting = self.waiting_turn = None
-        self.log.append("  card decided -> " + dump(result))
+        self.log.append("  local input submitted -> " + dump(result))
         turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
         self.history += self.replayed(call, result)
         self.respond(turn)
 
     def respond(self, turn):
-        """The model until it stops or a card waits."""
-        rejected = 0
+        """The model until it stops or a tool needs local input."""
+        refused = 0
         for _ in range(MAX_REQUESTS_PER_TURN):
             response = post({"model": self.model, "store": False, "parallel_tool_calls": False,
                              "instructions": self.instructions, "tools": getattr(self.case, "tools", TOOLS), "input": turn,
@@ -256,14 +252,14 @@ class Conversation:
             arguments = json.loads(call.get("arguments") or "{}")
             self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
             problem = invalid_arguments(call["name"], arguments)
-            if problem and rejected < 2:
-                rejected += 1
+            if problem and refused < 2:
+                refused += 1
                 result, waits, recorded = {"state": "failed", "error": problem}, False, False
             else:
                 (result, waits), recorded = self.case.tool(call["name"], arguments), True
             self.log.append("  -> " + dump(result))
             if waits:
-                self.waiting, self.waiting_turn = call, turn  # a card is up: the app waits for the person
+                self.waiting, self.waiting_turn = call, turn
                 break
             turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
             if recorded:
@@ -281,8 +277,9 @@ class Conversation:
 class ConnectBambu:
     """Connect a saved Bambu Lab A1 mini that is on the network in LAN mode.
 
-    Passes when the model opens printer_connect's card for that printer. The
-    person confirms twice at most, as --printer-live's script does.
+    Passes when the model opens printer_connect's credential form for that
+    printer. The person submits credentials twice at most, as --printer-live's
+    script does.
     """
 
     name = "connect-bambu"
@@ -555,7 +552,7 @@ class ConnectOutcome(Finishing, ConnectBambu):
         ConnectBambu.run(self, conversation)
         if not self.card:
             return None
-        conversation.decide({"state": "connecting", "message": "The app is checking the printer now and gives it up to 30 seconds."})
+        conversation.submit_input({"state": "connecting", "message": "The app is checking the printer now and gives it up to 30 seconds."})
         return last_reply(conversation, note="Connection to Bambu Lab A1 mini " + outcome)
 
 
@@ -583,33 +580,6 @@ class ConnectLeaveClose(ConnectOutcome):
             return False, "NO CARD"
         reply = last_reply(conversation, "Leave it for now")
         return self.end(reply, "failed, left")
-
-
-class ConnectAfterQuestion(ConnectBambu):
-    """The person writes while the card waits, as --printer-live does: the app
-    cancels the card and the waiting turn goes on with that, then the question
-    is a turn of its own. A cancelled card is not a failed connection. Passes
-    when neither reply says to close the chat, and "connect it" then
-    opens a fresh card."""
-
-    name = "connect-after-question"
-
-    def run(self, conversation):
-        ConnectBambu.run(self, conversation)
-        if not self.card:
-            return False, "NO CARD"
-        start = len(conversation.log)
-        conversation.decide({"state": "cancelled"})
-        cancelled = [line for line in conversation.log[start:] if line.startswith("assistant: ")]
-        answered = last_reply(conversation, "where do I find the access code?")
-        self.card = False
-        last_reply(conversation, "ok, I have the code now. Connect it")
-        premature = [reply for reply in cancelled + ["assistant: " + answered]
-                     if says_can_close(reply[len("assistant: "):]) or offers_done(reply[len("assistant: "):])]
-        detail = "fresh card" if self.card else "NO FRESH CARD"
-        if premature:
-            detail += "; PREMATURE FINISH: " + repr(premature[0][-120:])
-        return self.card and not premature, detail
 
 
 class ChangeNozzleClose(Finishing):
@@ -790,10 +760,12 @@ class SavedPrinterCase:
                     "issues": issues, "warnings": []}, False
         if issues:
             return {"error": {"code": issues[0]["code"], "message": issues[0]["message"]}}, False
-        return {"state": "pending"}, True  # the card waits for the person
+        return {**context, "applied": True, "changes": changes, "normalized": [],
+                "savedAs": persist or "", "presetDirty": persist is None,
+                "projectUndo": arguments.get("scope") == "object", "truncated": False}, False
 
     def applied(self):
-        """The settings changes the model asked the person to approve."""
+        """The settings changes the model asked the app to apply."""
         return [arguments for _, arguments in self.called("settings_apply_patch")]
 
     def change(self, arguments):
@@ -814,7 +786,7 @@ class SavedPrinterCase:
         return {"changed": [{"field": "nozzle", "before": before, "after": nozzle}], "printer": dict(self.printer)}
 
     def connect(self, arguments):
-        """PrinterConversation::preflight_tool, then the card waits."""
+        """PrinterConversation::preflight_tool, then local credentials are collected."""
         if self.needs_plugin:
             return {"error": {"code": "connection_unavailable", "message": self.status["message"]}}, False
         if self.provider == "host":
@@ -875,28 +847,27 @@ class ChangeAskStartGcode(SavedPrinterCase):
 
 class ChangeEditStartGcode(SavedPrinterCase):
     """The person asks for a line in the start g-code. Passes when the change
-    is put to them on a card: this printer's start g-code, keeping G28 and
-    adding G29 after it, saved under the printer's own name; nothing else is
-    changed or added."""
+    is applied to this printer's start g-code, keeping G28 and adding G29 after
+    it, saved under the printer's own name; nothing else is changed or added."""
 
     name = "change-edit-start-gcode"
 
     def run(self, conversation):
         last_reply(conversation, "add G29 right after the G28 line in the start g-code")
         own = self.printer["name"]
-        cards = [a for a in self.applied()
-                 if a.get("persistAs") == own and "G29" in str(a.get("changes", {}).get("machine_start_gcode", "")) and
-                 str(a["changes"]["machine_start_gcode"]).find("G28") < str(a["changes"]["machine_start_gcode"]).find("G29")]
+        applied = [a for a in self.applied()
+                   if a.get("persistAs") == own and "G29" in str(a.get("changes", {}).get("machine_start_gcode", "")) and
+                   str(a["changes"]["machine_start_gcode"]).find("G28") < str(a["changes"]["machine_start_gcode"]).find("G29")]
         return verdict([self.forbidden(ADDING + ("printer_change", "printer_connect")),
-                        "" if cards else f"NO CARD FOR THE CHANGE {self.applied()}"],
-                       "put the change on a card, saved in place")
+                        "" if applied else f"CHANGE NOT APPLIED {self.applied()}"],
+                       "applied the change and saved it in place")
 
 
 class ChangeStockCopy(SavedPrinterCase):
     """A change to the settings OrcaSlicer ships for the model, selected in the
     project (the header's Printer settings… on a project that uses them).
-    Saving over them is refused; passes when the change goes on a card saved
-    as the copy the refusal suggests, and nothing is added."""
+    Saving over them is refused; passes when the change is applied to the copy
+    the refusal suggests, and nothing is added."""
 
     name = "change-stock-copy"
     printer = {**A1_MINI, "name": "Bambu Lab A1 mini 0.4 nozzle"}
@@ -914,10 +885,10 @@ class ChangeStockCopy(SavedPrinterCase):
     def run(self, conversation):
         last_reply(conversation, "set the retraction length to 1 mm")
         copy = self.printer["name"] + " - Copy"
-        cards = [a for a in self.applied() if a.get("persistAs") == copy and
-                 str(a.get("changes", {}).get("retraction_length", "")).strip() in ("1", "1.0", "1.00")]
+        applied = [a for a in self.applied() if a.get("persistAs") == copy and
+                   str(a.get("changes", {}).get("retraction_length", "")).strip() in ("1", "1.0", "1.00")]
         return verdict([self.forbidden(ADDING + ("printer_change", "printer_connect")),
-                        "" if cards else f"NO CARD FOR A COPY {self.applied()}"],
+                        "" if applied else f"COPY NOT APPLIED {self.applied()}"],
                        "saved as a copy")
 
 
@@ -1229,7 +1200,7 @@ class ConnectFailedWaysForward(SavedPrinterCase):
         if conversation.waiting is None:
             return False, "NO CARD " + str(self.called("printer_connect"))
         start = len(conversation.log)
-        conversation.decide({"state": "connecting", "message": "The app is checking the printer now and gives it up to 30 seconds."})
+        conversation.submit_input({"state": "connecting", "message": "The app is checking the printer now and gives it up to 30 seconds."})
         waiting = " ".join(line for line in conversation.log[start:] if line.startswith("assistant: "))
         last_reply(conversation, note="Connection to Voron 2.4 350 failed: The printer did not respond. Check that it is on "
                                       "the network and try again.")
@@ -1275,7 +1246,7 @@ for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoad
     _case.session = _case.session_for()
 
 CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowClose,
-                                      ConnectVerifiedClose, ConnectLeaveClose, ConnectAfterQuestion, ChangeNozzleClose,
+                                      ConnectVerifiedClose, ConnectLeaveClose, ChangeNozzleClose,
                                       ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate,
                                       ChangeUnshippedNozzle, ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress,
                                       ConnectBambuNotFound, ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
@@ -1373,7 +1344,9 @@ class FilamentCase:
                     "issues": issues, "warnings": []}, False
         if issues:
             return {"error": {"code": issues[0]["code"], "message": issues[0]["message"]}}, False
-        return {"state": "pending"}, True  # the card waits for the person
+        return {**context, "applied": True, "changes": changes, "normalized": [],
+                "savedAs": persist or "", "presetDirty": persist is None,
+                "projectUndo": False, "truncated": False}, False
 
     def called(self, *names):
         return [(name, arguments) for name, arguments in self.calls if name in names]
@@ -1385,8 +1358,8 @@ class FilamentCase:
 class FilamentHotter(FilamentCase):
     """A change relative to the value in force (seen 2026-09-29 on the project
     assistant's instructions: "5 degrees hotter" set 205 from 220, never
-    read). Passes when the temperature is read first and the change goes on a
-    card as 225 for each nozzle kind, the first layer's too, saved as the copy
+    read). Passes when the temperature is read first and changed to 225 for
+    each nozzle kind, the first layer's too, saved as the copy
     the facts name."""
 
     name = "filament-hotter"
@@ -1394,17 +1367,17 @@ class FilamentHotter(FilamentCase):
     def run(self, conversation):
         last_reply(conversation, "make the nozzle 5 degrees hotter")
         read = [a for _, a in self.called("settings_get") if "nozzle_temperature" in a.get("keys", [])]
-        cards = [a for a in self.applied() if a.get("persistAs") == self.preset + " - Copy" and
-                 all(str(a.get("changes", {}).get(key, "")).replace(" ", "") == "225,225"
-                     for key in ("nozzle_temperature", "nozzle_temperature_initial_layer"))]
+        applied = [a for a in self.applied() if a.get("persistAs") == self.preset + " - Copy" and
+                   all(str(a.get("changes", {}).get(key, "")).replace(" ", "") == "225,225"
+                       for key in ("nozzle_temperature", "nozzle_temperature_initial_layer"))]
         return verdict(["" if read else "NOT READ FIRST",
-                        "" if cards else f"NO CARD FOR 225,225 AS A COPY {self.applied()}"],
-                       "read, then put 225,225 on a card as a copy")
+                        "" if applied else f"225,225 COPY NOT APPLIED {self.applied()}"],
+                       "read, then applied 225,225 as a copy")
 
 
 class FilamentAskTemperature(FilamentCase):
     """A question. Passes when the temperature is read and quoted, and nothing
-    goes on a card."""
+    is changed."""
 
     name = "filament-ask-temperature"
 
@@ -1413,13 +1386,13 @@ class FilamentAskTemperature(FilamentCase):
         read = [a for _, a in self.called("settings_get") if "nozzle_temperature" in a.get("keys", [])]
         return verdict(["" if read else "NOT READ",
                         "" if "220" in reply else "DID NOT SAY 220",
-                        f"PUT A CHANGE ON A CARD {self.applied()}" if self.applied() else ""],
+                        f"APPLIED A CHANGE {self.applied()}" if self.applied() else ""],
                        "read and answered")
 
 
 class FilamentOtherSettings(FilamentCase):
     """A print setting asked for in a filament's chat. Passes when nothing goes
-    on a card and the reply says it is changed elsewhere in the app."""
+    is changed and the reply says it is changed elsewhere in the app."""
 
     name = "filament-other-settings"
 
@@ -1427,15 +1400,15 @@ class FilamentOtherSettings(FilamentCase):
         last_reply(conversation, "also make the walls thicker")
         yes, why = judge(conversation.log, "Does the assistant's last message tell the person that the walls, or the print's "
                                            "own settings, are changed somewhere else than this chat?")
-        return verdict([f"PUT A CHANGE ON A CARD {self.applied()}" if self.applied() else "",
+        return verdict([f"APPLIED A CHANGE {self.applied()}" if self.applied() else "",
                         "" if yes else "DID NOT SAY WHERE: " + why,
                         judged(conversation, "Does the assistant's last message say the walls were made thicker?")],
                        "said it is changed elsewhere")
 
 
 class FilamentOwnInPlace(FilamentCase):
-    """A filament the person saved. Passes when the change goes on a card saved
-    under its own name, the first layer's too."""
+    """A filament the person saved. Passes when the change is saved under its
+    own name, the first layer's too."""
 
     name = "filament-own-in-place"
     preset = "My PLA"
@@ -1444,10 +1417,10 @@ class FilamentOwnInPlace(FilamentCase):
 
     def run(self, conversation):
         last_reply(conversation, "lower the nozzle temperature to 210")
-        cards = [a for a in self.applied() if a.get("persistAs") == self.preset and
-                 all(str(a.get("changes", {}).get(key, "")).replace(" ", "") == "210,210"
-                     for key in ("nozzle_temperature", "nozzle_temperature_initial_layer"))]
-        return verdict(["" if cards else f"NO CARD FOR 210,210 IN PLACE {self.applied()}"], "saved in place")
+        applied = [a for a in self.applied() if a.get("persistAs") == self.preset and
+                   all(str(a.get("changes", {}).get(key, "")).replace(" ", "") == "210,210"
+                       for key in ("nozzle_temperature", "nozzle_temperature_initial_layer"))]
+        return verdict(["" if applied else f"210,210 NOT APPLIED IN PLACE {self.applied()}"], "saved in place")
 
 
 for _filament_case in (FilamentHotter, FilamentAskTemperature, FilamentOtherSettings, FilamentOwnInPlace):

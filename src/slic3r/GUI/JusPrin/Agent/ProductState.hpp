@@ -2,7 +2,7 @@
 
 // The product state that has no Orca owner: what the user wants out of this
 // print, and the plan the agent means to follow. The authority path is the
-// same as for any other mutation -- registry, coordinator, approval policy --
+// same as for any other mutation -- registry and coordinator --
 // and only the last step differs: the owner is a JusPrin store rather than an
 // Orca one.
 //

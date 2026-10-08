@@ -63,7 +63,7 @@ const message = (id: string, role: Message['role'], text: string, extra: Partial
 const thread = (id: string, name: string, expects: string[], props: Partial<ComponentProps<typeof MessageList>>): VisualCase => ({
   node: '1566:1320', matrix: 'Messages', id: `message-${id}`, name, frame: 'card', within: 'thread', expects,
   build: () => mounted(<MessageList messages={[]} attachments={[]} streamingMessageId={null} toolActivities={[]}
-    builds={[]} exportedCopies={[]} physicalPrints={[]} changes={[]} onRetry={noop} onToolDecision={noop}
+    builds={[]} exportedCopies={[]} physicalPrints={[]} changes={[]} onRetry={noop}
     onToolCancel={noop} onSend={noop} answeredState={false} {...props} />),
 });
 

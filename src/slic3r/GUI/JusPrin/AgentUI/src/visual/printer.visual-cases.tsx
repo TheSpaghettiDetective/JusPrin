@@ -7,7 +7,6 @@ import userEvent from '@testing-library/user-event';
 import { PrinterBlock, PrinterConnectionInfo, StatePayload, ToolActivityInfo } from '../bridge/protocol';
 import { PrinterBlockView, PrinterCredentialCard } from '../components/PrinterPanel';
 import { mounted, mountedApp, VisualCase } from '../test/visual';
-import { toolActivity } from './approvals.visual-cases';
 import { chatState, turn } from './states';
 
 const noop = () => {};
@@ -20,13 +19,16 @@ const card = (id: string, name: string, expects: string[], info: PrinterBlock): 
   build: () => mounted(<PrinterBlockView block={info} onUndoAdd={noop} onInstallPlugin={noop} />),
 });
 
-const connect = (overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo => toolActivity({
-  actionId: 'c-1', tool: 'printer_connect', title: 'Connect Studio A1', arguments: { provider: 'bambu' }, ...overrides,
+const connect = (overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo => ({
+  actionId: 'c-1', correlationId: 'm-1', server: 'jusprin-native', tool: 'printer_connect', title: 'Connect Studio A1',
+  arguments: { provider: 'bambu' }, actionClass: 'mutation', requiresInput: true, sessionId: '1', expectedRevision: 1,
+  state: 'input_required', progress: { current: 0, total: 1 }, ...overrides,
 });
 
 const credential = (id: string, name: string, expects: string[], activity: ToolActivityInfo, connection?: PrinterConnectionInfo, model?: string): VisualCase => ({
   node: '1572:2336', matrix: 'Printer chat', id: `printer-${id}`, name, frame: 'card', expects,
-  build: () => mounted(<PrinterCredentialCard activity={activity} connection={connection} model={model} onDecision={noop} onCancelConnection={noop} />),
+  build: () => mounted(<PrinterCredentialCard activity={activity} connection={connection} model={model} onInput={noop}
+    onCancelTool={noop} onCancelConnection={noop} />),
 });
 
 const session = (): StatePayload => chatState({

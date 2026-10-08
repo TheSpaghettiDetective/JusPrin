@@ -35,7 +35,6 @@ function thread(changes: ChangeInfo[], extra: { builds?: BuildInfo[]; activities
       physicalPrints={[]}
       changes={changes}
       onRetry={noop}
-      onToolDecision={noop}
       onToolCancel={noop}
       onSend={noop}
     />,
@@ -188,7 +187,7 @@ describe('change rows in the thread', () => {
   it('places a change that follows a tool activity after that activity\'s message', () => {
     const activity = {
       actionId: 't-1', correlationId: 'm-1', server: 'jusprin-native', tool: 'duplicate_object', title: 'Duplicate',
-      arguments: {}, actionClass: 'mutation', requiresApproval: true, sessionId: '1', expectedRevision: 1,
+      arguments: {}, actionClass: 'mutation', requiresInput: false, sessionId: '1', expectedRevision: 1,
       state: 'succeeded', progress: { current: 1, total: 1 },
     } satisfies ToolActivityInfo;
     const { container } = thread([change(3, { afterId: 't-1' })], { activities: [activity] });
@@ -220,7 +219,7 @@ describe('Answered · nothing changed', () => {
   it('waits while the reply streams or its proposal is still pending', () => {
     const pending = {
       actionId: 't-1', correlationId: 'm-2', server: 'jusprin-native', tool: 'duplicate_object', title: 'Duplicate',
-      arguments: {}, actionClass: 'mutation', requiresApproval: true, sessionId: '1', expectedRevision: 1,
+      arguments: {}, actionClass: 'mutation', requiresInput: false, sessionId: '1', expectedRevision: 1,
       state: 'pending', progress: { current: 0, total: 1 },
     } satisfies ToolActivityInfo;
     const { unmount } = thread([], { activities: [pending] });

@@ -49,7 +49,7 @@ def call(endpoint, method, params=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url", help="URL shown by the native MCP connection button")
-    parser.add_argument("--changes", help='JSON process patch, e.g. {"wall_loops":4}; approve or reject in JusPrin')
+    parser.add_argument("--changes", help='JSON process patch, e.g. {"wall_loops":4}; applied immediately by JusPrin')
     args = parser.parse_args()
     endpoint = urlsplit(args.url)
     if (endpoint.scheme != "http" or endpoint.hostname != "127.0.0.1" or
@@ -72,7 +72,6 @@ def main():
         content = preview["result"]["structuredContent"]
         if not content.get("valid"):
             return
-        print("Approve or reject the process-settings patch in the JusPrin Agent panel.")
         print(json.dumps(call(endpoint, "tools/call", {
             "name": "settings_apply_patch",
             "arguments": {"scope": "process", "changes": changes, "expectedSessionId": content["sessionId"], "expectedRevision": content["revision"]},

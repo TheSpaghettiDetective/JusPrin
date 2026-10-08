@@ -32,7 +32,7 @@ const SETTINGS =
   '- Every settings call uses scope "filament" and target {"preset": the filament\'s Name below}. Find a setting with ' +
   'settings_search, and read its current value with settings_get before changing it: a change such as "5 degrees ' +
   'hotter" is from that value. Check the change with settings_preview_patch, then apply it with settings_apply_patch ' +
-  'and the sessionId and revision the preview returned. Applying shows the person a card to approve.\n' +
+  'and the sessionId and revision the preview returned. Applying runs immediately.\n' +
   '- A setting may hold one value per nozzle kind: give the same number of values, separated by commas, each changed ' +
   'the way the person asked.\n' +
   '- A temperature asked for without saying which layers is the temperature of every layer: change the first layer\'s ' +

@@ -11,13 +11,12 @@
 import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { escapeHtml, productionCss, tokenVariables, VisualCase } from '../test/visual';
-import { approvalCases } from './approvals.visual-cases';
 import { authoringCases } from './authoring.visual-cases';
 import { historyCases } from './history.visual-cases';
 import { printerCases } from './printer.visual-cases';
 import { runtimeCases } from './runtime.visual-cases';
 
-const cases: VisualCase[] = [...approvalCases, ...runtimeCases, ...authoringCases, ...historyCases, ...printerCases];
+const cases: VisualCase[] = [...runtimeCases, ...authoringCases, ...historyCases, ...printerCases];
 
 const DOCK_WIDTHS = [429, 320] as const;
 // The thread insets its items 16 on each side.

@@ -124,7 +124,7 @@ When the same logic could live either in C++ or in a React page, put it in the p
 Strong reasons for C++:
 
 - **It reads or changes OrcaSlicer state:** presets, the model, plates, slicing, the device list. The page never owns project state (see the constraints below).
-- **It is a limit or a boundary the app must guarantee:** what a tool accepts and refuses, which tools a session may call, what needs the person's approval, and what reaches the model provider (API keys, access codes, project data). Page code can state a limit; only the app can enforce it.
+- **It is a limit or a boundary the app must guarantee:** what a tool accepts and refuses, which tools a session may call, and what reaches the model provider (API keys, access codes, project data). Page code can state a limit; only the app can enforce it.
 - **It has to work without a page:** the MCP server, background work, tests that run without a browser.
 - **It depends on a thread or a lifetime the page does not have.**
 

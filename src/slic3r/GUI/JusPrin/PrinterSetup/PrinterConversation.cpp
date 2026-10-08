@@ -295,7 +295,6 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     // what the app does on its own reaches the model as notes.
     profile.include_workspace          = false;
     profile.notes_in_context           = true;
-    profile.reply_cancels_pending_card = true;
     return profile;
 }
 
@@ -396,8 +395,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         arguments["target"] = arguments["address"];
     } else
         return ToolError{"connection_unavailable", info.message};
-    // Which field the card asks for, and the printer it named: what runs
-    // on Connect is what the card showed.
+    // Which field the local form asks for, and the printer it named.
     arguments["provider"]    = info.provider;
     arguments["printerName"] = name;
     activity.arguments_json = arguments.dump();
@@ -426,9 +424,6 @@ std::optional<json> PrinterConversation::tool_output(const ToolActivity& activit
         return json::parse(activity.result_json);
     if (activity.state == Agent::ToolState::Failed && activity.error)
         return json{{"error", json{{"code", activity.error->code}, {"message", activity.error->message}}}};
-    // The person tapped Cancel on the card, or wrote something instead.
-    if (activity.state == Agent::ToolState::Rejected)
-        return json{{"state", "cancelled"}};
     return std::nullopt;
 }
 

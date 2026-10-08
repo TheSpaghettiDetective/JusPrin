@@ -224,7 +224,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         ToolRequest request;
         request.tool           = "workspace_inspect";
         request.arguments_json = "{}";
-        reply.chunks = chunk_words("Inspecting the current selection; read-only actions run without approval.");
+        reply.chunks = chunk_words("Inspecting the current selection.");
         reply.tool   = request;
         return reply;
     }
@@ -262,9 +262,9 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         reply.tool_run_ticks = 3;
         return reply;
     }
-    // A sent model attachment is imported through Orca's own importer, as an
-    // approved manufacturing change. This mirrors what a future MCP agent would
-    // propose; the host resolves the opaque attachment ID to a file path.
+    // A sent model attachment is imported through Orca's own importer. This
+    // mirrors what a future MCP agent would propose; the host resolves the
+    // opaque attachment ID to a file path.
     for (const AttachmentContext& attachment : attachments) {
         if (!attachment.importable)
             continue;
@@ -274,8 +274,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
                                       {"attachmentId", attachment.id}}
                                      .dump();
         reply.chunks         = chunk_words(describe_attachments(attachments) +
-                                   "Approve the import below and I will add it to the project through OrcaSlicer's own "
-                                   "importer; you can undo it afterwards.");
+                                   "I will add the model to the project through OrcaSlicer's own importer; you can undo it afterwards.");
         reply.tool           = request;
         return reply;
     }
@@ -284,9 +283,8 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         const WorkspaceObject* object = first_selected_object(context);
         if (object == nullptr)
             return select_something_first();
-        reply.chunks = chunk_words("I can add a copy of " + object->name +
-                                   " for you. Approve the action below and I will run it through OrcaSlicer's own "
-                                   "instance command; you can undo it afterwards.");
+        reply.chunks = chunk_words("I will add a copy of " + object->name +
+                                   " through OrcaSlicer's own instance command; you can undo it afterwards.");
         reply.tool           = duplicate_request(context, *object);
         reply.tool_run_ticks = 3;
         return reply;
