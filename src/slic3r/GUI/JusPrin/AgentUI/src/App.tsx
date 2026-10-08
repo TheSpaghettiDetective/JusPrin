@@ -12,6 +12,7 @@ import { PrinterCredentialForm } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
 import { fileReportInstructions } from './fileReportInstructions';
+import { skills } from './skills';
 import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
@@ -176,6 +177,21 @@ export function App({
     if (sentFileReportInstructions.current) return;
     sentFileReportInstructions.current = true;
     client.send('file_report_instructions', { text: fileReportInstructions() });
+  }, [printerPanel, embedded, state.connection, client]);
+
+  // Project skills are authored with the page and sent once after every
+  // handshake. Native code validates and owns the connected copy; reconnecting
+  // therefore replaces it atomically instead of depending on stale WebView
+  // state.
+  const sentSkills = useRef(false);
+  useEffect(() => {
+    if (printerPanel || embedded || state.connection !== 'connected') {
+      if (state.connection !== 'connected') sentSkills.current = false;
+      return;
+    }
+    if (sentSkills.current) return;
+    sentSkills.current = true;
+    client.send('skills', { skills });
   }, [printerPanel, embedded, state.connection, client]);
 
   // The filament chat's instructions, likewise: written from the facts the

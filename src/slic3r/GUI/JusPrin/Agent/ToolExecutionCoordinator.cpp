@@ -269,6 +269,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::SettingsPreviewPatch:
     case ToolHandler::IntentUpdate:
     case ToolHandler::PlanSet:
+    case ToolHandler::SkillRead:
     case ToolHandler::PresetsList:
     case ToolHandler::ObjectAnalyze:
     case ToolHandler::ObjectDividePreview:
@@ -1927,10 +1928,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    // Records the host keeps, and the printer panel's own tools: both are
-    // owned by the surface that asked for them, and both still run here,
-    // inside this execution state machine.
-    if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
+    // Host-owned skill/record tools and the printer panel's own tools still
+    // run here, inside this execution state machine.
+    if (definition->handler == ToolHandler::SkillRead || definition->handler == ToolHandler::RecordBuild ||
+        definition->handler == ToolHandler::RecordExportCopy ||
         definition->handler == ToolHandler::RecordPhysicalPrint || has_exposure(definition->exposure, ToolExposure::Printer)) {
         if (!m_extension_executor) {
             fail(activity, "execution_failed", "The registered tool executor is unavailable.");

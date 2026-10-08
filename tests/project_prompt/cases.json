@@ -1,0 +1,72 @@
+[
+  {
+    "name": "vague-make-this-printable",
+    "query": "just dropped the stl in. honestly no clue what settings it needs lol can you get it ready",
+    "expectedSkills": ["prepare-print"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["workspace_inspect", "object_analyze"]},
+    "routingReason": "A vague end-to-end request to make the open model print-ready, without naming the workflow or tools."
+  },
+  {
+    "name": "late-print-shift-with-spaghetti",
+    "query": "got like 6 hours in and then the whole thing moved over and started printing spaghetti off the side 😭 same file was fine yesterday. what am i missing",
+    "expectedSkills": ["diagnose-print-failure"],
+    "expectedOutcome": {"kind": "question"},
+    "routingReason": "An attempted physical print failed; the user supplies symptoms and uncertainty rather than naming layer shift diagnosis."
+  },
+  {
+    "name": "confused-third-party-filament-profile",
+    "query": "put polymaker pla pro in slot 2 but orca still says generic pla. which one am i actually meant to use here",
+    "expectedSkills": ["select-print-setup"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["workspace_inspect", "printer_list", "presets_list"]},
+    "routingReason": "The user wants the live project's configured filament reconciled with the physical spool."
+  },
+  {
+    "name": "protect-show-face-from-supports",
+    "query": "do i really need this forest of tree supports? the front has tiny letters and i dont wanna destroy them pulling all that crap off",
+    "expectedSkills": ["choose-support-strategy"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["workspace_inspect", "object_analyze"]},
+    "routingReason": "Support removability and protecting a critical visible surface are the central tradeoffs."
+  },
+  {
+    "name": "preview-midair-lines-send-or-not",
+    "query": "why are there a couple lines starting in mid air in preview lol. am i good to send this or is it gonna make a blob",
+    "expectedSkills": ["review-slice"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["slice_report", "slice_inspect"]},
+    "routingReason": "The question is about observed toolpaths in an existing slice and asks for a readiness verdict."
+  },
+  {
+    "name": "general-petg-curiosity",
+    "query": "dumb question, is petg just naturally more stringy than pla or nah?",
+    "expectedSkills": [],
+    "expectedOutcome": {"kind": "direct"},
+    "routingReason": "This is general material knowledge with no attempted print or live-project action requested."
+  },
+  {
+    "name": "general-infill-slang",
+    "query": "whats the deal with gyroid? everyone seems to use it for everything",
+    "expectedSkills": [],
+    "expectedOutcome": {"kind": "direct"},
+    "routingReason": "This asks for a general concept explanation, not inspection or modification of the current project."
+  },
+  {
+    "name": "vague-miniature-setup-with-face-priority",
+    "query": "can you set this little guy up for me? mostly care about the face looking clean and not spending an hour picking supports out of it",
+    "expectedSkills": ["choose-support-strategy"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["workspace_inspect", "object_analyze", "intent_update"]},
+    "routingReason": "The specific support and protected-surface problem takes precedence over the generic preparation umbrella."
+  },
+  {
+    "name": "new-material-prepare-and-reconcile",
+    "query": "new roll of abs is in bay 3. make this part print ready with that, whatever profile makes sense",
+    "expectedSkills": ["select-print-setup"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["workspace_inspect", "printer_list", "presets_list"]},
+    "routingReason": "The explicit physical-material and profile problem takes precedence over the generic preparation umbrella."
+  },
+  {
+    "name": "not-yet-printed-islands",
+    "query": "havent printed yet but the preview has a few islands and one weird gap. is that bad or can i just send it",
+    "expectedSkills": ["review-slice"],
+    "expectedOutcome": {"kind": "tool", "firstTool": ["slice_report", "slice_inspect"]},
+    "routingReason": "Despite defect-like language, this concerns an unprinted slice, so it should not route to physical-failure diagnosis."
+  }
+]

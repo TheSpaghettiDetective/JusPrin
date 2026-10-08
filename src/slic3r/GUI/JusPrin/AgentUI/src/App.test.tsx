@@ -329,6 +329,23 @@ describe('App', () => {
     expect((sent[0].payload as { text: string }).text).toContain('For this response only');
   });
 
+  it('sends the canonical project skills once per connection', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    const sent = host.received.filter((envelope) => envelope.type === 'skills');
+    expect(sent).toHaveLength(1);
+    const payload = sent[0].payload as { skills: { name: string; description: string; text: string }[] };
+    expect(payload.skills.map((skill) => skill.name)).toEqual([
+      'choose-support-strategy',
+      'diagnose-print-failure',
+      'prepare-print',
+      'review-slice',
+      'select-print-setup',
+    ]);
+    expect(payload.skills.every((skill) => skill.description.length > 0 && skill.text.startsWith('# '))).toBe(true);
+    expect(payload.skills.every((skill) => !skill.text.startsWith('---'))).toBe(true);
+  });
+
   it('draws no file report the Agent is speaking about', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);

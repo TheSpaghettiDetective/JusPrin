@@ -29,7 +29,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
-                                                 "printer_panel", "file_reports", "setup_differences"};
+                                                 "printer_panel", "file_reports", "setup_differences", "skills"};
     return values;
 }
 
@@ -97,6 +97,10 @@ inline constexpr const char* kShellAction          = "shell_action";
 // What the model is told when a file report opens a turn, which the page
 // writes.
 inline constexpr const char* kFileReportInstructions = "file_report_instructions";
+// The project assistant's discoverable, page-authored skill registry. The
+// host validates and stores the complete list for both prompt discovery and
+// skill_read.
+inline constexpr const char* kSkills                 = "skills";
 
 } // namespace Protocol
 

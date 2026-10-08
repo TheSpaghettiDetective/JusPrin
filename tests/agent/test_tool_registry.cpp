@@ -66,7 +66,7 @@ TEST_CASE("tool registry definitions are unique deterministic and schema-backed"
 TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][exposure]")
 {
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::InApp)) ==
-          std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+          std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "skill_read", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
           std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import_file", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
@@ -91,6 +91,12 @@ TEST_CASE("tool registry is the argument validation boundary", "[tools][registry
     const ToolDefinition& inspect = *ToolRegistry::instance().find("workspace_inspect");
     CHECK(ToolRegistry::instance().validate_call(inspect, "{}").valid());
     CHECK_FALSE(ToolRegistry::instance().validate_call(inspect, json{{"extra", true}}.dump()).valid());
+
+    const ToolDefinition& skill = *ToolRegistry::instance().find("skill_read");
+    CHECK(ToolRegistry::instance().validate_call(skill, R"({"name":"prepare-print"})").valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(skill, R"({"name":""})").valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(skill, R"({"name":"prepare-print","extra":true})").valid());
+    CHECK(ToolRegistry::instance().validate_output(skill, json{{"name", "prepare-print"}, {"text", "instructions"}}));
 }
 
 TEST_CASE("Settings schemas validate canonical results and argument decoding is shape-only", "[tools][settings]")

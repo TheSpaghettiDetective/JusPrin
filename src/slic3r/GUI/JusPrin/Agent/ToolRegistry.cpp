@@ -720,6 +720,11 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         });
     }
 
+    if (definition.handler == ToolHandler::SkillRead)
+        return has_only(arguments, {"name"}) && arguments.contains("name") &&
+               arguments["name"].is_string() && !arguments["name"].get_ref<const std::string&>().empty() &&
+               arguments["name"].get_ref<const std::string&>().size() <= 64;
+
 
     if (definition.handler == ToolHandler::RecordBuild) {
         if (!has_only(arguments, {"slicerVersion", "configurationProvenance", "printTimeSeconds", "filamentMm",
@@ -1189,6 +1194,17 @@ std::vector<ToolDefinition> make_definitions()
                         {"next", integer_schema()}, {"sessionId", id}, {"revision", revision}},
                        {"valid", "plateId", "view", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceInspect},
+        {"skill_read", "Read a project skill",
+         "Load the complete instructions for one skill from the index in your instructions. When a request matches a skill, call this as the "
+         "first action before workspace_inspect or any other project tool. Choose exactly one most-specific skill: setup, support, slice-review, "
+         "or failed-print work outranks general preparation. Do not merely say you read it or read another unless the first skill directs you "
+         "to it. The name must match exactly; an unknown name returns the available names.",
+         object_schema({{"name", id}}, {"name"}),
+         object_schema({{"name", id}, {"text", {{"type", "string"}, {"maxLength", 16 * 1024}}}}, {"name", "text"}),
+         // The index is installed by and shown only to the project Agent page.
+         // Do not expose a name-based loader to MCP until MCP discovery can
+         // publish the same index independently of that page's lifecycle.
+         ActionClass::ReadOnly, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::SkillRead},
         {"activity_cancel", "Cancel a run",
          "Stop something the tools started, by its handle: a slice (slice_start's handle), or an arrange or orient job (plate_layout's or object_place's handle). Says whether it stopped it; a job's end is read from workspace_inspect's slicing section.",
          object_schema({{"handle", id}}, {"handle"}),

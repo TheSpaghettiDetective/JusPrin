@@ -291,8 +291,7 @@ private:
     void send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id = {});
     std::string attachment_preview_data_url(const AttachmentRecord& record) const;
     void send_tool_activity(const ToolActivity& activity, const std::string& correlation_id = {});
-    ToolExecutionCoordinator::ExtensionResult execute_manufacturing_tool(ToolHandler handler,
-                                                                         const ToolActivity& activity);
+    ToolExecutionCoordinator::ExtensionResult execute_host_tool(ToolHandler handler, const ToolActivity& activity);
     void on_document_replaced();
 
     std::optional<ConversationMessage> find_stored_message(const std::string& id, std::string* conversation_id = nullptr) const;
@@ -400,6 +399,10 @@ private:
     std::function<void()> m_setup_completed_listener;
 
     AgentSessionProfile             m_session_profile;
+    // The page-authored canonical registry, resent after each connection.
+    // Metadata is copied into project requests; full text is disclosed through
+    // skill_read.
+    std::vector<AgentSkill>          m_skills;
     // What the model is told about a file report, written by the page
     // (fileReportInstructions.ts) and sent with file_report_instructions.
     std::string                     m_file_report_instructions;
