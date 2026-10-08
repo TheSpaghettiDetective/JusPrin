@@ -879,12 +879,17 @@ TEST_CASE("settings changes and preset switches are logged", "[persistence][chan
     CHECK(changes[0].to == "5");
     CHECK(changes[0].from != "5");
     CHECK(changes[0].preset == "Fixture process");
+    CHECK(changes[0].key == "wall_loops");
     CHECK(changes[1].kind == "preset");
     CHECK(changes[1].label == "Strong");
     // Only a setting carries values in the saved entry.
     const json saved = json::parse(persistence.document().dump())["changes"];
     CHECK(saved[0].contains("from"));
+    CHECK(saved[0]["key"] == "wall_loops");
     CHECK_FALSE(saved[1].contains("from"));
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(persistence.document().dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(reloaded.changes()[0].key == "wall_loops");
 }
 
 TEST_CASE("print intent is upserted by field and keeps its provenance", "[project-state][intent]")

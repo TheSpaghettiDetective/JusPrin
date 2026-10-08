@@ -258,6 +258,18 @@ export interface PresetDeltaInfo {
   // wrote this exact value, so a setting the agent once set and you have since
   // edited by hand reads as yours again.
   origin: 'agent' | 'user';
+  // Everything below is absent from a summary saved before the setup card
+  // showed differences; the card then falls back to the raw pair above.
+  // Which preset the setting belongs to, and that preset's full name.
+  presetType?: 'process' | 'filament' | 'printer';
+  presetName?: string;
+  // "0 → 8 mm": the change as the host's formatter writes it, from the
+  // setting's own type, unit and choice labels.
+  display?: string;
+  // Where the setting sits in OrcaSlicer's settings tabs. Absent when
+  // OrcaSlicer files the setting under no group.
+  page?: string;
+  group?: string;
 }
 
 // What the estimate is worth right now. The number is kept in all three: a
@@ -280,15 +292,18 @@ export interface AppliedSetupInfo {
   // Names of the printable objects, in the order `object` indexes them.
   // Absent from checkpoints saved before the card grouped by object.
   objects?: string[];
-  settings: {
+  localOverrides: {
+    object?: number;
+    target: string;
+    kind: string;
+    // Empty for a customization with no setting of its own: paint, a blocker.
     key: string;
     value: string;
-    // The plate's own value before any object changes it.
-    base?: string;
-    coverage: 'exact' | 'mixed' | 'local' | 'unavailable';
-    scopes: { object?: number; target: string; kind: string; value: string }[];
+    // The setting's name and its value as the host's formatter writes it.
+    // Absent from a summary saved before the host sent them.
+    label?: string;
+    display?: string;
   }[];
-  localOverrides: { object?: number; target: string; kind: string; key: string; value: string }[];
 }
 
 export interface SetupIdentityInfo {
@@ -384,7 +399,9 @@ export interface ConversationInfo {
 // The page merges consecutive identical edits into one row for display.
 //   step     a real undo step; label is OrcaSlicer's step name, maybe empty
 //   undo     label is the step undone;  redo: the step redone
-//   setting  label is the setting's name; from/to/preset say the rest
+//   setting  label is the setting's name; from/to are its two values as a
+//            person reads them ("Outer brim only", "8 mm"); preset is the
+//            preset it was edited in
 //   preset   a whole preset was switched; label is the new preset
 //   restore  the model and settings were restored from an earlier saved version
 export type ChangeKind = 'step' | 'undo' | 'redo' | 'setting' | 'preset' | 'restore';
@@ -399,6 +416,9 @@ export interface ChangeInfo {
   from?: string;
   to?: string;
   preset?: string;
+  // Setting only: the config key, because labels are not unique. Absent from
+  // entries logged before the card ordered its rows by them.
+  key?: string;
   conversationId: string;
   afterId: string; // the message or tool activity it follows; '' before the first
 }

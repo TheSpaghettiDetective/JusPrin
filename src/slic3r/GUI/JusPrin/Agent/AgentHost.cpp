@@ -186,6 +186,7 @@ json change_json(const ChangeEntry& change)
         result["from"]   = change.from;
         result["to"]     = change.to;
         result["preset"] = change.preset;
+        if (!change.key.empty()) result["key"] = change.key;
     }
     return result;
 }
@@ -457,14 +458,19 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
     }
 
     json preset_deltas = json::array();
-    for (const Workspace::PresetDelta& delta : snapshot.preset_deltas)
-        preset_deltas.push_back(json{{"key", delta.key}, {"label", delta.label},
-                                     {"preset", delta.preset}, {"value", delta.value},
-                                     // Yours unless the agent can prove it put this exact
-                                     // value in force. Unprovable provenance counts as
-                                     // yours: crediting the agent for your edit would make
-                                     // the card the agent's opinion instead of the truth.
-                                     {"origin", agent_authored.count(delta.key) != 0 ? "agent" : "user"}});
+    for (const Workspace::PresetDelta& delta : snapshot.preset_deltas) {
+        json entry{{"key", delta.key}, {"label", delta.label},
+                   {"preset", delta.preset}, {"value", delta.value},
+                   // Yours unless the agent can prove it put this exact
+                   // value in force. Unprovable provenance counts as yours.
+                   {"origin", agent_authored.count(delta.preset_type + ":" + delta.key) != 0 ? "agent" : "user"}};
+        if (!delta.preset_type.empty()) entry["presetType"] = delta.preset_type;
+        if (!delta.preset_name.empty()) entry["presetName"] = delta.preset_name;
+        if (!delta.display.empty()) entry["display"] = delta.display;
+        if (!delta.page.empty()) entry["page"] = delta.page;
+        if (!delta.group.empty()) entry["group"] = delta.group;
+        preset_deltas.push_back(std::move(entry));
+    }
 
     const char* selection_status = "none";
     if (snapshot.selection_status == SelectionStatus::Objects)
@@ -477,25 +483,20 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
 
     json applied_setup = nullptr;
     if (snapshot.applied_setup) {
-        json settings = json::array();
-        for (const Workspace::SetupSetting& setting : snapshot.applied_setup->settings) {
-            json scopes = json::array();
-            for (const Workspace::SetupScopedValue& scope : setting.scopes)
-                scopes.push_back({{"object", scope.object}, {"target", scope.target},
-                                  {"kind", scope.kind}, {"value", scope.value}});
-            settings.push_back({{"key", setting.key}, {"value", setting.value}, {"base", setting.base},
-                                {"coverage", setting.coverage}, {"scopes", std::move(scopes)}});
-        }
         json locals = json::array();
-        for (const Workspace::SetupLocalOverride& local : snapshot.applied_setup->local_overrides)
-            locals.push_back({{"object", local.object}, {"target", local.target}, {"kind", local.kind},
-                              {"key", local.key}, {"value", local.value}});
+        for (const Workspace::SetupLocalOverride& local : snapshot.applied_setup->local_overrides) {
+            json entry{{"object", local.object}, {"target", local.target}, {"kind", local.kind},
+                       {"key", local.key}, {"value", local.value}};
+            if (!local.label.empty()) entry["label"] = local.label;
+            if (!local.display.empty()) entry["display"] = local.display;
+            locals.push_back(std::move(entry));
+        }
         applied_setup = json{{"version", 1}, {"plateId", std::to_string(snapshot.applied_setup->plate.value())},
                              {"printableObjects", snapshot.applied_setup->printable_objects},
                              {"spiralMode", snapshot.applied_setup->spiral_mode},
                              {"variableLayerHeight", snapshot.applied_setup->variable_layer_height},
                              {"objects", snapshot.applied_setup->objects},
-                             {"settings", std::move(settings)}, {"localOverrides", std::move(locals)}};
+                             {"localOverrides", std::move(locals)}};
     }
 
     json setup_identity = nullptr;
@@ -2103,11 +2104,11 @@ bool AgentHost::remember_setup_intent(const ToolActivity& activity)
 bool AgentHost::remember_agent_authored(const ToolActivity& activity)
 {
     const json result = json::parse(activity.result_json, nullptr, false);
-    // A patch that changed nothing wrote nothing, so it authored nothing. The
-    // record is of process values; a filament or printer preset's are not.
+    // A patch that changed nothing wrote nothing, so it authored nothing.
     if (result.is_discarded() || !result.is_object() || !result.value("applied", false) ||
-        (result.value("scope", "") != "process" && result.value("scope", "") != "object"))
+        result.value("scope", "").empty())
         return false;
+    const std::string scope = result.value("scope", "");
     const auto changes = result.find("changes");
     if (changes == result.end() || !changes->is_array())
         return false;
@@ -2118,7 +2119,7 @@ bool AgentHost::remember_agent_authored(const ToolActivity& activity)
     for (const json& change : *changes)
         if (change.is_object() && change.contains("key") && change["key"].is_string() &&
             change.contains("after") && change["after"].is_string())
-            m_agent_authored[change["key"].get<std::string>()] = change["after"].get<std::string>();
+            m_agent_authored[scope + ":" + change["key"].get<std::string>()] = change["after"].get<std::string>();
     return true;
 }
 
@@ -2127,7 +2128,7 @@ void AgentHost::rebuild_agent_authored()
     m_agent_authored.clear();
     // Left unbound so the next context adopts whatever preset is in force
     // without mistaking the rebuild itself for a preset switch.
-    m_agent_authored_preset.reset();
+    m_agent_authored_presets.clear();
     for (const ToolActivity& activity : m_persistence.document().activities())
         if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch")
             remember_agent_authored(activity);
@@ -2135,19 +2136,32 @@ void AgentHost::rebuild_agent_authored()
 
 std::set<std::string> AgentHost::agent_authored_keys(const Workspace::WorkspaceSnapshot& snapshot)
 {
-    if (!m_agent_authored_preset)
-        m_agent_authored_preset = snapshot.setup.process_preset;
-    else if (*m_agent_authored_preset != snapshot.setup.process_preset) {
-        m_agent_authored.clear();
-        m_agent_authored_preset = snapshot.setup.process_preset;
+    // Switching a preset changes the baseline its deltas are measured from, so
+    // what the agent wrote against the old one does not carry over. The
+    // selected names are read from the setup itself: a preset with nothing
+    // edited has no delta to carry its name, and is switched all the same.
+    const std::pair<const char*, const std::string&> selected[] = {{"process", snapshot.setup.process_preset},
+                                                                   {"filament", snapshot.setup.filament_preset},
+                                                                   {"printer", snapshot.setup.printer_preset}};
+    for (const auto& [type, name] : selected) {
+        const auto bound = m_agent_authored_presets.find(type);
+        if (bound == m_agent_authored_presets.end()) {
+            m_agent_authored_presets.emplace(type, name);
+        } else if (bound->second != name) {
+            const std::string prefix = std::string(type) + ":";
+            for (auto authored = m_agent_authored.begin(); authored != m_agent_authored.end();)
+                if (authored->first.rfind(prefix, 0) == 0) authored = m_agent_authored.erase(authored); else ++authored;
+            bound->second = name;
+        }
     }
     std::set<std::string> keys;
     for (const Workspace::PresetDelta& delta : snapshot.preset_deltas) {
-        const auto found = m_agent_authored.find(delta.key);
+        const std::string scoped_key = delta.preset_type + ":" + delta.key;
+        const auto found = m_agent_authored.find(scoped_key);
         // The agent's only while the value it applied is the value in force.
         // Edit that setting by hand and the delta becomes yours again.
         if (found != m_agent_authored.end() && found->second == delta.value)
-            keys.insert(delta.key);
+            keys.insert(scoped_key);
     }
     return keys;
 }

@@ -4,6 +4,7 @@ import { AttachmentSource, Envelope, SliceEstimateInfo } from './bridge/protocol
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { RECENT_CHANGE_MS, SetupCard } from './components/SetupCard';
+import { SetupPage, SetupPageHeader } from './components/SetupPage';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { Composer } from './components/Composer';
@@ -101,14 +102,7 @@ export function App({
   // the host cares which credentials it was asked to check, not which panel
   // is on screen, so navigating setup costs no bridge traffic.
   const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey' | 'localTool'>('offer');
-  const [view, setView] = useState<'chat' | 'list' | 'setup'>('chat');
-  // The setup card's expansion is a temporary layer over the thread, so it is
-  // page-local and closes on its own the moment the user does something else.
-  const [setupExpanded, setSetupExpanded] = useState(false);
-  // Every way out of this chat closes the card's expansion. Kept explicit
-  // rather than derived from an effect: an effect on (chat, view) re-ran
-  // whenever the host resent state and re-closed the card mid-click.
-  const collapseSetup = () => setSetupExpanded(false);
+  const [view, setView] = useState<'chat' | 'list' | 'setup' | 'setupDetails'>('chat');
   const [commandError, setCommandError] = useState<string | null>(null);
   const [confirmChatRestore, setConfirmChatRestore] = useState(false);
   const setupReturn = useRef<'chat' | 'list'>('chat');
@@ -399,7 +393,6 @@ export function App({
   const returnToActiveChat = () => {
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     setView('chat');
-    collapseSetup();
   };
   const askCurrentChat = () => {
     const latest = [...stateRef.current.messages].reverse().find((message) => message.text.trim());
@@ -410,7 +403,6 @@ export function App({
     client.send('draft_update', { append: reference });
     client.send('state_request', {});
     setView('chat');
-    collapseSetup();
   };
   const resumeChat = () => {
     if (resumeStatus === 'changed') { setConfirmChatRestore(true); return; }
@@ -440,7 +432,7 @@ export function App({
   // it: the band is the canvas the tinted card sits on.
   const setupCard = view === 'chat' && cardContext && <div className="pinned-setup">
     <SetupCard context={cardContext} historical={historical} savedAt={historical ? state.chatResume.savedAt : undefined}
-      agentAvailable={!unavailable} expanded={setupExpanded} working={!historical && busy}
+      agentAvailable={!unavailable} working={!historical && busy}
       changes={historical ? undefined : state.changes.filter((change) => change.conversationId === viewedId)}
       now={now}
       estimateBefore={!historical && beforeChange.current?.seq === newestChange?.seq &&
@@ -457,15 +449,15 @@ export function App({
         const current = stateRef.current.context;
         if (current) client.send('shell_action', { action: 'undo_setup_change', sessionId: current.sessionId, changeSeq });
       }}
-      onToggle={() => setSetupExpanded((open) => !open)} />
+      onViewSetup={() => setView('setupDetails')} />
   </div>;
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
     activity.state === 'running');
-  const createChat = () => { client.send('create_conversation', {}); setView('chat'); collapseSetup(); };
+  const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
   const collapseAgentPane = () => client.send('shell_action', { action: 'collapse_agent_pane' });
   const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
-  const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); collapseSetup(); };
+  const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
     <span>{commandError}</span><button className="icon" aria-label="Dismiss error" title="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
@@ -475,7 +467,6 @@ export function App({
       onSwitch={(conversationId) => {
         if (conversationId !== viewedId) client.send('switch_conversation', { conversationId });
         setView('chat');
-        collapseSetup();
       }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} onCollapse={collapseAgentPane} />;
@@ -484,12 +475,16 @@ export function App({
   // setup screen. Setup replaces the body rather than covering it, so backing
   // out returns to exactly what was there before.
   const body = () => {
+    if (!embedded && view === 'setupDetails' && cardContext)
+      return <SetupPage context={cardContext} historical={historical} working={!historical && busy} agentAvailable={!unavailable}
+        changes={historical ? undefined : state.changes.filter((change) => change.conversationId === viewedId)}
+        now={now} savedAt={historical ? state.chatResume.savedAt : undefined}
+        sent={sentBuild?.sentAt ? { at: sentBuild.sentAt, printer: sentBuild.printer } : undefined} />;
     // An embedded, setup-only instance never has a conversation to show, so
     // it always renders one of the setup screens below regardless of view.
     if (!embedded && !notConfigured && view !== 'setup')
       return (
         <MessageList
-          dimmed={setupExpanded}
           key={`messages-${state.context?.sessionId}-${viewedId}`}
           messages={state.messages}
           attachments={state.attachments}
@@ -569,10 +564,10 @@ export function App({
         {errorNotice}
         <div className="chat-content">
           <header className="chat-header printer-header">
-            <button type="button" className="printer-link-button printer-back-link" onClick={back}>
+            <button type="button" className="panel-link-button panel-back-link" onClick={back}>
               <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back
             </button>
-            <button type="button" className="printer-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
+            <button type="button" className="panel-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
               {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
             </button>
           </header>
@@ -652,23 +647,25 @@ export function App({
       {errorNotice}
       {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
-      {notConfigured && state.conversations.length === 1 && view !== 'setup' && !state.navigation.focused ? (
+      {notConfigured && state.conversations.length === 1 && view !== 'setup' && view !== 'setupDetails' && !state.navigation.focused ? (
         <>
           <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
           {setupCard}
         </>
+      ) : view === 'setupDetails' ? (
+        <SetupPageHeader onBack={() => setView('chat')} onCollapse={collapseAgentPane} />
       ) : state.navigation.focused ? (
         <header className="chat-header printer-header">
-          <button type="button" className="printer-link-button printer-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
+          <button type="button" className="panel-link-button panel-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
             onClick={() => { if (view === 'setup') closeSetup(); else returnToWorkspace(); }}><span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back</button>
-          {view !== 'setup' && <button type="button" className="printer-link-button"
+          {view !== 'setup' && <button type="button" className="panel-link-button"
             onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>}
           <AgentPaneToggle onCollapse={collapseAgentPane} />
         </header>
       ) : (
         <>
           <ChatHeader key={`header-${state.context?.sessionId}-${viewedId}`} title={viewedChat?.title || 'New chat'} busy={busy || pendingAction}
-            onBack={() => { collapseSetup(); if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
+            onBack={() => { if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: viewedId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: viewedId }); setView('list'); }}
@@ -700,7 +697,7 @@ export function App({
         onRemoveAttachment={() => {}}
       />}
       {!historical && state.navigation.focused && notConfigured && blockedAlert}
-      {!historical && !(state.navigation.focused && notConfigured) && <div hidden={view === 'setup'}><Composer
+      {!historical && !(state.navigation.focused && notConfigured) && <div hidden={view !== 'chat'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}
         disabled={unavailable || state.projectChatBlocked}
         disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
@@ -716,7 +713,6 @@ export function App({
         }}
         onAttachFiles={attachFiles}
         onRemoveAttachment={removeAttachment}
-        onTyping={collapseSetup}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>}

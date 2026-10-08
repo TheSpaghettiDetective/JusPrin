@@ -158,11 +158,24 @@ describe('change rows in the thread', () => {
       change(5, { actor: 'agent', kind: 'setting', label: 'Top shell layers', from: '3', to: '5' }),
       change(6, { actor: 'agent', kind: 'setting', label: 'Outer wall speed', from: '200 mm/s', to: '120 mm/s' }),
     ]);
-    const pill = screen.getByRole('button', { name: /Laid flat · 5 walls · 35% gyroid.*\+3/ });
+    const pill = screen.getByRole('button', { name: 'Laid flat 5 settings' });
     expect(pill).toHaveAttribute('aria-expanded', 'false');
     expect(pill.querySelector('.settings-changes-icon')).toBeInTheDocument();
     fireEvent.click(pill);
     expect(screen.getByRole('list', { name: '' })).toHaveTextContent('Outer wall speed');
+  });
+
+  it('counts whichever settings the agent changed, with none it favours', () => {
+    thread([
+      change(1, { actor: 'agent', label: 'Add modifier: Corner tab' }),
+      change(2, { actor: 'agent', kind: 'setting', label: 'Brim type', from: 'Auto', to: 'Outer brim only' }),
+      change(3, { actor: 'agent', kind: 'setting', label: 'Brim width', from: '0 mm', to: '8 mm' }),
+      change(4, { actor: 'agent', kind: 'setting', label: 'First layer', from: '50 mm/s', to: '25 mm/s' }),
+    ]);
+    const pill = screen.getByRole('button', { name: 'Add modifier: Corner tab 3 settings' });
+    fireEvent.click(pill);
+    for (const row of ['Brim typeAuto→Outer brim only', 'Brim width0 mm→8 mm', 'First layer50 mm/s→25 mm/s'])
+      expect(screen.getByRole('list', { name: '' })).toHaveTextContent(row);
   });
 
   it('shows a known hand-edit location', () => {

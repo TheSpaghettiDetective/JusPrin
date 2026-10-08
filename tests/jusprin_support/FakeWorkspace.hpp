@@ -42,8 +42,10 @@ public:
                 if (preset == m_settings.preset_values.end() || preset->second == value) continue;
                 const auto definition = std::find_if(m_settings.definitions.begin(), m_settings.definitions.end(),
                                                      [&](const auto& candidate) { return candidate.key == key; });
+                const std::string label = definition == m_settings.definitions.end() ? key : definition->label;
                 result.preset_deltas.push_back(
-                    {key, definition == m_settings.definitions.end() ? key : definition->label, preset->second, value});
+                    {key, label, preset->second, value, "process", m_process_preset,
+                     preset->second + " \xE2\x86\x92 " + value, "Fixture page", "Fixture group"});
             }
         for (auto& plate : result.plates)
             if (!plate.sliced) {
@@ -1398,7 +1400,7 @@ private:
                                              [&](const auto& candidate) { return candidate.key == key; });
         publish_edit({EditKind::Setting, EditActor::Person,
                       definition == m_settings.definitions.end() ? key : definition->label, before, after,
-                      m_process_preset});
+                      m_process_preset, key});
     }
 
     void remember_ids()

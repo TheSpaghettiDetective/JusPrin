@@ -351,24 +351,18 @@ private:
     // fixture is two objects with one copy each, one per plate.
     void verify_outline(const WorkspaceSnapshot& initial)
     {
-        const auto applied_setting = [](const WorkspaceSnapshot& snapshot, const std::string& key) -> const SetupSetting* {
+        const auto local_override = [](const WorkspaceSnapshot& snapshot, const std::string& key,
+                                       const std::string& kind = {}) -> const SetupLocalOverride* {
             if (!snapshot.applied_setup) return nullptr;
-            const auto& settings = snapshot.applied_setup->settings;
-            const auto found = std::find_if(settings.begin(), settings.end(), [&key](const SetupSetting& item) {
-                return item.key == key;
+            const auto& overrides = snapshot.applied_setup->local_overrides;
+            const auto found = std::find_if(overrides.begin(), overrides.end(), [&](const SetupLocalOverride& item) {
+                return item.key == key && (kind.empty() || item.kind == kind);
             });
-            return found == settings.end() ? nullptr : &*found;
+            return found == overrides.end() ? nullptr : &*found;
         };
         check(initial.applied_setup && initial.applied_setup->printable_objects == 1,
               "setup_active_plate_excludes_other_plate_object");
-        const SetupSetting* initial_walls = applied_setting(initial, "wall_loops");
-        check(initial_walls && initial_walls->coverage == "exact" && initial_walls->scopes.size() == 1,
-              "setup_active_plate_has_one_wall_scope");
-        const DynamicPrintConfig& process = m_app.preset_bundle->prints.get_edited_preset().config;
-        const SetupSetting* initial_brim = applied_setting(initial, "brim_type");
-        check(applied_setting(initial, "brim_width") != nullptr && initial_brim != nullptr &&
-                  initial_brim->coverage == "exact" && initial_brim->value == process.option("brim_type")->serialize(),
-              "setup_applied_settings_include_brim");
+        check(initial.applied_setup->local_overrides.empty(), "setup_clean_object_has_no_local_overrides");
         check(initial.applied_setup->objects.size() == 1 &&
                   initial.applied_setup->objects.front() == m_plater->model().objects.front()->name,
               "setup_names_the_objects_it_covers");
@@ -418,31 +412,13 @@ private:
                   second_read.objects.front().volumes.front().id == first.volumes.front().id && again.revision == before_read.revision,
               "pane_outline_ids_are_stable_and_reading_is_silent");
 
-        DynamicPrintConfig& plate_config = *m_plater->get_partplate_list().get_curr_plate()->config();
-        const ConfigOption* former_height = plate_config.option("layer_height");
-        const auto saved_height = former_height ? former_height->clone() : nullptr;
-        plate_config.set_key_value("layer_height", new ConfigOptionFloat(0.28));
-        const WorkspaceSnapshot plate_edited = m_workspace->snapshot();
-        const SetupSetting* plate_height = applied_setting(plate_edited, "layer_height");
-        check(plate_height && plate_height->coverage == "exact" &&
-                  plate_height->value == plate_config.option("layer_height")->serialize(),
-              "setup_plate_override_wins_over_process_preset");
-        if (saved_height) plate_config.set_key_value("layer_height", saved_height);
-        else plate_config.erase("layer_height");
-
         // Facts the person chose: a per-object setting, and a filament override.
         ModelObject& model_first = *m_plater->model().objects.front();
         model_first.config.set_key_value("wall_loops", new ConfigOptionInt(5));
         const WorkspaceSnapshot locally_edited = m_workspace->snapshot();
-        const SetupSetting* local_walls = applied_setting(locally_edited, "wall_loops");
-        check(local_walls && local_walls->value == "5" && local_walls->coverage == "exact" &&
-                  std::any_of(locally_edited.applied_setup->local_overrides.begin(),
-                              locally_edited.applied_setup->local_overrides.end(), [](const SetupLocalOverride& item) {
-                                  return item.kind == "object" && item.key == "wall_loops" && item.value == "5";
-                              }),
-              "setup_manual_object_setting_uses_live_value");
-        check(local_walls && local_walls->base == process.option("wall_loops")->serialize() && local_walls->base != "5",
-              "setup_object_override_leaves_the_plate_default_readable");
+        const SetupLocalOverride* local_walls = local_override(locally_edited, "wall_loops", "object");
+        check(local_walls && local_walls->value == "5" && !local_walls->label.empty() && !local_walls->display.empty(),
+              "setup_manual_object_setting_has_generic_display_facts");
 
         // The case the preset-plus-object read gets wrong: a modifier holds a
         // value that neither config has, so that read still answers 5 for the
@@ -452,17 +428,13 @@ private:
         modifier->name = "tab";
         modifier->config.set_key_value("wall_loops", new ConfigOptionInt(7));
         const WorkspaceSnapshot with_modifier = m_workspace->snapshot();
-        const SetupSetting* modified_walls = applied_setting(with_modifier, "wall_loops");
+        const SetupLocalOverride* modified_walls = local_override(with_modifier, "wall_loops", "modifier");
         const auto whole_plate_read = m_workspace->read_settings(
             {"wall_loops"}, SettingsTarget{SettingsScope::Object, with_modifier.plates.front().objects.front().id, {}});
         std::cerr << "SETUP modifier: object read=" << (whole_plate_read.items.empty() ? "" : whole_plate_read.items.front().value)
-                  << " setup coverage=" << (modified_walls ? modified_walls->coverage : "") << '\n';
-        check(modified_walls && modified_walls->coverage == "local" &&
-                  std::any_of(with_modifier.applied_setup->local_overrides.begin(),
-                              with_modifier.applied_setup->local_overrides.end(), [&](const SetupLocalOverride& item) {
-                                  return item.kind == "modifier" && item.key == "wall_loops" && item.value == "7" &&
-                                         item.target == model_first.name + " / tab" && item.object == 0;
-                              }),
+                  << " modifier=" << (modified_walls ? modified_walls->display : "") << '\n';
+        check(modified_walls && modified_walls->value == "7" &&
+                  modified_walls->target == model_first.name + " / tab" && modified_walls->object == 0,
               "setup_modifier_value_is_local_not_universal");
         model_first.delete_volume(model_first.volumes.size() - 1);
 
@@ -471,16 +443,12 @@ private:
         ModelConfig& range = model_first.layer_config_ranges[{0.0, 2.0}];
         range.set_key_value("wall_loops", new ConfigOptionInt(3));
         const WorkspaceSnapshot with_range = m_workspace->snapshot();
-        const SetupSetting* ranged_walls = applied_setting(with_range, "wall_loops");
-        check(ranged_walls && ranged_walls->coverage == "local" && !with_range.applied_setup->variable_layer_height &&
-                  std::any_of(with_range.applied_setup->local_overrides.begin(),
-                              with_range.applied_setup->local_overrides.end(), [](const SetupLocalOverride& item) {
-                                  return item.kind == "height range" && item.key == "wall_loops" && item.value == "3";
-                              }),
+        const SetupLocalOverride* ranged_walls = local_override(with_range, "wall_loops", "height range");
+        check(ranged_walls && ranged_walls->value == "3" && !with_range.applied_setup->variable_layer_height,
               "setup_height_range_is_local_and_not_variable_height");
         model_first.layer_config_ranges.clear();
-        check(applied_setting(m_workspace->snapshot(), "wall_loops")->coverage == "exact",
-              "setup_local_coverage_clears_with_the_override");
+        check(local_override(m_workspace->snapshot(), "wall_loops", "height range") == nullptr,
+              "setup_height_range_clears_with_the_override");
         check(m_workspace->outline().objects.front().customization.setting_overrides == 1 &&
                   m_workspace->outline().objects.front().customization.any(),
               "pane_setting_override_is_customization");
@@ -488,6 +456,10 @@ private:
         const OutlineObject overridden = m_workspace->outline().objects.front();
         check(overridden.extruder == 2 && overridden.customization.setting_overrides == 1,
               "pane_filament_override_is_not_a_setting_override");
+        const WorkspaceSnapshot with_filament_override = m_workspace->snapshot();
+        const SetupLocalOverride* filament_override = local_override(with_filament_override, "extruder", "object");
+        check(filament_override && filament_override->value == "2" && !filament_override->label.empty(),
+              "setup_nondefault_filament_slot_is_local");
         model_first.config.erase("extruder");
         model_first.config.erase("wall_loops");
 

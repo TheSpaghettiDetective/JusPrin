@@ -1,6 +1,7 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "DialogListeners.hpp"
 #include "OrcaSettings.hpp"
+#include "SettingDisplay.hpp"
 #include "OrcaGeometry.hpp"
 #include "HostLocale.hpp"
 
@@ -30,6 +31,7 @@
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Selection.hpp"
+#include "slic3r/GUI/Search.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 
 #include <boost/algorithm/string/case_conv.hpp>
@@ -44,6 +46,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <set>
 
@@ -141,65 +144,114 @@ std::optional<SliceEstimate> estimate_of(const GCodeProcessorResult& result)
     return estimate;
 }
 
-// Every process setting whose value in force differs from the preset it was
-// loaded from -- the card's "N changes from preset". Keys Orca reports but no
-// longer defines are skipped rather than shown without a label.
-std::vector<PresetDelta> preset_deltas_of(const PresetCollection& prints, const std::vector<std::string>& dirty)
+std::string pure_option_key(const std::string& key)
+{
+    const std::size_t separator = key.find('#');
+    return separator == std::string::npos ? key : key.substr(0, separator);
+}
+
+SettingsScope settings_scope(Preset::Type type)
+{
+    return type == Preset::TYPE_FILAMENT ? SettingsScope::Filament :
+           type == Preset::TYPE_PRINTER  ? SettingsScope::Printer : SettingsScope::Process;
+}
+
+const char* preset_type_name(Preset::Type type)
+{
+    return type == Preset::TYPE_FILAMENT ? "filament" : type == Preset::TYPE_PRINTER ? "printer" : "process";
+}
+
+// The key OptionsSearcher files an option's group and page under (get_key in
+// Search.cpp, which keeps it to itself). If Orca changes it the lookup finds
+// nothing and the setup page loses its group captions, which the shell
+// harness's --setup-differences-capture run checks for.
+std::string index_key(const std::string& option, Preset::Type type)
+{
+    return std::to_string(int(type)) + ";" + option;
+}
+
+// Every setting whose edited value differs from its selected preset. Deep
+// comparisons may report vector entries as key#N; one row describes the
+// setting, so those entries collapse back to their pure key and the formatter
+// receives the complete serialized vector.
+std::vector<PresetDelta> preset_deltas_of(const PresetCollection& presets, const std::vector<std::string>& dirty,
+                                          Preset::Type type, Search::OptionsSearcher& searcher)
 {
     std::vector<PresetDelta> result;
-    result.reserve(dirty.size());
-    const DynamicPrintConfig& edited = prints.get_edited_preset().config;
-    const DynamicPrintConfig& saved  = prints.get_selected_preset().config;
-    for (const std::string& key : dirty) {
+    std::set<std::string> dirty_keys;
+    for (const std::string& reported : dirty)
+        dirty_keys.insert(pure_option_key(reported));
+    result.reserve(dirty_keys.size());
+    const DynamicPrintConfig& edited = presets.get_edited_preset().config;
+    const DynamicPrintConfig& saved  = presets.get_selected_preset().config;
+    const SettingsScope scope = settings_scope(type);
+    for (const std::string& key : dirty_keys) {
         const ConfigOptionDef* definition = print_config_def.get(key);
         const ConfigOption*    before     = saved.option(key);
         const ConfigOption*    after      = edited.option(key);
         if (definition == nullptr || before == nullptr || after == nullptr) continue;
         const std::string& label = definition->full_label.empty() ? definition->label : definition->full_label;
-        result.push_back({key, label.empty() ? key : label, before->serialize(), after->serialize()});
+        const SettingDefinition display_definition = setting_definition(key, scope);
+        PresetDelta delta{key, label.empty() ? key : label, before->serialize(), after->serialize(),
+                          preset_type_name(type), presets.get_edited_preset().name,
+                          display_change(display_definition, before->serialize(), after->serialize())};
+
+        // Where the setting sits in Orca's settings tabs. Every option group
+        // registers its options here as its tab is built, whatever user mode
+        // is in force, which get_option's index of the visible options is
+        // not. An option with one value per extruder is registered as key#0.
+        Search::GroupAndCategory location = searcher.get_group_and_category(index_key(key, type));
+        if (location.group.empty())
+            location = searcher.get_group_and_category(index_key(key + "#0", type));
+        delta.page  = into_u8(location.category);
+        delta.group = into_u8(location.group);
+        result.push_back(std::move(delta));
     }
+    const auto& ordered = scope_options(scope);
+    const auto rank = [&ordered](const std::string& key) {
+        const auto found = std::find(ordered.begin(), ordered.end(), key);
+        return found == ordered.end() ? ordered.size() : std::size_t(found - ordered.begin());
+    };
+    std::stable_sort(result.begin(), result.end(), [&rank](const PresetDelta& left, const PresetDelta& right) {
+        return rank(left.key) < rank(right.key);
+    });
     return result;
 }
 
-const std::array<const char*, 13> kSetupKeys{{
-    "layer_height", "wall_loops", "sparse_infill_density", "sparse_infill_pattern",
-    "enable_support", "support_type", "support_on_build_plate_only",
-    "top_shell_layers", "bottom_shell_layers", "top_shell_thickness", "bottom_shell_thickness",
-    "brim_type", "brim_width"
-}};
-
-std::string setting_value(const DynamicPrintConfig& process, const DynamicPrintConfig& plate,
-                          const DynamicPrintConfig& object, const char* key)
-{
-    const ConfigOption* option = object.option(key);
-    if (option == nullptr) option = plate.option(key);
-    if (option == nullptr) option = process.option(key);
-    return option == nullptr ? std::string() : option->serialize();
-}
-
-AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlate& plate,
-                              const DynamicPrintConfig& process)
+AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlate& plate)
 {
     AppliedSetup result;
     result.plate = PlateId(session, plate.id().id);
     result.spiral_mode = plate.get_spiral_vase_mode();
-    const DynamicPrintConfig& plate_config = *plate.config();
-    const DynamicPrintConfig no_object;
-    for (const char* key : kSetupKeys)
-        result.settings.push_back({key, {}, "unavailable", {}, setting_value(process, plate_config, no_object, key)});
-
     const auto add_local = [&result](const std::string& target, const std::string& kind,
                                      const DynamicPrintConfig& config) {
         for (const std::string& key : config.keys()) {
             const ConfigOption* option = config.option(key);
-            if (option != nullptr)
-                result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1});
+            const ConfigOptionDef* definition = print_config_def.get(key);
+            if (option == nullptr)
+                continue;
+            // Orca materializes slot 1 on otherwise clean imported objects.
+            // It is the inherited/default filament, not a local override.
+            if (key == "extruder") {
+                if (option->serialize() != "1")
+                    result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1,
+                                                      "Filament slot", option->serialize()});
+            } else if (definition != nullptr) {
+                const SettingDefinition display_definition = setting_definition(key, SettingsScope::Object);
+                result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1,
+                                                  display_definition.label,
+                                                  display_value(display_definition, option->serialize())});
+            }
         }
     };
     // A customization with no single value to quote: paint, a blocker, a
     // variable-height profile.
     const auto add_artifact = [&result](const std::string& target, const std::string& kind, const std::string& key = {}) {
-        result.local_overrides.push_back({target, kind, key, {}, result.objects.size() - 1});
+        const ConfigOptionDef* definition = key.empty() ? nullptr : print_config_def.get(key);
+        result.local_overrides.push_back({target, kind, key, {}, result.objects.size() - 1,
+                                          definition == nullptr ? std::string() :
+                                              (definition->full_label.empty() ? definition->label : definition->full_label),
+                                          {}});
     };
 
     const ModelObjectPtrs& objects = plater.model().objects;
@@ -217,18 +269,6 @@ AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlat
         result.objects.push_back(object.name);
         const DynamicPrintConfig& object_config = object.config.get();
         add_local(object.name, "object", object_config);
-        for (SetupSetting& setting : result.settings) {
-            const std::string value = setting_value(process, plate_config, object_config, setting.key.c_str());
-            if (value.empty()) continue;
-            setting.scopes.push_back({object.name, "object", value, result.objects.size() - 1});
-            if (setting.coverage == "unavailable") {
-                setting.value = value;
-                setting.coverage = "exact";
-            } else if (setting.value != value) {
-                setting.coverage = "mixed";
-            }
-        }
-
         // has_custom_layering() is also true for a height range, which may
         // change walls and leave the layer height alone; ranges are listed
         // below with the keys they actually set.
@@ -258,25 +298,23 @@ AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlat
             add_artifact(object.name, "fuzzy skin painting");
     }
 
-    for (SetupSetting& setting : result.settings)
-        if (std::any_of(result.local_overrides.begin(), result.local_overrides.end(),
-                        [&setting](const SetupLocalOverride& local) {
-                            const bool support_geometry = (local.kind == "support blocker" ||
-                                local.kind == "support enforcer" || local.kind == "support painting") &&
-                                (setting.key == "enable_support" || setting.key == "support_type" ||
-                                 setting.key == "support_on_build_plate_only");
-                            return support_geometry || (local.kind != "object" && local.key == setting.key);
-                        }))
-            setting.coverage = "local";
     return result;
 }
 
 // The settings edited between two readings of one preset. A key's value in
 // force is its delta's value, or the preset's own value when it has no delta.
+// The change log is read by people, so an edit carries its two values as the
+// setup card writes values: "Outer brim only" and "8 mm", not outer_only and 8.
 std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before, const std::vector<PresetDelta>& after,
                                          const PresetCollection& collection)
 {
     const std::string& preset = collection.get_edited_preset().name;
+    const SettingsScope scope = settings_scope(collection.type());
+    const auto edit = [&](const PresetDelta& delta, const std::string& was, const std::string& now) {
+        const SettingDefinition definition = setting_definition(delta.key, scope);
+        return WorkspaceEdit{EditKind::Setting, EditActor::Person, delta.label, display_value(definition, was),
+                             display_value(definition, now), preset, delta.key};
+    };
     const auto find = [](const std::vector<PresetDelta>& deltas, const std::string& key) {
         const auto found = std::find_if(deltas.begin(), deltas.end(), [&key](const PresetDelta& delta) { return delta.key == key; });
         return found == deltas.end() ? nullptr : &*found;
@@ -286,7 +324,7 @@ std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before,
         const PresetDelta* earlier = find(before, delta.key);
         const std::string& was     = earlier != nullptr ? earlier->value : delta.preset;
         if (was != delta.value)
-            edits.push_back({EditKind::Setting, EditActor::Person, delta.label, was, delta.value, preset});
+            edits.push_back(edit(delta, was, delta.value));
     }
     // A delta disappears when the setting is put back to the preset's value,
     // and also when the preset is saved with the value in it -- which changes
@@ -296,7 +334,7 @@ std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before,
             const ConfigOption* option = collection.get_edited_preset().config.option(delta.key);
             const std::string   now    = option != nullptr ? option->serialize() : delta.preset;
             if (now != delta.value)
-                edits.push_back({EditKind::Setting, EditActor::Person, delta.label, delta.value, now, preset});
+                edits.push_back(edit(delta, delta.value, now));
         }
     return edits;
 }
@@ -614,10 +652,18 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         result.setup.printer_preset = presets->printers.get_selected_preset().name;
         if (presets->printers.get_edited_preset().printer_technology() == ptFFF) {
             result.setup.process_preset = presets->prints.get_edited_preset().name;
-            // One diff, used twice: snapshot() runs on every selection change.
-            const std::vector<std::string> dirty = presets->prints.current_dirty_options();
-            result.setup.process_preset_dirty = !dirty.empty();
-            result.preset_deltas = preset_deltas_of(presets->prints, dirty);
+            Search::OptionsSearcher& searcher = m_plater.sidebar().get_searcher();
+            const std::vector<std::string> process_dirty = presets->prints.current_dirty_options();
+            result.setup.process_preset_dirty = !process_dirty.empty();
+            result.preset_deltas = preset_deltas_of(presets->prints, process_dirty, Preset::TYPE_PRINT, searcher);
+            const auto append = [&result, &searcher](const PresetCollection& collection, Preset::Type type) {
+                std::vector<PresetDelta> deltas = preset_deltas_of(collection, collection.current_dirty_options(true),
+                                                                   type, searcher);
+                result.preset_deltas.insert(result.preset_deltas.end(),
+                                            std::make_move_iterator(deltas.begin()), std::make_move_iterator(deltas.end()));
+            };
+            append(presets->filaments, Preset::TYPE_FILAMENT);
+            append(presets->printers, Preset::TYPE_PRINTER);
         }
         if (!presets->filament_presets.empty())
             result.setup.filament_preset = presets->filament_presets.front();
@@ -675,8 +721,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
             result.active_plate = projected_plate.id;
         if (projected_plate.active && wxGetApp().preset_bundle != nullptr &&
             wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptFFF)
-            result.applied_setup = applied_setup_of(m_session, m_plater, *plate,
-                wxGetApp().preset_bundle->prints.get_edited_preset().config);
+            result.applied_setup = applied_setup_of(m_session, m_plater, *plate);
         result.plates.emplace_back(std::move(projected_plate));
     }
 
@@ -2399,20 +2444,24 @@ void OrcaWorkspaceAdapter::record_history_edits()
 void OrcaWorkspaceAdapter::record_settings_edits(bool report)
 {
     PresetBundle& presets = *wxGetApp().preset_bundle;
-    const std::vector<const PresetCollection*> collections{static_cast<const PresetCollection*>(&presets.prints),
-                                                           static_cast<const PresetCollection*>(&presets.filaments),
-                                                           static_cast<const PresetCollection*>(&presets.printers)};
+    const std::vector<std::pair<const PresetCollection*, Preset::Type>> collections{
+        {static_cast<const PresetCollection*>(&presets.prints), Preset::TYPE_PRINT},
+        {static_cast<const PresetCollection*>(&presets.filaments), Preset::TYPE_FILAMENT},
+        {static_cast<const PresetCollection*>(&presets.printers), Preset::TYPE_PRINTER}};
     std::vector<PresetReading> now;
-    for (const PresetCollection* collection : collections)
+    Search::OptionsSearcher& searcher = m_plater.sidebar().get_searcher();
+    for (const auto& [collection, type] : collections)
         now.push_back({collection->get_edited_preset().name,
-                       preset_deltas_of(*collection, collection->current_dirty_options())});
+                       preset_deltas_of(*collection, collection->current_dirty_options(type != Preset::TYPE_PRINT),
+                                        type, searcher)});
     if (report && m_presets.size() == now.size())
         for (std::size_t index = 0; index < now.size(); ++index) {
             if (m_presets[index].name != now[index].name) {
                 publish_edit({EditKind::Preset, EditActor::Person, now[index].name});
                 continue;
             }
-            for (const WorkspaceEdit& edit : setting_edits(m_presets[index].deltas, now[index].deltas, *collections[index]))
+            for (const WorkspaceEdit& edit : setting_edits(m_presets[index].deltas, now[index].deltas,
+                                                           *collections[index].first))
                 publish_edit(edit);
         }
     m_presets = std::move(now);

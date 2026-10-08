@@ -64,6 +64,18 @@
 //              and shows no earlier figure, while the slice runs, and writes
 //              recomputing-agent-pane.png and
 //              recomputing-shell.png to the directory (handoff item 6)
+//   --setup-differences-capture <output-directory>
+//              edits process, filament and per-object settings the way a
+//              person does, asserts the setup card and the setup page name
+//              every one of them, writes setup-differences-card.png,
+//              setup-differences-page.png and setup-differences-page-end.png
+//              to the directory, then puts the values back and asserts the
+//              card reports no changes. It then records a purpose and applies
+//              a patch through the agent's own tools, slices, and writes the
+//              card just after the change (setup-differences-agent-updated),
+//              the card a minute later (setup-differences-agent-card) and its
+//              page (setup-differences-agent-page): the state the design's
+//              first frame draws. That minute makes the run about two long.
 //   --timeline-capture <output-directory>
 //              records a build, asks a question the Agent answers without a
 //              change, mirrors the object three times and edits a print
@@ -600,6 +612,7 @@ struct HarnessState
         ManualMcp,
         LiveAgentUnavailable,
         RecomputingCapture,
+        SetupDifferencesCapture,
         TimelineCapture,
         FigmaTimelineCapture,
         ToolStripCapture,
@@ -864,6 +877,11 @@ public:
             if (m_state->mode == HarnessState::Mode::RecomputingCapture) {
                 verify_canvas_interaction();
                 wait_for_agent_page("recomputing", [self = shared_from_this()] { self->begin_recomputing_capture(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::SetupDifferencesCapture) {
+                verify_canvas_interaction();
+                wait_for_agent_page("setup_differences", [self = shared_from_this()] { self->begin_setup_differences_capture(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::TimelineCapture) {
@@ -5846,6 +5864,238 @@ private:
                    });
     }
 
+    // The setup card and its page against real presets. The values are
+    // edited through the process tab, the filament tab and an object's own
+    // settings, so every label, group and formatted value on the page is one
+    // OrcaSlicer and the adapter produced, not a fixture's.
+    void begin_setup_differences_capture()
+    {
+        m_plater->model().objects.front()->config.set_key_value("wall_loops", new ConfigOptionInt(5));
+        DynamicPrintConfig process;
+        process.set_deserialize_strict("brim_type", "outer_only");
+        process.set_deserialize_strict("brim_width", "8");
+        process.set_deserialize_strict("initial_layer_print_height", "0.28");
+        process.set_deserialize_strict("initial_layer_speed", "25");
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(process);
+        DynamicPrintConfig filament;
+        filament.set_deserialize_strict("hot_plate_temp", "105");
+        wxGetApp().get_tab(Preset::TYPE_FILAMENT)->load_config(filament);
+        // One value per extruder, which Orca's index files under its first.
+        DynamicPrintConfig printer;
+        printer.set_deserialize_strict("retraction_length", "1.2");
+        wxGetApp().get_tab(Preset::TYPE_PRINTER)->load_config(printer);
+        await_setup_text("card", "[data-testid=\"current-setup\"]", "scope.querySelector('.current-setup-row--change')",
+                         [self = shared_from_this()] { self->capture_setup_differences_card(); });
+    }
+
+    // Waits until `ready`, a script expression over the element `scope`,
+    // holds, then reports the scope's visible text through the draft, one
+    // line per row.
+    void await_setup_text(const std::string& name, const std::string& scope, const std::string& ready,
+                          std::function<void()> next)
+    {
+        persistence().set_draft({});
+        const std::string script =
+            "(function(){"
+            "  var scope = document.querySelector('" + scope + "');"
+            "  if (scope && (" + ready + ") && window.__jusprinTest)"
+            "    window.__jusprinTest.setDraft('" + name + "=' + scope.innerText.replace(/\\n+/g, ' | '));"
+            "})()";
+        wait_until([this, name] { return persistence().draft().rfind(name + "=", 0) == 0; },
+                   "setup_differences_" + name + "_rendered", std::move(next),
+                   [script] { WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), script); });
+    }
+
+    void run_in_agent_page(const std::string& script)
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), script);
+    }
+
+    void capture_setup_differences_card()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        // The change log under the card is written the way the card is.
+        bool readable = false;
+        for (const Agent::ChangeEntry& change : persistence().document().changes())
+            if (change.key == "brim_type") readable = change.from == "Auto" && change.to == "Outer brim only";
+        check(readable, "change_log_records_values_as_a_person_reads_them");
+        // Two of the six, whichever were edited last.
+        check(card.find(" \xE2\x86\x92 ") != std::string::npos, "setup_card_shows_a_changed_setting");
+        check(card.find("more change") != std::string::npos, "setup_card_counts_the_changes_it_does_not_show");
+        check(card.find("1 object with overrides") != std::string::npos, "setup_card_counts_the_object_override");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-card");
+        run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
+                          "function(link){return link.textContent==='View setup';}).click()");
+        await_setup_text("page", "[data-testid=\"current-setup-page\"]", "scope.querySelector('.current-setup-row--change')",
+                         [self = shared_from_this()] { self->capture_setup_differences_page(); });
+    }
+
+    void capture_setup_differences_page()
+    {
+        const std::string page = persistence().draft();
+        std::cout << "HARNESS SETUP " << page << std::endl;
+        for (const char* expected : {"Brim width", "Brim type", "First layer height", "Wall loops", "Bed temperature"})
+            check(page.find(expected) != std::string::npos, std::string("setup_page_names_") + expected);
+        // The page and group come from Orca's settings tabs, in every user
+        // mode: "First layer" alone names four settings.
+        for (const char* caption : {"Others \xC2\xB7 Brim", "Quality \xC2\xB7 Layer height", "Speed \xC2\xB7 First layer speed"})
+            check(page.find(caption) != std::string::npos, std::string("setup_page_groups_under_") + caption);
+        check(page.find("Bed temperature | Bed temperature") != std::string::npos, "setup_page_groups_a_filament_setting");
+        check(page.find("Retraction | Retraction Length | ") != std::string::npos, "setup_page_groups_a_printer_setting");
+        check(page.find("1.2 mm") != std::string::npos, "setup_page_shows_a_printer_setting_with_its_unit");
+        // The thread's own record of the same edits reads the same way.
+        check(page.find("outer_only") == std::string::npos, "setup_page_shows_no_config_token");
+        check(page.find("Outer brim only") != std::string::npos, "setup_page_shows_a_choice_by_its_label");
+        check(page.find("0.28 mm") != std::string::npos, "setup_page_shows_a_number_with_its_unit");
+        check(page.find("Ask about this print") == std::string::npos, "setup_page_has_no_message_box");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-page");
+        run_in_agent_page("document.querySelector('[data-testid=\"current-setup-page\"]').scrollTop = 100000");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-page-end");
+
+        // Put every value back to the preset's and the card has nothing left
+        // to report.
+        run_in_agent_page("document.querySelector('.panel-back-link').click()");
+        m_plater->model().objects.front()->config.erase("wall_loops");
+        const auto restore = [](Preset::Type type, const PresetCollection& presets, std::initializer_list<const char*> keys) {
+            DynamicPrintConfig saved;
+            for (const char* key : keys)
+                saved.set_key_value(key, presets.get_selected_preset().config.option(key)->clone());
+            wxGetApp().get_tab(type)->load_config(saved);
+        };
+        const PresetBundle& bundle = *wxGetApp().preset_bundle;
+        restore(Preset::TYPE_PRINTER, bundle.printers, {"retraction_length"});
+        restore(Preset::TYPE_FILAMENT, bundle.filaments, {"hot_plate_temp"});
+        restore(Preset::TYPE_PRINT, bundle.prints,
+                {"brim_type", "brim_width", "initial_layer_print_height", "initial_layer_speed"});
+        await_setup_text("restored", "[data-testid=\"current-setup\"]",
+                         "!scope.querySelector('.current-setup-row--change')", [self = shared_from_this()] {
+            const std::string card = self->persistence().draft();
+            std::cout << "HARNESS SETUP " << card << std::endl;
+            self->check(card.find("No changes from presets") != std::string::npos, "setup_card_reports_no_changes_after_restore");
+            self->check(card.find("with overrides") == std::string::npos, "setup_card_drops_the_object_override_after_restore");
+            self->begin_setup_differences_agent_turn();
+        });
+    }
+
+    // The state the design's first frame draws: a purpose the agent recorded
+    // for the chat, settings the agent changed, a hand edit to another preset
+    // made before it, an object override, and a sliced plate. The purpose and
+    // the patch go through the tools the model calls, so the title, the
+    // attribution and the change log are the app's own.
+    void begin_setup_differences_agent_turn()
+    {
+        DynamicPrintConfig filament;
+        filament.set_deserialize_strict("hot_plate_temp", "105");
+        wxGetApp().get_tab(Preset::TYPE_FILAMENT)->load_config(filament);
+        m_plater->model().objects.front()->config.set_key_value("wall_loops", new ConfigOptionInt(5));
+
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        run_in_agent_page("window.__jusprinTest.send('the corners keep lifting off the bed')");
+        wait_until([&web_view] {
+            for (const auto& message : web_view.host().conversation())
+                if (message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete)
+                    return true;
+            return false;
+        }, "setup_differences_agent_turn_complete", [self = shared_from_this()] { self->apply_setup_differences_as_agent(); });
+    }
+
+    void apply_setup_differences_as_agent()
+    {
+        Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+        std::string message_id;
+        for (const auto& message : host.conversation())
+            if (message.role == Agent::MessageRole::User) message_id = message.id;
+        check(!message_id.empty(), "setup_differences_user_message_recorded");
+
+        const auto run = [&host, &message_id, this](const char* tool, const nlohmann::json& arguments, const std::string& name) {
+            const std::string action = host.tools().propose({tool, arguments.dump()}, message_id).action_id;
+            for (int tick = 0; tick < 200 && !Agent::tool_state_terminal(host.tools().find(action)->state); ++tick)
+                host.pump_tools();
+            const Agent::ToolActivity* done = host.tools().find(action);
+            if (done->state != Agent::ToolState::Succeeded)
+                std::cout << "HARNESS SETUP tool " << tool << " ended " << int(done->state) << " " << done->result_json << std::endl;
+            check(done->state == Agent::ToolState::Succeeded, name);
+        };
+        run("intent_update", {{"fields", nlohmann::json::array()}, {"setupTitle", "Stop the corners lifting"}},
+            "setup_differences_agent_records_the_purpose");
+        const auto snapshot = installed_workspace_snapshot();
+        run("settings_apply_patch",
+            {{"scope", "process"},
+             {"changes", {{"brim_type", "outer_only"}, {"brim_width", "8"}, {"initial_layer_speed", "25"}}},
+             {"expectedSessionId", std::to_string(snapshot.session.value())},
+             {"expectedRevision", snapshot.revision}},
+            "setup_differences_agent_applies_the_patch");
+
+        installed_shell()->status_row()->request_slice();
+        wait_until([this] { return active_plate_sliced_and_idle(); }, "setup_differences_plate_sliced", [self = shared_from_this()] {
+            self->await_setup_text("updated", "[data-testid=\"current-setup\"]",
+                                   "scope.querySelector('.current-setup-metric') && scope.querySelector('.current-setup-row--change')",
+                                   [self] { self->capture_setup_differences_updated(); });
+        });
+    }
+
+    // Straight after the agent's change the card says what just changed.
+    void capture_setup_differences_updated()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        check(card.find("updated=Setup summary | Updated | Stop the corners lifting | ") == 0,
+              "setup_card_is_titled_by_the_purpose_the_agent_recorded");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-updated");
+        // A change stays "just changed" for a minute. After it the card is
+        // the design's first frame.
+        await_setup_text("current", "[data-testid=\"current-setup\"]",
+                         "scope.querySelector('.current-setup-state').textContent === 'Current'",
+                         [self = shared_from_this()] { self->capture_setup_differences_current(); });
+    }
+
+    void capture_setup_differences_current()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        const std::string process = short_preset(wxGetApp().preset_bundle->prints.get_edited_preset().name);
+        const std::string filament = short_preset(wxGetApp().preset_bundle->filaments.get_edited_preset().name);
+        const std::string lead = "current=Setup summary | Current | Stop the corners lifting | " + process + " \xC2\xB7 " + filament + " | ";
+        check(card.find(lead) == 0, "setup_card_names_the_process_and_the_filament_under_the_purpose");
+        // The two rows are the agent's, ahead of the bed temperature edited
+        // by hand: the last two of the three it changed.
+        const std::string rows = card.substr(std::min(card.size(), lead.size()), card.find("more change") - std::min(card.size(), lead.size()));
+        check(rows.find("Bed temperature") == std::string::npos, "setup_card_leads_with_the_agents_changes");
+        int agent_rows = 0;
+        for (const char* label : {"Brim type", "Brim width", "First layer"})
+            if (rows.find(label) != std::string::npos) ++agent_rows;
+        check(agent_rows == 2, "setup_card_shows_two_of_the_agents_changes");
+        check(card.find("2 more changes \xC2\xB7 1 object with overrides") != std::string::npos, "setup_card_counts_the_rest");
+        check(card.find("~") != std::string::npos && card.find(" g | ") != std::string::npos, "setup_card_shows_the_slice_estimate");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-card");
+        run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
+                          "function(link){return link.textContent==='View setup';}).click()");
+        await_setup_text("agentpage", "[data-testid=\"current-setup-page\"]", "scope.querySelector('.current-setup-row--change')",
+                         [self = shared_from_this()] { self->finish_setup_differences_capture(); });
+    }
+
+    static std::string short_preset(const std::string& name)
+    {
+        return name.substr(0, name.find(" @"));
+    }
+
+    void finish_setup_differences_capture()
+    {
+        const std::string page = persistence().draft();
+        std::cout << "HARNESS SETUP " << page << std::endl;
+        check(page.find("Changed from presets \xC2\xB7 4") != std::string::npos, "setup_page_counts_the_agents_and_the_hand_edit");
+        check(page.find("Hide the Agent panel") == std::string::npos, "setup_page_text_is_the_page_alone");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-page");
+        run_in_agent_page("document.querySelector('.agent-pane-toggle').click()");
+        wait_until([] { return !installed_shell()->agent_pane()->IsShown(); }, "setup_page_can_hide_the_agent_panel",
+                   [self = shared_from_this()] {
+            self->persistence().set_draft({});
+            self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "setup_differences_teardown_project");
+            self->finish();
+        });
+    }
+
     // A visual fixture for both full-timeline Figma frames. The conversation
     // and manufacturing facts are illustrative, but they pass through the
     // project's real document and the production WebView. Real model edits
@@ -5947,7 +6197,7 @@ private:
             "    document.querySelectorAll('.settings-changes .settings-change-row').length,"
             "    Number(Array.from(document.querySelectorAll('.settings-changes-heading')).some(function(heading) {"
             "      return (heading.textContent || '').toLowerCase().includes('4 of 12 settings'); })),"
-            "    Number((document.querySelector('.agent-change-summary')?.textContent || '').includes('+3'))];"
+            "    Number((document.querySelector('.agent-change-summary')?.textContent || '').includes('5 settings'))];"
             "  var state = window.__jusprinTest.state();"
             "  window.__jusprinTest.setDraft('figma-timeline=' + found.join(',') + ';' + list.clientHeight + '/' + "
                            "list.scrollHeight + ';points=' + JSON.stringify(state.restorePoints));"
@@ -9408,6 +9658,14 @@ int main(int argc, char** argv)
                 return 2;
             }
             state->mode = HarnessState::Mode::RecomputingCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--setup-differences-capture") {
+            if (++index == argc) {
+                std::cerr << "--setup-differences-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::SetupDifferencesCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
         else if (argument == "--timeline-capture") {
