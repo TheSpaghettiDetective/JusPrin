@@ -64,3 +64,7 @@ Tell me how you plan to do it first. Give me the command for me to confirm.
 ---
 
 Looks good. Do final check to make sure the main work tree and other work trees are all free of uncommitted edits and all pushed feature brancy to remote. Once this is confirmed, proceed.
+
+---
+
+confirmed all of them are okay. proceed
