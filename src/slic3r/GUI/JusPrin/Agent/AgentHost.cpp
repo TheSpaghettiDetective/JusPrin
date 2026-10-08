@@ -47,6 +47,22 @@ const char* state_name(MessageState state)
     return "complete";
 }
 
+bool valid_skill_name(const std::string& name)
+{
+    if (name.empty() || name.size() > 64 || name.front() == '-' || name.back() == '-')
+        return false;
+    bool previous_hyphen = false;
+    for (const unsigned char ch : name) {
+        const bool hyphen = ch == '-';
+        const bool lowercase_ascii = ch >= 'a' && ch <= 'z';
+        const bool digit_ascii = ch >= '0' && ch <= '9';
+        if ((!lowercase_ascii && !digit_ascii && !hyphen) || (hyphen && previous_hyphen))
+            return false;
+        previous_hyphen = hyphen;
+    }
+    return true;
+}
+
 const char* availability_name(AgentAvailability availability)
 {
     return availability == AgentAvailability::Ready ? "ready" : "unavailable";
@@ -582,7 +598,7 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             if (result.handled)
                 return result;
         }
-        return execute_manufacturing_tool(handler, activity);
+        return execute_host_tool(handler, activity);
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
         // The last word of an action that replaced the project belongs to the
@@ -953,6 +969,41 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
             m_file_report_instructions = text;
         else
             send_bridge_error("invalid_payload", "The file report instructions are too long.", envelope_id);
+    }
+    else if (type == Protocol::kSkills) {
+        // A reconnect replaces the registry. Never retain an earlier valid
+        // list after a malformed page payload.
+        m_skills.clear();
+        constexpr std::size_t kSkillTextLimit = 16 * 1024;
+        constexpr std::size_t kSkillsPayloadLimit = 256 * 1024;
+        const json parsed = payload.size() <= kSkillsPayloadLimit ? json::parse(payload, nullptr, false) : json();
+        bool valid = parsed.is_object() && parsed.size() == 1 && parsed.contains("skills") && parsed["skills"].is_array();
+        std::vector<AgentSkill> received;
+        std::string previous;
+        if (valid) {
+            for (const json& value : parsed["skills"]) {
+                if (!value.is_object() || value.size() != 3 || !value.contains("name") ||
+                    !value.contains("description") || !value.contains("text") || !value["name"].is_string() ||
+                    !value["description"].is_string() || !value["text"].is_string()) {
+                    valid = false;
+                    break;
+                }
+                AgentSkill skill{value["name"].get<std::string>(), value["description"].get<std::string>(),
+                                 value["text"].get<std::string>()};
+                if (!valid_skill_name(skill.name) || skill.description.empty() || skill.description.size() > 300 ||
+                    skill.description.find_first_of("\r\n") != std::string::npos || skill.text.empty() ||
+                    skill.text.size() > kSkillTextLimit || (!previous.empty() && skill.name <= previous)) {
+                    valid = false;
+                    break;
+                }
+                previous = skill.name;
+                received.push_back(std::move(skill));
+            }
+        }
+        if (valid)
+            m_skills = std::move(received);
+        else
+            send_bridge_error("invalid_payload", "The project skill registry is invalid.", envelope_id);
     }
     else if (!(m_page_message_handler && m_page_message_handler(type, json::parse(payload, nullptr, false))))
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
@@ -1602,15 +1653,33 @@ void AgentHost::send_tool_activity(const ToolActivity& activity, const std::stri
     send_envelope(Protocol::kToolActivity, json{{"activity", activity_json(activity)}}.dump(), correlation_id);
 }
 
-ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(ToolHandler handler,
-                                                                                const ToolActivity& activity)
+ToolExecutionCoordinator::ExtensionResult AgentHost::execute_host_tool(ToolHandler handler,
+                                                                       const ToolActivity& activity)
 {
     ToolExecutionCoordinator::ExtensionResult result;
     result.handled = true;
 
     const json arguments = json::parse(activity.arguments_json, nullptr, false);
     if (!arguments.is_object()) {
-        result.error = ToolError{"invalid_arguments", "The manufacturing record arguments are invalid."};
+        result.error = ToolError{"invalid_arguments", "The tool arguments are invalid."};
+        return result;
+    }
+
+    if (handler == ToolHandler::SkillRead) {
+        const std::string name = arguments.value("name", "");
+        const auto found = std::lower_bound(m_skills.begin(), m_skills.end(), name,
+                                            [](const AgentSkill& skill, const std::string& candidate) {
+                                                return skill.name < candidate;
+                                            });
+        if (found != m_skills.end() && found->name == name) {
+            result.result_json = json{{"name", found->name}, {"text", found->text}}.dump();
+            return result;
+        }
+        json available = json::array();
+        for (const AgentSkill& skill : m_skills)
+            available.push_back(skill.name);
+        result.error = ToolError{"unknown_skill", "There is no project skill named \"" + name +
+                                                     "\". Available skills: " + available.dump()};
         return result;
     }
 
@@ -1935,6 +2004,7 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
                          std::to_string(assistant.attempt);
     request.attempt    = assistant.attempt;
     request.session    = m_session_profile;
+    request.skills     = m_skills;
     request.workspace  = m_workspace.snapshot();
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
@@ -2010,7 +2080,13 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
             // its space on every later turn: the model keeps the outcome and
             // may ask for the details again.
             constexpr std::size_t kReplayedResultCap = 16 * 1024;
-            if (entry.output_json.size() > kReplayedResultCap)
+            // A skill body is already bounded to 16 KiB, but JSON escaping and
+            // the result envelope can take it past the ordinary replay cap.
+            // Preserve model-opened instructions on later turns; the complete
+            // installed registry is independently bounded to 256 KiB.
+            constexpr std::size_t kReplayedSkillResultCap = 256 * 1024;
+            const std::size_t replay_cap = activity.tool == "skill_read" ? kReplayedSkillResultCap : kReplayedResultCap;
+            if (entry.output_json.size() > replay_cap)
                 entry.output_json = json{{"state", tool_state_name(activity.state)},
                                          {"omitted", "The result, " + std::to_string(entry.output_json.size()) +
                                                          " bytes, is not repeated here; call the tool again for it."}}

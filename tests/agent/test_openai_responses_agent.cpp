@@ -95,13 +95,14 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    REQUIRE(body["tools"].size() == 28);
+    REQUIRE(body["tools"].size() == 29);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
-        // Strict mode cannot express optional arguments, so tools with them do
-        // not advertise strict schemas.
-        CHECK(tool["strict"] == (name == "printer_list" || name == "project_attachment_read"));
+        // Pin the intended strict subset independently of the production
+        // classifier so a classifier regression cannot bless itself here.
+        CHECK(tool["strict"] == (name == "activity_cancel" || name == "object_merge" || name == "object_repair" ||
+                                 name == "printer_list" || name == "project_attachment_read" || name == "skill_read"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
         REQUIRE(definition != nullptr);
@@ -110,7 +111,7 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "skill_read", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -143,6 +144,43 @@ TEST_CASE("OpenAI request replays an earlier turn's call beside its output, with
     CHECK(input[4].at("role") == "user");
 }
 
+TEST_CASE("project requests advertise skill metadata without eagerly loading skill text", "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.skills = {{"prepare-print", "Prepare a model for printing.", "SECRET PREPARE BODY"},
+                      {"review-slice", "Review a completed slice.", "SECRET REVIEW BODY"}};
+    REQUIRE(agent.start(request));
+    const json body = json::parse(fake->requests.front().body);
+    const std::string instructions = body["instructions"];
+    CHECK(instructions.find("your first action must be skill_read for exactly one skill") != std::string::npos);
+    CHECK(instructions.find("support, slice-review, or failed-print problem outranks prepare-print") != std::string::npos);
+    CHECK(instructions.find("Answer general questions directly without reading a skill.") != std::string::npos);
+    CHECK(instructions.find("Skills you can read with skill_read, by name:") != std::string::npos);
+    CHECK(instructions.find("- prepare-print: Prepare a model for printing.") != std::string::npos);
+    CHECK(instructions.find("- review-slice: Review a completed slice.") != std::string::npos);
+    CHECK(instructions.find("SECRET PREPARE BODY") == std::string::npos);
+    CHECK(instructions.find("SECRET REVIEW BODY") == std::string::npos);
+}
+
+TEST_CASE("sessions with their own instructions do not receive the project skill index", "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.session.instructions = "You are a focused printer panel.";
+    request.session.tool_names = {"printer_list"};
+    request.skills = {{"prepare-print", "Prepare a model for printing.", "BODY"}};
+    REQUIRE(agent.start(request));
+    const json body = json::parse(fake->requests.front().body);
+    CHECK(body["instructions"] == "You are a focused printer panel.");
+    REQUIRE(body["tools"].size() == 1);
+    CHECK(body["tools"][0]["name"] == "printer_list");
+}
+
 // tests/printer_prompt/run_prompt_tests.py sends the model the printer panel's
 // tools from this file, without the app: it must be what the app sends.
 // JUSPRIN_UPDATE_PRINTER_TOOLS=1 rewrites it from the registry.
@@ -168,6 +206,28 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
     std::ifstream file(path);
     REQUIRE(file.good());
     INFO("tests/printer_prompt/printer_tools.json is out of date: run this test with JUSPRIN_UPDATE_PRINTER_TOOLS=1");
+    CHECK(json::parse(file) == sent);
+}
+
+// tests/project_prompt/run_prompt_tests.py sends the model the project
+// assistant's complete tool catalog. Keep its checked fixture byte-for-byte
+// aligned with the registry projection used by the app.
+TEST_CASE("the project prompt tests send the project assistant's tools as the app does", "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.attachments.clear();
+    REQUIRE(agent.start(request));
+    const json sent = json::parse(fake->requests.front().body)["tools"];
+
+    const std::string path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/project_prompt/project_tools.json";
+    if (const char* update = std::getenv("JUSPRIN_UPDATE_PROJECT_TOOLS"); update != nullptr && std::string(update) == "1")
+        std::ofstream(path) << sent.dump(2) << '\n';
+    std::ifstream file(path);
+    REQUIRE(file.good());
+    INFO("tests/project_prompt/project_tools.json is out of date: run this test with JUSPRIN_UPDATE_PROJECT_TOOLS=1");
     CHECK(json::parse(file) == sent);
 }
 
@@ -228,7 +288,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "skill_read", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},

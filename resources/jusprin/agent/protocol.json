@@ -18,7 +18,8 @@
     "reveal_path",
     "change_log",
     "printer_panel",
-    "file_reports"
+    "file_reports",
+    "skills"
   ],
   "pageMessageTypes": [
     "hello",
@@ -47,7 +48,8 @@
     "printer_opening",
     "filament_instructions",
     "shell_action",
-    "file_report_instructions"
+    "file_report_instructions",
+    "skills"
   ],
   "hostMessageTypes": [
     "hello_ack",

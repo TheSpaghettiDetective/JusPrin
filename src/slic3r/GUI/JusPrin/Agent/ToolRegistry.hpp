@@ -60,6 +60,7 @@ enum class ToolHandler : std::uint8_t {
     SettingsApplyPatch,
     IntentUpdate,
     PlanSet,
+    SkillRead,
     PresetsList,
     ObjectImport,
     ObjectImportFile,

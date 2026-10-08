@@ -311,7 +311,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
                                               Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
-                                              Protocol::kShellAction, Protocol::kFileReportInstructions});
+                                              Protocol::kShellAction, Protocol::kFileReportInstructions,
+                                              Protocol::kSkills});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -946,6 +947,135 @@ public:
     std::deque<AgentEvent>    events;
     bool                      active{false};
 };
+
+class SkillReplayAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return active; }
+    bool start(const AgentRequest& request) override
+    {
+        requests.push_back(request);
+        if (request.purpose == AgentRequest::Purpose::ConversationTitle) {
+            events.push_back(AgentEvent::delta("A skill"));
+            events.push_back(AgentEvent::completed());
+        }
+        else if (reply_count++ == 0) {
+            events.push_back(AgentEvent::tool_call({"skill-call", {"skill_read", R"({"name":"large-skill"})"}, true}));
+        }
+        else {
+            events.push_back(AgentEvent::delta("Still using the skill."));
+            events.push_back(AgentEvent::completed());
+        }
+        active = true;
+        return true;
+    }
+    bool continue_after_tool(const AgentToolResult& result) override
+    {
+        live_result = result;
+        events.push_back(AgentEvent::completed());
+        return true;
+    }
+    void cancel() override { active = false; events.clear(); }
+    std::optional<AgentEvent> poll() override
+    {
+        if (events.empty())
+            return std::nullopt;
+        AgentEvent event = std::move(events.front());
+        events.pop_front();
+        if (event.kind == AgentEventKind::Completed || event.kind == AgentEventKind::Failed)
+            active = false;
+        return event;
+    }
+
+    std::vector<AgentRequest> requests;
+    std::optional<AgentToolResult> live_result;
+    std::deque<AgentEvent> events;
+    int  reply_count{0};
+    bool active{false};
+};
+
+TEST_CASE("the page installs one bounded skill registry used by prompts and skill_read", "[agent][skills]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const json skills = json::array({
+        json{{"name", "prepare-print"}, {"description", "Prepare a model for printing."},
+             {"text", "# Prepare"}},
+        json{{"name", "review-slice"}, {"description", "Review a completed slice."},
+             {"text", "# Review"}},
+    });
+    harness.deliver("skills", json{{"skills", skills}});
+    harness.send_user_message("Prepare this", "c-skills");
+    REQUIRE_FALSE(agent->requests.empty());
+    CHECK(agent->requests.front().skills.size() == 2);
+    CHECK(agent->requests.front().skills[0].name == "prepare-print");
+    CHECK(agent->requests.front().skills[1].text.find("# Review") != std::string::npos);
+
+    const auto& read = harness.host.tools().propose({"skill_read", R"({"name":"review-slice"})"}, "m-skill", {},
+                                                    ToolSource::Agent);
+    const std::string read_id = read.action_id;
+    for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(read_id)->state); ++tick)
+        harness.host.pump_tools();
+    const ToolActivity* completed = harness.host.tools().find(read_id);
+    REQUIRE(completed != nullptr);
+    REQUIRE(completed->state == ToolState::Succeeded);
+    CHECK(json::parse(completed->result_json) == json{{"name", "review-slice"}, {"text", skills[1]["text"]}});
+
+    // An unsorted replacement is rejected and atomically leaves no registry.
+    harness.deliver("skills", json{{"skills", json::array({skills[1], skills[0]})}});
+    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+    const auto& missing = harness.host.tools().propose({"skill_read", R"({"name":"review-slice"})"}, "m-missing");
+    const std::string missing_id = missing.action_id;
+    for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(missing_id)->state); ++tick)
+        harness.host.pump_tools();
+    const ToolActivity* failed = harness.host.tools().find(missing_id);
+    REQUIRE(failed != nullptr);
+    REQUIRE(failed->state == ToolState::Failed);
+    REQUIRE(failed->error.has_value());
+    CHECK(failed->error->code == "unknown_skill");
+    CHECK(failed->error->message.find("Available skills: []") != std::string::npos);
+}
+
+TEST_CASE("a maximum-size skill remains available in later-turn history", "[agent][skills][history]")
+{
+    auto agent_owner = std::make_unique<SkillReplayAgent>();
+    SkillReplayAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    std::string body = "# Large\n";
+    const std::string marker = "TAIL-MARKER";
+    body.append(16 * 1024 - body.size() - marker.size(), 'x');
+    body += marker;
+    harness.deliver("skills", json{{"skills", json::array({json{{"name", "large-skill"},
+                                                                    {"description", "Use the large test skill."},
+                                                                    {"text", body}}})}});
+
+    harness.send_user_message("Use it", "c-large-skill-1");
+    for (int tick = 0; harness.host.stream_active() && tick < 1000; ++tick) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(agent->live_result.has_value());
+    CHECK(agent->live_result->output_json.find(marker) != std::string::npos);
+
+    harness.send_user_message("Continue", "c-large-skill-2");
+    harness.pump_all();
+    const AgentRequest* second_reply = nullptr;
+    int reply = 0;
+    for (const AgentRequest& request : agent->requests)
+        if (request.purpose == AgentRequest::Purpose::Reply && ++reply == 2)
+            second_reply = &request;
+    REQUIRE(second_reply != nullptr);
+    const auto replayed = std::find_if(second_reply->conversation.begin(), second_reply->conversation.end(),
+                                       [](const AgentConversationContext& entry) { return entry.tool == "skill_read"; });
+    REQUIRE(replayed != second_reply->conversation.end());
+    CHECK(replayed->output_json.find(marker) != std::string::npos);
+    CHECK(replayed->output_json.find("not repeated here") == std::string::npos);
+}
 
 // A Printables-style open: Orca said the file's settings don't carry over.
 Workspace::LoadReport prusa_open(bool with_message = true)
