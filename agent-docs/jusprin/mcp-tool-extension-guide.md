@@ -47,14 +47,31 @@ Add or extend a tool when the Agent needs fresh authoritative state, determinist
 Do not add a tool for:
 
 - one setting key; setting keys are records used by generic settings tools;
-- general printing advice the model can reason about from a guide;
+- general printing advice the model can reason about from a skill;
 - a fixed bundle such as "make it stronger" whose right answer depends on the part and user priorities;
 - UI automation against a button, widget, or hidden panel;
 - data already present in a bounded existing result;
 - speculative future capability with no eval or user task; or
 - an operation the real adapter cannot perform honestly through an authoritative Orca owner.
 
-Deterministic workflow machinery can be a tool. Examples include generating Orca's calibration geometry or starting Orca's slice action. Advice should remain retrievable guidance until there is a separately specified deterministic operation behind it.
+Deterministic workflow machinery can be a tool. Examples include generating Orca's calibration geometry or starting Orca's slice action. Advice should remain a skill until there is a separately specified deterministic operation behind it.
+
+## Skills versus tools
+
+A skill is text the model reads. A tool is something the app executes. A candidate is one or the other by one question: does it have to execute (read state the model does not have, compute what only Orca can, change the project), or does it only have to be read (judgement, sequencing, domain facts, how to read a tool's result, which question to ask first)? The section above gives the tool side. This section gives the skill side and rules on the cases that fall between.
+
+A skill holds what the model could do with the right knowledge and nothing that executes: judgement over evidence (telling an adhesion failure from wet filament in a photo), the order of a sequence of tool calls and the reasons for it ("make it stronger": read the settings, move walls and infill, slice, read the report), domain facts (what PETG tolerates), and which question to ask when the answer would change the plan. The file-load instructions (`AgentUI/src/fileReportInstructions.ts`) are a skill the app injects for one turn: the first message after a load is judgement over the report, not an operation, so it is text. That is the only kind of skill built so far. A skill the model opens by name, from an index of one line each, has no loader yet; until it does, a skill is text the app injects for the turn whose situation the app knows.
+
+The cases between:
+
+- **A procedure over existing tools** is a skill while the sequence takes judgement. It becomes a tool only when the sequence is fixed and the person wants it as one undoable action; many such sequences go in one workflow registry (see [When resources or skills are appropriate](#when-resources-or-skills-are-appropriate)).
+- **An analysis** is a tool when Orca computes it deterministically (overhang angles from geometry) and a skill when it is judgement over evidence, paired with the tool that supplies the evidence (`view_render`, `slice_report`).
+- **Large reference data** is a tool that returns the part an argument selects (`settings_search`) when the model needs one part of it, and text when the model needs all of it to use any of it. The printer list under [Input design](#input-design) is the measured case where the search tool lost to the whole list in the instructions.
+- **A tool description** says when to call that one tool, in the words a person would use. **A skill** says how several tools fit together and what to conclude from their results. A description that has grown into a procedure is a skill that has not been split out.
+
+When unsure, start as a skill. A skill is a text file the page ships; a tool is the implementation sequence below, with fakes, tests and rebase evidence. Promote a skill to a tool on the evidence every tool starts from (see [Start with an eval failure](#start-with-an-eval-failure)): transcripts show the model getting the sequence wrong in ways text does not fix, or the action needs atomicity, validation or undo only the app can give. The signal from the other side: a skill that has become exact values and ordered calls with no judgement between them is a tool that has not been written yet.
+
+Loading does not decide the question. Today a skill costs its line in the instructions and a tool costs its definition on the first request of a conversation (see [Tool budget and tool shape](#tool-budget-and-tool-shape)). Under platform deferral both are an index line and a load on demand, and a skill may then be a deferred read-only tool whose description is its index line and whose result is its text, so tools and skills share one discovery mechanism and one eval.
 
 ## Prefer extending nouns over multiplying verbs
 
@@ -274,11 +291,11 @@ Default to both adapters when both can satisfy the same input contract. A delibe
 
 Document the reason beside the registry definition and test it. Exposure is not a place to fork behavior: if two adapters need different semantics, they need a better shared command or honestly separate definitions.
 
-## When resources or workflow guides are appropriate
+## When resources or skills are appropriate
 
 Do not make MCP resources load-bearing until intended clients prove that model-driven resource retrieval is reliable. A bounded data-returning tool is the compatibility baseline. Resources may be added as an optional alternate projection of large, readable, stable data.
 
-Keep printing playbooks—reducing stringing, improving strength, choosing support strategy—as guides or skills the model can read. Convert a workflow into an executable tool only when it maps to a named, deterministic Orca operation with defined inputs, outputs, validation, and undo/reset/cancellation behavior. If many procedural workflows eventually qualify, prefer one discoverable workflow registry over dozens of nearly identical tool definitions.
+Keep printing playbooks—reducing stringing, improving strength, choosing support strategy—as skills the model can read (see [Skills versus tools](#skills-versus-tools)). Convert a workflow into an executable tool only when it maps to a named, deterministic Orca operation with defined inputs, outputs, validation, and undo/reset/cancellation behavior. If many procedural workflows eventually qualify, prefer one discoverable workflow registry over dozens of nearly identical tool definitions.
 
 ## Required implementation sequence for one new tool
 
