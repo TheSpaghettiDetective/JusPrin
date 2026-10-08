@@ -697,14 +697,12 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   color: var(--text-primary);
 }
 
-/* Role=Agent: no fill and no stroke at all. The 20px disc is the only mark
-   of authorship, so the answer sits on the canvas as prose rather than
-   inside a card. */
+/* Role=Agent: no fill and no stroke at all, so the answer sits on the canvas
+   as prose rather than inside a card. */
 .message.assistant {
   align-self: stretch;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
   max-width: 100%;
   padding: 4px 0;
   background: none;
@@ -714,27 +712,6 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .message-content {
   flex: 1;
   min-width: 0;
-}
-
-/* The avatar establishes the shared content rail for assistant replies,
-   change summaries, hand edits, and manufacturing events. */
-.agent-avatar {
-  flex: 0 0 auto;
-  width: var(--thread-row-avatar-size);
-  height: var(--thread-row-avatar-size);
-  border-radius: var(--radius-pill);
-  background: var(--action-primary);
-  display: grid;
-  place-items: center;
-}
-
-.agent-avatar::after {
-  content: '';
-  width: var(--button-icon-icon-size);
-  height: var(--button-icon-icon-size);
-  background: var(--text-on-action);
-  -webkit-mask: url('@resources/jusprin/ui/icons/agent-bot.svg') center / contain no-repeat;
-  mask: url('@resources/jusprin/ui/icons/agent-bot.svg') center / contain no-repeat;
 }
 
 /* What stands in for a tool-only turn while it still has no words: the model
@@ -939,18 +916,6 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   gap: 8px;
 }
 
-/* The status starts at the same x-position as the assistant's words. */
-.answered-turn {
-  display: flex;
-  flex-direction: column;
-}
-
-.answered-state {
-  padding-left: calc(var(--thread-row-avatar-size) + 8px);
-  color: var(--text-secondary);
-  font: var(--font-label);
-}
-
 /* The change log between the turns (Figma "Hand edits"). A saved version's
    final row carries one quiet restore action at the trailing edge. */
 .change-rows {
@@ -970,7 +935,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 }
 
 .change-icon {
-  flex: 0 0 var(--thread-row-avatar-size);
+  flex: 0 0 auto;
   color: var(--action-primary);
   font: var(--font-label);
 }
@@ -1001,7 +966,6 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .settings-changes {
   align-self: stretch;
   min-width: 0;
-  margin-left: calc(var(--thread-row-avatar-size) + 8px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-container);
   overflow: hidden;

@@ -62,9 +62,6 @@ interface Props {
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
-  // "Answered · nothing changed" is about the open project, which the printer
-  // panel is not having a conversation about.
-  answeredState?: boolean;
   // Set up on the card of a file's notes, when the Agent could not speak.
   onSetUpAgent?: () => void;
 }
@@ -111,8 +108,6 @@ function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, dis
   );
 }
 
-const inFlight = new Set(['pending', 'approved', 'running']);
-
 export function MessageList({
   messages,
   attachments,
@@ -137,7 +132,6 @@ export function MessageList({
   onUndoAdd,
   onInstallPlugin,
   renderActivity,
-  answeredState = true,
   onSetUpAgent,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
@@ -193,17 +187,6 @@ export function MessageList({
   );
   const discussFailure = (print: PhysicalPrintInfo) =>
     (onDiscussFailure ?? onSend)(`Help me understand why this print failed: ${print.failure || 'The print stopped unexpectedly.'}`);
-
-  // A finished reply that changed nothing says so (Figma "Answered
-  // response"). Only the Agent's own changes count against it; the person
-  // editing by hand while it answered is not the Agent changing something.
-  const answeredWithoutChange = (message: Message) =>
-    answeredState &&
-    message.role === 'assistant' &&
-    message.state === 'complete' &&
-    message.id !== streamingMessageId &&
-    !activitiesOf(message.id).some((activity) => inFlight.has(activity.state)) &&
-    !changesAfter(message.id).some((change) => change.actor === 'agent');
 
   return (
     <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
@@ -275,9 +258,8 @@ export function MessageList({
         const choices =
           message.state === 'complete' && message.id === messages[messages.length - 1].id ? reply.choices : [];
         const bubble = workingOnCard ? (
-          // Chat/System Line: the agent's mark, then a quiet line of status.
+          // Chat/System Line: a quiet line of status while the model works.
           <div className="message assistant">
-            <span className="agent-avatar" aria-hidden="true" />
             <div className="printer-activity" role="status">
               <span className="jp-icon jp-icon-rotate-cw" aria-hidden="true" />
               Working on it…
@@ -285,11 +267,6 @@ export function MessageList({
           </div>
         ) : emptyPrinterTurn ? null : (
           <div className={`message ${message.role}`}>
-            {/* The agent does not speak in a bubble: its bot mark stands beside
-                plain text, as the Figma Agent variant has it. Decorative -- the
-                author is already carried by the role class and by the
-                bubble the user's turn keeps. */}
-            {message.role === 'assistant' && <span className="agent-avatar" aria-hidden="true" />}
             <div className="message-content">
               {photos.length > 0 && (
                 <div className="message-photos">
@@ -344,14 +321,7 @@ export function MessageList({
         return (
           <Fragment key={message.id}>
             <div className="message-group">
-              {answeredWithoutChange(message) ? (
-                <div className="answered-turn">
-                  {bubble}
-                  <div className="answered-state">Answered · nothing changed</div>
-                </div>
-              ) : (
-                bubble
-              )}
+              {bubble}
               {activitiesOf(message.id).map((activity) => {
                 const key = planKey(activity);
                 const found = key ? plans.get(key) : undefined;

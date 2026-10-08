@@ -382,8 +382,7 @@
       "addPlateButtonHeight": 30
     },
     "threadRow": {
-      "lineGap": 2,
-      "avatarSize": 20
+      "lineGap": 2
     },
     "timelineSummary": {
       "paddingX": 8,

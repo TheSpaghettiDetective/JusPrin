@@ -67,10 +67,8 @@
 //              recomputing-agent-pane.png and
 //              recomputing-shell.png to the directory (handoff item 6)
 //   --timeline-capture <output-directory>
-//              records a build, asks a question the Agent answers without a
-//              change, mirrors the object three times and edits a print
-//              setting by hand, asserts the thread's change rows and the
-//              "Answered · nothing changed" marker, and writes
+//              records a build, mirrors the object three times and edits a
+//              print setting by hand, asserts the thread's change rows, and writes
 //              timeline-agent-pane-<light|dark>.png (revision-timeline B10)
 //   --figma-timeline-capture <output-directory>
 //              shows the entire First print story from the two Figma timeline
@@ -6068,9 +6066,8 @@ private:
     // Revision-timeline handoff B10: the thread the Figma frame
     // "print-timeline-panel-full · no revert" draws, built from real edits so
     // the rows come through the adapter, persistence and the bridge exactly
-    // as a person's would. A recorded build gives a history card, a question
-    // the Agent answers without a change gives the "nothing changed" marker,
-    // three mirrors give one merged row, and a Tab edit gives a setting row.
+    // as a person's would. A recorded build gives a history card, three
+    // mirrors give one merged row, and a Tab edit gives a setting row.
     void begin_timeline_capture()
     {
         installed_shell()->status_row()->request_slice();
@@ -6161,7 +6158,6 @@ private:
             "(function(){"
             "  var rows = Array.prototype.map.call(document.querySelectorAll('.change-row'),"
             "    function (row) { return row.textContent; });"
-            "  var answered = document.querySelectorAll('.answered-state').length;"
             "  var revert = document.querySelectorAll('.change-revert-button').length;"
             "  var visibleRevert = Array.prototype.filter.call(document.querySelectorAll('.change-revert-button'),"
             "    function (button) { return getComputedStyle(button).opacity === '1'; }).length;"
@@ -6171,7 +6167,7 @@ private:
             "    return row.textContent.indexOf('3 steps merged') >= 0; })[0];"
             "  var last = changeRows.length && changeRows[changeRows.length - 1].querySelector('.change-revert-button');"
             "  if (window.__jusprinTest && merged && first)"
-            "    window.__jusprinTest.setDraft('timeline=' + answered + '|' + rows.join('|') + '|revert-controls=' + revert + '|visible-revert-controls=' + visibleRevert + '|first-revert=' + !!first + '|merged-revert=' + !!merged.querySelector('.change-revert-button') + '|latest-revert=' + !!last);"
+            "    window.__jusprinTest.setDraft('timeline=' + rows.join('|') + '|revert-controls=' + revert + '|visible-revert-controls=' + visibleRevert + '|first-revert=' + !!first + '|merged-revert=' + !!merged.querySelector('.change-revert-button') + '|latest-revert=' + !!last);"
             "})()");
     }
 
@@ -6179,7 +6175,7 @@ private:
     {
         const std::string probe = persistence().draft();
         std::cout << "HARNESS TIMELINE PROBE " << probe << std::endl;
-        check(probe.rfind("timeline=", 0) == 0 && probe.substr(9, 1) != "0", "timeline_reply_says_nothing_changed");
+        check(probe.rfind("timeline=", 0) == 0, "timeline_rows_are_present");
         check(probe.find("3 steps merged") != std::string::npos, "timeline_mirrors_merge_into_one_row");
         check(probe.find("\xE2\x86\x92") != std::string::npos, "timeline_setting_row_reads_from_to");
         check(probe.find("revert-controls=1") != std::string::npos, "timeline_current_saved_group_has_no_revert_control");
@@ -6218,7 +6214,6 @@ private:
 
     // The thread's spacing as laid out, against the corrected Figma frame:
     // items 12 apart; padding 4 top, 16 sides and bottom; 8 inside a turn;
-    // 4 from the reply's last line of text to "Answered · nothing changed";
     // and 12 from the turn to the change run after it.
     static void probe_spacing()
     {
@@ -6226,19 +6221,13 @@ private:
             "(function(){"
             "  var list = document.querySelector('.message-list');"
             "  if (!list || !window.__jusprinTest) return;"
-            // The reply the hand edits follow; the /build reply before it is
-            // answered too, but a history card follows that one.
-            "  var turn = Array.prototype.filter.call(document.querySelectorAll('.answered-turn'), function (t) {"
-            "    var n = t.parentElement.nextElementSibling; return n && n.className === 'change-rows'; })[0];"
-            "  if (!turn) return;"
-            "  var group = turn.parentElement, next = group.nextElementSibling;"
+            "  var group = Array.prototype.filter.call(document.querySelectorAll('.message-group'), function (g) {"
+            "    var n = g.nextElementSibling; return n && n.className === 'change-rows'; })[0];"
+            "  if (!group) return;"
+            "  var next = group.nextElementSibling;"
             "  var s = getComputedStyle(list);"
-            "  var text = document.createRange();"
-            "  text.selectNodeContents(turn.querySelector('.message-content'));"
-            "  var answered = turn.querySelector('.answered-state').getBoundingClientRect();"
             "  window.__jusprinTest.setDraft('spacing=' + [s.rowGap, s.paddingTop, s.paddingRight, s.paddingBottom,"
             "    s.paddingLeft, getComputedStyle(group).rowGap,"
-            "    Math.round(answered.top - text.getBoundingClientRect().bottom),"
             "    Math.round(next.getBoundingClientRect().top - group.getBoundingClientRect().bottom)].join(','));"
             "})()");
     }
@@ -6247,7 +6236,7 @@ private:
     {
         const std::string spacing = persistence().draft();
         std::cout << "HARNESS TIMELINE SPACING " << spacing << std::endl;
-        check(spacing == "spacing=12px,4px,16px,16px,16px,8px,4,12", "timeline_spacing_matches_figma");
+        check(spacing == "spacing=12px,4px,16px,16px,16px,8px,12", "timeline_spacing_matches_figma");
         persistence().set_draft({});
         // The thread follows new content, but a late reflow can leave the last
         // row just below the fold; the picture must show the newest rows.

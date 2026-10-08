@@ -508,7 +508,6 @@ export function App({
           changes={state.changes.filter((change) => change.conversationId === viewedId)}
           restorePoints={historical ? [] : state.restorePoints}
           onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
-          answeredState={!state.navigation.focused}
           onRetry={(messageId) => client.send('retry_message', { messageId, conversationId: viewedId })}
           onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
@@ -624,7 +623,6 @@ export function App({
               printerBlocks={session?.blocks ?? []}
               onUndoAdd={(blockId) => client.send('printer_action', { action: 'undo_add', blockId })}
               onInstallPlugin={() => client.send('printer_action', { action: 'install_network_plugin' })}
-              answeredState={false}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolDecision={sendToolDecision}
               onToolCancel={sendToolCancel}

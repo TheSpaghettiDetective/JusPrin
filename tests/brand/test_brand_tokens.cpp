@@ -325,10 +325,10 @@ TEST_CASE("the Plates and Project pane geometry is explicit", "[brand]")
 // A thread row (a hand edit, a G-code destination) stacks its title over its
 // metadata line with this gap. It is an internal size of the row, like button
 // padding, so it lives here rather than on the spacing scale.
-TEST_CASE("the thread row's geometry is explicit", "[brand]")
+TEST_CASE("the thread row's line gap is explicit", "[brand]")
 {
     const json tokens = load_tokens();
-    require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}, {"avatarSize", 20}}, "component.threadRow");
+    require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}}, "component.threadRow");
     require_exact_table<int>(tokens.at("component").at("timelineSummary"),
         {{"paddingX", 8}, {"paddingY", 8}, {"iconGap", 4}}, "component.timelineSummary");
 }

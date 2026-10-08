@@ -15,7 +15,7 @@ export { applyAppearance } from '@shared/tokens';
 // writes, so a test can check that the stylesheet only asks for variables
 // that exist.
 export function staticVariableNames(): string[] {
-  return [...sharedStaticVariableNames(), '--thread-row-line-gap', '--thread-row-avatar-size',
+  return [...sharedStaticVariableNames(), '--thread-row-line-gap',
     '--timeline-summary-padding', '--timeline-summary-padding-x', '--timeline-summary-icon-gap', '--printer-setup-width',
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size',
@@ -26,7 +26,6 @@ export function staticVariableNames(): string[] {
 // In addition to the shared radii, fonts, and button paddings:
 //   --thread-row-line-gap  the space between a thread row's title and its
 //                          metadata line, an internal size of the row
-//   --thread-row-avatar-size  the shared icon column for timeline content
 //   --timeline-summary-*     the compact edit button's insets and icon gap
 //   --printer-dialog-*     the printer panel's own dialog: the same
 //                          component.printerDialog token Home's rename and
@@ -42,7 +41,7 @@ export function staticVariableNames(): string[] {
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
   const { component } = tokens as unknown as {
-    component: { threadRow: { lineGap: number; avatarSize: number };
+    component: { threadRow: { lineGap: number };
       timelineSummary: { paddingX: number; paddingY: number; iconGap: number };
       printerSetup: { contentWidth: number };
       printerDialog: { width: number; radius: number; scrimAlpha: number };
@@ -56,7 +55,6 @@ export function applyStaticTokens(): void {
       swatch: { size: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
-  document.documentElement.style.setProperty('--thread-row-avatar-size', `${component.threadRow.avatarSize}px`);
   document.documentElement.style.setProperty('--timeline-summary-padding',
     `${component.timelineSummary.paddingY}px ${component.timelineSummary.paddingX}px`);
   document.documentElement.style.setProperty('--timeline-summary-padding-x', `${component.timelineSummary.paddingX}px`);

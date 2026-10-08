@@ -138,11 +138,6 @@
         "expectedSessionId": {
           "type": "string"
         },
-        "intent": {
-          "description": "What the user asked this setup to be, in their own words, as a short title. Not a description of the settings you changed. Send it whenever the change came from something the user asked for.",
-          "maxLength": 120,
-          "type": "string"
-        },
         "persistAs": {
           "description": "Not for object. Save the changed preset under this name, as OrcaSlicer's Save does: its own name overwrites it; another name saves a copy, which is used in its place from then on. A preset that comes with OrcaSlicer cannot be overwritten (read_only_preset): save a copy, under the name the issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the preset being edited can be.",
           "maxLength": 2048,

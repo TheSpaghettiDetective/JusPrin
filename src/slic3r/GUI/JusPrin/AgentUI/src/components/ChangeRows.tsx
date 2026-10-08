@@ -215,7 +215,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
     const run = runs[index];
     entries.push(
       <div key={run.first.seq} className="change-row" role="listitem" data-testid={`change-${run.first.seq}`}>
-        <span className="change-icon jp-icon jp-icon-pencil" aria-hidden="true" />
+        <span className="change-icon" aria-hidden="true">✎</span>
         <div className="change-text">
           <span className="change-title">{title(run)}</span>
           <span className="change-meta">{meta(run)}</span>

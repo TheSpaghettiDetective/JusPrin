@@ -602,13 +602,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             send_tool_activity(activity);
         if (activity.state == ToolState::Succeeded &&
             (activity.tool == "settings_apply_patch" || activity.tool == "intent_update")) {
-            // The change itself pushed a context while it was advancing the
-            // workspace revision, and that push predates both writes below.
-            // Without a second one the card would show the new deltas under
-            // the old title and the old attribution -- the exact moment it is
-            // supposed to be proof that the agent heard you.
             const bool authored = activity.tool == "settings_apply_patch" && remember_agent_authored(activity);
-            const bool restated = remember_setup_intent(activity);
+            const bool restated = activity.tool == "intent_update" && remember_setup_intent(activity);
             if ((authored || restated) && m_handshake)
                 send_context();
         }
@@ -2149,7 +2144,7 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
 bool AgentHost::remember_setup_intent(const ToolActivity& activity)
 {
     const json arguments = json::parse(activity.arguments_json, nullptr, false);
-    const char* key = activity.tool == "intent_update" ? "setupTitle" : "intent";
+    const char* key = "setupTitle";
     if (arguments.is_discarded() || !arguments.is_object() || !arguments.contains(key) ||
         !arguments[key].is_string())
         return false;

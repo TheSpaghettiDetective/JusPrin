@@ -727,45 +727,6 @@ TEST_CASE("applied setup facts preserve scope without using preset deltas", "[ag
     CHECK(context["appliedSetup"]["localOverrides"][0]["object"] == 1);
 }
 
-TEST_CASE("an applied settings change records its intent on the chat it came from", "[agent][context][setup-card]")
-{
-    Harness harness;
-    harness.handshake();
-    const std::string message_id = harness.send_user_message("make it strong", "c-1");
-    harness.pump_all();
-
-    const auto snapshot = harness.workspace.snapshot();
-    auto propose = [&](json arguments) {
-        arguments["expectedSessionId"] = std::to_string(snapshot.session.value());
-        arguments["expectedRevision"]  = harness.workspace.snapshot().revision;
-        return harness.host.tools().propose({"settings_apply_patch", arguments.dump()}, message_id).action_id;
-    };
-
-    SECTION("the agent's restatement reaches the page")
-    {
-        const std::string action = propose(json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}, {"intent", "Strong - it'll bear weight"}});
-        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
-        for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
-            harness.host.pump_tools();
-        REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
-
-        CHECK(harness.of_type("context").back()["payload"]["context"]["setupIntent"] == "Strong - it'll bear weight");
-    }
-
-    SECTION("a change with nothing to restate leaves the title row empty rather than inventing one")
-    {
-        const std::string action = propose(json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}});
-        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
-        for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
-            harness.host.pump_tools();
-        REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
-
-        CHECK(harness.of_type("context").back()["payload"]["context"]["setupIntent"] == "");
-        // The change still moved the card's other rows.
-        CHECK(harness.of_type("context").back()["payload"]["context"]["presetDeltas"].size() == 1);
-    }
-}
-
 TEST_CASE("an intent-only update titles its chat without applying settings", "[agent][context][setup-card]")
 {
     Harness harness;

@@ -6,7 +6,7 @@ such as `close.svg` → upstream `x.svg` are recorded in `lucide-map.json`.
 The npm release has integrity
 `sha512-yWIrkdXc688Feq5VjOktsKmV5Ikc7y5Nu3rrdtbr8nWjkJWk8QlnZfVtIak22Af+fNhZ7k4cTJpZo1zmj7X5sA==`.
 The package's ISC and inherited Feather MIT license notices are in
-`LUCIDE-LICENSE.txt`. `agent-bot.svg` is JusPrin artwork and is not Lucide.
+`LUCIDE-LICENSE.txt`.
 The native shell's solid chip caret and filled/empty pane-toggle glyphs remain
 custom because those shapes encode product-specific states.
 
