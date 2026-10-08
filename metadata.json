@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4E8XEWGAERE28X6B9EJA1BY",
+  "strategy": "manual-commit",
+  "branch": "codex/remove-settings-patch-intent",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "resources/jusprin/ui/design-tokens.json",
+    "resources/jusprin/ui/icons/README.md",
+    "resources/jusprin/ui/icons/agent-bot.svg",
+    "resources/jusprin/ui/icons/verify_lucide.py",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChangeRows.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChangeRows.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/authoring.visual-cases.tsx",
+    "tests/brand/test_brand_tokens.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 877142,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 44677632,
+    "output_tokens": 112846,
+    "api_call_count": 165
+  }
+}
