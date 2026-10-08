@@ -111,7 +111,7 @@ export const historyCases: VisualCase[] = [
     'Layer shift reported near layer 62.', 'Discuss this failure'], entry.print(failed)),
   record('print-failed-open', 'Failed print · Expanded', ['Printed G-code SHA-256', 'Started', 'Ended'], entry.print(failed), true),
 
-  rows('summary', 'Agent change summary', ['agent-change-summary', 'Laid flat', '5 walls', 'aria-expanded="false"'],
+  rows('summary', 'Agent change summary', ['agent-change-summary', 'Laid flat', 'settings', 'aria-expanded="false"'],
     laidFlat),
   rows('summary-open', 'Agent change summary · expanded', ['aria-expanded="true"', 'First-layer speed', '18 mm/s'],
     laidFlat, 'Laid flat'),

@@ -620,6 +620,11 @@ TEST_CASE("the setup card's facts travel with the context", "[agent][context][se
         CHECK(context["presetDeltas"][0]["label"] == "Wall loops");
         CHECK(context["presetDeltas"][0]["preset"] == "2");
         CHECK(context["presetDeltas"][0]["value"] == "4");
+        CHECK(context["presetDeltas"][0]["presetType"] == "process");
+        CHECK(context["presetDeltas"][0]["presetName"] == "Fixture process");
+        CHECK(context["presetDeltas"][0]["display"] == "2 \xE2\x86\x92 4");
+        CHECK(context["presetDeltas"][0]["page"] == "Fixture page");
+        CHECK(context["presetDeltas"][0]["group"] == "Fixture group");
     }
 
     SECTION("a sliced plate carries time and material, and money only when priced")
@@ -696,17 +701,15 @@ TEST_CASE("the setup card's facts travel with the context", "[agent][context][se
     }
 }
 
-TEST_CASE("applied setup facts preserve scope without using preset deltas", "[agent][context][setup-card]")
+TEST_CASE("applied setup facts preserve generic local overrides", "[agent][context][setup-card]")
 {
     auto initial = two_object_snapshot();
     Workspace::AppliedSetup applied;
     applied.plate = initial.plates.front().id;
     applied.printable_objects = 2;
     applied.objects = {"cube-a", "cube-b"};
-    applied.settings = {{"wall_loops", "3", "mixed", {{"cube-a", "object", "3", 0}, {"cube-b", "object", "5", 1}}, "3"},
-                        {"sparse_infill_density", "15%", "local",
-                         {{"cube-a", "object", "15%", 0}, {"cube-b", "object", "15%", 1}}, "15%"}};
-    applied.local_overrides = {{"cube-b / modifier", "modifier", "sparse_infill_density", "40%", 1}};
+    applied.local_overrides = {{"cube-b / modifier", "modifier", "sparse_infill_density", "40%", 1,
+                                "Sparse infill density", "40%"}};
     initial.applied_setup = std::move(applied);
 
     Harness harness(std::move(initial));
@@ -714,16 +717,12 @@ TEST_CASE("applied setup facts preserve scope without using preset deltas", "[ag
     const json context = (*harness.last_of_type("state"))["payload"]["context"];
     CHECK(context["presetDeltas"].empty());
     CHECK(context["appliedSetup"]["printableObjects"] == 2);
-    CHECK(context["appliedSetup"]["settings"][0]["coverage"] == "mixed");
-    CHECK(context["appliedSetup"]["settings"][0]["scopes"][1]["value"] == "5");
-    CHECK(context["appliedSetup"]["settings"][1]["coverage"] == "local");
     CHECK(context["appliedSetup"]["localOverrides"][0]["target"] == "cube-b / modifier");
-    // The plate default and the owning object travel too: the page reports a
-    // mixed plate against its default, and groups overrides by object.
     CHECK(context["appliedSetup"]["objects"] == json::array({"cube-a", "cube-b"}));
-    CHECK(context["appliedSetup"]["settings"][0]["base"] == "3");
-    CHECK(context["appliedSetup"]["settings"][0]["scopes"][1]["object"] == 1);
     CHECK(context["appliedSetup"]["localOverrides"][0]["object"] == 1);
+    CHECK(context["appliedSetup"]["localOverrides"][0]["label"] == "Sparse infill density");
+    CHECK(context["appliedSetup"]["localOverrides"][0]["display"] == "40%");
+    CHECK_FALSE(context["appliedSetup"].contains("settings"));
 }
 
 TEST_CASE("an applied settings change records its intent on the chat it came from", "[agent][context][setup-card]")
@@ -832,6 +831,18 @@ TEST_CASE("the card counts your hand edits apart from the agent's changes", "[ag
         harness.workspace.set_process_preset_for_testing("Another process");
         // The same key against a different preset is a different claim, and
         // nothing the agent did says who put this value in force.
+        CHECK(pushed().at("wall_loops") == "user");
+    }
+
+    SECTION("a preset switched with nothing edited drops attribution all the same")
+    {
+        apply(json{{"wall_loops", 4}});
+        // Back at the preset's value there is no delta left to carry the
+        // preset's name, and the switch away and back happens unseen by any.
+        harness.workspace.set_setting_for_testing("wall_loops", "2");
+        harness.workspace.set_process_preset_for_testing("Another process");
+        harness.workspace.set_process_preset_for_testing("Fixture process");
+        harness.workspace.set_setting_for_testing("wall_loops", "4");
         CHECK(pushed().at("wall_loops") == "user");
     }
 

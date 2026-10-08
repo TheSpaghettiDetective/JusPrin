@@ -11,6 +11,17 @@ target_link_libraries(workspace_contract_tests PRIVATE Catch2WithMain nlohmann_j
 
 orcaslicer_discover_tests(workspace_contract_tests)
 
+# Setting definitions come from libslic3r alone, so the display rules are
+# checked against every real setting without linking the GUI.
+add_executable(setting_display_tests test_setting_display.cpp)
+target_include_directories(setting_display_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/deps_src
+)
+target_link_libraries(setting_display_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
+
+orcaslicer_discover_tests(setting_display_tests)
+
 if (SLIC3R_GUI)
     add_executable(workspace_adapter_integration_harness
         real_adapter_harness.cpp

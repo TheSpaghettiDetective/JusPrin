@@ -4,7 +4,7 @@
 import { StatePayload, WireMessage } from '../bridge/protocol';
 import { setupVisualCases } from '../components/SetupCard.visual-cases';
 
-export const workspace = setupVisualCases.find((item) => item.id === '5-current')!.context;
+export const workspace = setupVisualCases.find((item) => item.id === 'A1')!.context;
 
 export const turn = (id: string, role: WireMessage['role'], text: string, extra: Partial<WireMessage> = {}): WireMessage =>
   ({ id, role, state: 'complete', text, attempt: 1, ...extra });

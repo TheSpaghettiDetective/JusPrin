@@ -404,6 +404,7 @@ ChangeEntry read_change(const json& entry)
     change.from            = entry.value("from", "");
     change.to              = entry.value("to", "");
     change.preset          = entry.value("preset", "");
+    change.key             = entry.value("key", "");
     change.conversation_id = entry.value("conversationId", "");
     change.after_id        = entry.value("afterId", "");
     return change;
@@ -1184,6 +1185,7 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
         record["from"]   = entry.from;
         record["to"]     = entry.to;
         record["preset"] = entry.preset;
+        if (!entry.key.empty()) record["key"] = entry.key;
     } else if (entry.kind == "restore") {
         // Keep the exact source and target versions in the audit entry.
         record["from"] = entry.from;
