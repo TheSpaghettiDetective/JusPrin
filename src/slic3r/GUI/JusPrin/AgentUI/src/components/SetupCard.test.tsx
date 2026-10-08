@@ -1,49 +1,41 @@
 // The setup card's rules, one behavior at a time. Every assertion is about
 // what a state means and which facts it may claim; the frames themselves are
-// compared with Figma through SetupCard.preview and SetupCard.acceptance.
+// rendered through SetupCard.preview and SetupCard.acceptance.
 
 import { describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AppliedSetupInfo, ChangeInfo, WorkspaceContext } from '../bridge/protocol';
-import { SetupCard, SetupCardProps, appliedSummary, deterministicAttention, estimateView, formatCost, formatGrams,
-  formatPrintTime, handEdits, recentAgentChange } from './SetupCard';
-
-type Coverage = AppliedSetupInfo['settings'][number]['coverage'];
-const setting = (key: string, value: string, coverage: Coverage = 'exact') =>
-  ({ key, value, base: value, coverage, scopes: [{ object: 0, target: 'Bracket', kind: 'object', value }] });
+import { ChangeInfo, PresetDeltaInfo, WorkspaceContext } from '../bridge/protocol';
+import { SetupCard, SetupCardProps, deterministicAttention, estimateView, formatCost, formatGrams, formatPrintTime,
+  handEdits, orderedPresetDeltas, overrideObjectCount, presetsLine, recentAgentChange } from './SetupCard';
 
 function context(): WorkspaceContext {
   return {
     sessionId: 'project-1', revision: 4, projectName: 'Bracket', projectDirty: false,
-    printer: { preset: 'Bambu A1', filament: 'PETG', process: '0.20 mm Standard' },
+    printer: { preset: 'Bambu A1', filament: 'PETG Basic @BBL A1', process: '0.20 mm Standard' },
     plates: [{ id: 'plate-1', name: 'Plate 1', active: true, sliced: true,
       estimate: { printTimeSeconds: 8280, materialGrams: 18, materialCost: null, timeAvailable: true, materialAvailable: true },
       estimateStatus: 'current', invalidatedBy: '', objects: [] }],
     selection: { status: 'none', objectIds: [] },
     history: { canUndo: true, canRedo: false }, presetDeltas: [], currency: '', setupIntent: 'Quick fit check',
     appliedSetup: { version: 1, plateId: 'plate-1', printableObjects: 1, spiralMode: false,
-      variableLayerHeight: false, objects: ['Bracket'], localOverrides: [], settings: [
-        setting('layer_height', '0.2'), setting('wall_loops', '4'),
-        setting('sparse_infill_density', '30%'), setting('sparse_infill_pattern', 'gyroid'),
-        setting('enable_support', '1'), setting('support_type', 'tree(auto)'),
-        setting('support_on_build_plate_only', '1'), setting('top_shell_layers', '5'),
-        setting('bottom_shell_layers', '4'), setting('top_shell_thickness', '0'),
-        setting('bottom_shell_thickness', '0'), setting('brim_type', 'auto_brim'), setting('brim_width', '0'),
-      ] },
+      variableLayerHeight: false, objects: ['Bracket'], localOverrides: [] },
     setupIdentity: { printer: 'Bambu A1', nozzles: [0.4], plateType: 'Textured PEI',
-      filaments: [{ preset: 'PETG Basic', material: 'PETG' }] },
+      filaments: [{ preset: 'PETG Basic @BBL A1', material: 'PETG' }] },
   };
 }
 
-const at = (value: WorkspaceContext, key: string) => value.appliedSetup!.settings.find((item) => item.key === key)!;
+const delta = (key: string, label: string, display: string, extra: Partial<PresetDeltaInfo> = {}): PresetDeltaInfo => ({
+  key, label, display, preset: '', value: '', origin: 'user', presetType: 'process', presetName: '0.20 mm Standard',
+  page: 'Strength', group: 'Walls', ...extra });
+
 const NOW = Date.parse('2026-10-05T20:00:30');
 const change = (seq: number, patch: Partial<ChangeInfo>): ChangeInfo => ({ seq, createdAt: '2026-10-05T20:00:00',
   kind: 'setting', actor: 'agent', label: 'Wall loops', from: '2', to: '4', preset: 'Standard',
   conversationId: 'chat', afterId: 'm-1', ...patch });
 
 function show(value: WorkspaceContext, props: Partial<SetupCardProps> = {}) {
-  render(<SetupCard context={value} expanded={false} onToggle={() => {}} {...props} />);
+  render(<SetupCard context={value} onViewSetup={() => {}} {...props} />);
   return screen.getByTestId('current-setup');
 }
 
@@ -65,127 +57,150 @@ describe('formatting', () => {
   });
 });
 
-describe('applied-settings summary', () => {
-  it('states inherited settings when the process preset is untouched', () => {
+describe('presets and differences', () => {
+  it('names the process and the first filament, each without its printer suffix', () => {
     const value = context();
-    expect(value.presetDeltas).toEqual([]);
-    expect(appliedSummary(value.appliedSetup)).toEqual([
-      '0.20 mm layers · 4 walls', '30% gyroid infill · tree supports from build plate']);
+    value.printer.process = '0.20mm Standard @BBL A1';
+    expect(presetsLine(value, 'Quick fit check')).toBe('0.20mm Standard · PETG Basic');
+    expect(show(value)).toHaveTextContent('0.20mm Standard · PETG Basic');
   });
 
-  it('is derived from stable keys, so a translated label changes nothing', () => {
+  it('keeps long preset names on one line, whole in the tooltip', () => {
     const value = context();
-    const before = appliedSummary(value.appliedSetup);
-    value.presetDeltas = [{ key: 'wall_loops', label: 'Wandschleifen', preset: '2', value: '4', origin: 'user' }];
+    value.printer.process = 'Draft quality profile for the large enclosure panels with thick walls';
+    const line = show(value).querySelector('.current-setup-line--single')!;
+    expect(line).toHaveTextContent('Draft quality profile for the large enclosure panels with thick walls · PETG Basic');
+    expect(line).toHaveAttribute('title', line.textContent);
+  });
+
+  it('counts the filament slots it does not name', () => {
+    const value = context();
+    value.setupIdentity!.filaments.push({ preset: 'PLA Basic @BBL A1', material: 'PLA' }, { preset: 'PLA Basic @BBL A1', material: 'PLA' });
+    expect(presetsLine(value, 'Quick fit check')).toBe('0.20 mm Standard · PETG Basic +2');
+  });
+
+  it('shows a name that follows no convention whole', () => {
+    const value = context();
+    value.printer.process = 'My draft profile';
+    expect(presetsLine(value, 'Quick fit check')).toBe('My draft profile · PETG Basic');
+  });
+
+  it('does not say the process twice when the process is the title', () => {
+    const value = context();
+    value.setupIntent = '';
     const card = show(value);
-    expect(appliedSummary(value.appliedSetup)).toEqual(before);
-    expect(card).toHaveTextContent('0.20 mm layers · 4 walls');
-    expect(card).not.toHaveTextContent('Wandschleifen');
+    expect(within(card).getByRole('heading')).toHaveTextContent('0.20 mm Standard');
+    expect(presetsLine(value, '0.20 mm Standard')).toBe('PETG Basic');
+    expect(card.textContent!.match(/0\.20 mm Standard/g)).toHaveLength(1);
   });
 
-  it('keeps one field order whatever changed last', () => {
+  it('has no presets line for a printer with no process preset', () => {
     const value = context();
-    value.appliedSetup!.settings.reverse();
-    expect(appliedSummary(value.appliedSetup)[0]).toBe('0.20 mm layers · 4 walls');
+    value.printer.process = '';
+    expect(presetsLine(value, 'Quick fit check')).toBe('');
   });
 
-  it('names no sparse pattern at zero or full density', () => {
-    const value = context();
-    at(value, 'sparse_infill_density').value = '0%';
-    expect(appliedSummary(value.appliedSetup)[1]).toBe('No sparse infill · tree supports from build plate');
-    at(value, 'sparse_infill_density').value = '100%';
-    expect(appliedSummary(value.appliedSetup)[1]).toContain('100% infill');
-    expect(appliedSummary(value.appliedSetup).join(' ')).not.toContain('gyroid');
+  it('says so when nothing differs from the presets', () => {
+    const card = show(context());
+    expect(card).toHaveTextContent('No changes from presets');
+    expect(card.querySelector('.current-setup-row--change')).toBeNull();
+    expect(card).not.toHaveTextContent(/more change|with overrides/);
   });
 
-  it('says spiral vase instead of walls and infill it does not print', () => {
+  it('shows two differences as the host formatted them and counts the rest', () => {
     const value = context();
-    value.appliedSetup!.spiralMode = true;
-    expect(appliedSummary(value.appliedSetup)).toEqual(['Spiral vase mode']);
-    const card = show(value, { expanded: true });
-    expect(card).not.toHaveTextContent('4 walls');
-    expect(within(card).getByTestId('current-setup-expansion')).toHaveTextContent('ModeSpiral vase');
-  });
-
-  it('does not quote the nominal height under a variable-height profile', () => {
-    const value = context();
-    value.appliedSetup!.variableLayerHeight = true;
-    expect(appliedSummary(value.appliedSetup)[0]).toBe('Variable layer height · 4 walls');
-    expect(appliedSummary(value.appliedSetup).join(' ')).not.toMatch(/\d\.\d\d mm/);
-  });
-
-  it('states the plate default as a default when objects disagree', () => {
-    const value = context();
-    const setup = value.appliedSetup!;
-    setup.printableObjects = 3;
-    setup.objects = ['Bracket', 'Cover', 'Spacer'];
-    const walls = at(value, 'wall_loops');
-    walls.coverage = 'mixed';
-    walls.scopes = ['4', '4', '2'].map((wall, object) => ({ object, target: setup.objects![object], kind: 'object', value: wall }));
-    const lines = appliedSummary(setup);
-    expect(lines[0]).toBe('Plate default: 0.20 mm layers · 4 walls');
-    expect(lines[1]).toBe('30% gyroid infill · 1 object with local overrides');
-  });
-
-  it('falls back to plain variation when a saved setup has no plate default', () => {
-    const value = context();
-    const walls = at(value, 'wall_loops');
-    walls.coverage = 'mixed';
-    delete walls.base;
-    expect(appliedSummary(value.appliedSetup)[0]).toBe('0.20 mm layers · walls vary by object');
-  });
-
-  it('quotes one modifier by name and its configured value', () => {
-    const value = context();
-    at(value, 'wall_loops').coverage = 'local';
-    value.appliedSetup!.localOverrides = [
-      { object: 0, target: 'Bracket / Mounting tab', kind: 'modifier', key: 'wall_loops', value: '6' }];
-    expect(appliedSummary(value.appliedSetup)[0]).toBe('0.20 mm layers · 4 walls; Mounting tab: 6');
-  });
-
-  it('points at the details instead of resolving overlapping modifiers', () => {
-    const value = context();
-    at(value, 'sparse_infill_density').coverage = 'local';
-    value.appliedSetup!.localOverrides = [
-      { object: 0, target: 'Bracket / Dense region', kind: 'modifier', key: 'sparse_infill_density', value: '50%' },
-      { object: 0, target: 'Bracket / Strong tab', kind: 'modifier', key: 'sparse_infill_density', value: '75%' },
-    ];
-    const lines = appliedSummary(value.appliedSetup).join(' ');
-    expect(lines).toContain('Local infill settings — see details');
-    expect(lines).not.toContain('30%');
-    expect(lines).not.toContain('75%');
-    const details = within(show(value, { expanded: true })).getByTestId('current-setup-expansion');
-    expect(details).toHaveTextContent('Dense region (modifier)');
-    expect(details).toHaveTextContent('Strong tab (modifier)');
-  });
-
-  it('never resolves a height range to a part of the print', () => {
-    const value = context();
-    at(value, 'layer_height').coverage = 'local';
-    value.appliedSetup!.localOverrides = [
-      { object: 0, target: 'Bracket', kind: 'height range', key: 'layer_height', value: '0.12' }];
-    expect(appliedSummary(value.appliedSetup)[0]).toBe('Local layer heights — see details · 4 walls');
-    expect(within(show(value, { expanded: true })).getByTestId('current-setup-expansion'))
-      .toHaveTextContent('Bracket (height range)Layer height 0.12 mm');
-  });
-
-  it('describes configured supports without promising what gets generated', () => {
-    const value = context();
-    at(value, 'enable_support').coverage = 'local';
-    value.appliedSetup!.localOverrides = [
-      { object: 0, target: 'Bracket / Hole', kind: 'support blocker', key: '', value: '' }];
-    const card = show(value, { expanded: true });
-    expect(card).toHaveTextContent('tree supports from build plate; local support edits');
-    expect(card).toHaveTextContent('HoleSupport blocker');
-    expect(card).not.toHaveTextContent(/no supports? in|will not be supported|Supports generated/i);
-  });
-
-  it('reports a plate with nothing printable instead of leftover values', () => {
-    const value = context();
-    value.appliedSetup!.printableObjects = 0;
+    value.presetDeltas = [delta('a', 'Wall loops', '2 → 4'), delta('b', 'Brim type', 'Auto → Outer brim only'),
+      delta('c', 'Brim width', '0 → 8 mm'), delta('d', 'First layer height', '0.2 → 0.28 mm')];
     const card = show(value);
-    expect(card).toHaveTextContent('No printable objects on this plate');
-    expect(card).not.toHaveTextContent('4 walls');
+    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(2);
+    expect(card).toHaveTextContent('Wall loops2 → 4');
+    expect(card).toHaveTextContent('Brim typeAuto → Outer brim only');
+    expect(card).toHaveTextContent('2 more changes');
+    expect(card).not.toHaveTextContent('Brim width');
+    expect(card).not.toHaveTextContent('No changes from presets');
+  });
+
+  it('counts one more change in the singular and none not at all', () => {
+    const value = context();
+    value.presetDeltas = [delta('a', 'A', '1 → 2'), delta('b', 'B', '1 → 2'), delta('c', 'C', '1 → 2')];
+    expect(show(value)).toHaveTextContent('1 more change');
+    cleanup();
+    value.presetDeltas.pop();
+    expect(show(value)).not.toHaveTextContent('more change');
+  });
+
+  it('puts the place a setting has in the settings tabs in its tooltip', () => {
+    const value = context();
+    // Two settings OrcaSlicer both labels "Brim width".
+    value.presetDeltas = [delta('brim_width', 'Brim width', '0 → 8 mm', { page: 'Others', group: 'Brim' }),
+      delta('prime_tower_brim_width', 'Brim width', '3 → 5 mm', { page: 'Multimaterial', group: 'Prime tower' })];
+    const names = [...show(value).querySelectorAll('dt')].map((name) => name.getAttribute('title'));
+    expect(names).toEqual(['Others · Brim · Brim width', 'Multimaterial · Prime tower · Brim width']);
+  });
+
+  it('shows the raw pair for a difference saved before the host formatted it', () => {
+    const value = context();
+    value.presetDeltas = [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' }];
+    expect(show(value, { historical: true })).toHaveTextContent('Wall loops2 → 4');
+  });
+
+  it('leads with what the agent changed, newest first, then what the person did', () => {
+    const deltas = [delta('a', 'A', ''), delta('b', 'B', '', { origin: 'agent' }), delta('c', 'C', '', { origin: 'agent' }),
+      delta('d', 'D', ''), delta('e', 'E', '', { origin: 'agent' })];
+    const at = (minute: number) => `2026-10-05T20:0${minute}:00`;
+    const log = [change(1, { key: 'b', createdAt: at(1) }), change(2, { key: 'c', createdAt: at(2) }),
+      change(3, { key: 'd', actor: 'person', createdAt: at(3) }), change(4, { key: 'c', createdAt: at(4) })];
+    // c was changed last; e has no entry in this chat's log and keeps the
+    // host's own order after the ones that do; then the person's, newest first.
+    expect(orderedPresetDeltas(deltas, log).map((item) => item.key)).toEqual(['c', 'b', 'e', 'd', 'a']);
+    expect(orderedPresetDeltas(deltas).map((item) => item.key)).toEqual(['b', 'c', 'e', 'a', 'd']);
+  });
+
+  it('keeps settings changed in one go in the host\'s order', () => {
+    // One patch writes its settings in the same instant, in OrcaSlicer's
+    // order. Which of them the log happens to list last means nothing.
+    const deltas = [delta('speed', 'First layer', '', { origin: 'agent' }), delta('width', 'Brim width', '', { origin: 'agent' }),
+      delta('type', 'Brim type', '', { origin: 'agent' }), delta('walls', 'Wall loops', '', { origin: 'agent' })];
+    const patch = [change(1, { key: 'walls', createdAt: '2026-10-05T19:00:00' }),
+      change(2, { key: 'speed' }), change(3, { key: 'width' }), change(4, { key: 'type' })];
+    expect(orderedPresetDeltas(deltas, patch).map((item) => item.key)).toEqual(['speed', 'width', 'type', 'walls']);
+    // The same three edited by hand a minute apart are three moments.
+    const byHand = patch.map((entry, index) => ({ ...entry, createdAt: `2026-10-05T20:0${index}:00` }));
+    expect(orderedPresetDeltas(deltas, byHand).map((item) => item.key)).toEqual(['type', 'width', 'speed', 'walls']);
+  });
+
+  it('tells apart a process and a filament setting that share a key', () => {
+    const deltas = [delta('x', 'Process X', '', { origin: 'agent' }),
+      delta('x', 'Filament X', '', { origin: 'agent', presetType: 'filament' })];
+    const value = context();
+    value.presetDeltas = deltas;
+    expect(show(value)).toHaveTextContent('Process X');
+    expect(screen.getByTestId('current-setup')).toHaveTextContent('Filament X');
+  });
+
+  it('counts the objects that carry overrides, not the overrides', () => {
+    const value = context();
+    value.appliedSetup!.objects = ['a', 'b', 'c'];
+    value.appliedSetup!.localOverrides = [
+      { object: 0, target: 'a', kind: 'object', key: 'wall_loops', value: '5' },
+      { object: 0, target: 'a / tab', kind: 'modifier', key: 'wall_loops', value: '7' },
+      { object: 2, target: 'c', kind: 'support painting', key: '', value: '' }];
+    expect(overrideObjectCount(value)).toBe(2);
+    expect(show(value)).toHaveTextContent('2 objects with overrides');
+    cleanup();
+    value.appliedSetup!.localOverrides.length = 1;
+    expect(show(value)).toHaveTextContent('1 object with overrides');
+  });
+
+  it('opens the setup page from one link and never grows itself', async () => {
+    const onViewSetup = vi.fn();
+    const value = context();
+    value.presetDeltas = [delta('a', 'A', '1 → 2')];
+    const card = show(value, { onViewSetup });
+    expect(within(card).queryByRole('button', { name: /details/i })).toBeNull();
+    await userEvent.click(within(card).getByRole('button', { name: 'View setup' }));
+    expect(onViewSetup).toHaveBeenCalledOnce();
+    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(1);
   });
 });
 
@@ -226,7 +241,7 @@ describe('time and material', () => {
     expect(card).toHaveTextContent('Confirmed');
     expect(card).toHaveTextContent('Time & material estimates recomputing…');
     expect(card).toHaveTextContent('Settings confirmed · Plate 1');
-    expect(card).toHaveTextContent('0.20 mm layers · 4 walls');
+    expect(card).toHaveTextContent('No changes from presets');
     expect(card).not.toHaveTextContent('~2h 18m');
   });
 
@@ -430,9 +445,9 @@ describe('needs attention', () => {
     const value = context();
     value.printerReview = { observed: { observedAt: '2026-10-05T20:00:00' },
       mismatches: [{ what: 'filament', configured: 'PETG', observed: 'PLA', source: 'device' }] };
-    const { rerender } = render(<SetupCard context={value} expanded={false} onToggle={() => {}} />);
+    const { rerender } = render(<SetupCard context={value} onViewSetup={() => {}} />);
     expect(screen.getByTestId('current-setup')).toHaveTextContent('Last reported material differs');
-    rerender(<SetupCard context={{ ...value, printerReview: { mismatches: [] } }} expanded={false} onToggle={() => {}} />);
+    rerender(<SetupCard context={{ ...value, printerReview: { mismatches: [] } }} onViewSetup={() => {}} />);
     expect(screen.getByTestId('current-setup')).not.toHaveTextContent('differs');
   });
 
@@ -445,92 +460,6 @@ describe('needs attention', () => {
     expect(deterministicAttention(value)).toEqual([]);
     expect(card).toHaveTextContent('Could this finish under 1 hour?');
     expect(card).not.toHaveTextContent(/within|exceeds|target|reassess|PETG right/i);
-  });
-});
-
-describe('expanded details', () => {
-  it('lists every configured nozzle and filament, not the first slot', () => {
-    const value = context();
-    value.setupIdentity!.nozzles = [0.4, 0.6];
-    value.setupIdentity!.filaments.push({ preset: 'PLA Matte', material: 'PLA' });
-    const details = within(show(value, { expanded: true })).getByTestId('current-setup-expansion');
-    expect(details).toHaveTextContent('Nozzles0.4 mm, 0.6 mm');
-    expect(details).toHaveTextContent('Filament 1PETG Basic');
-    expect(details).toHaveTextContent('Filament 2PLA Matte');
-  });
-
-  it('gives off, auto, mixed and unknown each their own words', () => {
-    const value = context();
-    at(value, 'enable_support').value = '0';
-    at(value, 'top_shell_layers').coverage = 'unavailable';
-    at(value, 'bottom_shell_layers').coverage = 'unavailable';
-    const details = within(show(value, { expanded: true })).getByTestId('current-setup-expansion');
-    expect(details).toHaveTextContent('SupportsOff');
-    expect(details).toHaveTextContent('BrimAuto');
-    expect(details).toHaveTextContent('Top / bottomUnavailable');
-  });
-
-  it('adds a minimum shell thickness when one constrains the count', () => {
-    const value = context();
-    at(value, 'top_shell_thickness').value = '1';
-    at(value, 'bottom_shell_thickness').value = '0.8';
-    expect(within(show(value, { expanded: true })).getByTestId('current-setup-expansion'))
-      .toHaveTextContent('Top / bottom5 / 4 layers · min 1 / 0.8 mm');
-  });
-
-  it('says there are no local overrides only for a setup it actually read', () => {
-    const read = within(show(context(), { expanded: true })).getByTestId('current-setup-expansion');
-    expect(read).toHaveTextContent('No local overrides found');
-  });
-
-  it('counts a local setting it has no name for instead of describing it', () => {
-    const value = context();
-    value.appliedSetup!.localOverrides = [
-      { object: 0, target: 'Bracket', kind: 'object', key: 'ironing_type', value: 'top' }];
-    const details = within(show(value, { expanded: true })).getByTestId('current-setup-expansion');
-    expect(details).toHaveTextContent('1 other local setting');
-    expect(details).not.toHaveTextContent('No local overrides found');
-    expect(details).not.toHaveTextContent('ironing');
-  });
-
-  it('names a filament assignment without claiming a physical slot', () => {
-    const value = context();
-    value.setupIdentity!.filaments.push({ preset: 'PLA Matte', material: 'PLA' });
-    value.appliedSetup!.localOverrides = [{ object: 0, target: 'Bracket', kind: 'object', key: 'extruder', value: '2' }];
-    expect(within(show(value, { expanded: true })).getByTestId('current-setup-expansion'))
-      .toHaveTextContent('Object overrideFilament 2 · PLA Matte');
-  });
-
-  it('keeps preset differences apart from applied settings and counts its own rows', async () => {
-    const value = context();
-    value.presetDeltas = [
-      { key: 'top_shell_layers', label: 'Top shell layers', preset: '4', value: '5', origin: 'agent' },
-      { key: 'bottom_shell_layers', label: 'Bottom shell layers', preset: '3', value: '4', origin: 'agent' },
-      { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'user' },
-    ];
-    const card = show(value, { expanded: true });
-    expect(within(card).queryByTestId('setup-preset-changes')).toBeNull();
-    await userEvent.click(within(card).getByRole('button', { name: '3 changes from preset' }));
-    const rows = within(within(card).getByTestId('setup-preset-changes')).getAllByRole('term');
-    expect(rows).toHaveLength(3);
-    expect(within(card).getByTestId('setup-preset-changes')).toHaveTextContent('Wall loops2 → 4');
-  });
-
-  it('has no comparison to open when the preset is untouched', () => {
-    const card = show(context(), { expanded: true });
-    expect(within(card).queryByRole('button', { name: /from preset/ })).toBeNull();
-    expect(card).toHaveTextContent('Base preset0.20 mm Standard');
-  });
-
-  it('opens from the keyboard through one labelled control', async () => {
-    const onToggle = vi.fn();
-    const card = show(context(), { onToggle });
-    const control = within(card).getByRole('button', { name: 'Setup details' });
-    expect(control).toHaveAttribute('aria-expanded', 'false');
-    control.focus();
-    await userEvent.keyboard('{Enter}');
-    await userEvent.keyboard(' ');
-    expect(onToggle).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -572,14 +501,11 @@ describe('saved and fallback cards', () => {
     delete value.appliedSetup;
     delete value.setupIdentity;
     value.presetDeltas = [{ key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '5%', origin: 'agent' }];
-    const card = show(value, { historical: true, expanded: true });
-    expect(card).toHaveTextContent('Saved preset differences: Sparse infill density 5%');
-    expect(card).not.toHaveTextContent('4 walls');
-    const details = within(card).getByTestId('current-setup-expansion');
-    expect(details).toHaveTextContent('Printer and material details unavailable');
-    expect(details).toHaveTextContent('Applied setting details are unavailable for this setup.');
-    expect(details).toHaveTextContent('Local override details unavailable');
-    expect(details).not.toHaveTextContent('No local overrides found');
+    const card = show(value, { historical: true });
+    expect(card).toHaveTextContent('Sparse infill density15% → 5%');
+    // The filament it names is the one saved with the chat's own summary.
+    expect(card).toHaveTextContent('0.20 mm Standard · PETG Basic');
+    expect(card).not.toHaveTextContent(/with overrides|Preset fallback/);
   });
 
   it('is a plain preset label when no agent is configured', () => {
@@ -600,7 +526,7 @@ describe('saved and fallback cards', () => {
     value.setupIntent = '   ';
     const card = show(value);
     expect(within(card).getByRole('heading', { name: '0.20 mm Standard' })).toBeInTheDocument();
-    expect(card).toHaveTextContent('0.20 mm layers · 4 walls');
+    expect(card).toHaveTextContent('No changes from presets');
   });
 
   it('renders no empty heading when there is neither intent nor preset', () => {
@@ -627,11 +553,12 @@ describe('saved and fallback cards', () => {
     const card = show(value);
     expect(card).toHaveTextContent('Preset fallback');
     expect(card).toHaveTextContent('Estimate unavailable');
-    expect(card).not.toHaveTextContent(/No local overrides|Current|walls|0 g/);
+    expect(card).not.toHaveTextContent(/No changes from presets|with overrides|Current|0 g/);
+    expect(within(card).queryByRole('button')).toBeNull();
   });
 
   it('renders nothing without a context', () => {
-    const { container } = render(<SetupCard context={null} expanded={false} onToggle={() => {}} />);
+    const { container } = render(<SetupCard context={null} onViewSetup={() => {}} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

@@ -135,37 +135,17 @@ struct WorkspacePlate
 // when it is opened.
 struct PresetDelta
 {
-    std::string key;    // config key, stable across languages
-    std::string label;  // the setting's own UI label, already localized
-    std::string preset; // value the preset carries
-    std::string value;  // value in force
-};
-
-// A read-only account of configured FFF values on the selected plate. A local
-// value names its owner, not a resolved geometric region: overlapping modifier
-// precedence remains Orca's responsibility at slice time.
-struct SetupScopedValue
-{
-    std::string target;
-    std::string kind;
-    std::string value;
-    // Position of the owning object in AppliedSetup::objects. Names repeat,
-    // so consumers group by this rather than by target text.
-    std::size_t object{0};
-};
-
-struct SetupSetting
-{
-    std::string key;
-    std::string value;
-    // exact, mixed, local, or unavailable. "local" means the listed overrides
-    // prevent a single value from describing the whole plate.
-    std::string coverage{"unavailable"};
-    std::vector<SetupScopedValue> scopes;
-    // The plate's own value before any object changes it: the plate override
-    // when the plate has one, otherwise the process preset. Empty when neither
-    // defines the key.
-    std::string base;
+    std::string key;         // config key, stable across languages
+    std::string label;       // the setting's own UI label, already localized
+    std::string preset;      // raw value the preset carries
+    std::string value;       // raw value in force
+    std::string preset_type; // process, filament, or printer
+    std::string preset_name; // full selected preset name
+    std::string display;     // formatted preset -> value change
+    // Orca's settings-tab location. Empty when the search index does not
+    // contain this setting in the current user mode.
+    std::string page;
+    std::string group;
 };
 
 struct SetupLocalOverride
@@ -174,7 +154,9 @@ struct SetupLocalOverride
     std::string kind;
     std::string key;
     std::string value;
-    std::size_t object{0}; // as SetupScopedValue::object
+    std::size_t object{0}; // index into AppliedSetup::objects
+    std::string label;
+    std::string display;
 };
 
 struct AppliedSetup
@@ -185,7 +167,6 @@ struct AppliedSetup
     bool variable_layer_height{false};
     // Names of the objects with a printable copy on the plate, in model order.
     std::vector<std::string> objects;
-    std::vector<SetupSetting> settings;
     std::vector<SetupLocalOverride> local_overrides;
 };
 
@@ -1301,8 +1282,11 @@ struct WorkspaceEdit
     EditKind    kind{EditKind::Step};
     EditActor   actor{EditActor::Person};
     std::string label;
-    // Setting only: the value before and after, and the preset it was edited in.
+    // Setting only: the value before and after, written as a person reads
+    // them ("Outer brim only", "8 mm"), and the preset it was edited in.
     std::string before, after, preset;
+    // Setting only. Optional so stored edits from older builds stay valid.
+    std::string key;
 };
 
 using WorkspaceEditCallback = std::function<void(const WorkspaceEdit&)>;

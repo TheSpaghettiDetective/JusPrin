@@ -1,212 +1,213 @@
-// One state input per approved Figma frame on the "Current Setup Card" page,
-// sections 5 to 7. The acceptance tests and the review page both render the
-// production card from these, so a frame is covered only if its state can be
-// produced from real card inputs. The wording on a frame is example data; the
-// card's own wording is asserted where the two differ on purpose.
+// One state input per frame of the setup card and the setup page. The
+// acceptance tests and the review page both render the production components
+// from these, so a state is covered only if it can be produced from real
+// inputs. A1, A2 and B are the three frames of the "setup card shows
+// differences from presets" design; the card's remaining states are the ones
+// first drawn on the Figma page "Current Setup Card", sections 6 and 7, whose
+// frame each names. Every setting value below is written the way the host's
+// formatter writes it.
 
-import { AppliedSetupInfo, ChangeInfo, WorkspaceContext } from '../bridge/protocol';
-import { SetupCard, SetupCardProps } from './SetupCard';
+import { ChangeInfo, PresetDeltaInfo, WorkspaceContext } from '../bridge/protocol';
+import { Finding, SetupCard, SetupCardProps } from './SetupCard';
+import { SetupPage, SetupPageHeader } from './SetupPage';
 
-type Setting = AppliedSetupInfo['settings'][number];
-type CaseProps = Omit<SetupCardProps, 'context' | 'onToggle' | 'onCompute' | 'onUndo'> &
+type CaseProps = Omit<SetupCardProps, 'context' | 'onCompute' | 'onUndo' | 'onViewSetup'> &
   { compute?: boolean; undo?: boolean };
 
 export interface SetupVisualCase {
   id: string;
-  section: '5' | '6' | '7';
-  // The Figma frame this state reproduces.
-  frame: string;
   name: string;
+  kind: 'card' | 'page';
+  // The Figma frame the state was first drawn on, where there is one.
+  frame?: string;
   context: WorkspaceContext;
   props: CaseProps;
 }
 
-const setting = (key: string, value: string, object = 'bracket v3'): Setting =>
-  ({ key, value, base: value, coverage: 'exact', scopes: [{ object: 0, target: object, kind: 'object', value }] });
+// When the review page and the tests "are": a fixed clock, so the window a
+// completed change stays new for does not depend on when the suite runs.
+export const VISUAL_NOW = Date.parse('2026-10-08T12:00:30');
 
-function workspace(): WorkspaceContext {
+const PROCESS = '0.20mm Standard @MyKlipper';
+const FILAMENT = 'Generic ABS @System';
+
+const delta = (key: string, label: string, display: string, extra: Partial<PresetDeltaInfo> = {}): PresetDeltaInfo => ({
+  key, label, display, preset: '', value: '', origin: 'agent', presetType: 'process', presetName: PROCESS,
+  page: 'Others', group: 'Brim', ...extra });
+
+export function setupWorkspace(): WorkspaceContext {
   return {
     sessionId: 'visual-project', revision: 4, projectName: 'Workshop bracket', projectDirty: false,
-    printer: { preset: 'Bambu A1', filament: 'PETG', process: '0.20 mm Standard' },
-    plates: [{ id: 'plate-1', name: 'Plate 1', active: true, sliced: true,
-      estimate: { printTimeSeconds: 8280, materialGrams: 46, materialCost: null, timeAvailable: true, materialAvailable: true },
-      estimateStatus: 'current', invalidatedBy: '', objects: [
-        { id: 'bracket', name: 'bracket v3', instances: 1, selected: false },
-      ] }],
+    printer: { preset: 'MyKlipper 0.4 nozzle', filament: FILAMENT, process: PROCESS },
+    plates: [
+      { id: 'plate-1', name: 'Plate 1', active: true, sliced: true,
+        estimate: { printTimeSeconds: 8280, materialGrams: 41, materialCost: null, timeAvailable: true, materialAvailable: true },
+        estimateStatus: 'current', invalidatedBy: '', objects: [
+          { id: 'cali', name: '3x3_cali_RL.stl', instances: 1, selected: false },
+          { id: 'bracket', name: 'bracket.stl', instances: 1, selected: false },
+        ] },
+      { id: 'plate-2', name: 'Plate 2', active: false, sliced: false, estimate: null,
+        estimateStatus: 'current', invalidatedBy: '', objects: [] },
+    ],
     selection: { status: 'none', objectIds: [] }, history: { canUndo: true, canRedo: false },
-    presetDeltas: [], currency: '', setupIntent: 'Strong bracket, clear screw holes',
-    appliedSetup: { version: 1, plateId: 'plate-1', printableObjects: 1, spiralMode: false,
-      variableLayerHeight: false, objects: ['bracket v3'], localOverrides: [], settings: [
-        setting('layer_height', '0.2'), setting('wall_loops', '4'),
-        setting('sparse_infill_density', '30%'), setting('sparse_infill_pattern', 'gyroid'),
-        setting('enable_support', '1'), setting('support_type', 'normal(auto)'),
-        setting('support_on_build_plate_only', '1'), setting('top_shell_layers', '5'),
-        setting('bottom_shell_layers', '4'), setting('top_shell_thickness', '0'),
-        setting('bottom_shell_thickness', '0'), setting('brim_type', 'outer_only'), setting('brim_width', '5'),
+    // In the host's order, which is OrcaSlicer's own order of its settings.
+    presetDeltas: [
+      delta('initial_layer_print_height', 'First layer height', '0.2 → 0.28 mm',
+        { preset: '0.2', value: '0.28', page: 'Quality', group: 'Layer height' }),
+      delta('initial_layer_speed', 'First layer', '50 → 25 mm/s',
+        { preset: '50', value: '25', page: 'Speed', group: 'First layer speed' }),
+      delta('brim_width', 'Brim width', '0 → 8 mm', { preset: '0', value: '8' }),
+      delta('brim_type', 'Brim type', 'Auto → Outer brim only', { preset: 'auto_brim', value: 'outer_only' }),
+      delta('hot_plate_temp', 'Bed temperature', '100 → 105 ℃', { preset: '100', value: '105', origin: 'user',
+        presetType: 'filament', presetName: FILAMENT, page: 'Filament', group: 'Bed temperature' }),
+    ],
+    appliedSetup: { version: 1, plateId: 'plate-1', printableObjects: 2, spiralMode: false,
+      variableLayerHeight: false, objects: ['3x3_cali_RL.stl', 'bracket.stl'], localOverrides: [
+        { object: 0, target: '3x3_cali_RL.stl', kind: 'object', key: 'sparse_infill_density', value: '30%',
+          label: 'Sparse infill density', display: '30%' },
+        { object: 0, target: '3x3_cali_RL.stl / Corner tab', kind: 'modifier', key: 'wall_loops', value: '5',
+          label: 'Wall loops', display: '5' },
       ] },
-    setupIdentity: { printer: 'Bambu A1', nozzles: [0.4], plateType: 'Textured PEI',
-      filaments: [{ preset: 'PETG', material: 'PETG' }] },
-    printerReview: { mismatches: [] },
+    setupIdentity: { printer: 'MyKlipper 0.4 nozzle', nozzles: [0.4], plateType: 'Smooth High Temp Plate', filaments: [
+      { preset: FILAMENT, material: 'ABS' }, { preset: 'Generic PLA @System', material: 'PLA' },
+      { preset: 'Generic PLA @System', material: 'PLA' },
+    ] },
+    printerReview: { mismatches: [] }, currency: '', setupIntent: 'Stop the corners lifting',
   };
 }
 
-function variant(base: WorkspaceContext, change: (value: WorkspaceContext) => void): WorkspaceContext {
+function variant(change: (value: WorkspaceContext) => void, base: WorkspaceContext = setupWorkspace()): WorkspaceContext {
   const value = structuredClone(base);
   change(value);
   return value;
 }
 
-const at = (value: WorkspaceContext, key: string) => value.appliedSetup!.settings.find((item) => item.key === key)!;
-const set = (value: WorkspaceContext, key: string, next: string) => {
-  const item = at(value, key);
-  item.value = next;
-  item.base = next;
-  item.scopes.forEach((scope) => { scope.value = next; });
-};
-
-// The bracket the agent strengthened: thicker walls with a modifier on the
-// tabs, denser infill, supports from the plate, blockers in the screw holes.
-const strong = variant(workspace(), (value) => {
-  at(value, 'wall_loops').coverage = 'local';
-  at(value, 'enable_support').coverage = 'local';
-  value.appliedSetup!.localOverrides = [
-    { object: 0, target: 'bracket v3 / Mounting tabs', kind: 'modifier', key: 'wall_loops', value: '6' },
-    { object: 0, target: 'bracket v3 / Screw holes', kind: 'support blocker', key: '', value: '' },
-  ];
-});
-
-// The quick fit check: coarse layers, two walls, almost no infill.
-const quick = variant(workspace(), (value) => {
-  value.setupIntent = 'Quick fit check, under 1 hour';
-  set(value, 'layer_height', '0.28');
-  set(value, 'wall_loops', '2');
-  set(value, 'sparse_infill_density', '5%');
-  set(value, 'enable_support', '0');
-  value.plates[0].estimate = { printTimeSeconds: 2520, materialGrams: 18, materialCost: null,
-    timeAvailable: true, materialAvailable: true };
-});
-
-const three = variant(workspace(), (value) => {
-  const names = ['bracket.stl', 'cover.stl', 'spacer.stl'];
-  value.setupIntent = '3 objects, different settings';
-  value.plates[0].sliced = false;
-  value.plates[0].estimate = null;
-  value.plates[0].objects = names.map((name, index) => ({ id: String(index), name, instances: 1, selected: false }));
-  const setup = value.appliedSetup!;
-  setup.printableObjects = 3;
-  setup.objects = names;
-  const perObject: Record<string, string[]> = {
-    wall_loops: ['4', '4', '2'], sparse_infill_density: ['30%', '30%', '5%'], enable_support: ['1', '1', '0'],
-  };
-  for (const item of setup.settings) {
-    const values = perObject[item.key] ?? names.map(() => item.value);
-    item.scopes = names.map((name, object) => ({ object, target: name, kind: 'object', value: values[object] }));
-    if (perObject[item.key]) item.coverage = 'mixed';
-  }
-  setup.localOverrides = [
-    { object: 0, target: 'bracket.stl / Mounting tabs', kind: 'modifier', key: 'wall_loops', value: '6' },
-    { object: 0, target: 'bracket.stl / Screw holes', kind: 'support blocker', key: '', value: '' },
-    { object: 2, target: 'spacer.stl', kind: 'object', key: 'wall_loops', value: '2' },
-    { object: 2, target: 'spacer.stl', kind: 'object', key: 'sparse_infill_density', value: '5%' },
-    { object: 2, target: 'spacer.stl', kind: 'object', key: 'enable_support', value: '0' },
-  ];
-});
-
-// When the review page and the tests "are": a fixed clock, so the window a
-// completed change stays new for does not depend on when the suite runs.
-export const VISUAL_NOW = Date.parse('2026-10-03T10:42:30');
-
 const change = (seq: number, patch: Partial<ChangeInfo>): ChangeInfo => ({
-  seq, createdAt: '2026-10-03T10:42:00', kind: 'setting', actor: 'agent', label: '', preset: '0.20 mm Standard',
+  seq, createdAt: '2026-10-08T10:00:00', kind: 'setting', actor: 'agent', label: '', preset: PROCESS,
   conversationId: 'visual-chat', afterId: 'message-1', ...patch });
 
-const agentChange: ChangeInfo[] = [
-  change(1, { label: 'Layer height', from: '0.28', to: '0.2' }),
-  change(2, { label: 'Wall loops', from: '2', to: '4' }),
-  change(3, { label: 'Sparse infill density', from: '5%', to: '30%' }),
-  change(4, { kind: 'step', label: 'Add modifier: Mounting tabs', preset: undefined }),
+// The agent's latest turn: one patch of the two brim settings, logged in the
+// host's order. They lead the card ahead of what it changed in earlier turns.
+export const visualChanges: ChangeInfo[] = [
+  change(1, { key: 'brim_width', label: 'Brim width', from: '0 mm', to: '8 mm' }),
+  change(2, { key: 'brim_type', label: 'Brim type', from: 'Auto', to: 'Outer brim only' }),
 ];
 
-const handChange: ChangeInfo[] = [
-  change(1, { label: 'Wall loops', from: '3', to: '2' }),
-  change(2, { actor: 'person', label: 'Wall loops', from: '2', to: '4', afterId: 'message-2', createdAt: '2026-10-03T10:30:00' }),
-  change(3, { actor: 'person', label: 'Sparse infill density', from: '15%', to: '30%', afterId: 'message-2',
-    createdAt: '2026-10-03T10:31:00' }),
-];
+const justNow = (entry: ChangeInfo): ChangeInfo => ({ ...entry, createdAt: '2026-10-08T12:00:00' });
+const justChanged: ChangeInfo[] = [...visualChanges.map(justNow),
+  justNow(change(3, { kind: 'step', label: 'Add modifier: Corner tab', preset: undefined }))];
 
-const saved = '2026-10-03T10:42:00';
+const handChanges: ChangeInfo[] = [...visualChanges,
+  change(3, { actor: 'person', key: 'hot_plate_temp', label: 'Bed temperature', from: '100 ℃', to: '105 ℃',
+    preset: FILAMENT, afterId: 'message-2', createdAt: '2026-10-08T11:30:00' })];
+
+// A new project nobody has touched: no purpose, nothing changed, never sliced.
+const untouched = variant((value) => {
+  value.setupIntent = '';
+  value.presetDeltas = [];
+  value.appliedSetup!.localOverrides = [];
+  value.plates[0].sliced = false;
+  value.plates[0].estimate = null;
+});
+
+const stale = variant((value) => {
+  value.plates[0].estimateStatus = 'stale';
+  value.plates[0].invalidatedBy = 'a setting changed';
+});
+
+const dense = variant((value) => {
+  value.setupIntent = 'Keep the corners of this unusually long workshop fixture flat through the entire print';
+  value.printer.process = 'Draft quality profile for the large enclosure panels with thick walls';
+  value.printer.filament = 'Workshop PETG carbon fibre reinforced high temperature';
+  value.setupIdentity!.filaments = Array.from({ length: 6 }, (_, index) =>
+    ({ preset: index === 0 ? value.printer.filament : `Generic PLA @System`, material: 'PLA' }));
+  value.presetDeltas = Array.from({ length: 20 }, (_, index) => delta(`setting_${index}`,
+    index === 0 ? 'Stamping distance measured from the center of the cooling tube' : `Setting ${index + 1}`,
+    `${index} → ${index + 1} mm`, { presetName: value.printer.process, page: `Page ${Math.floor(index / 5) + 1}`,
+      group: `Group ${index % 2 + 1}`, origin: 'user' }));
+});
+
+const threeObjects = variant((value) => {
+  const names = ['bracket.stl', 'cover.stl', 'spacer.stl'];
+  value.plates[0].objects = names.map((name, index) => ({ id: String(index), name, instances: 1, selected: false }));
+  value.appliedSetup!.printableObjects = 3;
+  value.appliedSetup!.objects = names;
+  value.appliedSetup!.spiralMode = true;
+  value.appliedSetup!.localOverrides = [
+    { object: 0, target: 'bracket.stl / Mounting tabs', kind: 'modifier', key: 'wall_loops', value: '6', label: 'Wall loops', display: '6' },
+    { object: 0, target: 'bracket.stl / Screw holes', kind: 'support blocker', key: '', value: '' },
+    { object: 0, target: 'bracket.stl', kind: 'support painting', key: '', value: '' },
+    { object: 2, target: 'spacer.stl', kind: 'object', key: 'extruder', value: '2', label: 'Filament slot', display: '2' },
+    { object: 2, target: 'spacer.stl', kind: 'object', key: 'enable_support', value: '0', label: 'Enable support', display: 'Off' },
+    { object: 2, target: 'spacer.stl', kind: 'height range', key: 'layer_height', value: '0.12', label: 'Layer height', display: '0.12 mm' },
+  ];
+});
+
+// What a chat saved before the host formatted values still carries: the raw
+// pair for each difference and the raw key of each override.
+const legacy = variant((value) => {
+  value.presetDeltas = [
+    { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' },
+    { key: 'brim_type', label: 'Brim type', preset: 'auto_brim', value: 'outer_only', origin: 'agent' },
+  ];
+  value.appliedSetup!.localOverrides = [
+    { object: 0, target: '3x3_cali_RL.stl', kind: 'object', key: 'sparse_infill_density', value: '30%' }];
+});
+
+const saved = '2026-10-08T10:42:00';
+const risk: Finding[] = [{ title: 'Coarse layers may leave visible surface lines.' }];
 
 export const setupVisualCases: SetupVisualCase[] = [
-  { id: '5-current', section: '5', frame: '1291:1402', name: 'Current · collapsed', context: quick, props: { expanded: false } },
-  { id: '5-expanded', section: '5', frame: '1291:1463', name: 'Current · expanded',
-    context: variant(strong, (value) => {
-      value.printerReview = { observed: { connection: 'idle', observedAt: '2026-10-03T10:41:00' },
-        mismatches: [{ what: 'filament', configured: 'PETG', observed: 'PLA', source: 'device' }] };
-      value.presetDeltas = [
-        { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' },
-        { key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '30%', origin: 'agent' },
-        { key: 'enable_support', label: 'Enable support', preset: '0', value: '1', origin: 'agent' },
-        { key: 'brim_width', label: 'Brim width', preset: '0', value: '5', origin: 'agent' },
-      ];
-    }), props: { expanded: true } },
-  { id: '5-earlier', section: '5', frame: '1291:1731', name: 'Earlier · saved', context: quick,
-    props: { expanded: false, historical: true, savedAt: saved } },
+  { id: 'A1', name: 'Card · changes', kind: 'card', context: setupWorkspace(), props: { changes: visualChanges } },
+  { id: 'A2', name: 'Card · nothing changed', kind: 'card', context: untouched, props: { compute: true } },
+  { id: 'B', name: 'Setup page', kind: 'page', context: setupWorkspace(), props: { changes: visualChanges } },
 
-  { id: '6-just-changed', section: '6', frame: '1312:5525', name: 'Just changed', context: strong,
-    props: { expanded: false, changes: agentChange, now: VISUAL_NOW, undo: true,
-      estimateBefore: { printTimeSeconds: 2520, materialGrams: 18, materialCost: null } } },
-  { id: '6-working', section: '6', frame: '1312:5565', name: 'Agent working', context: quick,
-    props: { expanded: false, working: true } },
-  { id: '6-recomputing', section: '6', frame: '1312:5603', name: 'Estimate recomputing',
-    context: variant(strong, (value) => { value.plates[0].estimateStatus = 'recomputing'; }),
-    props: { expanded: false } },
-  { id: '6-stale', section: '6', frame: '1312:5627', name: 'Out of date',
-    context: variant(quick, (value) => { value.plates[0].estimateStatus = 'stale';
-      value.plates[0].invalidatedBy = 'Project settings changed after this estimate.'; }),
-    props: { expanded: false, compute: true } },
-  { id: '6-manual', section: '6', frame: '1312:5671', name: 'Edited by hand',
-    context: variant(strong, (value) => { value.plates[0].estimateStatus = 'stale';
-      value.plates[0].invalidatedBy = 'Wall loops changed'; }),
-    props: { expanded: false, changes: handChange, now: VISUAL_NOW } },
-  { id: '6-risk', section: '6', frame: '1312:5699', name: 'One-line risk', context: quick,
-    props: { expanded: false, attention: [{ title: 'Coarse layers may leave visible surface lines.' }] } },
-  { id: '6-no-agent', section: '6', frame: '1312:5739', name: 'No agent configured',
-    context: variant(workspace(), (value) => { value.setupIntent = ''; }),
-    props: { expanded: false, agentAvailable: false } },
-  { id: '6-sent', section: '6', frame: '1312:5745', name: 'Sliced and sent', context: quick,
-    props: { expanded: false, historical: true, savedAt: saved, sent: { at: saved, printer: 'Bambu A1' } } },
+  { id: 'earlier', name: 'Earlier · saved', kind: 'card', frame: '1291:1731', context: setupWorkspace(),
+    props: { historical: true, savedAt: saved } },
+  { id: 'just-changed', name: 'Just changed', kind: 'card', frame: '1312:5525', context: setupWorkspace(),
+    props: { changes: justChanged, undo: true, estimateBefore: { printTimeSeconds: 7200, materialGrams: 38, materialCost: null } } },
+  { id: 'working', name: 'Agent working', kind: 'card', frame: '1312:5565', context: setupWorkspace(),
+    props: { changes: visualChanges, working: true } },
+  { id: 'recomputing', name: 'Estimate recomputing', kind: 'card', frame: '1312:5603',
+    context: variant((value) => { value.plates[0].estimateStatus = 'recomputing'; }), props: { changes: visualChanges } },
+  { id: 'stale', name: 'Out of date', kind: 'card', frame: '1312:5627', context: stale, props: { compute: true } },
+  { id: 'manual', name: 'Edited by hand', kind: 'card', frame: '1312:5671', context: stale, props: { changes: handChanges } },
+  { id: 'risk', name: 'One-line risk', kind: 'card', frame: '1312:5699', context: setupWorkspace(),
+    props: { changes: visualChanges, attention: risk } },
+  { id: 'no-agent', name: 'No agent configured', kind: 'card', frame: '1312:5739',
+    context: variant((value) => { value.setupIntent = ''; }), props: { agentAvailable: false } },
+  { id: 'sent', name: 'Sliced and sent', kind: 'card', frame: '1312:5745', context: setupWorkspace(),
+    props: { historical: true, savedAt: saved, sent: { at: saved, printer: 'MyKlipper' } } },
+  { id: 'with-currency', name: 'With currency', kind: 'card', frame: '1312:5897',
+    context: variant((value) => { value.currency = 'GBP'; value.plates[0].estimate!.materialCost = 1.12; }),
+    props: { changes: visualChanges } },
+  { id: 'missing', name: 'Nothing read', kind: 'card', frame: '1312:6081',
+    context: variant((value) => { value.setupIntent = ''; value.appliedSetup = null; value.setupIdentity = null;
+      value.printerReview = null; value.presetDeltas = []; value.plates[0].estimate = null; }), props: {} },
+  { id: 'legacy', name: 'Saved before values were formatted', kind: 'card', context: legacy,
+    props: { historical: true, savedAt: saved } },
+  { id: 'dense', name: 'Card · long and dense', kind: 'card', frame: '1312:5791', context: dense, props: {} },
 
-  { id: '7-long-title', section: '7', frame: '1312:5791', name: 'Long title',
-    context: variant(strong, (value) => {
-      value.setupIntent = 'Durable workshop bracket with clean mounting holes that stay strong under repeated use'; }),
-    props: { expanded: false } },
-  { id: '7-no-title', section: '7', frame: '1312:5826', name: 'No title',
-    context: variant(strong, (value) => { value.setupIntent = ''; }), props: { expanded: false } },
-  { id: '7-no-currency', section: '7', frame: '1312:5861', name: 'No currency', context: quick, props: { expanded: false } },
-  { id: '7-with-currency', section: '7', frame: '1312:5897', name: 'With currency',
-    context: variant(quick, (value) => { value.currency = 'GBP'; value.plates[0].estimate!.materialCost = 1.12; }),
-    props: { expanded: false } },
-  { id: '7-never-sliced', section: '7', frame: '1312:5934', name: 'Never sliced',
-    context: variant(quick, (value) => { value.plates[0].sliced = false; value.plates[0].estimate = null; }),
-    props: { expanded: false, compute: true } },
-  { id: '7-three-collapsed', section: '7', frame: '1312:5959', name: 'Three objects · collapsed', context: three,
-    props: { expanded: false } },
-  { id: '7-three-expanded', section: '7', frame: '1312:5982', name: 'Three objects · expanded',
-    context: variant(three, (value) => {
-      value.presetDeltas = [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'user' }]; }),
-    props: { expanded: true } },
-  { id: '7-missing', section: '7', frame: '1312:6081', name: 'Everything missing',
-    context: variant(workspace(), (value) => { value.setupIntent = ''; value.appliedSetup = null;
-      value.setupIdentity = null; value.printerReview = null; value.plates[0].estimate = null; }),
-    props: { expanded: false } },
+  { id: 'page-untouched', name: 'Page · nothing changed', kind: 'page', context: untouched, props: {} },
+  { id: 'page-objects', name: 'Page · three objects', kind: 'page', frame: '1312:5982', context: threeObjects,
+    props: { changes: visualChanges } },
+  { id: 'page-legacy', name: 'Page · saved before values were formatted', kind: 'page', context: legacy,
+    props: { historical: true, savedAt: saved } },
+  { id: 'page-dense', name: 'Page · long and dense', kind: 'page', context: dense, props: {} },
 ];
 
-// The production card for one case. The handlers exist exactly when the case
-// says the host could carry the action out.
+// The production component for one case. The handlers exist exactly when the
+// case says the host could carry the action out. A page comes with the header
+// the panel gives it.
 export function renderVisualCase(entry: SetupVisualCase, handlers: {
-  onToggle?: () => void; onCompute?: () => void; onUndo?: (changeSeq: number) => void } = {}) {
+  onViewSetup?: () => void; onCompute?: () => void; onUndo?: (changeSeq: number) => void; onBack?: () => void;
+  onCollapse?: () => void } = {}) {
   const { compute, undo, ...props } = entry.props;
-  return <SetupCard context={entry.context} {...props} onToggle={handlers.onToggle ?? (() => {})}
+  if (entry.kind === 'page')
+    return <><SetupPageHeader onBack={handlers.onBack ?? (() => {})} onCollapse={handlers.onCollapse ?? (() => {})} />
+      <SetupPage context={entry.context} now={VISUAL_NOW} {...props} /></>;
+  return <SetupCard context={entry.context} now={VISUAL_NOW} {...props}
+    onViewSetup={handlers.onViewSetup ?? (() => {})}
     onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined}
     onUndo={undo ? handlers.onUndo ?? (() => {}) : undefined} />;
 }

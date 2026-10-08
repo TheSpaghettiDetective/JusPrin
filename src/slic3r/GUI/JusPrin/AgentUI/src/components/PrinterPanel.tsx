@@ -59,7 +59,7 @@ export const PrinterBlockView = memo(function PrinterBlockView({
                 {[printer.model, printer.nozzle > 0 && `${numberText(printer.nozzle)} mm nozzle`].filter(Boolean).join(' · ')}
               </small>}
               {onUndoAdd && (
-                <button type="button" className="printer-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
+                <button type="button" className="panel-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
                   Undo
                 </button>
               )}
@@ -167,7 +167,7 @@ export function PrinterCredentialCard({
           <>
             <ToolStatus state="running">{percent === undefined ? 'Connecting…' : `Connecting · ${percent}%`}</ToolStatus>
             <Progress label="Connecting" value={percent} max={percent === undefined ? undefined : 100} />
-            {connection && <button type="button" className="printer-link-button printer-credential-cancel" onClick={() => onCancelConnection(activity.actionId)}>Cancel</button>}
+            {connection && <button type="button" className="panel-link-button printer-credential-cancel" onClick={() => onCancelConnection(activity.actionId)}>Cancel</button>}
           </>
         )}
         {state === 'verified' && <ToolStatus state="succeeded">{target ? `Connected to ${target}.` : 'Connected.'}</ToolStatus>}

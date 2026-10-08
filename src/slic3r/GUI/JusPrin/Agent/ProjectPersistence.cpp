@@ -142,6 +142,7 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     entry.from   = edit.before;
     entry.to     = edit.after;
     entry.preset = edit.preset;
+    entry.key    = edit.key;
     const ChangeEntry stored = m_document.add_change(std::move(entry), m_config.clock());
     m_document.mark_plan_needs_reassessment(stored.label.empty() ? "The project changed" : stored.label);
     // A paint session is a burst of edits; the owner's pacing timer writes them.

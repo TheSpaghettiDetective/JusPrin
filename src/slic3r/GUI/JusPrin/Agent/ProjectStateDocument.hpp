@@ -49,6 +49,7 @@ struct ChangeEntry
     std::string   label;           // as the workspace reported it; may be empty
     std::string   location;        // optional place of a hand edit, when known
     std::string   from, to, preset; // setting only
+    std::string   key;              // setting only; absent in older documents
     std::string   conversation_id; // the conversation active at the time
     std::string   after_id;        // the conversation item it follows; empty before the first
 };

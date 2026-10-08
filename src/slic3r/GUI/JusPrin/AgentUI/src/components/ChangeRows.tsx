@@ -149,19 +149,17 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
       while (end < runs.length && isAgentSetting(runs[end])) end += 1;
       const settings = runs.slice(index + 1, end);
       if (settings.length >= 2) {
-        const value = (label: string) => settings.find((run) => run.last.label === label)?.last.to;
-        const walls = value('Wall loops');
-        const density = value('Sparse infill density');
-        const pattern = value('Sparse infill pattern') || value('Infill pattern');
-        const summary = [stepName(step.last.label), walls && `${walls} walls`, density && `${density}${pattern ? ` ${pattern}` : ''}`]
-          .filter(Boolean).join(' · ');
-        const more = Math.max(0, settings.length - 2);
+        // The pill counts the settings; which ones is behind it. Naming a few
+        // here would mean choosing which settings matter, and any fixed choice
+        // names nothing for a turn that changed other ones. The count sits
+        // where it cannot be cut: a long step name gives way, not the number.
+        const summary = stepName(step.last.label);
         entries.push(
           <section className="agent-change-summary" aria-label="Agent changes" key={step.first.seq}>
             <button type="button" aria-expanded={summaryExpanded} onClick={() => setSummaryExpanded(!summaryExpanded)}>
               <span className="settings-changes-icon" aria-hidden="true" />
               <span className="agent-change-summary-label">{summary}</span>
-              <span className="agent-change-summary-more">{more > 0 ? `+${more}` : ''}<span className={`jp-icon jp-icon-chevron-${summaryExpanded ? 'up' : 'down'}`} aria-hidden="true" /></span>
+              <span className="agent-change-summary-more">{settings.length} settings<span className={`jp-icon jp-icon-chevron-${summaryExpanded ? 'up' : 'down'}`} aria-hidden="true" /></span>
             </button>
             {summaryExpanded && <div className="agent-change-summary-details" role="list">
               {settings.map((run) => <div className="settings-change-row change-row" role="listitem" key={run.first.seq}>

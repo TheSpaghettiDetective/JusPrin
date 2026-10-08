@@ -73,8 +73,8 @@ body {
    to 7: a 405px card inset 12px inside the dock, surface/subtle, container
    radius, 12/16 padding and a 4px row gap. A live card carries a 2px
    action/primary edge and an action/primary header; a saved or out-of-date
-   card drops the edge and greys the header. Expansion grows the same card
-   rather than floating a second panel under it. */
+   card drops the edge and greys the header. The card never grows: what it
+   counts is listed on the setup page, which takes the thread's place. */
 .pinned-setup {
   flex: 0 0 auto;
   padding: 12px;
@@ -149,6 +149,14 @@ body {
   font: var(--font-label);
   color: var(--text-secondary);
   overflow-wrap: anywhere;
+}
+
+/* The presets stay on one line: the card does not grow for a long name. The
+   whole of it is in the tooltip, and on the setup page. */
+.current-setup-line--single {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .current-setup-heading {
@@ -274,10 +282,8 @@ body {
   color: var(--text-primary);
 }
 
-.current-setup-details,
 .current-setup-section,
-.current-setup-rows,
-.current-setup-override {
+.current-setup-rows {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -331,17 +337,6 @@ body {
   overflow-wrap: anywhere;
 }
 
-.current-setup-object-values,
-.current-setup-override-target {
-  font: var(--font-metadata);
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
-.current-setup-override-target {
-  padding: 4px 0;
-}
-
 .current-setup-sent {
   font: var(--font-metadata-bold);
   color: var(--text-secondary);
@@ -366,10 +361,55 @@ body {
   color: var(--text-primary);
 }
 
-/* The thread is dimmed, not removed: the expansion is a layer over a
-   conversation that is still there. */
-.thread-dimmed {
-  opacity: 0.3;
+/* The setup page's header: Back at one end, the panel's own toggle at the
+   other, where the chat header has it. */
+.current-setup-page-header {
+  justify-content: space-between;
+}
+
+/* The setup page's scrolling body, in place of the thread: the pinned
+   band's own padding and surface, and the height the thread had. */
+.current-setup-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--surface-canvas);
+}
+
+/* Which settings-tab page and group, or which part of an object, a run of
+   rows belongs to. */
+.current-setup-group {
+  padding-top: 4px;
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* A setting's row keeps to one line where it can: its name gives way, and
+   the value is never cut. The whole name is in the tooltip. */
+.current-setup-row--change dt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Only the name shrinks. A value takes the width it needs, and one too long
+   for a line wraps inside its own share of the row. */
+.current-setup-row--change dd {
+  flex: 0 0 auto;
+  max-width: 60%;
+}
+
+/* An opened object's rows sit under its name, past the chevron (icon 16 +
+   gap 8). */
+.current-setup-object-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 24px;
 }
 
 .notice {
@@ -2670,8 +2710,9 @@ button.wide {
   color: var(--text-secondary);
 }
 
-/* The design system's Button/Link: text only, Label Bold, action/primary. */
-.printer-link-button {
+/* The design system's Button/Link: text only, Label Bold, action/primary.
+   The printer panel's header and the setup page's both use it. */
+.panel-link-button {
   padding: 0;
   border: none;
   background: none;
@@ -2679,11 +2720,11 @@ button.wide {
   font: var(--font-label-bold);
   color: var(--action-primary);
 }
-.printer-back-link { display: inline-flex; align-items: center; gap: 4px; }
+.panel-back-link { display: inline-flex; align-items: center; gap: 4px; }
 
-.printer-link-button:hover:enabled { border-color: transparent; color: var(--action-primary-hover); text-decoration: underline; }
-.printer-link-button:active:enabled { color: var(--action-primary-pressed); }
-.printer-link-button:disabled { color: var(--action-disabled-text); }
+.panel-link-button:hover:enabled { border-color: transparent; color: var(--action-primary-hover); text-decoration: underline; }
+.panel-link-button:active:enabled { color: var(--action-primary-pressed); }
+.panel-link-button:disabled { color: var(--action-disabled-text); }
 
 /* Labelled, because a picture is a primary way to name a printer. */
 .attach-button-photo {

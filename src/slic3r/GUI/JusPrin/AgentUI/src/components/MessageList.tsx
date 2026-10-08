@@ -45,9 +45,6 @@ interface Props {
   readOnly?: boolean;
   endNotice?: ReactNode;
   onDiscussFailure?: (text: string) => void;
-  // The setup card's expansion is a layer over this thread; the thread dims
-  // rather than being covered, so the conversation stays legibly there.
-  dimmed?: boolean;
   // The printer panel's own cards, each anchored after the message that drew
   // it, the way history entries are. Absent everywhere else, and its
   // presence is what makes this the printer panel's thread.
@@ -128,7 +125,6 @@ export function MessageList({
   readOnly = false,
   endNotice,
   onDiscussFailure,
-  dimmed,
   printerBlocks,
   onUndoAdd,
   onInstallPlugin,
@@ -200,7 +196,7 @@ export function MessageList({
     !changesAfter(message.id).some((change) => change.actor === 'agent');
 
   return (
-    <div className={dimmed ? 'message-list thread-dimmed' : 'message-list'} role="log" aria-label="Agent conversation"
+    <div className="message-list" role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
       <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
         onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />

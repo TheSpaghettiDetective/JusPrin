@@ -18,7 +18,8 @@
     "reveal_path",
     "change_log",
     "printer_panel",
-    "file_reports"
+    "file_reports",
+    "setup_differences"
   ],
   "pageMessageTypes": [
     "hello",

@@ -29,7 +29,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
-                                                 "printer_panel", "file_reports"};
+                                                 "printer_panel", "file_reports", "setup_differences"};
     return values;
 }
 

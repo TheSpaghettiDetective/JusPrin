@@ -437,15 +437,17 @@ private:
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
     // See take_tool_input.
     std::map<std::string, nlohmann::json>          m_tool_inputs;
-    // Every process setting the agent has applied, mapped to the value it
-    // applied. A key stays the agent's only while that value is still in
-    // force: hand-edit the setting and it becomes yours again, because the
-    // card describes the project rather than the agent's turns.
+    // Every preset setting the agent has applied, as "<preset type>:<key>",
+    // mapped to the value it applied. A key stays the agent's only while that
+    // value is still in force: hand-edit the setting and it becomes yours
+    // again, because the card describes the project rather than the agent's
+    // turns.
     std::map<std::string, std::string> m_agent_authored;
-    // The process preset the map above was recorded against. Switching presets
-    // changes the baseline every delta is measured from, so the attribution
-    // does not carry over. Empty until the first context binds it.
-    std::optional<std::string> m_agent_authored_preset;
+    // The preset of each type the map above was recorded against. Switching
+    // one changes the baseline its deltas are measured from, so the
+    // attribution of that type's settings does not carry over. A type is
+    // absent until the first context binds it.
+    std::map<std::string, std::string> m_agent_authored_presets;
 
     std::uint64_t m_next_envelope_id{1};
     std::uint64_t m_messages_sent{0};

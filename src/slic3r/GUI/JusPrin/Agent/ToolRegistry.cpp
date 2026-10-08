@@ -1265,7 +1265,7 @@ std::vector<ToolDefinition> make_definitions()
          object_schema({{"handle", id}, {"kind", {{"type", "string"}, {"enum", json::array({"slice", "job", "proposal", "none"})}}},
                         {"cancelled", boolean_schema()}, {"message", string_schema()}, {"sessionId", id}, {"revision", revision}},
                        {"handle", "kind", "cancelled", "message", "sessionId", "revision"}),
-         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ActivityCancel, true},
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ActivityCancel},
         {"export_file", "Export a file",
          "Write a file to an absolute path the user chose: gcode (a sliced plate's G-code, .gcode), sliced_3mf (a sliced plate with its "
          "G-code, .3mf), project_3mf (the whole project, .3mf, without changing which file the project is), stl (objectIds, or a plate's "

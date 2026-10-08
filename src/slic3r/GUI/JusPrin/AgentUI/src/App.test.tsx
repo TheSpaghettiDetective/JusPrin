@@ -74,10 +74,7 @@ const context: WorkspaceContext = {
 const applied: WorkspaceContext = {
   ...context,
   appliedSetup: { version: 1, plateId: '11', printableObjects: 2, spiralMode: false, variableLayerHeight: false,
-    objects: ['cube-a', 'cube-b'], localOverrides: [],
-    settings: [['layer_height', '0.2'], ['wall_loops', '2'], ['sparse_infill_density', '15%'],
-      ['sparse_infill_pattern', 'grid'], ['enable_support', '0']].map(([key, value]) => ({ key, value, base: value,
-      coverage: 'exact' as const, scopes: [0, 1].map((object) => ({ object, target: `cube-${'ab'[object]}`, kind: 'object', value })) })) },
+    objects: ['cube-a', 'cube-b'], localOverrides: [] },
   setupIdentity: { printer: 'MyKlipper 0.2 nozzle', nozzles: [0.2], plateType: 'Textured PEI',
     filaments: [{ preset: 'Generic PLA', material: 'PLA' }] },
 };
@@ -223,7 +220,7 @@ describe('App', () => {
     // card is a label for the process preset and claims nothing else.
     expect(screen.getByTestId('current-setup')).toHaveTextContent('Preset fallback');
     expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
-    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('MyKlipper');
+    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('No changes from presets');
   });
 
   it('renders assistant Markdown while keeping user input literal', () => {
@@ -680,9 +677,9 @@ describe('App', () => {
       plates: [{ ...context.plates[0], sliced: true,
         estimate: { printTimeSeconds: 2520, materialGrams: 18, materialCost: null } }],
       appliedSetup: { version: 1, plateId: '11', printableObjects: 1, spiralMode: false,
-        variableLayerHeight: false, localOverrides: [], settings: [
-          { key: 'wall_loops', value: '2', coverage: 'exact', scopes: [] },
-        ] },
+        variableLayerHeight: false, localOverrides: [] },
+      presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '3', value: '2', display: '3 → 2',
+        origin: 'user', presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }],
     };
     connect(host, emptyState({
       conversations: [
@@ -693,15 +690,13 @@ describe('App', () => {
       chatResume: { status: 'changed', versionId: 'saved-1', summary: saved },
     }));
     const earlier = screen.getByLabelText('Earlier setup — saved with this conversation');
-    expect(earlier).toHaveTextContent('2 walls');
+    expect(earlier).toHaveTextContent('Wall loops3 → 2');
     expect(earlier).toHaveTextContent('~42 min');
 
     host.deliver('context', { context: { ...context, revision: 3, setupIntent: 'Live project',
-      appliedSetup: { ...saved.appliedSetup!, settings: [
-        { key: 'wall_loops', value: '5', coverage: 'exact', scopes: [] },
-      ] } } });
-    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('2 walls');
-    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).not.toHaveTextContent('5 walls');
+      presetDeltas: [{ ...saved.presetDeltas[0], value: '5', display: '3 → 5' }] } });
+    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('Wall loops3 → 2');
+    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).not.toHaveTextContent('3 → 5');
   });
 
   it('returns to the active chat without restoring the historical project', async () => {
@@ -864,7 +859,7 @@ describe('App', () => {
     connect(host, emptyState({ context: applied }));
     const card = () => screen.getByTestId('current-setup');
     expect(card()).toHaveTextContent('Test Printer 0.4');
-    expect(card()).toHaveTextContent('2 walls');
+    expect(card()).toHaveTextContent('No changes from presets');
     expect(card()).toHaveTextContent('Not sliced');
 
     // A hand edit in Orca, a slice, and an intent: no chat turn in between.
@@ -872,34 +867,72 @@ describe('App', () => {
       ...applied,
       revision: 3,
       setupIntent: "Strong - it'll bear weight",
-      appliedSetup: { ...applied.appliedSetup!, settings: applied.appliedSetup!.settings.map((item) =>
-        item.key === 'wall_loops' ? { ...item, value: '4', base: '4' } : item) },
+      presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', display: '2 → 4',
+        origin: 'user', presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }],
       plates: [{ ...applied.plates[0], sliced: true, estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: null } }],
     };
     host.deliver('context', { context: changed });
 
     expect(card()).toHaveAccessibleName('Current setup');
     expect(card()).toHaveTextContent("Strong - it'll bear weight");
-    expect(card()).toHaveTextContent('4 walls');
+    expect(card()).toHaveTextContent('Wall loops2 → 4');
     expect(card()).toHaveTextContent('~3h 50m');
     expect(card()).toHaveTextContent('47 g');
     expect(card()).toHaveTextContent('Current');
   });
 
-  it('opens the details over the thread and closes them again on the next keystroke', async () => {
+  it('opens the setup page in place of the chat and returns to the thread as it was', async () => {
+    render(<App getTransport={() => host.transport} draftDebounceMs={0} />);
+    connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong enough to bear weight' },
+      conversation: [{ id: 'm-1', role: 'user', state: 'complete', text: 'make it strong', attempt: 1 }] }));
+    await userEvent.type(screen.getByRole('textbox'), 'half a thought');
+
+    await userEvent.click(screen.getByRole('button', { name: 'View setup' }));
+    const page = screen.getByTestId('current-setup-page');
+    expect(page).toHaveTextContent('Strong enough to bear weight');
+    expect(page).toHaveTextContent('ProcessTest Printer 0.4');
+    expect(page).toHaveTextContent('No changes from presets');
+    // The page is not a place to chat: no thread, no card, no message box.
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('make it strong')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus();
+    // The panel can still be put away from here.
+    await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByTestId('current-setup-page')).not.toBeInTheDocument();
+    expect(screen.getByText('make it strong')).toBeInTheDocument();
+    expect(screen.getByTestId('current-setup')).toBeInTheDocument();
+    // What was being typed is still there.
+    expect(screen.getByRole('textbox')).toHaveValue('half a thought');
+  });
+
+  it('keeps the setup page on the facts as they change under it', async () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong enough to bear weight' } }));
+    connect(host, emptyState({ context: applied }));
+    await userEvent.click(screen.getByRole('button', { name: 'View setup' }));
+    expect(screen.getByTestId('current-setup-page')).toHaveTextContent('No changes from presets');
 
-    expect(screen.queryByTestId('current-setup-expansion')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Setup details' }));
+    host.deliver('context', { context: { ...applied, revision: 3,
+      presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', display: '2 → 4',
+        origin: 'user', presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }] } });
+    const page = screen.getByTestId('current-setup-page');
+    expect(page).toHaveTextContent('Changed from presets · 1');
+    expect(page).toHaveTextContent('Strength · Walls');
+    expect(page).toHaveTextContent('Wall loops2 → 4');
+  });
 
-    const expansion = screen.getByTestId('current-setup-expansion');
-    expect(expansion).toHaveTextContent('Applied settings · Plate 1');
-    expect(expansion).toHaveTextContent('Wall loops2');
+  it('leaves the setup page when the project under it is replaced', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ context: applied }));
+    await userEvent.click(screen.getByRole('button', { name: 'View setup' }));
+    expect(screen.getByTestId('current-setup-page')).toBeInTheDocument();
 
-    // Typing means the user has moved on, so the layer gets out of the way.
-    await userEvent.type(screen.getByRole('textbox'), 'a');
-    expect(screen.queryByTestId('current-setup-expansion')).not.toBeInTheDocument();
+    host.deliver('context', { context: { ...applied, sessionId: 'another-project', revision: 1 } });
+    expect(screen.queryByTestId('current-setup-page')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
   it('asks the host to compute estimates for the plate the card shows', async () => {
