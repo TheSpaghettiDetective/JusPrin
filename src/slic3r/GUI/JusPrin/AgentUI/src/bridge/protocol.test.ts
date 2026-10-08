@@ -27,7 +27,6 @@ describe('protocol constants', () => {
       'user_message',
       'stop_generation',
       'retry_message',
-      'tool_decision',
       'tool_cancel',
       'create_conversation',
       'switch_conversation',

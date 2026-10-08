@@ -67,9 +67,6 @@ struct Harness
         }
         return call;
     }
-    void pending(std::size_t count = 1) {
-        REQUIRE(JusPrinTest::wait_for([&] { return coordinator.activities().size() >= count; }, [&] { pump(); }));
-    }
 };
 }
 
@@ -109,80 +106,15 @@ TEST_CASE("MCP bridge serves modern discovery without initialize and later disco
     CHECK(result["resultType"] == "complete");
 }
 
-TEST_CASE("MCP bridge forwards native approval rejection and results in both eras", "[mcp][bridge]")
+TEST_CASE("MCP bridge forwards native results in both eras", "[mcp][bridge]")
 {
     Harness h; h.start();
     const bool modern = GENERATE(false, true);
-    const bool approve = GENERATE(false, true);
     if (!modern) h.initialize();
-    h.send(h.settings_patch(1, modern)); h.pending();
-    CHECK_FALSE(h.has(1));
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    const auto id = h.coordinator.activities().back().action_id;
-    if (approve) REQUIRE(h.coordinator.approve(id)); else REQUIRE(h.coordinator.reject(id));
+    h.send(h.settings_patch(1, modern));
     const auto result = h.wait(1)["result"];
-    CHECK(result["isError"] == !approve);
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == (approve ? "4" : "2"));
-    if (!approve) CHECK(result["structuredContent"]["error"]["code"] == "approval_rejected");
-    else {
-        const Workspace::SettingsPatch inverse{{{"wall_loops", "2"}}};
-        Workspace::SettingsPreview applied;
-        REQUIRE(h.workspace.apply_settings(inverse, Workspace::settings_confirmation(h.workspace.preview_settings(inverse)), applied).succeeded());
-        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    }
-}
-
-TEST_CASE("MCP bridge client cancellation closes the native call without a terminal response", "[mcp][bridge]")
-{
-    Harness h; h.start();
-    const bool modern = GENERATE(false, true);
-    if (!modern) h.initialize();
-    h.send(h.settings_patch(1, modern)); h.pending();
-    const auto id = h.coordinator.activities().back().action_id;
-    h.send({{"jsonrpc", "2.0"}, {"method", "notifications/cancelled"}, {"params", {{"requestId", 1}}}});
-    REQUIRE(JusPrinTest::wait_for([&] { return h.coordinator.find(id)->state == Agent::ToolState::Cancelled; }, [&] { h.pump(); }));
-    h.send(rpc(2, "ping")); h.wait(2);
-    CHECK_FALSE(h.has(1));
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-}
-
-TEST_CASE("MCP bridge ignores malformed cancellation notifications", "[mcp][bridge]")
-{
-    Harness h; h.start(); h.initialize();
-    h.send(h.settings_patch(1)); h.pending();
-    const auto id = h.coordinator.activities().back().action_id;
-    h.send({{"method", "notifications/cancelled"}, {"params", {{"requestId", 1}}}});
-    h.send(rpc(2, "ping")); h.wait(2);
-    for (int i = 0; i < 20; ++i) { h.pump(); std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
-    CHECK(h.coordinator.find(id)->state == Agent::ToolState::Pending);
-}
-
-TEST_CASE("MCP bridge does not retry a call whose connection is lost and reconnects after restart", "[mcp][bridge]")
-{
-    Harness h; h.start(); h.initialize();
-    h.send(h.settings_patch(1)); h.pending();
-    h.runtime.reset();
-    CHECK(h.wait(1)["result"]["structuredContent"]["error"]["code"] == "connection_lost");
-    h.send(rpc(2, "tools/call", {{"name", "workspace_inspect"}}));
-    CHECK(h.wait(2)["result"]["structuredContent"]["error"]["code"] == "workspace_unavailable");
-    h.start();
-    h.send(rpc(3, "tools/call", {{"name", "workspace_inspect"}}));
-    CHECK(h.wait(3)["result"]["structuredContent"]["objectCount"] == 1);
-    CHECK(h.coordinator.activities().size() == 2); // cancelled duplicate and one live read
-}
-
-TEST_CASE("MCP bridge bounds concurrency and shutdown cancels all pending approvals", "[mcp][bridge]")
-{
-    Harness h; h.start(); h.initialize();
-    for (int i = 1; i <= 16; ++i) { h.send(h.settings_patch(i)); h.pending(i); }
-    h.send(h.settings_patch(17));
-    CHECK(h.wait(17)["error"]["code"] == -32000);
-    h.bridge.stop();
-    REQUIRE(JusPrinTest::wait_for([&] {
-        for (const auto& activity : h.coordinator.activities()) if (activity.state != Agent::ToolState::Cancelled) return false;
-        return true;
-    }, [&] { h.pump(); }));
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
+    CHECK(result["isError"] == false);
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
 }
 
 TEST_CASE("MCP bridge March batches collect responses and do not answer notifications", "[mcp][bridge]")

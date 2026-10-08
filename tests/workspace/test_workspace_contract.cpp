@@ -190,7 +190,7 @@ TEST_CASE("Process settings batches are atomic and reversible outside project Un
     REQUIRE(preview.changes[0].after == "25%");
     REQUIRE(events.empty());
     SettingsPreview applied;
-    REQUIRE(workspace.apply_settings(patch, settings_confirmation(preview), applied).succeeded());
+    REQUIRE(workspace.apply_settings(patch, previewed_changes(preview), applied).succeeded());
     REQUIRE(workspace.snapshot().revision == before.revision + 1);
     REQUIRE(events.size() == 1);
     REQUIRE(events.front().reasons == WorkspaceChangeReasons::Settings);
@@ -201,7 +201,7 @@ TEST_CASE("Process settings batches are atomic and reversible outside project Un
     for (const auto& change : applied.changes)
         inverse.changes[change.key] = change.before;
     const auto undo_preview = workspace.preview_settings(inverse);
-    REQUIRE(workspace.apply_settings(inverse, settings_confirmation(undo_preview), applied).succeeded());
+    REQUIRE(workspace.apply_settings(inverse, previewed_changes(undo_preview), applied).succeeded());
     REQUIRE_FALSE(workspace.snapshot().setup.process_preset_dirty);
     REQUIRE(events.size() == 2);
     const auto unchanged = workspace.preview_settings(inverse);
@@ -211,15 +211,15 @@ TEST_CASE("Process settings batches are atomic and reversible outside project Un
     REQUIRE(events.size() == 2);
 }
 
-TEST_CASE("Settings apply enforces confirmed values and reports dependent normalization", "[workspace][settings]")
+TEST_CASE("Settings apply enforces previewed values and reports dependent normalization", "[workspace][settings]")
 {
     FakeWorkspace workspace(sample_workspace());
     const SettingsPatch patch{{{"wall_loops", "4"}}};
-    auto confirmed = settings_confirmation(workspace.preview_settings(patch));
+    auto expected = previewed_changes(workspace.preview_settings(patch));
     workspace.set_setting_for_testing("wall_loops", "3", false);
     SettingsPreview applied;
     const auto before = workspace.snapshot();
-    REQUIRE(workspace.apply_settings(patch, confirmed, applied).error == WorkspaceError::StaleSettings);
+    REQUIRE(workspace.apply_settings(patch, expected, applied).error == WorkspaceError::StaleSettings);
     REQUIRE(workspace.snapshot().revision == before.revision);
     REQUIRE(workspace.read_settings({"wall_loops"}).items.front().value == "3");
 
@@ -232,7 +232,7 @@ TEST_CASE("Settings apply enforces confirmed values and reports dependent normal
     REQUIRE(preview.valid);
     REQUIRE(preview.dependencies.front().key == "fill_multiline");
     REQUIRE(preview.warnings.front().code == "normalized_dependency");
-    REQUIRE(workspace.apply_settings(multiline, settings_confirmation(preview), applied).succeeded());
+    REQUIRE(workspace.apply_settings(multiline, previewed_changes(preview), applied).succeeded());
     REQUIRE(workspace.read_settings({"fill_multiline"}).items.front().value == "1");
     REQUIRE(applied.warnings.back().code == "normalized");
 }

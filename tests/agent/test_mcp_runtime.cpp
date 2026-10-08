@@ -77,96 +77,21 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     CHECK(h.coordinator.activities().size() == 1);
 }
 
-TEST_CASE("MCP mutations wait for the shared approval and observers", "[mcp][network][approval]")
+TEST_CASE("MCP mutations report progress and results to observers", "[mcp][network]")
 {
     RuntimeHarness h;
     std::vector<Agent::ToolState> states;
     auto observer = h.coordinator.subscribe([&](const Agent::ToolActivity& activity) { states.push_back(activity.state); });
     Client client(h.runtime.server(), h.settings_patch());
-    REQUIRE(h.pending());
-    const auto id = h.coordinator.activities().back().action_id;
-    CHECK(h.coordinator.find(id)->state == Agent::ToolState::Pending);
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    CHECK_FALSE(client.done());
-    SECTION("approve") {
-        CHECK(h.coordinator.approve(id));
-        REQUIRE(h.finish(client));
-        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
-        CHECK(client.messages().back()["result"]["isError"] == false);
-        CHECK(states.back() == Agent::ToolState::Succeeded);
-        const Workspace::SettingsPatch inverse{{{"wall_loops", "2"}}};
-        Workspace::SettingsPreview applied;
-        REQUIRE(h.workspace.apply_settings(inverse, Workspace::settings_confirmation(h.workspace.preview_settings(inverse)), applied).succeeded());
-        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    }
-    SECTION("reject") {
-        CHECK(h.coordinator.reject(id));
-        REQUIRE(h.finish(client));
-        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-        CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "approval_rejected");
-        CHECK(states.back() == Agent::ToolState::Rejected);
-    }
-    SECTION("cancel") {
-        CHECK(h.coordinator.cancel(id));
-        REQUIRE(h.finish(client));
-        CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "cancelled");
-        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    }
-    SECTION("stale") {
-        // A settings patch is stale after a settings edit; model edits leave it.
-        h.workspace.set_setting_for_testing("brim_width", "7");
-        REQUIRE(h.finish(client));
-        CHECK(client.messages().back()["result"]["structuredContent"]["error"]["code"] == "stale_workspace");
-        CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    }
+    REQUIRE(h.finish(client));
+    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
+    CHECK(client.messages().back()["result"]["isError"] == false);
+    CHECK(states.back() == Agent::ToolState::Succeeded);
     CHECK(client.streaming());
     const auto messages = client.messages();
     REQUIRE(messages.size() >= 2);
     CHECK(messages[0]["method"] == "notifications/progress");
     CHECK(messages[0]["params"]["progressToken"] == "test-progress");
-}
-
-TEST_CASE("MCP plan members answer at once and run on one approval", "[mcp][network][plan]")
-{
-    RuntimeHarness h;
-    const auto patch = [&](const char* key, const char* value) {
-        auto call = h.settings_patch();
-        call["params"]["arguments"]["changes"] = {{key, value}};
-        call["params"]["arguments"]["planId"]  = "walls";
-        return call;
-    };
-    Client first(h.runtime.server(), patch("wall_loops", "4"));
-    REQUIRE(h.finish(first));
-    const auto queued = first.messages().back()["result"];
-    CHECK(queued["isError"] == false);
-    CHECK_FALSE(queued.contains("structuredContent"));
-    CHECK(queued["_meta"]["io.jusprin/activity"]["state"] == "queued");
-    CHECK(json::parse(queued["content"][0]["text"].get<std::string>())["planId"] == "walls");
-    Client second(h.runtime.server(), patch("sparse_infill_density", "25%"));
-    REQUIRE(h.finish(second));
-    REQUIRE(h.coordinator.activities().size() == 2);
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-
-    const auto first_id = h.coordinator.activities().front().action_id;
-    const auto second_id = h.coordinator.activities().back().action_id;
-    REQUIRE(h.coordinator.approve(first_id));
-    REQUIRE(wait_for([&] { return Agent::tool_state_terminal(h.coordinator.find(second_id)->state); }, [&] { h.pump(); }));
-    CHECK(h.coordinator.find(first_id)->state == Agent::ToolState::Succeeded);
-    CHECK(h.coordinator.find(second_id)->state == Agent::ToolState::Succeeded);
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "4");
-    CHECK(h.workspace.read_settings({"sparse_infill_density"}).items[0].value == "25%");
-}
-
-TEST_CASE("MCP disconnect cancels pending native proposals", "[mcp][network][cancellation]")
-{
-    RuntimeHarness h;
-    Client client(h.runtime.server(), h.settings_patch());
-    REQUIRE(h.pending());
-    const auto id = h.coordinator.activities().back().action_id;
-    client.close();
-    REQUIRE(wait_for([&] { return h.coordinator.find(id)->state == Agent::ToolState::Cancelled; }, [&] { h.pump(); }));
-    CHECK_FALSE(h.coordinator.approve(id));
-    CHECK(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
 }
 
 TEST_CASE("MCP exposure and schema failures cannot reach a native mutation", "[mcp][network]")
@@ -242,7 +167,7 @@ TEST_CASE("MCP bounded concurrency and timeouts leave the GUI unblocked", "[mcp]
     CHECK(calls[1]->cancelled.load());
 }
 
-TEST_CASE("MCP runtime shutdown cancels pending and approved work before destruction", "[mcp][network][lifetime]")
+TEST_CASE("MCP runtime shutdown cancels pending work before destruction", "[mcp][network][lifetime]")
 {
     Workspace::FakeWorkspace workspace(fixture());
     Agent::ToolExecutionCoordinator coordinator(workspace);
@@ -254,8 +179,6 @@ TEST_CASE("MCP runtime shutdown cancels pending and approved work before destruc
                        {"changes", {{"wall_loops", "4"}}}}}}));
     REQUIRE(wait_for([&] { return !coordinator.activities().empty(); }, [&] { runtime->poll(); }));
     const auto id = coordinator.activities().back().action_id;
-    const bool approved = GENERATE(false, true);
-    if (approved) REQUIRE(coordinator.approve(id));
     runtime.reset();
     CHECK(coordinator.find(id)->state == Agent::ToolState::Cancelled);
     coordinator.pump();
@@ -319,24 +242,4 @@ TEST_CASE("MCP workspace summaries are bounded schema-validated and explicit", "
     CHECK(result.dump().size() < Mcp::kBodyLimit);
     result["revision"] = "not a number";
     CHECK_FALSE(registry.validate_output(*registry.find("workspace_inspect"), result));
-}
-
-TEST_CASE("MCP project replacement completes the request before records are cleared", "[mcp][host][lifetime]")
-{
-    Workspace::FakeWorkspace workspace(fixture());
-    Agent::ProjectPersistence persistence(workspace, {});
-    Agent::AgentHost host(workspace, persistence, Agent::AgentAvailability::Unavailable, false);
-    persistence.attach();
-    McpDirectory directory;
-    host.start_mcp(directory.path().u8string());
-    const auto snapshot = workspace.snapshot();
-    Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_apply_patch"},
-        {"arguments", {{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision},
-                       {"changes", {{"wall_loops", "4"}}}}}}));
-    REQUIRE(wait_for([&] { return !host.tools().activities().empty(); }, [&] { host.pump_tools(); }));
-    workspace.replace_project(fixture());
-    REQUIRE(wait_for([&] { return client.done(); }, [&] { host.pump_tools(); }));
-    CHECK(client.messages().back()["result"]["isError"] == true);
-    CHECK(workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    CHECK(host.tools().activities().empty());
 }

@@ -302,8 +302,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
 
     const std::set<std::string> page_types(shared["pageMessageTypes"].begin(), shared["pageMessageTypes"].end());
     CHECK(page_types == std::set<std::string>{Protocol::kHello, Protocol::kStateRequest, Protocol::kUserMessage,
-                                              Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolDecision,
-                                              Protocol::kToolCancel, Protocol::kCreateConversation,
+                                              Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolCancel,
+                                              Protocol::kCreateConversation,
                                               Protocol::kSwitchConversation, Protocol::kRestoreConversation,
                                               Protocol::kRenameConversation, Protocol::kDeleteConversation,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
@@ -417,7 +417,6 @@ TEST_CASE("a payload missing a required field is a broken page", "[agent][protoc
     CHECK_THROWS_AS(harness.deliver("user_message", json{{"clientMessageId", "c-1"}}), Slic3r::RuntimeError);
     CHECK_THROWS_AS(harness.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", 7}}),
                     Slic3r::RuntimeError);
-    CHECK_THROWS_AS(harness.deliver("tool_decision", json{{"decision", "approve"}}), Slic3r::RuntimeError);
     CHECK_THROWS_AS(harness.deliver("remove_attachment", json::object()), Slic3r::RuntimeError);
     CHECK_THROWS_AS(harness.deliver("rename_conversation", json{{"title", "t"}}), Slic3r::RuntimeError);
     CHECK_THROWS_AS(harness.deliver("reveal_path", json{{"toolId", "not-a-tool"}}), Slic3r::RuntimeError);
@@ -744,7 +743,6 @@ TEST_CASE("an applied settings change records its intent on the chat it came fro
     SECTION("the agent's restatement reaches the page")
     {
         const std::string action = propose(json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}, {"intent", "Strong - it'll bear weight"}});
-        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
         for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
             harness.host.pump_tools();
         REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
@@ -755,7 +753,6 @@ TEST_CASE("an applied settings change records its intent on the chat it came fro
     SECTION("a change with nothing to restate leaves the title row empty rather than inventing one")
     {
         const std::string action = propose(json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}});
-        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
         for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
             harness.host.pump_tools();
         REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
@@ -776,8 +773,7 @@ TEST_CASE("an intent-only update titles its chat without applying settings", "[a
     const auto& activity = harness.host.tools().propose(
         {"intent_update", json{{"setupTitle", "A strong bracket"}, {"fields", json::array()}}.dump()}, message_id);
     const std::string action = activity.action_id;
-    REQUIRE(activity.state == ToolState::Pending);
-    harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
+    REQUIRE(activity.state == ToolState::Running);
     for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
         harness.host.pump_tools();
     REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
@@ -799,7 +795,6 @@ TEST_CASE("the card counts your hand edits apart from the agent's changes", "[ag
         arguments["expectedRevision"]  = harness.workspace.snapshot().revision;
         const std::string action =
             harness.host.tools().propose({"settings_apply_patch", arguments.dump()}, message_id).action_id;
-        harness.deliver("tool_decision", json{{"actionId", action}, {"decision", "approve"}});
         for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
             harness.host.pump_tools();
         REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
@@ -1173,58 +1168,6 @@ void pump_tools_to_completion(Harness& harness, int limit = 1000)
 
 } // namespace
 
-TEST_CASE("a proposed duplicate waits for approval and executes authoritatively", "[agent][tools]")
-{
-    Harness harness;
-    harness.handshake();
-    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
-    const std::size_t objects_before = workspace_object_count(harness.workspace);
-
-    const json proposed = propose_duplicate(harness, "c-t1");
-    CHECK(proposed["state"] == "pending");
-    CHECK(proposed["tool"] == "plate_layout");
-    CHECK(proposed["requiresApproval"] == true);
-    CHECK(proposed["actionClass"] == "mutation");
-    CHECK(proposed["server"] == "jusprin-native");
-    // The activity correlates with the assistant reply that proposed it.
-    const json* completed = harness.last_of_type("assistant_completed");
-    CHECK(proposed["correlationId"] == (*completed)["payload"]["messageId"]);
-    const std::string action_id = proposed["actionId"].get<std::string>();
-
-    SECTION("rejecting executes nothing") {
-        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "reject"}});
-        CHECK((*harness.last_of_type("tool_activity"))["payload"]["activity"]["state"] == "rejected");
-        pump_tools_to_completion(harness);
-        CHECK(workspace_object_count(harness.workspace) == objects_before);
-        CHECK_FALSE(harness.workspace.snapshot().can_undo);
-    }
-
-    SECTION("approving runs the native command and reports the result") {
-        const std::size_t context_events_before = harness.of_type("context").size();
-        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
-        pump_tools_to_completion(harness);
-
-        const json done = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
-        CHECK(done["state"] == "succeeded");
-        CHECK(done["result"]["objects"]["items"][0]["instanceCount"] == 2);
-        CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
-        CHECK(harness.workspace.snapshot().can_undo);
-        // The executed change pushed fresh context like any native change.
-        CHECK(harness.of_type("context").size() > context_events_before);
-
-        // A replayed approval acknowledges the record without a second run.
-        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
-        pump_tools_to_completion(harness);
-        CHECK(workspace_object_count(harness.workspace) == objects_before + 1);
-        CHECK((*harness.last_of_type("tool_activity"))["payload"]["activity"]["state"] == "succeeded");
-    }
-
-    SECTION("an unknown action id is a bridge error") {
-        harness.deliver("tool_decision", json{{"actionId", "t-999"}, {"decision", "approve"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_action");
-    }
-}
-
 TEST_CASE("cancellation and deterministic failure surface over the bridge", "[agent][tools]")
 {
     Harness harness;
@@ -1237,7 +1180,6 @@ TEST_CASE("cancellation and deterministic failure surface over the bridge", "[ag
         harness.pump_all();
         const std::string action_id =
             (*harness.last_of_type("tool_activity"))["payload"]["activity"]["actionId"].get<std::string>();
-        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
         harness.host.pump_tools();
         harness.host.pump_tools();
         const json running = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
@@ -1256,7 +1198,6 @@ TEST_CASE("cancellation and deterministic failure surface over the bridge", "[ag
         harness.pump_all();
         const std::string action_id =
             (*harness.last_of_type("tool_activity"))["payload"]["activity"]["actionId"].get<std::string>();
-        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
         pump_tools_to_completion(harness);
         const json failed = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
         CHECK(failed["state"] == "failed");
@@ -1264,13 +1205,13 @@ TEST_CASE("cancellation and deterministic failure surface over the bridge", "[ag
         CHECK(workspace_object_count(harness.workspace) == objects_before);
     }
 
-    SECTION("a native change before the decision marks the proposal stale") {
+    SECTION("a native change before execution marks the action stale") {
         propose_duplicate(harness, "c-t4");
         REQUIRE(harness.workspace.rename_object(harness.workspace.snapshot().plates[0].objects[1].id, "renamed").succeeded());
+        pump_tools_to_completion(harness);
         const json stale = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
         CHECK(stale["state"] == "failed");
         CHECK(stale["error"]["code"] == "stale_revision");
-        pump_tools_to_completion(harness);
         CHECK(workspace_object_count(harness.workspace) == objects_before);
     }
 }
@@ -1284,7 +1225,6 @@ TEST_CASE("tool activities reconstruct after a reload and pause while disconnect
 
     const json proposed = propose_duplicate(harness, "c-t5");
     const std::string action_id = proposed["actionId"].get<std::string>();
-    harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
     harness.host.pump_tools();
     REQUIRE(harness.host.tools().any_running());
 
@@ -1314,8 +1254,7 @@ TEST_CASE("the call that opened a project is not shown in the project it opened"
     Harness harness;
     harness.handshake();
     const ToolActivity opening = harness.host.tools().propose({"project_open", R"({"new":true})"}, "m-open");
-    REQUIRE(opening.state == ToolState::Pending);
-    REQUIRE(harness.host.tools().approve(opening.action_id));
+    REQUIRE(opening.state == ToolState::Running);
     const std::size_t states_before = harness.of_type("state").size();
     pump_tools_to_completion(harness);
     REQUIRE(harness.workspace.opens == 1);
@@ -1325,7 +1264,7 @@ TEST_CASE("the call that opened a project is not shown in the project it opened"
         CHECK(states[index]["payload"]["toolActivities"].empty());
 }
 
-TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][tools][policy]")
+TEST_CASE("a read-only tool runs over the bridge", "[agent][tools]")
 {
     Harness harness;
     harness.handshake();
@@ -1334,7 +1273,6 @@ TEST_CASE("a read-only tool runs without approval over the bridge", "[agent][too
     harness.send_user_message("/inspect", "c-t6");
     harness.pump_all();
     const json proposed = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
-    CHECK(proposed["requiresApproval"] == false);
     CHECK(proposed["actionClass"] == "read_only");
 
     pump_tools_to_completion(harness);
@@ -1356,9 +1294,7 @@ TEST_CASE("deterministic build export and physical print records use the native 
         harness.send_user_message(command, client_id);
         harness.pump_all();
         const json proposed = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
-        REQUIRE(proposed["state"] == "pending");
         const std::string action_id = proposed["actionId"].get<std::string>();
-        harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
         pump_tools_to_completion(harness);
         REQUIRE((*harness.last_of_type("tool_activity"))["payload"]["activity"]["state"] == "succeeded");
     };
@@ -1564,14 +1500,13 @@ TEST_CASE("the change log reaches the page in state, then entry by entry", "[age
     CHECK((*harness.last_of_type("state"))["payload"]["changes"][0]["seq"] == change["seq"]);
 }
 
-TEST_CASE("an approved Agent edit is logged as the Agent's, after its tool activity", "[agent][changes][tools]")
+TEST_CASE("an Agent edit is logged as the Agent's, after its tool activity", "[agent][changes][tools]")
 {
     Harness harness;
     harness.handshake();
     REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
     const json proposed = propose_duplicate(harness, "c-change-agent");
     const std::string action_id = proposed["actionId"].get<std::string>();
-    harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
     pump_tools_to_completion(harness);
 
     const json* added = harness.last_of_type("change_added");
@@ -1823,7 +1758,7 @@ TEST_CASE("reload reconstructs staged attachments from native state", "[agent][a
     CHECK(attachments[0]["previewText"] == "hello world");
 }
 
-TEST_CASE("a sent model attachment is imported through an approved tool action", "[agent][attachments][import]")
+TEST_CASE("a sent model attachment is imported through a tool action", "[agent][attachments][import]")
 {
     Harness h;
     h.handshake();
@@ -1842,11 +1777,8 @@ TEST_CASE("a sent model attachment is imported through an approved tool action",
     REQUIRE(activity != nullptr);
     const std::string action_id = (*activity)["payload"]["activity"]["actionId"].get<std::string>();
     CHECK((*activity)["payload"]["activity"]["tool"] == "object_import");
-    CHECK((*activity)["payload"]["activity"]["requiresApproval"] == true);
-
-    // Approve; the coordinator resolves the attachment to its blob and imports
-    // it through the workspace, adding one object.
-    h.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
+    // The coordinator resolves the attachment to its blob and imports it
+    // through the workspace, adding one object.
     for (int i = 0; i < 100 && h.host.tools().any_running(); ++i)
         h.host.pump_tools();
 
@@ -1870,13 +1802,11 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
         harness.host.pump_stream();
     REQUIRE(harness.host.tools().activities().size() == 1);
     const std::string action_id = harness.host.tools().activities().back().action_id;
-    CHECK(harness.host.tools().activities().back().state == ToolState::Pending);
+    CHECK(harness.host.tools().activities().back().state == ToolState::Running);
     CHECK(scripted->last_request.workspace.selected_objects.size() == 1);
     CHECK(scripted->last_request.request_id == harness.persistence.document().project_id() + "-" +
                                                    harness.persistence.document().active_conversation_id() +
                                                    "-m-2-attempt-1");
-
-    harness.deliver("tool_decision", json{{"actionId", action_id}, {"decision", "approve"}});
     for (int i = 0; i < 20 && !scripted->continuation; ++i)
         harness.host.pump_tools();
     REQUIRE(scripted->continuation);

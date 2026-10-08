@@ -1,4 +1,4 @@
-// State-machine, approval-policy, idempotency, staleness, and execution
+// State-machine, idempotency, staleness, and execution
 // contract tests for the ToolExecutionCoordinator against the fake
 // workspace. Every command outcome is checked in both directions: success
 // implies the workspace changed, and refusal or failure implies it did not.
@@ -126,7 +126,6 @@ TEST_CASE("project mutations are bracketed by durable version callbacks", "[tool
         FAIL("model edits must use version callbacks instead of the document-only boundary");
     });
     const std::string id = harness.coordinator.propose(harness.duplicate_cube_request(), "versioned").action_id;
-    REQUIRE(harness.coordinator.approve(id));
     harness.pump_to_completion(id);
     CHECK(harness.coordinator.find(id)->state == ToolState::Succeeded);
     const std::vector<std::string> expected{"before:" + id, "after:v-before:succeeded"};
@@ -138,80 +137,9 @@ TEST_CASE("project mutations are bracketed by durable version callbacks", "[tool
         [](const ToolActivity&) -> std::string { throw std::runtime_error("disk full"); },
         [](const ToolActivity&, const std::string&) { FAIL("no after-version follows a refused before-version"); });
     const std::string refused_id = refused.coordinator.propose(refused.duplicate_cube_request(), "version-refused").action_id;
-    REQUIRE(refused.coordinator.approve(refused_id));
     refused.pump_to_completion(refused_id);
     CHECK(refused.coordinator.find(refused_id)->state == ToolState::Failed);
     CHECK(refused.object_count() == 1);
-}
-
-TEST_CASE("approval policy follows the handoff", "[tools][policy]")
-{
-    // Read-only actions run without approval; every durable mutation asks
-    // first; destructive actions may never use a remembered approval.
-    STATIC_CHECK(!approval_required(ActionClass::ReadOnly));
-    STATIC_CHECK(approval_required(ActionClass::Mutation));
-    STATIC_CHECK(approval_required(ActionClass::Destructive));
-    STATIC_CHECK(!remembered_approval_allowed(ActionClass::Destructive));
-    STATIC_CHECK(!remembered_approval_allowed(ActionClass::ReadOnly));
-
-    // The computation-only exemption lifts the card from a mutation and from
-    // nothing else: a destructive action keeps its card whatever it declares.
-    STATIC_CHECK(!approval_required(ActionClass::Mutation, true));
-    STATIC_CHECK(approval_required(ActionClass::Mutation, false));
-    STATIC_CHECK(approval_required(ActionClass::Destructive, true));
-    STATIC_CHECK(!approval_required(ActionClass::ReadOnly, true));
-
-    // Exactly which shipped tools claim it, so adding one is a visible diff
-    // here. activity_cancel joins them when it lands.
-    std::vector<std::string> exempt;
-    for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
-        INFO(definition.name);
-        if (definition.computation_only)
-            exempt.push_back(definition.name);
-        CHECK(approval_required(definition.action_class, definition.computation_only) ==
-              (definition.action_class != ActionClass::ReadOnly && !definition.computation_only));
-    }
-    CHECK(exempt == std::vector<std::string>{"activity_cancel", "plan_set", "slice_start"});
-}
-
-TEST_CASE("Settings approval captures the preview and rejects invalid or stale patches", "[tools][settings]")
-{
-    Harness h;
-    auto request = [&](json changes) {
-        const auto snapshot = h.workspace.snapshot();
-        return ToolRequest{"settings_apply_patch", json{{"scope", "process"}, {"changes", changes}, {"expectedSessionId", std::to_string(snapshot.session.value())},
-                                                       {"expectedRevision", snapshot.revision}}.dump()};
-    };
-    auto bad = h.coordinator.propose(request({{"wall_loops", 4}, {"brim_width", -1}}), "bad");
-    REQUIRE(bad.state == ToolState::Failed);
-    REQUIRE(bad.error->code == "invalid_setting_value");
-    REQUIRE(json::parse(bad.error->details_json)["issues"][0]["key"] == "brim_width");
-    REQUIRE(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
-    REQUIRE(h.states_of(bad.action_id) == std::vector<ToolState>{ToolState::Failed});
-
-    auto pending = h.coordinator.propose(request({{"wall_loops", 4}}), "pending");
-    REQUIRE(pending.state == ToolState::Pending);
-    REQUIRE(json::parse(pending.arguments_json)["confirmedChanges"][0] == json{{"key", "wall_loops"}, {"before", "2"}, {"after", "4"}});
-    REQUIRE(pending.title == "Change 1 settings of \"Fixture process\": wall_loops");
-    SECTION("reject") { REQUIRE(h.coordinator.reject(pending.action_id)); }
-    SECTION("cancel") { REQUIRE(h.coordinator.cancel(pending.action_id)); }
-    SECTION("setting event") {
-        h.workspace.set_setting_for_testing("brim_width", "7");
-        REQUIRE(h.coordinator.find(pending.action_id)->error->code == "stale_revision");
-    }
-    SECTION("replacement") {
-        h.workspace.replace_project(one_plate_snapshot());
-        REQUIRE(h.coordinator.find(pending.action_id)->error->code == "stale_revision");
-    }
-    SECTION("unannounced edit") {
-        h.workspace.set_setting_for_testing("wall_loops", "3", false);
-        REQUIRE(h.coordinator.approve(pending.action_id));
-        h.pump_to_completion(pending.action_id);
-        REQUIRE(h.coordinator.find(pending.action_id)->error->code == "stale_workspace");
-        REQUIRE(h.workspace.read_settings({"wall_loops"}).items[0].value == "3");
-        return;
-    }
-    REQUIRE(h.workspace.read_settings({"wall_loops"}).items[0].value == "2");
 }
 
 TEST_CASE("Settings tools share terminal activities across adapters and return atomic results", "[tools][settings][mcp]")
@@ -225,7 +153,6 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
     REQUIRE(h.coordinator.find(read_id)->state == ToolState::Succeeded);
     const auto apply_id = h.coordinator.propose({"settings_apply_patch", json{{"scope", "process"}, {"changes", {{"wall_loops", 4}, {"sparse_infill_density", "25%"}}},
         {"expectedSessionId", std::to_string(initial.session.value())}, {"expectedRevision", initial.revision}}.dump()}, "mcp", {}, ToolSource::Mcp).action_id;
-    REQUIRE(h.coordinator.approve(apply_id));
     h.pump_to_completion(apply_id);
     const auto activity = *h.coordinator.find(apply_id);
     REQUIRE(activity.state == ToolState::Succeeded);
@@ -242,30 +169,15 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
     REQUIRE(Mcp::activity_result(activity, h.workspace.snapshot())["structuredContent"] == result);
 }
 
-TEST_CASE("approved mutation cannot execute after a content change", "[tools][stale][mcp]")
-{
-    Harness harness;
-    const auto id = harness.coordinator.propose(harness.duplicate_cube_request(), "mcp-race").action_id;
-    REQUIRE(harness.coordinator.approve(id));
-    REQUIRE(harness.workspace.rename_object(harness.cube_id(), "Edited after approval").succeeded());
-    harness.coordinator.pump();
-    REQUIRE(harness.coordinator.find(id)->state == ToolState::Failed);
-    CHECK(harness.object_count() == 1);
-    REQUIRE(harness.coordinator.find(id)->error.has_value());
-    CHECK(harness.coordinator.find(id)->error->code == "stale_revision");
-}
-
 TEST_CASE("coordinator policy comes from the registry", "[tools][policy][registry]")
 {
     Harness harness;
     const ToolActivity& duplicate = harness.coordinator.propose(harness.duplicate_cube_request(), "hostile-caller");
     CHECK(duplicate.action_class == ActionClass::Mutation);
-    CHECK(duplicate.requires_approval);
     CHECK(duplicate.title == "Lay out: cube-a x2");
 
     const ToolActivity& inspect = harness.coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "read-caller");
     CHECK(inspect.action_class == ActionClass::ReadOnly);
-    CHECK_FALSE(inspect.requires_approval);
 }
 
 TEST_CASE("coordinator rejects hostile call metadata before proposal execution", "[tools][policy][registry]")
@@ -278,7 +190,6 @@ TEST_CASE("coordinator rejects hostile call metadata before proposal execution",
 
     const ToolActivity& rejected = harness.coordinator.propose(request, "hostile-caller");
     CHECK(rejected.action_class == ActionClass::Mutation);
-    CHECK(rejected.requires_approval);
     CHECK(rejected.state == ToolState::Failed);
     REQUIRE(rejected.error);
     CHECK(rejected.error->code == "invalid_arguments");
@@ -320,105 +231,20 @@ TEST_CASE("activity subscriptions coexist and unsubscribe independently", "[tool
     CHECK(second.size() > first.size());
 }
 
-TEST_CASE("a mutation waits for approval and then executes through the workspace", "[tools][lifecycle]")
-{
-    Harness harness;
-    const std::size_t objects_before  = harness.object_count();
-    const std::uint64_t revision_before = harness.workspace.snapshot().revision;
-
-    const ToolActivity& proposed = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2");
-    const std::string   action_id = proposed.action_id;
-    CHECK(proposed.state == ToolState::Pending);
-    CHECK(proposed.requires_approval);
-    CHECK(proposed.correlation_id == "m-2");
-    CHECK(proposed.expected_revision == revision_before);
-
-    // Proposing must not touch the project.
-    CHECK(harness.object_count() == objects_before);
-    CHECK_FALSE(harness.workspace.snapshot().can_undo);
-
-    REQUIRE(harness.coordinator.approve(action_id));
-    harness.pump_to_completion(action_id);
-
-    const ToolActivity* done = harness.coordinator.find(action_id);
-    REQUIRE(done != nullptr);
-    REQUIRE(done->state == ToolState::Succeeded);
-
-    // Success must agree with authoritative state in both directions.
-    CHECK(harness.object_count() == objects_before + 1);
-    CHECK(harness.workspace.snapshot().can_undo);
-    const json result = json::parse(done->result_json);
-    CHECK(result["revision"].get<std::uint64_t>() > revision_before);
-    CHECK(result["objects"]["items"][0]["instanceCount"] == 2);
-
-    // The lifecycle passed through every advertised state with progress.
-    const std::vector<ToolState> states = harness.states_of(action_id);
-    REQUIRE(states.size() >= 4);
-    CHECK(states.front() == ToolState::Pending);
-    CHECK(states.at(1) == ToolState::Approved);
-    CHECK(states.at(2) == ToolState::Running);
-    CHECK(states.back() == ToolState::Succeeded);
-}
-
-TEST_CASE("rejection leaves the project untouched", "[tools][lifecycle]")
-{
-    Harness harness;
-    const std::size_t objects_before = harness.object_count();
-
-    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
-    REQUIRE(harness.coordinator.reject(action_id));
-    CHECK(harness.coordinator.find(action_id)->state == ToolState::Rejected);
-
-    for (int i = 0; i < 10; ++i)
-        harness.coordinator.pump();
-    CHECK(harness.object_count() == objects_before);
-    CHECK_FALSE(harness.workspace.snapshot().can_undo);
-
-    SECTION("a rejected action cannot be approved afterwards") {
-        CHECK_FALSE(harness.coordinator.approve(action_id));
-        CHECK(harness.coordinator.find(action_id)->state == ToolState::Rejected);
-        CHECK(harness.object_count() == objects_before);
-    }
-}
-
-TEST_CASE("decisions are idempotent and cannot run an action twice", "[tools][idempotency]")
-{
-    Harness harness;
-    const std::size_t objects_before = harness.object_count();
-
-    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
-    REQUIRE(harness.coordinator.approve(action_id));
-    CHECK_FALSE(harness.coordinator.approve(action_id)); // duplicate approval while running
-    harness.pump_to_completion(action_id);
-    REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
-    CHECK(harness.object_count() == objects_before + 1);
-
-    // Replayed decisions after completion change nothing and execute nothing.
-    CHECK_FALSE(harness.coordinator.approve(action_id));
-    CHECK_FALSE(harness.coordinator.reject(action_id));
-    CHECK_FALSE(harness.coordinator.cancel(action_id));
-    for (int i = 0; i < 10; ++i)
-        harness.coordinator.pump();
-    CHECK(harness.object_count() == objects_before + 1);
-    CHECK(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
-}
-
 TEST_CASE("cancellation stops an action before anything durable happens", "[tools][lifecycle]")
 {
     Harness harness;
     const std::size_t objects_before = harness.object_count();
 
-    SECTION("while pending") {
+    SECTION("before the execution tick") {
         const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
         REQUIRE(harness.coordinator.cancel(action_id));
         CHECK(harness.coordinator.find(action_id)->state == ToolState::Cancelled);
-        CHECK_FALSE(harness.coordinator.approve(action_id));
     }
 
     SECTION("while running, before the execution tick") {
         const std::string action_id =
             harness.coordinator.propose(harness.duplicate_cube_request(), "m-2", ToolExecutionPacing{10}).action_id;
-        REQUIRE(harness.coordinator.approve(action_id));
         harness.coordinator.pump();
         harness.coordinator.pump();
         REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Running);
@@ -433,46 +259,6 @@ TEST_CASE("cancellation stops an action before anything durable happens", "[tool
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
-TEST_CASE("a workspace change invalidates pending proposals as stale", "[tools][stale]")
-{
-    Harness harness;
-    const std::size_t objects_before = harness.object_count();
-    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
-
-    SECTION("a content change marks the proposal stale before any decision") {
-        REQUIRE(harness.workspace.rename_object(harness.cube_id(), "renamed-cube").succeeded());
-        const ToolActivity* stale = harness.coordinator.find(action_id);
-        REQUIRE(stale->state == ToolState::Failed);
-        REQUIRE(stale->error.has_value());
-        CHECK(stale->error->code == "stale_revision");
-
-        CHECK_FALSE(harness.coordinator.approve(action_id));
-        for (int i = 0; i < 10; ++i)
-            harness.coordinator.pump();
-        CHECK(harness.object_count() == objects_before);
-    }
-
-    SECTION("a selection change does not invalidate the pinned proposal") {
-        REQUIRE(harness.workspace.select_object(harness.cube_id()).succeeded());
-        CHECK(harness.coordinator.find(action_id)->state == ToolState::Pending);
-        REQUIRE(harness.coordinator.approve(action_id));
-        harness.pump_to_completion(action_id);
-        CHECK(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
-        CHECK(harness.object_count() == objects_before + 1);
-    }
-
-    SECTION("executing one approved action marks other pending proposals stale") {
-        const std::string second = harness.coordinator.propose(harness.duplicate_cube_request(), "m-4").action_id;
-        REQUIRE(harness.coordinator.approve(action_id));
-        harness.pump_to_completion(action_id);
-        REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
-        const ToolActivity* stale = harness.coordinator.find(second);
-        REQUIRE(stale->state == ToolState::Failed);
-        CHECK(stale->error->code == "stale_revision");
-        CHECK(harness.object_count() == objects_before + 1);
-    }
-}
-
 TEST_CASE("an execution failure is reported and changes nothing", "[tools][failure]")
 {
     Harness harness;
@@ -483,7 +269,6 @@ TEST_CASE("an execution failure is reported and changes nothing", "[tools][failu
         json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
              {"objects", json::array({json{{"objectId", "999999999"}, {"quantity", 2}}})}}.dump();
     const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
-    REQUIRE(harness.coordinator.approve(action_id));
     harness.pump_to_completion(action_id);
 
     const ToolActivity* failed = harness.coordinator.find(action_id);
@@ -493,10 +278,9 @@ TEST_CASE("an execution failure is reported and changes nothing", "[tools][failu
     CHECK(harness.object_count() == objects_before);
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
     // A failed execution is terminal for the action; no retry can re-run it.
-    CHECK_FALSE(harness.coordinator.approve(action_id));
 }
 
-TEST_CASE("a read-only action runs without approval", "[tools][policy]")
+TEST_CASE("a read-only action runs", "[tools][policy]")
 {
     Harness harness;
     REQUIRE(harness.workspace.select_object(harness.cube_id()).succeeded());
@@ -507,7 +291,6 @@ TEST_CASE("a read-only action runs without approval", "[tools][policy]")
 
     const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
     const ToolActivity* started = harness.coordinator.find(action_id);
-    CHECK_FALSE(started->requires_approval);
     CHECK(started->state == ToolState::Running);
 
     harness.pump_to_completion(action_id);
@@ -524,7 +307,6 @@ TEST_CASE("the executed change participates in the authoritative history", "[too
     const std::size_t objects_before = harness.object_count();
 
     const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
-    REQUIRE(harness.coordinator.approve(action_id));
     harness.pump_to_completion(action_id);
     REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
     REQUIRE(harness.object_count() == objects_before + 1);
@@ -568,8 +350,6 @@ TEST_CASE("object_import resolves an attachment ID and adds an object", "[tools]
 
     const std::size_t   before   = harness.object_count();
     const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
-    CHECK(proposed.requires_approval);
-    REQUIRE(harness.coordinator.approve(proposed.action_id));
     harness.pump_to_completion(proposed.action_id);
 
     CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Succeeded);
@@ -593,7 +373,6 @@ TEST_CASE("object_import fails when the attachment can no longer be resolved", "
 
     const std::size_t   before   = harness.object_count();
     const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
-    REQUIRE(harness.coordinator.approve(proposed.action_id));
     harness.pump_to_completion(proposed.action_id);
 
     CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Failed);
@@ -606,15 +385,15 @@ TEST_CASE("chat deletion forgets only terminal activities", "[tools][conversatio
     Harness harness;
     const auto first = harness.coordinator.propose(harness.duplicate_cube_request(), "chat-message").action_id;
     CHECK_THROWS_AS(harness.coordinator.forget_terminal_activities({"chat-message"}), std::logic_error);
-    REQUIRE(harness.coordinator.reject(first));
+    harness.pump_to_completion(first);
     const auto other = harness.coordinator.propose(harness.duplicate_cube_request(), "other-chat").action_id;
     harness.coordinator.forget_terminal_activities({"chat-message"});
     CHECK(harness.coordinator.find(first) == nullptr);
     REQUIRE(harness.coordinator.find(other));
-    CHECK(harness.coordinator.find(other)->state == ToolState::Pending);
+    CHECK(harness.coordinator.find(other)->state == ToolState::Running);
 }
 
-TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][intent][plan]")
+TEST_CASE("intent and plan updates preserve provenance", "[tools][intent][plan]")
 {
     Harness h;
     FakeProductState store;
@@ -637,18 +416,13 @@ TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][in
         return h.coordinator.propose({tool, arguments.dump()}, "m-1");
     };
 
-    // The plan is the agent's own words: it runs with no card, and one pump
-    // takes it all the way to a result.
+    // The plan is the agent's own words, and one pump takes it to a result.
     const std::string plan_action = call("plan_set", json{{"headline", "Protect the visible face"},
                                                           {"decisions", json::array({json{{"topic", "orientation"},
                                                                                           {"statement", "Front face down."},
                                                                                           {"alternative", "Flat: faster, visible seam."}}})},
                                                           {"assumptions", json::array({"PLA on a smooth plate"})}})
                                         .action_id;
-    CHECK_FALSE(h.coordinator.find(plan_action)->requires_approval);
-    // No card, so it never waits: it is already on its way by the time propose
-    // returns, and a pump finishes it.
-    CHECK(h.coordinator.find(plan_action)->state != ToolState::Pending);
     h.coordinator.pump();
     REQUIRE(h.coordinator.find(plan_action)->state == ToolState::Succeeded);
     const auto plan_result = json::parse(h.coordinator.find(plan_action)->result_json);
@@ -657,22 +431,19 @@ TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][in
     CHECK(plan_result["projectUndo"] == false);
     CHECK(registry.validate_output(*registry.find("plan_set"), plan_result));
 
-    // An intent answer waits for the card, and the card says what the agent
-    // understood rather than naming a field.
+    // The activity says what the agent understood rather than naming a field.
     const std::string intent_action = call("intent_update", json{{"fields", json::array({
                                                 json{{"field", "useCase"}, {"value", "decorative"}},
                                                 json{{"field", "maxPrintTime"}, {"question", "How long may it take?"}}})}})
                                           .action_id;
-    CHECK(h.coordinator.find(intent_action)->requires_approval);
-    CHECK(h.coordinator.find(intent_action)->state == ToolState::Pending);
+    CHECK(h.coordinator.find(intent_action)->state == ToolState::Running);
     CHECK(h.coordinator.find(intent_action)->title.find("decorative") != std::string::npos);
-    CHECK(store.writes == 1); // the plan only; nothing recorded before approval
-    REQUIRE(h.coordinator.approve(intent_action));
+    CHECK(store.writes == 1); // the plan only; execution has not run yet
     h.coordinator.pump();
     REQUIRE(h.coordinator.find(intent_action)->state == ToolState::Succeeded);
     const auto intent_result = json::parse(h.coordinator.find(intent_action)->result_json);
     CHECK(registry.validate_output(*registry.find("intent_update"), intent_result));
-    // An answer the user approved is confirmed; a question with no answer is
+    // An answer the user stated is confirmed; a question with no answer is
     // still the agent's own and is what it does not know.
     REQUIRE(intent_result["intent"]["fields"].size() == 2);
     CHECK(intent_result["intent"]["fields"][1]["field"] == "useCase");
@@ -680,18 +451,17 @@ TEST_CASE("the intent is confirmed on its card and the plan is not", "[tools][in
     CHECK(intent_result["intent"]["fields"][0]["provenance"] == "agent_inferred");
     CHECK(intent_result["intent"]["openQuestions"] == json::array({"maxPrintTime"}));
 
-    // An answer the agent only assumed says so, even through the same card.
+    // An answer the agent only assumed says so.
     const std::string assumed = call("intent_update", json{{"fields", json::array({json{{"field", "material"},
                                                                                         {"value", "PLA"},
                                                                                         {"assumed", true}}})}}).action_id;
-    REQUIRE(h.coordinator.approve(assumed));
     h.coordinator.pump();
     const auto after = json::parse(h.coordinator.find(assumed)->result_json);
     CHECK(after["intent"]["fields"][0]["field"] == "material");
     CHECK(after["intent"]["fields"][0]["provenance"] == "agent_inferred");
 
     // Both are readable back through the one read, and neither moved the
-    // revision: a pending settings change would still be valid.
+    // revision: a queued settings change would still be valid.
     const auto before_revision = h.workspace.snapshot().revision;
     const std::string read = call("workspace_inspect", json{{"sections", json::array({"intent", "plan"})}}).action_id;
     h.coordinator.pump();
@@ -732,10 +502,9 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
     const auto& registry = ToolRegistry::instance();
     const auto plate = h.workspace.snapshot().plates.at(0).id;
 
-    // Slicing replaces a computed result and nothing else, so it needs no card.
+    // Slicing replaces a computed result and nothing else.
     const auto& started = h.coordinator.propose({"slice_start", json{{"plateId", std::to_string(plate.value())}}.dump()}, "m-1");
     const std::string handle = started.action_id;
-    CHECK_FALSE(started.requires_approval);
     h.pump_to_completion(handle);
     REQUIRE(h.coordinator.find(handle)->state == ToolState::Succeeded);
     const auto result = json::parse(h.coordinator.find(handle)->result_json);
@@ -766,13 +535,10 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
     CHECK(h.coordinator.find(refused.action_id)->error->code == "unavailable_operation");
     CHECK(h.workspace.slice_starts == 1);
 
-    // Taking it over is a decision only the user can make, so preempt brings
-    // the card back even though slicing is otherwise computation-only.
+    // Taking over an existing slice is explicit in the call.
     const auto& preempting = h.coordinator.propose({"slice_start", R"({"preempt":true})"}, "m-4");
-    CHECK(preempting.requires_approval);
-    CHECK(preempting.state == ToolState::Pending);
+    CHECK(preempting.state == ToolState::Running);
     const std::string preempt_action = preempting.action_id;
-    REQUIRE(h.coordinator.approve(preempt_action));
     h.pump_to_completion(preempt_action);
     CHECK(h.coordinator.find(preempt_action)->state == ToolState::Succeeded);
     CHECK(h.workspace.slice_starts == 2);
@@ -995,7 +761,7 @@ TEST_CASE("the printer section sets what is configured beside what the machine s
     CHECK(inspect()["mismatches"].empty());
 }
 
-TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", "[tools][printer][setup]")
+TEST_CASE("a printer setup is previewed, applied, and read back", "[tools][printer][setup]")
 {
     Harness h;
     FakeProductState store;
@@ -1022,8 +788,6 @@ TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", 
 
     auto run = [&h](const char* tool, const json& arguments) {
         const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
-        if (h.coordinator.find(id)->state == ToolState::Pending)
-            REQUIRE(h.coordinator.approve(id));
         h.pump_to_completion(id);
         return *h.coordinator.find(id);
     };
@@ -1047,8 +811,7 @@ TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", 
     CHECK(refused["issues"].size() == 2);
     CHECK(run("printer_setup", json{{"plateType", "Glass"}}).error->code == "unsupported_plate");
 
-    // Unsaved edits are refused until the caller says to drop them, and the
-    // card names them.
+    // Unsaved edits are refused until the caller says to drop them.
     h.workspace.m_process_dirty = true;
     h.workspace.m_process_incompatible_after_printer = true;
     CHECK(run("printer_setup", json{{"printerPreset", "A1 mini 0.2"}}).error->code == "unsaved_edits");
@@ -1056,11 +819,10 @@ TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", 
     const ToolActivity card = h.coordinator.propose(
         {"printer_setup", json{{"printerPreset", "A1 mini 0.2"}, {"plateType", "Cool Plate"}, {"unsavedEdits", "discard"},
                                {"confirmFacts", {{{"fact", "plate"}, {"value", "Cool Plate"}, {"hours", 8}}}}}.dump()}, "m-2");
-    REQUIRE(card.state == ToolState::Pending);
+    REQUIRE(card.state == ToolState::Running);
     CHECK(card.title == "Set up A1 mini 0.2, Cool Plate; replaces process 0.20mm Standard; "
                         "discards 2 unsaved edits in 0.20mm Standard; plate: Cool Plate");
     CHECK(h.workspace.setup_applies == 0);
-    REQUIRE(h.coordinator.approve(card.action_id));
     h.pump_to_completion(card.action_id);
     const ToolActivity done = *h.coordinator.find(card.action_id);
     REQUIRE(done.state == ToolState::Succeeded);
@@ -1076,11 +838,10 @@ TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", 
 
     // A setup proposed against presets that have since changed does not apply.
     const ToolActivity stale = h.coordinator.propose({"printer_setup", json{{"printerPreset", "A1 mini 0.4"}}.dump()}, "m-3");
-    REQUIRE(stale.state == ToolState::Pending);
+    REQUIRE(stale.state == ToolState::Running);
     h.workspace.set_setup_for_testing("0.20mm Standard", {"Textured PEI Plate"}, {});
     h.workspace.m_process_incompatible_after_printer = false;
     h.workspace.m_process_dirty = false;
-    REQUIRE(h.coordinator.approve(stale.action_id));
     h.pump_to_completion(stale.action_id);
     CHECK(h.coordinator.find(stale.action_id)->error->code == "stale_workspace");
     CHECK(h.workspace.setup_applies == 1);
@@ -1097,7 +858,7 @@ TEST_CASE("a printer setup is previewed, confirmed on its card, and read back", 
     CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"confirmFacts":[{"fact":"plate","value":"x","hours":0}]})").valid());
 }
 
-TEST_CASE("opening a project names it on the card, reads nothing before approval, and reports what was asked", "[tools][project]")
+TEST_CASE("opening a project names the activity and reports what was asked", "[tools][project]")
 {
     Harness h;
     FakeProductState store;
@@ -1122,22 +883,16 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     h.workspace.set_setup(setup);
     CHECK(propose(json{{"path", model}}).error->code == "unsaved_work");
 
-    const ToolActivity rejected = propose(json{{"path", model}, {"unsavedWork", "discard"}});
-    REQUIRE(rejected.state == ToolState::Pending);
-    CHECK(rejected.title == "Open " + model + ", discarding unsaved changes to Backpack");
-    REQUIRE(h.coordinator.reject(rejected.action_id));
-    CHECK(h.workspace.opens == 0);
-
     h.workspace.m_load_messages = {{"JusPrin - Object too small", "The object from file bracket.stl is too small.",
                                     {"yes", "no"}, "no", true}};
-    const ToolActivity approved = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "inches"}});
-    REQUIRE(h.coordinator.approve(approved.action_id));
-    for (int tick = 0; tick < 10 && h.coordinator.find(approved.action_id) != nullptr; ++tick)
+    const ToolActivity opening = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "inches"}});
+    CHECK(opening.title == "Open " + model + ", discarding unsaved changes to Backpack");
+    for (int tick = 0; tick < 10 && h.coordinator.find(opening.action_id) != nullptr; ++tick)
         h.coordinator.pump();
     // The open's record leaves with the project it closed; its last event
     // carries the result.
     const auto last = std::find_if(h.events.rbegin(), h.events.rend(),
-                                   [&](const ToolActivity& event) { return event.action_id == approved.action_id; });
+                                   [&](const ToolActivity& event) { return event.action_id == opening.action_id; });
     REQUIRE(last != h.events.rend());
     const ToolActivity done = *last;
     REQUIRE(done.state == ToolState::Succeeded);
@@ -1155,31 +910,13 @@ TEST_CASE("opening a project names it on the card, reads nothing before approval
     CHECK_FALSE(messages[0].contains("recognized"));
     CHECK(result["report"]["startedBy"] == "agent");
     CHECK(result["report"]["projectOpened"] == true);
-    CHECK(result["sessionId"] != std::to_string(approved.session));
+    CHECK(result["sessionId"] != std::to_string(opening.session));
     CHECK(h.workspace.last_open.units == Workspace::UnitChoice::Inches);
     CHECK(h.workspace.last_open.discard_unsaved);
     CHECK(store.flushes == 1);
 
-    // The host forgets the old project's activities while the open is still
-    // running; the open itself survives to report.
-    h.workspace.on_open_for_testing = [&h] { h.coordinator.clear(); };
-    const ToolActivity earlier  = propose(json{{"path", model}});
-    const ToolActivity reopened = propose(json{{"path", model}});
-    REQUIRE(h.coordinator.approve(reopened.action_id));
-    for (int tick = 0; tick < 10 && h.coordinator.find(reopened.action_id) != nullptr; ++tick)
-        h.coordinator.pump();
-    // Its subscribers heard the result; the record then left with the project
-    // it belonged to, so the new project's ids cannot meet it.
-    const auto states = h.states_of(reopened.action_id);
-    REQUIRE_FALSE(states.empty());
-    CHECK(states.back() == ToolState::Succeeded);
-    CHECK(h.coordinator.find(reopened.action_id) == nullptr);
-    CHECK(h.coordinator.find(earlier.action_id) == nullptr);
-    CHECK(h.coordinator.executing_action_id().empty());
-    h.workspace.on_open_for_testing = nullptr;
-
     const ToolActivity fresh = propose(json{{"new", true}});
-    REQUIRE(fresh.state == ToolState::Pending);
+    REQUIRE(fresh.state == ToolState::Running);
     CHECK(fresh.title == "Start a new project");
 
     const auto& definition = *registry.find("project_open");
@@ -1254,7 +991,6 @@ TEST_CASE("object analysis reports geometry, and a measure fails once its handle
     };
     const auto read = run(json{{"sessionId", session}, {"objectId", cube}, {"include", {"mesh", "features", "fit"}}});
     REQUIRE(read.state == ToolState::Succeeded);
-    CHECK_FALSE(read.requires_approval);
     const auto result = json::parse(read.result_json);
     CHECK(registry.validate_output(*registry.find("object_analyze"), result));
     CHECK(result["mesh"]["unitsSuspicion"] == "inches");
@@ -1325,7 +1061,7 @@ TEST_CASE("orientation candidates are scored as given, or as Orca proposes", "[t
                                                         {"candidates", {{{"up", {0, 0, 1}}, {"faceDown", "x"}}}}}.dump()).valid());
 }
 
-TEST_CASE("a placement names mirror and scale on its card, and auto-orient reports through the slicing section", "[tools][geometry]")
+TEST_CASE("a placement names mirror and scale, and auto-orient reports through the slicing section", "[tools][geometry]")
 {
     Harness h;
     const auto& registry = ToolRegistry::instance();
@@ -1335,9 +1071,8 @@ TEST_CASE("a placement names mirror and scale on its card, and auto-orient repor
 
     const ToolActivity card = propose(json{{"sessionId", session}, {"objectId", cube}, {"scale", {2, 2, 2}},
                                            {"mirrorAxis", "x"}, {"rotateDegrees", {0, 0, 90}}, {"position", {100, 90}}});
-    REQUIRE(card.state == ToolState::Pending);
+    REQUIRE(card.state == ToolState::Running);
     CHECK(card.title == "Place cube-a: scale x2 y2 z2, mirror in x, rotate 0/0/90 degrees, move to 100, 90");
-    REQUIRE(h.coordinator.approve(card.action_id));
     h.pump_to_completion(card.action_id);
     const ToolActivity placed = *h.coordinator.find(card.action_id);
     REQUIRE(placed.state == ToolState::Succeeded);
@@ -1350,7 +1085,6 @@ TEST_CASE("a placement names mirror and scale on its card, and auto-orient repor
 
     // Auto-orient returns a handle; its end is read from the slicing section.
     const ToolActivity orient = propose(json{{"sessionId", session}, {"objectId", cube}, {"autoOrient", true}});
-    REQUIRE(h.coordinator.approve(orient.action_id));
     h.pump_to_completion(orient.action_id);
     const auto oriented = json::parse(h.coordinator.find(orient.action_id)->result_json);
     REQUIRE(oriented["handle"] == orient.action_id);
@@ -1382,7 +1116,7 @@ TEST_CASE("a placement names mirror and scale on its card, and auto-orient repor
     CHECK_FALSE(invalid(json{{"instance", 0}, {"dropToBed", true}}));
 }
 
-TEST_CASE("a layout names every change on its card and arranges as a job", "[tools][layout]")
+TEST_CASE("a layout names every change and arranges as a job", "[tools][layout]")
 {
     Harness h;
     const auto& registry = ToolRegistry::instance();
@@ -1395,10 +1129,9 @@ TEST_CASE("a layout names every change on its card and arranges as a job", "[too
                               {"objects", {{{"objectId", cube}, {"quantity", 3}, {"name", "leg"}}}},
                               {"plates", {{{"name", "Second"}, {"bedType", "Cool Plate"}}}},
                               {"arrange", {{"spacingMm", 5}}}}.dump()}, "m-1");
-    REQUIRE(card.state == ToolState::Pending);
+    REQUIRE(card.state == ToolState::Running);
     CHECK(card.title == "Lay out: cube-a x3, rename cube-a to leg, add a plate, name a new plate Second, "
                         "a new plate on Cool Plate, arrange all plates");
-    REQUIRE(h.coordinator.approve(card.action_id));
     h.pump_to_completion(card.action_id);
     const ToolActivity done = *h.coordinator.find(card.action_id);
     REQUIRE(done.state == ToolState::Succeeded);
@@ -1428,7 +1161,7 @@ TEST_CASE("a layout names every change on its card and arranges as a job", "[too
     CHECK_FALSE(invalid(json{{"plates", json::array({json::object()})}}));
 }
 
-TEST_CASE("a file import names its path, reads nothing before approval, and a delete names what goes", "[tools][import][delete]")
+TEST_CASE("a file import names its path and a delete names what goes", "[tools][import][delete]")
 {
     Harness h;
     const auto& registry = ToolRegistry::instance();
@@ -1442,19 +1175,12 @@ TEST_CASE("a file import names its path, reads nothing before approval, and a de
 
     CHECK(h.coordinator.propose({"object_import_file", json{{"sessionId", session}, {"path", (folder / "none.stl").u8string()}}.dump()}, "m-1")
               .error->code == "invalid_argument");
-    const ToolActivity card = h.coordinator.propose(
-        {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-1");
-    REQUIRE(card.state == ToolState::Pending);
-    CHECK(card.title == "Import " + model);
-    REQUIRE(h.coordinator.reject(card.action_id));
-    CHECK(h.workspace.last_import.path.empty());
-
     h.workspace.m_load_messages = {{"JusPrin - Object too small", "maybe in meters or inches", {"yes", "no"}, "no", true}};
-    const ToolActivity approved = h.coordinator.propose(
+    const ToolActivity import_action = h.coordinator.propose(
         {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-2");
-    REQUIRE(h.coordinator.approve(approved.action_id));
-    h.pump_to_completion(approved.action_id);
-    const ToolActivity imported = *h.coordinator.find(approved.action_id);
+    CHECK(import_action.title == "Import " + model);
+    h.pump_to_completion(import_action.action_id);
+    const ToolActivity imported = *h.coordinator.find(import_action.action_id);
     REQUIRE(imported.state == ToolState::Succeeded);
     const auto result = json::parse(imported.result_json);
     CHECK(registry.validate_output(*registry.find("object_import_file"), result));
@@ -1469,10 +1195,9 @@ TEST_CASE("a file import names its path, reads nothing before approval, and a de
         {"project_delete_items", json{{"sessionId", session},
                                       {"items", {{{"objectId", bracket}}, {{"objectId", cube}, {"instance", 0}},
                                                  {{"plateId", std::to_string(h.workspace.snapshot().plates[0].id.value())}}}}}.dump()}, "m-3");
-    REQUIRE(removal.state == ToolState::Pending);
+    REQUIRE(removal.state == ToolState::Running);
     CHECK(removal.action_class == ActionClass::Destructive);
     CHECK(removal.title == "Delete bracket, copy 1 of cube-a, Plate 1");
-    REQUIRE(h.coordinator.approve(removal.action_id));
     h.pump_to_completion(removal.action_id);
     const ToolActivity removed = *h.coordinator.find(removal.action_id);
     REQUIRE(removed.state == ToolState::Succeeded);
@@ -1541,9 +1266,8 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
     json apply{{"scope", "object"}, {"changes", {{"wall_loops", 4}}}, {"target", target},
                {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
     const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
-    REQUIRE(pending.state == ToolState::Pending);
+    REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title == "Change 1 settings of " + snapshot.plates[0].objects[0].name + ": wall_loops");
-    REQUIRE(h.coordinator.approve(pending.action_id));
     h.pump_to_completion(pending.action_id);
     const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
@@ -1592,9 +1316,8 @@ TEST_CASE("a printer preset OrcaSlicer ships is saved as a copy, which is used i
     const json apply{{"scope", "printer"}, {"target", printer}, {"changes", changes}, {"persistAs", "Fixture printer - Copy"},
                      {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
     const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
-    REQUIRE(pending.state == ToolState::Pending);
+    REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title == "Change 1 settings of \"Fixture printer\": machine_start_gcode; save as \"Fixture printer - Copy\"");
-    REQUIRE(h.coordinator.approve(pending.action_id));
     h.pump_to_completion(pending.action_id);
     const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
@@ -1659,8 +1382,7 @@ TEST_CASE("saving a copy of a project filament puts the copy in its slot", "[too
                      {"persistAs", "Fixture PETG - Copy"}, {"expectedSessionId", std::to_string(snapshot.session.value())},
                      {"expectedRevision", snapshot.revision}};
     const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-1");
-    REQUIRE(pending.state == ToolState::Pending);
-    REQUIRE(h.coordinator.approve(pending.action_id));
+    REQUIRE(pending.state == ToolState::Running);
     h.pump_to_completion(pending.action_id);
     REQUIRE(h.coordinator.find(pending.action_id)->state == ToolState::Succeeded);
     auto& fixture = h.workspace.settings_for_testing();
@@ -1671,7 +1393,7 @@ TEST_CASE("saving a copy of a project filament puts the copy in its slot", "[too
     CHECK(h.workspace.snapshot().preset_deltas.empty());
 }
 
-TEST_CASE("region annotations are approved, read back with their status, regenerated and deleted", "[tools][regions]")
+TEST_CASE("region annotations are applied, read back with their status, regenerated and deleted", "[tools][regions]")
 {
     Harness h;
     FakeProductState store;
@@ -1682,8 +1404,6 @@ TEST_CASE("region annotations are approved, read back with their status, regener
     h.workspace.set_analysis_for_testing(h.cube_id(), {});
     auto run = [&h](const std::string& tool, const json& arguments) {
         const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
-        if (proposed.state == ToolState::Pending)
-            REQUIRE(h.coordinator.approve(proposed.action_id));
         h.pump_to_completion(proposed.action_id);
         return *h.coordinator.find(proposed.action_id);
     };
@@ -1699,11 +1419,10 @@ TEST_CASE("region annotations are approved, read back with their status, regener
                         {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "hole"}, {"handle", "f1-21-0-1-0"}}}},
                                      {{"objectId", cube}, {"kind", "hidden"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}};
     const ToolActivity pending = h.coordinator.propose({"region_annotate", annotate.dump()}, "m-2");
-    REQUIRE(pending.state == ToolState::Pending);
+    REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title.find("r1 precision hole, hole of 5 mm on") != std::string::npos);
     CHECK(pending.title.find("support blocker volume") != std::string::npos);
     CHECK(pending.title.find("r2 hidden") != std::string::npos);
-    REQUIRE(h.coordinator.approve(pending.action_id));
     h.pump_to_completion(pending.action_id);
     const auto annotated = *h.coordinator.find(pending.action_id);
     REQUIRE(annotated.state == ToolState::Succeeded);
@@ -1752,7 +1471,6 @@ TEST_CASE("region annotations are approved, read back with their status, regener
 
     const ToolActivity removal = h.coordinator.propose({"project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}.dump()}, "m-5");
     CHECK(removal.title.find("region r2 (hidden") != std::string::npos);
-    REQUIRE(h.coordinator.approve(removal.action_id));
     h.pump_to_completion(removal.action_id);
     const auto removed = json::parse(h.coordinator.find(removal.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("project_delete_items"), removed));
@@ -1801,8 +1519,6 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
     const std::string cube    = std::to_string(h.cube_id().value());
     auto run = [&h, &registry](const std::string& tool, const json& arguments) {
         const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
-        if (proposed.state == ToolState::Pending)
-            REQUIRE(h.coordinator.approve(proposed.action_id));
         h.pump_to_completion(proposed.action_id);
         const ToolActivity done = *h.coordinator.find(proposed.action_id);
         if (done.state == ToolState::Succeeded)
@@ -1813,7 +1529,6 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
                      {"plane", {{"point", {0, 0, 10}}, {"normal", {0, 0, 1}}}}};
 
     const auto [previewed, preview] = run("object_divide_preview", plane);
-    CHECK_FALSE(previewed.requires_approval);
     const auto previewed_result = json::parse(preview.result_json);
     CHECK(previewed_result["pieces"].size() == 2);
     CHECK_FALSE(previewed_result["pieces"][0].contains("objectId"));
@@ -1918,29 +1633,18 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
                      {"expectedRevision", preview.revision}};
     // A copy is added after the preview; the patch still proposes and applies.
     const ToolActivity copy = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
-    REQUIRE(h.coordinator.approve(copy.action_id));
     h.pump_to_completion(copy.action_id);
     REQUIRE(h.workspace.snapshot().revision > preview.revision);
-    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", patch.dump()}, "m-2");
-    REQUIRE(pending.state == ToolState::Pending);
-    // Another model edit while the card is up leaves it pending.
-    const ToolActivity another = h.coordinator.propose(h.duplicate_cube_request(), "m-3");
-    REQUIRE(h.coordinator.approve(another.action_id));
-    h.pump_to_completion(another.action_id);
-    CHECK(h.coordinator.find(pending.action_id)->state == ToolState::Pending);
-    REQUIRE(h.coordinator.approve(pending.action_id));
-    h.pump_to_completion(pending.action_id);
-    CHECK(h.coordinator.find(pending.action_id)->state == ToolState::Succeeded);
+    const ToolActivity applying = h.coordinator.propose({"settings_apply_patch", patch.dump()}, "m-2");
+    h.pump_to_completion(applying.action_id);
+    CHECK(h.coordinator.find(applying.action_id)->state == ToolState::Succeeded);
 
-    // A settings edit after the preview is stale, pending or not.
+    // A settings edit after the preview is stale.
     const auto second = h.workspace.snapshot();
     const json again{{"scope", "process"}, {"changes", {{"wall_loops", 5}}}, {"expectedSessionId", std::to_string(second.session.value())},
                      {"expectedRevision", second.revision}};
-    const ToolActivity waiting = h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-4");
-    REQUIRE(waiting.state == ToolState::Pending);
     h.workspace.set_setting_for_testing("brim_width", "7");
-    CHECK(h.coordinator.find(waiting.action_id)->error->code == "stale_revision");
-    CHECK(h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-5").error->code == "stale_workspace");
+    CHECK(h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-4").error->code == "stale_workspace");
 
     // A refused call says what is wrong with it.
     const auto refused = registry.validate_call(*registry.find("settings_preview_patch"), json{{"scope", "process"}, {"changes", {{"wall_loops", 3}}}, {"intent", "x"}}.dump());
@@ -2032,8 +1736,6 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     const auto plate = snapshot.plates.at(0).id;
     auto run = [&h, &registry](const std::string& tool, const json& arguments) {
         const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
-        if (proposed.state == ToolState::Pending)
-            REQUIRE(h.coordinator.approve(proposed.action_id));
         h.pump_to_completion(proposed.action_id);
         const ToolActivity done = *h.coordinator.find(proposed.action_id);
         if (done.state == ToolState::Succeeded)
@@ -2043,7 +1745,6 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
 
     // A picture comes back beside its result.
     const auto [render_card, rendered] = run("view_render", json{{"view", "front"}, {"widthPx", 640}, {"heightPx", 480}});
-    CHECK_FALSE(render_card.requires_approval);
     REQUIRE(rendered.image);
     CHECK(rendered.image->mime_type == "image/png");
     CHECK(rendered.image->base64 == "iVBORw0KGgo=");
@@ -2079,7 +1780,6 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     const auto started = run("slice_start", json::object()).second;
     const std::string slice_handle = json::parse(started.result_json)["handle"];
     const auto [cancel_card, cancelled] = run("activity_cancel", json{{"handle", slice_handle}});
-    CHECK_FALSE(cancel_card.requires_approval);
     CHECK(json::parse(cancelled.result_json)["kind"] == "slice");
     CHECK(json::parse(cancelled.result_json)["cancelled"] == true);
     CHECK_FALSE(h.workspace.snapshot().slicing.running);
@@ -2089,13 +1789,9 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(json::parse(run("activity_cancel", json{{"handle", slice_handle}}).second.result_json)["cancelled"] == false);
     CHECK(h.workspace.snapshot().slicing.running);
     h.workspace.finish_slice_for_testing(false);
-    const ToolActivity waiting = h.coordinator.propose(h.duplicate_cube_request(), "m-2");
-    const auto dropped = json::parse(run("activity_cancel", json{{"handle", waiting.action_id}}).second.result_json);
-    CHECK(dropped["kind"] == "proposal");
-    CHECK(h.coordinator.find(waiting.action_id)->state == ToolState::Cancelled);
     CHECK(run("activity_cancel", json{{"handle", "nothing"}}).second.error->code == "invalid_argument");
 
-    // An export writes only after approval, and never over a file unasked.
+    // An export never overwrites a file unless the call says to.
     const auto folder = std::filesystem::temp_directory_path() / "jusprin-export-test";
     std::filesystem::remove_all(folder);
     std::filesystem::create_directories(folder);
@@ -2106,20 +1802,14 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(h.coordinator.propose({"export_file", exporting.dump()}, "m-3").error->code == "invalid_argument");
     json replacing = exporting;
     replacing["overwrite"] = true;
-    const ToolActivity card = h.coordinator.propose({"export_file", replacing.dump()}, "m-4");
-    REQUIRE(card.state == ToolState::Pending);
-    CHECK(card.title == "Export the G-code to " + target + ", replacing it");
-    REQUIRE(h.coordinator.reject(card.action_id));
     const auto contents = [&target] {
         std::ifstream file(std::filesystem::u8path(target));
         return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     };
-    CHECK(contents() == "old");
-    CHECK(h.workspace.exports == 0);
     h.workspace.m_details.license = "CC BY-NC-SA 4.0";
     const ToolActivity licensed = h.coordinator.propose({"export_file", replacing.dump()}, "m-5");
+    CHECK(licensed.title.find("Export the G-code to " + target + ", replacing it") == 0);
     CHECK(licensed.title.find("the project's license is CC BY-NC-SA 4.0") != std::string::npos);
-    REQUIRE(h.coordinator.approve(licensed.action_id));
     h.pump_to_completion(licensed.action_id);
     const auto exported = json::parse(h.coordinator.find(licensed.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("export_file"), exported));
@@ -2128,7 +1818,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(contents() == "gcode");
     CHECK(exported["sliceWarnings"] == json::array());
 
-    // The card and the result name what the slice itself says is wrong.
+    // The activity and result name what the slice itself says is wrong.
     Workspace::SliceReport warned;
     warned.valid    = true;
     warned.findings = {{"", "It seems object cube-a has floating cantilever.", false, "cube-a"},
@@ -2137,7 +1827,6 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     h.workspace.set_slice_report_for_testing(plate, warned);
     const ToolActivity warning_card = h.coordinator.propose({"export_file", replacing.dump()}, "m-6");
     CHECK(warning_card.title.find("the slice has 2 warnings, first: It seems object cube-a has floating cantilever.") != std::string::npos);
-    REQUIRE(h.coordinator.approve(warning_card.action_id));
     h.pump_to_completion(warning_card.action_id);
     const auto warned_result = json::parse(h.coordinator.find(warning_card.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("export_file"), warned_result));
@@ -2146,189 +1835,4 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "project_3mf"}, {"path", target}, {"plateId", "1"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}, {"objectIds", {"1"}}}.dump()).valid());
     std::filesystem::remove_all(folder);
-}
-
-TEST_CASE("calls sharing a plan id wait for one decision and run in order", "[tools][plan]")
-{
-    Harness h;
-    const std::string session = std::to_string(h.workspace.snapshot().session.value());
-    const std::string cube    = std::to_string(h.cube_id().value());
-    const auto copies = [&](int quantity, const char* plan) {
-        json arguments{{"sessionId", session}, {"objects", json::array({json{{"objectId", cube}, {"quantity", quantity}}})}};
-        if (plan != nullptr) arguments["planId"] = plan;
-        return ToolRequest{"plate_layout", arguments.dump()};
-    };
-    const ToolActivity first  = h.coordinator.propose(copies(2, "copies"), "m-1");
-    const ToolActivity second = h.coordinator.propose(copies(3, "copies"), "m-2");
-    REQUIRE(first.state == ToolState::Pending);
-    REQUIRE(second.state == ToolState::Pending);
-    CHECK(first.plan_id == "copies");
-    CHECK(json::parse(first.arguments_json)["planId"] == "copies");
-
-    SECTION("one approval runs every member in order")
-    {
-        REQUIRE(h.coordinator.approve(first.action_id));
-        CHECK(h.coordinator.find(second.action_id)->state == ToolState::Running);
-        h.pump_to_completion(second.action_id);
-        CHECK(h.coordinator.find(first.action_id)->state == ToolState::Succeeded);
-        CHECK(h.coordinator.find(second.action_id)->state == ToolState::Succeeded);
-        CHECK(h.object_count() == 3);
-        std::vector<std::string> finished;
-        for (const ToolActivity& event : h.events)
-            if (event.state == ToolState::Succeeded) finished.push_back(event.action_id);
-        CHECK(finished == std::vector<std::string>{first.action_id, second.action_id});
-
-        const ToolActivity inspect = h.coordinator.propose({"workspace_inspect", R"({"sections":["activities"]})"}, "m-3");
-        h.pump_to_completion(inspect.action_id);
-        const auto activities = json::parse(h.coordinator.find(inspect.action_id)->result_json)["activities"];
-        REQUIRE(activities.size() == 2);
-        CHECK(activities[1] == json{{"actionId", second.action_id}, {"tool", "plate_layout"}, {"title", second.title},
-                                    {"state", "succeeded"}, {"planId", "copies"}});
-        CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("workspace_inspect"),
-                                                       json::parse(h.coordinator.find(inspect.action_id)->result_json)));
-    }
-    SECTION("one rejection rejects every member")
-    {
-        REQUIRE(h.coordinator.reject(second.action_id));
-        CHECK(h.coordinator.find(first.action_id)->state == ToolState::Rejected);
-        CHECK(h.object_count() == 1);
-    }
-    SECTION("an outside change stops the plan at its next member")
-    {
-        const ToolActivity alone = h.coordinator.propose(h.duplicate_cube_request(), "m-4");
-        REQUIRE(h.coordinator.approve(first.action_id));
-        REQUIRE(h.workspace.rename_object(h.cube_id(), "Edited after approval").succeeded());
-        h.pump_to_completion(second.action_id);
-        CHECK(h.coordinator.find(first.action_id)->error->code == "stale_revision");
-        CHECK(h.coordinator.find(second.action_id)->error->code == "plan_step_failed");
-        CHECK(h.object_count() == 1);
-        // A call outside the plan was not approved with it.
-        CHECK(h.coordinator.find(alone.action_id)->state == ToolState::Failed);
-    }
-    SECTION("a decided or broken plan takes no new members")
-    {
-        REQUIRE(h.coordinator.reject(first.action_id));
-        const ToolActivity late = h.coordinator.propose(copies(4, "copies"), "m-6");
-        CHECK(late.state == ToolState::Failed);
-        CHECK(late.error->code == "plan_closed");
-        CHECK(h.coordinator.propose(copies(4, "fresh"), "m-7").state == ToolState::Pending);
-    }
-    SECTION("a member proposed alone is not part of the plan")
-    {
-        const ToolActivity alone = h.coordinator.propose(copies(4, nullptr), "m-5");
-        REQUIRE(h.coordinator.approve(first.action_id));
-        CHECK(h.coordinator.find(alone.action_id)->state == ToolState::Pending);
-    }
-}
-
-TEST_CASE("a plan belongs to the client that proposed it", "[tools][plan]")
-{
-    Harness h;
-    const std::string session = std::to_string(h.workspace.snapshot().session.value());
-    const std::string cube    = std::to_string(h.cube_id().value());
-    const auto copies = [&](int quantity) {
-        return ToolRequest{"plate_layout", json{{"sessionId", session}, {"planId", "plan-1"},
-                                                {"objects", json::array({json{{"objectId", cube}, {"quantity", quantity}}})}}.dump()};
-    };
-    // The same id from the in-app agent and from an MCP client: the external
-    // card lists only the MCP member, so approving it must run only that one.
-    const ToolActivity in_app     = h.coordinator.propose(copies(2), "m-1", {}, ToolSource::Agent, "chat-1");
-    const ToolActivity other_chat = h.coordinator.propose(copies(5), "m-2", {}, ToolSource::Agent, "chat-2");
-    const ToolActivity external   = h.coordinator.propose(copies(3), "mcp-1", {}, ToolSource::Mcp);
-    REQUIRE(in_app.state == ToolState::Pending);
-    REQUIRE(other_chat.state == ToolState::Pending);
-    REQUIRE(external.state == ToolState::Pending);
-    CHECK(in_app.plan_scope == "chat-1");
-    CHECK(external.plan_scope.empty());
-    REQUIRE(h.coordinator.approve(external.action_id));
-    CHECK(h.coordinator.find(external.action_id)->state == ToolState::Running);
-    CHECK(h.coordinator.find(in_app.action_id)->state == ToolState::Pending);
-    CHECK(h.coordinator.find(other_chat.action_id)->state == ToolState::Pending);
-    // Another chat's decision is its own too.
-    REQUIRE(h.coordinator.reject(other_chat.action_id));
-    CHECK(h.coordinator.find(in_app.action_id)->state == ToolState::Pending);
-    // The first chat's plan is still undecided, and still takes members.
-    const ToolActivity joined = h.coordinator.propose(copies(4), "m-3", {}, ToolSource::Agent, "chat-1");
-    CHECK(joined.state == ToolState::Pending);
-    REQUIRE(h.coordinator.reject(in_app.action_id));
-    CHECK(h.coordinator.find(joined.action_id)->state == ToolState::Rejected);
-    h.pump_to_completion(external.action_id);
-    CHECK(h.coordinator.find(external.action_id)->state == ToolState::Succeeded);
-    CHECK(h.object_count() == 3);
-}
-
-TEST_CASE("a slice ending leaves waiting cards and approved plans alone", "[tools][slicing][plan]")
-{
-    Harness h;
-    const std::string session = std::to_string(h.workspace.snapshot().session.value());
-    const std::string plate   = std::to_string(h.workspace.snapshot().plates.at(0).id.value());
-
-    SECTION("a card waiting for the person survives the agent's own slice")
-    {
-        const ToolActivity waiting = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
-        const ToolActivity started = h.coordinator.propose({"slice_start", json{{"plateId", plate}}.dump()}, "m-2");
-        h.pump_to_completion(started.action_id);
-        REQUIRE(h.coordinator.find(started.action_id)->state == ToolState::Succeeded);
-        h.workspace.finish_slice_for_testing(true);
-        CHECK(h.coordinator.find(waiting.action_id)->state == ToolState::Pending);
-    }
-    SECTION("a plan goes on after its own slice")
-    {
-        const std::string cube = std::to_string(h.cube_id().value());
-        const ToolActivity slice = h.coordinator.propose(
-            {"slice_start", json{{"plateId", plate}, {"wait", true}, {"planId", "sliced"}}.dump()}, "m-1");
-        const ToolActivity after = h.coordinator.propose(
-            {"plate_layout", json{{"sessionId", session}, {"planId", "sliced"},
-                                  {"objects", json::array({json{{"objectId", cube}, {"quantity", 2}}})}}.dump()}, "m-2");
-        REQUIRE(h.coordinator.approve(slice.action_id));
-        for (int i = 0; i < 20; ++i)
-            h.coordinator.pump();
-        REQUIRE(h.coordinator.find(slice.action_id)->state == ToolState::Running);
-        h.workspace.finish_slice_for_testing(true);
-        h.pump_to_completion(after.action_id);
-        CHECK(h.coordinator.find(slice.action_id)->state == ToolState::Succeeded);
-        CHECK(h.coordinator.find(after.action_id)->state == ToolState::Succeeded);
-        CHECK(h.object_count() == 2);
-    }
-    SECTION("an export card waiting on a slice fails when that slice goes")
-    {
-        const auto id = h.workspace.snapshot().plates.at(0).id;
-        h.workspace.set_plate_sliced(id, true);
-        const std::string target = (std::filesystem::temp_directory_path() / "jusprin-slice-change.gcode").u8string();
-        std::filesystem::remove(std::filesystem::u8path(target));
-        const ToolActivity gcode = h.coordinator.propose(
-            {"export_file", json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}}.dump()}, "m-1");
-        const ToolActivity stl = h.coordinator.propose(
-            {"export_file", json{{"sessionId", session}, {"kind", "stl"},
-                                 {"path", (std::filesystem::temp_directory_path() / "jusprin-slice-change.stl").u8string()}}.dump()}, "m-2");
-        REQUIRE(gcode.state == ToolState::Pending);
-        REQUIRE(stl.state == ToolState::Pending);
-        h.workspace.set_plate_sliced(id, false);
-        CHECK(h.coordinator.find(gcode.action_id)->error->code == "stale_revision");
-        CHECK(h.coordinator.find(stl.action_id)->state == ToolState::Pending);
-    }
-    SECTION("a slice is still no reason to keep a stale card")
-    {
-        const ToolActivity waiting = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
-        REQUIRE(h.workspace.rename_object(h.cube_id(), "Edited").succeeded());
-        CHECK(h.coordinator.find(waiting.action_id)->error->code == "stale_revision");
-    }
-}
-
-TEST_CASE("a plan id is checked before any tool sees it", "[tools][plan][registry]")
-{
-    const auto& registry = ToolRegistry::instance();
-    // Every change to the project, but not plan_set, which records the
-    // agent's own words, and not the printer panel's tools, whose session has
-    // no plans.
-    for (const ToolDefinition& definition : registry.definitions())
-        CHECK(definition.input_schema["properties"].contains("planId") ==
-              (definition.action_class != ActionClass::ReadOnly && definition.name != "plan_set" &&
-               !has_exposure(definition.exposure, ToolExposure::Printer)));
-    const auto refused = registry.validate_call(*registry.find("workspace_inspect"), R"({"planId":"p"})");
-    REQUIRE_FALSE(refused.valid());
-    CHECK(refused.error->message == "workspace_inspect does not join a plan; only changes to the project take a planId.");
-    CHECK_FALSE(registry.validate_call(*registry.find("plan_set"), R"({"headline":"h","planId":"p"})").valid());
-    CHECK_FALSE(registry.validate_call(*registry.find("plate_layout"), R"({"planId":""})").valid());
-    CHECK_FALSE(registry.validate_call(*registry.find("plate_layout"), R"({"planId":7})").valid());
 }

@@ -2632,18 +2632,9 @@ button.wide {
 .printer-card-picture-empty { display: grid; place-items: center; }
 .printer-card-glyph { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-secondary); }
 
-/* printer_connect's card (Figma "Chat/Tool Activity" in the printer chat):
-   the subtle variant of the tool card, whose state line takes the state's
-   colour, and the one field the person types a secret into. */
-.tool-card.printer-credential { background: var(--surface-subtle); }
-.printer-credential .tool-state.done { color: var(--status-success); }
-.printer-credential .tool-state.failed { color: var(--status-danger); }
-.printer-credential .tool-state.running .tool-status-icon,
-.printer-credential .tool-state.cancelled .tool-status-icon { color: var(--text-primary); }
-.printer-credential .tool-status-icon.cancelled { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); }
+/* printer_connect's local credential form. */
+.printer-credential { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
 .printer-credential-glyph { color: var(--text-primary); }
-.printer-credential-state { color: var(--text-secondary); font: var(--font-label); }
-.printer-credential-cancel { align-self: flex-start; height: var(--button-icon-height); padding: 0 4px; }
 
 .printer-credential-field {
   display: flex;

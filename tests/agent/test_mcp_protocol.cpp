@@ -142,8 +142,6 @@ TEST_CASE("MCP terminal results preserve structured content and error identity",
     auto result = Mcp::activity_result(activity, snapshot);
     CHECK_FALSE(result["isError"].get<bool>());
     CHECK(json::parse(result["content"][0]["text"].get<std::string>()) == result["structuredContent"]);
-    activity.state = Agent::ToolState::Rejected;
-    CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["code"] == "approval_rejected");
     activity.state = Agent::ToolState::Cancelled;
     CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["code"] == "cancelled");
     activity.state = Agent::ToolState::Failed;

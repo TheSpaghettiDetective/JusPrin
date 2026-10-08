@@ -93,7 +93,7 @@ records an undo step is covered with no fork code.
   `ProjectStateChangeReason::UndoStep`. Before this, it notified with `None`,
   which the hub dropped unless undo availability changed, so a second rotation
   or a paint stroke reached no observer at all. `UndoStep` maps to no
-  workspace reason: it never advances the revision or stales a proposal.
+  workspace reason: it never advances the revision or stales a queued action.
 - **Detect by timestamp, not index.** Trimming drops old steps from the front.
   The uncaptured topmost placeholder (`is_topmost()`) carries the timestamp the
   next named step will reuse, so it is skipped and remembered as the first

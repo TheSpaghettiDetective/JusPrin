@@ -33,10 +33,9 @@ function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityIn
     title: 'Duplicate "cube-a"',
     arguments: { sessionId: '1', objectId: '21' },
     actionClass: 'mutation',
-    requiresApproval: true,
     sessionId: '1',
     expectedRevision: 4,
-    state: 'pending',
+    state: 'running',
     progress: { current: 0, total: 3 },
     ...overrides,
   };
@@ -81,7 +80,7 @@ describe('store reducer', () => {
   it('upserts tool activities by action id as their lifecycle advances', () => {
     let state = apply(initialState, 'tool_activity', { activity: toolActivity() });
     expect(state.toolActivities).toHaveLength(1);
-    expect(state.toolActivities[0].state).toBe('pending');
+    expect(state.toolActivities[0].state).toBe('running');
 
     state = apply(state, 'tool_activity', { activity: toolActivity({ state: 'running', progress: { current: 1, total: 3 } }) });
     expect(state.toolActivities).toHaveLength(1);

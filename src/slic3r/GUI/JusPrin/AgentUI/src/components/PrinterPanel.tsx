@@ -9,12 +9,9 @@ import type {
   NetworkPrinterInfo,
   PrinterBlock,
   PrinterCardInfo,
-  PrinterConnectionInfo,
-  ToolActivityInfo,
+  PrinterCredentialRequest,
 } from '../bridge/protocol';
 import { numberText } from '../printerWords';
-import { Progress } from './Progress';
-import { ToolStatus } from './ToolActivityCard';
 
 function PrinterGlyph({ className }: { className: string }) {
   return <span className={`${className} jp-icon jp-icon-printer`} aria-hidden="true" />;
@@ -132,65 +129,31 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   );
 });
 
-// printer_connect's card. Connect approves the call and hands the app what
-// was typed; the model hears only how the connection went. After Connect the
-// card follows the attempt itself, as the app reports it in `connection`.
-export function PrinterCredentialCard({
-  activity,
-  connection,
-  model,
-  onDecision,
-  onCancelConnection,
+// Local input for printer_connect. The completed tool call identifies the
+// target, but the credential goes directly to the printer session.
+export function PrinterCredentialForm({
+  request,
+  onConnect,
 }: {
-  activity: ToolActivityInfo;
-  connection?: PrinterConnectionInfo;
-  // What kind of printer the conversation is about, when the app knows.
-  model?: string;
-  onDecision: (actionId: string, decision: 'approve' | 'reject', input?: { credential: string }) => void;
-  onCancelConnection: (actionId: string) => void;
+  request: PrinterCredentialRequest;
+  onConnect: (actionId: string, credential: string) => void;
 }) {
   const [credential, setCredential] = useState('');
-  const bambu = activity.arguments.provider === 'bambu';
-  if (activity.state !== 'pending') {
-    // Approved and about to start, or started: both are the wait.
-    const state =
-      activity.state === 'rejected' ? 'cancelled' : connection?.state ?? (activity.state === 'failed' ? 'failed' : 'connecting');
-    const target = connection?.target;
-    // A figure only when the app has measured one, kept inside its range.
-    const percent = typeof connection?.percent === 'number' && Number.isFinite(connection.percent)
-      ? Math.round(Math.min(100, Math.max(0, connection.percent))) : undefined;
-    return (
-      <div className="tool-card printer-credential" data-testid={`tool-${activity.actionId}`}>
-        <div className="tool-title">{activity.title}</div>
-        {state === 'connecting' && (
-          <>
-            <ToolStatus state="running">{percent === undefined ? 'Connecting…' : `Connecting · ${percent}%`}</ToolStatus>
-            <Progress label="Connecting" value={percent} max={percent === undefined ? undefined : 100} />
-            {connection && <button type="button" className="printer-link-button printer-credential-cancel" onClick={() => onCancelConnection(activity.actionId)}>Cancel</button>}
-          </>
-        )}
-        {state === 'verified' && <ToolStatus state="succeeded">{target ? `Connected to ${target}.` : 'Connected.'}</ToolStatus>}
-        {state === 'failed' && <ToolStatus state="failed">{target ? `Couldn't reach ${target}` : "Couldn't connect"}</ToolStatus>}
-        {state === 'cancelled' && <ToolStatus state="cancelled">Cancelled. No connection was made.</ToolStatus>}
-      </div>
-    );
-  }
   return (
     <form
-      className="tool-card printer-credential"
-      data-testid={`tool-${activity.actionId}`}
+      className="printer-credential"
+      data-testid={`credential-${request.actionId}`}
       onSubmit={(event) => {
         event.preventDefault();
-        onDecision(activity.actionId, 'approve', { credential });
+        onConnect(request.actionId, credential);
       }}
     >
       <div className="printer-notice-heading">
         <PrinterGlyph className="printer-credential-glyph" />
-        <span className="tool-title">{activity.title}</span>
+        <span className="tool-title">Connect to {request.target}</span>
       </div>
-      <div className="printer-credential-state">{model ? `Pending · ${model}` : 'Pending'}</div>
       <label className="printer-credential-field">
-        <span>{bambu ? 'Access code' : 'API key (if the printer asks for one)'}</span>
+        <span>{request.provider === 'bambu' ? 'Access code' : 'API key (if the printer asks for one)'}</span>
         <input
           type="password"
           className="printer-credential-input"
@@ -200,15 +163,8 @@ export function PrinterCredentialCard({
         />
       </label>
       <p className="printer-credential-note">Stays on this computer.</p>
-      <div className="tool-actions">
-        {/* Enabled while empty: a printer that already has its code needs none. */}
-        <button type="submit" className="primary">
-          Connect
-        </button>
-        <button type="button" onClick={() => onDecision(activity.actionId, 'reject')}>
-          Cancel
-        </button>
-      </div>
+      {/* Enabled while empty: a printer that already has its code needs none. */}
+      <button type="submit" className="primary">Connect</button>
     </form>
   );
 }

@@ -116,8 +116,6 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     activity.server         = "jusprin-native";
     activity.tool           = "plate_layout";
     activity.state          = ToolState::Succeeded;
-    activity.plan_id        = "upright";
-    activity.plan_scope     = "c-1";
     document.upsert_activity(activity, kT);
 
     ProjectStateDocument reloaded;
@@ -133,9 +131,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     REQUIRE(reloaded.activities().size() == 1);
     CHECK(reloaded.activities()[0].state == ToolState::Succeeded);
     CHECK(reloaded.activities()[0].source == ToolSource::Agent);
-    CHECK(reloaded.activities()[0].plan_id == "upright");
     CHECK(reloaded.activities()[0].call_id == "call_9");
-    CHECK(reloaded.activities()[0].plan_scope == "c-1");
 
     SECTION("counters continue after a reload so IDs stay unique") {
         const std::string next_id = reloaded.allocate_message_id();
@@ -150,7 +146,7 @@ TEST_CASE("external tool activity source survives storage and legacy records mig
     activity.action_id = document.allocate_action_id();
     activity.correlation_id = "mcp-42";
     activity.source = ToolSource::Mcp;
-    activity.state = ToolState::Rejected;
+    activity.state = ToolState::Cancelled;
     document.upsert_activity(activity, kT);
     ProjectStateDocument restored;
     REQUIRE(restored.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);

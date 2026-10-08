@@ -83,8 +83,6 @@ private:
     void profile_changed() override;
     void close_panel() override;
     void printers_changed(const std::string& added) override;
-    std::optional<std::string> take_credential(const std::string& action_id) override;
-
     void build_runtime();
     void tear_down_runtime();
     void on_pump(wxTimerEvent& event);

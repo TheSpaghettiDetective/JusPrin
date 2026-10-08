@@ -46,7 +46,7 @@
     "type": "function"
   },
   {
-    "description": "Connects the printer this conversation is about. It shows the person a card where they type the access code or API key themselves, never in chat, and runs when they tap Connect. For a Bambu Lab printer pass only the deviceId from printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and until they give one, ask for it instead of calling this. connecting means the app is still waiting for the printer and will report the outcome in a note.",
+    "description": "Connects the printer this conversation is about. It opens a local form where the person types the access code or API key themselves, never in chat. For a Bambu Lab printer pass only the deviceId from printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and until they give one, ask for it instead of calling this. The app reports the connection outcome in a note.",
     "name": "printer_connect",
     "parameters": {
       "additionalProperties": false,
@@ -114,7 +114,7 @@
     "type": "function"
   },
   {
-    "description": "Apply an atomic settings patch. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. Calling it shows the user an approval card in JusPrin and waits for their decision. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
+    "description": "Apply an atomic settings patch immediately. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
     "name": "settings_apply_patch",
     "parameters": {
       "additionalProperties": false,
@@ -146,11 +146,6 @@
         "persistAs": {
           "description": "Not for object. Save the changed preset under this name, as OrcaSlicer's Save does: its own name overwrites it; another name saves a copy, which is used in its place from then on. A preset that comes with OrcaSlicer cannot be overwritten (read_only_preset): save a copy, under the name the issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the preset being edited can be.",
           "maxLength": 2048,
-          "type": "string"
-        },
-        "planId": {
-          "description": "Only to group two or more changes; leave it out for a single change. Calls with the same planId share one approval card and run in order; each returns queued, and you do not hear how they end.",
-          "maxLength": 64,
           "type": "string"
         },
         "scope": {

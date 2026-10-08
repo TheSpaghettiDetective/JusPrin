@@ -91,14 +91,14 @@ public:
         return m_settings.preview(patch);
     }
 
-    CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+    CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                  SettingsPreview& applied) override
     {
         if (!m_settings_available)
             return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
         if (patch.target.object && m_settings.preview(patch).valid)
             save_undo("Change object settings");
-        const auto result = m_settings.apply(patch, confirmed, applied);
+        const auto result = m_settings.apply(patch, expected, applied);
         if (result.succeeded()) {
             for (auto& plate : m_snapshot.plates)
                 plate.sliced = false;

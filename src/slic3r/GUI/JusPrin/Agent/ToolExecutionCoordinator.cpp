@@ -25,9 +25,9 @@ using Workspace::WorkspaceError;
 
 constexpr const char* kServerName = "jusprin-native";
 
-// Workspace changes that can invalidate a pending proposal. Selection-only
-// changes do not: a proposal pins its target by ID, so what the user has
-// selected afterwards cannot alter what an approval would execute.
+// Workspace changes that can invalidate a queued action. Selection-only
+// changes do not: an action pins its target by ID, so what the user selects
+// afterwards cannot redirect it.
 constexpr WorkspaceChangeReasons kInvalidatingReasons = WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::Transform |
                                                         WorkspaceChangeReasons::Plates | WorkspaceChangeReasons::History |
                                                         WorkspaceChangeReasons::Project | WorkspaceChangeReasons::Settings;
@@ -45,12 +45,6 @@ bool exports_slice(const ToolActivity& activity)
         return false;
     const std::string kind = json::parse(activity.arguments_json).value("kind", "");
     return kind == "gcode" || kind == "sliced_3mf";
-}
-
-// The identity same_plan compares, as one set key.
-std::string plan_key(const ToolActivity& activity)
-{
-    return std::string(activity.source == ToolSource::Mcp ? "mcp" : "agent") + '\x1f' + activity.plan_scope + '\x1f' + activity.plan_id;
 }
 
 // Whether a settings patch's preview still holds: same session, and no
@@ -356,7 +350,7 @@ Workspace::SettingsPatch settings_patch(const json& arguments, const Workspace::
     return patch;
 }
 
-// The approval card's title: what changes, whose, and where it is saved.
+// The activity title: what changes, whose, and where it is saved.
 std::string settings_title(const Workspace::SettingsPreview& preview, const SettingsTargetLookup& target,
                            const Workspace::SettingsPatch& patch)
 {
@@ -410,7 +404,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 
 const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
                                                       ToolExecutionPacing pacing, ToolSource source,
-                                                      const std::string& plan_scope, const std::string& call_id)
+                                                      const std::string& call_id)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -430,7 +424,6 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
     if (definition != nullptr) {
         activity.title             = definition->title;
         activity.action_class      = definition->action_class;
-        activity.requires_approval = m_registry.requires_approval(*definition, request.arguments_json);
     } else {
         activity.title = "Unknown tool request";
     }
@@ -456,27 +449,12 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
             fail(stored, "chat_title_unavailable", "A setup title belongs to an in-app chat. MCP can update intent fields only.");
             return stored;
         }
-        stored.plan_id       = arguments.value("planId", "");
-        stored.plan_scope    = stored.plan_id.empty() ? std::string() : plan_scope;
-        // A plan waits for its card as a whole, including the members that
-        // would otherwise run without one.
-        if (!stored.plan_id.empty())
-            stored.requires_approval = true;
-        // A plan takes members only while its card is undecided and whole.
-        const bool closed = std::any_of(m_activities.begin(), m_activities.end(), [&stored](const ToolActivity& member) {
-            return member.action_id != stored.action_id && same_plan(member, stored) && member.state != ToolState::Pending;
-        });
-        if (!stored.plan_id.empty() && closed) {
-            fail(stored, "plan_closed",
-                 "Plan " + stored.plan_id + " was already decided, or one of its calls failed. Propose this with a new planId.");
-            return stored;
-        }
     }
-    stored.title = m_registry.approval_title(*definition, stored.arguments_json);
+    stored.title = m_registry.activity_title(*definition, stored.arguments_json);
 
     if (definition->handler == ToolHandler::ObjectImportFile) {
         const auto arguments = json::parse(stored.arguments_json);
-        // Only the name is looked at before approval; the file is read after it.
+        // Validate the name before the file is read during execution.
         const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
         std::error_code error;
         if (!path.is_absolute() || !std::filesystem::is_regular_file(path, error)) {
@@ -710,8 +688,8 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
                      printer_setup_preview_result(preview, json::array(), snapshot).dump());
                 return stored;
             }
-            // The approved outcome, compared again before anything is applied.
-            arguments["confirmedSetup"] = setup_outcome(preview);
+            // Store the previewed outcome, compared again before anything is applied.
+            arguments["previewedSetup"] = setup_outcome(preview);
             stored.title = "Set up " + preview.resulting.preset;
             if (request.plate_type) stored.title += ", " + preview.resulting.plate_type;
             if (request.process_preset) stored.title += ", " + preview.process_preset;
@@ -746,8 +724,7 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
             return stored;
         }
         if (arguments.contains("path")) {
-            // Only the name is looked at before approval; the file is read
-            // after it.
+            // Validate the name before the file is read during execution.
             const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
             std::error_code error;
             if (!path.is_absolute() || !std::filesystem::is_regular_file(path, error)) {
@@ -787,13 +764,13 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
             return stored;
         }
         stored.title = settings_title(preview, target, patch);
-        arguments["confirmedChanges"] = json::array();
-        for (const auto& change : Workspace::settings_confirmation(preview))
-            arguments["confirmedChanges"].push_back({{"key", change.key}, {"before", change.before}, {"after", change.after}});
+        arguments["previewedChanges"] = json::array();
+        for (const auto& change : Workspace::previewed_changes(preview))
+            arguments["previewedChanges"].push_back({{"key", change.key}, {"before", change.before}, {"after", change.after}});
         stored.arguments_json = arguments.dump();
     }
 
-    // A surface's own tool is checked by that surface before any card: what
+    // A surface's own tool is checked by that surface before it runs: what
     // is valid there depends on what the surface is about, which the registry
     // cannot know.
     if (m_extension_preflight) {
@@ -803,61 +780,8 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         }
     }
 
-    notify(stored);
-    if (!stored.requires_approval)
-        start_running(stored);
+    start_running(stored);
     return stored;
-}
-
-bool ToolExecutionCoordinator::approve(const std::string& action_id)
-{
-    ToolActivity* activity = find_mutable(action_id);
-    if (activity == nullptr || activity->state != ToolState::Pending)
-        return false;
-
-    // The eager invalidation below normally fails a stale proposal before a
-    // decision can arrive; the session check remains as a belt for decisions
-    // raced against a project replacement.
-    if (m_workspace.snapshot().session.value() != activity->session) {
-        fail(*activity, "stale_revision", "The project changed after this action was proposed. Ask the Agent again.");
-        return false;
-    }
-    if (activity->plan_id.empty()) {
-        start_running(*activity);
-        return true;
-    }
-    // One decision for the whole plan, in the order it was proposed.
-    const ToolActivity plan = *activity;
-    std::vector<std::string> members;
-    for (const ToolActivity& member : m_activities)
-        if (same_plan(member, plan) && member.state == ToolState::Pending)
-            members.push_back(member.action_id);
-    for (const std::string& id : members)
-        if (ToolActivity* member = find_mutable(id); member != nullptr && member->state == ToolState::Pending)
-            start_running(*member);
-    return true;
-}
-
-bool ToolExecutionCoordinator::reject(const std::string& action_id)
-{
-    ToolActivity* activity = find_mutable(action_id);
-    if (activity == nullptr || activity->state != ToolState::Pending)
-        return false;
-    activity->state = ToolState::Rejected;
-    notify(*activity);
-    if (!activity->plan_id.empty()) {
-        const ToolActivity plan = *activity;
-        std::vector<std::string> members;
-        for (const ToolActivity& member : m_activities)
-            if (same_plan(member, plan) && member.state == ToolState::Pending)
-                members.push_back(member.action_id);
-        for (const std::string& id : members)
-            if (ToolActivity* member = find_mutable(id); member != nullptr && member->state == ToolState::Pending) {
-                member->state = ToolState::Rejected;
-                notify(*member);
-            }
-    }
-    return true;
 }
 
 bool ToolExecutionCoordinator::cancel(const std::string& action_id)
@@ -865,11 +789,9 @@ bool ToolExecutionCoordinator::cancel(const std::string& action_id)
     ToolActivity* activity = find_mutable(action_id);
     if (activity == nullptr)
         return false;
-    // Cancellation is possible while nothing durable has happened: before
-    // approval, and while running before the final execution tick. Terminal
-    // records never change.
-    if (activity->state != ToolState::Pending && activity->state != ToolState::Approved &&
-        activity->state != ToolState::Running)
+    // Cancellation is possible while running before the final execution tick.
+    // Terminal records never change.
+    if (activity->state != ToolState::Running)
         return false;
     activity->state = ToolState::Cancelled;
     notify(*activity);
@@ -881,9 +803,6 @@ void ToolExecutionCoordinator::clear()
     m_activities.erase(std::remove_if(m_activities.begin(), m_activities.end(),
                                       [this](const ToolActivity& activity) { return activity.action_id != m_executing; }),
                        m_activities.end());
-    // The plans those records belonged to are gone with them; an id reused in
-    // the next project starts a new plan.
-    m_disturbed_plans.clear();
 }
 
 void ToolExecutionCoordinator::forget_if_closed(const std::string& action_id)
@@ -943,15 +862,10 @@ void ToolExecutionCoordinator::finish_slice_waits()
 void ToolExecutionCoordinator::pump()
 {
     finish_slice_waits();
-    std::set<std::string> busy_plans; // plans with an earlier member still running
     for (ToolActivity& activity : m_activities) {
         if (activity.state != ToolState::Running || m_slice_waits.count(activity.action_id)) {
-            if (!activity.plan_id.empty() && activity.state == ToolState::Running)
-                busy_plans.insert(plan_key(activity));
             continue;
         }
-        if (!activity.plan_id.empty() && busy_plans.count(plan_key(activity)))
-            continue;
         if (activity.progress_current + 1 < activity.progress_total) {
             ++activity.progress_current;
             notify(activity);
@@ -1034,28 +948,19 @@ ToolActivity* ToolExecutionCoordinator::find_mutable(const std::string& action_i
 
 void ToolExecutionCoordinator::start_running(ToolActivity& activity)
 {
-    activity.state = ToolState::Approved;
-    notify(activity);
     activity.state = ToolState::Running;
     notify(activity);
 }
 
 void ToolExecutionCoordinator::execute(ToolActivity& activity)
 {
-    // Approval and the execution tick are separate GUI events. Recheck the
-    // last content/history change here; selection-only changes still cannot
-    // redirect a proposal pinned to an object ID and do not invalidate it.
-    // Every mutation is rechecked, not only the ones that waited for a card: a
-    // computation-only action skips approval, not staleness.
-    // An approved plan's members follow one another: the changes its own
-    // earlier members made do not make the later ones stale, and any other
-    // change since the proposal does.
+    // Recheck the last content/history change here; selection-only changes
+    // still cannot redirect an action pinned to an object ID.
     const std::uint64_t invalidated = settings_patch_tool(activity.tool) ? m_last_settings_revision : m_last_invalidating_revision;
-    const bool          changed     = activity.plan_id.empty() ? invalidated > activity.expected_revision :
-                                                                 m_disturbed_plans.count(plan_key(activity)) != 0;
+    const bool          changed     = invalidated > activity.expected_revision;
     if (activity.action_class != ActionClass::ReadOnly &&
         (m_workspace.snapshot().session.value() != activity.session || changed)) {
-        fail(activity, "stale_revision", "The project changed before this action could execute. Propose it again.");
+        fail(activity, "stale_revision", "The project changed before this action could execute. Call the tool again.");
         return;
     }
     // Whatever this action changes is the Agent's, in the change log.
@@ -1098,8 +1003,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         if (sections.objects) result["objects"] = objects_section_result(m_workspace.object_details());
         if (sections.project) result["project"] = project_section_result(m_workspace.snapshot(), m_workspace.project_details());
         if (sections.activities) {
-            // The latest calls of either adapter, oldest first: how a queued
-            // plan's members ended, after the turn that proposed them.
+            // The latest calls of either adapter, oldest first.
             constexpr std::size_t kRecentActivities = 20;
             result["activities"] = json::array();
             const std::size_t first = m_activities.size() > kRecentActivities + 1 ? m_activities.size() - kRecentActivities - 1 : 0;
@@ -1108,7 +1012,6 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 if (recent.action_id == activity.action_id)
                     continue;
                 json row{{"actionId", recent.action_id}, {"tool", recent.tool}, {"title", recent.title}, {"state", tool_state_name(recent.state)}};
-                if (!recent.plan_id.empty()) row["planId"] = recent.plan_id;
                 if (recent.error) row["error"] = json{{"code", recent.error->code}, {"message", recent.error->message}};
                 result["activities"].push_back(std::move(row));
             }
@@ -1465,14 +1368,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     if (definition->handler == ToolHandler::ActivityCancel) {
         const std::string handle = json::parse(activity.arguments_json)["handle"];
         const auto        before = m_workspace.snapshot();
-        std::string kind = "none", message;
+        std::string kind, message;
         bool        cancelled = false;
-        const ToolActivity* target = find(handle);
-        if (target != nullptr && target->action_id != activity.action_id && target->state == ToolState::Pending) {
-            kind      = "proposal";
-            cancelled = cancel(handle);
-            message   = cancelled ? "The waiting call was cancelled." : "The call had already been decided.";
-        } else if (handle == m_slice_handle && !handle.empty()) {
+        if (handle == m_slice_handle && !handle.empty()) {
             kind = "slice";
             if (before.slicing.running && !m_slice_ended)
                 m_workspace.cancel_slice(cancelled);
@@ -1730,8 +1628,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const Workspace::PrinterSetupRequest request = setup_request(arguments);
         Workspace::PrinterSetupPreview applied;
         if (!request.empty()) {
-            if (setup_outcome(m_workspace.preview_printer_setup(request)) != arguments.at("confirmedSetup")) {
-                fail(activity, "stale_workspace", "The presets changed since this setup was proposed. Preview it again.");
+            if (setup_outcome(m_workspace.preview_printer_setup(request)) != arguments.at("previewedSetup")) {
+                fail(activity, "stale_workspace", "The presets changed since this setup was previewed. Preview it again.");
                 return;
             }
             const auto result = m_workspace.apply_printer_setup(request, applied);
@@ -1908,8 +1806,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 written.field    = field.at("field").get<std::string>();
                 written.value    = field.value("value", "");
                 written.question = field.value("question", "");
-                // The card showed the interpreted answer and the user approved
-                // it, so an answer is confirmed unless the agent says it only
+                // An answer is confirmed unless the agent says it only
                 // assumed it.
                 written.provenance = field.value("assumed", false) || written.value.empty() ?
                     Provenance::AgentInferred : Provenance::UserConfirmed;
@@ -2000,14 +1897,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         const auto args = json::parse(activity.arguments_json);
         const auto before = m_workspace.snapshot();
-        // A plan's earlier members may have changed settings since this patch
-        // was read; its confirmed values still guard every key it writes.
-        if (!settings_revision_holds(args, before, activity.plan_id.empty() ? m_last_settings_revision : 0)) {
+        if (!settings_revision_holds(args, before, m_last_settings_revision)) {
             fail(activity, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(args, before).dump());
             return;
         }
         std::vector<Workspace::SettingChange> confirmed;
-        for (const auto& change : args.at("confirmedChanges"))
+        for (const auto& change : args.at("previewedChanges"))
             confirmed.push_back({change.at("key"), change.at("before"), change.at("after")});
         // The revision check above means the target cannot have gone.
         const auto target = settings_target(args, before);
@@ -2034,7 +1929,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
 
     // Records the host keeps, and the printer panel's own tools: both are
     // owned by the surface that asked for them, and both still run here,
-    // inside this approval and state machine.
+    // inside this execution state machine.
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
         definition->handler == ToolHandler::RecordPhysicalPrint || has_exposure(definition->exposure, ToolExposure::Printer)) {
         if (!m_extension_executor) {
@@ -2084,19 +1979,6 @@ void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, st
     activity.state = ToolState::Failed;
     activity.error = ToolError{std::move(code), std::move(message), std::move(details_json)};
     notify(activity);
-    // A plan stops at its first failure: the members approved after it
-    // do not run.
-    if (!activity.plan_id.empty()) {
-        const ToolActivity plan = activity;
-        std::vector<std::string> rest;
-        for (const ToolActivity& member : m_activities)
-            if (same_plan(member, plan) && member.action_id != plan.action_id &&
-                (member.state == ToolState::Approved || member.state == ToolState::Running))
-                rest.push_back(member.action_id);
-        for (const std::string& id : rest)
-            if (ToolActivity* member = find_mutable(id); member != nullptr && !tool_state_terminal(member->state))
-                fail(*member, "plan_step_failed", "An earlier call of this plan failed, so this one did not run.");
-    }
 }
 
 void ToolExecutionCoordinator::notify(const ToolActivity& activity)
@@ -2122,33 +2004,19 @@ void ToolExecutionCoordinator::notify(const ToolActivity& activity)
 
 void ToolExecutionCoordinator::invalidate_pending(const Workspace::WorkspaceChanged& change)
 {
-    // Pending proposals fail eagerly. Approved/running proposals recheck this
-    // revision at execution, without invalidating a command on its own event.
+    // Running actions recheck this revision at execution, without invalidating
+    // a command on its own event.
     if ((change.reasons & kSettingsReasons) != WorkspaceChangeReasons::None)
         m_last_settings_revision = change.revision;
-    if ((change.reasons & (kInvalidatingReasons | kSettingsReasons)) != WorkspaceChangeReasons::None) {
-        const ToolActivity* executing = m_executing.empty() ? nullptr : find(m_executing);
-        for (const ToolActivity& activity : m_activities)
-            if (!activity.plan_id.empty() && (activity.state == ToolState::Approved || activity.state == ToolState::Running) &&
-                (executing == nullptr || !same_plan(*executing, activity)))
-                m_disturbed_plans.insert(plan_key(activity));
-    }
-    // A new or lost slice leaves every other proposal as it was, but an
-    // export card for a sliced file names that slice's warnings.
+    // A new or lost slice leaves every other action as it was, but a queued
+    // export of a sliced file was prepared from the previous slice.
     if (Workspace::has_reason(change.reasons, WorkspaceChangeReasons::Slicing))
         for (ToolActivity& activity : m_activities)
-            if (activity.state == ToolState::Pending && exports_slice(activity))
+            if (activity.state == ToolState::Running && activity.action_id != m_executing && exports_slice(activity))
                 fail(activity, "stale_revision", "The slice this export would write changed. Ask the Agent again.");
     if ((change.reasons & kInvalidatingReasons) == WorkspaceChangeReasons::None)
         return;
     m_last_invalidating_revision = change.revision;
-    for (ToolActivity& activity : m_activities) {
-        if (activity.state != ToolState::Pending)
-            continue;
-        if (settings_patch_tool(activity.tool) && (change.reasons & kSettingsReasons) == WorkspaceChangeReasons::None)
-            continue;
-        fail(activity, "stale_revision", "The project changed after this action was proposed. Ask the Agent again.");
-    }
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

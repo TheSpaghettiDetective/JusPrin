@@ -213,16 +213,6 @@ public:
         ++refreshes;
         added_printers.push_back(added);
     }
-    std::map<std::string, std::string> credentials; // by action id, as the card would hand them over
-    std::optional<std::string> take_credential(const std::string& action_id) override
-    {
-        const auto found = credentials.find(action_id);
-        if (found == credentials.end())
-            return std::nullopt;
-        std::string credential = found->second;
-        credentials.erase(found);
-        return credential;
-    }
 };
 
 Agent::ToolActivity call(const char* tool, const json& arguments, const std::string& message = "m-1")
@@ -326,23 +316,7 @@ TEST_CASE("every session offers every printer tool and the settings tools, and n
         CHECK(profile.tool_names == printer_tools);
         CHECK_FALSE(profile.include_workspace);
         CHECK(profile.notes_in_context);
-        CHECK(profile.reply_cancels_pending_card);
     }
-}
-
-TEST_CASE("only printer_connect asks for a card; the rest run on the person's yes", "[printer-conversation]")
-{
-    const auto& registry = Agent::ToolRegistry::instance();
-    for (const std::string& name : PrinterConversation::session_tools()) {
-        INFO(name);
-        const Agent::ToolDefinition& definition = *registry.find(name);
-        CHECK(registry.requires_approval(definition, "{}") == (name == "printer_connect"));
-        // None joins a plan.
-        CHECK_FALSE(definition.input_schema.at("properties").contains("planId"));
-    }
-    // The exemption is the printer panel's alone.
-    for (const Agent::ToolDefinition& definition : registry.exposed(Agent::ToolExposure::InApp))
-        CHECK_FALSE(definition.confirmed_in_conversation);
 }
 
 TEST_CASE("an Add session sends the page every printer, what is on the network, and the ways in", "[printer-conversation]")
@@ -532,7 +506,8 @@ TEST_CASE("printer_identify refuses what it cannot show, and says what to do ins
     CHECK(refused(conversation, "printer_identify", json{{"catalogIds", {"BBL/N1"}}}) == "unknown_printer");
     const auto result = run(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(result.error.has_value());
-    CHECK(result.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
+    CHECK(result.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to "
+                                   "check the nozzle marking or packaging; do not substitute a size.");
     // Only the tip: nothing refused was drawn.
     CHECK(conversation.state_json().at("blocks").size() == 1);
 }
@@ -984,26 +959,22 @@ TEST_CASE("printer_connect takes a found printer or an address, never part of on
     CHECK_FALSE(checked(json{{"deviceId", "01P00A3B"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"}}).valid());
 }
 
-// Starts printer_connect as the coordinator does once the person taps Connect
-// on card `action`.
-Agent::ToolExecutionCoordinator::ExtensionResult tap_connect(PrinterConversation& conversation, RecordingPanel& panel,
+// Runs printer_connect, then submits the local credential form.
+Agent::ToolExecutionCoordinator::ExtensionResult tap_connect(PrinterConversation& conversation, RecordingPanel&,
                                                               const json& arguments, const std::string& action,
                                                               const std::string& credential = {})
 {
     Agent::ToolActivity activity = call("printer_connect", arguments);
     activity.action_id           = action;
-    panel.credentials[action]    = credential;
-    return conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+    const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterConnect, activity);
+    conversation.handle_page_message("printer_action",
+                                     json{{"action", "connect"}, {"actionId", action}, {"credential", credential}});
+    return result;
 }
 
 const json kHostArguments{{"printerName", "Lab Printer"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"},
                           {"provider", "host"},           {"target", "192.168.1.42"}};
 const json kBambuArguments{{"printerName", "Lab Printer"}, {"deviceId", "01P00A3B"}, {"provider", "bambu"}, {"target", "Workshop"}};
-
-json card_state(const PrinterConversation& conversation, const std::string& action)
-{
-    return conversation.state_json().at("connections").value(action, json());
-}
 
 TEST_CASE("a host connection waits like a Bambu Lab one: connecting, then one note and one turn", "[printer-conversation]")
 {
@@ -1015,15 +986,12 @@ TEST_CASE("a host connection waits like a Bambu Lab one: connecting, then one no
     conversation.start(ConversationMode::Connect, "Lab Printer");
 
     const auto result = tap_connect(conversation, panel, kHostArguments, "a-1", "key123");
-    // The model hears how long the wait is, so a question about it is
-    // answered from what it was told.
     CHECK(json::parse(result.result_json) ==
-          json{{"state", "connecting"}, {"message", "The app is checking the printer now and gives it up to 30 seconds."}});
+          json{{"state", "credential_requested"},
+               {"message", "The app is waiting for the person to enter the printer credential locally."}});
     CHECK(Agent::ToolRegistry::instance().validate_output(*Agent::ToolRegistry::instance().find("printer_connect"),
                                                           json::parse(result.result_json)));
     CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "moonraker", "192.168.1.42", "key123"});
-    CHECK(panel.credentials.empty());
-    CHECK(card_state(conversation, "a-1") == json{{"state", "connecting"}, {"target", "192.168.1.42"}});
 
     using namespace std::chrono_literals;
     const auto start = std::chrono::steady_clock::now();
@@ -1035,17 +1003,15 @@ TEST_CASE("a host connection waits like a Bambu Lab one: connecting, then one no
     conversation.tick(start + 1100ms);
     REQUIRE(panel.notes == std::vector<std::string>{"Connection to Lab Printer failed: The printer did not respond."});
     CHECK(panel.turns == 1);
-    CHECK(card_state(conversation, "a-1").at("state") == "failed");
     conversation.tick(start + 5s);
     CHECK(panel.notes.size() == 1);
 
-    // Refused before it started: the card says so at once, and nothing waits.
+    // Refused before it started: the app says so and nothing waits.
     backend.connection_error = "Use an HTTP or HTTPS address.";
-    const auto refused = tap_connect(conversation, panel, kHostArguments, "a-2");
-    CHECK(json::parse(refused.result_json) == json{{"state", "failed"}, {"message", "Use an HTTP or HTTPS address."}});
-    CHECK(card_state(conversation, "a-2").at("state") == "failed");
+    tap_connect(conversation, panel, kHostArguments, "a-2");
+    CHECK(panel.notes.back() == "Connection to 192.168.1.42 failed: Use an HTTP or HTTPS address.");
     conversation.tick(start + 10s);
-    CHECK(panel.notes.size() == 1);
+    CHECK(panel.notes.size() == 2);
 }
 
 TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", "[printer-conversation]")
@@ -1058,7 +1024,7 @@ TEST_CASE("a Bambu Lab connection reports once it settles: one note, one turn", 
     conversation.start(ConversationMode::Connect, "Lab Printer");
 
     const auto result = tap_connect(conversation, panel, kBambuArguments, "a-1", "12345678");
-    CHECK(json::parse(result.result_json).at("state") == "connecting");
+    CHECK(json::parse(result.result_json).at("state") == "credential_requested");
     CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "01P00A3B", "12345678"});
 
     using namespace std::chrono_literals;
@@ -1095,48 +1061,12 @@ TEST_CASE("a second connection while one waits replaces it, and only the second 
     CHECK_FALSE(conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, again).has_value());
     json second = kHostArguments;
     second["address"] = second["target"] = "192.168.1.43";
-    CHECK(json::parse(tap_connect(conversation, panel, second, "a-2").result_json).at("state") == "connecting");
+    CHECK(json::parse(tap_connect(conversation, panel, second, "a-2").result_json).at("state") == "credential_requested");
     CHECK(backend.connects.size() == 2);
-    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
-    CHECK(card_state(conversation, "a-2") == json{{"state", "connecting"}, {"target", "192.168.1.43"}});
 
     backend.connection_info.state = "verified";
     conversation.tick(std::chrono::steady_clock::now());
     CHECK(panel.notes == std::vector<std::string>{"Connection to Lab Printer verified."});
-    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
-    CHECK(card_state(conversation, "a-2").at("state") == "verified");
-}
-
-TEST_CASE("Cancel on a waiting card drops the attempt, and a later answer is never read", "[printer-conversation]")
-{
-    FakeBackend    backend;
-    RecordingPanel panel;
-    backend.saved           = {lab_printer()};
-    backend.connection_info = PrinterConnectionInfo{"host", "connecting"};
-    PrinterConversation conversation(backend, panel);
-    conversation.start(ConversationMode::Connect, "Lab Printer");
-    tap_connect(conversation, panel, kHostArguments, "a-1");
-
-    // A Cancel for a card that is not the waiting one stops nothing.
-    conversation.handle_page_message("printer_action", json{{"action", "cancel_connection"}, {"actionId", "a-0"}});
-    CHECK(backend.cancelled.empty());
-    CHECK(card_state(conversation, "a-1").at("state") == "connecting");
-
-    conversation.handle_page_message("printer_action", json{{"action", "cancel_connection"}, {"actionId", "a-1"}});
-    CHECK(backend.cancelled == std::vector<std::string>{"Lab Printer"});
-    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
-    // The model reads it next time; the person has said nothing to answer.
-    REQUIRE(panel.notes == std::vector<std::string>{"The person cancelled connecting Lab Printer."});
-    check_is_a_statement(panel.notes.front());
-    CHECK(panel.turns == 0);
-
-    backend.connection_info.state = "verified";
-    conversation.tick(std::chrono::steady_clock::now());
-    CHECK(panel.notes.size() == 1);
-    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
-    // Twice is once.
-    conversation.handle_page_message("printer_action", json{{"action", "cancel_connection"}, {"actionId", "a-1"}});
-    CHECK(backend.cancelled.size() == 1);
 }
 
 TEST_CASE("an attempt the last session left waiting is dropped when the next one starts", "[printer-conversation]")
@@ -1152,7 +1082,7 @@ TEST_CASE("an attempt the last session left waiting is dropped when the next one
     // The panel closed mid-test, and opens again.
     conversation.start(ConversationMode::Change, "Lab Printer");
     CHECK(backend.cancelled == std::vector<std::string>{"Lab Printer"});
-    CHECK(conversation.state_json().at("connections").empty());
+    CHECK_FALSE(conversation.state_json().contains("credentialRequest"));
     backend.connection_info.state = "verified";
     conversation.tick(std::chrono::steady_clock::now());
     CHECK(panel.notes.empty());
@@ -1248,11 +1178,8 @@ TEST_CASE("Undo while the added printer is connecting drops the attempt", "[prin
                 json{{"printerName", "Prusa MK3S"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"},
                      {"provider", "host"}, {"target", "192.168.1.42"}},
                 "a-1");
-    REQUIRE(card_state(conversation, "a-1").at("state") == "connecting");
-
     undo_add(conversation, receipt);
     CHECK(backend.cancelled == std::vector<std::string>{"Prusa MK3S"});
-    CHECK(card_state(conversation, "a-1").at("state") == "cancelled");
     // What the printer answers afterwards is never read.
     backend.connection_info.state = "verified";
     conversation.tick(std::chrono::steady_clock::now());
@@ -1400,11 +1327,6 @@ public:
     }
     void close_panel() override { ++closes; }
     void printers_changed(const std::string&) override {}
-    std::optional<std::string> take_credential(const std::string& action_id) override
-    {
-        const std::optional<json> input = host->take_decision_input(action_id);
-        return input ? std::optional<std::string>(input->value("credential", std::string())) : std::nullopt;
-    }
 };
 
 Agent::ProjectPersistence::Config in_memory()
@@ -1439,6 +1361,9 @@ struct PrinterHost
         panel.host         = &host;
         panel.conversation = &conversation;
         if (printer_session) {
+            host.set_page_message_handler([this](const std::string& type, const json& payload) {
+                return conversation.handle_page_message(type, payload);
+            });
             host.set_session_state_provider([this] { return conversation.state_json(); });
             host.set_session_tool_executor([this](Agent::ToolHandler handler, const Agent::ToolActivity& activity) {
                 return conversation.execute_tool(handler, activity);
@@ -1500,7 +1425,7 @@ struct PrinterHost
 
 } // namespace
 
-TEST_CASE("printer_add and printer_change run on the person's yes, with no card", "[printer-conversation][host]")
+TEST_CASE("printer_add and printer_change run on the person's yes", "[printer-conversation][host]")
 {
     PrinterHost harness(ConversationMode::Change);
     harness.agent->call = Agent::ToolRequest{"printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}.dump()};
@@ -1509,7 +1434,6 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
 
     auto activities = harness.activities();
     REQUIRE(activities.size() == 1);
-    CHECK_FALSE(activities.front().requires_approval);
     CHECK(activities.front().state == Agent::ToolState::Succeeded);
     CHECK(harness.backend.saved.front().nozzle == 0.6);
     REQUIRE(harness.agent->results.size() == 1);
@@ -1527,7 +1451,6 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
     adding.pump();
     activities = adding.activities();
     REQUIRE(activities.size() == 1);
-    CHECK_FALSE(activities.back().requires_approval);
     CHECK(adding.backend.added.size() == 1);
 
     // The receipt reaches the page after the reply that added the printer...
@@ -1582,8 +1505,8 @@ TEST_CASE("a refused printer tool reaches the model as its error, with nothing s
 
 namespace {
 
-// Drives printer_connect to its card in a Connect session about a Bambu Lab
-// printer on the network.
+// Drives printer_connect to its local input form in a Connect session about a
+// Bambu Lab printer on the network.
 Agent::ToolActivity propose_connect(PrinterHost& harness)
 {
     harness.backend.connection_info = bambu_on_network();
@@ -1592,8 +1515,8 @@ Agent::ToolActivity propose_connect(PrinterHost& harness)
     harness.pump();
     const auto activities = harness.activities();
     REQUIRE(activities.size() == 1);
-    REQUIRE(activities.front().requires_approval);
-    REQUIRE(activities.front().state == Agent::ToolState::Pending);
+    REQUIRE(activities.front().state == Agent::ToolState::Succeeded);
+    REQUIRE(harness.conversation.state_json().at("credentialRequest").at("actionId") == activities.front().action_id);
     return activities.front();
 }
 
@@ -1603,10 +1526,10 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
 {
     const std::string secret = "S3cretCode";
     PrinterHost harness(ConversationMode::Connect);
-    const Agent::ToolActivity card = propose_connect(harness);
-    CHECK(card.title == "Connect to Workshop");
+    const Agent::ToolActivity request = propose_connect(harness);
+    CHECK(request.title == "Connect to Workshop");
 
-    harness.page("tool_decision", {{"actionId", card.action_id}, {"decision", "approve"}, {"input", {{"credential", secret}}}});
+    harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"credential", secret}});
     harness.pump();
     REQUIRE(harness.backend.connects.size() == 1);
     CHECK(harness.backend.connects.front() == std::vector<std::string>{"Lab Printer", "01P00A3B", secret});
@@ -1628,37 +1551,16 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
     for (const Agent::AgentToolResult& result : harness.agent->results)
         CHECK_THAT(result.output_json, !ContainsSubstring(secret));
     CHECK_THAT(harness.persistence.document().dump(), !ContainsSubstring(secret));
-    // Handed over once, and gone.
-    CHECK_FALSE(harness.host.take_decision_input(card.action_id).has_value());
-}
-
-TEST_CASE("writing instead of connecting cancels the card, and the message is answered", "[printer-conversation][host]")
-{
-    PrinterHost harness(ConversationMode::Connect);
-    const Agent::ToolActivity card = propose_connect(harness);
-    const std::size_t results = harness.agent->results.size();
-
-    harness.say("where do I find the access code?");
-    harness.pump();
-
-    CHECK(harness.activities().front().state == Agent::ToolState::Rejected);
-    CHECK(harness.backend.connects.empty());
-    REQUIRE(harness.agent->results.size() == results + 1);
-    CHECK(json::parse(harness.agent->results.back().output_json) == json{{"state", "cancelled"}});
-    // The question gets its own turn once the card's is answered.
-    CHECK(harness.agent->requests.back().user_text == "where do I find the access code?");
+    CHECK_FALSE(harness.conversation.state_json().contains("credentialRequest"));
 }
 
 TEST_CASE("a message sent while connecting is answered first, and the outcome's turn follows it",
           "[printer-conversation][host]")
 {
     PrinterHost harness(ConversationMode::Connect);
-    const Agent::ToolActivity card = propose_connect(harness);
-    harness.page("tool_decision", {{"actionId", card.action_id}, {"decision", "approve"}, {"input", {{"credential", "1234"}}}});
+    const Agent::ToolActivity request = propose_connect(harness);
+    harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"credential", "1234"}});
     harness.pump();
-    REQUIRE_FALSE(harness.agent->results.empty());
-    CHECK_THAT(json::parse(harness.agent->results.back().output_json).at("message").get<std::string>(),
-               ContainsSubstring("up to 30 seconds"));
     const std::size_t before = harness.agent->requests.size();
 
     // Typed while the printer is still being checked; the check settles
@@ -1964,8 +1866,7 @@ TEST_CASE("the model is offered every printer tool, the settings tools, and no p
         // A settings change is a change like any in the app, and can join a
         // plan; the printer's own tools are decided in the conversation.
         if (std::find(settings.begin(), settings.end(), tool.at("name")) == settings.end())
-            CHECK_FALSE(tool.at("parameters").at("properties").contains("planId"));
-        // No tool takes a credential from the model.
+            // No tool takes a credential from the model.
         for (const char* secret : {"accessCode", "apiKey", "credential", "password"})
             CHECK_FALSE(tool.at("parameters").at("properties").contains(secret));
     }

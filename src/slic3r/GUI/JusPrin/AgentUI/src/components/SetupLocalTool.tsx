@@ -227,7 +227,7 @@ export function SetupLocalTool({
         <ol className="setup-expect">
           <li>Restart {name} if it was already running.</li>
           <li>Ask it about the open project.</li>
-          <li>Approve or reject its proposals in this panel.</li>
+          <li>Review its progress and results in this panel.</li>
         </ol>
         <button className="primary" onClick={onDone}>
           Done
@@ -280,8 +280,7 @@ export function SetupLocalTool({
       <div className="pane-state setup" data-testid="setup-local-review">
         <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={() => setStep('pick')} />
         <p className="setup-consent">
-          Allow this AI tool to read the open project and propose changes? Changes still require approval inside
-          JusPrin.
+          Allow this AI tool to read and change the open project?
         </p>
         <p className="setup-path">{preview?.path ?? tool?.configPath}</p>
         <p className="setup-eyebrow">JusPrin will edit</p>

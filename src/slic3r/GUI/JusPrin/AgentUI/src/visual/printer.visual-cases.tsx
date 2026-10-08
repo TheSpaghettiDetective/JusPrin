@@ -4,10 +4,9 @@
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { PrinterBlock, PrinterConnectionInfo, StatePayload, ToolActivityInfo } from '../bridge/protocol';
-import { PrinterBlockView, PrinterCredentialCard } from '../components/PrinterPanel';
+import { PrinterBlock, StatePayload } from '../bridge/protocol';
+import { PrinterBlockView, PrinterCredentialForm } from '../components/PrinterPanel';
 import { mounted, mountedApp, VisualCase } from '../test/visual';
-import { toolActivity } from './approvals.visual-cases';
 import { chatState, turn } from './states';
 
 const noop = () => {};
@@ -18,15 +17,6 @@ const block = (overrides: Partial<PrinterBlock>): PrinterBlock =>
 const card = (id: string, name: string, expects: string[], info: PrinterBlock): VisualCase => ({
   node: '1572:2336', matrix: 'Printer chat', id: `printer-${id}`, name, frame: 'card', expects,
   build: () => mounted(<PrinterBlockView block={info} onUndoAdd={noop} onInstallPlugin={noop} />),
-});
-
-const connect = (overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo => toolActivity({
-  actionId: 'c-1', tool: 'printer_connect', title: 'Connect Studio A1', arguments: { provider: 'bambu' }, ...overrides,
-});
-
-const credential = (id: string, name: string, expects: string[], activity: ToolActivityInfo, connection?: PrinterConnectionInfo, model?: string): VisualCase => ({
-  node: '1572:2336', matrix: 'Printer chat', id: `printer-${id}`, name, frame: 'card', expects,
-  build: () => mounted(<PrinterCredentialCard activity={activity} connection={connection} model={model} onDecision={noop} onCancelConnection={noop} />),
 });
 
 const session = (): StatePayload => chatState({
@@ -48,13 +38,9 @@ export const printerCases: VisualCase[] = [
     ] })),
   card('missing-image', 'Missing image candidate', ['printer-card-picture-empty', 'Bambu Lab A1 mini', '180 × 180 × 180 mm'],
     block({ kind: 'printers', printers: [{ catalogId: 'a1-mini', name: 'Bambu Lab A1 mini', buildVolume: '180 × 180 × 180 mm', picture: '' }] })),
-  credential('pending', 'Pending credentials', ['Connect Studio A1', 'Access code', 'Stays on this computer.', 'Connect', 'Cancel'], connect()),
-  credential('connecting', 'Connecting · cancellable', ['Connecting…', 'role="progressbar"', 'Cancel'],
-    connect({ state: 'running' }), { state: 'connecting', target: 'Studio A1' }),
-  credential('connected', 'Connected', ['Connected to Studio A1.'], connect({ state: 'succeeded' }), { state: 'verified', target: 'Studio A1' }),
-  credential('failed', 'Failed', ['Couldn\'t reach Workshop M4'],
-    connect({ state: 'failed', title: 'Connect Workshop M4' }), { state: 'failed', target: 'Workshop M4' }),
-  credential('cancelled', 'Cancelled', ['Cancelled. No connection was made.'], connect({ state: 'succeeded' }), { state: 'cancelled', target: 'Studio A1' }),
+  { node: '1572:2336', matrix: 'Printer chat', id: 'printer-credential', name: 'Local credential form', frame: 'card',
+    expects: ['Connect to Studio A1', 'Access code', 'Stays on this computer.', 'Connect'],
+    build: () => mounted(<PrinterCredentialForm request={{ actionId: 'c-1', target: 'Studio A1', provider: 'bambu' }} onConnect={noop} />) },
   // The same cards with the details the app does not send yet (model, brand,
   // percentage): made-up values in the optional slots, as Figma draws them.
   card('added-model', 'Added receipt · with model', ['Bambu A1 · 0.4 mm nozzle'],
@@ -67,9 +53,6 @@ export const printerCases: VisualCase[] = [
   card('candidate-brand', 'Candidate · brand above model', ['printer-card-brand', 'Bambu Lab', 'A1 mini'],
     block({ kind: 'printers', printers: [{ catalogId: 'a1-mini', name: 'Bambu Lab A1 mini', brand: 'Bambu Lab', model: 'A1 mini',
       buildVolume: '180 × 180 × 180 mm', picture: '' }] })),
-  credential('pending-model', 'Pending credentials · with model', ['Pending · Bambu A1'], connect(), undefined, 'Bambu A1'),
-  credential('connecting-percent', 'Connecting · 60%', ['Connecting · 60%', 'aria-valuenow="60"'],
-    connect({ state: 'running' }), { state: 'connecting', target: 'Studio A1', percent: 60 }),
   { node: '1572:2336', matrix: 'Printer chat', id: 'printer-close', name: 'Close conversation confirmation', frame: 'pane',
     expects: ['Close this conversation?', 'Close conversation', 'role="dialog"'],
     build: () => mountedApp(session(), { props: { printerPanel: true }, after: async () => {

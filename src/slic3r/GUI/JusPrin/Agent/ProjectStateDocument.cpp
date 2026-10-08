@@ -47,19 +47,15 @@ MessageState message_state_from(const std::string& name)
 
 ToolState tool_state_from(const std::string& name)
 {
-    if (name == "approved")
-        return ToolState::Approved;
-    if (name == "running")
-        return ToolState::Running;
     if (name == "succeeded")
         return ToolState::Succeeded;
     if (name == "failed")
         return ToolState::Failed;
     if (name == "cancelled")
         return ToolState::Cancelled;
-    if (name == "rejected")
-        return ToolState::Rejected;
-    return ToolState::Pending;
+    // Older documents may contain pending, approved, or input_required.
+    // They are all interrupted work and normalize_interrupted_state cancels them.
+    return ToolState::Running;
 }
 
 const char* action_class_name(ActionClass action_class)
@@ -325,15 +321,10 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     entry["title"]            = activity.title;
     entry["arguments"]        = activity.arguments_json;
     entry["actionClass"]      = action_class_name(activity.action_class);
-    entry["requiresApproval"] = activity.requires_approval;
     entry["sessionId"]        = std::to_string(activity.session);
     entry["expectedRevision"] = activity.expected_revision;
     entry["state"]            = tool_state_name(activity.state);
     entry["progress"]         = json{{"current", activity.progress_current}, {"total", activity.progress_total}};
-    if (!activity.plan_id.empty())
-        entry["planId"] = activity.plan_id;
-    if (!activity.plan_scope.empty())
-        entry["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         entry["result"] = activity.result_json;
     if (activity.error)
@@ -359,16 +350,13 @@ ToolActivity read_activity(const json& entry)
     activity.title             = entry.value("title", "");
     activity.arguments_json    = entry.value("arguments", "");
     activity.action_class      = action_class_from(entry.value("actionClass", "read_only"));
-    activity.requires_approval = entry.value("requiresApproval", false);
-    activity.plan_id           = entry.value("planId", "");
-    activity.plan_scope        = entry.value("planScope", "");
     try {
         activity.session = std::stoull(entry.value("sessionId", "0"));
     } catch (const std::exception&) {
         activity.session = 0;
     }
     activity.expected_revision = entry.value("expectedRevision", std::uint64_t(0));
-    activity.state             = tool_state_from(entry.value("state", "pending"));
+    activity.state             = tool_state_from(entry.value("state", "running"));
     if (entry.contains("progress") && entry["progress"].is_object()) {
         activity.progress_current = entry["progress"].value("current", 0);
         activity.progress_total   = entry["progress"].value("total", 1);
@@ -1230,7 +1218,7 @@ std::string ProjectStateDocument::last_item_id(const std::string& conversation_i
         }
     }
     // A tool activity belongs to the conversation of the message that
-    // proposed it; one from an external MCP client belongs to none.
+    // started it; one from an external MCP client belongs to none.
     for (const json& activity : m_doc["toolActivities"])
         if (message_ids.count(activity.value("correlationId", "")) != 0 &&
             activity.value("seq", std::uint64_t(0)) >= last_seq) {
@@ -1250,7 +1238,7 @@ bool ProjectStateDocument::normalize_interrupted_state()
                 changed        = true;
             }
     for (json& entry : m_doc["toolActivities"]) {
-        const ToolState state = tool_state_from(entry.value("state", "pending"));
+        const ToolState state = tool_state_from(entry.value("state", "running"));
         if (!tool_state_terminal(state)) {
             entry["state"] = "cancelled";
             changed        = true;

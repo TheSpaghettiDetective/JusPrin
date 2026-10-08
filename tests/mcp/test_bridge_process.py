@@ -121,7 +121,7 @@ class Peer:
                     self.end_headers()
                     peer.sockets.append(self.connection)
                     progress = {"jsonrpc": "2.0", "method": "notifications/progress", "params": {
-                        "progressToken": body["params"]["_meta"]["progressToken"], "progress": 0, "message": "Awaiting approval"}}
+                        "progressToken": body["params"]["_meta"]["progressToken"], "progress": 0, "message": "Working"}}
                     self.wfile.write(b": keepalive\r\nevent: message\r\n" + b"\r\n".join(
                         b"data: " + line.encode() for line in json.dumps(progress, indent=2).splitlines()) + b"\r\n\r\n")
                     self.wfile.flush()

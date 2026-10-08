@@ -39,7 +39,6 @@ inline constexpr const char* kStateRequest       = "state_request";
 inline constexpr const char* kUserMessage        = "user_message";
 inline constexpr const char* kStopGeneration     = "stop_generation";
 inline constexpr const char* kRetryMessage       = "retry_message";
-inline constexpr const char* kToolDecision       = "tool_decision";
 inline constexpr const char* kToolCancel         = "tool_cancel";
 inline constexpr const char* kCreateConversation = "create_conversation";
 inline constexpr const char* kSwitchConversation = "switch_conversation";

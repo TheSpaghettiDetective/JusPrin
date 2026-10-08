@@ -99,9 +99,7 @@ describe('the instructions', () => {
       'undid adding a printer, that printer is removed',
       'Do not add the same model again unless they ask for it',
       'Never ask for a password, access code or API key in chat',
-      '"connecting" means the app is still waiting',
       'a timeout means no response, not a wrong code',
-      'that you are checking and how long it can take',
       'answer anything the person says meanwhile',
       'name the three ways forward:',
       'try again with the same address',
@@ -123,7 +121,7 @@ describe('the instructions', () => {
       'after the person turns down connecting, after the app says the connection is verified, after they leave connecting for now, and after a successful printer_change',
       'they can close this chat now',
       'now slices for 0.6 mm.") and say they can close this chat now',
-      'Never after printer_connect comes back cancelled: nothing failed and nothing was declined',
+      'printer_connect opens a local form',
     ])
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
   });

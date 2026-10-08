@@ -96,7 +96,7 @@ app is configured with (see "Which model").
 ## Cases
 
 - `connect-bambu`: connect a saved Bambu Lab A1 mini that is on the network.
-  Passes when the model opens `printer_connect`'s card for it. Before the app
+  Passes when the model opens `printer_connect`'s credential form for it. Before the app
   replayed earlier tool results, it failed about a third of the time: the model
   looked up the printer's id in one turn, and on "connect it" in the next it had
   no id and invented one, such as `<from_status>`.
@@ -124,23 +124,17 @@ app is configured with (see "Which model").
   connection is verified, they leave a failed connection for now, a nozzle
   change is saved. Each passes when that reply says the person can close the
   chat and offers no reply choices. The connect cases tap
-  Connect on the card and deliver the app's note as the app does: a developer
+  Submit the credential form and deliver the app's note as the app does: a developer
   message and no user message.
-- `connect-after-question`: the person writes while the credential card waits,
-  as `--printer-live` does. The app cancels the card and the waiting turn goes
-  on with `{"state": "cancelled"}`, then the question is a turn of its own.
-  Passes when neither reply says to close the chat and "connect it" then opens
-  a fresh card.
-
 The cases above follow the main paths. The ones below are the rest of what
 people say in each session -- questions the tools cannot answer, facts that
 need nothing saved, requests that belong to another session -- and each checks
 what must not happen as well as what should. The Change and Connect ones
 answer the tools as `PrinterConversation` does for one saved printer
-(`SavedPrinterCase`), including its refusals (`preflight_tool`: no finding or
-adding outside an Add conversation, no change to another printer, no settings
-but that printer's), and fail on any call that adds, changes, connects or puts
-a settings change on a card when that is not what was asked. The settings
+  (`SavedPrinterCase`), including its refusals (`preflight_tool`: no finding or
+  adding outside an Add conversation, no change to another printer, no settings
+  but that printer's), and fail on any call that adds, changes, connects or
+  applies a settings change when that is not what was asked. The settings
 tools read and check a fixed set of that printer's settings, as
 `OrcaWorkspaceAdapter` answers for them: the printer is not the one the
 project uses, so a change without `persistAs` is `not_selected`; a stock
@@ -162,7 +156,7 @@ and nozzle size are read-only.
     is it?". That z-offset conversation passed 10 of 10 on DeepSeek with the
     split prompt, so it has no case of its own.
   - `change-edit-start-gcode`: "add G29 right after the G28 line in the start
-    g-code". Passes when the change goes on a card saved under the printer's
+    g-code". Passes when the change is applied and saved under the printer's
     own name, with G29 after G28.
   - `change-bed-size`: "make the bed 250 by 250", which the settings tools
     refuse. Passes when nothing is changed and the reply says the person can
@@ -178,7 +172,7 @@ and nozzle size are read-only.
 - Change, about the settings OrcaSlicer ships for the Bambu Lab A1 mini,
   selected in the project (the header's Printer settings… on a project that
   uses them): `change-stock-copy`, "set the retraction length to 1 mm". Passes
-  when the change goes on a card saved as `Bambu Lab A1 mini 0.4 nozzle - Copy`,
+  when the change is applied and saved as `Bambu Lab A1 mini 0.4 nozzle - Copy`,
   the copy `read_only_preset` suggests.
 - Change, about a connected Bambu Lab A1 mini holding PLA and PETG:
   `change-ask-loaded`, "what filament is loaded right now?" Passes when the
@@ -220,12 +214,12 @@ cannot quietly undo it.
 - `change-ask-loaded-not-connected`: what is loaded on a printer that is not
   connected (492fdb5531). Passes when no filament is claimed as loaded.
 - `connect-failed-ways-forward`: a print host that does not respond
-  (c922876c66: a failure ended with no way forward). Passes when the waiting
+  (c922876c66: a failure ended with no way forward). Passes when the initial
   reply says how long it can take and the failure reply names the three ways
   forward.
 - `connect-bambu-no-plugin`: connecting without Bambu's network plug-in
   (e2e1c6e7cc: "isn't available right now" with no reason). Passes when no
-  card opens and the reply gives the plug-in as the reason.
+  credential form opens and the reply gives the plug-in as the reason.
 
 The add cases use `add_session.json`, recorded from a `--printer-live` run: the
 Add session the page was sent, including the full printer list, and what
@@ -283,14 +277,14 @@ adapter answer): the settings tools alone, and a refusal of any other target
 or of an apply without `persistAs`.
 
 - `filament-hotter`: "make the nozzle 5 degrees hotter". Passes when the
-  temperature is read first and 225,225 goes on a card for every layer, saved
+  temperature is read first and 225,225 is applied for every layer, saved
   as the copy the facts name.
 - `filament-ask-temperature`: "what nozzle temperature does it print at?"
-  Passes when it is read and 220 is said, with no card.
+  Passes when it is read and 220 is said, with no change.
 - `filament-other-settings`: "also make the walls thicker". Passes when no
-  card opens and the reply says the print's settings are changed elsewhere.
+  change is applied and the reply says the print's settings are changed elsewhere.
 - `filament-own-in-place`: a filament the person saved ("My PLA"), "lower the
-  nozzle temperature to 210". Passes when 210,210 goes on a card for every
+  nozzle temperature to 210". Passes when 210,210 is applied for every
   layer, saved under its own name.
 
 20 runs each: 19, 20, 20 and 20. The miss said "preset" before a tool call.
@@ -350,7 +344,6 @@ Home. Every case not listed passed 3 of 3 in both runs.
 | `add-unsupported-printer` | 2 | 3 |
 | `change-add-another` | 1 | 3 |
 | `change-nozzle-done` | 3 | 2 |
-| `connect-after-question` | 2 | 2 |
 | **Total** | **78/87** | **79/87** |
 
 The Add rows differ by noise alone: the Add prompt is the same on both sides.

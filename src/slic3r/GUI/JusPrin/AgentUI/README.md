@@ -47,7 +47,7 @@ a scripted mock host playing the same protocol.
 ### State matrices
 
 `src/visual/` holds one state input per state on the Figma page **Agent UI ·
-States & Components**: the approval cards, runtime and header states, chat
+States & Components**: runtime and header states, chat
 list, composer, messages, manufacturing history, the earlier-chat notice, and
 the printer chat. Each is rendered by the production components, or by the
 real `App` against a scripted host, so a state is covered only if real inputs

@@ -158,7 +158,8 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     // A new session's page writes its instructions again.
     m_instructions.clear();
     m_network.clear();
-    m_connections = json::object();
+    m_credential_action.clear();
+    m_credential_arguments = json::object();
     m_prepared.clear();
     m_added.clear();
     m_needs_plugin = false;
@@ -295,17 +296,18 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     // what the app does on its own reaches the model as notes.
     profile.include_workspace          = false;
     profile.notes_in_context           = true;
-    profile.reply_cancels_pending_card = true;
     return profile;
 }
 
 json PrinterConversation::state_json() const
 {
-    return json{{"mode", m_mode == ConversationMode::Add ? "add" : m_mode == ConversationMode::Connect ? "connect" : "change"},
-                {"printerName", m_printer_name},
-                {"blocks", m_blocks},
-                {"context", context_json()},
-                {"connections", m_connections}};
+    json state{{"mode", m_mode == ConversationMode::Add ? "add" : m_mode == ConversationMode::Connect ? "connect" : "change"},
+               {"printerName", m_printer_name}, {"blocks", m_blocks}, {"context", context_json()}};
+    if (!m_credential_action.empty())
+        state["credentialRequest"] = json{{"actionId", m_credential_action},
+                                           {"target", m_credential_arguments.at("target")},
+                                           {"provider", m_credential_arguments.at("provider")}};
+    return state;
 }
 
 // -- The session's tools ----------------------------------------------------
@@ -396,8 +398,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         arguments["target"] = arguments["address"];
     } else
         return ToolError{"connection_unavailable", info.message};
-    // Which field the card asks for, and the printer it named: what runs
-    // on Connect is what the card showed.
+    // Which field the local form asks for, and the printer it named.
     arguments["provider"]    = info.provider;
     arguments["printerName"] = name;
     activity.arguments_json = arguments.dump();
@@ -412,7 +413,7 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
     case ToolHandler::PrinterAdd: return add(arguments, activity.correlation_id);
     case ToolHandler::PrinterChange: return change(arguments);
     case ToolHandler::PrinterConnectionStatus: return connection_status(m_printer_name, activity.correlation_id);
-    case ToolHandler::PrinterConnect: return connect(arguments, activity.action_id);
+    case ToolHandler::PrinterConnect: return request_credential(arguments, activity.action_id);
     default: return {};
     }
 }
@@ -426,9 +427,6 @@ std::optional<json> PrinterConversation::tool_output(const ToolActivity& activit
         return json::parse(activity.result_json);
     if (activity.state == Agent::ToolState::Failed && activity.error)
         return json{{"error", json{{"code", activity.error->code}, {"message", activity.error->message}}}};
-    // The person tapped Cancel on the card, or wrote something instead.
-    if (activity.state == Agent::ToolState::Rejected)
-        return json{{"state", "cancelled"}};
     return std::nullopt;
 }
 
@@ -570,34 +568,32 @@ Result PrinterConversation::connection_status(const std::string& name, const std
     return ok(connection_json(info));
 }
 
-Result PrinterConversation::connect(const json& arguments, const std::string& action_id)
+Result PrinterConversation::request_credential(const json& arguments, const std::string& action_id)
+{
+    m_credential_action    = action_id;
+    m_credential_arguments = arguments;
+    m_host.session_changed();
+    return ok(json{{"state", "credential_requested"},
+                   {"message", "The app is waiting for the person to enter the printer credential locally."}});
+}
+
+void PrinterConversation::connect(const json& arguments, const std::string& credential)
 {
     const std::string name   = arguments.at("printerName");
     const std::string target = arguments.at("target");
-    // Typed on the card, used here, and kept nowhere else.
-    const std::string credential = m_host.take_credential(action_id).value_or(std::string());
     const std::string problem =
         arguments.at("provider") == "bambu" ?
             m_backend.connect_printer(name, arguments.at("deviceId"), credential) :
             m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), credential);
     if (!problem.empty()) {
-        m_connections[action_id] = json{{"state", "failed"}, {"target", target}};
+        m_host.post_note("Connection to " + target + " failed: " + problem);
         m_host.session_changed();
-        return ok(json{{"state", "failed"}, {"message", problem}});
+        m_host.start_turn();
+        return;
     }
-    // The backend has replaced an attempt still waiting; its card is done.
-    if (!m_connecting_action.empty())
-        m_connections[m_connecting_action]["state"] = "cancelled";
-    m_connecting             = name;
-    m_connecting_action      = action_id;
-    m_last_look              = {};
-    m_connections[action_id] = json{{"state", "connecting"}, {"target", target}};
+    m_connecting = name;
+    m_last_look  = {};
     m_host.session_changed();
-    // What the model says while it waits, and what it answers if asked how
-    // long this takes.
-    return ok(json{{"state", "connecting"},
-                   {"message", "The app is checking the printer now and gives it up to " +
-                                   std::to_string(kConnectionWait.count()) + " seconds."}});
 }
 
 void PrinterConversation::abandon_connection()
@@ -605,9 +601,7 @@ void PrinterConversation::abandon_connection()
     if (m_connecting.empty())
         return;
     m_backend.cancel_connection(m_connecting);
-    m_connections[m_connecting_action]["state"] = "cancelled";
     m_connecting.clear();
-    m_connecting_action.clear();
 }
 
 void PrinterConversation::tick(std::chrono::steady_clock::time_point now)
@@ -619,9 +613,7 @@ void PrinterConversation::tick(std::chrono::steady_clock::time_point now)
     if (info.state == "connecting")
         return;
     const std::string name = m_connecting;
-    m_connections[m_connecting_action]["state"] = info.state == "verified" ? "verified" : "failed";
     m_connecting.clear();
-    m_connecting_action.clear();
     m_host.post_note(info.state == "verified" ? "Connection to " + name + " verified." :
                                                 "Connection to " + name + " failed: " + info.message);
     m_host.printers_changed();
@@ -673,15 +665,12 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             m_host.session_changed();
             m_host.start_turn();
         }
-    } else if (action == "cancel_connection") {
-        // The card's Cancel while its attempt waits. A card that has settled
-        // has nothing left to stop.
-        if (!m_connecting_action.empty() && payload.value("actionId", std::string()) == m_connecting_action) {
-            const std::string name = m_connecting;
-            abandon_connection();
-            m_host.post_note("The person cancelled connecting " + name + ".");
-            m_host.session_changed();
-        }
+    } else if (action == "connect" && payload.value("actionId", std::string()) == m_credential_action &&
+               payload.contains("credential") && payload["credential"].is_string()) {
+        const json arguments = std::move(m_credential_arguments);
+        m_credential_action.clear();
+        m_credential_arguments = json::object();
+        connect(arguments, payload["credential"].get<std::string>());
     } else if (action == "open_printer_settings" && !m_printer_name.empty()) {
         m_backend.open_printer_settings(m_printer_name);
         m_host.printers_changed();

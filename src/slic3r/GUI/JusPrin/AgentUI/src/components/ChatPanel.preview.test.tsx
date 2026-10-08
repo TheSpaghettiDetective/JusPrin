@@ -69,7 +69,6 @@ function thread(builds: BuildInfo[], copies: ExportedCopyInfo[], prints: Physica
       physicalPrints={prints}
       changes={[]}
       onRetry={noop}
-      onToolDecision={noop}
       onToolCancel={noop}
       onSend={noop}
     />,

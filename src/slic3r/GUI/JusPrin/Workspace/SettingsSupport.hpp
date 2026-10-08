@@ -231,7 +231,7 @@ inline std::vector<std::string> setting_suggestions(const std::string& key,
     return result;
 }
 
-inline std::vector<SettingChange> settings_confirmation(const SettingsPreview& preview)
+inline std::vector<SettingChange> previewed_changes(const SettingsPreview& preview)
 {
     auto result = preview.changes;
     result.insert(result.end(), preview.dependencies.begin(), preview.dependencies.end());

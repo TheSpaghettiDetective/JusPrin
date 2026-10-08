@@ -1249,7 +1249,7 @@ enum class WorkspaceChangeReasons : std::uint32_t {
     Project   = 1u << 5,
     Settings  = 1u << 6,
     // A slice started, ended, or stopped being current. What the plates hold
-    // to print changed, not the project, so it does not make a proposal stale.
+    // to print changed, not the project, so it does not make a queued action stale.
     Slicing   = 1u << 7
 };
 
@@ -1463,7 +1463,7 @@ private:
 // Delivers edits synchronously, in the order the workspace detects them. Edits
 // are a feed of their own, separate from WorkspaceChanged: they do not
 // advance the revision, so recording them can never make a pending Agent
-// proposal stale.
+// queued action stale.
 class WorkspaceEditHub
 {
 public:
@@ -1588,7 +1588,7 @@ struct SettingsPreview
     std::vector<SettingIssue> issues, warnings;
     // The preset the settings belong to: the process preset for an object.
     std::string preset;
-    // Predicted secondary changes are approved and read back alongside the
+    // Predicted secondary changes are previewed and read back alongside the
     // explicit patch. They are never accepted as extra writable input keys.
     std::vector<SettingChange> dependencies;
     // After an apply: the name the preset was saved under, empty when it
@@ -1690,7 +1690,7 @@ public:
     virtual SettingsSearchResult search_settings(const SettingsQuery& query) const = 0;
     virtual SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const = 0;
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
-    virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+    virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                          SettingsPreview& applied) = 0;
 
     // Directory for consumer-owned files that belong to the open project and

@@ -161,7 +161,7 @@ json OpenAIResponsesAgent::request_body(json input) const
         m_session.instructions.empty() ?
             "You are JusPrin, the 3D printing app. In app-generated messages, OrcaSlicer also refers to this same app. "
             "Speak in first person about the app's actions. Use only IDs from the authoritative workspace context. "
-            "Native tools are proposals: never claim a change succeeded until a function_call_output says it did. "
+            "Native tool calls run in the app: never claim a change succeeded until a function_call_output says it did. "
             "When asked to make a supported change, call the matching tool. After its result, briefly explain the actual result. " +
                 std::string(kPrintJourneyGuidance) :
             m_session.instructions;
@@ -312,9 +312,9 @@ void OpenAIResponsesAgent::finish_response(const json& response)
             json error = available ?
                 json{{"code", validation.error->code},
                      {"message", validation.error->message +
-                                     " Nothing was proposed. Check the arguments against this tool's parameters and call it again."}} :
+                                     " Nothing was queued. Check the arguments against this tool's parameters and call it again."}} :
                 json{{"code", "unknown_tool"},
-                     {"message", "There is no tool named \"" + request.tool + "\" here. Nothing was proposed. Use one of the listed tools."}};
+                     {"message", "There is no tool named \"" + request.tool + "\" here. Nothing was queued. Use one of the listed tools."}};
             json refusal{{"state", "failed"}, {"error", std::move(error)}};
             json input = m_input_history;
             input.push_back(json{{"type", "function_call_output"}, {"call_id", call_id}, {"output", refusal.dump()}});
@@ -323,7 +323,7 @@ void OpenAIResponsesAgent::finish_response(const json& response)
             return;
         }
         if (call_id.empty() || !available || !validation.valid()) {
-            fail(AgentError{"malformed_tool_call", "The Agent returned an invalid tool proposal.", false});
+            fail(AgentError{"malformed_tool_call", "The Agent returned an invalid tool call.", false});
             return;
         }
         request.arguments_json = std::move(validation.arguments_json);

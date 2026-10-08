@@ -15,7 +15,6 @@ export type PageMessageType =
   | 'user_message'
   | 'stop_generation'
   | 'retry_message'
-  | 'tool_decision'
   | 'tool_cancel'
   | 'create_conversation'
   | 'switch_conversation'
@@ -346,16 +345,13 @@ export interface WorkspaceContext {
 }
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',
-// 'failed', 'cancelled', and 'rejected'; a stale proposal arrives as
+// 'failed', and 'cancelled'; a stale action arrives as
 // state 'failed' with error code 'stale_revision'.
 export type ToolStateName =
-  | 'pending'
-  | 'approved'
   | 'running'
   | 'succeeded'
   | 'failed'
-  | 'cancelled'
-  | 'rejected';
+  | 'cancelled';
 
 export type ActionClassName = 'read_only' | 'mutation' | 'destructive';
 
@@ -368,9 +364,6 @@ export interface ToolActivityInfo {
   title: string;
   arguments: Record<string, unknown>;
   actionClass: ActionClassName;
-  requiresApproval: boolean;
-  planId?: string; // calls sharing it are decided on one card and run in order
-  planScope?: string; // the chat an in-app plan belongs to; a plan is its source, scope and id
   sessionId: string;
   expectedRevision: number;
   state: ToolStateName;
@@ -560,17 +553,15 @@ export interface PrinterSessionPayload {
   blocks: PrinterBlock[];
   // The facts the model's instructions state (printerInstructions.ts).
   context: PrinterContext;
-  // How each approved printer_connect card's attempt stands, by action id.
-  connections?: Record<string, PrinterConnectionInfo>;
+  // A printer credential requested by a completed tool call. The page sends
+  // the secret straight back to the printer session, never through chat.
+  credentialRequest?: PrinterCredentialRequest;
 }
 
-export interface PrinterConnectionInfo {
-  state: 'connecting' | 'verified' | 'failed' | 'cancelled';
-  // What the card connects to: the address, or the printer's network name.
+export interface PrinterCredentialRequest {
+  actionId: string;
   target: string;
-  // How far a 'connecting' attempt has got, 0 to 100. Optional: the card
-  // draws the wait without a figure until the app measures one.
-  percent?: number;
+  provider: 'bambu' | 'host';
 }
 
 export interface PrinterContext {

@@ -77,7 +77,7 @@ std::optional<AgentEvent> poll_until(OpenAIResponsesAgent& agent, AgentEventKind
 
 } // namespace
 
-TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness", "[agent][openai]")
+TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -99,10 +99,6 @@ TEST_CASE("OpenAI request preserves canonical schemas with compatible strictness
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
-        // Strict mode cannot express an optional argument, so a tool gains one by
-        // giving it up: workspace_inspect did when it gained sections, settings_get
-        // when it gained a target, and every mutation when it gained planId.
-        CHECK(tool["strict"] == (name == "printer_list" || name == "project_attachment_read"));
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
         REQUIRE(definition != nullptr);
@@ -318,7 +314,7 @@ TEST_CASE("a late completion from the tool-call request cannot end its continuat
     REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
     REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded"})"}));
 
-    // The first request's libcurl completion can race with page approval and
+    // The first request's libcurl completion can race with page handling and
     // arrive after the continuation has already started.
     fake->callbacks.front()(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, 200});
     CHECK_FALSE(agent.poll());

@@ -60,7 +60,7 @@ struct McpServer::Impl::Connection : std::enable_shared_from_this<Connection>
     {
         deadline.expires_after(duration);
         deadline.async_wait([self = shared_from_this()](Error error) {
-            if (!error) self->close(); // request timeout cancels pending approval too
+            if (!error) self->close(); // request timeout cancels pending work too
         });
     }
 
@@ -106,8 +106,7 @@ struct McpServer::Impl::Connection : std::enable_shared_from_this<Connection>
             reply({400, rpc_error(rpc.id, -32602, "This tool is not exposed by JusPrin MCP.", {{"code", "unknown_tool"}})});
             return;
         }
-        // Every mutation streams, whether or not it waits for a card: the ones
-        // exempt from approval are the ones that take the longest to compute.
+        // Every mutation streams, including calls that take time to compute.
         streaming = definition->action_class != Agent::ActionClass::ReadOnly;
         call = std::make_shared<PendingCall>();
         call->connection_id = id;
@@ -116,7 +115,7 @@ struct McpServer::Impl::Connection : std::enable_shared_from_this<Connection>
         if (streaming)
             enqueue("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n"
                     "X-Accel-Buffering: no\r\nConnection: close\r\n\r\n");
-        // Observe disconnect while approval is pending, even when there are no
+        // Observe disconnect while a call is pending, even when there are no
         // progress notifications to write. No pipelined messages are accepted.
         socket.async_read_some(net::buffer(disconnect_buffer), [self = shared_from_this()](Error, std::size_t) {
             self->close();

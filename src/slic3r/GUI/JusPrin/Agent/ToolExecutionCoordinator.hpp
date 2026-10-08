@@ -2,8 +2,8 @@
 
 // Native coordinator for Agent tool execution. Any Agent — the deterministic
 // mock today, an MCP adapter later — proposes typed tool requests here; the
-// coordinator applies the approval policy, holds the authoritative activity
-// records, and executes approved actions exclusively through the IWorkspace
+// coordinator holds the authoritative activity records and executes actions
+// exclusively through the IWorkspace
 // contract, so Orca's own commands, history, and events stay in charge.
 // GUI-free and deterministic: execution advances only when the owner calls
 // pump(), so tests can drive it without timers.
@@ -79,7 +79,7 @@ public:
         std::optional<ToolError> error;
     };
     // Typed native extensions still execute inside this coordinator and its
-    // approval/state machine. The host uses this for durable manufacturing
+    // state machine. The host uses this for durable manufacturing
     // records; future MCP adapters use the same seam, never a WebView path.
     using ExtensionExecutor = std::function<ExtensionResult(ToolHandler, const ToolActivity&)>;
 
@@ -93,8 +93,8 @@ public:
     ToolActivitySubscription subscribe(ActivityCallback listener);
     void set_extension_executor(ExtensionExecutor executor) { m_extension_executor = std::move(executor); }
     // Checks a call to a surface's own tool after the registry has and
-    // before it waits for a card or runs. It may restate the call for its
-    // card -- the title, or facts added to the arguments -- and returns the
+    // before it runs. It may restate the call -- the title, or facts added to
+    // the arguments -- and returns the
     // error that stops it.
     using ExtensionPreflight = std::function<std::optional<ToolError>(ToolHandler, ToolActivity&)>;
     void set_extension_preflight(ExtensionPreflight preflight) { m_extension_preflight = std::move(preflight); }
@@ -134,25 +134,19 @@ public:
     // previous project session and any persisted history keeps its own copy.
     // Forgets every activity except one that is executing: a command that
     // replaces the project is still running while the project it was
-    // proposed in is torn down, and it has to be able to report.
+    // queued in is torn down, and it has to be able to report.
     void clear();
     const std::string& executing_action_id() const { return m_executing; }
     void forget_if_closed(const std::string& action_id);
     // Chat deletion may forget completed records, never in-flight work.
     void forget_terminal_activities(const std::vector<std::string>& message_ids);
 
-    // Creates a Pending record stamped with the current workspace session and
-    // revision. Read-only actions are approved immediately by policy; every
-    // other class waits for a user decision. Returns the new record.
+    // Creates a record stamped with the current workspace session and revision,
+    // validates it, and starts it immediately.
     const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
                                 ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
-                                const std::string& plan_scope = {}, const std::string& call_id = {});
+                                const std::string& call_id = {});
 
-    // User decisions. Each returns true only when it changed the record's
-    // state, so a resent decision (reconnect, reload) can never run an action
-    // twice or resurrect a terminal record.
-    bool approve(const std::string& action_id);
-    bool reject(const std::string& action_id);
     bool cancel(const std::string& action_id);
 
     // Advances every Running activity by one deterministic tick: progress
@@ -220,9 +214,6 @@ private:
         std::chrono::steady_clock::time_point started;
     };
     std::map<std::string, SliceWait> m_slice_waits;
-    // Approved plans that a change from outside the plan reached before all
-    // their members ran; their remaining members fail stale.
-    std::set<std::string>            m_disturbed_plans;
     void finish_slice_waits();
 };
 

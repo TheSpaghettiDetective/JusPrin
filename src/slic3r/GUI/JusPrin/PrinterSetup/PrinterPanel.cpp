@@ -290,7 +290,6 @@ Agent::AgentSessionProfile PrinterPanel::filament_profile() const
     profile.instructions               = m_filament_instructions;
     profile.include_workspace          = false;
     profile.notes_in_context           = true;
-    profile.reply_cancels_pending_card = true;
     return profile;
 }
 
@@ -427,14 +426,6 @@ void PrinterPanel::printers_changed(const std::string& added)
 {
     if (m_callbacks.printers_changed)
         m_callbacks.printers_changed(added);
-}
-
-std::optional<std::string> PrinterPanel::take_credential(const std::string& action_id)
-{
-    const std::optional<nlohmann::json> input = m_web_view ? m_web_view->host().take_decision_input(action_id) : std::nullopt;
-    if (!input)
-        return std::nullopt;
-    return input->value("credential", std::string());
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

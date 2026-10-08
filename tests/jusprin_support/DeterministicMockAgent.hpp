@@ -33,8 +33,8 @@ public:
         std::vector<std::string>  chunks;
         std::optional<AgentError> error;
         // Proposed to the ToolExecutionCoordinator when the stream completes
-        // successfully. The coordinator, not the Agent, applies the approval
-        // policy and executes through the workspace contract.
+        // successfully. The coordinator executes it through the workspace
+        // contract.
         std::optional<ToolRequest> tool;
         int                        tool_run_ticks{1};
     };
@@ -44,19 +44,18 @@ public:
     //   text starting with "/flaky"    -> fails on attempt 1, succeeds after;
     //   text starting with "/slow"     -> long streamed reply;
     //   text starting with "/toolfail" -> proposes duplicating an object that
-    //                                     does not exist, so an approved run
-    //                                     fails deterministically;
+    //                                     does not exist, so the run fails
+    //                                     deterministically;
     //   text starting with "/toolslow" -> proposes the duplicate with a long
     //                                     progress run for cancellation tests;
-    //   text starting with "/inspect"  -> read-only selection inspection that
-    //                                     runs without approval by policy;
+    //   text starting with "/inspect"  -> read-only selection inspection;
     //   text starting with "/build"    -> records the sliced active plate;
     //   text starting with "/export"   -> records a verified exported copy of
     //                                     the latest build;
     //   text starting with "/print"    -> records a completed physical print
     //                                     in the ledger;
     //   text containing "duplicate"    -> proposes duplicating the selected
-    //                                     object (approval required);
+    //                                     object;
     //   anything else                  -> a streamed summary of the workspace
     //                                     context and the selected objects.
     static Reply reply_for(const std::string& user_text, int attempt, const Workspace::WorkspaceSnapshot& context,

@@ -50,8 +50,7 @@ const SETTINGS =
   'Rules for changing its settings:\n' +
   '- Every settings call uses scope "printer" and target {"preset": the printer\'s name below}. Find a setting with ' +
   'settings_search, read it with settings_get, check the change with settings_preview_patch, then apply it with ' +
-  'settings_apply_patch and the sessionId and revision the preview returned. Applying shows the person a card to ' +
-  'approve.\n' +
+  'settings_apply_patch and the sessionId and revision the preview returned. Applying runs immediately.\n' +
   '- Save every change: pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and ' +
   'model; when the facts below give a copy to save as, pass that name instead, and say the change is saved as a copy ' +
   'with that name, which is the printer from then on. When a preview says read_only_preset, preview again with ' +
@@ -151,12 +150,9 @@ const connecting = (adding: boolean) =>
   'network: say where to turn LAN mode on (on the printer\'s screen, in its network settings; ask what they see rather ' +
   'than invent a menu). For Moonraker or OctoPrint, ask for the address they open it with in a browser, including its ' +
   'port when there is one, then call printer_connect.\n' +
-  '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect shows a card where ' +
-  'the person types it. A cancelled credential card can mean the person sent a question while it was open; it does ' +
-  'not mean they declined to connect. After printer_connect comes back cancelled, say at most a few words, without ' +
-  'suggesting they close the chat or connect later; if the person wrote a message, answer that.\n' +
-  '- "connecting" means the app is still waiting for the printer; its message says for how long. Say in one short ' +
-  "line that you are checking and how long it can take, and answer anything the person says meanwhile; the app's " +
+  '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect opens a local form ' +
+  'where the person types it. When the tool reports credential_requested, say briefly to use that form.\n' +
+  '- After the form is submitted, the app checks the printer for up to 30 seconds. Answer anything the person says meanwhile; the app\'s ' +
   'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
   '- After a failed connection, say what went wrong in one sentence, then name the three ways forward: ' +
   'try again with the same address; set up the connection manually in the app; or leave it for now, ' +
@@ -168,8 +164,7 @@ const FINISHING =
   'Rules for finishing:\n' +
   '- Once nothing is left to decide, say what that leaves them with and that it is safe to close this chat now. ' +
   'Do not add a Choices line. That is after the person turns down connecting, after the app says the connection ' +
-  'is verified, after they leave connecting for now, and after a successful printer_change. Never after printer_connect ' +
-  'comes back cancelled: nothing failed and nothing was declined, so that reply is those few words with no choices. ' +
+  'is verified, after they leave connecting for now, and after a successful printer_change. ' +
   'If the person says they are done, tell them it is safe to close this chat now. ' +
   'For example:\n' +
   'It is connected, so you can send prints straight to it. You can close this chat now.\n';

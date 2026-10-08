@@ -278,53 +278,24 @@ describe('the printer panel page', () => {
     expect(receipt.querySelector('button')).toBeNull();
   });
 
-  it('asks for the access code on its card, and sends it only with Connect', async () => {
+  it('asks for the access code locally, and sends it only with Connect', async () => {
     const connect: ToolActivityInfo = {
       actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to Workshop',
       arguments: { printerName: 'Lab Printer', deviceId: '01P00A3B', provider: 'bambu' }, actionClass: 'mutation',
-      requiresApproval: true, sessionId: '1', expectedRevision: 1, state: 'pending', progress: { current: 0, total: 1 },
+      sessionId: '1', expectedRevision: 1, state: 'succeeded', progress: { current: 1, total: 1 },
     };
-    const identify = { ...connect, actionId: 't-identify', tool: 'printer_identify', title: 'Show the printers you mean', requiresApproval: false, state: 'succeeded' as const };
-    const host = open(state({ toolActivities: [identify, connect] }));
-    // Only the card that asks for something is drawn.
+    const identify = { ...connect, actionId: 't-identify', tool: 'printer_identify', title: 'Show the printers you mean' };
+    const host = open(state({ toolActivities: [identify, connect], session: session({
+      credentialRequest: { actionId: 't-connect', target: 'Workshop', provider: 'bambu' },
+    }) }));
+    // Only the local form is drawn.
     expect(screen.queryByText('Show the printers you mean')).toBeNull();
     expect(screen.getByText('Connect to Workshop')).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText('Access code'), 'secretcode');
     expect(JSON.stringify(host.received)).not.toContain('secretcode');
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
-    expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-connect', decision: 'approve', input: { credential: 'secretcode' } });
-  });
-
-  it('draws a settings change as a card to approve, with its title', async () => {
-    const change: ToolActivityInfo = {
-      actionId: 't-settings', correlationId: 'm-1', server: 'jusprin', tool: 'settings_apply_patch',
-      title: 'Change 1 settings of "Lab Printer": machine_start_gcode; save it',
-      arguments: { scope: 'printer', target: { preset: 'Lab Printer' }, changes: { machine_start_gcode: 'G28' }, persistAs: 'Lab Printer' },
-      actionClass: 'mutation', requiresApproval: true, sessionId: '1', expectedRevision: 1, state: 'pending',
-      progress: { current: 0, total: 1 },
-    };
-    const read = { ...change, actionId: 't-read', tool: 'settings_get', title: 'Read settings', requiresApproval: false, state: 'succeeded' as const };
-    const host = open(state({ toolActivities: [read, change] }));
-    expect(screen.queryByText('Read settings')).toBeNull();
-    expect(screen.getByText('Change 1 settings of "Lab Printer": machine_start_gcode; save it')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Approve' }));
-    expect(host.lastOfType('tool_decision')!.payload).toEqual({ actionId: 't-settings', decision: 'approve' });
-  });
-
-  it('follows the attempt the app reports, and Cancel stops that attempt', async () => {
-    const connect: ToolActivityInfo = {
-      actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to 192.168.1.42',
-      arguments: { printerName: 'Kobra 3', hostType: 'moonraker', address: '192.168.1.42', provider: 'host' }, actionClass: 'mutation',
-      requiresApproval: true, sessionId: '1', expectedRevision: 1, state: 'succeeded', progress: { current: 1, total: 1 },
-    };
-    const host = open(state({
-      toolActivities: [connect],
-      session: session({ connections: { 't-connect': { state: 'connecting', target: '192.168.1.42' } } }),
-    }));
-    expect(screen.getByText('Connecting…')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'cancel_connection', actionId: 't-connect' });
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'connect', actionId: 't-connect', credential: 'secretcode' });
   });
 });
 
