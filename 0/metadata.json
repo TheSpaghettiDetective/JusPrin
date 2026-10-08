@@ -1,0 +1,154 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4ETNFY1EBAB8PKNJVEP43HZ",
+  "session_id": "01a11940-de59-7092-8b85-c1b9bb845437",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T22:38:12.612064Z",
+  "checkpoints_count": 6,
+  "save_step_count": 6,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "agent-docs/jusprin/orca-feature-discovery.md",
+    "agent-docs/jusprin/orca-integration-guide.md",
+    "agent-docs/jusprin/product-definition.md",
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecution.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChangeRows.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/PrinterPanel.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ToolActivityCard.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/state/store.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/printer.visual-cases.tsx",
+    "src/slic3r/GUI/JusPrin/Mcp/McpRuntime.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_mcp_bridge.cpp",
+    "tests/agent/test_mcp_runtime.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/printer_prompt/README.md",
+    "tests/printer_prompt/printer_tools.json",
+    "tests/printer_prompt/run_prompt_tests.py",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "7f07c732123f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2014092,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 85961344,
+    "output_tokens": 251336,
+    "api_call_count": 5
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-08T22:38:12.580332Z",
+    "agent_lines": 320,
+    "agent_removed": 975,
+    "human_added": 84,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 404,
+    "total_lines_changed": 1731,
+    "agent_percentage": 74.81224725592143,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 320,
+      "agent_lines_removed": 975,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 320,
+      "agent_lines_removed": 975,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 320,
+      "agent_lines_removed": 975,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 320,
+      "agent_lines_removed": 975,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 320,
+      "agent_lines_removed": 975,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    }
+  ]
+}
