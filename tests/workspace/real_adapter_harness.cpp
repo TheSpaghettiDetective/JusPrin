@@ -232,7 +232,7 @@ private:
         check(m_workspace->snapshot().revision == revision, "settings_preview_publishes_no_event");
         SettingsPreview applied;
         const auto before_events = m_changes.size();
-        const auto result = m_workspace->apply_settings(patch, settings_confirmation(preview), applied);
+        const auto result = m_workspace->apply_settings(patch, previewed_changes(preview), applied);
         check(result.succeeded(), "settings_apply_before_process_page_shown");
         check(m_changes.size() == before_events + 1 && m_changes.back().reasons == WorkspaceChangeReasons::Settings,
             "settings_batch_one_event");
@@ -243,7 +243,7 @@ private:
             check(prints.get_edited_preset().config.option(change.key)->serialize() == change.after, "settings_real_value_" + change.key);
         SettingsPatch inverse;
         for (const auto& change : applied.changes) inverse.changes[change.key] = change.before;
-        check(m_workspace->apply_settings(inverse, settings_confirmation(m_workspace->preview_settings(inverse)), applied).succeeded(), "settings_inverse_applies");
+        check(m_workspace->apply_settings(inverse, previewed_changes(m_workspace->preview_settings(inverse)), applied).succeeded(), "settings_inverse_applies");
         check(current_values_equal(original, prints.get_edited_preset().config), "settings_inverse_restores_every_key");
 
         for (const auto& value : {"0", "999", "0.2junk", "NaN"}) {
@@ -261,7 +261,7 @@ private:
         printer.set_key_value("max_layer_height", new ConfigOptionFloats({0.3}));
         const SettingsPatch maximum{{{"layer_height", "0.3"}}};
         check(m_workspace->preview_settings(maximum).valid, "settings_accept_printer_maximum");
-        check(m_workspace->apply_settings(maximum, settings_confirmation(m_workspace->preview_settings(maximum)), applied).succeeded(), "settings_apply_printer_maximum");
+        check(m_workspace->apply_settings(maximum, previewed_changes(m_workspace->preview_settings(maximum)), applied).succeeded(), "settings_apply_printer_maximum");
         tab->load_config(original);
         printer.set_key_value("max_layer_height", old_max);
 
@@ -296,7 +296,7 @@ private:
         }
         config = original;
         const auto support_gap = config.option("support_top_z_distance")->serialize();
-        check(m_workspace->apply_settings(scarf, settings_confirmation(m_workspace->preview_settings(scarf)), applied).succeeded(), "settings_height_with_support_gap");
+        check(m_workspace->apply_settings(scarf, previewed_changes(m_workspace->preview_settings(scarf)), applied).succeeded(), "settings_height_with_support_gap");
         check(config.option("support_top_z_distance")->serialize() == support_gap, "settings_compiled_out_support_gap_rule_does_not_write");
         tab->load_config(original);
         // Exercise the active settings page and its real field, then a silent
@@ -308,20 +308,20 @@ private:
         check(prediction.valid && std::any_of(prediction.dependencies.begin(), prediction.dependencies.end(), [](const auto& c) {
             return c.key == "fill_multiline" && c.after == "1";
         }), "settings_multiline_reset_predicted");
-        check(m_workspace->apply_settings(multiline, settings_confirmation(prediction), applied).succeeded(), "settings_multiline_apply");
+        check(m_workspace->apply_settings(multiline, previewed_changes(prediction), applied).succeeded(), "settings_multiline_apply");
         check(config.opt_int("fill_multiline") == 1, "settings_multiline_actual_reset");
         check(std::any_of(applied.warnings.begin(), applied.warnings.end(), [](const auto& issue) {
             return issue.key == "fill_multiline" && issue.code == "normalized";
         }), "settings_multiline_actual_reported");
         tab->activate_option("wall_loops", "Strength");
         const SettingsPatch walls{{{"wall_loops", "4"}}};
-        const auto confirmed = settings_confirmation(m_workspace->preview_settings(walls));
+        const auto expected = previewed_changes(m_workspace->preview_settings(walls));
         DynamicPrintConfig gui_edit;
         gui_edit.set_deserialize_strict("wall_loops", "5");
         const auto before_gui_edit = m_changes.size();
         tab->load_config(gui_edit);
         check(m_changes.size() == before_gui_edit + 1 && has_reason(m_changes.back().reasons, WorkspaceChangeReasons::Settings), "settings_gui_edit_one_revision");
-        check(m_workspace->apply_settings(walls, confirmed, applied).error == WorkspaceError::StaleSettings, "settings_gui_edit_invalidates_confirmed_values");
+        check(m_workspace->apply_settings(walls, expected, applied).error == WorkspaceError::StaleSettings, "settings_gui_edit_invalidates_previewed_values");
         auto* field = tab->get_field("wall_loops");
         check(field && boost::any_cast<int>(field->get_value()) == 5, "settings_native_field_matches_value");
         tab->on_roll_back_value(false);
@@ -600,7 +600,7 @@ private:
         PresetCollection& printers = bundle.printers;
         PresetCollection& filaments = bundle.filaments;
         SettingsPreview   applied;
-        const auto confirm = [this](const SettingsPatch& patch) { return settings_confirmation(m_workspace->preview_settings(patch)); };
+        const auto expected = [this](const SettingsPatch& patch) { return previewed_changes(m_workspace->preview_settings(patch)); };
         const auto refused = [this](const SettingsPatch& patch, const std::string& code) {
             const auto issues = m_workspace->preview_settings(patch).issues;
             return std::any_of(issues.begin(), issues.end(), [&code](const SettingIssue& issue) { return issue.code == code; });
@@ -619,7 +619,7 @@ private:
         // The gcode goes through Tab::load_config, unsaved, as a process edit does.
         const std::string gcode = "G28 ; jusprin harness";
         SettingsPatch unsaved{{{"machine_start_gcode", gcode}}, in_use};
-        check(m_workspace->apply_settings(unsaved, confirm(unsaved), applied).succeeded() && applied.preset_dirty &&
+        check(m_workspace->apply_settings(unsaved, expected(unsaved), applied).succeeded() && applied.preset_dirty &&
                   printers.current_is_dirty() && printers.get_edited_preset().config.opt_string("machine_start_gcode") == gcode,
               "preset_settings_printer_unsaved_change");
         const auto* retraction = printers.get_edited_preset().config.option<ConfigOptionFloats>("retraction_length");
@@ -640,7 +640,7 @@ private:
               "preset_settings_save_in_place_only_for_a_user_preset");
         const std::string saved_name = shipped ? printer + " - Copy" : printer;
         SettingsPatch save{{{"machine_start_gcode", gcode + " 2"}}, in_use, saved_name};
-        check(m_workspace->apply_settings(save, confirm(save), applied).succeeded() && applied.saved_as == saved_name && !applied.preset_dirty,
+        check(m_workspace->apply_settings(save, expected(save), applied).succeeded() && applied.saved_as == saved_name && !applied.preset_dirty,
               "preset_settings_printer_saved");
         const Preset* copy = printers.find_preset(saved_name, false);
         check(copy != nullptr && !copy->is_system && printers.get_selected_preset_name() == saved_name &&
@@ -659,7 +659,7 @@ private:
             const SettingsTarget other{SettingsScope::Printer, {}, saved_name};
             check(refused({{{"machine_start_gcode", "G28 ; other"}}, other}, "not_selected"), "preset_settings_unselected_needs_persist");
             SettingsPatch in_place{{{"machine_start_gcode", "G28 ; other"}}, other, saved_name};
-            check(m_workspace->apply_settings(in_place, confirm(in_place), applied).succeeded() && applied.saved_as == saved_name,
+            check(m_workspace->apply_settings(in_place, expected(in_place), applied).succeeded() && applied.saved_as == saved_name,
                   "preset_settings_unselected_printer_saved");
             check(printers.get_selected_preset_name() == printer &&
                       printers.find_preset(saved_name, false)->config.opt_string("machine_start_gcode") == "G28 ; other",
@@ -683,7 +683,7 @@ private:
         SettingsPatch     warmer{{{"nozzle_temperature", hotter}, {"nozzle_temperature_initial_layer", hotter}}, slot, filament_name};
         const auto warmer_preview = m_workspace->preview_settings(warmer);
         check(warmer_preview.valid, "preset_settings_filament_preview_valid");
-        check(m_workspace->apply_settings(warmer, settings_confirmation(warmer_preview), applied).succeeded() &&
+        check(m_workspace->apply_settings(warmer, previewed_changes(warmer_preview), applied).succeeded() &&
                   applied.saved_as == filament_name,
               "preset_settings_filament_saved");
         check(bundle.filament_presets.front() == filament_name &&

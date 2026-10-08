@@ -15,7 +15,7 @@ The boundary is:
 This produces three classes of OrcaSlicer features:
 
 1. **User-decision surfaces must remain prominent.**
-   These capture information the agent cannot reliably obtain: physical setup, functional intent, geometry meaning, aesthetic preferences, legal restrictions, and approval of real-world actions.
+   These capture information the agent cannot reliably obtain: physical setup, functional intent, geometry meaning, aesthetic preferences, legal restrictions, and control over real-world actions.
 
 2. **Shared agent-and-user surfaces should be redesigned.**
    The agent proposes a solution, explains it, and draws attention to uncertainty. The user reviews the result visually instead of manipulating dozens of parameters.
@@ -386,7 +386,7 @@ The agent may propose geometry changes and generate previews:
 
 > “Splitting the model here eliminates most supports and hides the joint on the rear surface.”
 
-But the user should approve meaning-changing operations. Direct manipulation must remain available because communicating spatial corrections in words is often slower than moving or painting them on the model.
+But the user should review meaning-changing operations. Direct manipulation must remain available because communicating spatial corrections in words is often slower than moving or painting them on the model.
 
 ---
 
@@ -526,7 +526,7 @@ OrcaSlicer’s more detailed views should remain available on demand:
 - Visibility toggles for walls, infill, bridges, supports, travel, retraction, wiping, and seams
 - Raw G-code inspection
 
-### Why the agent cannot approve its own plan
+### Why the agent cannot independently verify its own plan
 
 The preview is produced from the same assumptions and algorithms that created the plan. It is evidence, but it is not independent knowledge of the user’s intent.
 

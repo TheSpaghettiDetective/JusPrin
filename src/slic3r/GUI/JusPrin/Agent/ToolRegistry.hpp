@@ -2,7 +2,7 @@
 
 // Canonical, immutable definitions for every command accepted by the JusPrin
 // tool coordinator. Adapters may project or filter these definitions, but do
-// not get to redefine schemas, approval policy, or executor association.
+// not get to redefine schemas or executor association.
 
 #include "ToolExecution.hpp"
 
@@ -104,24 +104,7 @@ struct ToolDefinition
     ToolExposure      exposure{ToolExposure::None};
     ToolAvailability  availability{ToolAvailability::Always};
     ToolHandler       handler{ToolHandler::WorkspaceInspect};
-    // Qualifies this mutation for the computation-only exemption in
-    // approval_required(). Declared here, beside the action class, so the
-    // registry stays the only place a policy distinction is made. Last in the
-    // struct because every definition is a positional brace literal.
-    bool              computation_only{false};
-    // Qualifies this mutation for the confirmed-in-conversation exemption in
-    // approval_required(); only a printer panel tool may declare it.
-    bool              confirmed_in_conversation{false};
 };
-
-// Whether a call to this tool may carry a planId: every change to the
-// project, not plan_set, which records the agent's own words, and not the
-// printer panel's tools, whose session has no plans to group.
-inline bool joins_plans(const ToolDefinition& definition)
-{
-    return definition.action_class != ActionClass::ReadOnly && definition.handler != ToolHandler::PlanSet &&
-           !has_exposure(definition.exposure, ToolExposure::Printer);
-}
 
 struct ToolValidationResult
 {
@@ -144,12 +127,8 @@ public:
     std::vector<std::reference_wrapper<const ToolDefinition>> exposed(ToolExposure exposure) const;
 
     ToolValidationResult validate_call(const ToolDefinition& definition, const std::string& arguments_json) const;
-    // Whether this call needs a card. Almost always a property of the
-    // definition alone; slice_start is the exception, because pre-empting a
-    // run that may be the user's is a decision only they can take.
-    bool requires_approval(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
     bool validate_output(const ToolDefinition& definition, const nlohmann::json& result) const;
-    std::string approval_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
+    std::string activity_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
 
 private:
     ToolRegistry();

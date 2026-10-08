@@ -5,10 +5,9 @@
 //
 // The conversation is the whole panel. The model does the understanding --
 // which printer someone has, what changed on one they own, how to reach it --
-// and acts through the session's tools, which check its decision against the
-// printer data and carry it out. The person's yes in the conversation is the
-// confirmation; the one card is printer_connect's, where a credential is typed
-// so it never passes through the model. The one other thing to tap is Undo on
+// and acts through the session's tools, which check requests against the
+// printer data and carry them out. printer_connect collects its credential in
+// a local form so it never passes through the model. The one other thing to tap is Undo on
 // an added printer's receipt, which the model then hears about in a note.
 //
 // A session is opened for one printer question -- add a printer, change this
@@ -60,7 +59,7 @@ public:
     // Home's printer list is out of date. `added` names a printer this
     // session just added, which Home leads with; empty for any other change.
     virtual void printers_changed(const std::string& added = {}) = 0;
-    // What the person typed into this action's card, taken once.
+    // What the person typed into this action's local input form, taken once.
     virtual std::optional<std::string> take_credential(const std::string& action_id) = 0;
 };
 
@@ -87,7 +86,7 @@ public:
     // not one of ours.
     bool handle_page_message(const std::string& type, const nlohmann::json& payload);
 
-    // Checks printer_connect before its card is shown, and titles the card.
+    // Checks printer_connect before its input form is shown, and titles it.
     std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity) const;
     // The session's own tools. Returns an unhandled result for any other
     // handler, so the host's own extensions still run.
@@ -167,7 +166,7 @@ private:
     std::string                           m_connecting;
     std::string                           m_connecting_action;
     std::chrono::steady_clock::time_point m_last_look{};
-    // How each approved card's attempt stands, by action id, for the page.
+    // How each connection attempt stands, by action id, for the page.
     nlohmann::json m_connections = nlohmann::json::object();
 };
 

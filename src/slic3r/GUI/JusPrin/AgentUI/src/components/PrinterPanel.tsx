@@ -132,29 +132,30 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   );
 });
 
-// printer_connect's card. Connect approves the call and hands the app what
-// was typed; the model hears only how the connection went. After Connect the
+// printer_connect's card. Connect hands the app what was typed; the model
+// hears only how the connection went. After Connect the
 // card follows the attempt itself, as the app reports it in `connection`.
 export function PrinterCredentialCard({
   activity,
   connection,
   model,
-  onDecision,
+  onInput,
+  onCancelTool,
   onCancelConnection,
 }: {
   activity: ToolActivityInfo;
   connection?: PrinterConnectionInfo;
   // What kind of printer the conversation is about, when the app knows.
   model?: string;
-  onDecision: (actionId: string, decision: 'approve' | 'reject', input?: { credential: string }) => void;
+  onInput: (actionId: string, input: { credential: string }) => void;
+  onCancelTool: (actionId: string) => void;
   onCancelConnection: (actionId: string) => void;
 }) {
   const [credential, setCredential] = useState('');
   const bambu = activity.arguments.provider === 'bambu';
-  if (activity.state !== 'pending') {
-    // Approved and about to start, or started: both are the wait.
+  if (activity.state !== 'input_required') {
     const state =
-      activity.state === 'rejected' ? 'cancelled' : connection?.state ?? (activity.state === 'failed' ? 'failed' : 'connecting');
+      activity.state === 'cancelled' ? 'cancelled' : connection?.state ?? (activity.state === 'failed' ? 'failed' : 'connecting');
     const target = connection?.target;
     // A figure only when the app has measured one, kept inside its range.
     const percent = typeof connection?.percent === 'number' && Number.isFinite(connection.percent)
@@ -181,7 +182,7 @@ export function PrinterCredentialCard({
       data-testid={`tool-${activity.actionId}`}
       onSubmit={(event) => {
         event.preventDefault();
-        onDecision(activity.actionId, 'approve', { credential });
+        onInput(activity.actionId, { credential });
       }}
     >
       <div className="printer-notice-heading">
@@ -205,7 +206,7 @@ export function PrinterCredentialCard({
         <button type="submit" className="primary">
           Connect
         </button>
-        <button type="button" onClick={() => onDecision(activity.actionId, 'reject')}>
+        <button type="button" onClick={() => onCancelTool(activity.actionId)}>
           Cancel
         </button>
       </div>

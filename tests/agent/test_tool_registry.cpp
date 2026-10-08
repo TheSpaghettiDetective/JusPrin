@@ -124,7 +124,7 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     auto unsupported = preview_tool;
     unsupported.output_schema["maximum"] = 1;
     CHECK_THROWS_AS(registry.validate_output(unsupported, settings_preview_result({}, SettingsScope::Process, snapshot)), std::logic_error);
-    CHECK(registry.approval_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
+    CHECK(registry.activity_title(*registry.find("settings_apply_patch"), decoded.arguments_json).find("wall_loops") != std::string::npos);
 }
 
 TEST_CASE("every settings call names its scope, and each scope takes exactly its own target", "[tools][settings]")

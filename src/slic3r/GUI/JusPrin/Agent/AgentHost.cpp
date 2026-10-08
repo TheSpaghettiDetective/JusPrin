@@ -107,15 +107,11 @@ json activity_json(const ToolActivity& activity)
                 {"title", activity.title},
                 {"arguments", parsed_or_object(activity.arguments_json)},
                 {"actionClass", action_class_name(activity.action_class)},
-                {"requiresApproval", activity.requires_approval},
+                {"requiresInput", activity.requires_input},
                 {"sessionId", std::to_string(activity.session)},
                 {"expectedRevision", activity.expected_revision},
                 {"state", tool_state_name(activity.state)},
                 {"progress", json{{"current", activity.progress_current}, {"total", activity.progress_total}}}};
-    if (!activity.plan_id.empty())
-        result["planId"] = activity.plan_id;
-    if (!activity.plan_scope.empty())
-        result["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         result["result"] = parsed_or_object(activity.result_json);
     if (activity.error)
@@ -915,8 +911,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_stop(payload);
     else if (type == Protocol::kRetryMessage)
         handle_retry(envelope_id, payload);
-    else if (type == Protocol::kToolDecision)
-        handle_tool_decision(envelope_id, payload);
+    else if (type == Protocol::kToolInput)
+        handle_tool_input(envelope_id, payload);
     else if (type == Protocol::kToolCancel)
         handle_tool_cancel(envelope_id, payload);
     else if (type == Protocol::kCreateConversation)
@@ -1082,16 +1078,6 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump(), envelope_id);
 
     cancel_conversation_title();
-    if (m_session_profile.reply_cancels_pending_card) {
-        std::vector<std::string> waiting;
-        for (const ToolActivity& activity : m_tools.activities())
-            if (activity.state == ToolState::Pending && activity.requires_approval)
-                waiting.push_back(activity.action_id);
-        // Each rejection hands its result to the model and starts that
-        // follow-up, so the message below queues behind it.
-        for (const std::string& action_id : waiting)
-            m_tools.reject(action_id);
-    }
     if (agent_busy()) {
         // The page disables sending while a reply streams; if a message
         // arrives anyway, answer it after the current stream finishes.
@@ -1355,21 +1341,20 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
     begin_stream(std::move(retried), conversation_id);
 }
 
-void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::string& payload_json)
+void AgentHost::handle_tool_input(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
         send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
         return;
     }
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", "Historical tool decisions cannot be submitted.", envelope_id);
+        send_bridge_error("inactive_conversation", "Historical tool input cannot be submitted.", envelope_id);
         return;
     }
     const json payload = json::parse(payload_json);
     const std::string action_id = payload.at("actionId").get<std::string>();
-    const std::string decision  = payload.at("decision").get<std::string>();
-    if (decision != "approve" && decision != "reject") {
-        send_bridge_error("invalid_payload", "tool_decision decision must be \"approve\" or \"reject\".", envelope_id);
+    if (!payload.contains("input") || !payload["input"].is_object()) {
+        send_bridge_error("invalid_payload", "tool_input requires an input object.", envelope_id);
         return;
     }
     if (m_tools.find(action_id) == nullptr) {
@@ -1377,26 +1362,25 @@ void AgentHost::handle_tool_decision(const std::string& envelope_id, const std::
         return;
     }
 
-    // Kept until the action runs, on a later tick, and its executor takes it;
-    // an action that ends without taking it drops it in continue_after_tool.
-    if (decision == "approve" && payload.contains("input") && m_tools.find(action_id)->state == ToolState::Pending)
-        m_decision_inputs[action_id] = payload["input"];
-    const bool changed = decision == "approve" ? m_tools.approve(action_id) : m_tools.reject(action_id);
+    // Kept until the action runs on a later tick and its executor takes it.
+    if (m_tools.find(action_id)->state == ToolState::InputRequired)
+        m_tool_inputs[action_id] = payload["input"];
+    const bool changed = m_tools.submit_input(action_id);
     if (!changed) {
-        // A resent decision after a reload or reconnect: acknowledge with the
+        // A resent input after a reload or reconnect: acknowledge with the
         // authoritative record instead of running anything twice.
         if (const ToolActivity* activity = m_tools.find(action_id))
             send_tool_activity(*activity, envelope_id);
     }
 }
 
-std::optional<json> AgentHost::take_decision_input(const std::string& action_id)
+std::optional<json> AgentHost::take_tool_input(const std::string& action_id)
 {
-    const auto found = m_decision_inputs.find(action_id);
-    if (found == m_decision_inputs.end())
+    const auto found = m_tool_inputs.find(action_id);
+    if (found == m_tool_inputs.end())
         return std::nullopt;
     json input = std::move(found->second);
-    m_decision_inputs.erase(found);
+    m_tool_inputs.erase(found);
     return input;
 }
 
@@ -2123,20 +2107,16 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
     const ToolActivity& proposed =
-        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks}, ToolSource::Agent,
-                        stream.conversation_id, call.call_id);
+        m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks}, ToolSource::Agent, call.call_id);
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);
         continuation.conversation_id     = stream.conversation_id;
         continuation.user_message_id     = stream.message.in_reply_to;
         m_tool_continuations[proposed.action_id] = std::move(continuation);
-        // A call refused at proposal (a stale revision, an invalid patch) was
-        // already terminal when the coordinator announced it, before this
-        // continuation existed; hand the agent its result now.
-        // A plan member waits for the plan's one card, which the person
-        // decides after this turn ends; the agent hears it is queued now.
-        if (tool_state_terminal(proposed.state) || (!proposed.plan_id.empty() && proposed.state == ToolState::Pending)) {
+        // A call refused at proposal was already terminal when the coordinator
+        // announced it, before this continuation existed; hand the agent its result now.
+        if (tool_state_terminal(proposed.state)) {
             const ToolActivity answered = proposed;
             continue_after_tool(answered);
         }
@@ -2236,7 +2216,7 @@ json AgentHost::tool_output_json(const ToolActivity& activity) const
 
 void AgentHost::continue_after_tool(const ToolActivity& activity)
 {
-    m_decision_inputs.erase(activity.action_id);
+    m_tool_inputs.erase(activity.action_id);
     const auto found = m_tool_continuations.find(activity.action_id);
     if (found == m_tool_continuations.end())
         return;
@@ -2244,10 +2224,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     PendingToolContinuation continuation = found->second;
     m_tool_continuations.erase(found);
 
-    const bool queued = activity.state == ToolState::Pending;
     json       output = tool_output_json(activity);
-    if (queued)
-        output["state"] = "queued";
     // A session about something other than the project is never told about
     // the project, in its tool results any more than in its turns.
     if (m_session_profile.include_workspace) {
@@ -2256,16 +2233,9 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         output["workspaceRevision"] = current_workspace.revision;
         output["workspace"]         = context_json(current_workspace, agent_authored_keys(current_workspace));
     }
-    if (queued) {
-        output["planId"]  = activity.plan_id;
-        output["message"] = "Queued in plan " + activity.plan_id +
-                            ". Propose the plan's remaining calls with the same planId, then end your turn and ask the user to "
-                            "approve the plan card. Nothing has run yet.";
-    }
-
     AgentToolResult result;
     result.call_id     = continuation.call_id;
-    result.state       = queued ? "queued" : tool_state_name(activity.state);
+    result.state       = tool_state_name(activity.state);
     result.output_json = output.dump();
     result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {

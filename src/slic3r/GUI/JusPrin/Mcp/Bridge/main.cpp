@@ -176,7 +176,7 @@ private:
     {
         std::fputs("jusprin-mcp: stdout failed or the client stopped consuming responses\n", stderr);
         // Broken stdout cannot carry an MCP error. Process exit also closes all
-        // request sockets, cancelling pending native approvals.
+        // request sockets, cancelling pending native work.
         std::_Exit(1);
     }
     void run()

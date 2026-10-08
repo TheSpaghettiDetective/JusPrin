@@ -326,23 +326,7 @@ TEST_CASE("every session offers every printer tool and the settings tools, and n
         CHECK(profile.tool_names == printer_tools);
         CHECK_FALSE(profile.include_workspace);
         CHECK(profile.notes_in_context);
-        CHECK(profile.reply_cancels_pending_card);
     }
-}
-
-TEST_CASE("only printer_connect asks for a card; the rest run on the person's yes", "[printer-conversation]")
-{
-    const auto& registry = Agent::ToolRegistry::instance();
-    for (const std::string& name : PrinterConversation::session_tools()) {
-        INFO(name);
-        const Agent::ToolDefinition& definition = *registry.find(name);
-        CHECK(registry.requires_approval(definition, "{}") == (name == "printer_connect"));
-        // None joins a plan.
-        CHECK_FALSE(definition.input_schema.at("properties").contains("planId"));
-    }
-    // The exemption is the printer panel's alone.
-    for (const Agent::ToolDefinition& definition : registry.exposed(Agent::ToolExposure::InApp))
-        CHECK_FALSE(definition.confirmed_in_conversation);
 }
 
 TEST_CASE("an Add session sends the page every printer, what is on the network, and the ways in", "[printer-conversation]")
@@ -532,7 +516,8 @@ TEST_CASE("printer_identify refuses what it cannot show, and says what to do ins
     CHECK(refused(conversation, "printer_identify", json{{"catalogIds", {"BBL/N1"}}}) == "unknown_printer");
     const auto result = run(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}, {"nozzle", 0.3}});
     REQUIRE(result.error.has_value());
-    CHECK(result.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to check the nozzle marking or packaging; do not substitute a size.");
+    CHECK(result.error->message == "JusPrin supports 0.25, 0.4, 0.6 and 0.8 mm nozzles for Prusa MK3S, but not 0.3 mm. Ask the person to "
+                                   "check the nozzle marking or packaging; do not substitute a size.");
     // Only the tip: nothing refused was drawn.
     CHECK(conversation.state_json().at("blocks").size() == 1);
 }
@@ -1402,7 +1387,7 @@ public:
     void printers_changed(const std::string&) override {}
     std::optional<std::string> take_credential(const std::string& action_id) override
     {
-        const std::optional<json> input = host->take_decision_input(action_id);
+        const std::optional<json> input = host->take_tool_input(action_id);
         return input ? std::optional<std::string>(input->value("credential", std::string())) : std::nullopt;
     }
 };
@@ -1500,7 +1485,7 @@ struct PrinterHost
 
 } // namespace
 
-TEST_CASE("printer_add and printer_change run on the person's yes, with no card", "[printer-conversation][host]")
+TEST_CASE("printer_add and printer_change run on the person's yes", "[printer-conversation][host]")
 {
     PrinterHost harness(ConversationMode::Change);
     harness.agent->call = Agent::ToolRequest{"printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}}.dump()};
@@ -1509,7 +1494,6 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
 
     auto activities = harness.activities();
     REQUIRE(activities.size() == 1);
-    CHECK_FALSE(activities.front().requires_approval);
     CHECK(activities.front().state == Agent::ToolState::Succeeded);
     CHECK(harness.backend.saved.front().nozzle == 0.6);
     REQUIRE(harness.agent->results.size() == 1);
@@ -1527,7 +1511,6 @@ TEST_CASE("printer_add and printer_change run on the person's yes, with no card"
     adding.pump();
     activities = adding.activities();
     REQUIRE(activities.size() == 1);
-    CHECK_FALSE(activities.back().requires_approval);
     CHECK(adding.backend.added.size() == 1);
 
     // The receipt reaches the page after the reply that added the printer...
@@ -1582,7 +1565,7 @@ TEST_CASE("a refused printer tool reaches the model as its error, with nothing s
 
 namespace {
 
-// Drives printer_connect to its card in a Connect session about a Bambu Lab
+// Drives printer_connect to its input form in a Connect session about a Bambu Lab
 // printer on the network.
 Agent::ToolActivity propose_connect(PrinterHost& harness)
 {
@@ -1592,8 +1575,8 @@ Agent::ToolActivity propose_connect(PrinterHost& harness)
     harness.pump();
     const auto activities = harness.activities();
     REQUIRE(activities.size() == 1);
-    REQUIRE(activities.front().requires_approval);
-    REQUIRE(activities.front().state == Agent::ToolState::Pending);
+    REQUIRE(activities.front().requires_input);
+    REQUIRE(activities.front().state == Agent::ToolState::InputRequired);
     return activities.front();
 }
 
@@ -1606,7 +1589,7 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
     const Agent::ToolActivity card = propose_connect(harness);
     CHECK(card.title == "Connect to Workshop");
 
-    harness.page("tool_decision", {{"actionId", card.action_id}, {"decision", "approve"}, {"input", {{"credential", secret}}}});
+    harness.page("tool_input", {{"actionId", card.action_id}, {"input", {{"credential", secret}}}});
     harness.pump();
     REQUIRE(harness.backend.connects.size() == 1);
     CHECK(harness.backend.connects.front() == std::vector<std::string>{"Lab Printer", "01P00A3B", secret});
@@ -1629,24 +1612,7 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
         CHECK_THAT(result.output_json, !ContainsSubstring(secret));
     CHECK_THAT(harness.persistence.document().dump(), !ContainsSubstring(secret));
     // Handed over once, and gone.
-    CHECK_FALSE(harness.host.take_decision_input(card.action_id).has_value());
-}
-
-TEST_CASE("writing instead of connecting cancels the card, and the message is answered", "[printer-conversation][host]")
-{
-    PrinterHost harness(ConversationMode::Connect);
-    const Agent::ToolActivity card = propose_connect(harness);
-    const std::size_t results = harness.agent->results.size();
-
-    harness.say("where do I find the access code?");
-    harness.pump();
-
-    CHECK(harness.activities().front().state == Agent::ToolState::Rejected);
-    CHECK(harness.backend.connects.empty());
-    REQUIRE(harness.agent->results.size() == results + 1);
-    CHECK(json::parse(harness.agent->results.back().output_json) == json{{"state", "cancelled"}});
-    // The question gets its own turn once the card's is answered.
-    CHECK(harness.agent->requests.back().user_text == "where do I find the access code?");
+    CHECK_FALSE(harness.host.take_tool_input(card.action_id).has_value());
 }
 
 TEST_CASE("a message sent while connecting is answered first, and the outcome's turn follows it",
@@ -1654,7 +1620,7 @@ TEST_CASE("a message sent while connecting is answered first, and the outcome's 
 {
     PrinterHost harness(ConversationMode::Connect);
     const Agent::ToolActivity card = propose_connect(harness);
-    harness.page("tool_decision", {{"actionId", card.action_id}, {"decision", "approve"}, {"input", {{"credential", "1234"}}}});
+    harness.page("tool_input", {{"actionId", card.action_id}, {"input", {{"credential", "1234"}}}});
     harness.pump();
     REQUIRE_FALSE(harness.agent->results.empty());
     CHECK_THAT(json::parse(harness.agent->results.back().output_json).at("message").get<std::string>(),
@@ -1964,8 +1930,7 @@ TEST_CASE("the model is offered every printer tool, the settings tools, and no p
         // A settings change is a change like any in the app, and can join a
         // plan; the printer's own tools are decided in the conversation.
         if (std::find(settings.begin(), settings.end(), tool.at("name")) == settings.end())
-            CHECK_FALSE(tool.at("parameters").at("properties").contains("planId"));
-        // No tool takes a credential from the model.
+            // No tool takes a credential from the model.
         for (const char* secret : {"accessCode", "apiKey", "credential", "password"})
             CHECK_FALSE(tool.at("parameters").at("properties").contains(secret));
     }

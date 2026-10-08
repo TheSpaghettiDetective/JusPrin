@@ -6,8 +6,6 @@ import { applyAppearance } from './tokens';
 import { RECENT_CHANGE_MS, SetupCard } from './components/SetupCard';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
-import { ToolActivityCard } from './components/ToolActivityCard';
-import { PlanActivityCard, planHeadline, planKey, planMembers } from './components/PlanActivityCard';
 import { Composer } from './components/Composer';
 import { PrinterCredentialCard } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
@@ -50,7 +48,6 @@ declare global {
     // production and never a second control path for users.
     __jusprinTest?: {
       send(text: string): void;
-      decide(actionId: string, decision: 'approve' | 'reject'): void;
       cancelTool(actionId: string): void;
       createConversation(): void;
       switchConversation(conversationId: string): void;
@@ -254,11 +251,9 @@ export function App({
     client.send('remove_attachment', { attachmentId });
   };
 
-  // `input` is what the person typed into the card itself, such as the
-  // printer panel's access code: the app hands it to the action and nowhere
-  // else.
-  const sendToolDecision = (actionId: string, decision: 'approve' | 'reject', input?: { credential: string }) => {
-    client.send('tool_decision', input ? { actionId, decision, input } : { actionId, decision });
+  // A printer access code stays local to the action and never enters chat.
+  const sendToolInput = (actionId: string, input: { credential: string }) => {
+    client.send('tool_input', { actionId, input });
   };
 
   const sendToolCancel = (actionId: string) => {
@@ -300,7 +295,6 @@ export function App({
   useEffect(() => {
     window.__jusprinTest = {
       send: sendMessage,
-      decide: sendToolDecision,
       cancelTool: sendToolCancel,
       createConversation: () => client.send('create_conversation', {}),
       switchConversation: (conversationId: string) => client.send('switch_conversation', { conversationId }),
@@ -464,11 +458,9 @@ export function App({
       }}
       onToggle={() => setSetupExpanded((open) => !open)} />
   </div>;
-  const externalActions = state.toolActivities.filter((activity) => activity.source === 'mcp' && activity.requiresApproval);
-  const externalPlans = planMembers(externalActions);
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
-    ['pending', 'approved', 'running'].includes(activity.state));
+    ['pending', 'input_required', 'running'].includes(activity.state));
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); collapseSetup(); };
   const collapseAgentPane = () => client.send('shell_action', { action: 'collapse_agent_pane' });
   const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
@@ -510,7 +502,6 @@ export function App({
           onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
           answeredState={!state.navigation.focused}
           onRetry={(messageId) => client.send('retry_message', { messageId, conversationId: viewedId })}
-          onToolDecision={sendToolDecision}
           onToolCancel={sendToolCancel}
           onSend={sendMessage}
           replyDisabled={unavailable || streaming || historical || state.projectChatBlocked}
@@ -604,8 +595,6 @@ export function App({
               streamingMessageId={state.streamingMessageId}
               onSend={sendMessage}
               replyDisabled={unavailable || streaming}
-              // The person decides on the credential's card and on a settings
-              // change's; every other tool is what the model then says it did.
               toolActivities={state.toolActivities.filter((activity) =>
                 activity.tool === 'printer_connect' || activity.tool === 'settings_apply_patch')}
               renderActivity={(activity) => activity.tool !== 'printer_connect' ? undefined : (
@@ -613,7 +602,8 @@ export function App({
                   activity={activity}
                   connection={session?.connections?.[activity.actionId]}
                   model={session?.context.printer?.model}
-                  onDecision={sendToolDecision}
+                  onInput={sendToolInput}
+                  onCancelTool={sendToolCancel}
                   onCancelConnection={(actionId) => client.send('printer_action', { action: 'cancel_connection', actionId })}
                 />
               )}
@@ -626,7 +616,6 @@ export function App({
               onInstallPlugin={() => client.send('printer_action', { action: 'install_network_plugin' })}
               answeredState={false}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
-              onToolDecision={sendToolDecision}
               onToolCancel={sendToolCancel}
             />
           )}
@@ -667,21 +656,6 @@ export function App({
   return (
     <div className={state.navigation.focused ? 'app app--focused-chat' : 'app'}>
       {errorNotice}
-      {externalActions.length > 0 && <section className="external-actions" aria-label="External AI tools">
-        <h2>External AI tools</h2>
-        {externalActions.map((activity) => {
-          const key = planKey(activity);
-          const found = key ? externalPlans.get(key) : undefined;
-          // A plan of one change is decided like any other call.
-          const members = found && found.length > 1 ? found : undefined;
-          if (members && members[0].actionId !== activity.actionId) return null;
-          return members
-            ? <PlanActivityCard key={activity.actionId} members={members} headline={planHeadline(state.toolActivities)}
-                onDecision={sendToolDecision} onCancel={sendToolCancel} />
-            : <ToolActivityCard key={activity.actionId} activity={activity}
-                onDecision={sendToolDecision} onCancel={sendToolCancel} />;
-        })}
-      </section>}
       {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'setup' && !state.navigation.focused ? (

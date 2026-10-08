@@ -181,7 +181,10 @@ Reply discovery(const Request& request)
                                          {"capabilities", {{"tools", {{"listChanged", false}}}}},
                                          {"ttlMs", 0},
                                          {"cacheScope", "private"},
-                                         {"instructions", "Inspect the live workspace, search or read process settings, then preview a patch. Apply with the sessionId and revision from that preview and wait for approval in the JusPrin Agent panel. After stale_workspace, read and preview again. Project Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable error means you should open JusPrin and a project. Closing a response cancels pending work. " + std::string(Agent::kPrintJourneyGuidance)}})};
+                                         {"instructions", "Inspect the live workspace, search or read process settings, then preview a patch. Apply with the "
+                                     "sessionId and revision from that preview. After stale_workspace, read and preview again. Project "
+                                     "Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable "
+                                     "error means you should open JusPrin and a project. Closing a response cancels pending work. " + std::string(Agent::kPrintJourneyGuidance)}})};
 }
 
 Reply list_tools(const Request& request, std::size_t page_size)
@@ -243,8 +246,7 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
             result["content"].push_back({{"type", "image"}, {"data", activity.image->base64}, {"mimeType", activity.image->mime_type}});
     } else {
         std::string code = "execution_failed", message = "Tool execution failed.";
-        if (activity.state == ToolState::Rejected) { code = "approval_rejected"; message = "The user rejected this action in JusPrin."; }
-        else if (activity.state == ToolState::Cancelled) { code = "cancelled"; message = "The action was cancelled."; }
+        if (activity.state == ToolState::Cancelled) { code = "cancelled"; message = "The action was cancelled."; }
         else if (activity.error) { code = activity.error->code; message = activity.error->message; }
         json details = activity.error ? json::parse(activity.error->details_json) : json::object();
         if (code == "stale_revision" || code == "stale_id") {

@@ -102,7 +102,7 @@ inline bool process_settings_available()
 
 // Orca's scalar deserializers accept a numeric prefix (e.g. "4bad"). Check
 // complete consumption before calling the authoritative parser, so malformed
-// input cannot silently become a different approved value.
+// input cannot silently become a different previewed value.
 inline bool complete_setting_number(const std::string& text, ConfigOptionType type)
 {
     if (type != coFloat && type != coInt && type != coPercent) return true;
@@ -216,7 +216,7 @@ inline void check_process_dialogs(const DynamicPrintConfig& config, SettingsPrev
 
 // ConfigManipulation resets support_style to default, silently, when it does
 // not fit the support type. A patch that would be rewritten that way is
-// refused with the styles that fit, rather than approved and then changed.
+// refused with the styles that fit, rather than accepted and then changed.
 inline void check_support_style(const DynamicPrintConfig& config, const std::map<std::string, std::string>& patch,
                                 SettingsPreview& result)
 {

@@ -2765,8 +2765,8 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
     return result;
 }
 
-CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
-                                                  SettingsPreview& applied)
+CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
+                                                   SettingsPreview& applied)
 {
     wxASSERT(wxIsMainThread());
     const SettingsScope scope = patch.target.scope;
@@ -2780,16 +2780,16 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
     DynamicPrintConfig effective = owner_config(owner);
     if (object)
         effective.apply(object->config.get());
-    for (const auto& change : confirmed)
+    for (const auto& change : expected)
         if (!effective.option(change.key) || effective.option(change.key)->serialize() != change.before)
-            return CommandResult::failure(WorkspaceError::StaleSettings, "A confirmed setting changed. Read and preview again.");
+            return CommandResult::failure(WorkspaceError::StaleSettings, "A previewed setting changed. Read and preview again.");
     applied = preview_settings(patch);
     if (!applied.valid)
         return CommandResult::failure(WorkspaceError::InvalidSettings, "The settings patch is invalid.");
-    const auto actual = settings_confirmation(applied);
-    if (actual.size() != confirmed.size() || !std::equal(actual.begin(), actual.end(), confirmed.begin(),
+    const auto actual = previewed_changes(applied);
+    if (actual.size() != expected.size() || !std::equal(actual.begin(), actual.end(), expected.begin(),
         [](const auto& a, const auto& b) { return a.key == b.key && a.before == b.before && a.after == b.after; }))
-        return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the approved preview.");
+        return CommandResult::failure(WorkspaceError::StaleSettings, "The patch no longer matches the preview.");
     if (applied.changes.empty())
         return CommandResult::failure(WorkspaceError::NoChange, "All requested values are unchanged.");
     if (object) {

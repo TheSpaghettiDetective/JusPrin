@@ -61,7 +61,7 @@ public:
     SettingsSearchResult search_settings(const SettingsQuery& query) const override;
     SettingsReadResult read_settings(const std::vector<std::string>& keys, const SettingsTarget& target = {}) const override;
     SettingsPreview preview_settings(const SettingsPatch& patch) const override;
-    CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& confirmed,
+    CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                  SettingsPreview& applied) override;
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;

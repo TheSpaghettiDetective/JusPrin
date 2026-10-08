@@ -99,23 +99,22 @@ public:
     // Sends one envelope of a type this protocol declares. The subject uses
     // it to push its own state between snapshots.
     void send_page_envelope(const std::string& type, const nlohmann::json& payload);
-    // Runs the session's own tools, inside the coordinator's approval and
-    // state machine. Anything it leaves unhandled stays with the host.
+    // Runs the session's own tools inside the coordinator's state machine.
+    // Anything it leaves unhandled stays with the host.
     void set_session_tool_executor(ToolExecutionCoordinator::ExtensionExecutor executor)
     {
         m_session_tool_executor = std::move(executor);
     }
-    // Checks a call to the session's own tools before its card or its run.
+    // Checks a call to the session's own tools before it runs.
     void set_session_tool_preflight(ToolExecutionCoordinator::ExtensionPreflight preflight);
     // What the model reads back for a call to the session's own tools, in
     // place of the host's envelope; nullopt keeps the host's.
     using ToolOutputFormatter = std::function<std::optional<nlohmann::json>(const ToolActivity& activity)>;
     void set_session_tool_output(ToolOutputFormatter formatter) { m_session_tool_output = std::move(formatter); }
-    // What the person typed into an approval card beside approving it -- a
-    // credential the model must never see -- handed once to the executor of
-    // that action and then forgotten. It is kept out of the activity, every
-    // envelope, every note and the document.
-    std::optional<nlohmann::json> take_decision_input(const std::string& action_id);
+    // Local input such as a printer credential that the model must never see,
+    // handed once to the executor and then forgotten. It is kept out of the
+    // activity, every envelope, every note and the document.
+    std::optional<nlohmann::json> take_tool_input(const std::string& action_id);
     // Appends a message the agent is shown as having said, without asking the
     // model for it: a panel whose opening line is always the same. Returns
     // its id so the owner can anchor what it draws underneath.
@@ -266,7 +265,7 @@ private:
     void handle_user_message(const std::string& envelope_id, const std::string& payload_json);
     void handle_stop(const std::string& payload_json);
     void handle_retry(const std::string& envelope_id, const std::string& payload_json);
-    void handle_tool_decision(const std::string& envelope_id, const std::string& payload_json);
+    void handle_tool_input(const std::string& envelope_id, const std::string& payload_json);
     void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
     void handle_create_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json);
@@ -436,8 +435,8 @@ private:
     bool                            m_mcp_busy{false};
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
-    // See take_decision_input.
-    std::map<std::string, nlohmann::json>          m_decision_inputs;
+    // See take_tool_input.
+    std::map<std::string, nlohmann::json>          m_tool_inputs;
     // Every process setting the agent has applied, mapped to the value it
     // applied. A key stays the agent's only while that value is still in
     // force: hand-edit the setting and it becomes yours again, because the

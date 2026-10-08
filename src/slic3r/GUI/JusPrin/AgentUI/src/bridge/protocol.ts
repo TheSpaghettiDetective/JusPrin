@@ -15,7 +15,7 @@ export type PageMessageType =
   | 'user_message'
   | 'stop_generation'
   | 'retry_message'
-  | 'tool_decision'
+  | 'tool_input'
   | 'tool_cancel'
   | 'create_conversation'
   | 'switch_conversation'
@@ -346,16 +346,15 @@ export interface WorkspaceContext {
 }
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',
-// 'failed', 'cancelled', and 'rejected'; a stale proposal arrives as
+// 'failed', and 'cancelled'; a stale proposal arrives as
 // state 'failed' with error code 'stale_revision'.
 export type ToolStateName =
   | 'pending'
-  | 'approved'
+  | 'input_required'
   | 'running'
   | 'succeeded'
   | 'failed'
-  | 'cancelled'
-  | 'rejected';
+  | 'cancelled';
 
 export type ActionClassName = 'read_only' | 'mutation' | 'destructive';
 
@@ -368,9 +367,7 @@ export interface ToolActivityInfo {
   title: string;
   arguments: Record<string, unknown>;
   actionClass: ActionClassName;
-  requiresApproval: boolean;
-  planId?: string; // calls sharing it are decided on one card and run in order
-  planScope?: string; // the chat an in-app plan belongs to; a plan is its source, scope and id
+  requiresInput: boolean;
   sessionId: string;
   expectedRevision: number;
   state: ToolStateName;
@@ -560,7 +557,7 @@ export interface PrinterSessionPayload {
   blocks: PrinterBlock[];
   // The facts the model's instructions state (printerInstructions.ts).
   context: PrinterContext;
-  // How each approved printer_connect card's attempt stands, by action id.
+  // How each printer_connect attempt stands, by action id.
   connections?: Record<string, PrinterConnectionInfo>;
 }
 

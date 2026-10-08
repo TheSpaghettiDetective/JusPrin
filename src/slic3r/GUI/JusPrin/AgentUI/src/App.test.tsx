@@ -109,10 +109,10 @@ function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityIn
     title: 'Duplicate "cube-a"',
     arguments: { sessionId: '1', objectId: '21' },
     actionClass: 'mutation',
-    requiresApproval: true,
+    requiresInput: false,
     sessionId: '1',
     expectedRevision: 2,
-    state: 'pending',
+    state: 'running',
     progress: { current: 0, total: 3 },
     ...overrides,
   };
@@ -494,150 +494,6 @@ describe('App', () => {
     expect(screen.getByTestId('bridge-error')).toBeInTheDocument();
   });
 
-  it('renders a pending tool card and submits the approval decision', async () => {
-    render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ conversation: proposalConversation() }));
-
-    host.deliver('tool_activity', { activity: toolActivity() });
-    expect(screen.getByText('Duplicate "cube-a"')).toBeInTheDocument();
-    expect(screen.getByText('Waiting for your approval')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByText('Approve'));
-    const decision = host.lastOfType('tool_decision');
-    expect(decision).toBeTruthy();
-    expect(decision!.payload).toEqual({ actionId: 't-1', decision: 'approve' });
-
-    host.deliver('tool_activity', { activity: toolActivity({ state: 'running', progress: { current: 1, total: 3 } }) });
-    expect(screen.getByLabelText('Duplicate "cube-a" progress')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByText('Cancel'));
-    const cancel = host.lastOfType('tool_cancel');
-    expect(cancel!.payload).toEqual({ actionId: 't-1' });
-
-    host.deliver('tool_activity', { activity: toolActivity({ state: 'succeeded', progress: { current: 3, total: 3 } }) });
-    expect(screen.getByText('Done')).toBeInTheDocument();
-    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
-  });
-
-  it.each(['ready', 'unavailable'] as const)('shows external MCP approvals without a chat message when Agent is %s', async (status) => {
-    render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ agent: { status } }));
-    const activity = { ...toolActivity({ correlationId: 'mcp-42' }), source: 'mcp' as const };
-    host.deliver('tool_activity', { activity });
-    expect(screen.getByRole('region', { name: 'External AI tools' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Reject' }));
-    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'reject' });
-    host.deliver('tool_activity', { activity: { ...activity, state: 'rejected' } });
-    expect(screen.getByText('Rejected — nothing was changed')).toBeVisible();
-  });
-
-  it('restores external approvals across reload and keeps them visible outside the chat view', async () => {
-    render(<App getTransport={() => host.transport} />);
-    const activity = { ...toolActivity({ correlationId: 'mcp-42' }), source: 'mcp' as const };
-    connect(host, emptyState({ toolActivities: [activity, toolActivity({ actionId: 'other-chat', correlationId: 'other-message' })] }));
-    expect(screen.queryByTestId('tool-other-chat')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Approve' }));
-    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'approve' });
-  });
-
-  it('shows a plan as one card with one decision, beneath the message that proposed its first call', async () => {
-    render(<App getTransport={() => host.transport} />);
-    const conversation = [
-      ...proposalConversation(),
-      { id: 'm-3', role: 'assistant', state: 'complete', text: '', attempt: 1, inReplyTo: 'm-1' },
-    ] as StatePayload['conversation'];
-    const plan = [
-      toolActivity({ tool: 'plan_set', actionId: 'p-0', title: 'Pin the plan', requiresApproval: false, state: 'succeeded',
-        arguments: { headline: 'Print it upright with supports' } }),
-      toolActivity({ planId: 'upright', title: 'Rotate "cube-a"' }),
-      toolActivity({ planId: 'upright', actionId: 't-2', correlationId: 'm-3', title: 'Export the G-code to C:/out/cube.gcode',
-        actionClass: 'destructive' }),
-    ];
-    connect(host, emptyState({ conversation, toolActivities: plan }));
-    host.deliver('assistant_started', { messageId: 'm-4', inReplyTo: 'm-1', attempt: 1 });
-    expect(screen.getByRole('button', { name: 'Approve all' })).toBeDisabled();
-    expect(screen.getByTestId('plan-upright')).toHaveTextContent('The Agent is still adding to this plan');
-    host.deliver('assistant_completed', { messageId: 'm-4' });
-    expect(screen.getByRole('button', { name: 'Approve all' })).toBeEnabled();
-
-    const card = screen.getByTestId('plan-upright');
-    expect(card).toHaveTextContent('Print it upright with supports');
-    expect(card).toHaveTextContent('2 changes · destructive');
-    expect(card).toHaveTextContent('“Export the G-code to C:/out/cube.gcode” cannot be undone');
-    expect(screen.queryByTestId('tool-t-1')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('tool-t-2')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Approve all' })).toHaveLength(1);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Approve all' }));
-    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'approve' });
-
-    host.deliver('tool_activity', { activity: { ...plan[1], state: 'succeeded' } });
-    host.deliver('tool_activity', { activity: { ...plan[2], state: 'running' } });
-    expect(screen.getByText('1 of 2')).toBeVisible();
-    host.deliver('tool_activity', { activity: { ...plan[2], state: 'failed', error: { code: 'io', message: 'The disk is full.' } } });
-    expect(screen.getByTestId('plan-upright')).toHaveTextContent('The disk is full.');
-    expect(screen.queryByRole('button', { name: 'Approve all' })).not.toBeInTheDocument();
-  });
-
-  it('shows a plan of one change as an ordinary card once the agent has finished proposing', async () => {
-    render(<App getTransport={() => host.transport} />);
-    const single = toolActivity({ planId: 'solo', title: 'Change the layer height' });
-    connect(host, emptyState({ conversation: proposalConversation(), toolActivities: [single] }));
-    host.deliver('assistant_started', { messageId: 'm-4', inReplyTo: 'm-1', attempt: 1 });
-    // A second change may still join it.
-    expect(screen.getByTestId('plan-solo')).toHaveTextContent('The Agent is still adding to this plan');
-    host.deliver('assistant_completed', { messageId: 'm-4' });
-    expect(screen.queryByTestId('plan-solo')).not.toBeInTheDocument();
-    const card = screen.getByTestId('tool-t-1');
-    expect(card).toHaveTextContent('Change the layer height');
-    await userEvent.click(within(card).getByRole('button', { name: 'Reject' }));
-    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'reject' });
-  });
-
-  it('never joins plans that only share an id', () => {
-    render(<App getTransport={() => host.transport} />);
-    const conversation = [
-      ...proposalConversation(),
-      { id: 'm-3', role: 'assistant', state: 'complete', text: '', attempt: 1, inReplyTo: 'm-1' },
-    ] as StatePayload['conversation'];
-    const inApp = [
-      { ...toolActivity({ planId: 'p' }), planScope: 'c-1' },
-      { ...toolActivity({ planId: 'p', actionId: 't-2', correlationId: 'm-3' }), planScope: 'c-1' },
-    ];
-    const external = { ...toolActivity({ correlationId: 'mcp-1', planId: 'p', actionId: 't-3', title: 'External change' }),
-      source: 'mcp' as const };
-    connect(host, emptyState({ conversation, toolActivities: [...inApp, external] }));
-    expect(screen.getByTestId('plan-p')).toHaveTextContent('2 changes');
-    const region = screen.getByRole('region', { name: 'External AI tools' });
-    expect(within(region).getByTestId('tool-t-3')).toHaveTextContent('External change');
-    expect(within(region).queryByTestId('plan-p')).not.toBeInTheDocument();
-  });
-
-  it('groups an external plan into one card', async () => {
-    render(<App getTransport={() => host.transport} />);
-    const first = { ...toolActivity({ correlationId: 'mcp-1', planId: 'p' }), source: 'mcp' as const };
-    const second = { ...toolActivity({ correlationId: 'mcp-2', planId: 'p', actionId: 't-2' }), source: 'mcp' as const };
-    connect(host, emptyState({ toolActivities: [first, second] }));
-    expect(screen.getByRole('region', { name: 'External AI tools' })).toHaveTextContent('A plan of 2 changes');
-    await userEvent.click(screen.getByRole('button', { name: 'Reject all' }));
-    expect(host.lastOfType('tool_decision')?.payload).toEqual({ actionId: 't-1', decision: 'reject' });
-  });
-
-  it('submits a rejection and shows that nothing was changed', async () => {
-    render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ conversation: proposalConversation(), toolActivities: [toolActivity()] }));
-
-    await userEvent.click(screen.getByText('Reject'));
-    const decision = host.lastOfType('tool_decision');
-    expect(decision!.payload).toEqual({ actionId: 't-1', decision: 'reject' });
-
-    host.deliver('tool_activity', { activity: toolActivity({ state: 'rejected' }) });
-    expect(screen.getByText('Rejected — nothing was changed')).toBeInTheDocument();
-  });
-
   it('explains a stale proposal distinctly from other failures', () => {
     render(<App getTransport={() => host.transport} />);
     connect(
@@ -654,7 +510,6 @@ describe('App', () => {
     );
 
     expect(screen.getByText(/The project changed after this was proposed/)).toBeInTheDocument();
-    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
   });
 
   it('reconstructs tool cards from host state after a reload', () => {
@@ -715,7 +570,6 @@ describe('App', () => {
     expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('5%');
     expect(screen.getAllByText(/The canvas shows your current project\./)).toHaveLength(1);
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
     await userEvent.click(screen.getAllByRole('button', { name: 'Restore and resume' })[0]);
     expect(screen.getByRole('dialog')).toHaveTextContent('earlier model and settings');
     expect(host.lastOfType('restore_conversation')).toBeUndefined();
@@ -970,7 +824,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
   });
 
-  it('disables changing chats while a tool continuation is pending and surfaces rejected actions', async () => {
+  it('disables changing chats while a tool continuation is pending', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ conversationBusy: true }));
     expect(screen.getByRole('button', { name: 'New chat' })).toBeDisabled();
@@ -1441,7 +1295,7 @@ describe('App agent setup', () => {
     expect(screen.queryByText(/http:\/\/127.0.0.1/)).not.toBeInTheDocument();
     // The screen asks permission, and promises the backup before the user
     // commits rather than after.
-    expect(screen.getByText(/Allow this AI tool to read the open project/)).toBeInTheDocument();
+    expect(screen.getByText(/Allow this AI tool to read and change the open project/)).toBeInTheDocument();
     expect(screen.getByText(/The existing file is backed up first/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
     expect(host.lastOfType('mcp_connect')?.payload).toMatchObject({ toolId: 'cursor' });

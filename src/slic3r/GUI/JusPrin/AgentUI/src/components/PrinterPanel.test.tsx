@@ -92,32 +92,33 @@ describe('the credential card', () => {
     return {
       actionId: 't1', correlationId: 'm1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to 192.168.1.42',
       arguments: { printerName: 'Kobra 3', hostType: 'moonraker', address: '192.168.1.42', provider: 'host' },
-      actionClass: 'mutation', requiresApproval: true, sessionId: '1', expectedRevision: 1, state: 'pending',
+      actionClass: 'mutation', requiresInput: true, sessionId: '1', expectedRevision: 1, state: 'input_required',
       progress: { current: 0, total: 1 }, ...overrides,
     };
   }
 
   it('asks a host printer for an optional API key, and connects with or without one', async () => {
-    const decide = vi.fn();
-    render(<PrinterCredentialCard activity={connect()} onDecision={decide} onCancelConnection={vi.fn()} />);
+    const input = vi.fn();
+    render(<PrinterCredentialCard activity={connect()} onInput={input} onCancelTool={vi.fn()} onCancelConnection={vi.fn()} />);
     expect(screen.getByText('Stays on this computer.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
-    expect(decide).toHaveBeenLastCalledWith('t1', 'approve', { credential: '' });
+    expect(input).toHaveBeenLastCalledWith('t1', { credential: '' });
     await userEvent.type(screen.getByLabelText('API key (if the printer asks for one)'), 'key123{Enter}');
-    expect(decide).toHaveBeenLastCalledWith('t1', 'approve', { credential: 'key123' });
+    expect(input).toHaveBeenLastCalledWith('t1', { credential: 'key123' });
   });
 
   it('asks a Bambu Lab printer for its access code in a field that hides it', () => {
-    render(<PrinterCredentialCard activity={connect({ arguments: { provider: 'bambu' } })} onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+    render(<PrinterCredentialCard activity={connect({ arguments: { provider: 'bambu' } })} onInput={vi.fn()} onCancelTool={vi.fn()}
+      onCancelConnection={vi.fn()} />);
     expect(screen.getByLabelText('Access code')).toHaveAttribute('type', 'password');
   });
 
   it('cancels without sending anything typed', async () => {
-    const decide = vi.fn();
-    render(<PrinterCredentialCard activity={connect()} onDecision={decide} onCancelConnection={vi.fn()} />);
+    const cancel = vi.fn();
+    render(<PrinterCredentialCard activity={connect()} onInput={vi.fn()} onCancelTool={cancel} onCancelConnection={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('API key (if the printer asks for one)'), 'key123');
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(decide).toHaveBeenCalledWith('t1', 'reject');
+    expect(cancel).toHaveBeenCalledWith('t1');
   });
 
   it('says it is connecting while the app waits, with Cancel in place of the buttons', async () => {
@@ -126,7 +127,8 @@ describe('the credential card', () => {
       <PrinterCredentialCard
         activity={connect({ state: 'succeeded' })}
         connection={{ state: 'connecting', target: '192.168.1.42' }}
-        onDecision={vi.fn()}
+        onInput={vi.fn()}
+        onCancelTool={vi.fn()}
         onCancelConnection={cancel}
       />,
     );
@@ -138,13 +140,6 @@ describe('the credential card', () => {
     expect(cancel).toHaveBeenCalledWith('t1');
   });
 
-  it('says it is connecting from the tap on, before the app has started the attempt', () => {
-    render(<PrinterCredentialCard activity={connect({ state: 'approved' })} onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
-    expect(screen.getByText('Connecting…')).toBeInTheDocument();
-    // Nothing to cancel yet.
-    expect(screen.queryByRole('button')).toBeNull();
-  });
-
   it.each([
     ['verified', 'Connected to 192.168.1.42.'],
     ['failed', "Couldn't reach 192.168.1.42"],
@@ -154,7 +149,8 @@ describe('the credential card', () => {
       <PrinterCredentialCard
         activity={connect({ state: 'succeeded' })}
         connection={{ state, target: '192.168.1.42' }}
-        onDecision={vi.fn()}
+        onInput={vi.fn()}
+        onCancelTool={vi.fn()}
         onCancelConnection={vi.fn()}
       />,
     );
@@ -165,22 +161,18 @@ describe('the credential card', () => {
 
   it('shows how far the connection has got once the app measures it', () => {
     render(<PrinterCredentialCard activity={connect({ state: 'running' })} connection={{ state: 'connecting', target: '192.168.1.42', percent: 60 }}
-      onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+      onInput={vi.fn()} onCancelTool={vi.fn()} onCancelConnection={vi.fn()} />);
     expect(screen.getByText('Connecting · 60%')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Connecting' })).toHaveAttribute('aria-valuenow', '60');
   });
 
   it('names the kind of printer on the waiting card when the app knows it', () => {
-    const { rerender } = render(<PrinterCredentialCard activity={connect()} onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+    const { rerender } = render(<PrinterCredentialCard activity={connect()} onInput={vi.fn()} onCancelTool={vi.fn()}
+      onCancelConnection={vi.fn()} />);
     expect(screen.getByText('Pending')).toBeInTheDocument();
-    rerender(<PrinterCredentialCard activity={connect()} model="Bambu A1" onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
+    rerender(<PrinterCredentialCard activity={connect()} model="Bambu A1" onInput={vi.fn()} onCancelTool={vi.fn()}
+      onCancelConnection={vi.fn()} />);
     expect(screen.getByText('Pending · Bambu A1')).toBeInTheDocument();
   });
 
-  it('folds to one line once decided, with no field left', () => {
-    render(<PrinterCredentialCard activity={connect({ state: 'rejected' })} onDecision={vi.fn()} onCancelConnection={vi.fn()} />);
-    expect(screen.getByText('Cancelled. No connection was made.')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).toBeNull();
-    expect(screen.queryByRole('button')).toBeNull();
-  });
 });

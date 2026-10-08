@@ -47,8 +47,8 @@ MessageState message_state_from(const std::string& name)
 
 ToolState tool_state_from(const std::string& name)
 {
-    if (name == "approved")
-        return ToolState::Approved;
+    if (name == "input_required")
+        return ToolState::InputRequired;
     if (name == "running")
         return ToolState::Running;
     if (name == "succeeded")
@@ -57,8 +57,6 @@ ToolState tool_state_from(const std::string& name)
         return ToolState::Failed;
     if (name == "cancelled")
         return ToolState::Cancelled;
-    if (name == "rejected")
-        return ToolState::Rejected;
     return ToolState::Pending;
 }
 
@@ -325,15 +323,11 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     entry["title"]            = activity.title;
     entry["arguments"]        = activity.arguments_json;
     entry["actionClass"]      = action_class_name(activity.action_class);
-    entry["requiresApproval"] = activity.requires_approval;
+    entry["requiresInput"]    = activity.requires_input;
     entry["sessionId"]        = std::to_string(activity.session);
     entry["expectedRevision"] = activity.expected_revision;
     entry["state"]            = tool_state_name(activity.state);
     entry["progress"]         = json{{"current", activity.progress_current}, {"total", activity.progress_total}};
-    if (!activity.plan_id.empty())
-        entry["planId"] = activity.plan_id;
-    if (!activity.plan_scope.empty())
-        entry["planScope"] = activity.plan_scope;
     if (!activity.result_json.empty())
         entry["result"] = activity.result_json;
     if (activity.error)
@@ -359,9 +353,7 @@ ToolActivity read_activity(const json& entry)
     activity.title             = entry.value("title", "");
     activity.arguments_json    = entry.value("arguments", "");
     activity.action_class      = action_class_from(entry.value("actionClass", "read_only"));
-    activity.requires_approval = entry.value("requiresApproval", false);
-    activity.plan_id           = entry.value("planId", "");
-    activity.plan_scope        = entry.value("planScope", "");
+    activity.requires_input    = entry.value("requiresInput", false);
     try {
         activity.session = std::stoull(entry.value("sessionId", "0"));
     } catch (const std::exception&) {
