@@ -1,0 +1,139 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4FAFYA1CX9GZEF5KV1WXE9S",
+  "session_id": "01a11c97-213d-7421-af78-f90f2673aba2",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-09T03:14:48.206152Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 14,
+  "save_step_count": 12,
+  "files_touched": [
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "tests/agent/test_agent_bridge.cpp"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "7fbeae0f62bb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1425699,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 52061824,
+    "output_tokens": 167724,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "turn_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-09T03:14:48.1762Z",
+    "agent_lines": 0,
+    "agent_removed": 10,
+    "human_added": 1826,
+    "human_modified": 376,
+    "human_removed": 0,
+    "total_committed": 1994,
+    "total_lines_changed": 3710,
+    "agent_percentage": 0.2695417789757413,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+I agree with your selection of the initial skills, but your design was wrong. reload @@~/Downloads/handoff-assistant-instruction-homes.md Because the other agent has updated the handoff with more detailed design. Tell me now if you understand why your design was wrong.
+
+---
+
+Now implement this design basd on the handoff. then create the 5 skills you proposed, and a Corpus of five to ten queries to test the skills loading and The changes you made to  core prompt. do not cmigreate file-load-report skill for now
+
+---
+
+Go  do it.
+
+---
+
+where did you save your prompt test cases?
+
+---
+
+You say those test cases there, but you never run them, right?
+
+---
+
+Did you mix your test cases with other existing test cases?
+
+---
+
+First of all, your test cases were too easy. You phrase a perfect English absolutely clear about what skills that need to be executed that no user will be able to pull off. Go do some fucking research to see how real human beings talk in real life. Then update your test cases accordingly.
+
+---
+
+Generate a report for what you have done so that the other agent can resume your work.
+
+---
+
+# Files pasted by the user:
+
+## "Still reviewing: I have read both documents and the full diff, and I'm now chec…": /Users/kenneth/.codex/attachments/27b979da-b587-4ac9-9d3b-113358ee6f3d/Pasted text.txt
+
+## My request:
+do you agree with this review comments?
+
+---
+
+Fix them. Make sure you do your evaluation using DeepSeq model.
+
+---
+
+move your code to a worktree. commit to a feature branch
+
+---
+
+Give me a report nicely formatted so that I can see what prompt you have tested and the result.
+
+---
+
+push branch to remote
+
+---
+
+# Response annotations:
+Each item contains text selected from an earlier Codex response and may include a user comment. Treat items as Annotation 1, Annotation 2, and so on in array order. Use every selection as context and address every comment. For every annotation you address, include its inline directive `:codex-annotation{index="N"}`, where N is its one-based array position (for example, `:codex-annotation{index="1"}`). Do not use unstructured annotation labels.
+<response-annotations>
+[{"text":"“put polymaker pla pro in slot 2 but orca still says generic pla. which one am i actually meant to use here”","annotation":"Augury user just ask a question to diagnose this problem here, right? Would the user be surprised? Here, when the scale actually changed the preset?","source":{"messageId":"msg_00f379113ec3b62b016ac8160a4af48199a8cbd016703ec691","startOffset":2970,"endOffset":3078}},{"text":"“do i really need this forest of tree supports? the front has tiny letters and i dont wanna destroy them pulling all that crap off”","annotation":"The same as above. Do you think that the user will be surprised here?","source":{"messageId":"msg_00f379113ec3b62b016ac8160a4af48199a8cbd016703ec691","startOffset":3129,"endOffset":3260}},{"text":"“why are there a couple lines starting in mid air in preview lol. am i good to send this or is it gonna make a blob”","annotation":"This is weird. I thought review-slice should always be automatically triggered, instead of requested by a user.","source":{"messageId":"msg_00f379113ec3b62b016ac8160a4af48199a8cbd016703ec691","startOffset":3321,"endOffset":3437}},{"text":"Preview questions","annotation":"What do you mean by preview questions? I don't think users would usually ask questions about a preview .  This sounds very niche case and not realistic.","source":{"messageId":"msg_00f379113ec3b62b016ac8160a4af48199a8cbd016703ec691","startOffset":4391,"endOffset":4409}}]
+</response-annotations>
+
+## My request:
+I feel like with this definition of tool skills, the agent seems to be too eager to make changes while the query was phrased just like a question.
