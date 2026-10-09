@@ -163,7 +163,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     }
     if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
         const bool apply = definition.handler == ToolHandler::SettingsApplyPatch;
-        if (!(apply ? has_only(arguments, {"scope", "target", "changes", "persistAs", "expectedSessionId", "expectedRevision", "intent"}) :
+        if (!(apply ? has_only(arguments, {"scope", "target", "changes", "persistAs", "expectedSessionId", "expectedRevision"}) :
                       has_only(arguments, {"scope", "target", "changes", "persistAs"})) ||
             !valid_settings_scope(arguments) || !valid_persist_as(arguments) ||
             !arguments.contains("changes") || !arguments["changes"].is_object() || arguments["changes"].empty() ||
@@ -171,8 +171,6 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
             return false;
         if (apply && (!arguments.contains("expectedSessionId") || !is_unsigned_string(arguments["expectedSessionId"]) ||
                       !arguments.contains("expectedRevision") || !arguments["expectedRevision"].is_number_unsigned()))
-            return false;
-        if (apply && !optional_string(arguments, "intent"))
             return false;
         return std::all_of(arguments["changes"].begin(), arguments["changes"].end(), [](const auto& value) {
             return value.is_string() || value.is_number() || value.is_boolean();
@@ -1003,11 +1001,7 @@ std::vector<ToolDefinition> make_definitions()
         {"settings_apply_patch", "Change settings",
          "Apply an atomic settings patch immediately. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
          object_schema({{"scope", settings_scope}, {"target", settings_target}, {"changes", changes_input}, {"persistAs", persist_as},
-                        {"expectedSessionId", id}, {"expectedRevision", revision},
-                        {"intent", json{{"type", "string"}, {"maxLength", 120},
-                                        {"description", "What the user asked this setup to be, in their own words, as "
-                                         "a short title. Not a description of the settings you "
-                                         "changed. Send it whenever the change came from something the user asked for."}}}},
+                        {"expectedSessionId", id}, {"expectedRevision", revision}},
                        {"scope", "changes", "expectedSessionId", "expectedRevision"}),
          settings_output({{"applied", boolean_schema()}, {"changes", array_schema(change)}, {"normalized", array_schema(id)},
              {"savedAs", string_schema()}, {"presetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},

@@ -397,11 +397,9 @@ describe('a tool-only turn in the printer panel', () => {
         streamingMessageId: 'm-2',
       }),
     );
-    // The agent's mark beside a status line (Figma "Working on it"), never an
-    // empty reply.
+    // A status line (Figma "Working on it"), never an empty reply.
     const line = screen.getByText('Working on it…');
     expect(line).toHaveAttribute('role', 'status');
-    expect(line.previousElementSibling).toHaveClass('agent-avatar');
     expect(document.querySelector('.markdown-content')).toBeNull();
   });
 
@@ -416,7 +414,6 @@ describe('a tool-only turn in the printer panel', () => {
       }),
     );
     expect(screen.queryByText('Working on it…')).not.toBeInTheDocument();
-    expect(document.querySelector('.agent-avatar')).toBeNull();
   });
 
   it('still shows a failed empty turn, with its Retry', async () => {

@@ -1,6 +1,5 @@
 // The change log's rows in the thread: how raw entries merge into rows, what
-// the rows say, where they sit among messages and history cards, and when a
-// reply says it changed nothing.
+// the rows say, and where they sit among messages and history cards.
 
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -110,8 +109,7 @@ describe('change rows in the thread', () => {
     expect(text[3]).toContain('Sparse infill density 35% → 45%');
     expect(text[3]).toContain('you, in Strong');
     expect(text[4]).toContain('Switched to Strong');
-    expect(text[5]).toMatch(/^DuplicateAgent/);
-    expect(screen.getByTestId('change-6').querySelector('.jp-icon-pencil')).toBeInTheDocument();
+    expect(text[5]).toContain('DuplicateAgent');
   });
 
   it('shows a run of edits to one setting as its net change', () => {
@@ -212,33 +210,5 @@ describe('change rows in the thread', () => {
   it('puts changes made before the first message at the top', () => {
     const { container } = thread([change(1, { afterId: '' })]);
     expect(container.querySelector('.message-list')!.firstElementChild!.className).toBe('change-rows');
-  });
-});
-
-describe('Answered · nothing changed', () => {
-  it('marks a finished reply the Agent changed nothing after', () => {
-    thread([]);
-    expect(screen.getByText('Answered · nothing changed')).toBeInTheDocument();
-  });
-
-  it('is absent when the Agent changed something, and not for the person\'s own edits', () => {
-    const { unmount } = thread([change(3, { actor: 'agent' })]);
-    expect(screen.queryByText('Answered · nothing changed')).not.toBeInTheDocument();
-    unmount();
-    thread([change(3, { actor: 'person' })]);
-    expect(screen.getByText('Answered · nothing changed')).toBeInTheDocument();
-  });
-
-  it('waits while the reply or its tool is still running', () => {
-    const running = {
-      actionId: 't-1', correlationId: 'm-2', server: 'jusprin-native', tool: 'duplicate_object', title: 'Duplicate',
-      arguments: {}, actionClass: 'mutation', sessionId: '1', expectedRevision: 1,
-      state: 'running', progress: { current: 0, total: 1 },
-    } satisfies ToolActivityInfo;
-    const { unmount } = thread([], { activities: [running] });
-    expect(screen.queryByText('Answered · nothing changed')).not.toBeInTheDocument();
-    unmount();
-    thread([], { messages: [turns[0], { ...turns[1], state: 'streaming' }] });
-    expect(screen.queryByText('Answered · nothing changed')).not.toBeInTheDocument();
   });
 });

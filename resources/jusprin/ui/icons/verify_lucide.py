@@ -23,7 +23,7 @@ def main() -> int:
         print(f"Expected {expected}, got {actual}", file=sys.stderr)
         return 1
     mismatches = []
-    known = set(manifest["icons"]) | {"agent-bot"}
+    known = set(manifest["icons"])
     for extra in sorted({path.stem for path in here.glob("*.svg")} - known):
         mismatches.append(f"{extra}.svg has no provenance mapping")
     for local, upstream in manifest["icons"].items():
