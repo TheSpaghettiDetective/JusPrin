@@ -110,6 +110,10 @@ void write_message_fields(json& entry, const ConversationMessage& message)
         entry.erase("fileReport");
         entry.erase("fileReportCard");
     }
+    if (!message.issue_context.empty())
+        entry["issueContext"] = message.issue_context;
+    else
+        entry.erase("issueContext");
 }
 
 ConversationMessage read_message(const json& entry)
@@ -132,6 +136,7 @@ ConversationMessage read_message(const json& entry)
     message.swatch           = entry.value("swatch", "");
     message.file_report      = entry.value("fileReport", "");
     message.file_report_card = entry.value("fileReportCard", false);
+    message.issue_context    = entry.value("issueContext", "");
     return message;
 }
 

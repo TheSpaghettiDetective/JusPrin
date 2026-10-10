@@ -2,6 +2,9 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/PrintIssues/IssueOverlay.hpp"
+#include "slic3r/GUI/JusPrin/PrintIssues/PrintIssueMonitor.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
@@ -67,6 +70,29 @@ public:
     // the tool strip and the value card the way a pointer does.
     const CanvasPresentationController& prepare_canvas_presentation() const { return m_prepare_canvas_presentation; }
     Workspace::IWorkspace* workspace() const { return m_workspace.get(); }
+
+    // What OrcaSlicer currently reports about the active plate, and its
+    // pill, list and bubble on the Prepare canvas. Null while not installed.
+    PrintIssues::PrintIssueMonitor* print_issues() const { return m_print_issues.get(); }
+    PrintIssues::IssueOverlay*      issue_overlay() const { return m_issue_overlay.get(); }
+    struct IssueSubmission
+    {
+        // "started", "queued", "duplicate", or why nothing was sent:
+        // "expired" (OrcaSlicer no longer reports the issue), "unchecked"
+        // (it has not validated the latest edit), "agent_not_set_up" (there
+        // is no assistant to answer), "busy" (a reply is being written), or
+        // the chat's own refusal code.
+        std::string               outcome;
+        PrintIssues::IssueMessage message;
+    };
+    // Sends the issue to the project chat as the person's own message and
+    // opens the chat pane. The issue is looked up again at the moment of the
+    // press, so one that has cleared or gone stale since it was drawn is not sent.
+    IssueSubmission submit_issue(const std::string& issue_id, PrintIssues::IssueIntent intent);
+    // What a press of either button does with no assistant set up: says so
+    // and offers to open the chat panel's setup. Returns whether the person
+    // took the offer.
+    bool offer_agent_setup();
     Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
     Workspace::ProjectAutosave* autosave() const { return m_autosave.get(); }
     void set_reimport_confirmation(std::function<ReimportDecision()> confirmation)
@@ -193,6 +219,8 @@ private:
     bool m_saved_auto_preview_after_slice{true};
     bool m_saved_show_config_wizard_on_startup{true};
     CanvasPresentationController m_prepare_canvas_presentation;
+    std::unique_ptr<PrintIssues::PrintIssueMonitor> m_print_issues;
+    std::unique_ptr<PrintIssues::IssueOverlay>      m_issue_overlay;
 };
 
 // The one MainFrame attachment point. Decides whether the shell should be

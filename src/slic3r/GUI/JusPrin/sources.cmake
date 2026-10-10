@@ -75,6 +75,16 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Brand/BrandPalette.cpp
     GUI/JusPrin/Brand/BrandPalette.hpp
     GUI/JusPrin/CanvasPresentationController.cpp
+    GUI/JusPrin/PrintIssues/IssueContext.cpp
+    GUI/JusPrin/PrintIssues/IssueContext.hpp
+    GUI/JusPrin/PrintIssues/IssueOverlay.cpp
+    GUI/JusPrin/PrintIssues/IssueOverlay.hpp
+    GUI/JusPrin/PrintIssues/IssueOverlayLayout.cpp
+    GUI/JusPrin/PrintIssues/IssueOverlayLayout.hpp
+    GUI/JusPrin/PrintIssues/PrintIssue.cpp
+    GUI/JusPrin/PrintIssues/PrintIssue.hpp
+    GUI/JusPrin/PrintIssues/PrintIssueMonitor.cpp
+    GUI/JusPrin/PrintIssues/PrintIssueMonitor.hpp
     GUI/JusPrin/CanvasPresentationController.hpp
     GUI/JusPrin/Canvas/CanvasIcons.cpp
     GUI/JusPrin/Canvas/CanvasIcons.hpp
@@ -133,6 +143,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/OrcaSliceChecks.cpp
     GUI/JusPrin/Workspace/OrcaOutputs.cpp
     GUI/JusPrin/Workspace/Regions.hpp
+    GUI/JusPrin/Workspace/SliceBounds.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
     GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     GUI/JusPrin/Workspace/PrinterFactsStore.hpp

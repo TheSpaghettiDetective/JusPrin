@@ -2,6 +2,7 @@
 
 #include "../GLCanvas3D.hpp"
 
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -36,6 +37,10 @@ public:
     // the gizmo manager made the change.
     bool toggle_tool(GLGizmosManager::EType type);
 
+    // A second fork-owned layer drawn after the tool strip in the same pass:
+    // the print-issue overlay, which the shell owns.
+    void set_extra_overlay(std::function<void()> renderer) { m_extra_overlay = std::move(renderer); }
+
     // The strip this controller put on the canvas, or nullptr while detached.
     const ViewportToolStrip* tool_strip() const { return m_tool_strip.get(); }
 
@@ -44,6 +49,7 @@ private:
     std::optional<bool>                m_previous_hidden;
     std::optional<bool>                m_previous_outline;
     std::unique_ptr<ViewportToolStrip> m_tool_strip;
+    std::function<void()>              m_extra_overlay;
 };
 
 } // namespace Slic3r::GUI::JusPrin

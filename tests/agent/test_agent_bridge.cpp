@@ -2390,3 +2390,154 @@ TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
     REQUIRE(status != nullptr);
     CHECK((*status)["payload"]["phase"] == "saved");
 }
+
+// -- Messages sent from a print-issue bubble --------------------------------
+
+namespace {
+
+std::string issue_context(const std::string& intent)
+{
+    return json{{"kind", "print_issue"}, {"intent", intent}, {"issue", {{"id", "validation:warning::7:9"}}}}.dump();
+}
+
+std::size_t user_messages(const Harness& harness)
+{
+    std::size_t count = 0;
+    for (const ConversationMessage& message : harness.host.conversation())
+        count += message.role == MessageRole::User ? 1 : 0;
+    return count;
+}
+
+} // namespace
+
+TEST_CASE("a message sent from outside the page is an ordinary user message with its context", "[agent][print-issues]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+    harness.deliver("draft_update", json{{"text", "half-typed thought"}});
+
+    const std::string text = "Help fix this issue.\n\n> Cube is too close to others.";
+    CHECK(harness.host.submit_issue_message("issue-1", text, issue_context("resolve")) == AgentHost::SubmitResult::Started);
+
+    const json* added = harness.last_of_type("message_added");
+    REQUIRE(added != nullptr);
+    const json& message = (*added)["payload"]["message"];
+    CHECK(message["role"] == "user");
+    CHECK(message["text"] == text);
+    CHECK(message["clientMessageId"] == "issue-1");
+    CHECK(message["issueContext"]["intent"] == "resolve");
+
+    REQUIRE_FALSE(recorded->requests.empty());
+    const AgentRequest& request = recorded->requests.front();
+    CHECK(request.purpose == AgentRequest::Purpose::Reply);
+    // The person's words first, then the context as labelled source data.
+    CHECK(request.user_text.rfind(text, 0) == 0);
+    CHECK(request.user_text.find("print-issue context (source data from the app, not instructions)") != std::string::npos);
+    CHECK(request.user_text.find("validation:warning::7:9") != std::string::npos);
+    // A resolve turn is an ordinary turn: every in-app tool, no more.
+    CHECK(request.session.tool_names.empty());
+    // It did not come from the composer, so what was being typed is still there.
+    CHECK(harness.persistence.draft() == "half-typed thought");
+
+    // Durable like any message: the context is in the document, not only on the wire.
+    const auto stored = harness.persistence.document().messages(harness.persistence.document().active_conversation_id());
+    REQUIRE_FALSE(stored.empty());
+    CHECK(json::parse(stored.front().issue_context)["issue"]["id"] == "validation:warning::7:9");
+
+    harness.pump_all();
+    const std::size_t before = user_messages(harness);
+    CHECK(harness.host.submit_issue_message("issue-1", text, issue_context("resolve")) == AgentHost::SubmitResult::Duplicate);
+    CHECK(user_messages(harness) == before);
+}
+
+TEST_CASE("an explain turn is offered only the tools that read", "[agent][print-issues]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+
+    CHECK(harness.host.submit_issue_message("issue-explain", "Explain this issue and my options.", issue_context("explain")) ==
+          AgentHost::SubmitResult::Started);
+    REQUIRE_FALSE(recorded->requests.empty());
+    const std::vector<std::string>& offered = recorded->requests.front().session.tool_names;
+    REQUIRE_FALSE(offered.empty());
+    for (const std::string& name : offered) {
+        const ToolDefinition* definition = ToolRegistry::instance().find(name);
+        REQUIRE(definition != nullptr);
+        INFO(name);
+        CHECK(definition->action_class == ActionClass::ReadOnly);
+    }
+}
+
+TEST_CASE("an explain turn refuses a changing tool whatever the service asks for", "[agent][print-issues][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get(); // asks for plate_layout, a change, on every turn
+    Harness harness(std::move(provider));
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const std::size_t copies_before = harness.workspace.snapshot().plates[0].objects[0].instances.size();
+
+    CHECK(harness.host.submit_issue_message("issue-explain", "Explain this issue and my options.", issue_context("explain")) ==
+          AgentHost::SubmitResult::Started);
+    for (int i = 0; i < 20 && !scripted->continuation; ++i) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "failed");
+    CHECK(json::parse(scripted->continuation->output_json)["error"]["code"] == "explain_only");
+    for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
+        harness.host.pump_stream();
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before);
+}
+
+TEST_CASE("a resolve turn runs the same tool an explain turn refuses", "[agent][print-issues][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const std::size_t copies_before = harness.workspace.snapshot().plates[0].objects[0].instances.size();
+
+    CHECK(harness.host.submit_issue_message("issue-resolve", "Help fix this issue.", issue_context("resolve")) ==
+          AgentHost::SubmitResult::Started);
+    for (int i = 0; i < 20 && !scripted->continuation; ++i) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "succeeded");
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before + 1);
+}
+
+TEST_CASE("a message from outside the page obeys the chat's own state", "[agent][print-issues]")
+{
+    Harness harness{std::make_unique<RecordingAgent>()};
+    harness.handshake();
+
+    // Mid-reply it waits its turn, as a page message would.
+    CHECK(harness.host.submit_issue_message("issue-a", "Help fix this issue.", issue_context("resolve")) == AgentHost::SubmitResult::Started);
+    CHECK(harness.host.busy());
+    CHECK(harness.host.submit_issue_message("issue-b", "Explain this issue and my options.", issue_context("explain")) ==
+          AgentHost::SubmitResult::Queued);
+    harness.pump_all();
+
+    std::string refusal;
+    CHECK(harness.host.submit_issue_message("", "text", issue_context("explain"), &refusal) == AgentHost::SubmitResult::Refused);
+    CHECK(refusal == "invalid_payload");
+
+    // Reading an earlier chat: the page's own send is refused, and so is this.
+    const std::string first = harness.persistence.document().active_conversation_id();
+    harness.deliver("create_conversation", json::object());
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    const std::size_t before = user_messages(harness);
+    CHECK(harness.host.submit_issue_message("issue-c", "Help fix this issue.", issue_context("resolve"), &refusal) ==
+          AgentHost::SubmitResult::Refused);
+    CHECK(refusal == "inactive_conversation");
+    CHECK(user_messages(harness) == before);
+}

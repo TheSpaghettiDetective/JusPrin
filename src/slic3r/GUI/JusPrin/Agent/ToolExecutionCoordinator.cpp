@@ -404,7 +404,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 
 const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
                                                       ToolExecutionPacing pacing, ToolSource source,
-                                                      const std::string& call_id)
+                                                      const std::string& call_id, std::optional<ToolError> refusal)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -433,6 +433,10 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
 
     if (definition == nullptr) {
         fail(stored, "unknown_tool", "This build has no tool named \"" + request.tool + "\".");
+        return stored;
+    }
+    if (refusal) {
+        fail(stored, refusal->code, refusal->message);
         return stored;
     }
 

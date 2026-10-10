@@ -104,6 +104,10 @@ export interface WireMessage {
   // could not speak about it (fileReportCard).
   fileReport?: FileReport;
   fileReportCard?: boolean;
+  // User messages sent from a print-issue bubble on the canvas: the issue,
+  // its target and the freshness of the evidence, for the model. The page
+  // draws the message's text and nothing from here.
+  issueContext?: unknown;
 }
 
 // Raw words shown or scheduled by Orca during opening, and the app's answer

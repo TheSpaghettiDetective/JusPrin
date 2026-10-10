@@ -106,6 +106,29 @@ The pane is a fork-owned native surface (`Shell/LeftPane`) that sits left of the
 
 The physical-print ledger has any number of subscribers (`ProjectPersistence::subscribe_ledger`), so the pane and the header's overflow menu observe it independently.
 
+### Print issues
+
+What is wrong with the active plate stays on the Prepare canvas whether or not the chat is open: a status pill in the canvas's lower right corner, the list it opens, and a bubble beside the object the selected issue is about, with **Ask AI** and **Resolve with AI**. OrcaSlicer's own notices are not drawn while the shell is installed.
+
+| Piece | Owns |
+|---|---|
+| `PrintIssues/PrintIssueMonitor` | The list. It asks OrcaSlicer's own checks again and reads the state OrcaSlicer already stores; it holds no rule about what a problem is. An entry exists while its native source reports it, and is marked stale while OrcaSlicer has an edit it has not yet applied to the print. |
+| `PrintIssues/PrintIssue.hpp` | The entry: OrcaSlicer's words unchanged, a severity taken from whether OrcaSlicer itself refuses to slice or print, and the object and copy ids OrcaSlicer named. Ids come from the native source's identifiers, never from the message text. |
+| `PrintIssues/IssueOverlayLayout` | Where the pieces go, as plain geometry with its own tests. The bubble goes above its object, else right, left, or below; it never covers the object, the pill, the open list, or the tool strip, and docks beside the pill when no side is free or the issue has no object. |
+| `PrintIssues/IssueOverlay` | Drawing and input, with ImGui inside the canvas's frame through the same overlay hook as the tool strip. Position is recomputed from the camera every frame. |
+| `PrintIssues/IssueContext` | The chat message a button sends: the request sentence, OrcaSlicer's words quoted beneath it, and the issue, its target and the freshness of the evidence as data for the model. |
+| `AgentHost::submit_issue_message` | The one way a message enters the chat from outside the page. It shares the page's path, obeys the same refusals, and leaves the composer's draft alone. |
+
+Rules that follow from the above:
+
+- **Never "no issues" before a check.** While OrcaSlicer holds an unapplied edit the status says it is checking and both buttons are off.
+- **Nothing is resolved by the fork.** An issue goes when OrcaSlicer stops reporting it. Closing a notice, pressing a button, or an agent saying it fixed something changes nothing.
+- **A press acts on what is true at the press.** The issue is looked up again; one that has cleared or gone stale is not sent.
+- **With no assistant set up, a press sends nothing.** It says so and offers to open the chat panel's setup; a question in the chat would only fail there.
+- **Ask AI may only read.** The turn is offered the read-only tools and `AgentHost` refuses a call to any other, whatever the service asks for. Resolve with AI is an ordinary turn with no extra authority.
+- **A new kind of native warning needs a reader.** With OrcaSlicer's notices hidden, a warning the monitor does not read is not shown anywhere. After an upstream update, check `GLCanvas3D::EWarning`, `NotificationType`, and the callers of the notification manager's `push_*` functions for sources the monitor lacks. Known gap: the "flushing volume set to 0" warning, whose check is private to `GLCanvas3D`.
+- **Operation notices are not print issues.** Export finished, upload and download progress, update and network notices have no JusPrin surface yet; hiding OrcaSlicer's notices hides them too.
+
 ### Agent WebView
 
 The production Agent interface is a standalone local React/TypeScript package embedded in `wxWebView`. It requires:

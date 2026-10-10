@@ -483,6 +483,10 @@
       "minWidth": 220,
       "titleTextRole": "section"
     },
+    "printIssues": {
+      "bubbleWidth": 288,
+      "listWidth": 320
+    },
     "icon": {
       "sizes": [
         16,

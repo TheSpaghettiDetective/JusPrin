@@ -131,6 +131,20 @@
 //   --manual-tool-strip
 //              leaves the shell open on the two-plate fixture with an object
 //              selected, for hands-on testing of the canvas tool strip
+//   --print-issues
+//              the print issues on the Prepare canvas, through their whole
+//              life in the real app: OrcaSlicer's validation, placement,
+//              slicing warnings and failures read back as issues; the bubble
+//              following camera, zoom, resize and object moves and staying
+//              off its object; both buttons through to the chat; stale and
+//              cleared issues; deletion, undo, plate switch, project
+//              replacement; OrcaSlicer's own notices not drawn, in Prepare
+//              or in Check print
+//   --print-issues-capture <output-directory>
+//              the same run, saving the canvas's own pixels at each stage
+//   --manual-print-issues / --manual-print-issues-no-agent
+//              leaves two overlapping cubes open for hands-on use, with a
+//              stand-in assistant that answers "Noted.", or with none
 //   --tool-strip-capture <output-directory>
 //              clicks the Prepare canvas's tool strip with real pointer
 //              events: toggles Move and Scale, follows the Rotate shortcut,
@@ -178,6 +192,11 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
+#include "print_issues_agent.hpp"
+#include <glad/gl.h>
+#include "slic3r/GUI/Camera.hpp"
+#include "slic3r/GUI/NotificationManager.hpp"
+#include "slic3r/GUI/3DScene.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
@@ -590,6 +609,13 @@ private:
     bool                          m_called{false};
 };
 
+// The recording agent the project chat was given in the print-issues modes,
+// for the scenario to read.
+RecordingAgent* g_issue_agent = nullptr;
+// --manual-print-issues-no-agent: the same fixture with no Agent service, to
+// see what a press of either button does before the assistant is set up.
+bool g_issue_no_agent = false;
+
 // wxString::ToStdString() narrows through that same locale converter and
 // returns an empty string when a character will not fit the code page. Names
 // compared as std::string are read as UTF-8 for the same reason.
@@ -615,6 +641,8 @@ struct HarnessState
         FigmaTimelineCapture,
         ToolStripCapture,
         ManualToolStrip,
+        PrintIssues,
+        ManualPrintIssues,
         PrinterMenu,
         ClassicSwitch,
         TaskChat,
@@ -885,6 +913,23 @@ public:
             if (m_state->mode == HarnessState::Mode::TimelineCapture) {
                 verify_canvas_interaction();
                 wait_for_agent_page("timeline", [self = shared_from_this()] { self->begin_timeline_capture(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PrintIssues) {
+                m_issue_agent = g_issue_agent;
+                wait_for_agent_page("print_issues", [self = shared_from_this()] { self->begin_print_issues(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ManualPrintIssues) {
+                // Two overlapping cubes, left open for hands-on use.
+                load_multi_plate_fixture();
+                PartPlateList& plates = m_plater->get_partplate_list();
+                plates.get_plate(0)->add_instance(1, 0, true);
+                m_plater->canvas3D()->reload_scene(true, true);
+                move_object(1, Vec3d(10, 0, 0));
+                wait_until_settled("manual_print_issues_ready", [self = shared_from_this()] {
+                    std::cerr << "HARNESS MANUAL READY print-issues failures=" << self->m_failures << '\n';
+                });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ManualToolStrip) {
@@ -6876,6 +6921,8 @@ private:
         });
     }
 
+#include "print_issues_scenario.inc"
+
     void write_screen_capture(const wxRect& rect, const std::string& name)
     {
         fs::create_directories(m_state->capture_dir);
@@ -9391,6 +9438,15 @@ void install_harness_agent(HarnessState::Mode mode)
                        Agent::AgentAvailability::Ready);
         return;
     }
+    case HarnessState::Mode::PrintIssues:
+    case HarnessState::Mode::ManualPrintIssues: {
+        if (g_issue_no_agent)
+            return;
+        auto agent = std::make_unique<RecordingAgent>();
+        g_issue_agent = agent.get();
+        host.set_agent(std::move(agent), Agent::AgentAvailability::Ready);
+        return;
+    }
     default:
         host.set_agent(std::make_unique<Agent::DeterministicMockAgent>(), Agent::AgentAvailability::Ready);
         return;
@@ -9678,6 +9734,20 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::FigmaTimelineCapture;
             state->figma_timeline_manual = true;
         }
+        else if (argument == "--print-issues")
+            state->mode = HarnessState::Mode::PrintIssues;
+        else if (argument == "--manual-print-issues" || argument == "--manual-print-issues-no-agent") {
+            state->mode = HarnessState::Mode::ManualPrintIssues;
+            g_issue_no_agent = argument == "--manual-print-issues-no-agent";
+        }
+        else if (argument == "--print-issues-capture") {
+            if (++index == argc) {
+                std::cerr << "--print-issues-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::PrintIssues;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--tool-strip-capture") {
             if (++index == argc) {
                 std::cerr << "--tool-strip-capture requires an output directory\n";
@@ -9808,7 +9878,8 @@ int main(int argc, char** argv)
     int exit_code = state->result;
     if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
         state->mode == HarnessState::Mode::ManualUnconfigured || state->mode == HarnessState::Mode::ManualMcp ||
-        state->mode == HarnessState::Mode::ManualToolStrip || state->figma_timeline_manual)
+        state->mode == HarnessState::Mode::ManualToolStrip || state->mode == HarnessState::Mode::ManualPrintIssues ||
+        state->figma_timeline_manual)
         exit_code = gui_result;
     else if (state->result < 0)
         exit_code = gui_result == 0 ? 1 : gui_result;

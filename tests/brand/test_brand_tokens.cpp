@@ -458,6 +458,15 @@ TEST_CASE("the tool panel geometry is explicit", "[brand]")
     CHECK(component.at("formRow").at("height") == component.at("field").at("height"));
 }
 
+// The print-issue bubble and list are ImGui inside the Prepare canvas, like
+// the tool strip: their two widths have no other home.
+TEST_CASE("the print issue overlay geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("printIssues"), {{"bubbleWidth", 288}, {"listWidth", 320}},
+                             "component.printIssues");
+}
+
 // The axis colours name OrcaSlicer's own 3D handles, so they are the one
 // semantic group that must not change between the modes.
 TEST_CASE("the axis colors match the 3D handles in both modes", "[brand]")

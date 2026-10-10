@@ -171,6 +171,9 @@ struct CheckboxMetrics  { int size{0}; int radius{0}; int glyph_size{0}; int lab
 struct FormRowMetrics   { int height{0}; int gap{0}; int label_width{0}; std::optional<TextRole> text_role; };
 struct ToolPanelMetrics { int padding{0}; int row_gap{0}; int radius{0}; int min_width{0};
                           std::optional<TextRole> title_text_role; };
+// The print-issue bubble and list on the Prepare canvas. Everything else they
+// use (padding, radii, the two buttons) comes from the shared scales and recipes.
+struct PrintIssueMetrics { int bubble_width{0}; int list_width{0}; };
 
 // Geometry from the token file's dimension and component sections. Every
 // value is DIP; callers wrap it in FromDIP().
@@ -201,6 +204,7 @@ struct ShellMetrics
     CheckboxMetrics  checkbox;
     FormRowMetrics   form_row;
     ToolPanelMetrics tool_panel;
+    PrintIssueMetrics print_issues;
     ChipMetrics      chip;
     MenuRowMetrics   menu_row;
     PopoverMetrics   popover;

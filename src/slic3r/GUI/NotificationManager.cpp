@@ -3032,6 +3032,8 @@ void NotificationManager::stop_delayed_notifications_of_type(const NotificationT
 void NotificationManager::render_notifications(GLCanvas3D &canvas, float overlay_width, float bottom_margin, float right_margin)
 {
 	sort_notifications();
+	if (wxGetApp().plater()->get_view3D_canvas3D()->legacy_overlays_hidden())
+		return;
 
 	float bottom_up_last_y = bottom_margin; // ORCA dont scale margins
 

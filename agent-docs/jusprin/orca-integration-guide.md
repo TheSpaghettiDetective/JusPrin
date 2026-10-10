@@ -232,6 +232,56 @@ deletes the filament and process profiles made for it, so that case goes
 through Orca's own confirmation. Names that differ only in case are one file on
 Windows and macOS; never save one over the other and then delete the first.
 
+### Print problems are read back from OrcaSlicer, not recorded as they pass
+
+OrcaSlicer reports print problems through three unrelated producers (print
+validation in `Plater`, slicing steps on the background thread, plate checks in
+`GLCanvas3D`), and all three end in `NotificationManager`. The notices are a
+presentation, not a record: a closed notice is gone while its problem remains,
+several objects' warnings are merged into one notice, and the object a notice
+is about is captured inside a callback nobody else can read.
+`PrintIssues/PrintIssueMonitor` therefore reads the facts where OrcaSlicer
+keeps them, and changes no OrcaSlicer function to do it.
+
+- **Validation is asked again.** `Print::validate` is public and `const`, and
+  `PartPlate::fff_print()` hands out the plate's print. It costs under a
+  millisecond on small plates. It returns one error and one warning at most:
+  a later check overwrites an earlier warning, and several offending objects
+  become one message with one target. The warning's `type` is left
+  uninitialised by some producers, so never use it for identity.
+- **The print lags the project by up to 500 ms.** An edit schedules
+  OrcaSlicer's update of the print on a timer.
+  `Plater::is_background_process_update_scheduled()` is true until it runs;
+  until then nothing read from the print describes the project as it is. This
+  is what separates "checking" from "no issues".
+- **A copy over the plate's edge is dropped from validation.** It gets a
+  placement error instead and no clearance warning.
+- **Step warnings carry their own freshness.** `step_state_with_warnings`
+  keeps a warning whose step was invalidated, with `current == false`, until
+  the step runs again. A plain move invalidates the slice result but not the
+  object's steps, so the warning stays current; changing a setting the step
+  depends on does not.
+- **A move during a slice does not cancel it.** `Print::apply` reports
+  "changed", not "invalidated", and the slice finishes valid.
+- **Why a slice failed exists only in `EVT_PROCESS_COMPLETED`**, which
+  `Plater.cpp` defines and no header declares. `Workspace/PlaterProjectState.hpp`
+  declares it; `Plater.cpp` includes that header ahead of the definition, so
+  the event gets external linkage with no OrcaSlicer line changed. The
+  completion handler bound later runs first and must `Skip()`.
+- **OrcaSlicer validates only the active plate.**
+- **The notification manager stops retiring notices while its window is
+  inactive**, so a count of notices only grows there.
+
+OrcaSlicer's notices are not drawn while the shell is installed.
+`NotificationManager::render_notifications` returns early when the Prepare
+canvas has its legacy overlays hidden, the flag the shell already sets on
+install and restores on detach, so nothing new has to be saved or put back.
+It asks the Prepare canvas rather than the canvas being drawn on purpose: the
+Check print window is a second canvas whose own flag is never set, and asking
+it would bring the notices back there. Only the drawing stops. Notices are
+still pushed, timed out and closed, because that lifecycle runs in
+`update_notifications`.
+
 ### Application teardown can re-enter destroyed owners
 
 Quitting while model volumes are loaded can crash:

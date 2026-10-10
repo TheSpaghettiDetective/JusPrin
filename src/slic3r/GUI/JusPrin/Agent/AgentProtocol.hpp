@@ -135,6 +135,11 @@ struct ConversationMessage
     // draws it only as a card, when the Agent could not speak about it.
     std::string               file_report;
     bool                      file_report_card{false};
+    // User messages sent from a print-issue bubble: the issue, its target and
+    // the freshness of the evidence (JSON), which the model reads beside the
+    // text and the page does not draw. Its "intent" is "explain" or "resolve";
+    // an explain turn may only read.
+    std::string               issue_context;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

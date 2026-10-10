@@ -242,6 +242,10 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.tool_panel.min_width       = parse_int(tool_panel, "component.toolPanel", "minWidth");
     m.tool_panel.title_text_role = parse_text_role(tool_panel, "component.toolPanel", "titleTextRole");
 
+    const nlohmann::json& print_issues = component.at("printIssues");
+    m.print_issues.bubble_width = parse_int(print_issues, "component.printIssues", "bubbleWidth");
+    m.print_issues.list_width   = parse_int(print_issues, "component.printIssues", "listWidth");
+
     const nlohmann::json& chip = component.at("chip");
     m.chip.height = parse_int(chip, "component.chip", "height");
     m.chip.radius = parse_int(chip, "component.chip", "radius");

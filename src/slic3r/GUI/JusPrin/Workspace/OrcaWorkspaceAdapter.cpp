@@ -1,4 +1,5 @@
 #include "OrcaWorkspaceAdapter.hpp"
+#include "SliceBounds.hpp"
 #include "DialogListeners.hpp"
 #include "OrcaSettings.hpp"
 #include "SettingDisplay.hpp"
@@ -1988,10 +1989,7 @@ SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate, const SliceReportR
     // The result's own toolpath_outside flag is only ever written by a 3mf, so
     // it would be stale on a plate just sliced. Ask the build volume instead,
     // which is what the canvas does before it draws the same warning.
-    BoundingBoxf3 paths;
-    for (const GCodeProcessorResult::MoveVertex& move : result.moves)
-        if (move.type == EMoveType::Extrude && move.extrusion_role != erCustom && move.width != 0.f && move.height != 0.f)
-            paths.merge(move.position.cast<double>());
+    const BoundingBoxf3 paths = extrusion_bounds(result);
     if (paths.defined)
         report.toolpath_outside = !m_plater.build_volume().all_paths_inside(result, paths);
     check_slice(*target, request, report);

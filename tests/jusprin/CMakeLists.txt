@@ -13,6 +13,7 @@ add_executable(jusprin_tests
     test_viewport_tool_strip.cpp
     test_left_pane_model.cpp
     test_project_pane_model.cpp
+    test_print_issues.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/FilamentChipModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/LeftPaneModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/ProjectPaneModel.cpp
@@ -24,6 +25,9 @@ add_executable(jusprin_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/HostLanes.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/InstalledModels.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Canvas/ViewportToolStripLayout.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrintIssues/IssueContext.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrintIssues/IssueOverlayLayout.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrintIssues/PrintIssue.cpp
 )
 
 target_compile_definitions(jusprin_tests PRIVATE
