@@ -1,0 +1,14 @@
+In the JusPrin repo (OrcaSlicer fork; read AGENTS.md and agent-docs/jusprin/mcp-tool-extension-guide.md first), the MCP server's discovery instructions contradict the server's own behaviour.
+
+Facts, verified on branch jusprin-newui at 198c64606f:
+- `src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp`, function `discovery`, builds the MCP `instructions` string from a settings-only paragraph written 2026-09-04 (when the MCP catalogue had five settings tools) plus `Agent::kPrintJourneyGuidance` from `src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp`.
+- `kPrintJourneyGuidance` says: "For a print request: record the user's explicit purpose as setupTitle with intent_update, even when no setting changes; ...". That sentence was written on 2026-10-06 for the in-app chat's setup card.
+- `src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp` rejects exactly that call from MCP: when `source == ToolSource::Mcp` and `intent_update` arguments contain `setupTitle`, it fails with `chat_title_unavailable` ("A setup title belongs to an in-app chat. MCP can update intent fields only.").
+- So every MCP client is instructed to make a call that always fails. The same constant also carries "Ask only the questions whose answer would change what you do", a general behaviour rule for someone else's agent; MCP's own guidance on server instructions (https://blog.modelcontextprotocol.io/posts/2025-11-03-using-server-instructions/) says to keep instructions to cross-tool relationships, operational patterns and constraints, not to repeat tool descriptions, and not to include general behavioural instructions.
+
+Task:
+1. Reproduce first: add or extend a native test (tests/agent/test_mcp_protocol.cpp or test_mcp_runtime.cpp, target `agent_bridge_tests`) showing that the discovery instructions name `setupTitle` while an MCP `intent_update` call with `setupTitle` fails with `chat_title_unavailable`.
+2. Give MCP its own short instructions written for an MCP client: the cross-tool patterns that hold for MCP (inspect, preview, apply with the preview's sessionId and revision; re-read after stale_workspace; record requirements as intent fields and the plan with plan_set before changing the project; check slice_report before export_file; closing a response cancels pending work). Do not mention setupTitle, skills, or in-app chat concepts. Cover the current catalogue, not only settings tools.
+3. Keep the in-app assistant's prompt behaviour unchanged: the in-app prompt in `src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp` must still carry its print guidance, including the setupTitle sentence. If you split the shared constant, say in a comment which audience each part serves.
+4. Update any test that asserts on the old text, build `agent_bridge_tests` (GUI-free; see tests/agent/CMakeLists.txt) and run the whole binary.
+Do not commit unless asked. This is a JusPrin-owned area (src/slic3r/GUI/JusPrin/), so no OrcaSlicer-owned files should change.
