@@ -27,8 +27,9 @@ enum class ToolExposure : std::uint8_t {
     Printer  = 1u << 3
 };
 
-// How a print request goes, for both adapters' instructions: the tools'
-// own descriptions say how each one works.
+// How a print request goes, for the in-app assistant's instructions: the
+// tools' own descriptions say how each one works. Not sent to MCP clients: it
+// names intent_update and plan_set, which only the in-app chat has.
 inline constexpr const char* kPrintJourneyGuidance =
     "For a print request: record the user's explicit purpose as setupTitle with intent_update, even when no setting changes; "
     "record confirmed requirements as fields. Ask only the questions whose answer would change what "

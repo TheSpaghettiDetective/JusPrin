@@ -1008,13 +1008,16 @@ std::vector<ToolDefinition> make_definitions()
              {"applied", "changes", "normalized", "savedAs", "presetDirty", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
         {"intent_update", "Record what this print is for",
-         "Record the user's explicit purpose as setupTitle in an in-app chat, including when no setting changes. MCP callers can update named fields but cannot set a chat-owned title. Send fields as an empty array for a title-only update. Do not infer a purpose from a preset or proposed plan. Project Undo does not undo this.",
+         // In-app only, like plan_set: the record is the chat's own, its setup
+         // card's title and what the user told it. An external agent keeps
+         // what its user said, and its plan, in its own conversation.
+         "Record the user's explicit purpose as setupTitle, including when no setting changes. Send fields as an empty array for a title-only update. Do not infer a purpose from a preset or proposed plan. Project Undo does not undo this.",
          object_schema({{"setupTitle", json{{"type", "string"}, {"maxLength", 120}}},
                         {"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
                                                                {"assumed", boolean_schema()}}, {"field"}), 32)}},
                        {"fields"}),
          intent_output,
-         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::IntentUpdate},
+         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::IntentUpdate},
         {"plan_set", "Pin your plan for this print",
          "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan and runs immediately; project Undo does not undo this.",
          object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
@@ -1023,7 +1026,7 @@ std::vector<ToolDefinition> make_definitions()
                         {"assumptions", array_schema(text, 16)}, {"risks", array_schema(text, 16)}},
                        {"headline"}),
          plan_output,
-         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PlanSet},
+         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::PlanSet},
         {"printer_list", "List the printers this app knows",
          "List the physical printers this application knows about: what each is doing, the nozzle and loaded materials it last reported, and when it last said anything (ISO 8601, UTC). A printer it has not heard from is listed as offline, which is a statement about what can be observed rather than a claim about the machine; fields it has not reported are absent rather than zero.",
          object_schema(json::object()),

@@ -442,14 +442,6 @@ const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request
         return stored;
     }
     stored.arguments_json = std::move(validation.arguments_json);
-    {
-        const json arguments = json::parse(stored.arguments_json);
-        if (source == ToolSource::Mcp && definition->handler == ToolHandler::IntentUpdate &&
-            arguments.contains("setupTitle")) {
-            fail(stored, "chat_title_unavailable", "A setup title belongs to an in-app chat. MCP can update intent fields only.");
-            return stored;
-        }
-    }
     stored.title = m_registry.activity_title(*definition, stored.arguments_json);
 
     if (definition->handler == ToolHandler::ObjectImportFile) {
