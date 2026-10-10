@@ -399,6 +399,7 @@ ChangeEntry read_change(const json& entry)
     change.created_at      = entry.value("createdAt", "");
     change.kind            = entry.value("kind", "");
     change.actor           = entry.value("actor", "");
+    change.external        = entry.value("external", false);
     change.label           = entry.value("label", "");
     change.location        = entry.value("location", "");
     change.from            = entry.value("from", "");
@@ -1181,6 +1182,7 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
                 {"location", entry.location},
                 {"conversationId", entry.conversation_id},
                 {"afterId", entry.after_id}};
+    if (entry.external) record["external"] = true;
     if (entry.kind == "setting") {
         record["from"]   = entry.from;
         record["to"]     = entry.to;

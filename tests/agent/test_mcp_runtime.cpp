@@ -223,6 +223,40 @@ TEST_CASE("MCP host survives page reset and persists the same activity", "[mcp][
     CHECK(persistence.document().activities()[0].source == Agent::ToolSource::Mcp);
 }
 
+TEST_CASE("the change log says which edits an external tool made", "[mcp][host][changes]")
+{
+    Workspace::FakeWorkspace workspace(fixture());
+    Agent::ProjectPersistence persistence(workspace, {});
+    Agent::AgentHost host(workspace, persistence, Agent::AgentAvailability::Unavailable, false);
+    persistence.attach();
+    McpDirectory directory;
+    host.start_mcp(directory.path().u8string());
+    const auto patch = [&workspace](const char* loops) {
+        const auto snapshot = workspace.snapshot();
+        return json{{"scope", "process"}, {"expectedSessionId", std::to_string(snapshot.session.value())},
+                    {"expectedRevision", snapshot.revision}, {"changes", {{"wall_loops", loops}}}};
+    };
+    workspace.set_setting_for_testing("wall_loops", "3");
+    Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_apply_patch"}, {"arguments", patch("4")}}));
+    REQUIRE(wait_for([&] { return client.done(); }, [&] { host.pump_tools(); }));
+    const std::string action = host.tools().propose({"settings_apply_patch", patch("5").dump()}, "m-1").action_id;
+    REQUIRE(wait_for([&] { return Agent::tool_state_terminal(host.tools().find(action)->state); }, [&] { host.pump_tools(); }));
+
+    Agent::ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(persistence.document().dump()) == Agent::ProjectStateDocument::LoadResult::Loaded);
+    const auto changes = reloaded.changes();
+    REQUIRE(changes.size() == 3);
+    // By hand, by the external tool, by the in-app Agent.
+    CHECK(changes[0].actor == "person");
+    CHECK_FALSE(changes[0].external);
+    CHECK(changes[1].to == "4");
+    CHECK(changes[1].actor == "agent");
+    CHECK(changes[1].external);
+    CHECK(changes[2].to == "5");
+    CHECK(changes[2].actor == "agent");
+    CHECK_FALSE(changes[2].external);
+}
+
 TEST_CASE("MCP workspace summaries are bounded schema-validated and explicit", "[mcp][registry]")
 {
     auto snapshot = fixture();

@@ -22,7 +22,8 @@ export function groupChanges(changes: ChangeInfo[]): ChangeRun[] {
   const runs: ChangeRun[] = [];
   for (const change of [...changes].sort((a, b) => a.seq - b.seq)) {
     const run = runs[runs.length - 1];
-    if (run && run.last.kind === change.kind && run.last.label === change.label && run.last.actor === change.actor) {
+    if (run && run.last.kind === change.kind && run.last.label === change.label && run.last.actor === change.actor &&
+        !run.last.external === !change.external) {
       run.last = change;
       run.count += 1;
     } else {
@@ -77,7 +78,7 @@ function title(run: ChangeRun): ReactNode {
 }
 
 function meta(run: ChangeRun): string {
-  const who = run.last.actor === 'agent' ? 'Agent' : 'you';
+  const who = run.last.external ? 'External tool' : run.last.actor === 'agent' ? 'Agent' : 'you';
   const context = run.last.kind === 'setting' && run.last.preset ? `in ${run.last.preset}` : run.last.location;
   const parts = [context ? `${who}, ${context}` : who];
   if (run.count > 1) parts.push(`${run.count} steps merged`);
@@ -100,8 +101,10 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
   const cancel = useRef<HTMLButtonElement | null>(null);
   const points = new Map(restorePoints.map((point) => [point.changeSeq, point.versionId]));
   const runs = groupChanges(changes);
+  // An external tool's edits stay rows, like hand edits: a row says who made
+  // it, and the grouped blocks below are the in-app Agent's.
   const isAgentSetting = (run: ChangeRun) =>
-    run.last.kind === 'setting' && run.last.actor === 'agent' && !points.has(run.last.seq);
+    run.last.kind === 'setting' && run.last.actor === 'agent' && !run.last.external && !points.has(run.last.seq);
 
   useLayoutEffect(() => {
     if (!open || !anchor.current || !popover.current) return;
@@ -144,7 +147,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
   const entries: ReactNode[] = [];
   for (let index = 0; index < runs.length;) {
     const step = runs[index];
-    if (step.last.kind === 'step' && step.last.actor === 'agent') {
+    if (step.last.kind === 'step' && step.last.actor === 'agent' && !step.last.external) {
       let end = index + 1;
       while (end < runs.length && isAgentSetting(runs[end])) end += 1;
       const settings = runs.slice(index + 1, end);

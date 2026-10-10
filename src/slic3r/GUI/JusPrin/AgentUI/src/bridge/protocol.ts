@@ -411,6 +411,9 @@ export interface ChangeInfo {
   createdAt: string;
   kind: ChangeKind;
   actor: 'person' | 'agent';
+  // An agent edit made by an external tool through the MCP server, not by the
+  // in-app Agent. Absent from entries logged before the two were told apart.
+  external?: boolean;
   label: string;
   location?: string;
   from?: string;

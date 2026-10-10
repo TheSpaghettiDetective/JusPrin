@@ -1264,9 +1264,10 @@ struct WorkspaceChanged
 
 using WorkspaceChangedCallback = std::function<void(const WorkspaceChanged&)>;
 
-// Who made an edit: the person, unless the Agent executor holds an
-// IWorkspace::AgentEdit scope while its command runs.
-enum class EditActor : std::uint8_t { Person, Agent };
+// Who made an edit: the person, unless the tool executor holds an
+// IWorkspace::AgentEdit scope while its command runs. The scope says whether
+// the command came from the in-app Agent or from an external tool.
+enum class EditActor : std::uint8_t { Person, Agent, ExternalTool };
 
 // What kind of edit the change log records.
 //   Step     a real undo step: OrcaSlicer's snapshot_modifies_project rule;
@@ -1745,30 +1746,35 @@ public:
     // workspace detects it and stamped with the actor in force.
     WorkspaceSubscription subscribe_edits(WorkspaceEditCallback callback) { return m_edits.subscribe(std::move(callback)); }
 
-    // Held by the Agent executor around a command, so the edits the command
-    // causes are attributed to the Agent. Everything else is the person's.
+    // Held by the tool executor around a command, so the edits the command
+    // causes are attributed to its caller. Everything else is the person's.
     class AgentEdit
     {
     public:
-        explicit AgentEdit(IWorkspace& workspace) : m_workspace(workspace) { ++m_workspace.m_agent_edits; }
-        ~AgentEdit() { --m_workspace.m_agent_edits; }
+        explicit AgentEdit(IWorkspace& workspace, EditActor actor = EditActor::Agent)
+            : m_workspace(workspace), m_outer(workspace.m_edit_actor)
+        {
+            m_workspace.m_edit_actor = actor;
+        }
+        ~AgentEdit() { m_workspace.m_edit_actor = m_outer; }
         AgentEdit(const AgentEdit&) = delete;
         AgentEdit& operator=(const AgentEdit&) = delete;
 
     private:
         IWorkspace& m_workspace;
+        EditActor   m_outer;
     };
 
 protected:
     void publish_edit(WorkspaceEdit edit)
     {
-        edit.actor = m_agent_edits > 0 ? EditActor::Agent : EditActor::Person;
+        edit.actor = m_edit_actor;
         m_edits.publish(edit);
     }
 
 private:
     WorkspaceEditHub              m_edits;
-    int                           m_agent_edits{0};
+    EditActor                     m_edit_actor{EditActor::Person};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

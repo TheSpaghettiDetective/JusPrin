@@ -955,8 +955,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         fail(activity, "stale_revision", "The project changed before this action could execute. Call the tool again.");
         return;
     }
-    // Whatever this action changes is the Agent's, in the change log.
-    const Workspace::IWorkspace::AgentEdit agent_edit(m_workspace);
+    // Whatever this action changes is its caller's, in the change log.
+    const Workspace::IWorkspace::AgentEdit agent_edit(
+        m_workspace, activity.source == ToolSource::Mcp ? Workspace::EditActor::ExternalTool : Workspace::EditActor::Agent);
     m_executing = activity.action_id;
     struct Finished { std::string& id; ~Finished() { id.clear(); } } finished{m_executing};
     const ToolDefinition* definition = m_registry.find(activity.tool);

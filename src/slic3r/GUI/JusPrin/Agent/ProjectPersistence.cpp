@@ -137,7 +137,8 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     resolve_pending_boundary();
     ChangeEntry entry;
     entry.kind   = edit_kind_name(edit.kind);
-    entry.actor  = edit.actor == Workspace::EditActor::Agent ? "agent" : "person";
+    entry.actor    = edit.actor == Workspace::EditActor::Person ? "person" : "agent";
+    entry.external = edit.actor == Workspace::EditActor::ExternalTool;
     entry.label  = edit.label;
     entry.from   = edit.before;
     entry.to     = edit.after;

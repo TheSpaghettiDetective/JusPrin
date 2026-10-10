@@ -22,7 +22,7 @@ For local external clients, use the bundled `jusprin-mcp` stdio helper through *
 
 Native workspace commands run on the GUI thread through the shared coordinator. A shell-owned timer continues execution independently of the WebView handshake. No external client gets direct access to Orca objects.
 
-External calls preserve the trusted adapter-assigned `ToolSource::Mcp` for activity history and diagnostics. They execute through the same coordinator and workspace commands as in-app calls.
+External calls preserve the trusted adapter-assigned `ToolSource::Mcp` for activity history and diagnostics. They execute through the same coordinator and workspace commands as in-app calls. The change log records the edits they make as it records every edit, and marks them `external`, so the thread shows them as rows that say "External tool" where an in-app change says "Agent".
 ## Start with an eval failure
 
 Do not add a tool because Orca has a menu item or config key. Start with a transcript or automated eval where the Agent cannot complete a real user task, completes it unreliably, or consumes unreasonable steps or tokens.

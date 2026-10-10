@@ -122,6 +122,15 @@ describe('change rows in the thread', () => {
     expect(rows()[0]).toContain('2 steps merged');
   });
 
+  it('names an external tool on each of its edits, as rows like hand edits', () => {
+    thread(['Brim', 'Plate temp', 'Layer height'].map((label, index) => change(index + 1, {
+      kind: 'setting', actor: 'agent', external: true, label, from: 'old', to: 'new', preset: 'Strong',
+    })));
+    expect(screen.queryByRole('region', { name: 'Agent setting changes' })).toBeNull();
+    expect(rows()).toHaveLength(3);
+    for (const row of rows()) expect(row).toContain('External tool, in Strong');
+  });
+
   it('shows the first four agent settings and reveals the rest on request', () => {
     const settings = ['Brim', 'First-layer speed', 'Plate temp', 'Layer height', 'First-layer line width'];
     thread(settings.map((label, index) => change(index + 1, {

@@ -182,6 +182,7 @@ json change_json(const ChangeEntry& change)
                 {"location", change.location},
                 {"conversationId", change.conversation_id},
                 {"afterId", change.after_id}};
+    if (change.external) result["external"] = true;
     if (change.kind == "setting") {
         result["from"]   = change.from;
         result["to"]     = change.to;
