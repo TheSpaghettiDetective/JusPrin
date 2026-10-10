@@ -36,7 +36,8 @@ export type PageMessageType =
   | 'filament_instructions'
   | 'shell_action'
   | 'file_report_instructions'
-  | 'skills';
+  | 'skills'
+  | 'project_instructions';
 
 export type HostMessageType =
   | 'hello_ack'

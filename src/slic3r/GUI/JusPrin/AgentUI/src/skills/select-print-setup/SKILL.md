@@ -1,17 +1,17 @@
 ---
 name: select-print-setup
-description: Use when someone says a new roll or spool is in a bay or slot, Orca shows Generic, or they ask which profile to use. Reconcile physical filament, printer, plate, and process setup.
+description: Reconciles the physical filament, printer and plate with the project's printer, plate, process and filament presets. Use when a new roll or spool is in a bay or slot, the app shows Generic, or the person asks which profile to use, also when that is part of getting a part ready.
 ---
 
 # Select the print setup
 
-Choose a coherent combination of printer, plate, process, and filament rather than optimizing each preset independently.
+Choose a coherent combination of printer, plate, process and filament rather than tuning each preset on its own.
 
-1. Read the current workspace setup and, when a physical printer matters, its observed or user-confirmed facts. Treat missing facts as unknown and call out configured-versus-observed mismatches.
-2. Use `presets_list` for canonical selectable names. Search narrowly and paginate when needed; do not invent a preset from its display label.
-3. Base the choice on the model's needs and the user's stated priorities. Separate compatibility requirements from quality, speed, strength, appearance, and cost tradeoffs.
-4. Use `printer_setup_preview` before `printer_setup`. Explain substitutions, compatibility issues, and unsaved preset edits before applying. Never discard unsaved edits unless the user has agreed.
-5. If the user asks to tune values inside a preset rather than select a preset, read the exact settings, preview a scoped patch, and preserve built-in presets by saving a copy when required.
-6. After applying setup, inspect the workspace again. If a slice already existed, assume it is stale until a new slice completes.
+1. Read the current setup and, when a physical printer matters, what it reports and what the person has confirmed. Treat a missing fact as unknown, and point out where configured and observed disagree.
+2. Take selectable names from `presets_list`, searching narrowly and following its pages. A display label is not a preset name.
+3. Base the choice on what the model needs and the priorities the person stated. Keep compatibility requirements apart from quality, speed, strength, appearance and cost tradeoffs.
+4. `printer_setup_preview` shows the substitutions, compatibility issues and unsaved preset edits a switch would cause. Explain the ones that matter before a switch the person asked for.
+5. Tuning values inside a preset is a settings change, not a selection: patch the exact settings, and keep a built-in preset intact by saving a copy.
+6. After a setup change, read the workspace again, and treat an earlier slice as out of date until a new one completes.
 
-When the user asks only what a preset means or wants general material advice, answer directly unless the live project is needed.
+A question about what a preset means, or general material advice, needs the project only when the answer depends on it.

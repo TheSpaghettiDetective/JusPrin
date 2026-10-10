@@ -44,8 +44,9 @@ struct AgentConversationContext
     std::string output_json;
 };
 
-// One project skill as authored by the Agent page. The name and description
-// form the small discovery index; text is disclosed only through skill_read.
+// One project skill as authored by the Agent page. The page writes the names
+// and descriptions into the project instructions as the index the model
+// chooses from; text is disclosed only through skill_read.
 struct AgentSkill
 {
     std::string name;
@@ -54,12 +55,13 @@ struct AgentSkill
 };
 
 // What one conversation is for. The project conversation leaves this at its
-// defaults and gets the app's own assistant, the project workspace and every
-// in-app tool; a session with its own subject (the temporary printer task chat)
-// states its instructions and names the tools that belong to it.
+// defaults and gets the project workspace, every in-app tool and the
+// instructions its page sent (project_instructions); a session with its own
+// subject (the temporary printer task chat) states its instructions and names
+// the tools that belong to it.
 struct AgentSessionProfile
 {
-    std::string              instructions;             // empty: the app's assistant
+    std::string              instructions;             // empty: the project chat's, from its page
     std::vector<std::string> tool_names;               // empty: every in-app tool
     bool                     include_workspace{true};  // the open project's state
     // The thread's notes reach the model as the app's own statements. Off
@@ -77,7 +79,6 @@ struct AgentRequest
     int                                   attempt{1};
     AgentSessionProfile                   session;
     Workspace::WorkspaceSnapshot          workspace;
-    std::vector<AgentSkill>                skills;
     std::vector<AgentConversationContext> conversation;
     std::vector<AgentAttachmentContext>   attachments;
 };

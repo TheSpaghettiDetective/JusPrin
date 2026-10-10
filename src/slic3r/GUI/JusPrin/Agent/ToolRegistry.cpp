@@ -1195,10 +1195,10 @@ std::vector<ToolDefinition> make_definitions()
                        {"valid", "plateId", "view", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceInspect},
         {"skill_read", "Read a project skill",
-         "Load the complete instructions for one skill from the index in your instructions. When a request matches a skill, call this as the "
-         "first action before workspace_inspect or any other project tool. Choose exactly one most-specific skill: setup, support, slice-review, "
-         "or failed-print work outranks general preparation. Do not merely say you read it or read another unless the first skill directs you "
-         "to it. The name must match exactly; an unknown name returns the available names.",
+         // How a skill is chosen is said once, in the project instructions
+         // (AgentUI/src/projectInstructions.ts); this says only what the call does.
+         "Return the full text of one skill from the list in your instructions, by its exact name. An unknown name returns the "
+         "available names.",
          object_schema({{"name", id}}, {"name"}),
          object_schema({{"name", id}, {"text", {{"type", "string"}, {"maxLength", 16 * 1024}}}}, {"name", "text"}),
          // The index is installed by and shown only to the project Agent page.
@@ -1213,7 +1213,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"handle", "kind", "cancelled", "message", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ActivityCancel},
         {"export_file", "Export a file",
-         "Write a file to an absolute path the user chose: gcode (a sliced plate's G-code, .gcode), sliced_3mf (a sliced plate with its G-code, .3mf), project_3mf (the whole project, .3mf, without changing which file the project is), stl (objectIds, or a plate's objects, as placed, .stl), or presets (the printer, filament and process presets in use, as files in the folder path). plateId picks the plate for gcode, sliced_3mf and stl (default the active plate). An existing file is replaced only with overwrite. Check the slice with slice_report first and fix what it finds.",
+         "Write a file to an absolute path the user chose: gcode (a sliced plate's G-code, .gcode), sliced_3mf (a sliced plate with its G-code, .3mf), project_3mf (the whole project, .3mf, without changing which file the project is), stl (objectIds, or a plate's objects, as placed, .stl), or presets (the printer, filament and process presets in use, as files in the folder path). plateId picks the plate for gcode, sliced_3mf and stl (default the active plate). An existing file is replaced only with overwrite. Check the slice with slice_report first.",
          object_schema({{"sessionId", id},
                         {"kind", {{"type", "string"}, {"enum", json::array({"gcode", "sliced_3mf", "project_3mf", "stl", "presets"})}}},
                         {"path", id}, {"plateId", id},

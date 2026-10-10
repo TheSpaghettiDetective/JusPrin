@@ -968,6 +968,18 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         else
             send_bridge_error("invalid_payload", "The file report instructions are too long.", envelope_id);
     }
+    else if (type == Protocol::kProjectInstructions) {
+        // A reconnect replaces the text. Never keep an earlier one after a
+        // malformed payload: the skill index in it may name what is gone.
+        m_project_instructions.clear();
+        constexpr std::size_t kProjectInstructionsLimit = 32 * 1024;
+        const json parsed = json::parse(payload, nullptr, false);
+        const std::string text = parsed.is_object() ? parsed.value("text", std::string()) : std::string();
+        if (!text.empty() && text.size() <= kProjectInstructionsLimit)
+            m_project_instructions = text;
+        else
+            send_bridge_error("invalid_payload", "The project instructions are missing or too long.", envelope_id);
+    }
     else if (type == Protocol::kSkills) {
         // A reconnect replaces the registry. Never retain an earlier valid
         // list after a malformed page payload.
@@ -1319,7 +1331,8 @@ void AgentHost::on_file_loaded(const Workspace::LoadReport& report)
     // Only this conversation's own assistant speaks about a file: a session
     // with tools of its own (the printer panel) has nothing to say about one.
     const bool agent_speaks = m_availability == AgentAvailability::Ready && m_agent && m_agent->ready() &&
-                              m_session_profile.tool_names.empty() && !m_file_report_instructions.empty();
+                              m_session_profile.tool_names.empty() && !m_file_report_instructions.empty() &&
+                              !m_project_instructions.empty();
     // Without the Agent the card lists what Orca said; with nothing said
     // there is nothing to show.
     if (!agent_speaks && !report.has_messages())
@@ -1898,10 +1911,12 @@ void AgentHost::begin_reply(const std::string& user_message_id)
     if (conversation_id.empty())
         conversation_id = document.active_conversation_id();
 
-    // A session with tools of its own brings its own instructions, from its
-    // page; without them the model would be told it is the project's
-    // assistant while holding the session's tools.
-    const bool instructions_missing = !m_session_profile.tool_names.empty() && m_session_profile.instructions.empty();
+    // Every session's instructions come from its page: a session with tools
+    // of its own states them in its profile, and the project chat's arrive
+    // with project_instructions. Without them the model would answer with no
+    // rules at all.
+    const bool instructions_missing = m_session_profile.instructions.empty() &&
+                                      (!m_session_profile.tool_names.empty() || m_project_instructions.empty());
     if (m_availability != AgentAvailability::Ready || instructions_missing) {
         ConversationMessage failed;
         failed.id          = document.allocate_message_id();
@@ -1959,7 +1974,8 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
                          std::to_string(assistant.attempt);
     request.attempt    = assistant.attempt;
     request.session    = m_session_profile;
-    request.skills     = m_skills;
+    if (request.session.instructions.empty())
+        request.session.instructions = m_project_instructions;
     request.workspace  = m_workspace.snapshot();
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);

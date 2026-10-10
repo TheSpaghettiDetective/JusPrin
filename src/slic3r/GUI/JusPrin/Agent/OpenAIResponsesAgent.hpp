@@ -114,7 +114,6 @@ private:
     bool                                  m_title_request{false};
     // The instructions and tools of the conversation this turn belongs to.
     AgentSessionProfile                   m_session;
-    std::vector<AgentSkill>                m_skills;
 };
 
 std::unique_ptr<IAgentHttpTransport> make_openai_http_transport();

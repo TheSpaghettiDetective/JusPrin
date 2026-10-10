@@ -20,7 +20,8 @@
     "printer_panel",
     "file_reports",
     "setup_differences",
-    "skills"
+    "skills",
+    "project_instructions"
   ],
   "pageMessageTypes": [
     "hello",
@@ -49,7 +50,8 @@
     "filament_instructions",
     "shell_action",
     "file_report_instructions",
-    "skills"
+    "skills",
+    "project_instructions"
   ],
   "hostMessageTypes": [
     "hello_ack",

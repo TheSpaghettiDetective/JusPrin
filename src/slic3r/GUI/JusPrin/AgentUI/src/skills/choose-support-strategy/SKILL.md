@@ -1,17 +1,23 @@
 ---
 name: choose-support-strategy
-description: Decide orientation and supports when someone asks “do I need supports?”, sees a forest of trees, fears removal damage, or needs clean letters, faces, holes, bridges, or overhangs.
+description: Weighs orientation, supports, removal and surface finish as one decision. Use when the person asks whether supports are needed, sees a forest of tree supports, fears damage removing them, or needs clean letters, faces, holes, bridges or overhangs, also when that is part of setting a part up.
 ---
 
 # Choose a support strategy
 
-Treat orientation, support placement, removability, dimensional accuracy, and surface finish as one decision.
+Treat orientation, support placement, removability, dimensional accuracy and surface finish as one decision.
 
-1. Inspect the object and its current placement. Use `object_analyze` when geometric evidence is needed; compare plausible orientations by bed contact, overhang burden, critical faces, and stability.
-2. Identify the surfaces and features that must be protected: show faces, mating faces, holes, bridges, narrow tips, or internal cavities. Ask which face matters only when the project and user input do not make it clear.
-3. Prefer geometry and orientation that reduce support without creating a worse first layer, weak layer direction, trapped support, or unacceptable finish.
-4. Use regions when support behavior or seam treatment must differ in a specific geometric area. Keep region labels tied to observed geometry; report when a region loses its binding after model edits.
-5. Read current settings before proposing changes. Preview the smallest process or object-scoped patch that tests the strategy, then record the decision and its tradeoffs in the plan.
-6. Slice and compare the relevant `slice_report` sections, especially `supports`, `firstLayer`, `islands`, and `seams`. Reassess rather than declaring success from settings alone.
+## Judging what the print needs
 
-Do not promise easy removal or a clean protected surface without toolpath evidence. If two strategies remain close, present the tradeoff and recommend one based on the user's stated priority.
+1. Look at the object as it stands. Use `object_analyze` when geometric evidence is needed; its orientations compare candidates by bed contact, overhang burden and the faces that would rest on the bed, without moving anything.
+2. Identify what must be protected: show faces, mating faces, holes, bridges, narrow tips, internal cavities. Ask which face matters only when the project and the person's words leave it unclear.
+3. Weigh the options: a strategy is better when it reduces support without creating a worse first layer, a weak layer direction, trapped support or an unacceptable finish.
+4. Read how the existing slice supports the part from the `supports`, `firstLayer`, `islands` and `seams` sections of `slice_report`. When that slice is missing or out of date, give the judgement from geometry and say that it rests on geometry alone.
+
+Easy removal and a clean protected surface are claims about toolpaths: state them as measured when a slice shows them, and as expected when only geometry does. When two strategies remain close, present the tradeoff and recommend one from the person's stated priority.
+
+## When the person asked for the change
+
+1. Change the smallest process or object-scoped set of settings that carries out the strategy.
+2. Use regions (`region_annotate`) where support or seam treatment must differ in one area. Keep region labels tied to observed geometry, and report when a region loses its binding after the model is edited.
+3. Compare the same report sections on the new slice before saying the strategy worked.

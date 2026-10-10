@@ -400,9 +400,13 @@ private:
 
     AgentSessionProfile             m_session_profile;
     // The page-authored canonical registry, resent after each connection.
-    // Metadata is copied into project requests; full text is disclosed through
-    // skill_read.
+    // Its full text is disclosed through skill_read; the index the model
+    // chooses from is part of the page's instructions below.
     std::vector<AgentSkill>          m_skills;
+    // The project assistant's instructions, written by the page
+    // (projectInstructions.ts) and sent with project_instructions. No project
+    // turn starts without them.
+    std::string                     m_project_instructions;
     // What the model is told about a file report, written by the page
     // (fileReportInstructions.ts) and sent with file_report_instructions.
     std::string                     m_file_report_instructions;

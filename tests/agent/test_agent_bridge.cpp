@@ -92,6 +92,8 @@ ProjectPersistence::Config test_persistence_config()
     return config;
 }
 
+constexpr const char* kTestProjectInstructions = "You are the project assistant under test.";
+
 struct Harness
 {
     Workspace::FakeWorkspace workspace;
@@ -147,10 +149,14 @@ struct Harness
         host.on_page_message(page_envelope(type, std::move(payload), version).dump());
     }
 
-    void handshake()
+    // As the project page does on every connection: the hello, then the
+    // project assistant's instructions, without which no project turn starts.
+    void handshake(bool with_instructions = true)
     {
         deliver("hello", json{{"protocolVersions", json::array({Protocol::kVersion})},
                               {"capabilities", json::array({"streaming"})}});
+        if (with_instructions)
+            deliver("project_instructions", json{{"text", kTestProjectInstructions}});
     }
 
     std::vector<json> of_type(const std::string& type) const
@@ -312,7 +318,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kFileReportInstructions,
-                                              Protocol::kSkills});
+                                              Protocol::kSkills, Protocol::kProjectInstructions});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -1005,7 +1011,45 @@ public:
     bool active{false};
 };
 
-TEST_CASE("the page installs one bounded skill registry used by prompts and skill_read", "[agent][skills]")
+TEST_CASE("the project assistant speaks only with the instructions its page sent", "[agent][instructions]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+
+    // A page that has not sent them yet: the turn fails where the person can
+    // retry it, instead of reaching the model with no rules.
+    harness.handshake(false);
+    harness.send_user_message("Do I need supports?", "c-early");
+    CHECK(agent->requests.empty());
+    REQUIRE(harness.last_of_type("assistant_failed") != nullptr);
+    CHECK((*harness.last_of_type("assistant_failed"))["payload"]["error"]["code"] == "instructions_missing");
+
+    // The request carries the page's words, whole and unchanged.
+    harness.deliver("project_instructions", json{{"text", "You are JusPrin.\n\n# Skills\n- review-slice: Reviews a slice."}});
+    harness.send_user_message("Do I need supports?", "c-ready");
+    REQUIRE(agent->requests.size() == 1);
+    CHECK(agent->requests.front().session.instructions == "You are JusPrin.\n\n# Skills\n- review-slice: Reviews a slice.");
+    for (int tick = 0; harness.host.stream_active() && tick < 100; ++tick)
+        harness.host.pump_stream();
+    // The finished reply may have asked for a chat title; count replies only.
+    const auto replies = [agent] {
+        return std::count_if(agent->requests.begin(), agent->requests.end(),
+                             [](const AgentRequest& request) { return request.purpose == AgentRequest::Purpose::Reply; });
+    };
+    REQUIRE(replies() == 1);
+
+    // A malformed replacement leaves none: an older text could index skills
+    // the page no longer ships.
+    harness.deliver("project_instructions", json{{"text", std::string(32 * 1024 + 1, 'x')}});
+    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+    harness.send_user_message("And now?", "c-replaced");
+    CHECK(replies() == 1);
+    CHECK((*harness.last_of_type("assistant_failed"))["payload"]["error"]["code"] == "instructions_missing");
+}
+
+TEST_CASE("the page installs one bounded skill registry read through skill_read", "[agent][skills]")
 {
     auto agent_owner = std::make_unique<RecordingAgent>();
     RecordingAgent* agent = agent_owner.get();
@@ -1018,11 +1062,11 @@ TEST_CASE("the page installs one bounded skill registry used by prompts and skil
              {"text", "# Review"}},
     });
     harness.deliver("skills", json{{"skills", skills}});
+    // The index the model chooses from is the page's, inside its instructions:
+    // the app adds nothing about skills to a request.
     harness.send_user_message("Prepare this", "c-skills");
     REQUIRE_FALSE(agent->requests.empty());
-    CHECK(agent->requests.front().skills.size() == 2);
-    CHECK(agent->requests.front().skills[0].name == "prepare-print");
-    CHECK(agent->requests.front().skills[1].text.find("# Review") != std::string::npos);
+    CHECK(agent->requests.front().session.instructions == kTestProjectInstructions);
 
     const auto& read = harness.host.tools().propose({"skill_read", R"({"name":"review-slice"})"}, "m-skill", {},
                                                     ToolSource::Agent);

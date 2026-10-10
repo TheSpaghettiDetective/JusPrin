@@ -329,6 +329,18 @@ describe('App', () => {
     expect((sent[0].payload as { text: string }).text).toContain('For this response only');
   });
 
+  it('sends the project instructions once per connection, after the skills they index', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    const types = host.received.map((envelope) => envelope.type);
+    const sent = host.received.filter((envelope) => envelope.type === 'project_instructions');
+    expect(sent).toHaveLength(1);
+    expect(types.indexOf('skills')).toBeLessThan(types.indexOf('project_instructions'));
+    const text = (sent[0].payload as { text: string }).text;
+    expect(text).toContain('You are JusPrin');
+    expect(text).toContain('- review-slice: ');
+  });
+
   it('sends the canonical project skills once per connection', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);

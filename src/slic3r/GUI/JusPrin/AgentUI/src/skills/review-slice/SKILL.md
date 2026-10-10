@@ -1,17 +1,16 @@
 ---
 name: review-slice
-description: Review a sliced preview when someone asks “can I send it?”, sees mid-air lines, islands, odd gaps or blobs, or wants warnings, first-layer risk, supports, seams, time, or material interpreted.
+description: Interprets a sliced preview and gives a readiness verdict. Use when the person asks whether they can send it, sees mid-air lines, islands, odd gaps or blobs, or wants warnings, first-layer risk, supports, seams, time or material explained.
 ---
 
 # Review a slice
 
 Judge the current toolpath, not the intended settings.
 
-1. Confirm the relevant plate has a current completed slice. If it is unsliced, stale, or still running, say so and slice only if the user asked you to prepare or check it.
-2. Read only the `slice_report` sections needed for the question. Use `findings` for slicer warnings and conflicts; `firstLayer` for contact and brim; `supports`, `seams`, and `islands` for geometry risks; `material` and `summary` for consumption and time; `intent` for measurable user limits.
-3. Separate blockers from tradeoffs and informational findings. Quote measured values and identify the affected object or region when the report provides it.
-4. Explain conditional warnings in their actual context. For example, a finding that applies only with timelapse is not an unconditional print failure.
-5. Do not infer absent evidence. A valid report does not prove adhesion, dry filament, calibration, or a physically matching printer unless those facts are separately observed or confirmed.
-6. If a change is needed, explain the reason, preview it, apply only with the user's authorization, then re-slice and review again. Export only from the verified current slice when requested.
+1. Confirm the plate has a current, completed slice. If it is unsliced, out of date or still running, say so: the review is of what exists.
+2. Read only the `slice_report` sections the question needs: `findings` for slicer warnings and conflicts; `firstLayer` for contact and brim; `supports`, `seams` and `islands` for geometry risks; `material` and `summary` for consumption and time; `intent` for limits the person set.
+3. Separate blockers from tradeoffs and from information. Quote measured values, and name the affected object or region when the report gives it.
+4. Explain a conditional warning in its context: a finding that applies only with timelapse is not a failure for a print without one.
+5. A clean report does not prove adhesion, dry filament, calibration or a matching physical printer. Say so when the verdict depends on one of them.
 
-End with a concise readiness verdict: ready, ready with named tradeoffs, or not ready because of specific blocking findings.
+End with a verdict: ready, ready with named tradeoffs, or not ready because of specific blocking findings.

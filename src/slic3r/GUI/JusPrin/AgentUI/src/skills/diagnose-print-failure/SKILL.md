@@ -1,19 +1,16 @@
 ---
 name: diagnose-print-failure
-description: Diagnose an attempted print when someone says it shifted, made spaghetti, lifted, warped, clogged, looks bad, or asks “what am I missing?” Do not inspect the open project unless they say it is the failed job.
+description: Diagnoses a print that was attempted and went wrong, from what the person saw. Use when they say it shifted, made spaghetti, lifted, warped, clogged or looks bad, or ask what they are missing.
 ---
 
 # Diagnose a print failure
 
-Treat the failed print as evidence, not as proof of a familiar cause. Start from what the person observed. If they did not explicitly identify the open project as the failed job or ask you to prepare a retry, do not call any project tool.
+Treat the failed print as evidence, not as proof of a familiar cause. Start from what the person observed: the description and any photos are the evidence. The open project is not, until the person says it is the job that failed, because it may be a different job or may have changed since; until then leave its tools alone.
 
-1. Establish the observed symptom, where and when it appeared, and whether the printer stopped or continued. Use attached photos and the user's description; distinguish observations from interpretations.
-2. If one missing fact would separate the leading causes, the next reply must ask exactly one high-value question—not a checklist or several questions—before calling project tools. Choose one fact only. Do not also ask for a photo, settings, project confirmation, or whether they want a retry in that reply. Otherwise give the ranked hypotheses and safest check directly.
-3. Form a short ranked set of hypotheses. For each, state the evidence that supports it and what would distinguish it from the alternatives.
-4. Inspect the current project and setup only when they are confirmed to correspond to the failed attempt. Say when the open project, selected presets, or current slice cannot be assumed to match what was printed.
-5. Prefer changing one causal variable at a time. Preview settings before applying them, and do not make project changes unless the user asks you to prepare the retry.
-6. If preparing a retry, record the confirmed goal and plan, make only justified changes, re-slice, and inspect the relevant report sections before export.
+1. Establish the symptom, where and when it appeared, and whether the printer stopped or carried on. Keep observations apart from interpretations.
+2. Form a short ranked set of causes. For each, give the evidence for it and what would tell it from the others.
+3. When one missing fact would separate the leading causes, ask for that one fact and leave everything else, including photos, settings and whether to retry, until it is answered. Otherwise give the ranked causes and the safest check.
+4. Once the open project is confirmed as the failed job, say where the selected presets or the current slice may still differ from what was printed.
+5. For a retry the person asked for, change one causal variable at a time, so the next print shows whether the cause was right.
 
-Do not invent printer telemetry, material history, ambient conditions, or the settings used for the failed print. A general explanation of a defect can remain advice-only and need not call tools.
-
-Before sending a diagnostic reply, count the concrete facts requested from the person. If there is more than one, keep only the question that most changes the next action. Write that request as one question sentence ending in one question mark; do not restate or paraphrase it as a follow-up question.
+A general explanation of a defect needs no tools.

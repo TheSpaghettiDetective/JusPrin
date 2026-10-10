@@ -144,28 +144,7 @@ TEST_CASE("OpenAI request replays an earlier turn's call beside its output, with
     CHECK(input[4].at("role") == "user");
 }
 
-TEST_CASE("project requests advertise skill metadata without eagerly loading skill text", "[agent][openai][skills]")
-{
-    auto transport = std::make_unique<FakeTransport>();
-    FakeTransport* fake = transport.get();
-    OpenAIResponsesAgent agent({"key"}, std::move(transport));
-    AgentRequest request = request_fixture();
-    request.skills = {{"prepare-print", "Prepare a model for printing.", "SECRET PREPARE BODY"},
-                      {"review-slice", "Review a completed slice.", "SECRET REVIEW BODY"}};
-    REQUIRE(agent.start(request));
-    const json body = json::parse(fake->requests.front().body);
-    const std::string instructions = body["instructions"];
-    CHECK(instructions.find("your first action must be skill_read for exactly one skill") != std::string::npos);
-    CHECK(instructions.find("support, slice-review, or failed-print problem outranks prepare-print") != std::string::npos);
-    CHECK(instructions.find("Answer general questions directly without reading a skill.") != std::string::npos);
-    CHECK(instructions.find("Skills you can read with skill_read, by name:") != std::string::npos);
-    CHECK(instructions.find("- prepare-print: Prepare a model for printing.") != std::string::npos);
-    CHECK(instructions.find("- review-slice: Review a completed slice.") != std::string::npos);
-    CHECK(instructions.find("SECRET PREPARE BODY") == std::string::npos);
-    CHECK(instructions.find("SECRET REVIEW BODY") == std::string::npos);
-}
-
-TEST_CASE("sessions with their own instructions do not receive the project skill index", "[agent][openai][skills]")
+TEST_CASE("a request carries its session's instructions and no words of the adapter's", "[agent][openai][instructions]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -173,12 +152,24 @@ TEST_CASE("sessions with their own instructions do not receive the project skill
     AgentRequest request = request_fixture();
     request.session.instructions = "You are a focused printer panel.";
     request.session.tool_names = {"printer_list"};
-    request.skills = {{"prepare-print", "Prepare a model for printing.", "BODY"}};
     REQUIRE(agent.start(request));
     const json body = json::parse(fake->requests.front().body);
     CHECK(body["instructions"] == "You are a focused printer panel.");
     REQUIRE(body["tools"].size() == 1);
     CHECK(body["tools"][0]["name"] == "printer_list");
+}
+
+TEST_CASE("how a skill is chosen is said in the project instructions, not in skill_read", "[agent][skills][instructions]")
+{
+    // Until 2026-10-09 the choosing rule was written three times (the prompt,
+    // this description and a skill), and the copies had begun to differ. The
+    // description says what the call does; AgentUI/src/projectInstructions.ts
+    // says when to make it.
+    const ToolDefinition* skill_read = ToolRegistry::instance().find("skill_read");
+    REQUIRE(skill_read != nullptr);
+    const std::string description = skill_read->description;
+    for (const char* choosing : {"first action", "before", "most-specific", "most specific", "outranks", "prepar"})
+        CHECK(description.find(choosing) == std::string::npos);
 }
 
 // tests/printer_prompt/run_prompt_tests.py sends the model the printer panel's

@@ -68,8 +68,8 @@ def render(revision=None):
         command.append(revision)
     result = subprocess.run(command, capture_output=True, encoding="utf-8", check=True)
     rendered = json.loads(result.stdout)
-    if "For a print request:" not in rendered["coreInstructions"]:
-        sys.exit("rendered core prompt is missing kPrintJourneyGuidance")
+    if "# Working on a print" not in rendered["coreInstructions"] or "# Skills" not in rendered["instructions"]:
+        sys.exit("rendered project instructions are incomplete")
     return rendered
 
 

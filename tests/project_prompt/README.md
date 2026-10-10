@@ -5,8 +5,9 @@ skills and then takes the right first action: call a domain tool, answer
 directly, or ask exactly one question. The requests reproduce the application
 boundary rather than testing an isolated router:
 
-- `render_prompt.mjs` reads the production C++ core prompt, including the full
-  `kPrintJourneyGuidance` initializer, and the canonical page skill files.
+- `render_prompt.mjs` bundles the page's own `projectInstructions.ts` and the
+  canonical skill files, so the prompt measured here is the text the page
+  sends to the app; the script holds no copy of the words.
 - `project_tools.json` is the complete in-app tool projection. The native test
   `the project prompt tests send the project assistant's tools as the app does`
   fails when the fixture drifts. Regenerate it with
@@ -62,6 +63,22 @@ Flash: with skills, 50/50 runs passed exact skill selection and the declared
 first behavior; without the index and `skill_read`, 40/50 first behaviors
 passed. Mean first-request input was 9,745.6 versus 9,239.6 tokens, a 506.0
 token cost for the five-entry index and loader definition.
+
+Those figures are for the prompt and skills as first written. Both were
+rewritten on 2026-10-10 (`AgentUI/src/projectInstructions.ts` and the five
+skills). The rewritten text, one round of five runs per case that day: 46/50
+passed skill selection and first behavior, 49/50 chose the expected skill.
+The misses were the failed-print case asking two things in one reply (2/5
+passed) and one preparation request that skipped its skill. The earlier text
+was not rerun alongside; it had passed 50/50 and 48/50 in two rounds that
+week.
+
+Budget a run before starting it. Each request carries about 10,000 input
+tokens of instructions and tool definitions, and every tool call resends them
+with the history, so a run that stops at the first tool costs about 25,000
+tokens. Do not lengthen runs on the fixed tool replies in this script: they do
+not answer what the model asked, so it wanders, and one such batch used the
+month's key limit in October 2026.
 
 Use `--case NAME`, `--runs N`, `--jobs N`, or `--verbose` to investigate a
 failure. `--prompt-rev REV` renders a revision that already contains the skill
