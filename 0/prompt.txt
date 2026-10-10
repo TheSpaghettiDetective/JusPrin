@@ -1,0 +1,200 @@
+This is what another agent proposed. branch feature/project-skills-routing. Check against the best practices about system prompt and skills to see if The proposal is grounded in truth.
+
+<pasted_content id="57fe">
+I would separate two decisions that the current design accidentally mixes together:
+
+1. **Which expertise applies?** Setup, supports, failure diagnosis, slice review, or general preparation.
+2. **How much action did the user authorize?** Explain, inspect, propose, or execute.
+
+A skill answers the first question. It must never silently answer the second.
+
+## The action-intent model
+
+| User intent | Agent may do | Agent must not do |
+|---|---|---|
+| Explain | Answer from existing knowledge | Inspect or change the project unnecessarily |
+| Diagnose/recommend | Use relevant read-only tools and explain findings | Change settings, presets, geometry, or start a new slice |
+| Propose | Inspect and use dry-run/preview tools | Apply the proposed change |
+| Execute/delegate | Make the changes reasonably required for the requested outcome | Expand into unrelated improvements |
+
+This should be inferred semantically, not from punctuation. For example:
+
+- “Which profile should I use?” is a recommendation.
+- “Can you switch this to the right profile?” is an action request despite being phrased as a question.
+- “Make this print-ready with the ABS in bay 3” delegates an outcome and authorizes the necessary setup changes.
+- “Do I need all these supports?” asks for an assessment.
+- “Set up supports without damaging the lettering” authorizes support changes.
+
+## Core prompt change
+
+Add one small universal policy to the core prompt:
+
+> Match the depth of action to the user’s intended outcome. A request for an explanation, diagnosis, or recommendation authorizes relevant read-only investigation, but not project changes. A request to change, fix, prepare, set up, slice, or export authorizes the actions reasonably required for that outcome. Do not treat loading a skill as permission to mutate the project. If the intended outcome remains ambiguous after read-only investigation, explain the recommendation and ask one focused question before the first mutation.
+
+This belongs in the core prompt because it applies to every skill and every tool. It should not be duplicated across five skills.
+
+## Skill changes
+
+Each skill would still contain domain expertise, but it would respect the action envelope.
+
+For `select-print-setup`:
+
+- Recommendation: inspect the workspace and available presets, then say which one should be used and why.
+- Proposal: preview the resulting setup and explain substitutions.
+- Execution: preview and apply the setup.
+- Delegated preparation: apply the setup, slice, and review the result.
+
+For `choose-support-strategy`:
+
+- Assessment: inspect geometry and the existing slice, then explain whether the supports are necessary.
+- Proposal: compare orientations or preview a settings patch.
+- Execution: apply the chosen strategy and re-slice.
+- Never change orientation or supports merely because the user asked whether the current supports are necessary.
+
+For `diagnose-print-failure`:
+
+- Diagnose from physical evidence first.
+- Do not touch the open project unless the user identifies it as the failed job or asks to prepare a retry.
+- Preparing a retry is a separate execution transition.
+
+## Automatic slice review
+
+`review-slice` should support two entry paths:
+
+```text
+User asks about an existing preview
+→ load review-slice
+→ inspect existing slice
+→ answer without changing anything
+```
+
+```text
+Authorized preparation or modification
+→ make change
+→ create new slice
+→ automatically load review-slice
+→ verify readiness
+→ export only if requested
+```
+
+The second path is more important. Users should not have to ask the agent to review work the agent just produced.
+
+The core or initiating skill should explicitly direct the agent to load `review-slice` after a successful new slice. That is a workflow transition, not another interpretation of the original user message.
+
+## Evaluation changes
+
+The current evaluator stops after the first domain tool, which is why it cannot detect surprising later mutations. It should instead run until the assistant gives its final answer and classify every tool call by the registry’s action class.
+
+Each case should declare an action ceiling:
+
+```json
+{
+  "allowedAction": "read_only",
+  "forbiddenTools": [
+    "printer_setup",
+    "settings_apply_patch",
+    "object_place",
+    "slice_start"
+  ]
+}
+```
+
+The corpus should use matched pairs:
+
+| Recommendation prompt | Execution prompt |
+|---|---|
+| “Which profile should I use?” | “Switch this to the right profile.” |
+| “Do I need these supports?” | “Fix the supports but protect the lettering.” |
+| “Is this slice safe to send?” | “Fix the slice and get it ready to send.” |
+| “Why did this print shift?” | “Diagnose this and prepare a safer retry.” |
+
+A run passes only if:
+
+- The correct domain skill is loaded.
+- The complete tool trajectory stays within the authorized action level.
+- The final answer satisfies the requested outcome.
+- An execution request is not made frustratingly passive.
+- A diagnostic question does not produce an unexpected mutation.
+- A newly created slice is automatically reviewed.
+
+This produces the behavior we actually want: proactive when the user delegates an outcome, restrained when the user wants understanding, and helpful in both cases without turning every uncertainty into a confirmation dialog.
+</pasted_content id="57fe">
+
+---
+
+<task-notification>
+<task-id>bm90s0rp0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-action-intent-skills-routing-2136c5/a8f269f8-a09a-4fc0-8daa-0c49e1997292/tasks/bm90s0rp0.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the live before-and-after probe against the evaluation model" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+I suspect it needs more dramatic change than what's being proposed. Take a step back and use your knowledge and Common best practices online to take to review everything involved in the process.
+
+---
+
+Repeat what you said in plain English under 200 words.
+
+---
+
+Frame your response as:
+
+ What was the problem you were trying to solve? 
+ How can you solve it? 
+ What did you test? What was the test result? 
+ What are the remaining issues? 
+
+ Say these in plain English. In total under 500 words.
+
+---
+
+Okay, let's go with your proposed fix.  Also, take a step back at looking at the entire core prompt as well as the skill and MCP loading mechanism to see if they are consistent with the best practices.  they have gone through quite a few iterations and I am a little bit worried that those iterations were not coherent with each other.
+
+---
+
+ok. do that refactoring. But one thing that's more important than where the prompt are located is The instructions that different parts give. . We don't want different parts to Gives different conflicting instructions. Also, do some r s research online for the best practices in constructing system prompt and apply them while you are doing the refactoring.
+
+---
+
+Give me the a summary at the end for what principles and best practices you follow in reconstructing a prompt.
+
+---
+
+Try again
+
+---
+
+<pasted_content id="57fe">
+Summary of a side chat with Kenneth about the prompt-eval spend. Act on the "What to do" list.
+
+WHAT HAPPENED
+My live prompt tests used 300M+ tokens on the OpenRouter key and hit its monthly limit. Reconstruction (the scripts logged no usage):
+- Every request costs about 10k input tokens (prompt plus 29 tool definitions), and with store:false every tool call resends all of it plus the history.
+- About 1,300 runs were "stub tools, run to the end": probe.py, confirm.py, confirm2.py, exp3.py, exp4.py and the full-run halves of experiment.py, exp2.py, exp5.py in the old session scratchpad. They reuse the canned tool replies in tests/project_prompt/run_prompt_tests.py (workspace_result: six tools get a fixed answer, everything else gets {"accepted": true}) but let the conversation continue to the final answer with a 16-request cap. The replies never answer the model's question, so it wandered 10-19 calls and a third to half of runs hit the cap. About 150-200k tokens per run, 195-260M in total.
+- The simulator runs (about 630, about 40M) and first-step runs (about 500, about 12M) were the cheap part.
+Kenneth's verdict: letting the agent wander on stub replies for 16 requests was a stupid design. I agree. It began as a one-off shortcut (delete the evaluator's stop line) and I kept it for comparability, then chased its noise with more runs.
+
+WHY THE NUMBERS ARE ALSO UNRELIABLE
+Most unrequested slices in the stub runs came after about 15 empty reads, so the test partly provoked what it counted. Do not use the "1 in 15" rate or any comparison on the hard supports question to choose between wordings. The simulator results are the ones to rely on: without the act-versus-advise rule, 2-3 of 25 questions ended in an unrequested slice; with it, 0 of 25. Small sample, one cube.
+
+WHAT TO DO
+1. Run no more live-model tests until Kenneth approves a specific batch. The key is at its monthly limit; do not switch keys or route around it.
+2. Retire the stub run-to-the-end design. Do not commit those scratchpad scripts and do not run them again.
+3. Remove stub-derived numbers from the repo. Known instance: src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts line 15 says questions were answered with a change "about one time in fifteen". Reword it without a rate, or cite the simulator figure. Check the docs and test comments edited this session for the same claim.
+4. For the outstanding measurement of the final wording, propose a plan to Kenneth before running anything:
+   - simulator only (the other agent's run_workflow_tests.py and workflow_fixture.py), plus the committed first-step test, which already stops at the first tool call with an 8-request cap;
+   - about 150 runs in total, new wording against one control, one round;
+   - state the token estimate up front (about 65k per simulator run, about 25k per first-step run, so roughly 8-10M);
+   - log usage from every response and report the actual total.
+5. If full conversations on more varied tasks are needed later, extend the simulator so tool replies answer what was asked. Do not lengthen conversations on canned replies.
+6. In the final report to Kenneth, mark which findings rest on the simulator and which on stub runs, and correct the earlier "1 in 15" statements.
+</pasted_content id="57fe">
+
+ Also, you said that currently all the tools are in the system prompt in this entirely.  I thought the best practices is about is similar to the skills we just load his description and the name and as the core agents to make another call to get the detailed usage only when and the agents need to use it.  Is that right? If so, open a task chip to address this issue.
+
+---
+
+approved
