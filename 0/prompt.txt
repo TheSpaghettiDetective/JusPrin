@@ -210,3 +210,7 @@ claude/action-intent-skills-routing-2136c5 inherits from feature/project-skills-
 ---
 
 ring the simulator’s six files into this branch but commit them in the same commit as your own code
+
+---
+
+summarize the the lessons learned  into generally applicable lessons for the future agents. . commit those generally applicable lessons  lessons to /Users/kenneth/Projects/JusPrin/.claude/worktrees/action-intent-skills-routing-2136c5/tests/project_prompt/README.md to the original feature/project-skills-routing bgranch and push to remote.  Leave everything that's related to the work you did in your own work tree. Do not push those to the original feature/project-skills-routing breanch
