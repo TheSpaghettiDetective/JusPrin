@@ -1,0 +1,26 @@
+List all the mechanisms that the upstream orcaslicer is using to show messages to the users, And which of them already have been changed by the fork to add a seam?
+
+---
+
+<!-- reply 4 -->
+> Partial. During a file load only, the notice’s text is diverted into the load report that goes to the chat. Outside a load, nothing.
+
+This can be easily widened to handle all the cases, right?
+
+<!-- reply -->
+> Yes. They all open through one shared base class, and the fork added a check there: a registered listener can answer the dialog so it is never shown.
+
+Do we have a mechanism to make sure all different kind of errors and warnings are properly handled or we are currently just like swallowing most of them?
+
+<!-- reply -->
+> All three end in a mechanism-2 dialog, so the dialog seam covers them as well.
+
+Do you mean if I if we use the seam in OrcaSlicer’s own modal dialogs, One or three won't be necessary?
+
+<!-- reply -->
+> The three seams
+> Dialog answering. Two added lines in GUI_Utils.hpp. While a listener is registered, any OrcaSlicer dialog is answered with the least-change choice and written down, not shown. Used during file loads, around agent tool calls, and by autosave. It is scoped: outside those moments dialogs appear as normal.
+> Error text during a file load. Two lines in GUI.cpp.
+> Notice text during a file load. Seven lines at two places in NotificationManager.cpp.
+
+You mean these three ex seams existed, right? If that's the case, you already listed them in the t table above, right? Then why are you restating them?
